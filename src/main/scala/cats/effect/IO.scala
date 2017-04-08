@@ -116,7 +116,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] = ioa.flatMap(f)
 
-    // TODO uh... do better
+    // this will use stack proportional to the maximum number of joined async suspensions
     def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] = f(a) flatMap {
       case Left(a) => tailRecM(a)(f)
       case Right(b) => pure(b)
