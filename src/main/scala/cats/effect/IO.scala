@@ -22,6 +22,9 @@ import scala.concurrent.duration._
 import scala.util.{Left, Right}
 import scala.util.control.NonFatal
 
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.AtomicReference
+
 sealed trait IO[+A] {
   import IO._
 
@@ -51,7 +54,29 @@ sealed trait IO[+A] {
     case _ => throw new AssertionError("unreachable")
   }
 
-  def unsafeRunTimed(limit: Duration): A = ???
+  def unsafeRunTimed(limit: Duration): A = unsafeStep match {
+    case Pure(a) => a
+    case Fail(t) => throw t
+
+    case self @ (Async(_) | BindAsync(_, _)) => {
+      val latch = new CountDownLatch(1)
+      val ref = new AtomicReference[Either[Throwable, A]](null)
+
+      self unsafeRunAsync { e =>
+        ref.set(e)
+        latch.countDown()
+      }
+
+      if (limit == Duration.Inf)
+        latch.await()
+      else
+        latch.await(limit.toMillis, TimeUnit.MILLISECONDS)
+
+      ref.get().fold(throw _, a => a)
+    }
+
+    case _ => throw new AssertionError("unreachable")
+  }
 }
 
 object IO {
