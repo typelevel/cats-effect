@@ -65,11 +65,16 @@ sealed trait IO[+A] {
   final def unsafeRunAsync(cb: Attempt[A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
-    case Async(k) => k(cb)
-    case BindAsync(k, f) => k {
-      case Left(t) => cb(Left(t))
-      case Right(a) => try f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
-    }
+    case Async(k) => k(onceOnly(cb))
+
+    case ba: BindAsync[e, A] =>
+      val cb2 = onceOnly[Attempt[e]] {
+        case Left(t) => cb(Left(t))
+        case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
+      }
+
+      ba.k(cb2)
+
     case _ => throw new AssertionError("unreachable")
   }
 

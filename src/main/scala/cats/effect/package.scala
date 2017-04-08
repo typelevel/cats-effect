@@ -18,6 +18,14 @@ package cats
 
 import scala.util.Either
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 package object effect {
   private[effect] type Attempt[+A] = Either[Throwable, A]
+
+  private[effect] def onceOnly[A](f: A => Unit): A => Unit = {
+    val guard = new AtomicBoolean(false)
+
+    a => if (guard.getAndSet(true)) () else f(a)
+  }
 }
