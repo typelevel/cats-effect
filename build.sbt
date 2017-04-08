@@ -20,7 +20,11 @@ organization := "org.typelevel"
 
 name := "cats-effect"
 
-libraryDependencies += "org.typelevel" %% "cats" % "0.9.0"
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+
+libraryDependencies ++= Seq(
+  "org.typelevel"        %% "cats"       % "0.9.0",
+  "com.github.mpilquist" %% "simulacrum" % "0.10.0")
 
 /*
  * Compatibility version.  Use this to declare what version with

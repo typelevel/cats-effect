@@ -17,6 +17,9 @@
 package cats
 package effect
 
+import simulacrum._
+
+@typeclass
 trait Catchable[F[_]] extends Monad[F] {
   def attempt[A](fa: F[A]): F[Attempt[A]]
   def fail[A](t: Throwable): F[A]

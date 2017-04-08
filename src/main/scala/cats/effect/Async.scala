@@ -17,6 +17,9 @@
 package cats
 package effect
 
+import simulacrum._
+
+@typeclass
 trait Async[F[_]] extends Catchable[F] {
   def async[A](k: (Attempt[A] => Unit) => Unit): F[A]
 }
