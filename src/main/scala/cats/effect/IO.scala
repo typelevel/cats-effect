@@ -90,7 +90,23 @@ sealed trait IO[+A] {
   }
 }
 
-object IO {
+private[effect] trait IOInstances {
+
+  implicit val ioMonad: Monad[IO] = new Monad[IO] {
+
+    def pure[A](a: A) = IO.pure(a)
+
+    def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] = ioa.flatMap(f)
+
+    // TODO uh... do better
+    def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] = f(a) flatMap {
+      case Left(a) => tailRecM(a)(f)
+      case Right(b) => pure(b)
+    }
+  }
+}
+
+object IO extends IOInstances {
 
   def apply[A](body: => A): IO[A] = Suspend(() => Pure(body))
 
