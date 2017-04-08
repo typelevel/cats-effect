@@ -25,6 +25,11 @@ import scala.util.control.NonFatal
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
+/**
+ * A pure effect representing the intention to perform a side-effect, where
+ * the result of that side-effect may be obtained synchronously (via return)
+ * or asynchronously (via callback).
+ */
 sealed trait IO[+A] {
   import IO._
 
@@ -165,19 +170,19 @@ object IO extends IOInstances {
 
   def fail(t: Throwable): IO[Nothing] = Fail(t)
 
-  final case class Pure[+A](a: A) extends IO[A] {
+  private final case class Pure[+A](a: A) extends IO[A] {
     def attempt = Pure(Right(a))
   }
 
-  final case class Fail(t: Throwable) extends IO[Nothing] {
+  private final case class Fail(t: Throwable) extends IO[Nothing] {
     def attempt = Pure(Left(t))
   }
 
-  final case class Suspend[+A](thunk: () => IO[A]) extends IO[A] {
+  private final case class Suspend[+A](thunk: () => IO[A]) extends IO[A] {
     def attempt = Suspend(() => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) })
   }
 
-  final case class BindSuspend[E, +A](thunk: () => IO[E], f: E => IO[A]) extends IO[A] {
+  private final case class BindSuspend[E, +A](thunk: () => IO[E], f: E => IO[A]) extends IO[A] {
     def attempt: BindSuspend[Attempt[E], Attempt[A]] = {
       BindSuspend(
         () => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) },
@@ -185,11 +190,11 @@ object IO extends IOInstances {
     }
   }
 
-  final case class Async[+A](k: (Attempt[A] => Unit) => Unit) extends IO[A] {
+  private final case class Async[+A](k: (Attempt[A] => Unit) => Unit) extends IO[A] {
     def attempt = Async(cb => k(attempt => cb(Right(attempt))))
   }
 
-  final case class BindAsync[E, +A](k: (Attempt[E] => Unit) => Unit, f: E => IO[A]) extends IO[A] {
+  private final case class BindAsync[E, +A](k: (Attempt[E] => Unit) => Unit, f: E => IO[A]) extends IO[A] {
     def attempt: BindAsync[Attempt[E], Attempt[A]] = {
       BindAsync(
         cb => k(attempt => cb(Right(attempt))),
