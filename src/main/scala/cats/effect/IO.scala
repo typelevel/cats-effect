@@ -28,9 +28,20 @@ import java.util.concurrent.atomic.AtomicReference
 sealed trait IO[+A] {
   import IO._
 
-  def map[B](f: A => B): IO[B] = ???
+  def map[B](f: A => B): IO[B] = this match {
+    case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => Fail(t) }
+    case Fail(t) => Fail(t)
+    case _ => flatMap(f.andThen(Pure(_)))
+  }
 
-  def flatMap[B](f: A => IO[B]): IO[B] = ???
+  def flatMap[B](f: A => IO[B]): IO[B] = this match {
+    case Pure(a) => Suspend(() => f(a))
+    case Fail(t) => Fail(t)
+    case Suspend(thunk) => BindSuspend(thunk, f)
+    case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(_.flatMap(f)))
+    case Async(k) => BindAsync(k, f)
+    case BindAsync(k, g) => BindAsync(k, g.andThen(_.flatMap(f)))
+  }
 
   def attempt: IO[Attempt[A]]
 
