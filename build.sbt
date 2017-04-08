@@ -18,13 +18,21 @@ import de.heikoseeberger.sbtheader.license.Apache2_0
 
 organization := "org.typelevel"
 
-name := "cats-effect"
+lazy val root = project.in(file(".")).aggregate(jvm, js)
 
-addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+lazy val base = crossProject
+  .in(file("."))
+  .settings(
+    name := "cats-effect",
 
-libraryDependencies ++= Seq(
-  "org.typelevel"        %% "cats"       % "0.9.0",
-  "com.github.mpilquist" %% "simulacrum" % "0.10.0")
+    libraryDependencies ++= Seq(
+      "org.typelevel"        %%% "cats"       % "0.9.0",
+      "com.github.mpilquist" %%% "simulacrum" % "0.10.0"),
+
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+
+lazy val jvm = base.jvm
+lazy val js = base.js
 
 /*
  * Compatibility version.  Use this to declare what version with
