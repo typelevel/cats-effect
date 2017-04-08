@@ -16,7 +16,7 @@
 
 import de.heikoseeberger.sbtheader.license.Apache2_0
 
-organization := "com.codecommit"
+organization := "org.typelevel"
 
 name := "cats-effect"
 
