@@ -71,7 +71,7 @@ sealed trait IO[+A] {
 
     case self @ (Async(_) | BindAsync(_, _)) => {
       val latch = new CountDownLatch(1)
-      val ref = new AtomicReference[Either[Throwable, A]](null)
+      val ref = new AtomicReference[Attempt[A]](null)
 
       self unsafeRunAsync { e =>
         ref.set(e)
@@ -111,6 +111,11 @@ private[effect] trait IOInstances {
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 
     def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = IO.async(k)
+  }
+
+  implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new Monoid[IO[A]] {
+    def empty = IO.pure(Monoid[A].empty)
+    def combine(ioa1: IO[A], ioa2: IO[A]) = ioa1.flatMap(a1 => ioa2.map(a2 => Monoid[A].combine(a1, a2)))
   }
 }
 
