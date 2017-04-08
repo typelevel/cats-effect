@@ -92,7 +92,7 @@ sealed trait IO[+A] {
 
 private[effect] trait IOInstances {
 
-  implicit val ioMonad: Monad[IO] = new Monad[IO] {
+  implicit val ioMonad: Monad[IO] = new Monad[IO] with Sync[IO] with Async[IO] {
 
     def pure[A](a: A) = IO.pure(a)
 
@@ -103,12 +103,22 @@ private[effect] trait IOInstances {
       case Left(a) => tailRecM(a)(f)
       case Right(b) => pure(b)
     }
+
+    def attempt[A](ioa: IO[A]): IO[Attempt[A]] = ioa.attempt
+
+    def fail[A](t: Throwable): IO[A] = IO.fail(t)
+
+    def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
+
+    def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = IO.async(k)
   }
 }
 
 object IO extends IOInstances {
 
-  def apply[A](body: => A): IO[A] = Suspend(() => Pure(body))
+  def apply[A](body: => A): IO[A] = suspend(Pure(body))
+
+  def suspend[A](thunk: => IO[A]): IO[A] = Suspend(() => thunk)
 
   def pure[A](a: A): IO[A] = Pure(a)
 
