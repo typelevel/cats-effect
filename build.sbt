@@ -18,7 +18,12 @@ import de.heikoseeberger.sbtheader.license.Apache2_0
 
 organization := "org.typelevel"
 
-lazy val root = project.in(file(".")).aggregate(jvm, js)
+lazy val root = project.in(file("."))
+  .aggregate(jvm, js)
+  .settings(
+    publish := (),
+    publishLocal := (),
+    publishArtifact := false)
 
 lazy val base = crossProject
   .in(file("."))
@@ -29,7 +34,13 @@ lazy val base = crossProject
       "org.typelevel"        %%% "cats"       % "0.9.0",
       "com.github.mpilquist" %%% "simulacrum" % "0.10.0"),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
+
+    headers := Map(
+      "scala" -> Apache2_0("2017", "Daniel Spiewak"),
+      "java" -> Apache2_0("2017", "Daniel Spiewak")))
+  .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
 lazy val jvm = base.jvm
 lazy val js = base.js
@@ -67,11 +78,7 @@ lazy val js = base.js
  */
 val BaseVersion = "0.1"
 
-licenses += ("Apache-2.0", url("http://www.apache.org/licenses/"))
-
-headers := Map(
-  "scala" -> Apache2_0("2017", "Daniel Spiewak"),
-  "java" -> Apache2_0("2017", "Daniel Spiewak"))
+licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
 // bintrayVcsUrl := Some("...")
 
@@ -79,10 +86,8 @@ headers := Map(
                       Boilerplate below these lines
 \***********************************************************************/
 
-enablePlugins(AutomateHeaderPlugin)
-
-coursierUseSbtCredentials := true
-coursierChecksums := Nil      // workaround for nexus sync bugs
+coursierUseSbtCredentials in ThisBuild := true
+coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
 
 credentials in bintray := {
   if (isTravisBuild.value)
@@ -94,7 +99,7 @@ credentials in bintray := {
 addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
 
 // Adapted from Rob Norris' post at https://tpolecat.github.io/2014/04/11/scalac-flags.html
-scalacOptions ++= Seq(
+scalacOptions in ThisBuild ++= Seq(
   "-language:_",
   "-deprecation",
   "-encoding", "UTF-8", // yes, this is 2 args
@@ -106,7 +111,7 @@ scalacOptions ++= Seq(
   "-Ywarn-dead-code"
 )
 
-scalacOptions ++= {
+scalacOptions in ThisBuild ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, major)) if major >= 11 => Seq(
       "-Ywarn-unused-import", // Not available in 2.10
@@ -116,7 +121,7 @@ scalacOptions ++= {
   }
 }
 
-scalacOptions ++= {
+scalacOptions in ThisBuild ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, major)) if major >= 12 || scalaVersion.value == "2.11.9" =>
       Seq("-Ypartial-unification")
@@ -131,7 +136,7 @@ scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Y
 
 scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value
 
-libraryDependencies ++= {
+libraryDependencies in ThisBuild ++= {
   scalaVersion.value match {
     case "2.11.8" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
     case "2.10.6" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
