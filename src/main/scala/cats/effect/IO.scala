@@ -45,6 +45,14 @@ sealed trait IO[+A] {
 
   def attempt: IO[Attempt[A]]
 
+  /**
+   * The safe analogue to unsafeRunAsync.  The resulting IO is guaranteed to be safe to run
+   * synchronously.  Which is to say, unsafeRunSync . runAsync is isomorphic to unsafeRunAsync.
+   */
+  final def runAsync(cb: Attempt[A] => IO[Unit]): IO[Unit] = IO {
+    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
+  }
+
   @tailrec
   private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk().unsafeStep
@@ -90,9 +98,19 @@ sealed trait IO[+A] {
   }
 }
 
-private[effect] trait IOInstances {
+private[effect] trait IOLowPriorityInstances {
 
-  implicit val ioMonad: Monad[IO] = new Monad[IO] with Sync[IO] with Async[IO] {
+  private[effect] class IOSemigroup[A: Semigroup] extends Semigroup[IO[A]] {
+    def combine(ioa1: IO[A], ioa2: IO[A]) =
+      ioa1.flatMap(a1 => ioa2.map(a2 => Semigroup[A].combine(a1, a2)))
+  }
+
+  implicit def ioSemigroup[A: Semigroup]: Semigroup[IO[A]] = new IOSemigroup[A]
+}
+
+private[effect] trait IOInstances extends IOLowPriorityInstances {
+
+  implicit val ioEffect: Effect[IO] = new Effect[IO] {
 
     def pure[A](a: A) = IO.pure(a)
 
@@ -114,11 +132,12 @@ private[effect] trait IOInstances {
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 
     def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = IO.async(k)
+
+    def runAsync[A](ioa: IO[A])(cb: Attempt[A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
   }
 
-  implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new Monoid[IO[A]] {
+  implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
     def empty = IO.pure(Monoid[A].empty)
-    def combine(ioa1: IO[A], ioa2: IO[A]) = ioa1.flatMap(a1 => ioa2.map(a2 => Monoid[A].combine(a1, a2)))
   }
 }
 
