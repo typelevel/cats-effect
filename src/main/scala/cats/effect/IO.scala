@@ -104,9 +104,12 @@ private[effect] trait IOInstances {
       case Right(b) => pure(b)
     }
 
-    def attempt[A](ioa: IO[A]): IO[Attempt[A]] = ioa.attempt
+    override def attempt[A](ioa: IO[A]): IO[Attempt[A]] = ioa.attempt
 
-    def fail[A](t: Throwable): IO[A] = IO.fail(t)
+    def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      ioa.attempt.flatMap(_.fold(f, pure))
+
+    def raiseError[A](t: Throwable): IO[A] = IO.fail(t)
 
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 

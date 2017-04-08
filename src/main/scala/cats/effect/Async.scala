@@ -20,6 +20,6 @@ package effect
 import simulacrum._
 
 @typeclass
-trait Async[F[_]] extends Catchable[F] {
+trait Async[F[_]] extends MonadError[F, Throwable] {
   def async[A](k: (Attempt[A] => Unit) => Unit): F[A]
 }

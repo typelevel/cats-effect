@@ -20,7 +20,7 @@ package effect
 import simulacrum._
 
 @typeclass
-trait Sync[F[_]] extends Catchable[F] {
+trait Sync[F[_]] extends MonadError[F, Throwable] {
   def suspend[A](thunk: => F[A]): F[A]
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
