@@ -22,9 +22,6 @@ import scala.concurrent.duration._
 import scala.util.{Left, Right}
 import scala.util.control.NonFatal
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-import java.util.concurrent.atomic.AtomicReference
-
 /**
  * A pure effect representing the intention to perform a side-effect, where
  * the result of that side-effect may be obtained synchronously (via return)
@@ -86,24 +83,7 @@ sealed trait IO[+A] {
   final def unsafeRunTimed(limit: Duration): A = unsafeStep match {
     case Pure(a) => a
     case Fail(t) => throw t
-
-    case self @ (Async(_) | BindAsync(_, _)) => {
-      val latch = new CountDownLatch(1)
-      val ref = new AtomicReference[Attempt[A]](null)
-
-      self unsafeRunAsync { e =>
-        ref.set(e)
-        latch.countDown()
-      }
-
-      if (limit == Duration.Inf)
-        latch.await()
-      else
-        latch.await(limit.toMillis, TimeUnit.MILLISECONDS)
-
-      ref.get().fold(throw _, a => a)
-    }
-
+    case self @ (Async(_) | BindAsync(_, _)) => IOPlatform.unsafeResync(self, limit)
     case _ => throw new AssertionError("unreachable")
   }
 }
