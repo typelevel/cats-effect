@@ -28,13 +28,13 @@ import java.util.concurrent.atomic.AtomicReference
 sealed trait IO[+A] {
   import IO._
 
-  def map[B](f: A => B): IO[B] = this match {
+  final def map[B](f: A => B): IO[B] = this match {
     case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => Fail(t) }
     case Fail(t) => Fail(t)
     case _ => flatMap(f.andThen(Pure(_)))
   }
 
-  def flatMap[B](f: A => IO[B]): IO[B] = this match {
+  final def flatMap[B](f: A => IO[B]): IO[B] = this match {
     case Pure(a) => Suspend(() => f(a))
     case Fail(t) => Fail(t)
     case Suspend(thunk) => BindSuspend(thunk, f)
@@ -46,15 +46,15 @@ sealed trait IO[+A] {
   def attempt: IO[Attempt[A]]
 
   @tailrec
-  private def unsafeStep: IO[A] = this match {
+  private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk().unsafeStep
     case BindSuspend(thunk, f) => thunk().flatMap(f).unsafeStep
     case _ => this
   }
 
-  def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf)
+  final def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf)
 
-  def unsafeRunAsync(cb: Attempt[A] => Unit): Unit = unsafeStep match {
+  final def unsafeRunAsync(cb: Attempt[A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
     case Async(k) => k(cb)
@@ -65,7 +65,7 @@ sealed trait IO[+A] {
     case _ => throw new AssertionError("unreachable")
   }
 
-  def unsafeRunTimed(limit: Duration): A = unsafeStep match {
+  final def unsafeRunTimed(limit: Duration): A = unsafeStep match {
     case Pure(a) => a
     case Fail(t) => throw t
 
