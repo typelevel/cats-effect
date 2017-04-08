@@ -134,6 +134,8 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = IO.async(k)
 
     def runAsync[A](ioa: IO[A])(cb: Attempt[A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
+
+    def liftIO[A](ioa: IO[A]) = ioa
   }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {

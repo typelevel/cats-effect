@@ -20,6 +20,6 @@ package effect
 import simulacrum._
 
 @typeclass
-trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
-  def runAsync[A](fa: F[A])(cb: Attempt[A] => IO[Unit]): IO[Unit]
+trait LiftIO[F[_]] {
+  def liftIO[A](ioa: IO[A]): F[A]
 }
