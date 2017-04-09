@@ -116,6 +116,29 @@ sealed trait IO[+A] {
   def attempt: IO[Attempt[A]]
 
   /**
+   * Sequences the specified `IO` ensuring evaluation regardless of whether or not the target
+   * `IO` raises an exception.  Analogous to `finally` in a `try`/`catch`/`finally` block.  If
+   * an exception is raised by the finalizer, it will be passed sequenced into the resultant.
+   * This is true even if the target *also* raised an exception.  This mirrors the semantics of
+   * `try`/`finally` on the JVM when you perform similar abominations.  For example:
+   *
+   * ```scala
+   * try sys.error("here") finally sys.error("there")   // throws "there"
+   *
+   * IO.fail(e1).ensuring(IO.fail(e2)) === IO.fail(e2)
+   * ```
+   *
+   * This function is distinct from monadic `flatMap` (well, really applicative `apply2`) in that
+   * an exception sequenced into a monadic bind chain will short-circuit the chain, and the
+   * subsequent actions will not be run.
+   */
+  final def ensuring(finalizer: IO[Any]): IO[A] = {
+    attempt flatMap { e =>
+      finalizer.flatMap(_ => e.fold(IO.fail, IO.pure))
+    }
+  }
+
+  /**
    * The safe analogue to unsafeRunAsync.  The resulting IO is guaranteed to be safe to run
    * synchronously.  Which is to say, unsafeRunSync . runAsync is isomorphic to unsafeRunAsync.
    * Another way to view this function is as a way to convert an `IO` which *may* have asynchronous
