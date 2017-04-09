@@ -17,6 +17,7 @@
 package cats
 package effect
 
+import scala.concurrent.duration._
 import scala.io.StdIn
 
 object StdIO {
@@ -26,6 +27,17 @@ object StdIO {
   def print[A: Show](a: A): IO[Unit] = IO { Console.print(Show[A].show(a)) }
 
   val readLine: IO[String] = IO { StdIn.readLine }
+
+  // arguably, this isn't an effect, since it's a constant that comes from the runtime
+  def getenv(key: String): IO[Option[String]] = IO { Option(System.getenv(key)) }
+
+  def systemProperty(key: String): IO[Option[String]] = IO { Option(System.getProperty(key)) }
+
+  def identityHashCode(ref: AnyRef): IO[Int] = IO { System.identityHashCode(ref) }
+
+  val nanoTime: IO[FiniteDuration] = IO { System.nanoTime.nanos }
+
+  val currentTimeMillis: IO[FiniteDuration] = IO { System.currentTimeMillis.millis }
 
   def exit(code: Int): IO[Nothing] = IO { System.exit(code); sys.error("unreachable") }
 
