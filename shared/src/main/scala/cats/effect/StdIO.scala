@@ -31,13 +31,11 @@ object StdIO {
 
   val availableProcessors: IO[Int] = IO { Runtime.getRuntime.availableProcessors }
 
-  val shutdownHook: IO[IO[Unit]] = IO {
-    IO async { cb =>
-      Runtime.getRuntime.addShutdownHook(new Thread {
-        override def run() = {
-          cb(Right(()))
-        }
-      })
-    }
+  def addShutdownHook(action: IO[Unit]): IO[Unit] = IO {
+    Runtime.getRuntime.addShutdownHook(new Thread {
+      override def run() = {
+        action.unsafeRunSync()
+      }
+    })
   }
 }
