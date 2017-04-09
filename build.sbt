@@ -18,6 +18,8 @@ import de.heikoseeberger.sbtheader.license.Apache2_0
 
 organization := "org.typelevel"
 
+val CatsVersion = "0.9.0"
+
 lazy val root = project.in(file("."))
   .aggregate(jvm, js)
   .settings(
@@ -31,12 +33,13 @@ lazy val base = crossProject
     name := "cats-effect",
 
     libraryDependencies ++= Seq(
-      "org.typelevel"        %%% "cats"       % "0.9.0",
+      "org.typelevel"        %%% "cats-core"  % CatsVersion,
       "com.github.mpilquist" %%% "simulacrum" % "0.10.0",
 
-      "org.scalatest"  %%% "scalatest"  % "3.0.1"  % "test",
-      "org.scalacheck" %%% "scalacheck" % "1.13.4" % "test",
-      "org.typelevel"  %%% "discipline" % "0.7.3"  % "test"),
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion % "test",
+      "org.scalatest"  %%% "scalatest"  % "3.0.1"     % "test",
+      "org.scalacheck" %%% "scalacheck" % "1.13.4"    % "test",
+      "org.typelevel"  %%% "discipline" % "0.7.3"     % "test"),
 
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
 
