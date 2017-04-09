@@ -123,7 +123,7 @@ sealed trait IO[+A] {
    * `try`/`finally` on the JVM when you perform similar abominations.  For example:
    *
    * ```scala
-   * try sys.error("here") finally sys.error("there")   // throws "there"
+   * try throw e1 finally throw e2   // throws e2
    *
    * IO.fail(e1).ensuring(IO.fail(e2)) === IO.fail(e2)
    * ```
