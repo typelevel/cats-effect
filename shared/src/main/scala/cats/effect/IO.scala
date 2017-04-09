@@ -18,6 +18,7 @@ package cats
 package effect
 
 import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
 import scala.util.control.NonFatal
@@ -222,6 +223,20 @@ sealed trait IO[+A] {
     case self @ (Async(_) | BindAsync(_, _)) => IOPlatform.unsafeResync(self, limit)
     case _ => throw new AssertionError("unreachable")
   }
+
+  /**
+   * Evaluates the effect and produces the result in a `Future`.  This is similar to
+   * `unsafeRunAsync` in that it evaluates the `IO` as a side-effect in a non-blocking fashion,
+   * but uses a `Future` rather than an explicit callback.  This function should really only be
+   * used if interoperating with legacy code which uses Scala futures.
+   *
+   * @see IO.fromFuture
+   */
+  final def unsafeToFuture(): Future[A] = {
+    val p = Promise[A]
+    unsafeRunAsync(_.fold(p.failure, p.success))
+    p.future
+  }
 }
 
 private[effect] trait IOLowPriorityInstances {
@@ -342,6 +357,37 @@ object IO extends IOInstances {
    * @see #attempt
    */
   def fail(t: Throwable): IO[Nothing] = Fail(t)
+
+  /**
+   * Constructs an `IO` which evalutes the thunked `Future` and produces the result (or failure).
+   * Because `Future` eagerly evaluates, as well as because it memoizes, this function takes its
+   * parameter lazily.  If this laziness is appropriately threaded back to the definition site of
+   * the `Future`, it ensures that the computation is fully managed by `IO` and thus referentially
+   * transparent.
+   *
+   * Note that the *continuation* of the computation resulting from a `Future` will run on the
+   * future's thread pool.  There is no thread shifting here; the `ExecutionContext` is solely for
+   * the benefit of the `Future`.
+   *
+   * Roughly speaking, the following identities hold:
+   *
+   * ```scala
+   * IO.fromFuture(f).unsafeToFuture === f         // true-ish (except for memoization)
+   * IO.fromFuture(ioa.unsafeToFuture) === ioa     // true!
+   * ```
+   *
+   * @see #unsafeToFuture
+   */
+  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+    IO async { cb =>
+      import scala.util.{Success, Failure}
+
+      f onComplete {
+        case Failure(t) => cb(Left(t))
+        case Success(a) => cb(Right(a))
+      }
+    }
+  }
 
   private final case class Pure[+A](a: A) extends IO[A] {
     def attempt = Pure(Right(a))
