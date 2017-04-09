@@ -23,19 +23,73 @@ import scala.util.{Left, Right}
 import scala.util.control.NonFatal
 
 /**
- * A pure effect representing the intention to perform a side-effect, where
+ * A pure abstraction representing the intention to perform a side-effect, where
  * the result of that side-effect may be obtained synchronously (via return)
- * or asynchronously (via callback).
+ * or asynchronously (via callback).  Effects contained within this abstraction
+ * are not evaluated until the "end of the world", which is to say, when one of
+ * the "unsafe" methods are used.  Effectful results are not memoized, meaning that
+ * memory overhead is minimal (and no leaks), and also that a single effect may
+ * be run multiple times in a referentially-transparent manner.  For example:
+ *
+ * ```scala
+ * val ioa = IO { println("hey!") }
+ *
+ * val program = for {
+ *   _ <- ioa
+ *   _ <- ioa
+ * } yield ()
+ *
+ * program.unsafeRunSync()
+ * ```
+ *
+ * The above will print "hey!" twice, as the effect will be re-run each time it is
+ * sequenced in the monadic chain.
+ *
+ * `IO` is trampolined for all *synchronous* joins.  This means that you can safely
+ * call `flatMap` in a recursive function of arbitrary depth, without fear of
+ * blowing the stack.  However, `IO` cannot guarantee stack-safety in the presence
+ * of arbitrarily nested asynchronous suspensions.  This is quite simply because it
+ * is *impossible* (on the JVM) to guarantee stack-safety in that case.  For example:
+ *
+ * ```scala
+ * def lie[A]: IO[A] = IO.async(cb => cb(Right(lie))).flatMap(a => a)
+ * ```
+ *
+ * This should blow the stack when evaluated.  Also note that there is no way to
+ * encode this using `tailRecM` in such a way that it does *not* blow the stack.
+ * Thus, the `tailRecM` on `Monad[IO]` is not guaranteed to produce an `IO` which
+ * is stack-safe when run, but will rather make every attempt to do so barring
+ * pathological structure.
+ *
+ * `IO` does not make any attempt to control concurrency or thread-shifting in any
+ * way.  Thus, if you build concurrent functions on top of this abstraction, be
+ * aware that `async` will preserve the thread on which it was invoked; it will *not*
+ * thread-shift back to some "neutral" pool!  You can implementing this thread-shifting
+ * in user-space if the behavior is desired, though you may need to use an "unsafe"
+ * function depending on the intended semantics.
+ *
+ * Relatedly, `IO` makes no attempt to control finalization or guaranteed resource-safety
+ * in the presence of concurrent preemption, simply because `IO` does not care about
+ * concurrent preemption at all!  `IO` actions are not interruptible and should be
+ * considered broadly-speaking atomic, at least when used purely.
  */
 sealed trait IO[+A] {
   import IO._
 
+  /**
+   * Functor map on `IO`.  Does what the types say.  Any exceptions thrown within the function
+   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   */
   final def map[B](f: A => B): IO[B] = this match {
     case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => Fail(t) }
     case Fail(t) => Fail(t)
     case _ => flatMap(f.andThen(Pure(_)))
   }
 
+  /**
+   * Monadic bind on `IO`.  Does what the types say.  Any exceptions thrown within the function
+   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   */
   final def flatMap[B](f: A => IO[B]): IO[B] = this match {
     case Pure(a) => Suspend(() => f(a))
     case Fail(t) => Fail(t)
@@ -45,11 +99,29 @@ sealed trait IO[+A] {
     case BindAsync(k, g) => BindAsync(k, g.andThen(_.flatMap(f)))
   }
 
+  /**
+   * Materializes any sequenced exceptions into value space, where they may be handled.  This is
+   * analogous to the `catch` clause in `try`/`catch`.  Please note that there are some impure
+   * implications which arise from observing caught exceptions.  It is possible to violate the
+   * monad laws (and indeed, the functor laws) by using this function!  Uh... don't do that.
+   *
+   * This function is the inverse of `IO.fail`.  Thus:
+   *
+   * ```scala
+   * IO.fail(t).attempt.unsafeRunAsync === Left(t)
+   * ```
+   *
+   * @see IO.attempt
+   */
   def attempt: IO[Attempt[A]]
 
   /**
    * The safe analogue to unsafeRunAsync.  The resulting IO is guaranteed to be safe to run
    * synchronously.  Which is to say, unsafeRunSync . runAsync is isomorphic to unsafeRunAsync.
+   * Another way to view this function is as a way to convert an `IO` which *may* have asynchronous
+   * actions (which would thus require blocking when run synchronously) into another `IO` which is
+   * guaranteed to have exclusively synchronous actions, by providing an effect which stores off
+   * the results of the original `IO` as a side-effect.
    */
   final def runAsync(cb: Attempt[A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
@@ -62,8 +134,34 @@ sealed trait IO[+A] {
     case _ => this
   }
 
+  /**
+   * Produces the result by running the encapsulated effects as impure side-effects.  If any
+   * component of the computation is asynchronous, the current thread will block awaiting the
+   * results of the async computation.  On JavaScript, an exception will be thrown instead to
+   * avoid generating a deadlock.  By default, this blocking will be unbounded.  To limit the
+   * thread block to some fixed time, use `unsafeRunTimed` instead.
+   *
+   * Any exceptions raised within the effect will be re-thrown during evaluation.
+   *
+   * As the name says, this is an UNSAFE function as it is impure and performs side-effects, not
+   * to mention blocking, throwing exceptions, and doing other things that are at odds with
+   * reasonable software.  You should ideally only call this function *once*, at the very end of
+   * your program.
+   */
   final def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf)
 
+  /**
+   * Passes the result of the encapsulated effects to the given callback by running them as
+   * impure side-effects.  Any exceptions raised within the effect will be passed to the
+   * callback in the `Either`.  The callback will be invoked at most *once*.  Note that it is
+   * very possible to construct an IO which never returns while still never blocking a thread,
+   * and attempting to evaluate that IO with this method will result in a situation where the
+   * callback is *never* invoked.
+   *
+   *
+   * As the name says, this is an UNSAFE function as it is impure and performs side-effects.
+   * You should ideally only call this function *once*, at the very end of your program.
+   */
   final def unsafeRunAsync(cb: Attempt[A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
@@ -80,6 +178,21 @@ sealed trait IO[+A] {
     case _ => throw new AssertionError("unreachable")
   }
 
+  /**
+   * Similar to `unsafeRunSync`, except with a bounded blocking duration when awaiting asynchronous
+   * results.  Please note that the `limit` parameter does not limit the time of the total
+   * computation, but rather acts as an upper bound on any *individual* asynchronous block.
+   * Thus, if you pass a limit of `5 seconds` to an `IO` consisting solely of synchronous actions,
+   * the evaluation may take considerably longer than 5 seconds!  Furthermore, if you pass a limit
+   * of `5 seconds` to an `IO` consisting of several asynchronous actions joined together, evaluation
+   * may take up to *n* \* 5 seconds, where *n* is the number of joined async actions.
+   *
+   * As soon as an async blocking limit is hit, evaluation *immediately* aborts and an exception
+   * is thrown.  This exception will not be sequenced into the `IO` and cannot be recovered except
+   * using impure code (i.e. a `try`/`catch` surrounding the `unsafeRunTimed`).  Uh... don't do that.
+   *
+   * @see #unsafeRunSync
+   */
   final def unsafeRunTimed(limit: Duration): A = unsafeStep match {
     case Pure(a) => a
     case Fail(t) => throw t
@@ -135,19 +248,76 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
 object IO extends IOInstances {
 
+  /**
+   * Suspends a synchronous side-effect in `IO`.  Any exceptions thrown by the effect will be
+   * caught and sequenced into the `IO`.
+   */
   def apply[A](body: => A): IO[A] = suspend(Pure(body))
 
+  /**
+   * Suspends a synchronous side-effect which produces an `IO` in `IO`.  This is useful for
+   * trampolining (i.e. when the side-effect is conceptually the allocation of a stack frame).
+   * Any exceptions thrown by the side-effect will be caught and sequenced into the `IO`.
+   */
   def suspend[A](thunk: => IO[A]): IO[A] = Suspend(() => thunk)
 
+  /**
+   * Suspends a pure value in `IO`.  This should *only* be used if the value in question has
+   * "already" been computed!  In other words, something like `IO.pure(readLine)` is most
+   * definitely *not* the right thing to do!  However, `IO.pure(42)` is *correct* and will be
+   * more efficient (when evaluated) than `IO(42)`, due to avoiding the allocation of extra thunks.
+   */
   def pure[A](a: A): IO[A] = Pure(a)
 
+  /**
+   * Lifts an `Eval` into `IO`.  You shouldn't use `Eval` for managing effects (use `IO` instead!).
+   * But if you do, this function will preserve the evaluation semantics of those effects as they
+   * are lifted into the pure `IO`.  Eager `Eval` instances will be converted into thunk-less `IO`
+   * (i.e. eager `IO`).
+   */
   def eval[A](effect: Eval[A]): IO[A] = effect match {
     case Now(a) => pure(a)
     case effect => apply(effect.value)
   }
 
+  /**
+   * Suspends an asynchronous side effect in `IO`.  The given function will be invoked during
+   * evaluation of the `IO` to "schedule" the asynchronous callback, where the callback is the
+   * parameter passed to that function.  Only the *first* invocation of the callback will be
+   * effective!  All subsequent invocations will be silently dropped.
+   *
+   * As a quick example, you can use this function to perform a parallel computation given
+   * an `ExecutorService`:
+   *
+   * ```scala
+   * def fork[A](body: => A)(implicit E: ExecutorService): IO[A] = {
+   *   IO async { cb =>
+   *     E.execute(new Runnable {
+   *       def run() =
+   *         try cb(Right(body)) catch { case NonFatal(t) => cb(Left(t)) }
+   *     })
+   *   }
+   * }
+   * ```
+   *
+   * The `fork` function will do exactly what it sounds like: take a thunk and an `ExecutorService`
+   * and run that thunk on the thread pool.  Or rather, it will produce an `IO` which will do those
+   * things when run; it does *not* schedule the thunk until the resulting `IO` is run!  Note that
+   * there is no thread blocking in this implementation; the resulting `IO` encapsulates the callback
+   * in a pure and monadic fashion without using threads.
+   *
+   * This function can be thought of as a safer, lexically-constrained version of `Promise`, where
+   * `IO` is like a safer, lazy version of `Future`.
+   */
   def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = Async(k)
 
+  /**
+   * Constructs an `IO` which sequences the specified exception.  If this `IO` is run using
+   * `unsafeRunSync` or `unsafeRunTimed`, the exception will be thrown.  This exception can be
+   * "caught" (or rather, materialized into value-space) using the `attempt` method.
+   *
+   * @see #attempt
+   */
   def fail(t: Throwable): IO[Nothing] = Fail(t)
 
   private final case class Pure[+A](a: A) extends IO[A] {
