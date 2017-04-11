@@ -94,10 +94,10 @@ sealed trait IO[+A] {
   final def flatMap[B](f: A => IO[B]): IO[B] = this match {
     case Pure(a) => Suspend(() => f(a))
     case Fail(t) => Fail(t)
-    case Suspend(thunk) => BindSuspend(thunk, f)
-    case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(_.flatMap(f)))
-    case Async(k) => BindAsync(k, f)
-    case BindAsync(k, g) => BindAsync(k, g.andThen(_.flatMap(f)))
+    case Suspend(thunk) => BindSuspend(thunk, AndThen(f))
+    case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMap(f))))
+    case Async(k) => BindAsync(k, AndThen(f))
+    case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMap(f))))
   }
 
   /**
@@ -154,7 +154,7 @@ sealed trait IO[+A] {
   @tailrec
   private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk().unsafeStep
-    case BindSuspend(thunk, f) => thunk().flatMap(f).unsafeStep
+    case BindSuspend(thunk, f) => thunk().flatMap(f(_)).unsafeStep
     case _ => this
   }
 
@@ -400,11 +400,11 @@ object IO extends IOInstances {
     def attempt = Suspend(() => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) })
   }
 
-  private final case class BindSuspend[E, +A](thunk: () => IO[E], f: E => IO[A]) extends IO[A] {
+  private final case class BindSuspend[E, +A](thunk: () => IO[E], f: AndThen[E, IO[A]]) extends IO[A] {
     def attempt: BindSuspend[Attempt[E], Attempt[A]] = {
       BindSuspend(
         () => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) },
-        _.fold(t => Pure(Left(t)), a => f(a).attempt))
+        AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))
     }
   }
 
@@ -412,11 +412,11 @@ object IO extends IOInstances {
     def attempt = Async(cb => k(attempt => cb(Right(attempt))))
   }
 
-  private final case class BindAsync[E, +A](k: (Attempt[E] => Unit) => Unit, f: E => IO[A]) extends IO[A] {
+  private final case class BindAsync[E, +A](k: (Attempt[E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
     def attempt: BindAsync[Attempt[E], Attempt[A]] = {
       BindAsync(
         cb => k(attempt => cb(Right(attempt))),
-        _.fold(t => Pure(Left(t)), a => f(a).attempt))
+        AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))
     }
   }
 }

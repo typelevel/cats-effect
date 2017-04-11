@@ -17,7 +17,13 @@
 package cats
 package effect
 
-sealed trait AndThen[-A, +B] {
+/**
+ * A type-aligned seq for representing function composition in constant stack space with
+ * ammortized linear time application (in the number of constituent functions).  Implementation
+ * is enormously uglier than it should be since `@tailrec` doesn't work properly on functions
+ * with existential types.
+ */
+private[effect] sealed trait AndThen[-A, +B] {
   import AndThen._
 
   def apply(a: A): B = {
@@ -82,7 +88,7 @@ sealed trait AndThen[-A, +B] {
   }
 }
 
-object AndThen {
+private[effect] object AndThen {
 
   def apply[A, B](f: A => B): AndThen[A, B] = Single(f)
 
