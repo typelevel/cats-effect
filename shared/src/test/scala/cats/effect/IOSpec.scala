@@ -25,12 +25,54 @@ import cats.laws.discipline.MonadErrorTests
 import org.scalatest._
 import org.typelevel.discipline.scalatest.Discipline
 
-class IOSpec extends FunSuite with Discipline {
+class IOSpec extends FunSuite with Matchers with Discipline {
   import Generators._
 
   checkAll("IO", MonadErrorTests[IO, Throwable].monad[Int, Int, Int])
   checkAll("IO", MonadErrorTests[IO, Throwable].monadError[Int, Int, Int])
   checkAll("IO", GroupLaws[IO[Int]].monoid)
+
+  test("defer evaluation until run") {
+    var run = false
+    val ioa = IO { run = true }
+    run shouldEqual false
+    ioa.unsafeRunSync()
+    run shouldEqual true
+  }
+
+  test("catch exceptions within main block") {
+    case object Foo extends Exception
+
+    val ioa = IO { throw Foo }
+
+    ioa.attempt.unsafeRunSync() should matchPattern {
+      case Left(Foo) => ()
+    }
+  }
+
+  test("evaluate ensuring actions") {
+    case object Foo extends Exception
+
+    var run = false
+    val ioa = IO { throw Foo } ensuring IO { run = true }
+
+    ioa.attempt.unsafeRunSync() should matchPattern {
+      case Left(Foo) => ()
+    }
+
+    run shouldEqual true
+  }
+
+  test("prioritize thrown exceptions from within ensuring") {
+    case object Foo extends Exception
+    case object Bar extends Exception
+
+    val ioa = IO { throw Foo } ensuring IO.fail(Bar)
+
+    ioa.attempt.unsafeRunSync() should matchPattern {
+      case Left(Bar) => ()
+    }
+  }
 
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
