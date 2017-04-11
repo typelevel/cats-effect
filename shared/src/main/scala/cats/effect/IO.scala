@@ -308,10 +308,9 @@ object IO extends IOInstances {
   def pure[A](a: A): IO[A] = Pure(a)
 
   /**
-   * Lifts an `Eval` into `IO`.  You shouldn't use `Eval` for managing effects (use `IO` instead!).
-   * But if you do, this function will preserve the evaluation semantics of those effects as they
-   * are lifted into the pure `IO`.  Eager `Eval` instances will be converted into thunk-less `IO`
-   * (i.e. eager `IO`).
+   * Lifts an `Eval` into `IO`.  This function will preserve the evaluation semantics of any actions
+   * that are lifted into the pure `IO`.  Eager `Eval` instances will be converted into thunk-less
+   * `IO` (i.e. eager `IO`), while lazy eval and memoized will be executed as such.
    */
   def eval[A](effect: Eval[A]): IO[A] = effect match {
     case Now(a) => pure(a)
