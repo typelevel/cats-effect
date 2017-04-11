@@ -17,16 +17,18 @@
 package cats
 package effect
 
+import java.io.Serializable
+
 /**
  * A type-aligned seq for representing function composition in constant stack space with
  * ammortized linear time application (in the number of constituent functions).  Implementation
  * is enormously uglier than it should be since `@tailrec` doesn't work properly on functions
  * with existential types.
  */
-private[effect] sealed trait AndThen[-A, +B] {
+private[effect] sealed abstract class AndThen[-A, +B] extends Product with Serializable {
   import AndThen._
 
-  def apply(a: A): B = {
+  final def apply(a: A): B = {
     /*
     // this is the aspirational code, but doesn't work due to tailrec bugs
     this match {
@@ -56,11 +58,11 @@ private[effect] sealed trait AndThen[-A, +B] {
     cur.asInstanceOf[B]
   }
 
-  def andThen[X](right: AndThen[B, X]): AndThen[A, X] = Concat(this, right)
-  def compose[X](right: AndThen[X, A]): AndThen[X, B] = Concat(right, this)
+  final def andThen[X](right: AndThen[B, X]): AndThen[A, X] = Concat(this, right)
+  final def compose[X](right: AndThen[X, A]): AndThen[X, B] = Concat(right, this)
 
   // converts left-leaning to right-leaning
-  private def rotateAccum[E](_right: AndThen[B, E]): AndThen[A, E] = {
+  private final def rotateAccum[E](_right: AndThen[B, E]): AndThen[A, E] = {
     /*
     // this is the aspirational code, but doesn't work due to tailrec bugs
     this match {
