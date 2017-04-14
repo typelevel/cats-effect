@@ -19,7 +19,9 @@ package effect
 
 import simulacrum._
 
+import scala.util.Either
+
 @typeclass
 trait Async[F[_]] extends MonadError[F, Throwable] {
-  def async[A](k: (Attempt[A] => Unit) => Unit): F[A]
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 }

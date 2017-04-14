@@ -114,7 +114,7 @@ sealed trait IO[+A] {
    *
    * @see IO.attempt
    */
-  def attempt: IO[Attempt[A]]
+  def attempt: IO[Either[Throwable, A]]
 
   /**
    * Sequences the specified `IO` ensuring evaluation regardless of whether or not the target
@@ -147,7 +147,7 @@ sealed trait IO[+A] {
    * guaranteed to have exclusively synchronous actions, by providing an effect which stores off
    * the results of the original `IO` as a side-effect.
    */
-  final def runAsync(cb: Attempt[A] => IO[Unit]): IO[Unit] = IO {
+  final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
   }
 
@@ -186,13 +186,13 @@ sealed trait IO[+A] {
    * As the name says, this is an UNSAFE function as it is impure and performs side-effects.
    * You should ideally only call this function *once*, at the very end of your program.
    */
-  final def unsafeRunAsync(cb: Attempt[A] => Unit): Unit = unsafeStep match {
+  final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
     case Async(k) => k(onceOnly(cb))
 
     case ba: BindAsync[e, A] =>
-      val cb2 = onceOnly[Attempt[e]] {
+      val cb2 = onceOnly[Either[Throwable, e]] {
         case Left(t) => cb(Left(t))
         case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
       }
@@ -263,7 +263,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
       case Right(b) => pure(b)
     }
 
-    override def attempt[A](ioa: IO[A]): IO[Attempt[A]] = ioa.attempt
+    override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] = ioa.attempt
 
     def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
       ioa.attempt.flatMap(_.fold(f, pure))
@@ -272,9 +272,9 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 
-    def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = IO.async(k)
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = IO.async(k)
 
-    def runAsync[A](ioa: IO[A])(cb: Attempt[A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
+    def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
 
     def liftIO[A](ioa: IO[A]) = ioa
   }
@@ -346,7 +346,7 @@ object IO extends IOInstances {
    * This function can be thought of as a safer, lexically-constrained version of `Promise`, where
    * `IO` is like a safer, lazy version of `Future`.
    */
-  def async[A](k: (Attempt[A] => Unit) => Unit): IO[A] = Async(k)
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = Async(k)
 
   /**
    * Constructs an `IO` which sequences the specified exception.  If this `IO` is run using
@@ -401,19 +401,19 @@ object IO extends IOInstances {
   }
 
   private final case class BindSuspend[E, +A](thunk: () => IO[E], f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindSuspend[Attempt[E], Attempt[A]] = {
+    def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] = {
       BindSuspend(
         () => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) },
         AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))
     }
   }
 
-  private final case class Async[+A](k: (Attempt[A] => Unit) => Unit) extends IO[A] {
+  private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit) extends IO[A] {
     def attempt = Async(cb => k(attempt => cb(Right(attempt))))
   }
 
-  private final case class BindAsync[E, +A](k: (Attempt[E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindAsync[Attempt[E], Attempt[A]] = {
+  private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
+    def attempt: BindAsync[Either[Throwable, E], Either[Throwable, A]] = {
       BindAsync(
         cb => k(attempt => cb(Right(attempt))),
         AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))

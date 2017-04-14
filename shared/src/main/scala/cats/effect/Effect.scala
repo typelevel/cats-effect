@@ -19,7 +19,9 @@ package effect
 
 import simulacrum._
 
+import scala.util.Either
+
 @typeclass
 trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
-  def runAsync[A](fa: F[A])(cb: Attempt[A] => IO[Unit]): IO[Unit]
+  def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 }

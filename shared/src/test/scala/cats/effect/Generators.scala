@@ -19,6 +19,8 @@ package effect
 
 import org.scalacheck._
 
+import scala.util.Either
+
 object Generators {
   import Arbitrary._
 
@@ -40,10 +42,10 @@ object Generators {
 
   def genFail[A]: Gen[IO[A]] = arbitrary[Throwable].map(IO.fail(_))
 
-  def genAsync[A: Arbitrary]: Gen[IO[A]] = arbitrary[(Attempt[A] => Unit) => Unit].map(IO.async(_))
+  def genAsync[A: Arbitrary]: Gen[IO[A]] = arbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async(_))
 
   def genNestedAsync[A: Arbitrary: Cogen]: Gen[IO[A]] =
-    arbitrary[(Attempt[IO[A]] => Unit) => Unit].map(k => IO.async(k).flatMap(x => x))
+    arbitrary[(Either[Throwable, IO[A]] => Unit) => Unit].map(k => IO.async(k).flatMap(x => x))
 
   def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] = for {
     ioa <- arbitrary[IO[A]]

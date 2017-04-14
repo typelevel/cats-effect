@@ -18,6 +18,7 @@ package cats
 package effect
 
 import scala.concurrent.duration.Duration
+import scala.util.Either
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
@@ -26,7 +27,7 @@ private[effect] object IOPlatform {
 
   def unsafeResync[A](ioa: IO[A], limit: Duration): A = {
     val latch = new CountDownLatch(1)
-    val ref = new AtomicReference[Attempt[A]](null)
+    val ref = new AtomicReference[Either[Throwable, A]](null)
 
     ioa unsafeRunAsync { a =>
       ref.set(a)
