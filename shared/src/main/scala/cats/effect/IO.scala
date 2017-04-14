@@ -73,7 +73,7 @@ import scala.util.{Left, Right}
  * concurrent preemption at all!  `IO` actions are not interruptible and should be
  * considered broadly-speaking atomic, at least when used purely.
  */
-sealed abstract class IO[+A] { self =>
+sealed abstract class IO[+A] {
   import IO._
 
   /**
@@ -151,41 +151,54 @@ sealed abstract class IO[+A] { self =>
   }
 
   /**
-   * Shifts the computation of any prefix contiguous synchronous actions into the implicitly
-   * specified `ExecutionContext`.  Asynchronous actions and continuations will be unshifted
-   * and will remain on whatever thread they are associated with.  This should be used if
-   * you want to evaluate a given `IO` action on a specific thread pool when it is eventually
-   * run.
+   * Shifts the synchronous prefixes and continuation of the `IO` onto the specified thread
+   * pool.  Asynchronous actions cannot be shifted, since they are scheduled rather than run.
+   * Also, no effort is made to re-shift synchronous actions which *follow* asynchronous
+   * actions within a bind chain; those actions will remain on the continuation thread
+   * inherited from their preceeding async action.  Critically though, synchronous actions
+   * which are bound *after* the results of this function will also be shifted onto the pool
+   * specified here.  Thus, you can think of this function as shifting *before* (the
+   * contiguous synchronous prefix) and *after* (any continuation of the result).
    *
-   * Note that this function is idempotent, since it inserts an asynchronous action at the
-   * front of the bind chain.  Only synchronous prefixes are shifted, and the results of
-   * calling `shift` will not have a synchronous prefix.
+   * There are two immediately obvious applications to this function.  One is to re-shift
+   * async actions back to a "main" thread pool.  For example, if you create an async action
+   * to wrap around some sort of event listener, you probably want to `shift` it immediately
+   * to take the continuation off of the event dispatch thread.  Another use-case is to ensure
+   * that a blocking synchronous action is taken *off* of the main CPU-bound pool.  A common
+   * example here would be any use of the `java.io` package, which is entirely blocking and
+   * should never be run on your main CPU-bound pool.
+   *
+   * Note that this function is idempotent given equal values of `EC`, but only
+   * prefix-idempotent given differing `EC` values.  For example:
+   *
+   * ```scala
+   * val fioa = IO { File.createTempFile("fubar") }
+   *
+   * fioa.shift(BlockingIOPool).shift(MainPool)
+   * ```
+   *
+   * The inner call to `shift` will force the synchronous prefix of `fioa` (which is just the
+   * single action) to execute on the `BlockingIOPool` when the `IO` is run, and also ensures
+   * that the continuation of this action remains on the `BlockingIOPool`.  The outer `shift`
+   * similarly forces the synchronous prefix of the results of the inner `shift` onto the
+   * specified pool (`MainPool`), but the results of `shift` have no synchronous prefix, meaning
+   * that the "before" part of the outer `shift` is a no-op.  The "after" part is not, however,
+   * and will force the continuation of the resulting `IO` back onto the `MainPool`.  Which
+   * is exactly what you want most of the time with blocking actions of this type.
    */
   final def shift(implicit EC: ExecutionContext): IO[A] = {
-    IO async { cb =>
-      EC.execute(new Runnable {
-        def run() = self.unsafeRunAsync(cb)
-      })
-    }
-  }
-
-  /**
-   * Shifts the continuation of the action into the implicitly specified `ExecutionContext`.
-   * The thread pool association will be observed in any actions which are flatMapped onto
-   * the result of this function.  That is to say, the *continuation* of the `IO`.  All of
-   * the effects within the current `IO` will retain their pre-existing thread affinities,
-   * if any.
-   *
-   * This function is most useful on asynchronous actions which require thread-shifting back
-   * onto some other thread pool (e.g. off of an event dispatch thread).
-   */
-  final def shiftAfter(implicit EC: ExecutionContext): IO[A] = {
-    attempt.flatMap { e =>
+    val self = attempt.flatMap { e =>
       IO async { (cb: Either[Throwable, A] => Unit) =>
         EC.execute(new Runnable {
           def run() = cb(e)
         })
       }
+    }
+
+    IO async { cb =>
+      EC.execute(new Runnable {
+        def run() = self.unsafeRunAsync(cb)
+      })
     }
   }
 

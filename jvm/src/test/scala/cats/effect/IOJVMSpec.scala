@@ -48,7 +48,7 @@ class IOJVMSpec extends FunSuite with Matchers {
 
   val TestEC = ExecutionContext.fromExecutorService(TestES)
 
-  test("shift contiguous prefix, but not suffix") {
+  test("shift contiguous prefix and suffix, but not interfix") {
     val name: IO[String] = IO { Thread.currentThread().getName() }
 
     val aname: IO[String] = IO async { cb =>
@@ -64,29 +64,17 @@ class IOJVMSpec extends FunSuite with Matchers {
       n2 <- name
       n3 <- aname
       n4 <- name
-    } yield (n1, n2, n3, n4)
+      n5 <- name.shift(TestEC)
+      n6 <- name
+    } yield (n1, n2, n3, n4, n5, n6)
 
-    val (n1, n2, n3, n4) = test.shift(TestEC).unsafeRunSync()
+    val (n1, n2, n3, n4, n5, n6) = test.shift(TestEC).unsafeRunSync()
 
     n1 shouldEqual ThreadName
     n2 shouldEqual ThreadName
     n3 should not equal ThreadName
     n4 should not equal ThreadName
-  }
-
-  test("shiftAfter suffix, but not prefix") {
-    val name: IO[String] = IO { Thread.currentThread().getName() }
-
-    val test = for {
-      n1 <- name
-      n2 <- name.shiftAfter(TestEC)
-      n3 <- name
-    } yield (n1, n2, n3)
-
-    val (n1, n2, n3) = test.unsafeRunSync()
-
-    n1 should not equal ThreadName
-    n2 should not equal ThreadName
-    n3 shouldEqual ThreadName
+    n5 shouldEqual ThreadName
+    n6 shouldEqual ThreadName
   }
 }
