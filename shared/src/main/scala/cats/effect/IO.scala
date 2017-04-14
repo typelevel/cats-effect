@@ -156,6 +156,10 @@ sealed abstract class IO[+A] { self =>
    * and will remain on whatever thread they are associated with.  This should be used if
    * you want to evaluate a given `IO` action on a specific thread pool when it is eventually
    * run.
+   *
+   * Note that this function is idempotent, since it inserts an asynchronous action at the
+   * front of the bind chain.  Only synchronous prefixes are shifted, and the results of
+   * calling `shift` will not have a synchronous prefix.
    */
   final def shift(implicit EC: ExecutionContext): IO[A] = {
     IO async { cb =>
