@@ -428,7 +428,7 @@ object IO extends IOInstances {
    *
    * @see #unsafeToFuture
    */
-  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+  def fromFuture[A](f: => Future[A])(implicit EC: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 
