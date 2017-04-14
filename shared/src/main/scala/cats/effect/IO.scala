@@ -74,7 +74,7 @@ import scala.util.control.NonFatal
  * concurrent preemption at all!  `IO` actions are not interruptible and should be
  * considered broadly-speaking atomic, at least when used purely.
  */
-sealed trait IO[+A] {
+sealed abstract class IO[+A] {
   import IO._
 
   /**
