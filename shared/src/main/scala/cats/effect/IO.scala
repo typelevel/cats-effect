@@ -74,7 +74,7 @@ import scala.util.control.NonFatal
  * concurrent preemption at all!  `IO` actions are not interruptible and should be
  * considered broadly-speaking atomic, at least when used purely.
  */
-sealed abstract class IO[+A] {
+sealed abstract class IO[+A] { self =>
   import IO._
 
   /**
@@ -149,6 +149,41 @@ sealed abstract class IO[+A] {
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
+  }
+
+  /**
+   * Shifts the computation of any prefix contiguous synchronous actions into the implicitly
+   * specified `ExecutionContext`.  Asynchronous actions and continuations will be unshifted
+   * and will remain on whatever thread they are associated with.  This should be used if
+   * you want to evaluate a given `IO` action on a specific thread pool when it is eventually
+   * run.
+   */
+  final def shiftPrefix(implicit EC: ExecutionContext): IO[A] = {
+    IO async { cb =>
+      EC.execute(new Runnable {
+        def run() = self.unsafeRunAsync(cb)
+      })
+    }
+  }
+
+  /**
+   * Shifts the continuation of the action into the implicitly specified `ExecutionContext`.
+   * The thread pool association will be observed in any actions which are flatMapped onto
+   * the result of this function.  That is to say, the *continuation* of the `IO`.  All of
+   * the effects within the current `IO` will retain their pre-existing thread affinities,
+   * if any.
+   *
+   * This function is most useful on asynchronous actions which require thread-shifting back
+   * onto some other thread pool (e.g. off of an event dispatch thread).
+   */
+  final def shiftSuffix(implicit EC: ExecutionContext): IO[A] = {
+    attempt.flatMap { e =>
+      IO async { (cb: Either[Throwable, A] => Unit) =>
+        EC.execute(new Runnable {
+          def run() = cb(e)
+        })
+      }
+    }
   }
 
   @tailrec
