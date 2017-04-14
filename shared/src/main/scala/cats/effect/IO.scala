@@ -157,7 +157,7 @@ sealed abstract class IO[+A] { self =>
    * you want to evaluate a given `IO` action on a specific thread pool when it is eventually
    * run.
    */
-  final def shiftPrefix(implicit EC: ExecutionContext): IO[A] = {
+  final def shift(implicit EC: ExecutionContext): IO[A] = {
     IO async { cb =>
       EC.execute(new Runnable {
         def run() = self.unsafeRunAsync(cb)
@@ -175,7 +175,7 @@ sealed abstract class IO[+A] { self =>
    * This function is most useful on asynchronous actions which require thread-shifting back
    * onto some other thread pool (e.g. off of an event dispatch thread).
    */
-  final def shiftSuffix(implicit EC: ExecutionContext): IO[A] = {
+  final def shiftAfter(implicit EC: ExecutionContext): IO[A] = {
     attempt.flatMap { e =>
       IO async { (cb: Either[Throwable, A] => Unit) =>
         EC.execute(new Runnable {
