@@ -21,7 +21,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
-import scala.util.control.NonFatal
 
 /**
  * A pure abstraction representing the intention to perform a side-effect, where
