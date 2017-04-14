@@ -25,6 +25,11 @@ import cats.laws.discipline.MonadErrorTests
 import org.scalatest._
 import org.typelevel.discipline.scalatest.Discipline
 
+import scala.concurrent.ExecutionContext
+
+import java.{util => ju}
+import java.util.concurrent.{AbstractExecutorService, TimeUnit}
+
 class IOSpec extends FunSuite with Matchers with Discipline {
   import Generators._
 
@@ -72,6 +77,70 @@ class IOSpec extends FunSuite with Matchers with Discipline {
     ioa.attempt.unsafeRunSync() should matchPattern {
       case Left(Bar) => ()
     }
+  }
+
+  val ThreadName = "test-thread"
+
+  val TestES = new AbstractExecutorService {
+    def execute(r: Runnable): Unit = {
+      new Thread {
+        setName(ThreadName)
+        start()
+
+        override def run() = r.run()
+      }
+    }
+
+    // Members declared in java.util.concurrent.ExecutorService
+    def awaitTermination(time: Long, unit: TimeUnit): Boolean = true
+    def isShutdown(): Boolean = true
+    def isTerminated(): Boolean = true
+    def shutdown(): Unit = ()
+    def shutdownNow(): ju.List[Runnable] = new ju.ArrayList[Runnable]
+  }
+
+  val TestEC = ExecutionContext.fromExecutorService(TestES)
+
+  test("shift contiguous prefix, but not suffix") {
+    val name: IO[String] = IO { Thread.currentThread().getName() }
+
+    val aname: IO[String] = IO async { cb =>
+      new Thread {
+        start()
+
+        override def run() = cb(Right(Thread.currentThread().getName()))
+      }
+    }
+
+    val test = for {
+      n1 <- name
+      n2 <- name
+      n3 <- aname
+      n4 <- name
+    } yield (n1, n2, n3, n4)
+
+    val (n1, n2, n3, n4) = test.shift(TestEC).unsafeRunSync()
+
+    n1 shouldEqual ThreadName
+    n2 shouldEqual ThreadName
+    n3 should not equal ThreadName
+    n4 should not equal ThreadName
+  }
+
+  test("shiftAfter suffix, but not prefix") {
+    val name: IO[String] = IO { Thread.currentThread().getName() }
+
+    val test = for {
+      n1 <- name
+      n2 <- name.shiftAfter(TestEC)
+      n3 <- name
+    } yield (n1, n2, n3)
+
+    val (n1, n2, n3) = test.unsafeRunSync()
+
+    n1 should not equal ThreadName
+    n2 should not equal ThreadName
+    n3 shouldEqual ThreadName
   }
 
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
