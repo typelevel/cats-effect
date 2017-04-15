@@ -19,16 +19,18 @@ import de.heikoseeberger.sbtheader.license.Apache2_0
 organization := "org.typelevel"
 
 val CatsVersion = "0.9.0"
+val ScalaCheckVersion = "1.13.4"
+val DisciplineVersion = "0.7.3"
 
 lazy val root = project.in(file("."))
-  .aggregate(jvm, js)
+  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .settings(
     publish := (),
     publishLocal := (),
     publishArtifact := false)
 
-lazy val base = crossProject
-  .in(file("."))
+lazy val core = crossProject
+  .in(file("core"))
   .settings(
     name := "cats-effect",
 
@@ -36,10 +38,10 @@ lazy val base = crossProject
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
       "com.github.mpilquist" %%% "simulacrum" % "0.10.0",
 
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion % "test",
-      "org.scalatest"  %%% "scalatest"  % "3.0.1"     % "test",
-      "org.scalacheck" %%% "scalacheck" % "1.13.4"    % "test",
-      "org.typelevel"  %%% "discipline" % "0.7.3"     % "test"),
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
+      "org.scalatest"  %%% "scalatest"  % "3.0.1"           % "test",
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
+      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
 
@@ -49,8 +51,22 @@ lazy val base = crossProject
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
-lazy val jvm = base.jvm
-lazy val js = base.js
+lazy val coreJVM = core.jvm
+lazy val coreJS = core.js
+
+lazy val laws = crossProject
+  .in(file("laws"))
+  .dependsOn(core)
+  .settings(
+    name := "cats-effect-laws",
+
+    libraryDependencies ++= Seq(
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      "org.typelevel"  %%% "discipline" % DisciplineVersion))
+
+lazy val lawsJVM = laws.jvm
+lazy val lawsJS = laws.js
 
 /*
  * Compatibility version.  Use this to declare what version with
