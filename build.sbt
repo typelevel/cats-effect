@@ -22,6 +22,11 @@ val CatsVersion = "0.9.0"
 val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
+val commonSettings = Seq(
+  headers := Map(
+    "scala" -> Apache2_0("2017", "Daniel Spiewak"),
+    "java" -> Apache2_0("2017", "Daniel Spiewak")))
+
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .settings(
@@ -31,6 +36,7 @@ lazy val root = project.in(file("."))
 
 lazy val core = crossProject
   .in(file("core"))
+  .settings(commonSettings: _*)
   .settings(
     name := "cats-effect",
 
@@ -43,11 +49,7 @@ lazy val core = crossProject
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
       "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full),
-
-    headers := Map(
-      "scala" -> Apache2_0("2017", "Daniel Spiewak"),
-      "java" -> Apache2_0("2017", "Daniel Spiewak")))
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
@@ -57,6 +59,7 @@ lazy val coreJS = core.js
 lazy val laws = crossProject
   .in(file("laws"))
   .dependsOn(core)
+  .settings(commonSettings: _*)
   .settings(
     name := "cats-effect-laws",
 
@@ -64,6 +67,8 @@ lazy val laws = crossProject
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.typelevel"  %%% "discipline" % DisciplineVersion))
+  .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
