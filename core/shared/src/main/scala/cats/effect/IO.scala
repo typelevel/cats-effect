@@ -61,14 +61,7 @@ import scala.util.{Left, Right}
  * is stack-safe when run, but will rather make every attempt to do so barring
  * pathological structure.
  *
- * `IO` does not make any attempt to control concurrency or thread-shifting in any
- * way.  Thus, if you build concurrent functions on top of this abstraction, be
- * aware that `async` will preserve the thread on which it was invoked; it will *not*
- * thread-shift back to some "neutral" pool!  You can implementing this thread-shifting
- * in user-space if the behavior is desired, though you may need to use an "unsafe"
- * function depending on the intended semantics.
- *
- * Relatedly, `IO` makes no attempt to control finalization or guaranteed resource-safety
+ * `IO` makes no attempt to control finalization or guaranteed resource-safety
  * in the presence of concurrent preemption, simply because `IO` does not care about
  * concurrent preemption at all!  `IO` actions are not interruptible and should be
  * considered broadly-speaking atomic, at least when used purely.
