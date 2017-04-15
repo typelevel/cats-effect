@@ -170,7 +170,7 @@ sealed abstract class IO[+A] {
    * fioa.shift(BlockingIOPool).shift(MainPool)
    * ```
    *
-   * The inner cakll to `shift` will force the synchronous prefix of `fioa` (which is just the
+   * The inner call to `shift` will force the synchronous prefix of `fioa` (which is just the
    * single action) to execute on the `BlockingIOPool` when the `IO` is run, and also ensures
    * that the continuation of this action remains on the `BlockingIOPool`.  The outer `shift`
    * similarly forces the synchronous prefix of the results of the inner `shift` onto the
@@ -319,6 +319,8 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = IO.async(k)
 
     def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
+
+    override def shift[A](ioa: IO[A])(implicit EC: ExecutionContext) = ioa.shift
 
     def liftIO[A](ioa: IO[A]) = ioa
   }
