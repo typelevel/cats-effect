@@ -29,11 +29,11 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def suspendConstantIsPureJoin[A](fa: F[A]) =
     F.suspend(fa) <-> F.flatten(F.pure(fa))
 
-  def delayThrowIsRaiseError(t: Throwable) =
-    F.delay(throw t) <-> F.raiseError(t)
+  def delayThrowIsRaiseError[A](t: Throwable) =
+    F.delay[A](throw t) <-> F.raiseError(t)
 
-  def suspendThrowIsRaiseError(t: Throwable) =
-    F.suspend(throw t) <-> F.raiseError(t)
+  def suspendThrowIsRaiseError[A](t: Throwable) =
+    F.suspend[A](throw t) <-> F.raiseError(t)
 
   // TODO no memoize
 }

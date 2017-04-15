@@ -32,9 +32,9 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
     F.runAsync(fa)(e => IO { result = Some(e) }) >> read <-> IO.pure(Right(a))
   }
 
-  def runAsyncRaiseErrorProducesLeftIO(t: Throwable) = {
-    val fa = F.raiseError(t)
-    var result: Option[Either[Throwable, Nothing]] = None
+  def runAsyncRaiseErrorProducesLeftIO[A](t: Throwable) = {
+    val fa: F[A] = F.raiseError(t)
+    var result: Option[Either[Throwable, A]] = None
     val read = IO { result.get }
 
     F.runAsync(fa)(e => IO { result = Some(e) }) >> read <-> IO.pure(Left(t))

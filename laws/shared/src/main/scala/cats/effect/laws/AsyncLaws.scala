@@ -26,11 +26,11 @@ trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def asyncRightIsPure[A](a: A) =
     F.async[A](_(Right(a))) <-> F.pure(a)
 
-  def asyncLeftIsRaiseError(t: Throwable) =
-    F.async[Nothing](_(Left(t))) <-> F.raiseError(t)
+  def asyncLeftIsRaiseError[A](t: Throwable) =
+    F.async[A](_(Left(t))) <-> F.raiseError(t)
 
-  def thrownInRegisterIsRaiseError(t: Throwable) =
-    F.async[Nothing](_ => throw t) <-> F.raiseError(t)
+  def thrownInRegisterIsRaiseError[A](t: Throwable) =
+    F.async[A](_ => throw t) <-> F.raiseError(t)
 
   // TODO law for once-only evaluation
 }
