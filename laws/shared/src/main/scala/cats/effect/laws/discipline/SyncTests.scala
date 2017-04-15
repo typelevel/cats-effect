@@ -58,7 +58,8 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
         "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
         "delay throw is raise error" -> forAll(laws.delayThrowIsRaiseError[A] _),
-        "suspend throw is raise error" -> forAll(laws.suspendThrowIsRaiseError[A] _))
+        "suspend throw is raise error" -> forAll(laws.suspendThrowIsRaiseError[A] _),
+        "repeated evaluation not memoized" -> forAll(laws.repeatedEvaluationNotMemoized[A] _))
     }
   }
 }
