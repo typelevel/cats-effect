@@ -88,6 +88,8 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
 
     self.asInstanceOf[AndThen[A, E]]
   }
+
+  override def toString = "AndThen$" + System.identityHashCode(this)
 }
 
 private[effect] object AndThen {

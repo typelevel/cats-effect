@@ -284,6 +284,12 @@ sealed abstract class IO[+A] {
     unsafeRunAsync(_.fold(p.failure, p.success))
     p.future
   }
+
+  override def toString = this match {
+    case Pure(a) => s"IO($a)"
+    case Fail(t) => s"IO(throw $t)"
+    case _ => "IO$" + System.identityHashCode(this)
+  }
 }
 
 private[effect] trait IOLowPriorityInstances {
