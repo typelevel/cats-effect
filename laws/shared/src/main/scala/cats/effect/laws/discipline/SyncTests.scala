@@ -57,8 +57,8 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
       val props = Seq(
         "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
-        "delay throw is raise error" -> forAll(laws.delayThrowIsRaiseError[A] _),
-        "suspend throw is raise error" -> forAll(laws.suspendThrowIsRaiseError[A] _),
+        "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
+        "throw in suspend is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
         "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _))
     }
   }
