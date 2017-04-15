@@ -18,6 +18,7 @@ package cats
 package effect
 package laws
 
+import cats.implicits._
 import cats.laws._
 
 trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
@@ -31,6 +32,19 @@ trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
   def thrownInRegisterIsRaiseError[A](t: Throwable) =
     F.async[A](_ => throw t) <-> F.raiseError(t)
+
+  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = {
+    var cur = a
+
+    def change: F[Unit] = F async { cb =>
+      cur = f(cur)
+      cb(Right(()))
+    }
+
+    def read: F[A] = F.async(_(Right(cur)))
+
+    change >> change >> read <-> F.pure(f(f(a)))
+  }
 }
 
 object AsyncLaws {

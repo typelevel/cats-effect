@@ -36,7 +36,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def suspendThrowIsRaiseError[A](t: Throwable) =
     F.suspend[A](throw t) <-> F.raiseError(t)
 
-  def repeatedEvaluationNotMemoized[A](a: A, f: A => A) = {
+  def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a
     def change = F.delay(cur = f(cur))
     def read = F.delay(cur)
