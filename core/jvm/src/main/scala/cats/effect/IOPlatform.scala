@@ -20,7 +20,7 @@ package effect
 import scala.concurrent.duration.Duration
 import scala.util.Either
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 private[effect] object IOPlatform {
@@ -34,10 +34,13 @@ private[effect] object IOPlatform {
       latch.countDown()
     }
 
-    if (limit == Duration.Inf)
+    if (limit == Duration.Inf) {
       latch.await()
-    else
-      latch.await(limit.toMillis, TimeUnit.MILLISECONDS)
+    } else {
+      if (!latch.await(limit.toMillis, TimeUnit.MILLISECONDS)) {
+        throw new TimeoutException(s"async action ($ioa) required more than $limit to complete")
+      }
+    }
 
     ref.get().fold(throw _, a => a)
   }
