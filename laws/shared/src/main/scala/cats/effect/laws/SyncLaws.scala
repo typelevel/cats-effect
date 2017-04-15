@@ -38,8 +38,8 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
   def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a
-    def change = F.delay(cur = f(cur))
-    def read = F.delay(cur)
+    val change = F.delay(cur = f(cur))
+    val read = F.delay(cur)
 
     change >> change >> read <-> F.pure(f(f(a)))
   }

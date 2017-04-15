@@ -36,12 +36,12 @@ trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a
 
-    def change: F[Unit] = F async { cb =>
+    val change: F[Unit] = F async { cb =>
       cur = f(cur)
       cb(Right(()))
     }
 
-    def read: F[A] = F.async(_(Right(cur)))
+    val read: F[A] = F.async(_(Right(cur)))
 
     change >> change >> read <-> F.pure(f(f(a)))
   }
