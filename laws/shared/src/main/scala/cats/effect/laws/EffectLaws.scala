@@ -39,6 +39,25 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
 
     F.runAsync(fa)(e => IO { result = Some(e) }) >> read <-> IO.pure(Left(t))
   }
+
+  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
+    var cur = a
+    def change = F.delay(cur = f(cur))
+
+    val double: F[Unit] = F async { cb =>
+      cb(Right(()))
+      cb(Right(()))
+    }
+
+    var result = a
+    def readResult = IO { result }
+
+    val test = F.runAsync(double >> change) { _ =>
+      IO { result = cur }
+    }
+
+    test >> readResult <-> IO.pure(f(a))
+  }
 }
 
 object EffectLaws {

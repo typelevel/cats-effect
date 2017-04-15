@@ -31,8 +31,6 @@ trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
   def thrownInRegisterIsRaiseError[A](t: Throwable) =
     F.async[A](_ => throw t) <-> F.raiseError(t)
-
-  // TODO law for once-only evaluation
 }
 
 object AsyncLaws {
