@@ -20,12 +20,12 @@ package effect
 import scala.concurrent.duration.Duration
 import scala.util.Either
 
-import java.util.concurrent.{CountDownLatch, TimeoutException, TimeUnit}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 
 private[effect] object IOPlatform {
 
-  def unsafeResync[A](ioa: IO[A], limit: Duration): A = {
+  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
     val latch = new CountDownLatch(1)
     val ref = new AtomicReference[Either[Throwable, A]](null)
 
@@ -34,14 +34,11 @@ private[effect] object IOPlatform {
       latch.countDown()
     }
 
-    if (limit == Duration.Inf) {
+    if (limit == Duration.Inf)
       latch.await()
-    } else {
-      if (!latch.await(limit.toMillis, TimeUnit.MILLISECONDS)) {
-        throw new TimeoutException(s"async action ($ioa) required more than $limit to complete")
-      }
-    }
+    else
+      latch.await(limit.toMillis, TimeUnit.MILLISECONDS)
 
-    ref.get().fold(throw _, a => a)
+    Option(ref.get()).map(_.fold(throw _, a => a))
   }
 }

@@ -216,7 +216,7 @@ sealed abstract class IO[+A] {
    * reasonable software.  You should ideally only call this function *once*, at the very end of
    * your program.
    */
-  final def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf)
+  final def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf).get
 
   /**
    * Passes the result of the encapsulated effects to the given callback by running them as
@@ -255,14 +255,17 @@ sealed abstract class IO[+A] {
    * of `5 seconds` to an `IO` consisting of several asynchronous actions joined together, evaluation
    * may take up to *n* \* 5 seconds, where *n* is the number of joined async actions.
    *
-   * As soon as an async blocking limit is hit, evaluation *immediately* aborts and an exception
-   * is thrown.  This exception will not be sequenced into the `IO` and cannot be recovered except
-   * using impure code (i.e. a `try`/`catch` surrounding the `unsafeRunTimed`).  Uh... don't do that.
+   * As soon as an async blocking limit is hit, evaluation *immediately* aborts and `None` is returned.
+   *
+   * Please note that this function is intended for *testing*; it should never appear in your
+   * mainline production code!  It is absolutely not an appropriate function to use if you want to
+   * implement timeouts, or anything similar.  If you need that sort of functionality, you should be
+   * using a streaming library (like fs2 or Monix).
    *
    * @see #unsafeRunSync
    */
-  final def unsafeRunTimed(limit: Duration): A = unsafeStep match {
-    case Pure(a) => a
+  final def unsafeRunTimed(limit: Duration): Option[A] = unsafeStep match {
+    case Pure(a) => Some(a)
     case Fail(t) => throw t
     case self @ (Async(_) | BindAsync(_, _)) => IOPlatform.unsafeResync(self, limit)
     case _ => throw new AssertionError("unreachable")

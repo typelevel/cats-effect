@@ -21,6 +21,6 @@ import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
 
-  def unsafeResync[A](ioa: IO[A], limit: Duration): A =
+  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
     throw new UnsupportedOperationException("cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync")
 }
