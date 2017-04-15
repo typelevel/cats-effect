@@ -76,7 +76,7 @@ class IOTests extends FunSuite with Matchers with Discipline {
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
 
-    ioa.runAsync(e => IO { result = Some(e) }).unsafeRunSync
+    ioa.runAsync(e => IO { result = Some(e) }).unsafeRunSync()
 
     result
   }

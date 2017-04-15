@@ -348,7 +348,8 @@ object IO extends IOInstances {
    * trampolining (i.e. when the side-effect is conceptually the allocation of a stack frame).
    * Any exceptions thrown by the side-effect will be caught and sequenced into the `IO`.
    */
-  def suspend[A](thunk: => IO[A]): IO[A] = Suspend(() => thunk)
+  def suspend[A](thunk: => IO[A]): IO[A] =
+    Suspend(() => try thunk catch { case NonFatal(t) => fail(t) })
 
   /**
    * Suspends a pure value in `IO`.  This should *only* be used if the value in question has
@@ -397,7 +398,11 @@ object IO extends IOInstances {
    * This function can be thought of as a safer, lexically-constrained version of `Promise`, where
    * `IO` is like a safer, lazy version of `Future`.
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = Async(k)
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+    Async { cb =>
+      try k(cb) catch { case NonFatal(t) => cb(Left(t)) }
+    }
+  }
 
   /**
    * Constructs an `IO` which sequences the specified exception.  If this `IO` is run using
