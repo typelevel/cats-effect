@@ -17,7 +17,7 @@
 package cats
 package effect
 package laws
-package effect
+package discipline
 
 import cats.data._
 import cats.laws.discipline._

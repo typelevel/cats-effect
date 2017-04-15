@@ -17,7 +17,7 @@
 package cats
 package effect
 package laws
-package effect
+package discipline
 
 import cats.data._
 import cats.laws.discipline._
@@ -28,7 +28,7 @@ import org.scalacheck._, Prop.forAll
 trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
   def laws: EffectLaws[F]
 
-  def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],

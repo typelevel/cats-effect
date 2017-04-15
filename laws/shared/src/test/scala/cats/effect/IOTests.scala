@@ -20,7 +20,7 @@ package effect
 import cats.implicits._
 import cats.kernel._
 import cats.kernel.laws.GroupLaws
-import cats.laws.discipline.MonadErrorTests
+import cats.effect.laws.discipline.EffectTests
 
 import org.scalatest._
 import org.typelevel.discipline.scalatest.Discipline
@@ -28,8 +28,7 @@ import org.typelevel.discipline.scalatest.Discipline
 class IOTests extends FunSuite with Matchers with Discipline {
   import Generators._
 
-  checkAll("IO", MonadErrorTests[IO, Throwable].monad[Int, Int, Int])
-  checkAll("IO", MonadErrorTests[IO, Throwable].monadError[Int, Int, Int])
+  checkAll("IO", EffectTests[IO].effect[Int, Int, Int])
   checkAll("IO", GroupLaws[IO[Int]].monoid)
 
   test("defer evaluation until run") {

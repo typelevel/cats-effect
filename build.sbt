@@ -58,7 +58,7 @@ lazy val coreJS = core.js
 
 lazy val laws = crossProject
   .in(file("laws"))
-  .dependsOn(core)
+  .dependsOn(core % "compile->compile;test->test")
   .settings(commonSettings: _*)
   .settings(
     name := "cats-effect-laws",
@@ -66,7 +66,9 @@ lazy val laws = crossProject
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline" % DisciplineVersion))
+      "org.typelevel"  %%% "discipline" % DisciplineVersion,
+
+      "org.scalatest"  %%% "scalatest"  % "3.0.1" % "test"))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
