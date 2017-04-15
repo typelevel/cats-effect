@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
 import java.{util => ju}
 import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 
-class IOJVMSpec extends FunSuite with Matchers {
+class IOJVMTests extends FunSuite with Matchers {
 
   val ThreadName = "test-thread"
 

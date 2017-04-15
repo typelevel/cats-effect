@@ -25,7 +25,7 @@ import cats.laws.discipline.MonadErrorTests
 import org.scalatest._
 import org.typelevel.discipline.scalatest.Discipline
 
-class IOSpec extends FunSuite with Matchers with Discipline {
+class IOTests extends FunSuite with Matchers with Discipline {
   import Generators._
 
   checkAll("IO", MonadErrorTests[IO, Throwable].monad[Int, Int, Int])
