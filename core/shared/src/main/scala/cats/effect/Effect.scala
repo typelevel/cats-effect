@@ -19,9 +19,30 @@ package effect
 
 import simulacrum._
 
+import scala.concurrent.ExecutionContext
 import scala.util.Either
 
 @typeclass
 trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
+
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
+
+  /**
+   * @see IO#shift
+   */
+  def shift[A](fa: F[A])(implicit EC: ExecutionContext): F[A] = {
+    val self = flatMap(attempt(fa)) { e =>
+      async { (cb: Either[Throwable, A] => Unit) =>
+        EC.execute(new Runnable {
+          def run() = cb(e)
+        })
+      }
+    }
+
+    async { cb =>
+      EC.execute(new Runnable {
+        def run() = runAsync(self)(e => IO { cb(e) }).unsafeRunSync()
+      })
+    }
+  }
 }
