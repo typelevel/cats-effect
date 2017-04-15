@@ -23,6 +23,8 @@ val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
 val commonSettings = Seq(
+  scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)),
+
   headers := Map(
     "scala" -> Apache2_0("2017", "Daniel Spiewak"),
     "java" -> Apache2_0("2017", "Daniel Spiewak")))
@@ -161,8 +163,6 @@ scalacOptions in ThisBuild ++= {
 }
 
 scalacOptions in Test += "-Yrangepos"
-
-scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
 
 scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value
 
