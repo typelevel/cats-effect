@@ -83,13 +83,16 @@ sealed abstract class IO[+A] {
    * Monadic bind on `IO`.  Does what the types say.  Any exceptions thrown within the function
    * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] = this match {
-    case Pure(a) => Suspend(() => f(a))
-    case Fail(t) => Fail(t)
-    case Suspend(thunk) => BindSuspend(thunk, AndThen(f))
-    case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMap(f))))
-    case Async(k) => BindAsync(k, AndThen(f))
-    case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMap(f))))
+  final def flatMap[B](f: A => IO[B]): IO[B] = {
+    val f0: A => IO[B] = a => try f(a) catch { case NonFatal(t) => IO.fail(t) }
+    this match {
+      case Pure(a) => Suspend(AndThen(_ => f0(a)))
+      case Fail(t) => Fail(t)
+      case Suspend(thunk) => BindSuspend(thunk, AndThen(f0))
+      case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMap(f0))))
+      case Async(k) => BindAsync(k, AndThen(f0))
+      case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMap(f0))))
+    }
   }
 
   /**
@@ -197,8 +200,8 @@ sealed abstract class IO[+A] {
 
   @tailrec
   private final def unsafeStep: IO[A] = this match {
-    case Suspend(thunk) => thunk().unsafeStep
-    case BindSuspend(thunk, f) => thunk().flatMap(f(_)).unsafeStep
+    case Suspend(thunk) => thunk(()).unsafeStep
+    case BindSuspend(thunk, f) => thunk(()).flatMap(f(_)).unsafeStep
     case _ => this
   }
 
@@ -344,7 +347,7 @@ object IO extends IOInstances {
    * Any exceptions thrown by the side-effect will be caught and sequenced into the `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(() => try thunk catch { case NonFatal(t) => fail(t) })
+    Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => fail(t) }))
 
   /**
    * Suspends a pure value in `IO`.  This should *only* be used if the value in question has
@@ -447,16 +450,12 @@ object IO extends IOInstances {
     def attempt = Pure(Left(t))
   }
 
-  private final case class Suspend[+A](thunk: () => IO[A]) extends IO[A] {
-    def attempt = Suspend(() => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) })
+  private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]]) extends IO[A] {
+    def attempt = Suspend(thunk.andThen(AndThen(_.attempt)))
   }
 
-  private final case class BindSuspend[E, +A](thunk: () => IO[E], f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] = {
-      BindSuspend(
-        () => try thunk().attempt catch { case NonFatal(t) => Pure(Left(t)) },
-        AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))
-    }
+  private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]]) extends IO[A] {
+    def attempt: BindSuspend[E, Either[Throwable, A]] = BindSuspend(thunk, f.andThen(AndThen(_.attempt)))
   }
 
   private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit) extends IO[A] {
@@ -464,10 +463,8 @@ object IO extends IOInstances {
   }
 
   private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindAsync[Either[Throwable, E], Either[Throwable, A]] = {
-      BindAsync(
-        cb => k(attempt => cb(Right(attempt))),
-        AndThen(_.fold(t => Pure(Left(t)), a => f(a).attempt)))
+    def attempt: BindAsync[E, Either[Throwable, A]] = {
+      BindAsync(k, f.andThen(AndThen(_.attempt)))
     }
   }
 }
