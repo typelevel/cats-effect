@@ -83,15 +83,17 @@ sealed abstract class IO[+A] {
    * Monadic bind on `IO`.  Does what the types say.  Any exceptions thrown within the function
    * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val f0: A => IO[B] = a => try f(a) catch { case NonFatal(t) => IO.fail(t) }
+  final def flatMap[B](f: A => IO[B]): IO[B] =
+    flatMapTotal(a => try f(a) catch { case NonFatal(t) => IO.fail(t) })
+
+  private final def flatMapTotal[B](f: A => IO[B]): IO[B] = {
     this match {
-      case Pure(a) => Suspend(AndThen(_ => f0(a)))
+      case Pure(a) => Suspend(AndThen(_ => f(a)))
       case Fail(t) => Fail(t)
-      case Suspend(thunk) => BindSuspend(thunk, AndThen(f0))
-      case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMap(f0))))
-      case Async(k) => BindAsync(k, AndThen(f0))
-      case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMap(f0))))
+      case Suspend(thunk) => BindSuspend(thunk, AndThen(f))
+      case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f))))
+      case Async(k) => BindAsync(k, AndThen(f))
+      case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMapTotal(f))))
     }
   }
 
@@ -201,7 +203,7 @@ sealed abstract class IO[+A] {
   @tailrec
   private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk(()).unsafeStep
-    case BindSuspend(thunk, f) => thunk(()).flatMap(f(_)).unsafeStep
+    case BindSuspend(thunk, f) => thunk(()).flatMapTotal(f.apply).unsafeStep
     case _ => this
   }
 
