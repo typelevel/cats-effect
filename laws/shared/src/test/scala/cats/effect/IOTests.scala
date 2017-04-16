@@ -73,6 +73,25 @@ class IOTests extends FunSuite with Matchers with Discipline {
     }
   }
 
+  test("provide stack safety on repeated attempts") {
+    val result = (0 until 10000).foldLeft(IO(0)) { (acc, _) =>
+      acc.attempt.map(_ => 0)
+    }
+
+    result.unsafeRunSync() shouldEqual 0
+  }
+
+  // this is expected behavior
+  test("fail to provide stack safety with repeated async suspensions") {
+    val result = (0 until 10000).foldLeft(IO(0)) { (acc, i) =>
+      acc.flatMap(n => IO.async[Int](_(Right(n + 1))))
+    }
+
+    intercept[StackOverflowError] {
+      result.unsafeRunAsync(_ => ())
+    }
+  }
+
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
 
