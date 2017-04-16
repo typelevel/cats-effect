@@ -84,15 +84,15 @@ sealed abstract class IO[+A] {
    * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
-    flatMapTotal(a => try f(a) catch { case NonFatal(t) => IO.fail(t) })
+    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.fail(t) }))
 
-  private final def flatMapTotal[B](f: A => IO[B]): IO[B] = {
+  private final def flatMapTotal[B](f: AndThen[A, IO[B]]): IO[B] = {
     this match {
-      case Pure(a) => Suspend(AndThen(_ => f(a)))
+      case Pure(a) => Suspend(AndThen((_: Unit) => a).andThen(f))
       case Fail(t) => Fail(t)
-      case Suspend(thunk) => BindSuspend(thunk, AndThen(f))
+      case Suspend(thunk) => BindSuspend(thunk, f)
       case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f))))
-      case Async(k) => BindAsync(k, AndThen(f))
+      case Async(k) => BindAsync(k, f)
       case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMapTotal(f))))
     }
   }
@@ -203,7 +203,7 @@ sealed abstract class IO[+A] {
   @tailrec
   private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk(()).unsafeStep
-    case BindSuspend(thunk, f) => thunk(()).flatMapTotal(f.apply).unsafeStep
+    case BindSuspend(thunk, f) => thunk(()).flatMapTotal(f).unsafeStep
     case _ => this
   }
 
