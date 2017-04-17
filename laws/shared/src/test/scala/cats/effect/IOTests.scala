@@ -108,6 +108,14 @@ class IOTests extends FunSuite with Matchers with Discipline {
     }
   }
 
+  test("handle exceptions through binds") {
+    val ioa = IO[Int](sys.error("foo")).flatMap(x => IO(x)).attempt
+
+    ioa.unsafeRunSync() should matchPattern {
+      case Left(_) => ()
+    }
+  }
+
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
 

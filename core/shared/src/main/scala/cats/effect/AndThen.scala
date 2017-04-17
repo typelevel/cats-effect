@@ -29,15 +29,6 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
   import AndThen._
 
   final def apply(a: A): B = {
-    /*
-    // this is the aspirational code, but doesn't work due to tailrec bugs
-    this match {
-      case Single(f) => f(a)
-      case Concat(Single(f), right) => right(f(a))
-      case Concat(left, right) => left.rotateAccum(right)(a)
-    }
-    */
-
     var self: AndThen[Any, Any] = this.asInstanceOf[AndThen[Any, Any]]
     var cur: Any = a.asInstanceOf[Any]
     var continue = true
@@ -51,7 +42,37 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
           cur = f(cur).asInstanceOf[Any]
           self = right.asInstanceOf[AndThen[Any, Any]]
 
-        case Concat(left, right) => self = left.rotateAccum(right)
+        case Concat(left @ Concat(_, _), right) => self = left.rotateAccum(right)
+
+        case Concat(ss, right) =>
+          val left = ss.asInstanceOf[ShortCircuit[Any, Any]]
+
+          cur match {
+            case Left(t: Throwable) =>
+              cur = IO.pure(Left(t))
+              self = right.asInstanceOf[AndThen[Any, Any]]
+
+            case Right(a) =>
+              self = left.inner.andThen(right).asInstanceOf[AndThen[Any, Any]]
+              cur = a.asInstanceOf[Any]
+
+            case _ => throw new AssertionError("types got screwy somewhere halp!!!")
+          }
+
+        case ss =>
+          val ssc = ss.asInstanceOf[ShortCircuit[Any, Any]]
+
+          cur match {
+            case Left(t: Throwable) =>
+              cur = IO.pure(Left(t))
+              continue = false
+
+            case Right(a) =>
+              self = ssc.inner.asInstanceOf[AndThen[Any, Any]]
+              cur = a.asInstanceOf[Any]
+
+            case _ => throw new AssertionError("types got screwy somewhere halp!!!")
+          }
       }
     }
 
@@ -61,28 +82,24 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
   final def andThen[X](right: AndThen[B, X]): AndThen[A, X] = Concat(this, right)
   final def compose[X](right: AndThen[X, A]): AndThen[X, B] = Concat(right, this)
 
-  // converts left-leaning to right-leaning
-  private final def rotateAccum[E](_right: AndThen[B, E]): AndThen[A, E] = {
-    /*
-    // this is the aspirational code, but doesn't work due to tailrec bugs
-    this match {
-      case Single(f) => this.andThen(right)
-      case Concat(left, inner) => left.rotateAccum(inner.andThen(right))
-    }
-    */
+  final def shortCircuit[E](implicit ev: B <:< IO[Either[Throwable, E]]) =
+    ShortCircuit[A, E](this.asInstanceOf[AndThen[A, IO[Either[Throwable, E]]]])
 
+  // converts left-leaning to right-leaning
+  protected final def rotateAccum[E](_right: AndThen[B, E]): AndThen[A, E] = {
     var self: AndThen[Any, Any] = this.asInstanceOf[AndThen[Any, Any]]
     var right: AndThen[Any, Any] = _right.asInstanceOf[AndThen[Any, Any]]
     var continue = true
     while (continue) {
       self match {
-        case Single(f) =>
-          self = self.andThen(right)
-          continue = false
-
         case Concat(left, inner) =>
           self = left.asInstanceOf[AndThen[Any, Any]]
           right = inner.andThen(right)
+
+        // either Single or ShortCircuit; the latter doesn't typecheck
+        case _ =>
+          self = self.andThen(right)
+          continue = false
       }
     }
 
@@ -98,4 +115,5 @@ private[effect] object AndThen {
 
   final case class Single[-A, +B](f: A => B) extends AndThen[A, B]
   final case class Concat[-A, E, +B](left: AndThen[A, E], right: AndThen[E, B]) extends AndThen[A, B]
+  final case class ShortCircuit[-A, +B](inner: AndThen[A, IO[Either[Throwable, B]]]) extends AndThen[Either[Throwable, A], IO[Either[Throwable, B]]]
 }
