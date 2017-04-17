@@ -467,7 +467,7 @@ object IO extends IOInstances {
 
   private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]]) extends IO[A] {
     def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] =
-      BindSuspend( thunk.andThen(AndThen(_.attempt)), f.andThen(AndThen(_.attempt)).shortCircuit)
+      BindSuspend(thunk.andThen(AndThen(_.attempt)), f.andThen(AndThen(_.attempt)).shortCircuit)
   }
 
   private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit) extends IO[A] {
