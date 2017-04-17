@@ -108,11 +108,21 @@ class IOTests extends FunSuite with Matchers with Discipline {
     }
   }
 
-  test("handle exceptions through binds") {
-    val ioa = IO[Int](sys.error("foo")).flatMap(x => IO(x)).attempt
+  test("handle exceptions through bind suspend") {
+    case object Foo extends Exception
+    val ioa = IO[Int](throw Foo).flatMap(x => IO(x)).attempt
 
     ioa.unsafeRunSync() should matchPattern {
       case Left(_) => ()
+    }
+  }
+
+  test("handle exceptions through bind async") {
+    case object Foo extends Exception
+    val ioa = IO.async[Int](_(Left(Foo))).flatMap(x => IO(x)).attempt
+
+    ioa.unsafeRunSync() should matchPattern {
+      case Left(Foo) => ()
     }
   }
 

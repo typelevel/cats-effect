@@ -466,11 +466,8 @@ object IO extends IOInstances {
   }
 
   private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] = {
-      BindSuspend(
-        thunk.andThen(AndThen(_.attempt)),
-        f.andThen(AndThen(_.attempt)).shortCircuit)
-    }
+    def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] =
+      BindSuspend( thunk.andThen(AndThen(_.attempt)), f.andThen(AndThen(_.attempt)).shortCircuit)
   }
 
   private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit) extends IO[A] {
@@ -478,8 +475,7 @@ object IO extends IOInstances {
   }
 
   private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindAsync[E, Either[Throwable, A]] = {
-      BindAsync(k, f.andThen(AndThen(_.attempt)))
-    }
+    def attempt: BindAsync[Either[Throwable, E], Either[Throwable, A]] =
+      BindAsync(k.compose(_.compose(Right(_))), f.andThen(AndThen(_.attempt)).shortCircuit)
   }
 }
