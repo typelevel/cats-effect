@@ -73,30 +73,6 @@ class IOTests extends FunSuite with Matchers with Discipline {
     }
   }
 
-  test("provide stack safety on repeated left-binds") {
-    val result = (0 until 10000).foldLeft(IO(0)) { (acc, _) =>
-      acc.flatMap(_ => IO(0))
-    }
-
-    result.unsafeRunSync() shouldEqual 0
-  }
-
-  test("provide stack safety on repeated right-binds") {
-    val result = (0 until 10000).foldRight(IO(0)) { (_, acc) =>
-      IO(0).flatMap(_ => acc)
-    }
-
-    result.unsafeRunSync() shouldEqual 0
-  }
-
-  test("provide stack safety on repeated attempts") {
-    val result = (0 until 10000).foldLeft(IO(0)) { (acc, _) =>
-      acc.attempt.map(_ => 0)
-    }
-
-    result.unsafeRunSync() shouldEqual 0
-  }
-
   // this is expected behavior
   test("fail to provide stack safety with repeated async suspensions") {
     val result = (0 until 10000).foldLeft(IO(0)) { (acc, i) =>
@@ -105,24 +81,6 @@ class IOTests extends FunSuite with Matchers with Discipline {
 
     intercept[StackOverflowError] {
       result.unsafeRunAsync(_ => ())
-    }
-  }
-
-  test("handle exceptions through bind suspend") {
-    case object Foo extends Exception
-    val ioa = IO[Int](throw Foo).flatMap(x => IO(x)).attempt
-
-    ioa.unsafeRunSync() should matchPattern {
-      case Left(_) => ()
-    }
-  }
-
-  test("handle exceptions through bind async") {
-    case object Foo extends Exception
-    val ioa = IO.async[Int](_(Left(Foo))).flatMap(x => IO(x)).attempt
-
-    ioa.unsafeRunSync() should matchPattern {
-      case Left(Foo) => ()
     }
   }
 
