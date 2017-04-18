@@ -75,7 +75,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
 
   lazy val stackSafetyOnRepeatedAttempts = {
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
-      acc.attempt.map(_ => ())
+      F.attempt(acc).map(_ => ())
     }
 
     F.runAsync(result)(_ => IO.pure(())).unsafeRunSync() <-> (())
@@ -83,7 +83,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
 
   // the following law(s) should really be on MonadError
   def propagateErrorsThroughBindSuspend[A](t: Throwable) = {
-    val fa = F.delay[A](throw t).flatMap(x => F.pure(x)).attempt
+    val fa = F.attempt(F.delay[A](throw t).flatMap(x => F.pure(x)))
 
     var result: Either[Throwable, Either[Throwable, A]] = Left(new AssertionError)
     val read = IO { result }
@@ -92,7 +92,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
   }
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {
-    val fa = F.async[A](_(Left(t))).flatMap(x => F.pure(x)).attempt
+    val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
 
     var result: Either[Throwable, Either[Throwable, A]] = Left(new AssertionError)
     val read = IO { result }
