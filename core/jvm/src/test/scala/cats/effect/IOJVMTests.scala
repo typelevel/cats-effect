@@ -77,4 +77,15 @@ class IOJVMTests extends FunSuite with Matchers {
     n5 shouldEqual ThreadName
     n6 shouldEqual ThreadName
   }
+
+  // this is expected behavior
+  test("fail to provide stack safety with repeated async suspensions") {
+    val result = (0 until 10000).foldLeft(IO(0)) { (acc, i) =>
+      acc.flatMap(n => IO.async[Int](_(Right(n + 1))))
+    }
+
+    intercept[StackOverflowError] {
+      result.unsafeRunAsync(_ => ())
+    }
+  }
 }
