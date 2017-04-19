@@ -368,6 +368,9 @@ object IO extends IOInstances {
    */
   def pure[A](a: A): IO[A] = Pure(a)
 
+  /** Alias for `IO.pure(())`. */
+  val unit: IO[Unit] = pure(())
+
   /**
    * Lifts an `Eval` into `IO`.  This function will preserve the evaluation semantics of any actions
    * that are lifted into the pure `IO`.  Eager `Eval` instances will be converted into thunk-less
