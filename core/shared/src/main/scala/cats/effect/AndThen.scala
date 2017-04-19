@@ -82,8 +82,11 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
   final def andThen[X](right: AndThen[B, X]): AndThen[A, X] = Concat(this, right)
   final def compose[X](right: AndThen[X, A]): AndThen[X, B] = Concat(right, this)
 
-  final def shortCircuit[E](implicit ev: B <:< IO[Either[Throwable, E]]) =
+  final def shortCircuit[E](implicit ev: B <:< IO[Either[Throwable, E]]) = {
+    val _ = ev
+
     ShortCircuit[A, E](this.asInstanceOf[AndThen[A, IO[Either[Throwable, E]]]])
+  }
 
   // converts left-leaning to right-leaning
   protected final def rotateAccum[E](_right: AndThen[B, E]): AndThen[A, E] = {
