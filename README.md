@@ -1,4 +1,4 @@
-# cats-effect
+# cats-effect [![Build Status](https://travis-ci.org/djspiewak/cats-effect.svg?branch=master)](https://travis-ci.org/djspiewak/cats-effect)
 
 > For when purity just isn't impure enough.
 
