@@ -25,7 +25,7 @@ Cross-builds are available for Scala 2.12, 2.11 and 2.10, Scala.js major version
 
 ### Laws
 
-The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Async`, `Sync` and `Effect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses.  For an example of this, see [`IOTests.scala`](tree/master/laws/shared/src/test/scala/cats/effect/IOTests.scala).
+The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Async`, `Sync` and `Effect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses.  For an example of this, see [`IOTests.scala`](blob/master/laws/shared/src/test/scala/cats/effect/IOTests.scala).
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect-laws" % CatsEffectVersion % "test"
