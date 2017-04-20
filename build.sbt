@@ -77,6 +77,23 @@ lazy val laws = crossProject
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
 
+lazy val docs = project
+  .in(file("docs"))
+  .dependsOn(coreJVM)
+  .settings(commonSettings: _*)
+  .enablePlugins(MicrositesPlugin)
+  .settings(
+    micrositeName             := "cats-effect",
+    micrositeDescription      := "IO for Cats",
+    micrositeAuthor           := "Daniel Spiewak, et al.",
+    micrositeGithubOwner      := "djspiewak",
+    micrositeGithubRepo       := "cats-effect",
+    micrositeBaseUrl          := "/cats-effect",
+    micrositeDocumentationUrl := "/cats-effect/docs/01-Index.html",
+    micrositeHighlightTheme   := "color-brewer",
+    scalacOptions            --= Seq("-Ywarn-unused-import", "-Xlint")
+  )
+
 /*
  * Compatibility version.  Use this to declare what version with
  * which `master` remains in compatibility.  This is literally
