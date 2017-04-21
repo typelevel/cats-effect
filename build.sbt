@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Daniel Spiewak
+ * Copyright 2017 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,8 @@ val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)),
 
   headers := Map(
-    "scala" -> Apache2_0("2017", "Daniel Spiewak"),
-    "java" -> Apache2_0("2017", "Daniel Spiewak")),
+    "scala" -> Apache2_0("2017", "Typelevel"),
+    "java" -> Apache2_0("2017", "Typelevel")),
 
   isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
 
