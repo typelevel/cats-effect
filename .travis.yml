@@ -6,6 +6,9 @@ scala:
   - 2.11.11
   - 2.12.2
 
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION ci
+
 before_cache:
   - find $HOME/.sbt -name "*.lock" -type f -delete
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete

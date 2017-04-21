@@ -22,6 +22,8 @@ val CatsVersion = "0.9.0"
 val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
+addCommandAlias("ci", ";test ;mimaReportBinaryIssues")
+
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)),
 
@@ -52,7 +54,23 @@ val commonSettings = Seq(
 
   homepage := Some(url("https://github.com/typelevel/cats-effect")),
 
-  scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")))
+  scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
+
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary))
+
+val mimaSettings = Seq(
+  mimaPreviousArtifacts := {
+    val TagBase = """^(\d+)\.(\d+).*"""r
+    val TagBase(major, minor) = BaseVersion
+
+    val tags = "git tag --list".!! split "\n" map { _.trim }
+
+    val versions =
+      tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
+
+    versions map { v => organization.value %% name.value % v } toSet
+  }
+)
 
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
@@ -78,6 +96,7 @@ lazy val core = crossProject
 
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
 lazy val coreJVM = core.jvm
@@ -144,8 +163,6 @@ licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 coursierUseSbtCredentials in ThisBuild := true
 coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
 
-addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
-
 // Adapted from Rob Norris' post at https://tpolecat.github.io/2014/04/11/scalac-flags.html
 scalacOptions in ThisBuild ++= Seq(
   "-language:_",
@@ -171,7 +188,7 @@ scalacOptions in ThisBuild ++= {
 
 scalacOptions in ThisBuild ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, major)) if major >= 12 || scalaVersion.value == "2.11.9" =>
+    case Some((2, major)) if major >= 12 || scalaVersion.value == "2.11.11" =>
       Seq("-Ypartial-unification")
 
     case _ => Seq.empty
@@ -184,8 +201,7 @@ scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value
 
 libraryDependencies in ThisBuild ++= {
   scalaVersion.value match {
-    case "2.11.8" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
-    case "2.10.6" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
+    case "2.11.8" | "2.10.6" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
     case _ => Seq.empty
   }
 }
