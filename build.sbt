@@ -16,7 +16,7 @@
 
 import de.heikoseeberger.sbtheader.license.Apache2_0
 
-organization := "org.typelevel"
+organization in ThisBuild := "org.typelevel"
 
 val CatsVersion = "0.9.0"
 val ScalaCheckVersion = "1.13.4"
