@@ -27,7 +27,32 @@ val commonSettings = Seq(
 
   headers := Map(
     "scala" -> Apache2_0("2017", "Daniel Spiewak"),
-    "java" -> Apache2_0("2017", "Daniel Spiewak")))
+    "java" -> Apache2_0("2017", "Daniel Spiewak")),
+
+  isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
+
+  publishMavenStyle := true,
+  pomIncludeRepository := { _ => false },
+
+  sonatypeProfileName := organization.value,
+
+  pomExtra :=
+    <developers>
+      <developer>
+        <id>djspiewak</id>
+        <name>Daniel Spiewak</name>
+        <url>http://www.codecommit.com</url>
+      </developer>
+      <developer>
+        <id>mpilquist</id>
+        <name>Michael Pilquist</name>
+        <url>http://github.com/mpilquist</url>
+      </developer>
+    </developers>,
+
+  homepage := Some(url("https://github.com/typelevel/cats-effect")),
+
+  scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")))
 
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
@@ -112,21 +137,12 @@ val BaseVersion = "0.1"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
-// bintrayVcsUrl := Some("...")
-
 /***********************************************************************\
                       Boilerplate below these lines
 \***********************************************************************/
 
 coursierUseSbtCredentials in ThisBuild := true
 coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
-
-credentials in bintray := {
-  if (isTravisBuild.value)
-    Nil
-  else
-    (credentials in bintray).value
-}
 
 addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
 
