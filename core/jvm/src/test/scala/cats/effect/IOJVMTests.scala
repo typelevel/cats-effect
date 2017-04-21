@@ -18,44 +18,31 @@ package cats
 package effect
 
 import org.scalatest._
-
 import scala.concurrent.ExecutionContext
-
-import java.{util => ju}
-import java.util.concurrent.{AbstractExecutorService, TimeUnit}
+import scala.concurrent.duration._
 
 class IOJVMTests extends FunSuite with Matchers {
-
   val ThreadName = "test-thread"
 
-  val TestES = new AbstractExecutorService {
+  val TestEC = new ExecutionContext {
     def execute(r: Runnable): Unit = {
-      new Thread {
-        setName(ThreadName)
-        start()
-
-        override def run() = r.run()
-      }
+      val th = new Thread(r)
+      th.setName(ThreadName)
+      th.start()
     }
 
-    // Members declared in java.util.concurrent.ExecutorService
-    def awaitTermination(time: Long, unit: TimeUnit): Boolean = true
-    def isShutdown(): Boolean = true
-    def isTerminated(): Boolean = true
-    def shutdown(): Unit = ()
-    def shutdownNow(): ju.List[Runnable] = new ju.ArrayList[Runnable]
+    def reportFailure(cause: Throwable): Unit =
+      throw cause
   }
 
-  val TestEC = ExecutionContext.fromExecutorService(TestES)
-
   test("shift contiguous prefix and suffix, but not interfix") {
-    val name: IO[String] = IO { Thread.currentThread().getName() }
+    val name: IO[String] = IO { Thread.currentThread().getName }
 
     val aname: IO[String] = IO async { cb =>
       new Thread {
         start()
-
-        override def run() = cb(Right(Thread.currentThread().getName()))
+        override def run() =
+          cb(Right(Thread.currentThread().getName))
       }
     }
 
@@ -76,6 +63,24 @@ class IOJVMTests extends FunSuite with Matchers {
     n4 should not equal ThreadName
     n5 shouldEqual ThreadName
     n6 shouldEqual ThreadName
+  }
+
+  test("unsafeRunTimed(Duration.Undefined) throws exception") {
+    val never = IO.async[Int](_ => ())
+
+    intercept[IllegalArgumentException] {
+      never.unsafeRunTimed(Duration.Undefined)
+    }
+  }
+
+  test("unsafeRunTimed times-out on unending IO") {
+    val never = IO.async[Int](_ => ())
+    val start = System.currentTimeMillis()
+    val received = never.unsafeRunTimed(100.millis)
+    val elapsed = System.currentTimeMillis() - start
+
+    assert(received === None)
+    assert(elapsed >= 100)
   }
 
   // this is expected behavior
