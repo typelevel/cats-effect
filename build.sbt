@@ -23,6 +23,7 @@ val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues")
+addCommandAlias("release", ";reload ;+publishSigned ;sonatypeReleaseAll")
 
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)),
