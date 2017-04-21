@@ -33,6 +33,14 @@ libraryDependencies += "org.typelevel" %% "cats-effect-laws" % CatsEffectVersion
 
 These laws are compatible with both Specs2 and ScalaTest.
 
+### Versioning and Compatibility
+
+Snapshots may be published to sonatype at any time.  They will be denoted as versions of the form `major.minor-hash`, where the `hash` is the 7 character git hash prefix of the commit from which the snapshot was published.  Thus, "snapshots" are in fact stable, and can be used as repeatable upstream dependencies if you're feeling courageous.  A snapshot with a `major` version of *x* and a `minor` version of *y* is expected (and indeed, machine-checked in so far as possible) to be binary compatible with the full release with version *x*.*y* (and all its subsequent minor versions).  Thus, eviction works basically the way you expect.  The only exception to this is *unreleased* incompatible versions, since such versions are still in flux and early snapshots may be incompatible with this future release.
+
+Note that this implies that snapshots of a particular release line may be published *after* the main release.  You can find more details [here](https://github.com/typelevel/cats-effect/blob/563d29ee01885b00613a3dd8eb6f12c56aa126b2/build.sbt#L80-L110).
+
+This project is intended to be an upstream dependency of a large swath of the ecosystem, similar in many respects to cats-core itself.  For that reason, binary compatibility and stability is *incredibly* important.  Breaking changes to major releases are going to be almost universally rejected, and will require extreme justification (and likely blood sacrifice) to obtain approval.
+
 ## API
 
 Most of the API documentation can be found in the scaladoc for the `IO` type.  To summarize though, the typeclass hierarchy looks something like this:
