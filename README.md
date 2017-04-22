@@ -13,13 +13,13 @@ This project does *not* attempt to provide any tools for concurrency or parallel
 
 ## Usage
 
-At present, there are no published snapshots of cats-effect.  You're free to run `+publishLocal` on a clone of the repo, however, while we play the game of "find the Sonatype".
+At present, the only public releases of cats-effect are hash snapshots (see [below](#versioning-and-compatibility)).  The most current snapshot can be found in the maven badge at the top of this readme.  If you are a very brave sort, you are free to depend on these snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.  We will be making a stable release as soon as is reasonable.
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect" % CatsEffectVersion
 ```
 
-If your project uses Scala.js, replace the double-`%` with a triple.
+If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 0.9.
 
 Cross-builds are available for Scala 2.12, 2.11 and 2.10, Scala.js major version 0.6.
 
