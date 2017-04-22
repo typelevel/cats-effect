@@ -28,7 +28,7 @@ import scala.concurrent.ExecutionContext
  * Can be used in some cases to keep the asynchronous execution
  * on the current thread and call-stack, as an optimization.
  *
- * The `TrampolineExecutionContext` keeps a reference to another
+ * The `TrampolinedContext` keeps a reference to another
  * `underlying` context, to which it defers for:
  *
  *  - reporting errors

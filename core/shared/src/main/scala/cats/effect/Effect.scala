@@ -42,7 +42,8 @@ trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
               def run(): Unit = callback(e)
             })
           
-          runAsync(fa)(e => IO(asyncCallback(e))).unsafeRunAsync(_ => ())
+          runAsync(fa)(e => IO(asyncCallback(e)))
+            .unsafeRunAsync(_ => ())
         }
       })
     }
