@@ -23,15 +23,18 @@ import scala.concurrent.duration._
 import scala.util.{Left, Right}
 
 /**
- * A pure abstraction representing the intention to perform a side-effect, where
- * the result of that side-effect may be obtained synchronously (via return)
- * or asynchronously (via callback).  Effects contained within this abstraction
- * are not evaluated until the "end of the world", which is to say, when one of
- * the "unsafe" methods are used.  Effectful results are not memoized, meaning that
- * memory overhead is minimal (and no leaks), and also that a single effect may
- * be run multiple times in a referentially-transparent manner.  For example:
+ * A pure abstraction representing the intention to perform a
+ * side-effect, where the result of that side-effect may be obtained
+ * synchronously (via return) or asynchronously (via callback).
  *
- * ```scala
+ * Effects contained within this abstraction are not evaluated until
+ * the "end of the world", which is to say, when one of the "unsafe"
+ * methods are used.  Effectful results are not memoized, meaning that
+ * memory overhead is minimal (and no leaks), and also that a single
+ * effect may be run multiple times in a referentially-transparent
+ * manner.  For example:
+ *
+ * {{{
  * val ioa = IO { println("hey!") }
  *
  * val program = for {
@@ -40,38 +43,48 @@ import scala.util.{Left, Right}
  * } yield ()
  *
  * program.unsafeRunSync()
- * ```
+ * }}}
  *
- * The above will print "hey!" twice, as the effect will be re-run each time it is
- * sequenced in the monadic chain.
+ * The above will print "hey!" twice, as the effect will be re-run
+ * each time it is sequenced in the monadic chain.
  *
- * `IO` is trampolined for all *synchronous* joins.  This means that you can safely
- * call `flatMap` in a recursive function of arbitrary depth, without fear of
- * blowing the stack.  However, `IO` cannot guarantee stack-safety in the presence
- * of arbitrarily nested asynchronous suspensions.  This is quite simply because it
- * is *impossible* (on the JVM) to guarantee stack-safety in that case.  For example:
+ * `IO` is trampolined for all ''synchronous'' joins.  This means that
+ * you can safely call `flatMap` in a recursive function of arbitrary
+ * depth, without fear of blowing the stack.  However, `IO` cannot
+ * guarantee stack-safety in the presence of arbitrarily nested
+ * asynchronous suspensions.  This is quite simply because it is
+ * ''impossible'' (on the JVM) to guarantee stack-safety in that case.
+ * For example:
  *
  * ```scala
  * def lie[A]: IO[A] = IO.async(cb => cb(Right(lie))).flatMap(a => a)
  * ```
  *
- * This should blow the stack when evaluated.  Also note that there is no way to
- * encode this using `tailRecM` in such a way that it does *not* blow the stack.
- * Thus, the `tailRecM` on `Monad[IO]` is not guaranteed to produce an `IO` which
- * is stack-safe when run, but will rather make every attempt to do so barring
- * pathological structure.
+ * This should blow the stack when evaluated. Also note that there is
+ * no way to encode this using `tailRecM` in such a way that it does
+ * ''not'' blow the stack.  Thus, the `tailRecM` on `Monad[IO]` is not
+ * guaranteed to produce an `IO` which is stack-safe when run, but
+ * will rather make every attempt to do so barring pathological
+ * structure.
  *
- * `IO` makes no attempt to control finalization or guaranteed resource-safety
- * in the presence of concurrent preemption, simply because `IO` does not care about
- * concurrent preemption at all!  `IO` actions are not interruptible and should be
- * considered broadly-speaking atomic, at least when used purely.
+ * `IO` makes no attempt to control finalization or guaranteed
+ * resource-safety in the presence of concurrent preemption, simply
+ * because `IO` does not care about concurrent preemption at all!
+ * `IO` actions are not interruptible and should be considered
+ * broadly-speaking atomic, at least when used purely.
  */
 sealed abstract class IO[+A] {
   import IO._
 
   /**
-   * Functor map on `IO`.  Does what the types say.  Any exceptions thrown within the function
-   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   * Functor map on `IO`. Given a mapping functions, it transforms the
+   * value produced by the source, while keeping the `IO` context.
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`, because due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = this match {
     case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => Fail(t) }
@@ -80,8 +93,19 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Monadic bind on `IO`.  Does what the types say.  Any exceptions thrown within the function
-   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   * Monadic bind on `IO`, used for sequentially composing two `IO`
+   * actions, where the value produced by the first `IO` is passed as
+   * input to a function producing the second `IO` action.
+   *
+   * Due to this operation's signature, `flatMap` forces a data
+   * dependency between two `IO` actions, thus ensuring sequencing
+   * (e.g. one action to be executed before another one).
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`, because due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
     flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.fail(t) }))
@@ -98,36 +122,41 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Materializes any sequenced exceptions into value space, where they may be handled.  This is
-   * analogous to the `catch` clause in `try`/`catch`.  Please note that there are some impure
-   * implications which arise from observing caught exceptions.  It is possible to violate the
-   * monad laws (and indeed, the functor laws) by using this function!  Uh... don't do that.
+   * Materializes any sequenced exceptions into value space, where
+   * they may be handled.
+   * 
+   * This is analogous to the `catch` clause in `try`/`catch`, being
+   * the inverse of `IO.fail`. Thus:
    *
-   * This function is the inverse of `IO.fail`.  Thus:
+   * {{{
+   * IO.fail(ex).attempt.unsafeRunAsync === Left(ex)
+   * }}}
    *
-   * ```scala
-   * IO.fail(t).attempt.unsafeRunAsync === Left(t)
-   * ```
-   *
-   * @see IO.attempt
+   * @see [[IO.fail]]
    */
   def attempt: IO[Either[Throwable, A]]
 
   /**
-   * Sequences the specified `IO` ensuring evaluation regardless of whether or not the target
-   * `IO` raises an exception.  Analogous to `finally` in a `try`/`catch`/`finally` block.  If
-   * an exception is raised by the finalizer, it will be passed sequenced into the resultant.
-   * This is true even if the target *also* raised an exception.  This mirrors the semantics of
-   * `try`/`finally` on the JVM when you perform similar abominations.  For example:
+   * Sequences the specified `IO` ensuring evaluation regardless of
+   * whether or not the target `IO` raises an exception.
    *
-   * ```scala
+   * Analogous to `finally` in a `try`/`catch`/`finally` block. If an
+   * exception is raised by the finalizer, it will be passed sequenced
+   * into the resultant. This is true even if the target ''also''
+   * raised an exception. It mirrors the semantics of `try`/`finally`
+   * on the JVM when you perform similar operations.
+   * 
+   * Example:
+   *
+   * {{{
    * try throw e1 finally throw e2   // throws e2
    *
    * IO.fail(e1).ensuring(IO.fail(e2)) === IO.fail(e2)
-   * ```
+   * }}}
    *
-   * This function is distinct from monadic `flatMap` (well, really applicative `apply2`) in that
-   * an exception sequenced into a monadic bind chain will short-circuit the chain, and the
+   * This function is distinct from monadic `flatMap` (well, really
+   * applicative `apply2`) in that an exception sequenced into a
+   * monadic bind chain will short-circuit the chain and the
    * subsequent actions will not be run.
    */
   final def ensuring(finalizer: IO[Any]): IO[A] = {
@@ -137,12 +166,15 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * The safe analogue to unsafeRunAsync.  The resulting IO is guaranteed to be safe to run
-   * synchronously.  Which is to say, unsafeRunSync . runAsync is isomorphic to unsafeRunAsync.
-   * Another way to view this function is as a way to convert an `IO` which *may* have asynchronous
-   * actions (which would thus require blocking when run synchronously) into another `IO` which is
-   * guaranteed to have exclusively synchronous actions, by providing an effect which stores off
-   * the results of the original `IO` as a side-effect.
+   * Produces an `IO` reference that is guaranteed to be safe to run
+   * synchronously (i.e. [[unsafeRunSync]]), being the safe analogue
+   * to [[unsafeRunAsync]].
+   *
+   * This operation is isomorphic to [[unsafeRunAsync]]. What it does
+   * is to let you describe asynchronous execution with a function
+   * that stores off the results of the original `IO` as a
+   * side-effect, thus ''avoiding'' the usage of impure callbacks or
+   * eager evaluation.
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
@@ -184,17 +216,17 @@ sealed abstract class IO[+A] {
    * and will force the continuation of the resulting `IO` back onto the `MainPool`.  Which
    * is exactly what you want most of the time with blocking actions of this type.
    */
-  final def shift(implicit EC: ExecutionContext): IO[A] = {
+  final def shift(implicit ec: ExecutionContext): IO[A] = {
     val self = attempt.flatMap { e =>
       IO async { (cb: Either[Throwable, A] => Unit) =>
-        EC.execute(new Runnable {
+        ec.execute(new Runnable {
           def run() = cb(e)
         })
       }
     }
 
     IO async { cb =>
-      EC.execute(new Runnable {
+      ec.execute(new Runnable {
         def run() = self.unsafeRunAsync(cb)
       })
     }
