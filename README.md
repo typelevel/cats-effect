@@ -1,4 +1,4 @@
-# cats-effect [![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=master)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats.svg)](https://gitter.im/typelevel/cats) [![Maven Central](https://img.shields.io/maven-central/v/org.typelevel/cats-effect.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.typelevel%22%20AND%20a%3A%22cats-effect%22)
+# cats-effect [![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=master)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats.svg)](https://gitter.im/typelevel/cats) [![Maven Central](https://img.shields.io/maven-central/v/org.typelevel/cats-effect_2.12.svg)](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.typelevel%22%20AND%20a%3Acats-effect*)
 
 > For when purity just isn't impure enough.
 
