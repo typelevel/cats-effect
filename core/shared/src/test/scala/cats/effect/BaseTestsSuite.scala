@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect
 
-import scala.concurrent.duration.Duration
+import cats.effect.util.TestContext
+import org.scalactic.source
+import org.scalatest.{FunSuite, Matchers, Tag}
 
-private[effect] object IOPlatform {
-  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
-    throw new UnsupportedOperationException("cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync")
+private[effect] class BaseTestsSuite extends FunSuite with Matchers {
+  /** For tests that need a usable [[TestContext]] reference. */
+  def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)
+    (implicit pos: source.Position): Unit = {
+
+    test(name, tags:_*)(f(TestContext()))(pos)
+  }
 }

@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.util
 
 /**
- * Alternative to `scala.util.control.NonFatal` that only considers
- * `VirtualMachineError`s as fatal. Cribbed directly from fs2
+ * Extractor of non-fatal `Throwable` instances.
+ *
+ * Alternative to [[scala.util.control.NonFatal]] that only
+ * considers `VirtualMachineError`s as fatal.
+ *
+ * Inspired by the FS2 implementation.
  */
-private[effect] object NonFatal {
-
+object NonFatal {
   def apply(t: Throwable): Boolean = t match {
     case _: VirtualMachineError => false
     case _ => true
