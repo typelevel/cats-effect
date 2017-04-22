@@ -18,7 +18,6 @@ package cats
 package effect
 
 import simulacrum._
-
 import scala.concurrent.ExecutionContext
 import scala.util.Either
 
@@ -31,17 +30,20 @@ trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
    * @see IO#shift
    */
   def shift[A](fa: F[A])(implicit ec: ExecutionContext): F[A] = {
-    val self = flatMap(attempt(fa)) { e =>
-      async { (cb: Either[Throwable, A] => Unit) =>
-        ec.execute(new Runnable {
-          def run() = cb(e)
-        })
-      }
-    }
+    import cats.effect.util.TrampolinedContext.immediate
 
-    async { cb =>
+    async[A] { callback =>
+      // Real asynchronous boundary
       ec.execute(new Runnable {
-        def run() = runAsync(self)(e => IO { cb(e) }).unsafeRunSync()
+        def run(): Unit = {
+          // Trampolined asynchronous boundary
+          val asyncCallback = (e: Either[Throwable, A]) =>
+            immediate.execute(new Runnable {
+              def run(): Unit = callback(e)
+            })
+          
+          runAsync(fa)(e => IO(asyncCallback(e))).unsafeRunAsync(_ => ())
+        }
       })
     }
   }
