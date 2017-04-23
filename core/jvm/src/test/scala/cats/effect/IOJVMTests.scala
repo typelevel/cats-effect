@@ -79,7 +79,7 @@ class IOJVMTests extends FunSuite with Matchers {
     val received = never.unsafeRunTimed(100.millis)
     val elapsed = System.currentTimeMillis() - start
 
-    assert(received === None)
+    received shouldEqual None
     assert(elapsed >= 100)
   }
 
