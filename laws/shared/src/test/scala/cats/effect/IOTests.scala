@@ -22,6 +22,7 @@ import cats.kernel._
 import cats.kernel.laws.GroupLaws
 import cats.effect.laws.discipline.EffectTests
 
+import org.scalacheck._
 import org.scalatest._
 import org.typelevel.discipline.scalatest.Discipline
 
@@ -37,6 +38,12 @@ class IOTests extends FunSuite with Matchers with Discipline {
     run shouldEqual false
     ioa.unsafeRunSync()
     run shouldEqual true
+  }
+
+  test("throw in register is fail") {
+    Prop.forAll { t: Throwable =>
+      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw t), IO.fail(t))
+    }
   }
 
   test("catch exceptions within main block") {
