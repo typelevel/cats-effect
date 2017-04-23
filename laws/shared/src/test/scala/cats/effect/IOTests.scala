@@ -21,6 +21,7 @@ import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel._
 import cats.kernel.laws.GroupLaws
+import org.scalacheck._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
@@ -35,6 +36,12 @@ class IOTests extends BaseTestsSuite {
     run shouldEqual false
     ioa.unsafeRunSync()
     run shouldEqual true
+  }
+
+  test("throw in register is fail") {
+    Prop.forAll { t: Throwable =>
+      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw t), IO.fail(t))
+    }
   }
 
   test("catch exceptions within main block") {
@@ -94,10 +101,10 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
 
     val expected = IO.fail(dummy).shift.unsafeToFuture()
-    assert(expected.value === None)
+    expected.value shouldEqual None
 
     ec.tick()
-    assert(expected.value === Some(Failure(dummy)))
+    expected.value shouldEqual Some(Failure(dummy))
   }
 
   testAsync("shift is stack safe") { implicit ec =>
