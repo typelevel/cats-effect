@@ -14,12 +14,22 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.internals
 
-import scala.concurrent.duration.Duration
+/**
+ * Extractor of non-fatal `Throwable` instances.
+ *
+ * Alternative to [[scala.util.control.NonFatal]] that only
+ * considers `VirtualMachineError`s as fatal.
+ *
+ * Inspired by the FS2 implementation.
+ */
+private[effect] object NonFatal {
+  def apply(t: Throwable): Boolean = t match {
+    case _: VirtualMachineError => false
+    case _ => true
+  }
 
-private[effect] object IOPlatform {
-  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
-    throw new UnsupportedOperationException("cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync")
+  def unapply(t: Throwable): Option[Throwable] =
+    if (apply(t)) Some(t) else None
 }

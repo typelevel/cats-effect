@@ -16,17 +16,16 @@
 
 package cats.effect
 
-/**
- * Alternative to `scala.util.control.NonFatal` that only considers
- * `VirtualMachineError`s as fatal. Cribbed directly from fs2
- */
-private[effect] object NonFatal {
+import cats.effect.laws.util.TestContext
+import org.scalactic.source
+import org.scalatest.{FunSuite, Matchers, Tag}
+import org.typelevel.discipline.scalatest.Discipline
 
-  def apply(t: Throwable): Boolean = t match {
-    case _: VirtualMachineError => false
-    case _ => true
+class BaseTestsSuite extends FunSuite with Matchers with Discipline {
+  /** For tests that need a usable [[TestContext]] reference. */
+  def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)
+    (implicit pos: source.Position): Unit = {
+
+    test(name, tags:_*)(f(TestContext()))(pos)
   }
-
-  def unapply(t: Throwable): Option[Throwable] =
-    if (apply(t)) Some(t) else None
 }
