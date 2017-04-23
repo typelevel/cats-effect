@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.internals
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 /** JavaScript specific [[TrampolinedContext]] implementation. */
-private[util] final class TrampolinedContextImpl(underlying: ExecutionContext)
+private[internals] final class TrampolinedContextImpl(underlying: ExecutionContext)
   extends TrampolinedContext {
 
   private[this] var immediateQueue = mutable.Queue.empty[Runnable]

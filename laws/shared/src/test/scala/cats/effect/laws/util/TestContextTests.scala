@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package cats.effect
-package util
+package cats.effect.laws.util
 
+import cats.effect.BaseTestsSuite
 import scala.concurrent.Future
 import scala.util.Success
 

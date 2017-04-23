@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.internals
 
 import scala.annotation.tailrec
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
 
 /** JVM specific [[TrampolinedContext]] implementation. */
-private[util] final class TrampolinedContextImpl(underlying: ExecutionContext)
+private[internals] final class TrampolinedContextImpl(underlying: ExecutionContext)
   extends TrampolinedContext {
 
   private[this] val localTasks = new ThreadLocal[List[Runnable]]()

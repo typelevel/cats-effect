@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.effect.util.NonFatal
+import cats.effect.internals.NonFatal
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -187,7 +187,7 @@ sealed abstract class IO[+A] { self =>
    * is exactly what you want most of the time with blocking actions of this type.
    */
   final def shift(implicit ec: ExecutionContext): IO[A] = {
-    import cats.effect.util.TrampolinedContext.immediate
+    import cats.effect.internals.TrampolinedContext.immediate
 
     IO.async { callback =>
       // Real asynchronous boundary

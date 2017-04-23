@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.internals
 
 import org.scalatest.FunSuite
 import scala.concurrent.{ExecutionContext, Promise}

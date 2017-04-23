@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.laws.util
 
-import cats.effect.util.TestContext.State
+import cats.effect.laws.util.TestContext.State
+import cats.effect.internals.NonFatal
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -52,7 +53,7 @@ import scala.util.Random
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
  */
-private[effect] final class TestContext private ()
+final class TestContext private ()
   extends ExecutionContext {
 
   private[this] var stateRef = State(Queue.empty, None)
@@ -104,7 +105,7 @@ private[effect] final class TestContext private ()
   }
 }
 
-private[effect] object TestContext {
+object TestContext {
   /** Builder for [[TestContext]] instances. */
   def apply(): TestContext =
     new TestContext

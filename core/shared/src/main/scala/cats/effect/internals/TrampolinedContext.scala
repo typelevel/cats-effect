@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.internals
 
 import java.util.concurrent.Executor
 import scala.concurrent.ExecutionContext
@@ -47,10 +47,10 @@ import scala.concurrent.ExecutionContext
  * [[scala.concurrent.BlockContext BlockContext]], detecting `blocking`
  * code and reacting by forking the rest of the queue to prevent deadlocks.
  */
-abstract class TrampolinedContext private[util]
+private[effect] abstract class TrampolinedContext private[internals]
   extends ExecutionContext with Executor
 
-object TrampolinedContext {
+private[effect] object TrampolinedContext {
   /**
    * Builds a [[TrampolinedContext]] instance.
    *

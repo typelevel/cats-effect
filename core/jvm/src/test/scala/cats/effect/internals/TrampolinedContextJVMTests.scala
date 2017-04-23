@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect.internals
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import org.scalatest.FunSuite

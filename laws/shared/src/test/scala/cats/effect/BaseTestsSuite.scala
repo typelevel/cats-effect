@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.util
+package cats.effect
 
-/**
- * Extractor of non-fatal `Throwable` instances.
- *
- * Alternative to [[scala.util.control.NonFatal]] that only
- * considers `VirtualMachineError`s as fatal.
- *
- * Inspired by the FS2 implementation.
- */
-object NonFatal {
-  def apply(t: Throwable): Boolean = t match {
-    case _: VirtualMachineError => false
-    case _ => true
+import cats.effect.laws.util.TestContext
+import org.scalactic.source
+import org.scalatest.{FunSuite, Matchers, Tag}
+import org.typelevel.discipline.scalatest.Discipline
+
+class BaseTestsSuite extends FunSuite with Matchers with Discipline {
+  /** For tests that need a usable [[TestContext]] reference. */
+  def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)
+    (implicit pos: source.Position): Unit = {
+
+    test(name, tags:_*)(f(TestContext()))(pos)
   }
-
-  def unapply(t: Throwable): Option[Throwable] =
-    if (apply(t)) Some(t) else None
 }
