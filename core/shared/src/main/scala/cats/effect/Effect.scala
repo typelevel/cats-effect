@@ -22,13 +22,17 @@ import simulacrum._
 import scala.concurrent.ExecutionContext
 import scala.util.Either
 
+/**
+ * A monad that can suspend side-effects in the `F` context and that
+ * supports lazy and potentially asynchronous evaluation.
+ */
 @typeclass
 trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 
   /**
-   * @see IO#shift
+   * @see [[IO#shift]]
    */
   def shift[A](fa: F[A])(implicit EC: ExecutionContext): F[A] = {
     val self = flatMap(attempt(fa)) { e =>

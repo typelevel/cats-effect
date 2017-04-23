@@ -26,7 +26,7 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues")
 addCommandAlias("release", ";reload ;+publishSigned ;sonatypeReleaseAll")
 
 val commonSettings = Seq(
-  scalacOptions in (Compile, console) ~= (_ filterNot (Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)),
+  scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
   headers := Map(
     "scala" -> Apache2_0("2017", "Typelevel"),
@@ -57,11 +57,12 @@ val commonSettings = Seq(
 
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary))
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
+)
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
-    val TagBase = """^(\d+)\.(\d+).*"""r
+    val TagBase = """^(\d+)\.(\d+).*""".r
     val TagBase(major, minor) = BaseVersion
 
     val tags = "git tag --list".!! split "\n" map { _.trim }
@@ -69,7 +70,7 @@ val mimaSettings = Seq(
     val versions =
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
-    versions map { v => organization.value %% name.value % v } toSet
+    versions.map { v => organization.value %% name.value % v }.toSet
   }
 )
 
@@ -78,7 +79,8 @@ lazy val root = project.in(file("."))
   .settings(
     publish := (),
     publishLocal := (),
-    publishArtifact := false)
+    publishArtifact := false
+  )
 
 lazy val core = crossProject
   .in(file("core"))
@@ -93,9 +95,11 @@ lazy val core = crossProject
       "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
       "org.scalatest"  %%% "scalatest"  % "3.0.1"           % "test",
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
-      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
+      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"
+    ),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+  )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
