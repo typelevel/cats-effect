@@ -17,8 +17,6 @@
 package cats
 package effect
 
-import cats.effect.internals.NonFatal
-
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -68,7 +66,7 @@ import scala.util.{Left, Right}
  * concurrent preemption at all!  `IO` actions are not interruptible and should be
  * considered broadly-speaking atomic, at least when used purely.
  */
-sealed abstract class IO[+A] { self =>
+sealed abstract class IO[+A] {
   import IO._
 
   /**
@@ -187,20 +185,17 @@ sealed abstract class IO[+A] { self =>
    * is exactly what you want most of the time with blocking actions of this type.
    */
   final def shift(implicit ec: ExecutionContext): IO[A] = {
-    import cats.effect.internals.TrampolinedContext.immediate
+    val self = attempt.flatMap { e =>
+      IO async { (cb: Either[Throwable, A] => Unit) =>
+        ec.execute(new Runnable {
+          def run() = cb(e)
+        })
+      }
+    }
 
-    IO.async { callback =>
-      // Real asynchronous boundary
+    IO async { cb =>
       ec.execute(new Runnable {
-        def run(): Unit = {
-          self.unsafeRunAsync { result =>
-            // Trampolined asynchronous boundary
-            immediate.execute(new Runnable {
-              def run(): Unit =
-                callback(result)
-            })
-          }
-        }
+        def run() = self.unsafeRunAsync(cb)
       })
     }
   }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
 
 /**
  * Extractor of non-fatal `Throwable` instances.

@@ -16,8 +16,8 @@
 
 package cats.effect.laws.util
 
+import cats.effect.NonFatal
 import cats.effect.laws.util.TestContext.State
-import cats.effect.internals.NonFatal
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -53,9 +53,7 @@ import scala.util.Random
  *   assert(ec.state.lastReportedFailure == None)
  * }}}
  */
-final class TestContext private ()
-  extends ExecutionContext {
-
+final class TestContext private () extends ExecutionContext {
   private[this] var stateRef = State(Queue.empty, None)
 
   def execute(r: Runnable): Unit =

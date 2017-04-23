@@ -30,21 +30,17 @@ trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
    * @see IO#shift
    */
   def shift[A](fa: F[A])(implicit ec: ExecutionContext): F[A] = {
-    import cats.effect.internals.TrampolinedContext.immediate
+    val self = flatMap(attempt(fa)) { e =>
+      async { (cb: Either[Throwable, A] => Unit) =>
+        ec.execute(new Runnable {
+          def run() = cb(e)
+        })
+      }
+    }
 
-    async[A] { callback =>
-      // Real asynchronous boundary
+    async { cb =>
       ec.execute(new Runnable {
-        def run(): Unit = {
-          // Trampolined asynchronous boundary
-          val asyncCallback = (e: Either[Throwable, A]) =>
-            immediate.execute(new Runnable {
-              def run(): Unit = callback(e)
-            })
-
-          runAsync(fa)(e => IO(asyncCallback(e)))
-            .unsafeRunAsync(_ => ())
-        }
+        def run() = runAsync(self)(e => IO { cb(e) }).unsafeRunSync()
       })
     }
   }
