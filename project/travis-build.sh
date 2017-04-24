@@ -19,7 +19,7 @@ if [ "$TRAVIS_SCALA_VERSION" = "$MAIN_SCALA_VERSION" ]; then
     echo
     echo "Executing build (with coverage):"
     echo
-    sbt -Dsbt.profile=coverage ++$TRAVIS_SCALA_VERSION coverage ci
+    sbt -Dsbt.profile=coverage ++$TRAVIS_SCALA_VERSION coverage ci unidoc
 else
     echo
     echo "Executing build:"

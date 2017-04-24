@@ -18,9 +18,8 @@ package cats
 package effect
 
 package object implicits extends Effect.ToEffectOps {
-
-  // this has to be implicitly enriched to get around variance questions
+  // This has to be implicitly enriched to get around variance questions
   final implicit class IOSyntax[A](val self: IO[A]) extends AnyVal {
-    final def liftIO[F[_]: LiftIO]: F[A] = LiftIO[F].liftIO(self)
+    def liftIO[F[_]: LiftIO]: F[A] = LiftIO[F].liftIO(self)
   }
 }
