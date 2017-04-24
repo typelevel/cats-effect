@@ -31,6 +31,18 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
+  sources in (Compile, doc) := {
+    val log = streams.value.log
+
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 10)) =>
+        log.warn("scaladoc generation is disabled on Scala 2.10")
+        Nil
+
+      case _ => (sources in (Compile, doc)).value
+    }
+  },
+
   headers := Map(
     "scala" -> Apache2_0("2017", "Typelevel"),
     "java" -> Apache2_0("2017", "Typelevel")),
@@ -230,8 +242,6 @@ scalacOptions in ThisBuild ++= {
 }
 
 scalacOptions in Test += "-Yrangepos"
-
-scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value
 
 libraryDependencies in ThisBuild ++= {
   scalaVersion.value match {
