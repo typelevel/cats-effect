@@ -31,6 +31,16 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
+  scalacOptions in (Compile, doc) ++= {
+    // snapshot versions will contain '-' (e.g. 0.1-abc1234)
+    val path = if (version.value.contains("-"))
+      scmInfo.value.get.browseUrl + "/blob/" + git.gitHeadCommit.value.get + "€{FILE_PATH}.scala"
+    else
+      scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
+
+    Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
+  },
+
   sources in (Compile, doc) := {
     val log = streams.value.log
 
