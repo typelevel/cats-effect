@@ -18,6 +18,7 @@ package cats
 package effect
 
 import simulacrum._
+import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
@@ -25,6 +26,9 @@ import scala.util.Either
  * produce exactly one result.
  */
 @typeclass
+@implicitNotFound("""Cannot find implicit value for Async[${F}].
+Building this implicit value might depend on having an implicit
+s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait Async[F[_]] extends MonadError[F, Throwable] {
   /**
    * Creates an `F[A]` instance from a provided function

@@ -19,7 +19,12 @@ package effect
 
 import simulacrum._
 
+import scala.annotation.implicitNotFound
+
 @typeclass
+@implicitNotFound("""Cannot find implicit value for LiftIO[${F}].
+Building this implicit value might depend on having an implicit
+s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
