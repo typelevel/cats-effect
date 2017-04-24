@@ -24,7 +24,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Random
 
 /**
- * A [[scala.concurrent.ExecutionContext]] implementation that can be
+ * A `scala.concurrent.ExecutionContext` implementation that can be
  * used for testing purposes.
  *
  * Usage:
