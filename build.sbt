@@ -25,7 +25,7 @@ val CatsVersion = "0.9.0"
 val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
-addCommandAlias("ci", ";test ;mimaReportBinaryIssues")
+addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";reload ;+publishSigned ;sonatypeReleaseAll")
 
 val commonSettings = Seq(
