@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.internals
 
-import org.scalatest._
 import org.scalacheck._
+import org.scalatest._
 
 class AndThenTests extends FunSuite with Matchers {
   import Prop._

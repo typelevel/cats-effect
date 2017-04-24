@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.internals
 
 import java.io.Serializable
 
+import cats.effect.IO
+
 /**
- * A type-aligned seq for representing function composition in constant stack space with
- * ammortized linear time application (in the number of constituent functions).  Implementation
- * is enormously uglier than it should be since `@tailrec` doesn't work properly on functions
- * with existential types.
+ * A type-aligned seq for representing function composition in
+ * constant stack space with amortized linear time application (in the
+ * number of constituent functions).
+ * 
+ * Implementation is enormously uglier than it should be since
+ * `@tailrec` doesn't work properly on functions with existential
+ * types.
  */
 private[effect] sealed abstract class AndThen[-A, +B] extends Product with Serializable {
   import AndThen._

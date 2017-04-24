@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.effect.internals.{NonFatal, IOPlatform}
+import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
