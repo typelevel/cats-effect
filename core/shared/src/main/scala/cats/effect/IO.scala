@@ -24,15 +24,18 @@ import scala.concurrent.duration._
 import scala.util.{Left, Right}
 
 /**
- * A pure abstraction representing the intention to perform a side-effect, where
- * the result of that side-effect may be obtained synchronously (via return)
- * or asynchronously (via callback).  Effects contained within this abstraction
- * are not evaluated until the "end of the world", which is to say, when one of
- * the "unsafe" methods are used.  Effectful results are not memoized, meaning that
- * memory overhead is minimal (and no leaks), and also that a single effect may
- * be run multiple times in a referentially-transparent manner.  For example:
+ * A pure abstraction representing the intention to perform a
+ * side-effect, where the result of that side-effect may be obtained
+ * synchronously (via return) or asynchronously (via callback).
  *
- * ```scala
+ * Effects contained within this abstraction are not evaluated until
+ * the "end of the world", which is to say, when one of the "unsafe"
+ * methods are used.  Effectful results are not memoized, meaning that
+ * memory overhead is minimal (and no leaks), and also that a single
+ * effect may be run multiple times in a referentially-transparent
+ * manner.  For example:
+ *
+ * {{{
  * val ioa = IO { println("hey!") }
  *
  * val program = for {
@@ -41,38 +44,48 @@ import scala.util.{Left, Right}
  * } yield ()
  *
  * program.unsafeRunSync()
- * ```
+ * }}}
  *
- * The above will print "hey!" twice, as the effect will be re-run each time it is
- * sequenced in the monadic chain.
+ * The above will print "hey!" twice, as the effect will be re-run
+ * each time it is sequenced in the monadic chain.
  *
- * `IO` is trampolined for all *synchronous* joins.  This means that you can safely
- * call `flatMap` in a recursive function of arbitrary depth, without fear of
- * blowing the stack.  However, `IO` cannot guarantee stack-safety in the presence
- * of arbitrarily nested asynchronous suspensions.  This is quite simply because it
- * is *impossible* (on the JVM) to guarantee stack-safety in that case.  For example:
+ * `IO` is trampolined for all ''synchronous'' joins.  This means that
+ * you can safely call `flatMap` in a recursive function of arbitrary
+ * depth, without fear of blowing the stack.  However, `IO` cannot
+ * guarantee stack-safety in the presence of arbitrarily nested
+ * asynchronous suspensions.  This is quite simply because it is
+ * ''impossible'' (on the JVM) to guarantee stack-safety in that case.
+ * For example:
  *
- * ```scala
+ * {{{
  * def lie[A]: IO[A] = IO.async(cb => cb(Right(lie))).flatMap(a => a)
- * ```
+ * }}}
  *
- * This should blow the stack when evaluated.  Also note that there is no way to
- * encode this using `tailRecM` in such a way that it does *not* blow the stack.
- * Thus, the `tailRecM` on `Monad[IO]` is not guaranteed to produce an `IO` which
- * is stack-safe when run, but will rather make every attempt to do so barring
- * pathological structure.
+ * This should blow the stack when evaluated. Also note that there is
+ * no way to encode this using `tailRecM` in such a way that it does
+ * ''not'' blow the stack.  Thus, the `tailRecM` on `Monad[IO]` is not
+ * guaranteed to produce an `IO` which is stack-safe when run, but
+ * will rather make every attempt to do so barring pathological
+ * structure.
  *
- * `IO` makes no attempt to control finalization or guaranteed resource-safety
- * in the presence of concurrent preemption, simply because `IO` does not care about
- * concurrent preemption at all!  `IO` actions are not interruptible and should be
- * considered broadly-speaking atomic, at least when used purely.
+ * `IO` makes no attempt to control finalization or guaranteed
+ * resource-safety in the presence of concurrent preemption, simply
+ * because `IO` does not care about concurrent preemption at all!
+ * `IO` actions are not interruptible and should be considered
+ * broadly-speaking atomic, at least when used purely.
  */
 sealed abstract class IO[+A] {
   import IO._
 
   /**
-   * Functor map on `IO`.  Does what the types say.  Any exceptions thrown within the function
-   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   * Functor map on `IO`. Given a mapping functions, it transforms the
+   * value produced by the source, while keeping the `IO` context.
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`, because due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = this match {
     case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => Fail(t) }
@@ -81,8 +94,19 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Monadic bind on `IO`.  Does what the types say.  Any exceptions thrown within the function
-   * will be caught and sequenced into the `IO`, because practicality > lawfulness.  :-(
+   * Monadic bind on `IO`, used for sequentially composing two `IO`
+   * actions, where the value produced by the first `IO` is passed as
+   * input to a function producing the second `IO` action.
+   *
+   * Due to this operation's signature, `flatMap` forces a data
+   * dependency between two `IO` actions, thus ensuring sequencing
+   * (e.g. one action to be executed before another one).
+   *
+   * Any exceptions thrown within the function will be caught and
+   * sequenced into the `IO`, because due to the nature of
+   * asynchronous processes, without catching and handling exceptions,
+   * failures would be completely silent and `IO` references would
+   * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
     flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.fail(t) }))
@@ -99,36 +123,41 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Materializes any sequenced exceptions into value space, where they may be handled.  This is
-   * analogous to the `catch` clause in `try`/`catch`.  Please note that there are some impure
-   * implications which arise from observing caught exceptions.  It is possible to violate the
-   * monad laws (and indeed, the functor laws) by using this function!  Uh... don't do that.
+   * Materializes any sequenced exceptions into value space, where
+   * they may be handled.
+   * 
+   * This is analogous to the `catch` clause in `try`/`catch`, being
+   * the inverse of `IO.fail`. Thus:
    *
-   * This function is the inverse of `IO.fail`.  Thus:
+   * {{{
+   * IO.fail(ex).attempt.unsafeRunAsync === Left(ex)
+   * }}}
    *
-   * ```scala
-   * IO.fail(t).attempt.unsafeRunAsync === Left(t)
-   * ```
-   *
-   * @see IO.attempt
+   * @see [[IO.fail]]
    */
   def attempt: IO[Either[Throwable, A]]
 
   /**
-   * Sequences the specified `IO` ensuring evaluation regardless of whether or not the target
-   * `IO` raises an exception.  Analogous to `finally` in a `try`/`catch`/`finally` block.  If
-   * an exception is raised by the finalizer, it will be passed sequenced into the resultant.
-   * This is true even if the target *also* raised an exception.  This mirrors the semantics of
-   * `try`/`finally` on the JVM when you perform similar abominations.  For example:
+   * Sequences the specified `IO` ensuring evaluation regardless of
+   * whether or not the target `IO` raises an exception.
    *
-   * ```scala
+   * Analogous to `finally` in a `try`/`catch`/`finally` block. If an
+   * exception is raised by the finalizer, it will be passed sequenced
+   * into the resultant. This is true even if the target ''also''
+   * raised an exception. It mirrors the semantics of `try`/`finally`
+   * on the JVM when you perform similar operations.
+   * 
+   * Example:
+   *
+   * {{{
    * try throw e1 finally throw e2   // throws e2
    *
    * IO.fail(e1).ensuring(IO.fail(e2)) === IO.fail(e2)
-   * ```
+   * }}}
    *
-   * This function is distinct from monadic `flatMap` (well, really applicative `apply2`) in that
-   * an exception sequenced into a monadic bind chain will short-circuit the chain, and the
+   * This function is distinct from monadic `flatMap` (well, really
+   * applicative `apply2`) in that an exception sequenced into a
+   * monadic bind chain will short-circuit the chain and the
    * subsequent actions will not be run.
    */
   final def ensuring(finalizer: IO[Any]): IO[A] = {
@@ -138,52 +167,68 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * The safe analogue to unsafeRunAsync.  The resulting IO is guaranteed to be safe to run
-   * synchronously.  Which is to say, unsafeRunSync . runAsync is isomorphic to unsafeRunAsync.
-   * Another way to view this function is as a way to convert an `IO` which *may* have asynchronous
-   * actions (which would thus require blocking when run synchronously) into another `IO` which is
-   * guaranteed to have exclusively synchronous actions, by providing an effect which stores off
-   * the results of the original `IO` as a side-effect.
+   * Produces an `IO` reference that is guaranteed to be safe to run
+   * synchronously (i.e. [[unsafeRunSync]]), being the safe analogue
+   * to [[unsafeRunAsync]].
+   *
+   * This operation is isomorphic to [[unsafeRunAsync]]. What it does
+   * is to let you describe asynchronous execution with a function
+   * that stores off the results of the original `IO` as a
+   * side-effect, thus ''avoiding'' the usage of impure callbacks or
+   * eager evaluation.
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
   }
 
   /**
-   * Shifts the synchronous prefixes and continuation of the `IO` onto the specified thread
-   * pool.  Asynchronous actions cannot be shifted, since they are scheduled rather than run.
-   * Also, no effort is made to re-shift synchronous actions which *follow* asynchronous
-   * actions within a bind chain; those actions will remain on the continuation thread
-   * inherited from their preceeding async action.  Critically though, synchronous actions
-   * which are bound *after* the results of this function will also be shifted onto the pool
-   * specified here.  Thus, you can think of this function as shifting *before* (the
-   * contiguous synchronous prefix) and *after* (any continuation of the result).
+   * Shifts the synchronous prefixes and continuation of the `IO` onto
+   * the specified thread pool.  
+   * 
+   * Asynchronous actions cannot be shifted, since they are scheduled
+   * rather than run. Also, no effort is made to re-shift synchronous
+   * actions which *follow* asynchronous actions within a bind chain;
+   * those actions will remain on the continuation thread inherited
+   * from their preceding async action.  Critically though,
+   * synchronous actions which are bound ''after'' the results of this
+   * function will also be shifted onto the pool specified here. Thus,
+   * you can think of this function as shifting *before* (the
+   * contiguous synchronous prefix) and ''after'' (any continuation of
+   * the result).
    *
-   * There are two immediately obvious applications to this function.  One is to re-shift
-   * async actions back to a "main" thread pool.  For example, if you create an async action
-   * to wrap around some sort of event listener, you probably want to `shift` it immediately
-   * to take the continuation off of the event dispatch thread.  Another use-case is to ensure
-   * that a blocking synchronous action is taken *off* of the main CPU-bound pool.  A common
-   * example here would be any use of the `java.io` package, which is entirely blocking and
-   * should never be run on your main CPU-bound pool.
+   * There are two immediately obvious applications to this function.
+   * One is to re-shift async actions back to a "main" thread pool.
+   * For example, if you create an async action to wrap around some
+   * sort of event listener, you probably want to `shift` it
+   * immediately to take the continuation off of the event dispatch
+   * thread.  Another use-case is to ensure that a blocking
+   * synchronous action is taken *off* of the main CPU-bound pool.  A
+   * common example here would be any use of the `java.io` package,
+   * which is entirely blocking and should never be run on your main
+   * CPU-bound pool.
    *
-   * Note that this function is idempotent given equal values of `EC`, but only
-   * prefix-idempotent given differing `EC` values.  For example:
+   * Note that this function is idempotent given equal values of `EC`,
+   * but only prefix-idempotent given differing `EC` values.  For
+   * example:
    *
-   * ```scala
+   * {{{
    * val fioa = IO { File.createTempFile("fubar") }
    *
    * fioa.shift(BlockingIOPool).shift(MainPool)
-   * ```
+   * }}}
    *
-   * The inner call to `shift` will force the synchronous prefix of `fioa` (which is just the
-   * single action) to execute on the `BlockingIOPool` when the `IO` is run, and also ensures
-   * that the continuation of this action remains on the `BlockingIOPool`.  The outer `shift`
-   * similarly forces the synchronous prefix of the results of the inner `shift` onto the
-   * specified pool (`MainPool`), but the results of `shift` have no synchronous prefix, meaning
-   * that the "before" part of the outer `shift` is a no-op.  The "after" part is not, however,
-   * and will force the continuation of the resulting `IO` back onto the `MainPool`.  Which
-   * is exactly what you want most of the time with blocking actions of this type.
+   * The inner call to `shift` will force the synchronous prefix of
+   * `fioa` (which is just the single action) to execute on the
+   * `BlockingIOPool` when the `IO` is run, and also ensures that the
+   * continuation of this action remains on the `BlockingIOPool`.  The
+   * outer `shift` similarly forces the synchronous prefix of the
+   * results of the inner `shift` onto the specified pool
+   * (`MainPool`), but the results of `shift` have no synchronous
+   * prefix, meaning that the "before" part of the outer `shift` is a
+   * no-op.  The "after" part is not, however, and will force the
+   * continuation of the resulting `IO` back onto the `MainPool`.
+   * Which is exactly what you want most of the time with blocking
+   * actions of this type.
    */
   final def shift(implicit ec: ExecutionContext): IO[A] = {
     val self = attempt.flatMap { e =>
@@ -209,32 +254,41 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Produces the result by running the encapsulated effects as impure side effects.  If any
-   * component of the computation is asynchronous, the current thread will block awaiting the
-   * results of the async computation.  On JavaScript, an exception will be thrown instead to
-   * avoid generating a deadlock.  By default, this blocking will be unbounded.  To limit the
-   * thread block to some fixed time, use `unsafeRunTimed` instead.
+   * Produces the result by running the encapsulated effects as impure
+   * side effects.
+   * 
+   * If any component of the computation is asynchronous, the current
+   * thread will block awaiting the results of the async computation.
+   * On JavaScript, an exception will be thrown instead to avoid
+   * generating a deadlock. By default, this blocking will be
+   * unbounded.  To limit the thread block to some fixed time, use
+   * `unsafeRunTimed` instead.
    *
-   * Any exceptions raised within the effect will be re-thrown during evaluation.
+   * Any exceptions raised within the effect will be re-thrown during
+   * evaluation.
    *
-   * As the name says, this is an UNSAFE function as it is impure and performs side effects, not
-   * to mention blocking, throwing exceptions, and doing other things that are at odds with
-   * reasonable software.  You should ideally only call this function *once*, at the very end of
-   * your program.
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects, not to mention blocking, throwing
+   * exceptions, and doing other things that are at odds with
+   * reasonable software.  You should ideally only call this function
+   * *once*, at the very end of your program.
    */
   final def unsafeRunSync(): A = unsafeRunTimed(Duration.Inf).get
 
   /**
-   * Passes the result of the encapsulated effects to the given callback by running them as
-   * impure side effects.  Any exceptions raised within the effect will be passed to the
-   * callback in the `Either`.  The callback will be invoked at most *once*.  Note that it is
-   * very possible to construct an IO which never returns while still never blocking a thread,
-   * and attempting to evaluate that IO with this method will result in a situation where the
-   * callback is *never* invoked.
+   * Passes the result of the encapsulated effects to the given
+   * callback by running them as impure side effects.
+   * 
+   * Any exceptions raised within the effect will be passed to the
+   * callback in the `Either`.  The callback will be invoked at most
+   * *once*.  Note that it is very possible to construct an IO which
+   * never returns while still never blocking a thread, and attempting
+   * to evaluate that IO with this method will result in a situation
+   * where the callback is *never* invoked.
    *
-   *
-   * As the name says, this is an UNSAFE function as it is impure and performs side effects.
-   * You should ideally only call this function *once*, at the very end of your program.
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects.  You should ideally only call this
+   * function ''once'', at the very end of your program.
    */
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
@@ -254,22 +308,30 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Similar to `unsafeRunSync`, except with a bounded blocking duration when awaiting asynchronous
-   * results.  Please note that the `limit` parameter does not limit the time of the total
-   * computation, but rather acts as an upper bound on any *individual* asynchronous block.
-   * Thus, if you pass a limit of `5 seconds` to an `IO` consisting solely of synchronous actions,
-   * the evaluation may take considerably longer than 5 seconds!  Furthermore, if you pass a limit
-   * of `5 seconds` to an `IO` consisting of several asynchronous actions joined together, evaluation
-   * may take up to *n* \* 5 seconds, where *n* is the number of joined async actions.
+   * Similar to `unsafeRunSync`, except with a bounded blocking
+   * duration when awaiting asynchronous results.
+   * 
+   * Please note that the `limit` parameter does not limit the time of
+   * the total computation, but rather acts as an upper bound on any
+   * *individual* asynchronous block.  Thus, if you pass a limit of `5
+   * seconds` to an `IO` consisting solely of synchronous actions, the
+   * evaluation may take considerably longer than 5 seconds!
+   * Furthermore, if you pass a limit of `5 seconds` to an `IO`
+   * consisting of several asynchronous actions joined together,
+   * evaluation may take up to `n * 5 seconds`, where `n` is the
+   * number of joined async actions.
    *
-   * As soon as an async blocking limit is hit, evaluation *immediately* aborts and `None` is returned.
+   * As soon as an async blocking limit is hit, evaluation
+   * ''immediately'' aborts and `None` is returned.
    *
-   * Please note that this function is intended for *testing*; it should never appear in your
-   * mainline production code!  It is absolutely not an appropriate function to use if you want to
-   * implement timeouts, or anything similar.  If you need that sort of functionality, you should be
-   * using a streaming library (like fs2 or Monix).
+   * Please note that this function is intended for ''testing''; it
+   * should never appear in your mainline production code!  It is
+   * absolutely not an appropriate function to use if you want to
+   * implement timeouts, or anything similar. If you need that sort
+   * of functionality, you should be using a streaming library (like
+   * fs2 or Monix).
    *
-   * @see #unsafeRunSync
+   * @see [[unsafeRunSync]]
    */
   final def unsafeRunTimed(limit: Duration): Option[A] = unsafeStep match {
     case Pure(a) => Some(a)
@@ -281,12 +343,15 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Evaluates the effect and produces the result in a `Future`.  This is similar to
-   * `unsafeRunAsync` in that it evaluates the `IO` as a side-effect in a non-blocking fashion,
-   * but uses a `Future` rather than an explicit callback.  This function should really only be
-   * used if interoperating with legacy code which uses Scala futures.
+   * Evaluates the effect and produces the result in a `Future`.  
+   * 
+   * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
+   * as a side-effect in a non-blocking fashion, but uses a `Future`
+   * rather than an explicit callback.  This function should really
+   * only be used if interoperating with legacy code which uses Scala
+   * futures.
    *
-   * @see IO.fromFuture
+   * @see [[IO.fromFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
@@ -351,24 +416,33 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
-   * Suspends a synchronous side-effect in `IO`.  Any exceptions thrown by the effect will be
-   * caught and sequenced into the `IO`.
+   * Suspends a synchronous side-effect in `IO`.  
+   * 
+   * Any exceptions thrown by the effect will be caught and sequenced
+   * into the `IO`.
    */
   def apply[A](body: => A): IO[A] = suspend(Pure(body))
 
   /**
-   * Suspends a synchronous side-effect which produces an `IO` in `IO`.  This is useful for
-   * trampolining (i.e. when the side-effect is conceptually the allocation of a stack frame).
-   * Any exceptions thrown by the side-effect will be caught and sequenced into the `IO`.
+   * Suspends a synchronous side-effect which produces an `IO` in `IO`.
+   * 
+   * This is useful for trampolining (i.e. when the side-effect is
+   * conceptually the allocation of a stack frame).  Any exceptions
+   * thrown by the side-effect will be caught and sequenced into the
+   * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
     Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => fail(t) }))
 
   /**
-   * Suspends a pure value in `IO`.  This should *only* be used if the value in question has
-   * "already" been computed!  In other words, something like `IO.pure(readLine)` is most
-   * definitely *not* the right thing to do!  However, `IO.pure(42)` is *correct* and will be
-   * more efficient (when evaluated) than `IO(42)`, due to avoiding the allocation of extra thunks.
+   * Suspends a pure value in `IO`.  
+   * 
+   * This should ''only'' be used if the value in question has
+   * "already" been computed!  In other words, something like
+   * `IO.pure(readLine)` is most definitely not the right thing to do!
+   * However, `IO.pure(42)` is correct and will be more efficient
+   * (when evaluated) than `IO(42)`, due to avoiding the allocation of
+   * extra thunks.
    */
   def pure[A](a: A): IO[A] = Pure(a)
 
@@ -376,9 +450,12 @@ object IO extends IOInstances {
   val unit: IO[Unit] = pure(())
 
   /**
-   * Lifts an `Eval` into `IO`.  This function will preserve the evaluation semantics of any actions
-   * that are lifted into the pure `IO`.  Eager `Eval` instances will be converted into thunk-less
-   * `IO` (i.e. eager `IO`), while lazy eval and memoized will be executed as such.
+   * Lifts an `Eval` into `IO`.  
+   * 
+   * This function will preserve the evaluation semantics of any
+   * actions that are lifted into the pure `IO`.  Eager `Eval`
+   * instances will be converted into thunk-less `IO` (i.e. eager
+   * `IO`), while lazy eval and memoized will be executed as such.
    */
   def eval[A](effect: Eval[A]): IO[A] = effect match {
     case Now(a) => pure(a)
@@ -386,15 +463,18 @@ object IO extends IOInstances {
   }
 
   /**
-   * Suspends an asynchronous side effect in `IO`.  The given function will be invoked during
-   * evaluation of the `IO` to "schedule" the asynchronous callback, where the callback is the
-   * parameter passed to that function.  Only the *first* invocation of the callback will be
-   * effective!  All subsequent invocations will be silently dropped.
+   * Suspends an asynchronous side effect in `IO`.  
+   * 
+   * The given function will be invoked during evaluation of the `IO`
+   * to "schedule" the asynchronous callback, where the callback is
+   * the parameter passed to that function.  Only the ''first''
+   * invocation of the callback will be effective!  All subsequent
+   * invocations will be silently dropped.
    *
-   * As a quick example, you can use this function to perform a parallel computation given
-   * an `ExecutorService`:
+   * As a quick example, you can use this function to perform a
+   * parallel computation given an `ExecutorService`:
    *
-   * ```scala
+   * {{{
    * def fork[A](body: => A)(implicit E: ExecutorService): IO[A] = {
    *   IO async { cb =>
    *     E.execute(new Runnable {
@@ -403,16 +483,19 @@ object IO extends IOInstances {
    *     })
    *   }
    * }
-   * ```
+   * }}}
    *
-   * The `fork` function will do exactly what it sounds like: take a thunk and an `ExecutorService`
-   * and run that thunk on the thread pool.  Or rather, it will produce an `IO` which will do those
-   * things when run; it does *not* schedule the thunk until the resulting `IO` is run!  Note that
-   * there is no thread blocking in this implementation; the resulting `IO` encapsulates the callback
+   * The `fork` function will do exactly what it sounds like: take a
+   * thunk and an `ExecutorService` and run that thunk on the thread
+   * pool.  Or rather, it will produce an `IO` which will do those
+   * things when run; it does *not* schedule the thunk until the
+   * resulting `IO` is run!  Note that there is no thread blocking in
+   * this implementation; the resulting `IO` encapsulates the callback
    * in a pure and monadic fashion without using threads.
    *
-   * This function can be thought of as a safer, lexically-constrained version of `Promise`, where
-   * `IO` is like a safer, lazy version of `Future`.
+   * This function can be thought of as a safer, lexically-constrained
+   * version of `Promise`, where `IO` is like a safer, lazy version of
+   * `Future`.
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { cb =>
@@ -421,33 +504,40 @@ object IO extends IOInstances {
   }
 
   /**
-   * Constructs an `IO` which sequences the specified exception.  If this `IO` is run using
-   * `unsafeRunSync` or `unsafeRunTimed`, the exception will be thrown.  This exception can be
-   * "caught" (or rather, materialized into value-space) using the `attempt` method.
+   * Constructs an `IO` which sequences the specified exception.  
+   * 
+   * If this `IO` is run using `unsafeRunSync` or `unsafeRunTimed`,
+   * the exception will be thrown.  This exception can be "caught" (or
+   * rather, materialized into value-space) using the `attempt`
+   * method.
    *
-   * @see #attempt
+   * @see [[IO#attempt]]
    */
   def fail(t: Throwable): IO[Nothing] = Fail(t)
 
   /**
-   * Constructs an `IO` which evalutes the thunked `Future` and produces the result (or failure).
-   * Because `Future` eagerly evaluates, as well as because it memoizes, this function takes its
-   * parameter lazily.  If this laziness is appropriately threaded back to the definition site of
-   * the `Future`, it ensures that the computation is fully managed by `IO` and thus referentially
-   * transparent.
+   * Constructs an `IO` which evalutes the thunked `Future` and
+   * produces the result (or failure).
+   * 
+   * Because `Future` eagerly evaluates, as well as because it
+   * memoizes, this function takes its parameter lazily.  If this
+   * laziness is appropriately threaded back to the definition site of
+   * the `Future`, it ensures that the computation is fully managed by
+   * `IO` and thus referentially transparent.
    *
-   * Note that the *continuation* of the computation resulting from a `Future` will run on the
-   * future's thread pool.  There is no thread shifting here; the `ExecutionContext` is solely for
-   * the benefit of the `Future`.
+   * Note that the ''continuation'' of the computation resulting from
+   * a `Future` will run on the future's thread pool.  There is no
+   * thread shifting here; the `ExecutionContext` is solely for the
+   * benefit of the `Future`.
    *
    * Roughly speaking, the following identities hold:
    *
-   * ```scala
-   * IO.fromFuture(f).unsafeToFuture === f         // true-ish (except for memoization)
-   * IO.fromFuture(ioa.unsafeToFuture) === ioa     // true!
-   * ```
+   * {{{
+   * IO.fromFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
+   * IO.fromFuture(ioa.unsafeToFuture) === ioa // true!
+   * }}}
    *
-   * @see #unsafeToFuture
+   * @see [[IO#unsafeToFuture]]
    */
   def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>

@@ -18,10 +18,21 @@ package cats
 package effect
 
 import simulacrum._
-
 import scala.util.Either
 
+/**
+ * A monad that can describe asynchronous computations that
+ * produce exactly one result.
+ */
 @typeclass
 trait Async[F[_]] extends MonadError[F, Throwable] {
+  /**
+   * Creates an `F[A]` instance from a provided function
+   * that will have a callback injected for signaling the
+   * final result of an asynchronous process.
+   *
+   * @param k is a function that should be called with a
+   *       callback for signaling the result once it is ready
+   */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 }
