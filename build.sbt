@@ -93,19 +93,14 @@ lazy val unidocSettings = Seq(
   unidocProjectFilter in (ScalaUnidoc, unidoc) :=
     inProjects(coreJVM, lawsJVM),
 
-  // Exclude monix.execution.atomic.internals from ScalaDoc
-  sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
-    file.getCanonicalPath matches "^.*monix.execution.internals.*$"
-  }),
-
   scalacOptions in (ScalaUnidoc, unidoc) +=
     "-Xfatal-warnings",
   scalacOptions in (ScalaUnidoc, unidoc) -=
     "-Ywarn-unused-import",
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.title(s"Monix"),
+    Opts.doc.title(s"cats-effect"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
-    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+    Opts.doc.sourceUrl(s"https://github.com/typelevel/cats-effect/tree/v${version.value}€{FILE_PATH}.scala"),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
     Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
   scalacOptions in (ScalaUnidoc, unidoc) ++=
