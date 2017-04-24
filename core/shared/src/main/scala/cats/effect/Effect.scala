@@ -18,6 +18,7 @@ package cats
 package effect
 
 import simulacrum._
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.util.Either
 
@@ -26,6 +27,9 @@ import scala.util.Either
  * that supports lazy and potentially asynchronous evaluation.
  */
 @typeclass
+@implicitNotFound("""Cannot find implicit value for Effect[${F}].
+Building this implicit value might depend on having an implicit
+s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
