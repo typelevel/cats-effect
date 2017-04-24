@@ -57,7 +57,6 @@ trait AsyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
       val props = Seq(
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
-        "throw in register is raiseError" -> forAll(laws.thrownInRegisterIsRaiseError[A] _),
         "repeated async evaluation not memoized" -> forAll(laws.repeatedAsyncEvaluationNotMemoized[A] _))
     }
   }

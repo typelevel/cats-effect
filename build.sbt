@@ -16,6 +16,9 @@
 
 import de.heikoseeberger.sbtheader.license.Apache2_0
 
+import scala.xml.Elem
+import scala.xml.transform.{RewriteRule, RuleTransformer}
+
 organization in ThisBuild := "org.typelevel"
 
 val CatsVersion = "0.9.0"
@@ -57,6 +60,18 @@ val commonSettings = Seq(
 
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
 
+  // For evicting Scoverage out of the generated POM
+  // See: https://github.com/scoverage/sbt-scoverage/issues/153
+  pomPostProcess := { (node: xml.Node) =>
+    new RuleTransformer(new RewriteRule {
+      override def transform(node: xml.Node): Seq[xml.Node] = node match {
+        case e: Elem
+          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+        case _ => Seq(node)
+      }
+    }).transform(node).head
+  },
+
   addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
 )
 
@@ -74,16 +89,28 @@ val mimaSettings = Seq(
   }
 )
 
+lazy val cmdlineProfile =
+  sys.props.getOrElse("sbt.profile", default = "")
+
+def profile: Project ⇒ Project = pr => cmdlineProfile match {
+  case "coverage" => pr
+  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+}
+
+lazy val scalaJSSettings = Seq(
+  coverageExcludedFiles := ".*"
+)
+
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
+  .configure(profile)
   .settings(
     publish := (),
     publishLocal := (),
     publishArtifact := false
   )
 
-lazy val core = crossProject
-  .in(file("core"))
+lazy val core = crossProject.in(file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "cats-effect",
@@ -105,7 +132,9 @@ lazy val core = crossProject
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
 lazy val coreJVM = core.jvm
+  .configure(profile)
 lazy val coreJS = core.js
+  .settings(scalaJSSettings)
 
 lazy val laws = crossProject
   .in(file("laws"))
@@ -124,7 +153,9 @@ lazy val laws = crossProject
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
 
 lazy val lawsJVM = laws.jvm
+  .configure(profile)
 lazy val lawsJS = laws.js
+  .settings(scalaJSSettings)
 
 /*
  * Compatibility version.  Use this to declare what version with
