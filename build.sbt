@@ -89,6 +89,29 @@ val mimaSettings = Seq(
   }
 )
 
+lazy val unidocSettings = Seq(
+  unidocProjectFilter in (ScalaUnidoc, unidoc) :=
+    inProjects(coreJVM, lawsJVM),
+
+  // Exclude monix.execution.atomic.internals from ScalaDoc
+  sources in (ScalaUnidoc, unidoc) ~= (_ filterNot { file =>
+    file.getCanonicalPath matches "^.*monix.execution.internals.*$"
+  }),
+
+  scalacOptions in (ScalaUnidoc, unidoc) +=
+    "-Xfatal-warnings",
+  scalacOptions in (ScalaUnidoc, unidoc) -=
+    "-Ywarn-unused-import",
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.title(s"Monix"),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.sourceUrl(s"https://github.com/monix/monix/tree/v${version.value}€{FILE_PATH}.scala"),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Seq("-doc-root-content", file("rootdoc.txt").getAbsolutePath),
+  scalacOptions in (ScalaUnidoc, unidoc) ++=
+    Opts.doc.version(s"${version.value}")
+)
+
 lazy val cmdlineProfile =
   sys.props.getOrElse("sbt.profile", default = "")
 
@@ -98,11 +121,14 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 }
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*")
+  coverageExcludedFiles := ".*"
+)
 
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
+  .enablePlugins(ScalaUnidocPlugin)
+  .settings(unidocSettings)
   .settings(
     publish := (),
     publishLocal := (),
@@ -232,6 +258,21 @@ scalacOptions in ThisBuild ++= {
 scalacOptions in Test += "-Yrangepos"
 
 scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value
+
+// ScalaDoc setting
+autoAPIMappings := true
+// Turning off fatal warnings for ScalaDoc, otherwise we can't release
+scalacOptions in (Compile, doc) ~= (_ filterNot (_ == "-Xfatal-warnings"))
+// For adding source links
+scalacOptions in ThisBuild ++= Seq(
+  // Note, this is used by the doc-source-url feature to determine the
+  // relative path of a given source file. If it's not a prefix of a the
+  // absolute path of the source file, the absolute path of that file
+  // will be put into the FILE_SOURCE variable, which is
+  // definitely not what we want.
+  "-sourcepath", file(".").getAbsolutePath.replaceAll("[.]$", "")
+)
+
 
 libraryDependencies in ThisBuild ++= {
   scalaVersion.value match {
