@@ -32,8 +32,9 @@ val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
   scalacOptions in (Compile, doc) ++= {
-    // snapshot versions will contain '-' (e.g. 0.1-abc1234)
-    val path = if (version.value.contains("-"))
+    val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
+
+    val path = if (isSnapshot)
       scmInfo.value.get.browseUrl + "/blob/" + git.gitHeadCommit.value.get + "€{FILE_PATH}.scala"
     else
       scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
