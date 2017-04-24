@@ -35,7 +35,7 @@ private[effect] object IOPlatform {
   /**
    * Given any side-effecting function, builds a new one
    * that has the idempotency property, making sure that its
-   * side-effects get triggered only once
+   * side effects get triggered only once
    */
   def onceOnly[A](f: A => Unit): A => Unit = {
     var wasCalled = false

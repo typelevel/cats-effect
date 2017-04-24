@@ -58,9 +58,9 @@ All of the typeclasses are of kind `(* -> *) -> *`, as you would expect.  `Monad
 - `Effect[F]`
   + `def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]`
 
-The `runAsync` function is of particular interest here, since it returns the *concrete* type `IO[Unit]`.  Effectively, what this type is asserting is that all effect-ish things must be able to asynchronous interpret into `IO`, which is the canonical parametric type for managing side-effecting computation.  `IO` in turn has several functions for (unsafely!) running its constituent actions *as* side-effects, for interoperability with legacy effectful APIs and for ending the world.  Of course, concrete `Effect` implementations are free to define their own unsafe runner functions, and we expect that most of them will do exactly this.
+The `runAsync` function is of particular interest here, since it returns the *concrete* type `IO[Unit]`.  Effectively, what this type is asserting is that all effect-ish things must be able to asynchronous interpret into `IO`, which is the canonical parametric type for managing side-effecting computation.  `IO` in turn has several functions for (unsafely!) running its constituent actions *as* side effects, for interoperability with legacy effectful APIs and for ending the world.  Of course, concrete `Effect` implementations are free to define their own unsafe runner functions, and we expect that most of them will do exactly this.
 
-Really, this type signature is saying that, ultimately, `IO` is side-effects and side-effects are `IO`, especially when taken together with the `liftIO` function.
+Really, this type signature is saying that, ultimately, `IO` is side effects and side effects are `IO`, especially when taken together with the `liftIO` function.
 
 ### JavaScript and `unsafeRunSync()`
 
