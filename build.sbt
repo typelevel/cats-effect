@@ -203,7 +203,7 @@ scalacOptions in ThisBuild ++= Seq(
   "-feature",
   "-unchecked",
   "-Xfatal-warnings",
-  "-Xlint",
+  "-Xlint:-missing-interpolator,_",
   "-Yno-adapted-args",
   "-Ywarn-dead-code"
 )
