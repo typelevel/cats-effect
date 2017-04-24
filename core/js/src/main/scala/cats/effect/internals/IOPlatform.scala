@@ -21,7 +21,28 @@ import cats.effect.IO
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
-
+  /**
+   * Javascript specific function that should block for the result
+   * of an IO task, unfortunately blocking is not possible for JS,
+   * so all we can do is to throw an error.
+   */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
-    throw new UnsupportedOperationException("cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync")
+    throw new UnsupportedOperationException(
+      "cannot synchronously await result on JavaScript; " +
+      "use runAsync or unsafeRunAsync"
+    )
+
+  /**
+   * Given any side-effecting function, builds a new one
+   * that has the idempotency property, making sure that its
+   * side-effects get triggered only once
+   */
+  def onceOnly[A](f: A => Unit): A => Unit = {
+    var wasCalled = false
+
+    a => if (wasCalled) () else {
+      wasCalled = true
+      f(a)
+    }
+  }
 }

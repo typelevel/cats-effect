@@ -18,14 +18,14 @@ package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicInteger
 import org.scalatest.{AsyncFunSuite, Matchers}
-import cats.effect.internals.Utils.onceOnly
+import cats.effect.internals.IOPlatform.onceOnly
 import scala.concurrent.{ExecutionContext, Future}
 
-class UtilsTests extends AsyncFunSuite with Matchers {
+class OnceOnlyTests extends AsyncFunSuite with Matchers {
   override implicit val executionContext =
     ExecutionContext.global
 
-  test("onlyOnce provides idempotency guarantees for synchronous execution") {
+  test("onceOnly provides idempotency guarantees for synchronous execution") {
     Future.successful {
       var effect = 0
       val f: Int => Unit =
@@ -39,7 +39,7 @@ class UtilsTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("onlyOnce provides idempotency guarantees for async execution") {
+  test("onceOnly provides idempotency guarantees for async execution") {
     val effect = new AtomicInteger(0)
     val f: Int => Unit =
       onceOnly { x => effect.addAndGet(x) }

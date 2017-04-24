@@ -18,7 +18,6 @@ package cats
 package effect
 
 import cats.effect.internals.{NonFatal, IOPlatform}
-import cats.effect.internals.Utils.onceOnly
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -240,10 +239,10 @@ sealed abstract class IO[+A] {
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
-    case Async(k) => k(onceOnly(cb))
+    case Async(k) => k(IOPlatform.onceOnly(cb))
 
     case ba: BindAsync[e, A] =>
-      val cb2 = onceOnly[Either[Throwable, e]] {
+      val cb2 = IOPlatform.onceOnly[Either[Throwable, e]] {
         case Left(t) => cb(Left(t))
         case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
       }
