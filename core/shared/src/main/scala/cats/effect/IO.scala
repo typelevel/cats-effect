@@ -399,7 +399,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
 
-    override def shift[A](ioa: IO[A])(implicit EC: ExecutionContext) = ioa.shift
+    override def shift[A](ioa: IO[A])(implicit ec: ExecutionContext) = ioa.shift
 
     def liftIO[A](ioa: IO[A]) = ioa
   }
@@ -535,7 +535,7 @@ object IO extends IOInstances {
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](f: => Future[A])(implicit EC: ExecutionContext): IO[A] = {
+  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 

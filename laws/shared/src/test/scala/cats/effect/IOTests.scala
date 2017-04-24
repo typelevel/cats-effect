@@ -17,16 +17,14 @@
 package cats
 package effect
 
+import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel._
 import cats.kernel.laws.GroupLaws
-import cats.effect.laws.discipline.EffectTests
-
 import org.scalacheck._
-import org.scalatest._
-import org.typelevel.discipline.scalatest.Discipline
+import scala.util.{Failure, Success}
 
-class IOTests extends FunSuite with Matchers with Discipline {
+class IOTests extends BaseTestsSuite {
   import Generators._
 
   checkAll("IO", EffectTests[IO].effect[Int, Int, Int])
@@ -80,6 +78,90 @@ class IOTests extends FunSuite with Matchers with Discipline {
     }
   }
 
+  test("unsafeToFuture can yield immediate successful future") {
+    val expected = IO(1).unsafeToFuture()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+  test("unsafeToFuture can yield immediate failed future") {
+    val dummy = new RuntimeException("dummy")
+    val expected = IO.fail(dummy).unsafeToFuture()
+    expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("shift works for success") { implicit ec =>
+    val expected = IO(1).shift.unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+  testAsync("shift works for failure") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+
+    val expected = IO.fail(dummy).shift.unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("shift is stack safe") { implicit ec =>
+    val io = (0 until 10000).foldLeft(IO(1))((io, _) => io.shift)
+
+    val expected = io.unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+  testAsync("shift is stack safe within flatMap loops") { implicit ec =>
+    def signal(x: Int): IO[Int] =
+      IO(x).shift
+
+    def loop(n: Int): IO[Unit] =
+      signal(n).flatMap { v =>
+        if (v <= 0) IO.unit else loop(v - 1)
+      }
+
+    val expected = loop(100000).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(()))
+  }
+
+  testAsync("default Effect#shift is stack safe") { implicit ec =>
+    import IOTests.{ioEffectDefaults => F}
+    val io = (0 until 10000).foldLeft(IO(1)) { (io, _) => F.shift(io) }
+
+    val expected = io.unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+  testAsync("default Effect#shift is stack safe within flatMap loops") { implicit ec =>
+    import IOTests.{ioEffectDefaults => F}
+
+    def signal(x: Int): IO[Int] =
+      F.shift(IO(x))
+
+    def loop(n: Int): IO[Unit] =
+      signal(n).flatMap { v =>
+        if (v <= 0) IO.unit else loop(v - 1)
+      }
+
+    val expected = loop(100000).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(()))
+  }
+
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
 
@@ -88,5 +170,31 @@ class IOTests extends FunSuite with Matchers with Discipline {
     result
   }
 
-  implicit def eqThrowable: Eq[Throwable] = Eq.fromUniversalEquals[Throwable]
+  implicit def eqThrowable: Eq[Throwable] =
+    Eq.fromUniversalEquals[Throwable]
+}
+
+object IOTests {
+  /** Implementation for testing default methods. */
+  val ioEffectDefaults = new Effect[IO] {
+    private val ref = implicitly[Effect[IO]]
+    def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
+      ref.async(k)
+    def raiseError[A](e: Throwable): IO[A] =
+      ref.raiseError(e)
+    def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
+      ref.handleErrorWith(fa)(f)
+    def pure[A](x: A): IO[A] =
+      ref.pure(x)
+    def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
+      ref.flatMap(fa)(f)
+    def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
+      ref.tailRecM(a)(f)
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+      ref.runAsync(fa)(cb)
+    def suspend[A](thunk: =>IO[A]): IO[A] =
+      ref.suspend(thunk)
+    def liftIO[A](ioa: IO[A]): IO[A] =
+      ref.liftIO(ioa)
+  }
 }
