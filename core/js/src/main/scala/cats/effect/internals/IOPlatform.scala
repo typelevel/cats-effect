@@ -17,7 +17,6 @@
 package cats.effect.internals
 
 import cats.effect.IO
-
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
@@ -26,11 +25,11 @@ private[effect] object IOPlatform {
    * of an IO task, unfortunately blocking is not possible for JS,
    * so all we can do is to throw an error.
    */
-  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
+  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
     throw new UnsupportedOperationException(
       "cannot synchronously await result on JavaScript; " +
-      "use runAsync or unsafeRunAsync"
-    )
+      "use runAsync or unsafeRunAsync")
+  }
 
   /**
    * Given any side-effecting function, builds a new one

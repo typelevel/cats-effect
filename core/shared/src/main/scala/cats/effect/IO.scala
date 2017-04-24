@@ -185,17 +185,17 @@ sealed abstract class IO[+A] {
    * and will force the continuation of the resulting `IO` back onto the `MainPool`.  Which
    * is exactly what you want most of the time with blocking actions of this type.
    */
-  final def shift(implicit EC: ExecutionContext): IO[A] = {
+  final def shift(implicit ec: ExecutionContext): IO[A] = {
     val self = attempt.flatMap { e =>
       IO async { (cb: Either[Throwable, A] => Unit) =>
-        EC.execute(new Runnable {
+        ec.execute(new Runnable {
           def run() = cb(e)
         })
       }
     }
 
     IO async { cb =>
-      EC.execute(new Runnable {
+      ec.execute(new Runnable {
         def run() = self.unsafeRunAsync(cb)
       })
     }
@@ -338,7 +338,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
 
-    override def shift[A](ioa: IO[A])(implicit EC: ExecutionContext) = ioa.shift
+    override def shift[A](ioa: IO[A])(implicit ec: ExecutionContext) = ioa.shift
 
     def liftIO[A](ioa: IO[A]) = ioa
   }
@@ -449,7 +449,7 @@ object IO extends IOInstances {
    *
    * @see #unsafeToFuture
    */
-  def fromFuture[A](f: => Future[A])(implicit EC: ExecutionContext): IO[A] = {
+  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 

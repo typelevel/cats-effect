@@ -25,7 +25,7 @@ class OnceOnlyTests extends AsyncFunSuite with Matchers {
   override implicit val executionContext =
     ExecutionContext.global
 
-  test("onceOnly provides idempotency guarantees for synchronous execution") {
+  test("onceOnly provides idempotency guarantees for sequential execution") {
     Future.successful {
       var effect = 0
       val f: Int => Unit =
@@ -39,7 +39,7 @@ class OnceOnlyTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("onceOnly provides idempotency guarantees for async execution") {
+  test("onceOnly provides idempotency guarantees for parallel execution") {
     val effect = new AtomicInteger(0)
     val f: Int => Unit =
       onceOnly { x => effect.addAndGet(x) }

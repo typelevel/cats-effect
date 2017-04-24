@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect
 
 import org.scalatest._
 import scala.concurrent.ExecutionContext
