@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.internals
 
 /**
  * Alternative to `scala.util.control.NonFatal` that only considers

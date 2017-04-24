@@ -17,6 +17,8 @@
 package cats
 package effect
 
+import cats.effect.internals.{NonFatal, IOPlatform}
+import cats.effect.internals.Utils.onceOnly
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -248,7 +250,8 @@ sealed abstract class IO[+A] {
 
       ba.k(cb2)
 
-    case _ => throw new AssertionError("unreachable")
+    case _ =>
+      throw new AssertionError("unreachable")
   }
 
   /**
@@ -272,8 +275,10 @@ sealed abstract class IO[+A] {
   final def unsafeRunTimed(limit: Duration): Option[A] = unsafeStep match {
     case Pure(a) => Some(a)
     case Fail(t) => throw t
-    case self @ (Async(_) | BindAsync(_, _)) => IOPlatform.unsafeResync(self, limit)
-    case _ => throw new AssertionError("unreachable")
+    case self @ (Async(_) | BindAsync(_, _)) =>
+      IOPlatform.unsafeResync(self, limit)
+    case _ =>
+      throw new AssertionError("unreachable")
   }
 
   /**

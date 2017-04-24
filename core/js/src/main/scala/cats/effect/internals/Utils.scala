@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-package cats
+package cats.effect.internals
 
-import java.util.concurrent.atomic.AtomicBoolean
+private[effect] object Utils {
+  /**
+   * Given any side-effecting function, builds a new one
+   * that has the idempotency property, making sure that its
+   * side-effects get triggered only once
+   */
+  def onceOnly[A](f: A => Unit): A => Unit = {
+    var wasCalled = false
 
-package object effect {
-
-  private[effect] def onceOnly[A](f: A => Unit): A => Unit = {
-    val guard = new AtomicBoolean(false)
-
-    a => if (guard.getAndSet(true)) () else f(a)
+    a => if (wasCalled) () else {
+      wasCalled = true
+      f(a)
+    }
   }
 }

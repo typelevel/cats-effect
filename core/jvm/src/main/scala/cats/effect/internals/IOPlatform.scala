@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.internals
 
 import java.util.concurrent.locks.AbstractQueuedSynchronizer
+
+import cats.effect.IO
+
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Either

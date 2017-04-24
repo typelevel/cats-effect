@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.internals
 
-import scala.concurrent.duration.Duration
+import java.util.concurrent.atomic.AtomicBoolean
 
-private[effect] object IOPlatform {
+private[effect] object Utils {
+  /**
+   * Given any side-effecting function, builds a new one
+   * that has the idempotency property, making sure that its
+   * side-effects get triggered only once
+   */
+  def onceOnly[A](f: A => Unit): A => Unit = {
+    val wasCalled = new AtomicBoolean(false)
 
-  def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] =
-    throw new UnsupportedOperationException("cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync")
+    a => if (wasCalled.getAndSet(true)) () else f(a)
+  }
 }
