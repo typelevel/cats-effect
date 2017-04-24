@@ -16,9 +16,8 @@
 
 package cats.effect.laws.util
 
-import cats.effect.NonFatal
+import cats.effect.internals.NonFatal
 import cats.effect.laws.util.TestContext.State
-
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext
