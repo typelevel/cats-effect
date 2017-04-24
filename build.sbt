@@ -203,7 +203,6 @@ scalacOptions in ThisBuild ++= Seq(
   "-feature",
   "-unchecked",
   "-Xfatal-warnings",
-  "-Xlint:-missing-interpolator,_",
   "-Yno-adapted-args",
   "-Ywarn-dead-code"
 )
@@ -212,9 +211,12 @@ scalacOptions in ThisBuild ++= {
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, major)) if major >= 11 => Seq(
       "-Ywarn-unused-import", // Not available in 2.10
-      "-Ywarn-numeric-widen" // In 2.10 this produces a some strange spurious error
+      "-Ywarn-numeric-widen", // In 2.10 this produces a some strange spurious error
+      "-Xlint:-missing-interpolator,_"
     )
-    case _ => Seq.empty
+    case _ => Seq(
+      "-Xlint" // Scala 2.10
+    )
   }
 }
 
