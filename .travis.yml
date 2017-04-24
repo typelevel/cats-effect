@@ -6,8 +6,14 @@ scala:
   - 2.11.11
   - 2.12.2
 
+env:
+  global:
+    - MAIN_SCALA_VERSION=2.11.11
+
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION ci
+  - project/travis-build.sh
+after_success:
+  - project/travis-post-build.sh
 
 before_cache:
   - find $HOME/.sbt -name "*.lock" -type f -delete
