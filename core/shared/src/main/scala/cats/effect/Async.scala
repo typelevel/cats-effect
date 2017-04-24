@@ -21,8 +21,8 @@ import simulacrum._
 import scala.util.Either
 
 /**
- * Monad for `F` data types capable of describing asynchronous
- * computations that produce a single result.
+ * A monad that can describe asynchronous computations that
+ * produce exactly one result.
  */
 @typeclass
 trait Async[F[_]] extends MonadError[F, Throwable] {

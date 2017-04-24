@@ -254,7 +254,7 @@ sealed abstract class IO[+A] {
 
   /**
    * Produces the result by running the encapsulated effects as impure
-   * side-effects.  
+   * side effects.
    * 
    * If any component of the computation is asynchronous, the current
    * thread will block awaiting the results of the async computation.
@@ -267,7 +267,7 @@ sealed abstract class IO[+A] {
    * evaluation.
    *
    * As the name says, this is an UNSAFE function as it is impure and
-   * performs side-effects, not to mention blocking, throwing
+   * performs side effects, not to mention blocking, throwing
    * exceptions, and doing other things that are at odds with
    * reasonable software.  You should ideally only call this function
    * *once*, at the very end of your program.
@@ -276,7 +276,7 @@ sealed abstract class IO[+A] {
 
   /**
    * Passes the result of the encapsulated effects to the given
-   * callback by running them as impure side-effects.  
+   * callback by running them as impure side effects.
    * 
    * Any exceptions raised within the effect will be passed to the
    * callback in the `Either`.  The callback will be invoked at most
@@ -286,7 +286,7 @@ sealed abstract class IO[+A] {
    * where the callback is *never* invoked.
    *
    * As the name says, this is an UNSAFE function as it is impure and
-   * performs side-effects.  You should ideally only call this
+   * performs side effects.  You should ideally only call this
    * function ''once'', at the very end of your program.
    */
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {

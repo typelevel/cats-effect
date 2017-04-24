@@ -20,7 +20,7 @@ package effect
 import simulacrum._
 
 /**
- * A monad that can suspend the execution of side-effects
+ * A monad that can suspend the execution of side effects
  * in the `F[_]` context.
  */
 @typeclass
@@ -28,17 +28,17 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
   /**
    * Suspends the evaluation of an `F` reference.
    *
-   * Equivalent with `FlatMap.flatten` for pure expressions,
-   * the purpose of this function is to suspend side-effects
+   * Equivalent to `FlatMap.flatten` for pure expressions,
+   * the purpose of this function is to suspend side effects
    * in `F`.
    */
   def suspend[A](thunk: => F[A]): F[A]
 
   /**
-   * Lifts any by-name parameter in the `F` context.
+   * Lifts any by-name parameter into the `F` context.
    *
-   * Equivalent with `Applicative.pure` for pure expressions,
-   * the purpose of this function is to suspend side-effects
+   * Equivalent to `Applicative.pure` for pure expressions,
+   * the purpose of this function is to suspend side effects
    * in `F`.
    */
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))

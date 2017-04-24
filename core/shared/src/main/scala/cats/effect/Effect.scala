@@ -22,8 +22,8 @@ import scala.concurrent.ExecutionContext
 import scala.util.Either
 
 /**
- * A monad that can suspend side-effects in the `F` context and that
- * supports lazy and potentially asynchronous evaluation.
+ * A monad that can suspend side effects into the `F` context and
+ * that supports lazy and potentially asynchronous evaluation.
  */
 @typeclass
 trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {

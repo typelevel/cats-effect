@@ -77,7 +77,7 @@ val commonSettings = Seq(
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
-    val TagBase = """^(\d+)\.(\d+).*""".r
+    val TagBase = """^(\d+)\.(\d+).*"""r
     val TagBase(major, minor) = BaseVersion
 
     val tags = "git tag --list".!! split "\n" map { _.trim }
@@ -85,7 +85,7 @@ val mimaSettings = Seq(
     val versions =
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
-    versions.map { v => organization.value %% name.value % v }.toSet
+    versions map { v => organization.value %% name.value % v } toSet
   }
 )
 
@@ -98,8 +98,7 @@ def profile: Project ⇒ Project = pr => cmdlineProfile match {
 }
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*"
-)
+  coverageExcludedFiles := ".*")
 
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
@@ -107,8 +106,7 @@ lazy val root = project.in(file("."))
   .settings(
     publish := (),
     publishLocal := (),
-    publishArtifact := false
-  )
+    publishArtifact := false)
 
 lazy val core = crossProject.in(file("core"))
   .settings(commonSettings: _*)
@@ -122,19 +120,17 @@ lazy val core = crossProject.in(file("core"))
       "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
       "org.scalatest"  %%% "scalatest"  % "3.0.1"           % "test",
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
-      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"
-    ),
+      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
-  )
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(profile)
+  .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val coreJVM = core.jvm
-  .configure(profile)
 lazy val coreJS = core.js
-  .settings(scalaJSSettings)
 
 lazy val laws = crossProject
   .in(file("laws"))
@@ -151,11 +147,11 @@ lazy val laws = crossProject
       "org.scalatest"  %%% "scalatest"  % "3.0.1" % "test"))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(profile)
+  .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val lawsJVM = laws.jvm
-  .configure(profile)
 lazy val lawsJS = laws.js
-  .settings(scalaJSSettings)
 
 /*
  * Compatibility version.  Use this to declare what version with
