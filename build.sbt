@@ -31,6 +31,17 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
+  scalacOptions in (Compile, doc) ++= {
+    val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
+
+    val path = if (isSnapshot)
+      scmInfo.value.get.browseUrl + "/blob/" + git.gitHeadCommit.value.get + "€{FILE_PATH}.scala"
+    else
+      scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
+
+    Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
+  },
+
   sources in (Compile, doc) := {
     val log = streams.value.log
 
