@@ -1,19 +1,29 @@
 sudo: false
 language: scala
 
-scala:
-  - 2.10.6
-  - 2.11.11
-  - 2.12.2
-
-env:
-  global:
-    - MAIN_SCALA_VERSION=2.11.11
+matrix:
+  include:
+    - jdk: oraclejdk8
+      scala: 2.10.6
+      env: COVERAGE=
+    - jdk: oraclejdk8
+      scala: 2.11.11
+      env: COVERAGE=coverage
+    - jdk: oraclejdk8
+      scala: 2.12.2
+      env: COVERAGE=
 
 script:
-  - project/travis-build.sh
+  - export SBT_PROFILE=$COVERAGE
+  - sbt ++$TRAVIS_SCALA_VERSION $COVERAGE ci
+
 after_success:
-  - project/travis-post-build.sh
+  - |
+    if [ "$COVERAGE" = "coverage" ]; then
+      export SBT_PROFILE=$COVERAGE
+      sbt ++$TRAVIS_SCALA_VERFSION coverageAggregate coverageReport
+      bash <(curl -s https://codecov.io/bash)
+    fi
 
 before_cache:
   - find $HOME/.sbt -name "*.lock" -type f -delete
@@ -24,6 +34,3 @@ cache:
     - $HOME/.ivy2/cache
     - $HOME/.coursier/cache
     - $HOME/.sbt
-
-jdk:
-  - oraclejdk8

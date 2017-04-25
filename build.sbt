@@ -112,10 +112,9 @@ val mimaSettings = Seq(
   }
 )
 
-lazy val cmdlineProfile =
-  sys.props.getOrElse("sbt.profile", default = "")
+lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
-def profile: Project ⇒ Project = pr => cmdlineProfile match {
+def profile: Project => Project = pr => cmdlineProfile match {
   case "coverage" => pr
   case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
 }
