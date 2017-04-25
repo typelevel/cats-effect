@@ -27,8 +27,8 @@ trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def asyncRightIsPure[A](a: A) =
     F.async[A](_(Right(a))) <-> F.pure(a)
 
-  def asyncLeftIsRaiseError[A](t: Throwable) =
-    F.async[A](_(Left(t))) <-> F.raiseError(t)
+  def asyncLeftIsRaiseError[A](e: Throwable) =
+    F.async[A](_(Left(e))) <-> F.raiseError(e)
 
   def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a

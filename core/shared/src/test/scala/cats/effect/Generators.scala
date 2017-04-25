@@ -40,7 +40,7 @@ object Generators {
 
   def genApply[A: Arbitrary]: Gen[IO[A]] = arbitrary[A].map(IO.apply(_))
 
-  def genFail[A]: Gen[IO[A]] = arbitrary[Throwable].map(IO.fail(_))
+  def genFail[A]: Gen[IO[A]] = arbitrary[Throwable].map(IO.raiseError(_))
 
   def genAsync[A: Arbitrary]: Gen[IO[A]] = arbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async(_))
 
