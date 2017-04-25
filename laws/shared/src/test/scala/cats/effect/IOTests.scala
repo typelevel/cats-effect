@@ -17,11 +17,14 @@
 package cats
 package effect
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel._
 import cats.kernel.laws.GroupLaws
 import org.scalacheck._
+
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
@@ -160,6 +163,33 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick()
     expected.value shouldEqual Some(Success(()))
+  }
+
+  testAsync("IO.async protects against multiple callback calls") { implicit ec =>
+    val effect = new AtomicInteger()
+
+    val io = IO.async[Int] { cb =>
+      // Calling callback twice
+      cb(Right(10))
+      cb(Right(20))
+    }
+
+    io.unsafeRunAsync {
+      case Right(v) => effect.addAndGet(v)
+      case Left(ex) => throw ex
+    }
+
+    ec.tick()
+    effect.get shouldEqual 10
+  }
+
+  testAsync("IO.async protects against thrown exceptions") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO.async[Int] { _ => throw dummy }
+    val f = io.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual Some(Failure(dummy))
   }
 
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
