@@ -192,6 +192,15 @@ class IOTests extends BaseTestsSuite {
     f.value shouldEqual Some(Failure(dummy))
   }
 
+  testAsync("IO.async does not break referential transparency") { implicit ec =>
+    val io = IO.async[Int](_(Right(10)))
+    val sum = for (a <- io; b <- io; c <- io) yield a + b + c
+    val f = sum.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual 30
+  }
+
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
     var result: Option[Either[Throwable, A]] = None
 

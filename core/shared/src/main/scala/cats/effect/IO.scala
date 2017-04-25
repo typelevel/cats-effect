@@ -25,7 +25,7 @@ import scala.util.{Left, Right}
 
 /**
  * A pure abstraction representing the intention to perform a
- * side-effect, where the result of that side-effect may be obtained
+ * side effect, where the result of that side effect may be obtained
  * synchronously (via return) or asynchronously (via callback).
  *
  * Effects contained within this abstraction are not evaluated until
@@ -174,7 +174,7 @@ sealed abstract class IO[+A] {
    * This operation is isomorphic to [[unsafeRunAsync]]. What it does
    * is to let you describe asynchronous execution with a function
    * that stores off the results of the original `IO` as a
-   * side-effect, thus ''avoiding'' the usage of impure callbacks or
+   * side effect, thus ''avoiding'' the usage of impure callbacks or
    * eager evaluation.
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
@@ -293,13 +293,15 @@ sealed abstract class IO[+A] {
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case Fail(t) => cb(Left(t))
-    case Async(k) => k(cb)
+    case Async(k) => k(IOPlatform.onceOnly(cb))
 
     case ba: BindAsync[e, A] =>
-      ba.k {
+      val cb2 = IOPlatform.onceOnly[Either[Throwable, e]] {
         case Left(t) => cb(Left(t))
         case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
       }
+
+      ba.k(cb2)
 
     case _ =>
       throw new AssertionError("unreachable")
@@ -344,12 +346,12 @@ sealed abstract class IO[+A] {
    * Evaluates the effect and produces the result in a `Future`.  
    * 
    * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
-   * as a side-effect in a non-blocking fashion, but uses a `Future`
+   * as a side effect in a non-blocking fashion, but uses a `Future`
    * rather than an explicit callback.  This function should really
    * only be used if interoperating with legacy code which uses Scala
    * futures.
    *
-   * @see [[IO.fromFuture]]
+   * @see [[IO.deferFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
@@ -414,27 +416,27 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
-   * Suspends a synchronous side-effect in `IO`.  
-   * 
+   * Suspends a synchronous side effect in `IO`.
+   *
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
   def apply[A](body: => A): IO[A] = suspend(Pure(body))
 
   /**
-   * Suspends a synchronous side-effect which produces an `IO` in `IO`.
-   * 
-   * This is useful for trampolining (i.e. when the side-effect is
+   * Suspends a synchronous side effect which produces an `IO` in `IO`.
+   *
+   * This is useful for trampolining (i.e. when the side effect is
    * conceptually the allocation of a stack frame).  Any exceptions
-   * thrown by the side-effect will be caught and sequenced into the
+   * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
     Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => fail(t) }))
 
   /**
-   * Suspends a pure value in `IO`.  
-   * 
+   * Suspends a pure value in `IO`.
+   *
    * This should ''only'' be used if the value in question has
    * "already" been computed!  In other words, something like
    * `IO.pure(readLine)` is most definitely not the right thing to do!
@@ -448,8 +450,8 @@ object IO extends IOInstances {
   val unit: IO[Unit] = pure(())
 
   /**
-   * Lifts an `Eval` into `IO`.  
-   * 
+   * Lifts an `Eval` into `IO`.
+   *
    * This function will preserve the evaluation semantics of any
    * actions that are lifted into the pure `IO`.  Eager `Eval`
    * instances will be converted into thunk-less `IO` (i.e. eager
@@ -461,8 +463,8 @@ object IO extends IOInstances {
   }
 
   /**
-   * Suspends an asynchronous side effect in `IO`.  
-   * 
+   * Suspends an asynchronous side effect in `IO`.
+   *
    * The given function will be invoked during evaluation of the `IO`
    * to "schedule" the asynchronous callback, where the callback is
    * the parameter passed to that function.  Only the ''first''
@@ -497,14 +499,13 @@ object IO extends IOInstances {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { cb =>
-      val cb2 = IOPlatform.onceOnly(cb)
-      try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
+      try k(cb) catch { case NonFatal(t) => cb(Left(t)) }
     }
   }
 
   /**
-   * Constructs an `IO` which sequences the specified exception.  
-   * 
+   * Constructs an `IO` which sequences the specified exception.
+   *
    * If this `IO` is run using `unsafeRunSync` or `unsafeRunTimed`,
    * the exception will be thrown.  This exception can be "caught" (or
    * rather, materialized into value-space) using the `attempt`
@@ -515,9 +516,9 @@ object IO extends IOInstances {
   def fail(t: Throwable): IO[Nothing] = Fail(t)
 
   /**
-   * Constructs an `IO` which evalutes the thunked `Future` and
+   * Constructs an `IO` which evaluates the by-name `Future` and
    * produces the result (or failure).
-   * 
+   *
    * Because `Future` eagerly evaluates, as well as because it
    * memoizes, this function takes its parameter lazily.  If this
    * laziness is appropriately threaded back to the definition site of
@@ -532,13 +533,13 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.fromFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
-   * IO.fromFuture(ioa.unsafeToFuture) === ioa // true!
+   * IO.deferFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
+   * IO.deferFuture(ioa.unsafeToFuture) === ioa // true!
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+  def deferFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 
