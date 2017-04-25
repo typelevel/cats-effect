@@ -3,11 +3,14 @@ language: scala
 
 matrix:
   include:
-    - scala: 2.10.6
+    - jdk: oraclejdk8
+      scala: 2.10.6
       env: COVERAGE=
-    - scala: 2.11.11
+    - jdk: oraclejdk8
+      scala: 2.11.11
       env: COVERAGE=coverage
-    - scala: 2.12.2
+    - jdk: oraclejdk8
+      scala: 2.12.2
       env: COVERAGE=
 
 script:
@@ -31,6 +34,3 @@ cache:
     - $HOME/.ivy2/cache
     - $HOME/.coursier/cache
     - $HOME/.sbt
-
-jdk:
-  - oraclejdk8
