@@ -40,7 +40,7 @@ class IOTests extends BaseTestsSuite {
 
   test("throw in register is fail") {
     Prop.forAll { t: Throwable =>
-      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw t), IO.fail(t))
+      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw t), IO.raiseError(t))
     }
   }
 
@@ -71,7 +71,7 @@ class IOTests extends BaseTestsSuite {
     case object Foo extends Exception
     case object Bar extends Exception
 
-    val ioa = IO { throw Foo } ensuring IO.fail(Bar)
+    val ioa = IO { throw Foo } ensuring IO.raiseError(Bar)
 
     ioa.attempt.unsafeRunSync() should matchPattern {
       case Left(Bar) => ()
@@ -85,7 +85,7 @@ class IOTests extends BaseTestsSuite {
 
   test("unsafeToFuture can yield immediate failed future") {
     val dummy = new RuntimeException("dummy")
-    val expected = IO.fail(dummy).unsafeToFuture()
+    val expected = IO.raiseError(dummy).unsafeToFuture()
     expected.value shouldEqual Some(Failure(dummy))
   }
 
@@ -100,7 +100,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("shift works for failure") { implicit ec =>
     val dummy = new RuntimeException("dummy")
 
-    val expected = IO.fail(dummy).shift.unsafeToFuture()
+    val expected = IO.raiseError(dummy).shift.unsafeToFuture()
     expected.value shouldEqual None
 
     ec.tick()

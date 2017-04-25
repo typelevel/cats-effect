@@ -109,7 +109,7 @@ sealed abstract class IO[+A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
-    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.fail(t) }))
+    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.raiseError(t) }))
 
   private final def flatMapTotal[B](f: AndThen[A, IO[B]]): IO[B] = {
     this match {
@@ -125,15 +125,15 @@ sealed abstract class IO[+A] {
   /**
    * Materializes any sequenced exceptions into value space, where
    * they may be handled.
-   * 
+   *
    * This is analogous to the `catch` clause in `try`/`catch`, being
-   * the inverse of `IO.fail`. Thus:
+   * the inverse of `IO.raiseError`. Thus:
    *
    * {{{
-   * IO.fail(ex).attempt.unsafeRunAsync === Left(ex)
+   * IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)
    * }}}
    *
-   * @see [[IO.fail]]
+   * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]]
 
@@ -146,13 +146,13 @@ sealed abstract class IO[+A] {
    * into the resultant. This is true even if the target ''also''
    * raised an exception. It mirrors the semantics of `try`/`finally`
    * on the JVM when you perform similar operations.
-   * 
+   *
    * Example:
    *
    * {{{
    * try throw e1 finally throw e2   // throws e2
    *
-   * IO.fail(e1).ensuring(IO.fail(e2)) === IO.fail(e2)
+   * IO.raiseError(e1).ensuring(IO.raiseError(e2)) === IO.raiseError(e2)
    * }}}
    *
    * This function is distinct from monadic `flatMap` (well, really
@@ -162,7 +162,7 @@ sealed abstract class IO[+A] {
    */
   final def ensuring(finalizer: IO[Any]): IO[A] = {
     attempt flatMap { e =>
-      finalizer.flatMap(_ => e.fold(IO.fail, IO.pure))
+      finalizer.flatMap(_ => e.fold(IO.raiseError, IO.pure))
     }
   }
 
@@ -183,8 +183,8 @@ sealed abstract class IO[+A] {
 
   /**
    * Shifts the synchronous prefixes and continuation of the `IO` onto
-   * the specified thread pool.  
-   * 
+   * the specified thread pool.
+   *
    * Asynchronous actions cannot be shifted, since they are scheduled
    * rather than run. Also, no effort is made to re-shift synchronous
    * actions which *follow* asynchronous actions within a bind chain;
@@ -256,7 +256,7 @@ sealed abstract class IO[+A] {
   /**
    * Produces the result by running the encapsulated effects as impure
    * side effects.
-   * 
+   *
    * If any component of the computation is asynchronous, the current
    * thread will block awaiting the results of the async computation.
    * On JavaScript, an exception will be thrown instead to avoid
@@ -278,7 +278,7 @@ sealed abstract class IO[+A] {
   /**
    * Passes the result of the encapsulated effects to the given
    * callback by running them as impure side effects.
-   * 
+   *
    * Any exceptions raised within the effect will be passed to the
    * callback in the `Either`.  The callback will be invoked at most
    * *once*.  Note that it is very possible to construct an IO which
@@ -310,7 +310,7 @@ sealed abstract class IO[+A] {
   /**
    * Similar to `unsafeRunSync`, except with a bounded blocking
    * duration when awaiting asynchronous results.
-   * 
+   *
    * Please note that the `limit` parameter does not limit the time of
    * the total computation, but rather acts as an upper bound on any
    * *individual* asynchronous block.  Thus, if you pass a limit of `5
@@ -343,8 +343,8 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Evaluates the effect and produces the result in a `Future`.  
-   * 
+   * Evaluates the effect and produces the result in a `Future`.
+   *
    * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
    * as a side-effect in a non-blocking fashion, but uses a `Future`
    * rather than an explicit callback.  This function should really
@@ -395,7 +395,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
       ioa.attempt.flatMap(_.fold(f, pure))
 
-    def raiseError[A](t: Throwable): IO[A] = IO.fail(t)
+    def raiseError[A](t: Throwable): IO[A] = IO.raiseError(t)
 
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 
@@ -416,8 +416,8 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
-   * Suspends a synchronous side-effect in `IO`.  
-   * 
+   * Suspends a synchronous side-effect in `IO`.
+   *
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
@@ -425,18 +425,18 @@ object IO extends IOInstances {
 
   /**
    * Suspends a synchronous side-effect which produces an `IO` in `IO`.
-   * 
+   *
    * This is useful for trampolining (i.e. when the side-effect is
    * conceptually the allocation of a stack frame).  Any exceptions
    * thrown by the side-effect will be caught and sequenced into the
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => fail(t) }))
+    Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => raiseError(t) }))
 
   /**
-   * Suspends a pure value in `IO`.  
-   * 
+   * Suspends a pure value in `IO`.
+   *
    * This should ''only'' be used if the value in question has
    * "already" been computed!  In other words, something like
    * `IO.pure(readLine)` is most definitely not the right thing to do!
@@ -450,8 +450,8 @@ object IO extends IOInstances {
   val unit: IO[Unit] = pure(())
 
   /**
-   * Lifts an `Eval` into `IO`.  
-   * 
+   * Lifts an `Eval` into `IO`.
+   *
    * This function will preserve the evaluation semantics of any
    * actions that are lifted into the pure `IO`.  Eager `Eval`
    * instances will be converted into thunk-less `IO` (i.e. eager
@@ -463,8 +463,8 @@ object IO extends IOInstances {
   }
 
   /**
-   * Suspends an asynchronous side effect in `IO`.  
-   * 
+   * Suspends an asynchronous side effect in `IO`.
+   *
    * The given function will be invoked during evaluation of the `IO`
    * to "schedule" the asynchronous callback, where the callback is
    * the parameter passed to that function.  Only the ''first''
@@ -504,8 +504,8 @@ object IO extends IOInstances {
   }
 
   /**
-   * Constructs an `IO` which sequences the specified exception.  
-   * 
+   * Constructs an `IO` which sequences the specified exception.
+   *
    * If this `IO` is run using `unsafeRunSync` or `unsafeRunTimed`,
    * the exception will be thrown.  This exception can be "caught" (or
    * rather, materialized into value-space) using the `attempt`
@@ -513,7 +513,7 @@ object IO extends IOInstances {
    *
    * @see [[IO#attempt]]
    */
-  def fail(t: Throwable): IO[Nothing] = Fail(t)
+  def raiseError(e: Throwable): IO[Nothing] = Fail(e)
 
   /**
    * Constructs an `IO` which evalutes the thunked `Future` and
