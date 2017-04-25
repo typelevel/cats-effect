@@ -39,8 +39,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   test("throw in register is fail") {
-    Prop.forAll { t: Throwable =>
-      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw t), IO.raiseError(t))
+    Prop.forAll { e: Throwable =>
+      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw e), IO.raiseError(e))
     }
   }
 

@@ -30,11 +30,11 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def suspendConstantIsPureJoin[A](fa: F[A]) =
     F.suspend(fa) <-> F.flatten(F.pure(fa))
 
-  def delayThrowIsRaiseError[A](t: Throwable) =
-    F.delay[A](throw t) <-> F.raiseError(t)
+  def delayThrowIsRaiseError[A](e: Throwable) =
+    F.delay[A](throw e) <-> F.raiseError(e)
 
-  def suspendThrowIsRaiseError[A](t: Throwable) =
-    F.suspend[A](throw t) <-> F.raiseError(t)
+  def suspendThrowIsRaiseError[A](e: Throwable) =
+    F.suspend[A](throw e) <-> F.raiseError(e)
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
     var cur = a

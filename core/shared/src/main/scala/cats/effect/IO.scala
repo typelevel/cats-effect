@@ -88,8 +88,8 @@ sealed abstract class IO[+A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = this match {
-    case Pure(a) => try Pure(f(a)) catch { case NonFatal(t) => RaiseError(t) }
-    case RaiseError(t) => RaiseError(t)
+    case Pure(a) => try Pure(f(a)) catch { case NonFatal(e) => RaiseError(e) }
+    case RaiseError(e) => RaiseError(e)
     case _ => flatMap(f.andThen(Pure(_)))
   }
 
@@ -109,12 +109,12 @@ sealed abstract class IO[+A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
-    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(t) => IO.raiseError(t) }))
+    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(e) => IO.raiseError(e) }))
 
   private final def flatMapTotal[B](f: AndThen[A, IO[B]]): IO[B] = {
     this match {
       case Pure(a) => Suspend(AndThen((_: Unit) => a).andThen(f))
-      case RaiseError(t) => RaiseError(t)
+      case RaiseError(e) => RaiseError(e)
       case Suspend(thunk) => BindSuspend(thunk, f)
       case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f))))
       case Async(k) => BindAsync(k, f)
@@ -292,7 +292,7 @@ sealed abstract class IO[+A] {
    */
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
-    case RaiseError(t) => cb(Left(t))
+    case RaiseError(e) => cb(Left(e))
     case Async(k) => k(IOPlatform.onceOnly(cb))
 
     case ba: BindAsync[e, A] =>
@@ -335,7 +335,7 @@ sealed abstract class IO[+A] {
    */
   final def unsafeRunTimed(limit: Duration): Option[A] = unsafeStep match {
     case Pure(a) => Some(a)
-    case RaiseError(t) => throw t
+    case RaiseError(e) => throw e
     case self @ (Async(_) | BindAsync(_, _)) =>
       IOPlatform.unsafeResync(self, limit)
     case _ =>
@@ -361,7 +361,7 @@ sealed abstract class IO[+A] {
 
   override def toString = this match {
     case Pure(a) => s"IO($a)"
-    case RaiseError(t) => s"IO(throw $t)"
+    case RaiseError(e) => s"IO(throw $e)"
     case _ => "IO$" + System.identityHashCode(this)
   }
 }
@@ -395,7 +395,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
       ioa.attempt.flatMap(_.fold(f, pure))
 
-    def raiseError[A](t: Throwable): IO[A] = IO.raiseError(t)
+    def raiseError[A](e: Throwable): IO[A] = IO.raiseError(e)
 
     def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
 
@@ -432,7 +432,7 @@ object IO extends IOInstances {
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(AndThen(_ => try thunk catch { case NonFatal(t) => raiseError(t) }))
+    Suspend(AndThen(_ => try thunk catch { case NonFatal(e) => raiseError(e) }))
 
   /**
    * Suspends a pure value in `IO`.
