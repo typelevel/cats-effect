@@ -75,7 +75,12 @@ val commonSettings = Seq(
       <developer>
         <id>mpilquist</id>
         <name>Michael Pilquist</name>
-        <url>http://github.com/mpilquist</url>
+        <url>https://github.com/mpilquist</url>
+      </developer>
+      <developer>
+        <id>alexelcu</id>
+        <name>Alexandru Nedelcu</name>
+        <url>https://alexn.org</url>
       </developer>
     </developers>,
 
