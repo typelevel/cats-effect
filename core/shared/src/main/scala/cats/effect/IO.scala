@@ -351,7 +351,7 @@ sealed abstract class IO[+A] {
    * only be used if interoperating with legacy code which uses Scala
    * futures.
    *
-   * @see [[IO.deferFuture]]
+   * @see [[IO.fromFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
@@ -533,13 +533,13 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.deferFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
-   * IO.deferFuture(ioa.unsafeToFuture) === ioa // true!
+   * IO.fromFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
+   * IO.fromFuture(ioa.unsafeToFuture) === ioa // true!
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def deferFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 
