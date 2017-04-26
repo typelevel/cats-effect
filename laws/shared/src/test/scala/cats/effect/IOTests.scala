@@ -198,7 +198,7 @@ class IOTests extends BaseTestsSuite {
     val f = sum.unsafeToFuture()
 
     ec.tick()
-    f.value shouldEqual 30
+    f.value shouldEqual Some(Success(30))
   }
 
   implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>

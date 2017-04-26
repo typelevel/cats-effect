@@ -293,15 +293,14 @@ sealed abstract class IO[+A] {
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case RaiseError(e) => cb(Left(e))
-    case Async(k) => k(IOPlatform.onceOnly(cb))
+    case Async(k) => k(cb)
 
     case ba: BindAsync[e, A] =>
-      val cb2 = IOPlatform.onceOnly[Either[Throwable, e]] {
+      ba.k {
         case Left(t) => cb(Left(t))
-        case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
+        case Right(a) =>
+          try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
       }
-
-      ba.k(cb2)
 
     case _ =>
       throw new AssertionError("unreachable")
@@ -499,7 +498,8 @@ object IO extends IOInstances {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { cb =>
-      try k(cb) catch { case NonFatal(t) => cb(Left(t)) }
+      val cb2 = IOPlatform.onceOnly(cb)
+      try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
 
