@@ -351,7 +351,7 @@ sealed abstract class IO[+A] {
    * only be used if interoperating with legacy code which uses Scala
    * futures.
    *
-   * @see [[IO.fromFuture]]
+   * @see [[IO.deferFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
@@ -513,12 +513,12 @@ object IO extends IOInstances {
    *
    * @see [[IO#attempt]]
    */
-  def raiseError(e: Throwable): IO[Nothing] = RaiseError(e)
+  def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
 
   /**
-   * Constructs an `IO` which evalutes the thunked `Future` and
+   * Constructs an `IO` which evaluates the suspended `Future` and
    * produces the result (or failure).
-   * 
+   *
    * Because `Future` eagerly evaluates, as well as because it
    * memoizes, this function takes its parameter lazily.  If this
    * laziness is appropriately threaded back to the definition site of
@@ -533,13 +533,13 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.fromFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
-   * IO.fromFuture(ioa.unsafeToFuture) === ioa // true!
+   * IO.deferFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
+   * IO.deferFuture(ioa.unsafeToFuture) === ioa // true!
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+  def deferFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 

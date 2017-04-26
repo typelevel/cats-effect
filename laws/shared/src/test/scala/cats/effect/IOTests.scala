@@ -19,16 +19,18 @@ package effect
 
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
-import cats.kernel._
 import cats.kernel.laws.GroupLaws
+import cats.laws._
+import cats.laws.discipline._
 import org.scalacheck._
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
   import Generators._
 
-  checkAll("IO", EffectTests[IO].effect[Int, Int, Int])
-  checkAll("IO", GroupLaws[IO[Int]].monoid)
+  checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => GroupLaws[IO[Int]].monoid)
 
   test("defer evaluation until run") {
     var run = false
@@ -38,9 +40,9 @@ class IOTests extends BaseTestsSuite {
     run shouldEqual true
   }
 
-  test("throw in register is fail") {
+  testAsync("throw in register is fail") { implicit ec =>
     Prop.forAll { e: Throwable =>
-      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw e), IO.raiseError(e))
+      IO.async[Unit](_ => throw e) <-> IO.raiseError(e)
     }
   }
 
@@ -162,16 +164,28 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Success(()))
   }
 
-  implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
-    var result: Option[Either[Throwable, A]] = None
-
-    ioa.runAsync(e => IO { result = Some(e) }).unsafeRunSync()
-
-    result
+  testAsync("deferFuture works for values") { implicit ec =>
+    check { (a: Int, f: Int => Long) =>
+      IO.deferFuture(Future(f(a))) <-> IO(f(a))
+    }
   }
 
-  implicit def eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals[Throwable]
+  testAsync("deferFuture works for exceptions") { implicit ec =>
+    check { (ex: Throwable) =>
+      val io = IO.deferFuture[Int](Future(throw ex))
+      io <-> IO.raiseError[Int](ex)
+    }
+  }
+
+  testAsync("deferFuture suspends side-effects") { implicit ec =>
+    check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
+      var effect = a
+      val io1 = IO.deferFuture(Future { effect = f(effect, a) })
+      val io2 = IO.deferFuture(Future { effect = g(effect, a) })
+
+      io2.flatMap(_ => io1) <-> IO(f(g(a, a), a))
+    }
+  }
 }
 
 object IOTests {
