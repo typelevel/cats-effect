@@ -21,7 +21,7 @@ after_success:
   - |
     if [ "$COVERAGE" = "coverage" ]; then
       export SBT_PROFILE=$COVERAGE
-      sbt ++$TRAVIS_SCALA_VERFSION coverageAggregate coverageReport
+      sbt ++$TRAVIS_SCALA_VERSION coverageAggregate coverageReport
       bash <(curl -s https://codecov.io/bash)
     fi
 
