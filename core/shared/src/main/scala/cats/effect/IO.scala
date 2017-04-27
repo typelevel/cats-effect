@@ -550,7 +550,7 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.fromFuture(always(f)).unsafeToFuture === f // true-ish (except for memoization)
+   * IO.fromFuture(always(f)).unsafeToFuture() === f // true-ish (except for memoization)
    * IO.fromFuture(always(ioa.unsafeToFuture())) === ioa // true
    * }}}
    *
