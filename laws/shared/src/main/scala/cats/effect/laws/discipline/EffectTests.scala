@@ -20,11 +20,10 @@ package laws
 package discipline
 
 import cats.data._
-import cats.instances.all._
-import cats.laws.discipline._
 import cats.laws.discipline.CartesianTests.Isomorphisms
-
-import org.scalacheck._, Prop.forAll
+import cats.laws.discipline._
+import org.scalacheck.Prop.forAll
+import org.scalacheck._
 
 trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
   def laws: EffectLaws[F]
@@ -53,6 +52,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
       EqIOA: Eq[IO[A]],
       EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
       EqIOEitherEitherTA: Eq[IO[Either[Throwable, Either[Throwable, A]]]],
+      EqIOUnit: Eq[IO[Unit]],
       iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
       val name = "effect"

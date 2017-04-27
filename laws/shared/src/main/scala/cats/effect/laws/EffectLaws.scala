@@ -55,7 +55,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
     test >> readResult <-> IO.pure(f(a))
   }
 
-  lazy val stackSafetyOnRepeatedLeftBinds = {
+  lazy val stackSafetyOnRepeatedLeftBinds: IsEq[IO[Unit]] = {
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
       acc.flatMap(_ => F.delay(()))
     }
@@ -63,7 +63,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
     F.runAsync(result)(_ => IO.unit) <-> IO.unit
   }
 
-  lazy val stackSafetyOnRepeatedRightBinds = {
+  lazy val stackSafetyOnRepeatedRightBinds: IsEq[IO[Unit]] = {
     val result = (0 until 10000).foldRight(F.delay(())) { (_, acc) =>
       F.delay(()).flatMap(_ => acc)
     }
@@ -71,7 +71,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
     F.runAsync(result)(_ => IO.unit) <-> IO.unit
   }
 
-  lazy val stackSafetyOnRepeatedAttempts = {
+  lazy val stackSafetyOnRepeatedAttempts: IsEq[IO[Unit]] = {
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
       F.attempt(acc).map(_ => ())
     }
