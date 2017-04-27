@@ -30,7 +30,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext =
     ExecutionContext.global
 
-  def testEffect(source: IO[Int], expected: Try[Int])
+  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])
     (implicit pos: Position): Future[Assertion] = {
 
     val effect = Promise[Int]()
@@ -48,24 +48,24 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
   }
 
   test("IO.pure#runAsync") {
-    testEffect(IO.pure(10), Success(10))
+    testEffectOnRunAsync(IO.pure(10), Success(10))
   }
 
   test("IO.apply#runAsync") {
-    testEffect(IO(10), Success(10))
+    testEffectOnRunAsync(IO(10), Success(10))
   }
 
   test("IO.apply#shift#runAsync") {
-    testEffect(IO(10).shift, Success(10))
+    testEffectOnRunAsync(IO(10).shift, Success(10))
   }
 
   test("IO.raiseError#runAsync") {
     val dummy = new RuntimeException("dummy")
-    testEffect(IO.raiseError(dummy), Failure(dummy))
+    testEffectOnRunAsync(IO.raiseError(dummy), Failure(dummy))
   }
 
   test("IO.raiseError#shift#runAsync") {
     val dummy = new RuntimeException("dummy")
-    testEffect(IO.raiseError(dummy).shift, Failure(dummy))
+    testEffectOnRunAsync(IO.raiseError(dummy).shift, Failure(dummy))
   }
 }
