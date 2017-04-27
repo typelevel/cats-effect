@@ -17,6 +17,7 @@
 package cats
 package effect
 
+import cats.Eval.always
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel.laws.GroupLaws
@@ -164,26 +165,33 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Success(()))
   }
 
-  testAsync("deferFuture works for values") { implicit ec =>
+  testAsync("fromFuture works for values") { implicit ec =>
     check { (a: Int, f: Int => Long) =>
-      IO.deferFuture(Future(f(a))) <-> IO(f(a))
+      IO.fromFuture(always(Future(f(a)))) <-> IO(f(a))
     }
   }
 
-  testAsync("deferFuture works for exceptions") { implicit ec =>
+  testAsync("fromFuture works for exceptions") { implicit ec =>
     check { (ex: Throwable) =>
-      val io = IO.deferFuture[Int](Future(throw ex))
+      val io = IO.fromFuture[Int](always(Future(throw ex)))
       io <-> IO.raiseError[Int](ex)
     }
   }
 
-  testAsync("deferFuture suspends side-effects") { implicit ec =>
+  testAsync("fromFuture(always) protects against user code") { implicit ec =>
+    check { (ex: Throwable) =>
+      val io = IO.fromFuture[Int](always(throw ex))
+      io <-> IO.raiseError[Int](ex)
+    }
+  }
+
+  testAsync("fromFuture(always) suspends side-effects") { implicit ec =>
     check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
       var effect = a
-      val io1 = IO.deferFuture(Future { effect = f(effect, a) })
-      val io2 = IO.deferFuture(Future { effect = g(effect, a) })
+      val io1 = IO.fromFuture(always(Future { effect = f(effect, a) }))
+      val io2 = IO.fromFuture(always(Future { effect = g(effect, a) }))
 
-      io2.flatMap(_ => io1) <-> IO(f(g(a, a), a))
+      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
     }
   }
 }

@@ -351,7 +351,7 @@ sealed abstract class IO[+A] {
    * only be used if interoperating with legacy code which uses Scala
    * futures.
    *
-   * @see [[IO.deferFuture]]
+   * @see [[IO.fromFuture]]
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
@@ -516,14 +516,31 @@ object IO extends IOInstances {
   def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
 
   /**
-   * Constructs an `IO` which evaluates the suspended `Future` and
+   * Constructs an `IO` which evaluates the given `Future` and
    * produces the result (or failure).
    *
    * Because `Future` eagerly evaluates, as well as because it
-   * memoizes, this function takes its parameter lazily.  If this
-   * laziness is appropriately threaded back to the definition site of
-   * the `Future`, it ensures that the computation is fully managed by
+   * memoizes, this function takes its parameter as a `cats.Eval`,
+   * which could be lazily evaluated.  If this laziness is
+   * appropriately threaded back to the definition site of the
+   * `Future`, it ensures that the computation is fully managed by
    * `IO` and thus referentially transparent.
+   *
+   * The `cats.Eval` type allows fine grained control of how the
+   * passed `Future` reference gets evaluated. Example:
+   *
+   * {{{
+   *   import cats.Eval.{always, later, now}
+   *
+   *   // Lazy evaluation, equivalent with by-name params
+   *   IO.fromFuture(always(f))
+   *
+   *   // Memoized, lazy evaluation, equivalent with lazy val
+   *   IO.fromFuture(later(f))
+   *
+   *   // Eager evaluation
+   *   IO.fromFuture(now(f))
+   * }}}
    *
    * Note that the ''continuation'' of the computation resulting from
    * a `Future` will run on the future's thread pool.  There is no
@@ -533,19 +550,21 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.deferFuture(f).unsafeToFuture === f     // true-ish (except for memoization)
-   * IO.deferFuture(ioa.unsafeToFuture) === ioa // true!
+   *   IO.fromFuture(now(f)).unsafeToFuture === f
+   *   IO.fromFuture(always(ioa.unsafeToFuture())) === ioa
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def deferFuture[A](f: => Future[A])(implicit ec: ExecutionContext): IO[A] = {
+  def fromFuture[A](f: Eval[Future[A]])(implicit ec: ExecutionContext): IO[A] = {
     IO async { cb =>
       import scala.util.{Success, Failure}
 
-      f onComplete {
-        case Failure(t) => cb(Left(t))
+      try f.value onComplete {
+        case Failure(e) => cb(Left(e))
         case Success(a) => cb(Right(a))
+      } catch {
+        case NonFatal(e) => cb(Left(e))
       }
     }
   }
