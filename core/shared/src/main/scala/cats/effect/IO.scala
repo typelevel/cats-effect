@@ -550,8 +550,8 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   *   IO.fromFuture(now(f)).unsafeToFuture === f
-   *   IO.fromFuture(always(ioa.unsafeToFuture())) === ioa
+   * IO.fromFuture(always(f)).unsafeToFuture === f // true-ish (except for memoization)
+   * IO.fromFuture(always(ioa.unsafeToFuture())) === ioa // true
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
@@ -560,11 +560,9 @@ object IO extends IOInstances {
     IO async { cb =>
       import scala.util.{Success, Failure}
 
-      try f.value onComplete {
+      f.value onComplete {
         case Failure(e) => cb(Left(e))
         case Success(a) => cb(Right(a))
-      } catch {
-        case NonFatal(e) => cb(Left(e))
       }
     }
   }
