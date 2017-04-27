@@ -25,7 +25,7 @@ import scala.util.{Left, Right}
 
 /**
  * A pure abstraction representing the intention to perform a
- * side-effect, where the result of that side-effect may be obtained
+ * side effect, where the result of that side effect may be obtained
  * synchronously (via return) or asynchronously (via callback).
  *
  * Effects contained within this abstraction are not evaluated until
@@ -174,7 +174,7 @@ sealed abstract class IO[+A] {
    * This operation is isomorphic to [[unsafeRunAsync]]. What it does
    * is to let you describe asynchronous execution with a function
    * that stores off the results of the original `IO` as a
-   * side-effect, thus ''avoiding'' the usage of impure callbacks or
+   * side effect, thus ''avoiding'' the usage of impure callbacks or
    * eager evaluation.
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
@@ -293,15 +293,14 @@ sealed abstract class IO[+A] {
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
     case Pure(a) => cb(Right(a))
     case RaiseError(e) => cb(Left(e))
-    case Async(k) => k(IOPlatform.onceOnly(cb))
+    case Async(k) => k(cb)
 
     case ba: BindAsync[e, A] =>
-      val cb2 = IOPlatform.onceOnly[Either[Throwable, e]] {
+      ba.k {
         case Left(t) => cb(Left(t))
-        case Right(a) => try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
+        case Right(a) =>
+          try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
       }
-
-      ba.k(cb2)
 
     case _ =>
       throw new AssertionError("unreachable")
@@ -346,7 +345,7 @@ sealed abstract class IO[+A] {
    * Evaluates the effect and produces the result in a `Future`.
    *
    * This is similar to `unsafeRunAsync` in that it evaluates the `IO`
-   * as a side-effect in a non-blocking fashion, but uses a `Future`
+   * as a side effect in a non-blocking fashion, but uses a `Future`
    * rather than an explicit callback.  This function should really
    * only be used if interoperating with legacy code which uses Scala
    * futures.
@@ -416,7 +415,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
-   * Suspends a synchronous side-effect in `IO`.
+   * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
@@ -424,11 +423,11 @@ object IO extends IOInstances {
   def apply[A](body: => A): IO[A] = suspend(Pure(body))
 
   /**
-   * Suspends a synchronous side-effect which produces an `IO` in `IO`.
+   * Suspends a synchronous side effect which produces an `IO` in `IO`.
    *
-   * This is useful for trampolining (i.e. when the side-effect is
+   * This is useful for trampolining (i.e. when the side effect is
    * conceptually the allocation of a stack frame).  Any exceptions
-   * thrown by the side-effect will be caught and sequenced into the
+   * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
@@ -499,7 +498,8 @@ object IO extends IOInstances {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { cb =>
-      try k(cb) catch { case NonFatal(t) => cb(Left(t)) }
+      val cb2 = IOPlatform.onceOnly(cb)
+      try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
 

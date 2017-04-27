@@ -18,6 +18,8 @@ package cats
 package effect
 
 import cats.Eval.always
+import java.util.concurrent.atomic.AtomicInteger
+
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel.laws.GroupLaws
@@ -163,6 +165,42 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick()
     expected.value shouldEqual Some(Success(()))
+  }
+
+  testAsync("IO.async protects against multiple callback calls") { implicit ec =>
+    val effect = new AtomicInteger()
+
+    val io = IO.async[Int] { cb =>
+      // Calling callback twice
+      cb(Right(10))
+      cb(Right(20))
+    }
+
+    io.unsafeRunAsync {
+      case Right(v) => effect.addAndGet(v)
+      case Left(ex) => throw ex
+    }
+
+    ec.tick()
+    effect.get shouldEqual 10
+  }
+
+  testAsync("IO.async protects against thrown exceptions") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO.async[Int] { _ => throw dummy }
+    val f = io.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("IO.async does not break referential transparency") { implicit ec =>
+    val io = IO.async[Int](_(Right(10)))
+    val sum = for (a <- io; b <- io; c <- io) yield a + b + c
+    val f = sum.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual Some(Success(30))
   }
 
   testAsync("fromFuture works for values") { implicit ec =>
