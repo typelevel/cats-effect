@@ -1,0 +1,71 @@
+/*
+ * Copyright 2017 Typelevel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package cats.effect
+
+import org.scalactic.source.Position
+import org.scalatest.{Assertion, AsyncFunSuite, Matchers}
+
+import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.util.{Failure, Success, Try}
+
+/**
+ * Tests doing real asynchrony for both the JVM and JS, by
+ * means of ScalaTest's engine.
+ */
+class IOAsyncTests extends AsyncFunSuite with Matchers {
+  implicit override def executionContext =
+    ExecutionContext.global
+
+  def testEffect(source: IO[Int], expected: Try[Int])
+    (implicit pos: Position): Future[Assertion] = {
+
+    val effect = Promise[Int]()
+    val attempt = Promise[Try[Int]]()
+    effect.future.onComplete(attempt.success)
+
+    val io = source.runAsync {
+      case Right(a) => IO(effect.success(a))
+      case Left(e) => IO(effect.failure(e))
+    }
+
+    for (_ <- io.unsafeToFuture(); v <- attempt.future) yield {
+      v shouldEqual expected
+    }
+  }
+
+  test("IO.pure#runAsync") {
+    testEffect(IO.pure(10), Success(10))
+  }
+
+  test("IO.apply#runAsync") {
+    testEffect(IO(10), Success(10))
+  }
+
+  test("IO.apply#shift#runAsync") {
+    testEffect(IO(10).shift, Success(10))
+  }
+
+  test("IO.raiseError#runAsync") {
+    val dummy = new RuntimeException("dummy")
+    testEffect(IO.raiseError(dummy), Failure(dummy))
+  }
+
+  test("IO.raiseError#shift#runAsync") {
+    val dummy = new RuntimeException("dummy")
+    testEffect(IO.raiseError(dummy).shift, Failure(dummy))
+  }
+}

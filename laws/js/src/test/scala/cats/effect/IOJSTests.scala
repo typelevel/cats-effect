@@ -17,6 +17,7 @@
 package cats.effect
 
 import org.scalatest.{AsyncFunSuite, Matchers}
+
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js.timers.setTimeout
