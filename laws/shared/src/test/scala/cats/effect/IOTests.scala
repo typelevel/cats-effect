@@ -17,21 +17,23 @@
 package cats
 package effect
 
+import cats.Eval.always
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
-import cats.kernel._
 import cats.kernel.laws.GroupLaws
+import cats.laws._
+import cats.laws.discipline._
 import org.scalacheck._
-
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
   import Generators._
 
-  checkAll("IO", EffectTests[IO].effect[Int, Int, Int])
-  checkAll("IO", GroupLaws[IO[Int]].monoid)
+  checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => GroupLaws[IO[Int]].monoid)
 
   test("defer evaluation until run") {
     var run = false
@@ -41,9 +43,9 @@ class IOTests extends BaseTestsSuite {
     run shouldEqual true
   }
 
-  test("throw in register is fail") {
+  testAsync("throw in register is fail") { implicit ec =>
     Prop.forAll { e: Throwable =>
-      Eq[IO[Unit]].eqv(IO.async[Unit](_ => throw e), IO.raiseError(e))
+      IO.async[Unit](_ => throw e) <-> IO.raiseError(e)
     }
   }
 
@@ -201,16 +203,35 @@ class IOTests extends BaseTestsSuite {
     f.value shouldEqual Some(Success(30))
   }
 
-  implicit def eqIO[A: Eq]: Eq[IO[A]] = Eq by { ioa =>
-    var result: Option[Either[Throwable, A]] = None
-
-    ioa.runAsync(e => IO { result = Some(e) }).unsafeRunSync()
-
-    result
+  testAsync("fromFuture works for values") { implicit ec =>
+    check { (a: Int, f: Int => Long) =>
+      IO.fromFuture(always(Future(f(a)))) <-> IO(f(a))
+    }
   }
 
-  implicit def eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals[Throwable]
+  testAsync("fromFuture works for exceptions") { implicit ec =>
+    check { (ex: Throwable) =>
+      val io = IO.fromFuture[Int](always(Future(throw ex)))
+      io <-> IO.raiseError[Int](ex)
+    }
+  }
+
+  testAsync("fromFuture(always) protects against user code") { implicit ec =>
+    check { (ex: Throwable) =>
+      val io = IO.fromFuture[Int](always(throw ex))
+      io <-> IO.raiseError[Int](ex)
+    }
+  }
+
+  testAsync("fromFuture(always) suspends side-effects") { implicit ec =>
+    check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
+      var effect = a
+      val io1 = IO.fromFuture(always(Future { effect = f(effect, a) }))
+      val io2 = IO.fromFuture(always(Future { effect = g(effect, a) }))
+
+      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
+    }
+  }
 }
 
 object IOTests {

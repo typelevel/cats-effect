@@ -16,16 +16,33 @@
 
 package cats.effect
 
-import cats.effect.laws.util.TestContext
+import cats.effect.laws.util.{TestContext, TestInstances}
+import cats.kernel.Eq
 import org.scalactic.source
+import org.scalatest.prop.Checkers
 import org.scalatest.{FunSuite, Matchers, Tag}
+import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 
-class BaseTestsSuite extends FunSuite with Matchers with Discipline {
+class BaseTestsSuite extends FunSuite with Matchers with Checkers with Discipline with TestInstances {
   /** For tests that need a usable [[TestContext]] reference. */
   def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)
     (implicit pos: source.Position): Unit = {
 
     test(name, tags:_*)(f(TestContext()))(pos)
   }
+
+  /** For discipline tests. */
+  def checkAllAsync(name: String, f: TestContext => Laws#RuleSet) {
+    val context = TestContext()
+    val ruleSet = f(context)
+
+    for ((id, prop) ← ruleSet.all.properties)
+      test(name + "." + id) {
+        check(prop)
+      }
+  }
+
+  implicit def eqThrowable: Eq[Throwable] =
+    Eq.fromUniversalEquals[Throwable]
 }
