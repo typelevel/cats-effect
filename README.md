@@ -47,7 +47,7 @@ This project is intended to be an upstream dependency of a large swath of the ec
 
 Most of the API documentation can be found [in the scaladoc](https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12).  To summarize though, the typeclass hierarchy looks something like this:
 
-![cats-effect typeclasses](https://docs.google.com/drawings/d/1JIxtfEPKxUp402l8mYYDj7tDuEdEFAiqvJJpeAXAwG0/pub?w=1025&amp;h=852)
+![cats-effect typeclasses](https://docs.google.com/drawings/d/1JIxtfEPKxUp402l8mYYDj7tDuEdEFAiqvJJpeAXAwG0/pub?w=1027&h=1076)
 
 All of the typeclasses are of kind `(* -> *) -> *`, as you would expect.  `MonadError` is of course provided by [cats-core](https://github.com/typelevel/cats), while the other four classes are in cats-effect.  For concision and reference, the abstract methods of each typeclass are given below:
 
