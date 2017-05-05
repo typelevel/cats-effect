@@ -21,7 +21,7 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait EffectLaws[F[_]] extends AsyncLaws[F] with SyncLaws[F] {
+trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Effect[F]
 
   def runAsyncPureProducesRightIO[A](a: A) = {

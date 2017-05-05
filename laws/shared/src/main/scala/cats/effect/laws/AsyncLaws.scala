@@ -21,7 +21,7 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait AsyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
+trait AsyncLaws[F[_]] extends SyncLaws[F] {
   implicit def F: Async[F]
 
   def asyncRightIsPure[A](a: A) =

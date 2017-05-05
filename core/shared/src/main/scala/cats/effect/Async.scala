@@ -22,14 +22,15 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * A monad that can describe asynchronous computations that
+ * A monad that can describe asynchronous or synchronous computations that
  * produce exactly one result.
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
-trait Async[F[_]] extends MonadError[F, Throwable] {
+trait Async[F[_]] extends Sync[F] {
+
   /**
    * Creates an `F[A]` instance from a provided function
    * that will have a callback injected for signaling the

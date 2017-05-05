@@ -30,7 +30,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for Effect[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
-trait Effect[F[_]] extends Sync[F] with Async[F] with LiftIO[F] {
+trait Effect[F[_]] extends Async[F] with LiftIO[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 
