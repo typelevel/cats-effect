@@ -358,6 +358,31 @@ sealed abstract class IO[+A] {
     p.future
   }
 
+  /**
+   * Evaluates the effect and tries to return the result immediately,
+   * otherwise upon hitting an asynchronous boundary, it returns the
+   * result as a `Future`.
+   *
+   * Invoking this operation can have 3 outcomes:
+   *
+   *  - returns `Right(a)` in case the successful result `a`
+   *    result could be evaluated immediately
+   *  - throws exception in case the result could be evaluated
+   *    immediately and it's an error
+   *  - returns `Left(future)` in case the run-loop hits an
+   *    asynchronous boundary
+   *
+   * This operation can be used for optimization purposes, for example
+   * by library authors that want to efficiently convert from `IO`
+   * to their own type that can do effects capturing.
+   */
+  final def unsafeRunSyncOrFuture(): Either[Future[A], A] =
+    unsafeStep match {
+      case Pure(a) => Right(a)
+      case RaiseError(e) => throw e
+      case other => Left(other.unsafeToFuture())
+    }
+
   override def toString = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"

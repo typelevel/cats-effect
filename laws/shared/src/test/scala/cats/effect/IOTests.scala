@@ -19,7 +19,7 @@ package effect
 
 import cats.Eval.always
 import java.util.concurrent.atomic.AtomicInteger
-
+import cats.effect.internals.NonFatal
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
 import cats.kernel.laws.GroupLaws
@@ -230,6 +230,58 @@ class IOTests extends BaseTestsSuite {
       val io2 = IO.fromFuture(always(Future { effect = g(effect, a) }))
 
       io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
+    }
+  }
+
+  testAsync("IO.pure(a).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (a: Int) =>
+      IO.pure(a).unsafeRunSyncOrFuture() <-> Right(a)
+    }
+  }
+
+  testAsync("IO.raiseError(e).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (e: Throwable) =>
+      val received =
+        try { IO.raiseError(e).unsafeRunSyncOrFuture(); None }
+        catch { case NonFatal(e) => Some(e) }
+
+      received <-> Some(e)
+    }
+  }
+
+  testAsync("IO(a).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (a: Int, f: (Int => Long)) =>
+      IO(f(a)).unsafeRunSyncOrFuture() <-> Right(f(a))
+    }
+  }
+
+  testAsync("IO(throw e).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (e: Throwable) =>
+      val received =
+        try { IO(throw e).unsafeRunSyncOrFuture(); None }
+        catch { case NonFatal(e) => Some(e) }
+
+      received <-> Some(e)
+    }
+  }
+
+  testAsync("IO(a).flatMap(f).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (a: Int, f: (Int => Long)) =>
+      IO(a).flatMap(x => IO.pure(f(x))).unsafeRunSyncOrFuture() <-> Right(f(a))
+    }
+  }
+
+  testAsync("IO.async(_(Right(a))).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (a: Int, f: (Int => Long)) =>
+      val io = IO.async[Long](cb => cb(Right(f(a))))
+      io.unsafeRunSyncOrFuture() <-> Left(Future.successful(f(a)))
+    }
+  }
+
+  testAsync("IO.async(_(Left(e))).unsafeRunSyncOrFuture") { implicit ec =>
+    check { (e: Throwable) =>
+      val io = IO.async[Long](cb => cb(Left(e)))
+      io.unsafeRunSyncOrFuture() <-> Left(Future.failed(e))
     }
   }
 }
