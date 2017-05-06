@@ -26,6 +26,7 @@ import cats.kernel.laws.GroupLaws
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
+
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -231,6 +232,124 @@ class IOTests extends BaseTestsSuite {
 
       io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
     }
+  }
+
+  testAsync("attempt flatMap loop") { implicit ec =>
+    def loop[A](source: IO[A], n: Int): IO[A] =
+      source.attempt.flatMap {
+        case Right(a) =>
+          if (n <= 0) IO.pure(a)
+          else loop(source, n - 1)
+        case Left(e) =>
+          IO.raiseError(e)
+      }
+
+    val f = loop(IO("value"), 10000).unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual Some(Success("value"))
+  }
+
+  testAsync("attempt foldLeft sequence") { implicit ec =>
+    val count = 10000
+    val loop = (0 until count).foldLeft(IO(0)) { (acc, _) =>
+      acc.attempt.flatMap {
+        case Right(x) => IO.pure(x + 1)
+        case Left(e) => IO.raiseError(e)
+      }
+    }
+
+    val f = loop.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual Some(Success(count))
+  }
+
+  testAsync("IO(throw ex).attempt.map") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO[Int](throw dummy).attempt.map {
+      case Left(`dummy`) => 100
+      case _ => 0
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
+  }
+
+  testAsync("IO(throw ex).flatMap.attempt.map") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO[Int](throw dummy).flatMap(IO.pure).attempt.map {
+      case Left(`dummy`) => 100
+      case _ => 0
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
+  }
+
+  testAsync("IO(throw ex).map.attempt.map") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO[Int](throw dummy).map(x => x).attempt.map {
+      case Left(`dummy`) => 100
+      case _ => 0
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
+  }
+
+  testAsync("IO.async.attempt.map") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val source = IO.async[Int] { callback =>
+      ec.execute(new Runnable {
+        def run(): Unit =
+          callback(Left(dummy))
+      })
+    }
+
+    val io = source.attempt.map {
+      case Left(`dummy`) => 100
+      case _ => 0
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
+  }
+
+  testAsync("IO.async.flatMap.attempt.map") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val source = IO.async[Int] { callback =>
+      ec.execute(new Runnable {
+        def run(): Unit =
+          callback(Left(dummy))
+      })
+    }
+
+    val io = source.flatMap(IO.pure).attempt.map {
+      case Left(`dummy`) => 100
+      case _ => 0
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
+  }
+
+  testAsync("IO.async.attempt.flatMap") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val source = IO.async[Int] { callback =>
+      ec.execute(new Runnable {
+        def run(): Unit =
+          callback(Left(dummy))
+      })
+    }
+
+    val io = source.attempt.flatMap {
+      case Left(`dummy`) => IO.pure(100)
+      case _ => IO.pure(0)
+    }
+
+    val f = io.unsafeToFuture(); ec.tick()
+    f.value shouldEqual Some(Success(100))
   }
 }
 

@@ -113,12 +113,18 @@ sealed abstract class IO[+A] {
 
   private final def flatMapTotal[B](f: AndThen[A, IO[B]]): IO[B] = {
     this match {
-      case Pure(a) => Suspend(AndThen((_: Unit) => a).andThen(f))
-      case RaiseError(e) => RaiseError(e)
-      case Suspend(thunk) => BindSuspend(thunk, f)
-      case BindSuspend(thunk, g) => BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f))))
-      case Async(k) => BindAsync(k, f)
-      case BindAsync(k, g) => BindAsync(k, g.andThen(AndThen(_.flatMapTotal(f))))
+      case Pure(a) =>
+        Suspend(AndThen((_: Unit) => a).andThen(f))
+      case RaiseError(e) =>
+        Suspend(AndThen(_ => f.error(e, RaiseError)))
+      case Suspend(thunk) =>
+        BindSuspend(thunk, f)
+      case BindSuspend(thunk, g) =>
+        BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f), f.error(_, RaiseError))))
+      case Async(k) =>
+        BindAsync(k, f)
+      case BindAsync(k, g) =>
+        BindAsync(k, g.andThen(AndThen(_.flatMapTotal(f), f.error(_, RaiseError))))
     }
   }
 
@@ -135,7 +141,17 @@ sealed abstract class IO[+A] {
    *
    * @see [[IO.raiseError]]
    */
-  def attempt: IO[Either[Throwable, A]]
+  def attempt: IO[Either[Throwable, A]] = {
+    val fe = AndThen((a: A) => Pure(Right(a)), e => Pure(Left(e)))
+
+    this match {
+      case Pure(a) => Pure(Right(a))
+      case RaiseError(e) => Pure(Left(e))
+      case Suspend(thunk) => BindSuspend(thunk, fe)
+      case Async(k) => BindAsync(k, fe)
+      case other => BindSuspend(AndThen(_ => other), fe)
+    }
+  }
 
   /**
    * Sequences the specified `IO` ensuring evaluation regardless of
@@ -296,10 +312,16 @@ sealed abstract class IO[+A] {
     case Async(k) => k(cb)
 
     case ba: BindAsync[e, A] =>
-      ba.k {
-        case Left(t) => cb(Left(t))
-        case Right(a) =>
-          try ba.f(a).unsafeRunAsync(cb) catch { case NonFatal(t) => cb(Left(t)) }
+      ba.k { result =>
+        try result match {
+          case Left(t) =>
+            ba.f.error(t, RaiseError).unsafeRunAsync(cb)
+          case Right(a) =>
+            ba.f(a).unsafeRunAsync(cb)
+        }
+        catch {
+          case NonFatal(t) => cb(Left(t))
+        }
       }
 
     case _ =>
@@ -567,29 +589,16 @@ object IO extends IOInstances {
     }
   }
 
-  private final case class Pure[+A](a: A) extends IO[A] {
-    def attempt = Pure(Right(a))
-  }
-
-  private final case class RaiseError(t: Throwable) extends IO[Nothing] {
-    def attempt = Pure(Left(t))
-  }
-
-  private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]]) extends IO[A] {
-    def attempt = Suspend(thunk.andThen(AndThen(_.attempt)))
-  }
-
-  private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindSuspend[Either[Throwable, E], Either[Throwable, A]] =
-      BindSuspend(thunk.andThen(AndThen(_.attempt)), f.andThen(AndThen(_.attempt)).shortCircuit)
-  }
-
-  private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit) extends IO[A] {
-    def attempt = Async(cb => k(attempt => cb(Right(attempt))))
-  }
-
-  private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]]) extends IO[A] {
-    def attempt: BindAsync[Either[Throwable, E], Either[Throwable, A]] =
-      BindAsync(k.compose(_.compose(Right(_))), f.andThen(AndThen(_.attempt)).shortCircuit)
-  }
+  private final case class Pure[+A](a: A)
+    extends IO[A]
+  private final case class RaiseError(t: Throwable)
+    extends IO[Nothing]
+  private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]])
+    extends IO[A]
+  private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]])
+    extends IO[A]
+  private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
+    extends IO[A]
+  private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]])
+    extends IO[A]
 }
