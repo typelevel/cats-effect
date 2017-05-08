@@ -44,14 +44,14 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
     var hasSuccessRef = isSuccess
     var continue = true
 
-    @inline def processRight(f: (Any) => Any): Unit =
+    def processRight(f: (Any) => Any): Unit =
       try successRef = f(successRef) catch {
         case NonFatal(e) =>
           failureRef = e
           hasSuccessRef = false
       }
 
-    @inline def processLeft(f: Throwable => Any): Unit =
+    def processLeft(f: Throwable => Any): Unit =
       try {
         successRef = f(failureRef)
         hasSuccessRef = true
