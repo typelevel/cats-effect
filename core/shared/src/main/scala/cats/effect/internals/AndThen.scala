@@ -44,14 +44,14 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
     var hasSuccessRef = isSuccess
     var continue = true
 
-    def processRight(f: (Any) => Any): Unit =
+    def processSuccess(f: (Any) => Any): Unit =
       try successRef = f(successRef) catch {
         case NonFatal(e) =>
           failureRef = e
           hasSuccessRef = false
       }
 
-    def processLeft(f: Throwable => Any): Unit =
+    def processError(f: Throwable => Any): Unit =
       try {
         successRef = f(failureRef)
         hasSuccessRef = true
@@ -62,24 +62,24 @@ private[effect] sealed abstract class AndThen[-A, +B] extends Product with Seria
     while (continue) {
       self match {
         case Single(f) =>
-          if (hasSuccessRef) processRight(f)
+          if (hasSuccessRef) processSuccess(f)
           continue = false
 
         case Concat(Single(f), right) =>
-          if (hasSuccessRef) processRight(f)
+          if (hasSuccessRef) processSuccess(f)
           self = right.asInstanceOf[AndThen[Any, Any]]
 
         case Concat(left @ Concat(_, _), right) =>
           self = left.rotateAccum(right)
 
         case Concat(ErrorHandler(fa, fe), right) =>
-          if (hasSuccessRef) processRight(fa)
-          else processLeft(fe)
+          if (hasSuccessRef) processSuccess(fa)
+          else processError(fe)
           self = right.asInstanceOf[AndThen[Any, Any]]
 
         case ErrorHandler(fa, fe) =>
-          if (hasSuccessRef) processRight(fa)
-          else processLeft(fe)
+          if (hasSuccessRef) processSuccess(fa)
+          else processError(fe)
           continue = false
       }
     }
