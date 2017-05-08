@@ -175,6 +175,7 @@ lazy val laws = crossProject
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
+  .jvmConfigure(_.settings(fork in Test := true))
   .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val lawsJVM = laws.jvm
