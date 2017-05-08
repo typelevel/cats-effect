@@ -142,7 +142,7 @@ sealed abstract class IO[+A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] = {
-    val fe = AndThen((a: A) => Pure(Right(a)), e => Pure(Left(e)))
+    def fe = AndThen((a: A) => Pure(Right(a)), e => Pure(Left(e)))
 
     this match {
       case Pure(a) => Pure(Right(a))
