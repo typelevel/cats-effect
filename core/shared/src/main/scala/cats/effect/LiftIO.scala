@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, Kleisli, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
 
@@ -51,6 +51,9 @@ private[effect] trait LiftIOInstances {
   implicit def catsStateTLiftIO[F[_]: LiftIO: Applicative, S]: LiftIO[StateT[F, S, ?]] =
     new StateTLiftIO[F, S] { def F = LiftIO[F]; def FA = Applicative[F] }
 
+  implicit def catsWriterTLiftIO[F[_]: LiftIO: Applicative, L: Monoid]: LiftIO[WriterT[F, L, ?]] =
+    new WriterTLiftIO[F, L] { def F = LiftIO[F]; def FA = Applicative[F]; def L = Monoid[L] }
+
   private[effect] trait EitherTLiftIO[F[_], L] extends LiftIO[EitherT[F, L, ?]] {
     protected def F: LiftIO[F]
     protected def FF: Functor[F]
@@ -66,6 +69,19 @@ private[effect] trait LiftIOInstances {
     private implicit def _FA = FA
 
     def liftIO[A](ioa: IO[A]): StateT[F, S, A] = StateT.lift(F.liftIO(ioa))
+  }
+
+  private[effect] trait WriterTLiftIO[F[_], L] extends LiftIO[WriterT[F, L, ?]] {
+    protected def F: LiftIO[F]
+
+    protected def FA: Applicative[F]
+    private implicit def _FA = FA
+
+    protected def L: Monoid[L]
+    private implicit def _L = L
+
+    def liftIO[A](ioa: IO[A]): WriterT[F, L, A] =
+      WriterT.lift(F.liftIO(ioa))
   }
 }
 

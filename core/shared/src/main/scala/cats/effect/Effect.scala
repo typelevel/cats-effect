@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, StateT}
+import cats.data.{EitherT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -75,6 +75,16 @@ private[effect] trait EffectInstances {
 
       def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
         F.runAsync(fa.runA(Monoid[S].empty))(cb)
+    }
+
+  implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
+    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] with LiftIO.WriterTLiftIO[F, L] {
+      protected def F = Effect[F]
+      protected def FA = Effect[F]
+      protected def L = Monoid[L]
+
+      def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+        F.runAsync(fa.run)(cb.compose(_.map(_._2)))
     }
 }
 

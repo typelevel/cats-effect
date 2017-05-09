@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, Kleisli, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
 
 /**
  * A monad that can suspend the execution of side effects
@@ -79,6 +79,9 @@ private[effect] trait SyncInstances {
 
   implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
     new StateTSync[F, S] { def F = Sync[F] }
+
+  implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
+    new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
     protected def F: Sync[F]
@@ -173,6 +176,31 @@ private[effect] trait SyncInstances {
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
       StateT.applyF(F.suspend(thunk.runF))
+  }
+
+  private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    protected def L: Monoid[L]
+    private implicit def _L = L
+
+    def pure[A](x: A): WriterT[F, L, A] = WriterT.value(x)
+
+    def handleErrorWith[A](fa: WriterT[F, L, A])(f: Throwable => WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].handleErrorWith(fa)(f)
+
+    def raiseError[A](e: Throwable): WriterT[F, L, A] =
+      WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
+
+    def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => WriterT[F, L, Either[A, B]]): WriterT[F, L, B] =
+      WriterT.catsDataMonadWriterForWriterT[F, L].tailRecM(a)(f)
+
+    def suspend[A](thunk: => WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT(F.suspend(thunk.run))
   }
 }
 

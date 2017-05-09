@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, Kleisli, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -58,6 +58,9 @@ private[effect] trait AsyncInstances {
 
   implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
     new StateTAsync[F, S] { def F = Async[F] }
+
+  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
+    new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTAsync[F[_], L]
       extends Async[EitherT[F, L, ?]]
@@ -100,6 +103,19 @@ private[effect] trait AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
       StateT.lift(F.async(k))
+  }
+
+  private[effect] trait WriterTAsync[F[_], L]
+      extends Async[WriterT[F, L, ?]]
+      with Sync.WriterTSync[F, L] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    private implicit def _L = L
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
+      WriterT.lift(F.async(k))
   }
 }
 
