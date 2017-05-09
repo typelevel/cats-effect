@@ -43,3 +43,32 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
    */
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
+
+private[effect] trait SyncInstances {
+
+  implicit object catsSyncForEval extends Sync[Eval] {
+    def pure[A](a: A): Eval[A] = Now(a)
+
+    // TODO replace with delegation when we upgrade to cats 1.0
+    def handleErrorWith[A](fa: Eval[A])(f: Throwable => Eval[A]): Eval[A] =
+      suspend(try Now(fa.value) catch { case internals.NonFatal(t) => f(t) })
+
+    // TODO replace with delegation when we upgrade to cats 1.0
+    def raiseError[A](e: Throwable): Eval[A] = suspend(throw e)
+
+    def flatMap[A, B](fa: Eval[A])(f: A => Eval[B]): Eval[B] = fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => Eval[Either[A,B]]): Eval[B] = {
+      f(a) flatMap {
+        case Left(nextA) => tailRecM(nextA)(f)
+        case Right(b) => pure(b)
+      }
+    }
+
+    def suspend[A](thunk: => Eval[A]): Eval[A] = Eval.defer(thunk)
+
+    override def delay[A](thunk: => A): Eval[A] = Eval.always(thunk)
+  }
+}
+
+object Sync extends SyncInstances
