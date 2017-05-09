@@ -60,12 +60,8 @@ private[effect] trait SyncInstances {
 
     def flatMap[A, B](fa: Eval[A])(f: A => Eval[B]): Eval[B] = fa.flatMap(f)
 
-    def tailRecM[A, B](a: A)(f: A => Eval[Either[A,B]]): Eval[B] = {
-      f(a) flatMap {
-        case Left(nextA) => tailRecM(nextA)(f)
-        case Right(b) => pure(b)
-      }
-    }
+    def tailRecM[A, B](a: A)(f: A => Eval[Either[A,B]]): Eval[B] =
+      Eval.catsBimonadForEval.tailRecM(a)(f)
 
     def suspend[A](thunk: => Eval[A]): Eval[A] = Eval.defer(thunk)
 
