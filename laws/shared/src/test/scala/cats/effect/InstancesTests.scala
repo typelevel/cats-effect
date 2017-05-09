@@ -17,8 +17,8 @@
 package cats
 package effect
 
-import cats.data.{EitherT, StateT}
-import cats.effect.laws.discipline.{EffectTests, SyncTests}
+import cats.data.{EitherT, OptionT, StateT}
+import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
@@ -36,6 +36,9 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
+
+  checkAllAsync("OptionT[IO, ?]",
+    implicit ec => AsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => EffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])

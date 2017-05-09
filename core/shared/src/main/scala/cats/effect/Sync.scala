@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, StateT}
+import cats.data.{EitherT, OptionT, StateT}
 
 /**
  * A monad that can suspend the execution of side effects
@@ -71,6 +71,9 @@ private[effect] trait SyncInstances {
   implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
     new EitherTSync[F, L] { def F = Sync[F] }
 
+  implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
+    new OptionTSync[F] { def F = Sync[F] }
+
   implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
     new StateTSync[F, S] { def F = Sync[F] }
 
@@ -95,6 +98,28 @@ private[effect] trait SyncInstances {
 
     def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
       EitherT(F.suspend(thunk.value))
+  }
+
+  private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
+
+    def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
+      OptionT.catsDataMonadErrorForOptionT[F, Throwable].handleErrorWith(fa)(f)
+
+    def raiseError[A](e: Throwable): OptionT[F, A] =
+      OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
+
+    def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
+      OptionT.catsDataMonadForOptionT[F].tailRecM(a)(f)
+
+    def suspend[A](thunk: => OptionT[F, A]): OptionT[F, A] =
+      OptionT(F.suspend(thunk.value))
   }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {

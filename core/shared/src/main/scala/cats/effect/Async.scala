@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, StateT}
+import cats.data.{EitherT, OptionT, StateT}
 
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -50,6 +50,9 @@ private[effect] trait AsyncInstances {
   implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
     new EitherTAsync[F, L] { def F = Async[F] }
 
+  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
+    new OptionTAsync[F] { def F = Async[F] }
+
   implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
     new StateTAsync[F, S] { def F = Async[F] }
 
@@ -62,6 +65,17 @@ private[effect] trait AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftT(F.async(k))
+  }
+
+  private[effect] trait OptionTAsync[F[_]]
+      extends Async[OptionT[F, ?]]
+      with Sync.OptionTSync[F] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
+      OptionT.liftF(F.async(k))
   }
 
   private[effect] trait StateTAsync[F[_], S]
