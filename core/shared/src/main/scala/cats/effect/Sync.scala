@@ -19,6 +19,8 @@ package effect
 
 import simulacrum._
 
+import cats.data.StateT
+
 /**
  * A monad that can suspend the execution of side effects
  * in the `F[_]` context.
@@ -68,6 +70,40 @@ private[effect] trait SyncInstances {
     def suspend[A](thunk: => Eval[A]): Eval[A] = Eval.defer(thunk)
 
     override def delay[A](thunk: => A): Eval[A] = Eval.always(thunk)
+  }
+
+  implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
+    new StateTSync[F, S] { def F = Sync[F] }
+
+  private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
+
+    def handleErrorWith[A](st: StateT[F, S, A])(f: Throwable => StateT[F, S, A]): StateT[F, S, A] = {
+      val handled = F.handleErrorWith(st.runF) { t =>
+        F.map(f(t).runF) { sf => s: S =>
+          F.handleErrorWith(sf(s)) { t =>
+            f(t).run(s)
+          }
+        }
+      }
+
+      StateT.applyF(handled)
+    }
+
+    def raiseError[A](e: Throwable): StateT[F, S, A] =
+      StateT.lift(F.raiseError(e))
+
+    def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
+      Monad[StateT[F, S, ?]].tailRecM(a)(f)
+
+    def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
+      StateT.applyF(F.suspend(thunk.runF))
   }
 }
 

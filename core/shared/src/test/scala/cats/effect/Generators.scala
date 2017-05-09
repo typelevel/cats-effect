@@ -19,6 +19,7 @@ package effect
 
 import org.scalacheck._
 
+import scala.concurrent.Future
 import scala.util.Either
 
 object Generators {
@@ -51,4 +52,7 @@ object Generators {
     ioa <- arbitrary[IO[A]]
     f <- arbitrary[A => IO[A]]
   } yield ioa.flatMap(f)
+
+  implicit def cogenIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
+    cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture)
 }

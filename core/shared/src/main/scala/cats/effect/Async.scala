@@ -18,6 +18,9 @@ package cats
 package effect
 
 import simulacrum._
+
+import cats.data.StateT
+
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -41,3 +44,22 @@ trait Async[F[_]] extends Sync[F] {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 }
+
+private[effect] trait AsyncInstances {
+
+  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
+    new StateTAsync[F, S] { def F = Async[F] }
+
+  private[effect] trait StateTAsync[F[_], S]
+      extends Async[StateT[F, S, ?]]
+      with Sync.StateTSync[F, S] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
+      StateT.lift(F.async(k))
+  }
+}
+
+object Async extends AsyncInstances

@@ -17,15 +17,26 @@
 package cats
 package effect
 
-import cats.effect.laws.discipline.SyncTests
+import cats.data.StateT
+import cats.effect.laws.discipline.{EffectTests, SyncTests}
+import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.eq._
 
+import org.scalacheck._
+import org.scalacheck.rng.Seed
+
+import scala.concurrent.Future
 import scala.util.Try
 
 class InstancesTests extends BaseTestsSuite {
+  import Generators._
 
   checkAll("Eval", SyncTests[Eval].sync[Int, Int, Int])
+
+  checkAllAsync("StateT[IO, S, ?]",
+    implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
 
   // assume exceptions are equivalent if the exception name + message
   // match as strings.
@@ -36,4 +47,23 @@ class InstancesTests extends BaseTestsSuite {
   // each other, assuming the exceptions seem equivalent.
   implicit def eqWithTry[A: Eq]: Eq[Eval[A]] =
     Eq[Try[A]].on((e: Eval[A]) => Try(e.value))
+
+  implicit def arbitraryStateT[F[_], S, A](
+    implicit
+      arbFSA: Arbitrary[F[S => F[(S, A)]]]): Arbitrary[StateT[F, S, A]] =
+    Arbitrary(arbFSA.arbitrary.map(StateT.applyF(_)))
+
+  implicit def stateTEq[F[_], S, A](implicit S: Arbitrary[S], FSA: Eq[F[(S, A)]], F: FlatMap[F]): Eq[StateT[F, S, A]] =
+    Eq.by[StateT[F, S, A], S => F[(S, A)]](state => s => state.run(s))
+
+  implicit def cogenFuture[A](implicit ec: TestContext, cg: Cogen[Try[A]]): Cogen[Future[A]] = {
+    Cogen { (seed: Seed, fa: Future[A] ) =>
+      ec.tick()
+
+      fa.value match {
+        case None => seed
+        case Some(ta) => cg.perturb(seed, ta)
+      }
+    }
+  }
 }

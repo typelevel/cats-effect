@@ -19,6 +19,8 @@ package effect
 
 import simulacrum._
 
+import cats.data.StateT
+
 import scala.annotation.implicitNotFound
 
 @typeclass
@@ -28,3 +30,19 @@ s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
+
+private[effect] trait LiftIOInstances {
+
+  implicit def catsStateTLiftIO[F[_]: LiftIO: Applicative, S]: LiftIO[StateT[F, S, ?]] =
+    new StateTLiftIO[F, S] { def F = LiftIO[F]; def FA = Applicative[F] }
+
+  private[effect] trait StateTLiftIO[F[_], S] extends LiftIO[StateT[F, S, ?]] {
+    protected def F: LiftIO[F]
+    protected def FA: Applicative[F]
+    private implicit def _FA = FA
+
+    def liftIO[A](ioa: IO[A]): StateT[F, S, A] = StateT.lift(F.liftIO(ioa))
+  }
+}
+
+object LiftIO extends LiftIOInstances
