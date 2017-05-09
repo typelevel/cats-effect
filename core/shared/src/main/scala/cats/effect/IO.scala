@@ -17,9 +17,7 @@
 package cats
 package effect
 
-import cats.effect.{Async => AsyncType}
 import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
-
 import scala.annotation.tailrec
 import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.{ExecutionContext, Future, Promise}

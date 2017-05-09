@@ -357,6 +357,7 @@ object IOTests {
   /** Implementation for testing default methods. */
   val ioEffectDefaults = new Effect[IO] {
     private val ref = implicitly[Effect[IO]]
+
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       ref.async(k)
     def raiseError[A](e: Throwable): IO[A] =
@@ -373,7 +374,5 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
-    def liftIO[A](ioa: IO[A]): IO[A] =
-      ref.liftIO(ioa)
   }
 }
