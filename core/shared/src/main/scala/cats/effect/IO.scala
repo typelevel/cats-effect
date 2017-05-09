@@ -17,8 +17,11 @@
 package cats
 package effect
 
+import cats.effect.{Async => AsyncType}
 import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
+
 import scala.annotation.tailrec
+import scala.annotation.unchecked.{uncheckedVariance => uV}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
@@ -380,6 +383,20 @@ sealed abstract class IO[+A] {
     p.future
   }
 
+  /**
+   * Converts the source `IO` into any `F` type that implements
+   * the [[cats.effect.Async Async]] type class.
+   */
+  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uV] =
+    F.suspend {
+      unsafeStep match {
+        case Pure(a) => F.pure(a)
+        case RaiseError(ex) => F.raiseError(ex)
+        case async =>
+          F.async(async.unsafeRunAsync)
+      }
+    }
+
   override def toString = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
@@ -426,7 +443,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     override def shift[A](ioa: IO[A])(implicit ec: ExecutionContext) = ioa.shift
 
-    def liftIO[A](ioa: IO[A]) = ioa
+    override def liftIO[A](ioa: IO[A]) = ioa
   }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
