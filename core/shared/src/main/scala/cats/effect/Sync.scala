@@ -117,12 +117,8 @@ private[effect] trait SyncInstances {
       fa.flatMap(f)
 
     // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
-    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] = {
-      f(a) flatMap {
-        case Left(nextA) => tailRecM(nextA)(f)
-        case Right(b) => pure(b)
-      }
-    }
+    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
+      StateT.catsDataMonadForStateT[F, S].tailRecM(a)(f)
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
       StateT.applyF(F.suspend(thunk.runF))
