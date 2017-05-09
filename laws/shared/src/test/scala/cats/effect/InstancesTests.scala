@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.data.{EitherT, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT}
 import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
@@ -40,6 +40,9 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => AsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
 
+  checkAllAsync("Kleisli[IO, Int, ?]",
+    implicit ec => AsyncTests[Kleisli[IO, Int, ?]].async[Int, Int, Int])
+
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => EffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
 
@@ -57,6 +60,9 @@ class InstancesTests extends BaseTestsSuite {
     implicit
       arbFSA: Arbitrary[F[S => F[(S, A)]]]): Arbitrary[StateT[F, S, A]] =
     Arbitrary(arbFSA.arbitrary.map(StateT.applyF(_)))
+
+  implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
+    Eq.by(_.run(Monoid[R].empty))
 
   // for some reason, the function1Eq in cats causes spurious test failures?
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =

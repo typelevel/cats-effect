@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT}
 
 import scala.annotation.implicitNotFound
 
@@ -35,6 +35,12 @@ private[effect] trait LiftIOInstances {
 
   implicit def catsEitherTLiftIO[F[_]: LiftIO: Functor, L]: LiftIO[EitherT[F, L, ?]] =
     new EitherTLiftIO[F, L] { def F = LiftIO[F]; def FF = Functor[F] }
+
+  implicit def catsKleisliLiftIO[F[_]: LiftIO, R]: LiftIO[Kleisli[F, R, ?]] =
+    new LiftIO[Kleisli[F, R, ?]] {
+      def liftIO[A](ioa: IO[A]): Kleisli[F, R, A] =
+        Kleisli.lift(LiftIO[F].liftIO(ioa))
+    }
 
   implicit def catsOptionTLiftIO[F[_]: LiftIO: Functor]: LiftIO[OptionT[F, ?]] =
     new LiftIO[OptionT[F, ?]] {

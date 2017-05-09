@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, OptionT, StateT}
+import cats.data.{EitherT, Kleisli, OptionT, StateT}
 
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -50,6 +50,9 @@ private[effect] trait AsyncInstances {
   implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
     new EitherTAsync[F, L] { def F = Async[F] }
 
+  implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, ?]] =
+    new KleisliAsync[F, R] { def F = Async[F] }
+
   implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
     new OptionTAsync[F] { def F = Async[F] }
 
@@ -65,6 +68,16 @@ private[effect] trait AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftT(F.async(k))
+  }
+
+  private[effect] trait KleisliAsync[F[_], R]
+      extends Async[Kleisli[F, R, ?]]
+      with Sync.KleisliSync[F, R] {
+
+    override protected def F: Async[F]
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
+      Kleisli.lift(F.async(k))
   }
 
   private[effect] trait OptionTAsync[F[_]]
