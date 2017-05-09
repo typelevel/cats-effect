@@ -81,17 +81,8 @@ private[effect] trait SyncInstances {
 
     def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
 
-    def handleErrorWith[A](st: StateT[F, S, A])(f: Throwable => StateT[F, S, A]): StateT[F, S, A] = {
-      val handled = F.handleErrorWith(st.runF) { t =>
-        F.map(f(t).runF) { sf => s: S =>
-          F.handleErrorWith(sf(s)) { t =>
-            f(t).run(s)
-          }
-        }
-      }
-
-      StateT.applyF(handled)
-    }
+    def handleErrorWith[A](fa: StateT[F, S, A])(f: Throwable => StateT[F, S, A]): StateT[F, S, A] =
+      StateT(s => F.handleErrorWith(fa.run(s))(e => f(e).run(s)))
 
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.lift(F.raiseError(e))
@@ -99,8 +90,13 @@ private[effect] trait SyncInstances {
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)
 
-    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
-      Monad[StateT[F, S, ?]].tailRecM(a)(f)
+    // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
+    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] = {
+      f(a) flatMap {
+        case Left(nextA) => tailRecM(nextA)(f)
+        case Right(b) => pure(b)
+      }
+    }
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
       StateT.applyF(F.suspend(thunk.runF))

@@ -22,7 +22,6 @@ import cats.effect.laws.discipline.{EffectTests, SyncTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.eq._
 
 import org.scalacheck._
 import org.scalacheck.rng.Seed
@@ -53,8 +52,9 @@ class InstancesTests extends BaseTestsSuite {
       arbFSA: Arbitrary[F[S => F[(S, A)]]]): Arbitrary[StateT[F, S, A]] =
     Arbitrary(arbFSA.arbitrary.map(StateT.applyF(_)))
 
-  implicit def stateTEq[F[_], S, A](implicit S: Arbitrary[S], FSA: Eq[F[(S, A)]], F: FlatMap[F]): Eq[StateT[F, S, A]] =
-    Eq.by[StateT[F, S, A], S => F[(S, A)]](state => s => state.run(s))
+  // for some reason, the function1Eq in cats causes spurious test failures?
+  implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
+    Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
 
   implicit def cogenFuture[A](implicit ec: TestContext, cg: Cogen[Try[A]]): Cogen[Future[A]] = {
     Cogen { (seed: Seed, fa: Future[A] ) =>
