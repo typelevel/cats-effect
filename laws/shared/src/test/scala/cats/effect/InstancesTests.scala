@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.data.StateT
+import cats.data.{EitherT, StateT}
 import cats.effect.laws.discipline.{EffectTests, SyncTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
@@ -36,6 +36,9 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
+
+  checkAllAsync("EitherT[IO, Throwable, ?]",
+    implicit ec => EffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
 
   // assume exceptions are equivalent if the exception name + message
   // match as strings.

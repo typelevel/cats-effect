@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.StateT
+import cats.data.{EitherT, StateT}
 
 /**
  * A monad that can suspend the execution of side effects
@@ -72,8 +72,34 @@ private[effect] trait SyncInstances {
     override def delay[A](thunk: => A): Eval[A] = Eval.always(thunk)
   }
 
+  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
+    new EitherTSync[F, L] { def F = Sync[F] }
+
   implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
     new StateTSync[F, S] { def F = Sync[F] }
+
+  private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    def pure[A](x: A): EitherT[F, L, A] =
+      EitherT.pure(x)
+
+    def handleErrorWith[A](fa: EitherT[F, L, A])(f: Throwable => EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.handleErrorWith(fa.value)(f.andThen(_.value)))
+
+    def raiseError[A](e: Throwable): EitherT[F, L, A] =
+      EitherT.liftT(F.raiseError(e))
+
+    def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => EitherT[F, L, Either[A, B]]): EitherT[F, L, B] =
+      EitherT.catsDataMonadErrorForEitherT[F, L].tailRecM(a)(f)
+
+    def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.suspend(thunk.value))
+  }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
     protected def F: Sync[F]

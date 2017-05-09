@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.StateT
+import cats.data.{EitherT, StateT}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -58,6 +58,15 @@ trait Effect[F[_]] extends Async[F] with LiftIO[F] {
 }
 
 private[effect] trait EffectInstances {
+
+  implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
+    new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] with LiftIO.EitherTLiftIO[F, Throwable] {
+      protected def F = Effect[F]
+      protected def FF = Effect[F]
+
+      def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+        F.runAsync(fa.value)(cb.compose(_.flatMap(x => x)))
+    }
 
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
     new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] with LiftIO.StateTLiftIO[F, S] {
