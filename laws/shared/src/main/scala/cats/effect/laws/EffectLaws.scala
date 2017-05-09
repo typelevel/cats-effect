@@ -60,7 +60,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
       acc.flatMap(_ => F.delay(()))
     }
 
-    F.runAsync(result)(_ => IO.unit).unsafeRunSync() <-> (())
+    F.runAsync(result)(_ => IO.unit) <-> IO.unit
   }
 
   lazy val stackSafetyOnRepeatedRightBinds = {
@@ -68,7 +68,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
       F.delay(()).flatMap(_ => acc)
     }
 
-    F.runAsync(result)(_ => IO.unit).unsafeRunSync() <-> (())
+    F.runAsync(result)(_ => IO.unit) <-> IO.unit
   }
 
   lazy val stackSafetyOnRepeatedAttempts = {
@@ -76,7 +76,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
       F.attempt(acc).map(_ => ())
     }
 
-    F.runAsync(result)(_ => IO.unit).unsafeRunSync() <-> (())
+    F.runAsync(result)(_ => IO.unit) <-> IO.unit
   }
 
   // the following law(s) should really be on MonadError
