@@ -54,6 +54,8 @@ val commonSettings = Seq(
     }
   },
 
+  logBuffered in Test := false,
+
   headers := Map(
     "scala" -> Apache2_0("2017", "Typelevel"),
     "java" -> Apache2_0("2017", "Typelevel")),
