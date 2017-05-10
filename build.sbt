@@ -54,6 +54,12 @@ val commonSettings = Seq(
     }
   },
 
+  // credit: https://github.com/typelevel/cats/pull/1638
+  ivyConfigurations += config("compile-time").hide,
+  unmanagedClasspath in Compile ++= update.value.select(configurationFilter("compile-time")),
+
+  logBuffered in Test := false,
+
   headers := Map(
     "scala" -> Apache2_0("2017", "Typelevel"),
     "java" -> Apache2_0("2017", "Typelevel")),
@@ -142,7 +148,7 @@ lazy val core = crossProject.in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
-      "com.github.mpilquist" %%% "simulacrum" % "0.10.0",
+      "com.github.mpilquist" %%% "simulacrum" % "0.10.0" % "compile-time",
 
       "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
       "org.scalatest"  %%% "scalatest"  % "3.0.1"           % "test",
