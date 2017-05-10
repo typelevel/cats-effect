@@ -19,7 +19,6 @@ package effect
 package laws
 package discipline
 
-import cats.data._
 import cats.instances.all._
 import cats.laws.discipline._
 import cats.laws.discipline.CartesianTests.Isomorphisms
@@ -47,7 +46,6 @@ trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
       EqT: Eq[Throwable],
       EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherTA: Eq[F[Either[Throwable, A]]],
-      EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       EqIOA: Eq[IO[A]],

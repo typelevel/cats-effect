@@ -20,7 +20,6 @@ package effect
 import simulacrum._
 
 import cats.data.{EitherT, StateT, WriterT}
-import cats.syntax.either._
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -66,7 +65,7 @@ private[effect] trait EffectInstances {
       protected def FF = Effect[F]
 
       def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-        F.runAsync(fa.value)(cb.compose(_.flatMap(x => x)))
+        F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
     }
 
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
@@ -85,7 +84,7 @@ private[effect] trait EffectInstances {
       protected def L = Monoid[L]
 
       def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-        F.runAsync(fa.run)(cb.compose(_.map(_._2)))
+        F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
     }
 }
 
