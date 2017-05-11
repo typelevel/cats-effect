@@ -25,7 +25,7 @@ import cats.laws.discipline.CartesianTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
+trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] with EffectTestsPlatform {
   def laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -56,15 +56,22 @@ trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] {
       val name = "effect"
       val bases = Nil
       val parents = Seq(async[A, B, C], sync[A, B, C])
-      val props = Seq(
+
+      val baseProps = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
-        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
-        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts),
         "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
         "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _))
+
+      val jvmProps = Seq(
+        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
+        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
+        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts))
+
+      val jsProps = Seq.empty
+
+      val props = baseProps ++ (if (isJVM) jvmProps else jsProps)
     }
   }
 }
