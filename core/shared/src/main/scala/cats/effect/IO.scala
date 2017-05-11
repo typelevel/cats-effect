@@ -154,35 +154,6 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Sequences the specified `IO` ensuring evaluation regardless of
-   * whether or not the target `IO` raises an exception.
-   *
-   * Analogous to `finally` in a `try`/`catch`/`finally` block. If an
-   * exception is raised by the finalizer, it will be passed sequenced
-   * into the resultant. This is true even if the target ''also''
-   * raised an exception. It mirrors the semantics of `try`/`finally`
-   * on the JVM when you perform similar operations.
-   *
-   * Example:
-   *
-   * {{{
-   * try throw e1 finally throw e2   // throws e2
-   *
-   * IO.raiseError(e1).ensuring(IO.raiseError(e2)) === IO.raiseError(e2)
-   * }}}
-   *
-   * This function is distinct from monadic `flatMap` (well, really
-   * applicative `apply2`) in that an exception sequenced into a
-   * monadic bind chain will short-circuit the chain and the
-   * subsequent actions will not be run.
-   */
-  final def ensuring(finalizer: IO[Any]): IO[A] = {
-    attempt flatMap { e =>
-      finalizer.flatMap(_ => e.fold(IO.raiseError, IO.pure))
-    }
-  }
-
-  /**
    * Produces an `IO` reference that is guaranteed to be safe to run
    * synchronously (i.e. [[unsafeRunSync]]), being the safe analogue
    * to [[unsafeRunAsync]].

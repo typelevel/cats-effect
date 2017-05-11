@@ -60,30 +60,6 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
-  test("evaluate ensuring actions") {
-    case object Foo extends Exception
-
-    var run = false
-    val ioa = IO { throw Foo } ensuring IO { run = true }
-
-    ioa.attempt.unsafeRunSync() should matchPattern {
-      case Left(Foo) => ()
-    }
-
-    run shouldEqual true
-  }
-
-  test("prioritize thrown exceptions from within ensuring") {
-    case object Foo extends Exception
-    case object Bar extends Exception
-
-    val ioa = IO { throw Foo } ensuring IO.raiseError(Bar)
-
-    ioa.attempt.unsafeRunSync() should matchPattern {
-      case Left(Bar) => ()
-    }
-  }
-
   test("unsafeToFuture can yield immediate successful future") {
     val expected = IO(1).unsafeToFuture()
     expected.value shouldEqual Some(Success(1))
