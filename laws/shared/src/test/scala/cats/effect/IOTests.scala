@@ -351,6 +351,31 @@ class IOTests extends BaseTestsSuite {
     val f = io.unsafeToFuture(); ec.tick()
     f.value shouldEqual Some(Success(100))
   }
+
+  testAsync("io.to[IO] works") { implicit ec =>
+    check { (io: IO[Int]) => io.to[IO] <-> io }
+  }
+
+  testAsync("async.to[IO] is stack-safe if the source is") { implicit ec =>
+    // Stack-safe async IO required
+    def async(a: Int) = IO.async[Int] { cb =>
+      ec.execute(new Runnable {
+        def run(): Unit =
+          cb(Right(a))
+      })
+    }
+
+    def loop(n: Int, io: IO[Int]): IO[Int] =
+      io.to[IO].flatMap { x =>
+        if (n <= 0) IO.pure(x).to[IO]
+        else loop(n - 1, io)
+      }
+
+    val f = loop(10000, async(99)).unsafeToFuture()
+    ec.tick()
+
+    f.value shouldEqual Some(Success(99))
+  }
 }
 
 object IOTests {

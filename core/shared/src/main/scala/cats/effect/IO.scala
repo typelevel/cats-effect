@@ -386,12 +386,16 @@ sealed abstract class IO[+A] {
    * the [[cats.effect.Async Async]] type class.
    */
   final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uV] =
-    F.suspend {
-      unsafeStep match {
-        case Pure(a) => F.pure(a)
-        case RaiseError(ex) => F.raiseError(ex)
-        case async =>
-          F.async(async.unsafeRunAsync)
+    this match {
+      case Pure(a) => F.pure(a)
+      case RaiseError(e) => F.raiseError(e)
+      case _ => F.suspend {
+        // Evaluating until finished or the next async boundary
+        unsafeStep match {
+          case Pure(a) => F.pure(a)
+          case RaiseError(e) => F.raiseError(e)
+          case async => F.async(async.unsafeRunAsync)
+        }
       }
     }
 
@@ -606,7 +610,7 @@ object IO extends IOInstances {
 
   private final case class Pure[+A](a: A)
     extends IO[A]
-  private final case class RaiseError(t: Throwable)
+  private final case class RaiseError(e: Throwable)
     extends IO[Nothing]
   private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]])
     extends IO[A]
