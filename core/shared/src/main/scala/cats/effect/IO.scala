@@ -390,7 +390,7 @@ sealed abstract class IO[+A] {
       case Pure(a) => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
       case _ => F.suspend {
-        // Evaluating until finished or the next async boundary
+        // Evaluating until finished or the first async boundary
         unsafeStep match {
           case Pure(a) => F.pure(a)
           case RaiseError(e) => F.raiseError(e)
