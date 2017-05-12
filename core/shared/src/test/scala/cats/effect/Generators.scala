@@ -36,6 +36,14 @@ object Generators {
       10 -> genFlatMap[A])
   }
 
+  def genSyncIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
+    Gen.frequency(
+      5 -> genPure[A],
+      5 -> genApply[A],
+      1 -> genFail[A],
+      10 -> genFlatMap[A])
+  }
+
   def genPure[A: Arbitrary]: Gen[IO[A]] = arbitrary[A].map(IO.pure(_))
 
   def genApply[A: Arbitrary]: Gen[IO[A]] = arbitrary[A].map(IO.apply(_))

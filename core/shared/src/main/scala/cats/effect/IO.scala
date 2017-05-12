@@ -19,7 +19,7 @@ package effect
 
 import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
 import scala.annotation.tailrec
-import scala.annotation.unchecked.{uncheckedVariance => uV}
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
@@ -385,18 +385,17 @@ sealed abstract class IO[+A] {
    * Converts the source `IO` into any `F` type that implements
    * the [[cats.effect.Async Async]] type class.
    */
-  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uV] =
+  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
     this match {
       case Pure(a) => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
-      case _ => F.suspend {
-        // Evaluating until finished or the first async boundary
-        unsafeStep match {
-          case Pure(a) => F.pure(a)
-          case RaiseError(e) => F.raiseError(e)
-          case async => F.async(async.unsafeRunAsync)
-        }
-      }
+      case Suspend(thunk) => F.suspend(thunk(()).to[F])
+      case Async(k) => F.async(k)
+
+      case BindSuspend(thunk, f) =>
+        F.flatMap(F.suspend(thunk(()).to[F]))(e => f(e).to[F])
+      case BindAsync(k, f) =>
+        F.flatMap(F.async(k))(e => f(e).to[F])
     }
 
   override def toString = this match {

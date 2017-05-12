@@ -352,8 +352,25 @@ class IOTests extends BaseTestsSuite {
     f.value shouldEqual Some(Success(100))
   }
 
-  testAsync("io.to[IO] works") { implicit ec =>
+  def repeatedTransformLoop[A](n: Int, io: IO[A]): IO[A] =
+    io.to[IO].flatMap { x =>
+      if (n <= 0) IO.pure(x).to[IO]
+      else repeatedTransformLoop(n - 1, io)
+    }
+
+  testAsync("io.to[IO] <-> io") { implicit ec =>
     check { (io: IO[Int]) => io.to[IO] <-> io }
+  }
+
+  testAsync("sync.to[IO] is stack-safe") { implicit ec =>
+    // Override default generator to only generate
+    // synchronous instances that are stack-safe
+    implicit val arbIO: Arbitrary[IO[Int]] =
+      Arbitrary(Gen.delay(genSyncIO[Int]))
+
+    check { (io: IO[Int]) =>
+      repeatedTransformLoop(10000, io) <-> io
+    }
   }
 
   testAsync("async.to[IO] is stack-safe if the source is") { implicit ec =>
@@ -365,15 +382,8 @@ class IOTests extends BaseTestsSuite {
       })
     }
 
-    def loop(n: Int, io: IO[Int]): IO[Int] =
-      io.to[IO].flatMap { x =>
-        if (n <= 0) IO.pure(x).to[IO]
-        else loop(n - 1, io)
-      }
-
-    val f = loop(10000, async(99)).unsafeToFuture()
+    val f = repeatedTransformLoop(10000, async(99)).unsafeToFuture()
     ec.tick()
-
     f.value shouldEqual Some(Success(99))
   }
 }
