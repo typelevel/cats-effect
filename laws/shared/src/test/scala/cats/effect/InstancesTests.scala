@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
-import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
+import cats.effect.laws.discipline.{AsyncTests, EffectTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
@@ -31,8 +31,6 @@ import scala.util.Try
 
 class InstancesTests extends BaseTestsSuite {
   import Generators._
-
-  checkAll("Eval", SyncTests[Eval].sync[Int, Int, Int])
 
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
