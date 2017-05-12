@@ -33,7 +33,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for Effect[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
-trait Effect[F[_]] extends Async[F] with LiftIO[F] {
+trait Effect[F[_]] extends Async[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 
@@ -66,27 +66,24 @@ trait Effect[F[_]] extends Async[F] with LiftIO[F] {
 private[effect] trait EffectInstances {
 
   implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
-    new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] with LiftIO.EitherTLiftIO[F, Throwable] {
+    new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] {
       protected def F = Effect[F]
-      protected def FF = Effect[F]
 
       def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
         F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
     }
 
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
-    new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] with LiftIO.StateTLiftIO[F, S] {
+    new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] {
       protected def F = Effect[F]
-      protected def FA = Effect[F]
 
       def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
         F.runAsync(fa.runA(Monoid[S].empty))(cb)
     }
 
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
-    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] with LiftIO.WriterTLiftIO[F, L] {
+    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] {
       protected def F = Effect[F]
-      protected def FA = Effect[F]
       protected def L = Monoid[L]
 
       def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =

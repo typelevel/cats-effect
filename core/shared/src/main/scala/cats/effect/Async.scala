@@ -32,7 +32,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
-trait Async[F[_]] extends Sync[F] {
+trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 
   /**
    * Creates an `F[A]` instance from a provided function
@@ -43,6 +43,8 @@ trait Async[F[_]] extends Sync[F] {
    *       callback for signaling the result once it is ready
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
+
+  def liftIO[A](ioa: IO[A]): F[A] = ioa.to[F](this)
 }
 
 private[effect] trait AsyncInstances {
@@ -64,10 +66,12 @@ private[effect] trait AsyncInstances {
 
   private[effect] trait EitherTAsync[F[_], L]
       extends Async[EitherT[F, L, ?]]
-      with Sync.EitherTSync[F, L] {
+      with Sync.EitherTSync[F, L]
+      with LiftIO.EitherTLiftIO[F, L] {
 
     override protected def F: Async[F]
     private implicit def _F = F
+    protected def FF = F
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftT(F.async(k))
@@ -75,7 +79,8 @@ private[effect] trait AsyncInstances {
 
   private[effect] trait KleisliAsync[F[_], R]
       extends Async[Kleisli[F, R, ?]]
-      with Sync.KleisliSync[F, R] {
+      with Sync.KleisliSync[F, R]
+      with LiftIO.KleisliLiftIO[F, R] {
 
     override protected def F: Async[F]
 
@@ -85,10 +90,13 @@ private[effect] trait AsyncInstances {
 
   private[effect] trait OptionTAsync[F[_]]
       extends Async[OptionT[F, ?]]
-      with Sync.OptionTSync[F] {
+      with Sync.OptionTSync[F]
+      with LiftIO.OptionTLiftIO[F] {
 
     override protected def F: Async[F]
     private implicit def _F = F
+
+    protected def FF = F
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
       OptionT.liftF(F.async(k))
@@ -96,10 +104,13 @@ private[effect] trait AsyncInstances {
 
   private[effect] trait StateTAsync[F[_], S]
       extends Async[StateT[F, S, ?]]
-      with Sync.StateTSync[F, S] {
+      with Sync.StateTSync[F, S]
+      with LiftIO.StateTLiftIO[F, S] {
 
     override protected def F: Async[F]
     private implicit def _F = F
+
+    protected def FA = F
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
       StateT.lift(F.async(k))
@@ -107,10 +118,13 @@ private[effect] trait AsyncInstances {
 
   private[effect] trait WriterTAsync[F[_], L]
       extends Async[WriterT[F, L, ?]]
-      with Sync.WriterTSync[F, L] {
+      with Sync.WriterTSync[F, L]
+      with LiftIO.WriterTLiftIO[F, L] {
 
     override protected def F: Async[F]
     private implicit def _F = F
+
+    protected def FA = F
 
     private implicit def _L = L
 

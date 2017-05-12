@@ -37,16 +37,10 @@ private[effect] trait LiftIOInstances {
     new EitherTLiftIO[F, L] { def F = LiftIO[F]; def FF = Functor[F] }
 
   implicit def catsKleisliLiftIO[F[_]: LiftIO, R]: LiftIO[Kleisli[F, R, ?]] =
-    new LiftIO[Kleisli[F, R, ?]] {
-      override def liftIO[A](ioa: IO[A]): Kleisli[F, R, A] =
-        Kleisli.lift(LiftIO[F].liftIO(ioa))
-    }
+    new KleisliLiftIO[F, R] { def F = LiftIO[F] }
 
   implicit def catsOptionTLiftIO[F[_]: LiftIO: Functor]: LiftIO[OptionT[F, ?]] =
-    new LiftIO[OptionT[F, ?]] {
-      override def liftIO[A](ioa: IO[A]): OptionT[F, A] =
-        OptionT.liftF(LiftIO[F].liftIO(ioa))
-    }
+    new OptionTLiftIO[F] { def F = LiftIO[F]; def FF = Functor[F] }
 
   implicit def catsStateTLiftIO[F[_]: LiftIO: Applicative, S]: LiftIO[StateT[F, S, ?]] =
     new StateTLiftIO[F, S] { def F = LiftIO[F]; def FA = Applicative[F] }
@@ -61,6 +55,23 @@ private[effect] trait LiftIOInstances {
 
     override def liftIO[A](ioa: IO[A]): EitherT[F, L, A] =
       EitherT.liftT(F.liftIO(ioa))
+  }
+
+  private[effect] trait KleisliLiftIO[F[_], R] extends LiftIO[Kleisli[F, R, ?]] {
+    protected def F: LiftIO[F]
+
+    override def liftIO[A](ioa: IO[A]): Kleisli[F, R, A] =
+      Kleisli.lift(F.liftIO(ioa))
+  }
+
+  private[effect] trait OptionTLiftIO[F[_]] extends LiftIO[OptionT[F, ?]] {
+    protected def F: LiftIO[F]
+
+    protected def FF: Functor[F]
+    private implicit def _FF = FF
+
+    override def liftIO[A](ioa: IO[A]): OptionT[F, A] =
+      OptionT.liftF(F.liftIO(ioa))
   }
 
   private[effect] trait StateTLiftIO[F[_], S] extends LiftIO[StateT[F, S, ?]] {
