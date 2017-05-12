@@ -38,7 +38,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
       cb(Right(()))
     }
 
-    val read: F[A] = F.async(_(Right(cur)))
+    val read: F[A] = F.delay(cur)
 
     change >> change >> read <-> F.pure(f(f(a)))
   }

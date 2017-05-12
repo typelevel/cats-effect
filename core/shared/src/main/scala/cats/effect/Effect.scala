@@ -18,6 +18,9 @@ package cats
 package effect
 
 import simulacrum._
+
+import cats.data.{EitherT, StateT, WriterT}
+
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.util.Either
@@ -52,4 +55,43 @@ trait Effect[F[_]] extends Async[F] with LiftIO[F] {
       })
     }
   }
+
+  override def liftIO[A](ioa: IO[A]): F[A] = {
+    // Implementation for `IO#to` depends on the `Async` type class,
+    // and not on `Effect`, so this shouldn't create a cyclic dependency
+    ioa.to[F](this)
+  }
 }
+
+private[effect] trait EffectInstances {
+
+  implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
+    new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] with LiftIO.EitherTLiftIO[F, Throwable] {
+      protected def F = Effect[F]
+      protected def FF = Effect[F]
+
+      def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+        F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
+    }
+
+  implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
+    new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] with LiftIO.StateTLiftIO[F, S] {
+      protected def F = Effect[F]
+      protected def FA = Effect[F]
+
+      def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+        F.runAsync(fa.runA(Monoid[S].empty))(cb)
+    }
+
+  implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
+    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] with LiftIO.WriterTLiftIO[F, L] {
+      protected def F = Effect[F]
+      protected def FA = Effect[F]
+      protected def L = Monoid[L]
+
+      def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+        F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
+    }
+}
+
+object Effect extends EffectInstances

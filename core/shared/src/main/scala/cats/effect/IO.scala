@@ -19,6 +19,7 @@ package effect
 
 import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
 import scala.annotation.tailrec
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Left, Right}
@@ -351,6 +352,23 @@ sealed abstract class IO[+A] {
     p.future
   }
 
+  /**
+   * Converts the source `IO` into any `F` type that implements
+   * the [[cats.effect.Async Async]] type class.
+   */
+  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
+    this match {
+      case Pure(a) => F.pure(a)
+      case RaiseError(e) => F.raiseError(e)
+      case Suspend(thunk) => F.suspend(thunk(()).to[F])
+      case Async(k) => F.async(k)
+
+      case BindSuspend(thunk, f) =>
+        F.flatMap(F.suspend(thunk(()).to[F]))(e => f(e).to[F])
+      case BindAsync(k, f) =>
+        F.flatMap(F.async(k))(e => f(e).to[F])
+    }
+
   override def toString = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
@@ -397,7 +415,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     override def shift[A](ioa: IO[A])(implicit ec: ExecutionContext) = ioa.shift
 
-    def liftIO[A](ioa: IO[A]) = ioa
+    override def liftIO[A](ioa: IO[A]) = ioa
   }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
@@ -562,7 +580,7 @@ object IO extends IOInstances {
 
   private final case class Pure[+A](a: A)
     extends IO[A]
-  private final case class RaiseError(t: Throwable)
+  private final case class RaiseError(e: Throwable)
     extends IO[Nothing]
   private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]])
     extends IO[A]

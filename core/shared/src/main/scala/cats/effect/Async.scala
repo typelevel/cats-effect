@@ -18,6 +18,9 @@ package cats
 package effect
 
 import simulacrum._
+
+import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
+
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -41,3 +44,79 @@ trait Async[F[_]] extends Sync[F] {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 }
+
+private[effect] trait AsyncInstances {
+
+  implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
+    new EitherTAsync[F, L] { def F = Async[F] }
+
+  implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, ?]] =
+    new KleisliAsync[F, R] { def F = Async[F] }
+
+  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
+    new OptionTAsync[F] { def F = Async[F] }
+
+  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
+    new StateTAsync[F, S] { def F = Async[F] }
+
+  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
+    new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
+
+  private[effect] trait EitherTAsync[F[_], L]
+      extends Async[EitherT[F, L, ?]]
+      with Sync.EitherTSync[F, L] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
+      EitherT.liftT(F.async(k))
+  }
+
+  private[effect] trait KleisliAsync[F[_], R]
+      extends Async[Kleisli[F, R, ?]]
+      with Sync.KleisliSync[F, R] {
+
+    override protected def F: Async[F]
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
+      Kleisli.lift(F.async(k))
+  }
+
+  private[effect] trait OptionTAsync[F[_]]
+      extends Async[OptionT[F, ?]]
+      with Sync.OptionTSync[F] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
+      OptionT.liftF(F.async(k))
+  }
+
+  private[effect] trait StateTAsync[F[_], S]
+      extends Async[StateT[F, S, ?]]
+      with Sync.StateTSync[F, S] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
+      StateT.lift(F.async(k))
+  }
+
+  private[effect] trait WriterTAsync[F[_], L]
+      extends Async[WriterT[F, L, ?]]
+      with Sync.WriterTSync[F, L] {
+
+    override protected def F: Async[F]
+    private implicit def _F = F
+
+    private implicit def _L = L
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
+      WriterT.lift(F.async(k))
+  }
+}
+
+object Async extends AsyncInstances
