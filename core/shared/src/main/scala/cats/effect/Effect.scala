@@ -55,6 +55,12 @@ trait Effect[F[_]] extends Async[F] with LiftIO[F] {
       })
     }
   }
+
+  override def liftIO[A](ioa: IO[A]): F[A] = {
+    // Implementation for `IO#to` depends on the `Async` type class,
+    // and not on `Effect`, so this shouldn't create a cyclic dependency
+    ioa.to[F](this)
+  }
 }
 
 private[effect] trait EffectInstances {

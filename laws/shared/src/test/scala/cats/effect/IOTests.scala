@@ -351,12 +351,47 @@ class IOTests extends BaseTestsSuite {
     val f = io.unsafeToFuture(); ec.tick()
     f.value shouldEqual Some(Success(100))
   }
+
+  def repeatedTransformLoop[A](n: Int, io: IO[A]): IO[A] =
+    io.to[IO].flatMap { x =>
+      if (n <= 0) IO.pure(x).to[IO]
+      else repeatedTransformLoop(n - 1, io)
+    }
+
+  testAsync("io.to[IO] <-> io") { implicit ec =>
+    check { (io: IO[Int]) => io.to[IO] <-> io }
+  }
+
+  testAsync("sync.to[IO] is stack-safe") { implicit ec =>
+    // Override default generator to only generate
+    // synchronous instances that are stack-safe
+    implicit val arbIO = Arbitrary(genSyncIO[Int])
+
+    check { (io: IO[Int]) =>
+      repeatedTransformLoop(10000, io) <-> io
+    }
+  }
+
+  testAsync("async.to[IO] is stack-safe if the source is") { implicit ec =>
+    // Stack-safe async IO required
+    def async(a: Int) = IO.async[Int] { cb =>
+      ec.execute(new Runnable {
+        def run(): Unit =
+          cb(Right(a))
+      })
+    }
+
+    val f = repeatedTransformLoop(10000, async(99)).unsafeToFuture()
+    ec.tick()
+    f.value shouldEqual Some(Success(99))
+  }
 }
 
 object IOTests {
   /** Implementation for testing default methods. */
   val ioEffectDefaults = new Effect[IO] {
     private val ref = implicitly[Effect[IO]]
+
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       ref.async(k)
     def raiseError[A](e: Throwable): IO[A] =
@@ -373,7 +408,5 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
-    def liftIO[A](ioa: IO[A]): IO[A] =
-      ref.liftIO(ioa)
   }
 }
