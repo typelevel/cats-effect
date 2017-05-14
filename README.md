@@ -13,33 +13,29 @@ This project does *not* attempt to provide any tools for concurrency or parallel
 
 ## Usage
 
-At present, the only public releases of cats-effect are hash snapshots (see [below](#versioning-and-compatibility)).  The most current snapshot can be found in the maven badge at the top of this readme.  If you are a very brave sort, you are free to depend on these snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.  We will be making a stable release as soon as is reasonable.
+The most current stable release of cats-effect is **0.2**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release, which will depend on cats-core 1.0 (when it is released).  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % CatsEffectVersion
+libraryDependencies += "org.typelevel" %% "cats-effect" % "0.2"
 ```
 
 If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 0.9.
 
 Cross-builds are available for Scala 2.12, 2.11 and 2.10, Scala.js major version 0.6.
 
+The most current snapshot (or major release) can be found in the maven badge at the top of this readme.  If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
+
+Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases.  You should *absolutely* be doing this!  It takes five minutes and eliminates the need to trust a third-party with your classpath.
+
 ### Laws
 
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Async`, `Sync` and `Effect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses.  For an example of this, see [`IOTests.scala`](https://github.com/djspiewak/cats-effect/blob/master/laws/shared/src/test/scala/cats/effect/IOTests.scala).
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % CatsEffectVersion % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.2" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
-
-### Versioning and Compatibility
-
-Snapshots may be published to sonatype at any time.  They will be denoted as versions of the form `major.minor-hash`, where the `hash` is the 7 character git hash prefix of the commit from which the snapshot was published.  Thus, "snapshots" are in fact stable, and can be used as repeatable upstream dependencies if you're feeling courageous.  A snapshot with a `major` version of *x* and a `minor` version of *y* is expected (and indeed, machine-checked in so far as possible) to be binary compatible with the full release with version *x*.*y* (and all its subsequent minor versions).  Thus, eviction works basically the way you expect.  The only exception to this is *unreleased* incompatible versions, since such versions are still in flux and early snapshots may be incompatible with this future release.
-
-Note that this implies that snapshots of a particular release line may be published *after* the main release.  You can find more details [here](https://github.com/typelevel/cats-effect/blob/563d29ee01885b00613a3dd8eb6f12c56aa126b2/build.sbt#L80-L110).
-
-This project is intended to be an upstream dependency of a large swath of the ecosystem, similar in many respects to cats-core itself.  For that reason, binary compatibility and stability is *incredibly* important.  Breaking changes to major releases are going to be almost universally rejected, and will require extreme justification (and likely blood sacrifice) to obtain approval.
 
 ## API
 
