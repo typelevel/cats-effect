@@ -2,7 +2,7 @@
 
 This project is intended to be an upstream dependency of a large swath of the ecosystem, similar in many respects to cats-core itself.  For that reason, source/binary compatibility and stability is *incredibly* important.  Breaking changes to major releases are going to be almost universally rejected, and will require extreme justification (and likely blood sacrifice) to obtain approval.
 
-All stable releases will have a version of the form `(\d+)\.(\d+)(?:\.(\d+))?`, where the three groups of the regular expression denote *major*, *minor*, and *build*respectively.  Some examples (for those who aren't fluent in regular expressions):
+All stable releases will have a version of the form `(\d+)\.(\d+)(?:\.(\d+))?`, where the three groups of the regular expression denote *major*, *minor*, and *build* respectively.  Some examples (for those who aren't fluent in regular expressions):
 
 - `0.2` – major = 0, minor = 2
 - `3.5.4` – major = 3, minor = 5, build = 4
