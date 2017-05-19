@@ -515,53 +515,76 @@ object IO extends IOInstances {
   }
 
   /**
-   * Shifts the synchronous prefixes and continuation of the `IO` onto
-   * the specified thread pool.
+   * Shifts the bind continuation of the `IO` onto the specified thread
+   * pool.
    *
    * Asynchronous actions cannot be shifted, since they are scheduled
    * rather than run. Also, no effort is made to re-shift synchronous
    * actions which *follow* asynchronous actions within a bind chain;
    * those actions will remain on the continuation thread inherited
-   * from their preceding async action.  Critically though,
-   * synchronous actions which are bound ''after'' the results of this
-   * function will also be shifted onto the pool specified here. Thus,
-   * you can think of this function as shifting *before* (the
-   * contiguous synchronous prefix) and ''after'' (any continuation of
-   * the result).
+   * from their preceding async action.  The only computations which
+   * are shifted are those which are defined as synchronous actions and
+   * are contiguous in the bind chain ''following'' the `shift`.
    *
-   * There are two immediately obvious applications to this function.
-   * One is to re-shift async actions back to a "main" thread pool.
-   * For example, if you create an async action to wrap around some
-   * sort of event listener, you probably want to `shift` it
-   * immediately to take the continuation off of the event dispatch
-   * thread.  Another use-case is to ensure that a blocking
-   * synchronous action is taken *off* of the main CPU-bound pool.  A
-   * common example here would be any use of the `java.io` package,
-   * which is entirely blocking and should never be run on your main
-   * CPU-bound pool.
+   * As an example:
    *
-   * Note that this function is idempotent given equal values of `EC`,
-   * but only prefix-idempotent given differing `EC` values.  For
+   * {{{
+   * for {
+   *   _ <- IO.shift(BlockingIO)
+   *   bytes <- readFileUsingJavaIO(file)
+   *   _ <- IO.shift(DefaultPool)
+   *
+   *   secure = encrypt(bytes, KeyManager)
+   *   _ <- sendResponse(Protocol.v1, secure)
+   *
+   *   _ <- IO { println("it worked!") }
+   * } yield ()
+   * }}}
+   *
+   * In the above, `readFileUsingJavaIO` will be shifted to the pool
+   * represented by `BlockingIO`, so long as it is defined using `apply`
+   * or `suspend` (which, judging by the name, it probably is).  Once
+   * its computation is complete, the rest of the `for`-comprehension is
+   * shifted ''again'', this time onto the `DefaultPool`.  This pool is
+   * used to compute the encrypted version of the bytes, which are then
+   * passed to `sendResponse`.  If we assume that `sendResponse` is
+   * defined using `async` (perhaps backed by an NIO socket channel),
+   * then we don't actually know on which pool the final `IO` action (the
+   * `println`) will be run.  If we wanted to ensure that the `println`
+   * runs on `DefaultPool`, we would insert another `shift` following
+   * `sendResponse`.
+   *
+   * Another somewhat less common application of `shift` is to reset the
+   * thread stack and yield control back to the underlying pool.  For
    * example:
    *
    * {{{
-   * val fioa = IO { File.createTempFile("fubar") }
-   *
-   * fioa.shift(BlockingIOPool).shift(MainPool)
+   * lazy val repeat: IO[Unit] = for {
+   *   _ <- doStuff
+   *   _ <- IO.shift
+   *   _ <- repeat
+   * } yield ()
    * }}}
    *
-   * The inner call to `shift` will force the synchronous prefix of
-   * `fioa` (which is just the single action) to execute on the
-   * `BlockingIOPool` when the `IO` is run, and also ensures that the
-   * continuation of this action remains on the `BlockingIOPool`.  The
-   * outer `shift` similarly forces the synchronous prefix of the
-   * results of the inner `shift` onto the specified pool
-   * (`MainPool`), but the results of `shift` have no synchronous
-   * prefix, meaning that the "before" part of the outer `shift` is a
-   * no-op.  The "after" part is not, however, and will force the
-   * continuation of the resulting `IO` back onto the `MainPool`.
-   * Which is exactly what you want most of the time with blocking
-   * actions of this type.
+   * In this example, `repeat` is a very long running `IO` (infinite, in
+   * fact!) which will just hog the underlying thread resource for as long
+   * as it continues running.  This can be a bit of a problem, and so we
+   * inject the `IO.shift` which yields control back to the underlying
+   * thread pool, giving it a chance to reschedule things and provide
+   * better fairness.  This shifting also "bounces" the thread stack, popping
+   * all the way back to the thread pool and effectively trampolining the
+   * remainder of the computation.  This sort of manual trampolining is
+   * unnecessary if `doStuff` is defined using `suspend` or `apply`, but if
+   * it was defined using `async` and does ''not'' involve any real
+   * concurrency, the call to `shift` will be necessary to avoid a
+   * `StackOverflowError`.
+   *
+   * Thus, this function has four important use cases: shifting blocking
+   * actions off of the main compute pool, defensively re-shifting
+   * asynchronous continuations back to the main compute pool, yielding
+   * control to some underlying pool for fairness reasons, and preventing
+   * an overflow of the call stack in the case of improperly constructed
+   * `async` actions.
    */
   def shift(implicit ec: ExecutionContext): IO[Unit] = {
     IO async { (cb: Either[Throwable, Unit] => Unit) =>
