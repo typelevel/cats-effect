@@ -169,71 +169,6 @@ sealed abstract class IO[+A] {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
   }
 
-  /**
-   * Shifts the synchronous prefixes and continuation of the `IO` onto
-   * the specified thread pool.
-   *
-   * Asynchronous actions cannot be shifted, since they are scheduled
-   * rather than run. Also, no effort is made to re-shift synchronous
-   * actions which *follow* asynchronous actions within a bind chain;
-   * those actions will remain on the continuation thread inherited
-   * from their preceding async action.  Critically though,
-   * synchronous actions which are bound ''after'' the results of this
-   * function will also be shifted onto the pool specified here. Thus,
-   * you can think of this function as shifting *before* (the
-   * contiguous synchronous prefix) and ''after'' (any continuation of
-   * the result).
-   *
-   * There are two immediately obvious applications to this function.
-   * One is to re-shift async actions back to a "main" thread pool.
-   * For example, if you create an async action to wrap around some
-   * sort of event listener, you probably want to `shift` it
-   * immediately to take the continuation off of the event dispatch
-   * thread.  Another use-case is to ensure that a blocking
-   * synchronous action is taken *off* of the main CPU-bound pool.  A
-   * common example here would be any use of the `java.io` package,
-   * which is entirely blocking and should never be run on your main
-   * CPU-bound pool.
-   *
-   * Note that this function is idempotent given equal values of `EC`,
-   * but only prefix-idempotent given differing `EC` values.  For
-   * example:
-   *
-   * {{{
-   * val fioa = IO { File.createTempFile("fubar") }
-   *
-   * fioa.shift(BlockingIOPool).shift(MainPool)
-   * }}}
-   *
-   * The inner call to `shift` will force the synchronous prefix of
-   * `fioa` (which is just the single action) to execute on the
-   * `BlockingIOPool` when the `IO` is run, and also ensures that the
-   * continuation of this action remains on the `BlockingIOPool`.  The
-   * outer `shift` similarly forces the synchronous prefix of the
-   * results of the inner `shift` onto the specified pool
-   * (`MainPool`), but the results of `shift` have no synchronous
-   * prefix, meaning that the "before" part of the outer `shift` is a
-   * no-op.  The "after" part is not, however, and will force the
-   * continuation of the resulting `IO` back onto the `MainPool`.
-   * Which is exactly what you want most of the time with blocking
-   * actions of this type.
-   */
-  final def shift(implicit ec: ExecutionContext): IO[A] = {
-    val self = attempt.flatMap { e =>
-      IO async { (cb: Either[Throwable, A] => Unit) =>
-        ec.execute(new Runnable {
-          def run() = cb(e)
-        })
-      }
-    }
-
-    IO async { cb =>
-      ec.execute(new Runnable {
-        def run() = self.unsafeRunAsync(cb)
-      })
-    }
-  }
-
   @tailrec
   private final def unsafeStep: IO[A] = this match {
     case Suspend(thunk) => thunk(()).unsafeStep
@@ -413,7 +348,8 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
 
     def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
 
-    override def shift[A](ioa: IO[A])(implicit ec: ExecutionContext) = ioa.shift
+    // creates a new call-site, so *very* slightly faster than using the default
+    override def shift(implicit ec: ExecutionContext) = IO.shift(ec)
 
     override def liftIO[A](ioa: IO[A]) = ioa
   }
@@ -575,6 +511,63 @@ object IO extends IOInstances {
         case Failure(e) => cb(Left(e))
         case Success(a) => cb(Right(a))
       }
+    }
+  }
+
+  /**
+   * Shifts the synchronous prefixes and continuation of the `IO` onto
+   * the specified thread pool.
+   *
+   * Asynchronous actions cannot be shifted, since they are scheduled
+   * rather than run. Also, no effort is made to re-shift synchronous
+   * actions which *follow* asynchronous actions within a bind chain;
+   * those actions will remain on the continuation thread inherited
+   * from their preceding async action.  Critically though,
+   * synchronous actions which are bound ''after'' the results of this
+   * function will also be shifted onto the pool specified here. Thus,
+   * you can think of this function as shifting *before* (the
+   * contiguous synchronous prefix) and ''after'' (any continuation of
+   * the result).
+   *
+   * There are two immediately obvious applications to this function.
+   * One is to re-shift async actions back to a "main" thread pool.
+   * For example, if you create an async action to wrap around some
+   * sort of event listener, you probably want to `shift` it
+   * immediately to take the continuation off of the event dispatch
+   * thread.  Another use-case is to ensure that a blocking
+   * synchronous action is taken *off* of the main CPU-bound pool.  A
+   * common example here would be any use of the `java.io` package,
+   * which is entirely blocking and should never be run on your main
+   * CPU-bound pool.
+   *
+   * Note that this function is idempotent given equal values of `EC`,
+   * but only prefix-idempotent given differing `EC` values.  For
+   * example:
+   *
+   * {{{
+   * val fioa = IO { File.createTempFile("fubar") }
+   *
+   * fioa.shift(BlockingIOPool).shift(MainPool)
+   * }}}
+   *
+   * The inner call to `shift` will force the synchronous prefix of
+   * `fioa` (which is just the single action) to execute on the
+   * `BlockingIOPool` when the `IO` is run, and also ensures that the
+   * continuation of this action remains on the `BlockingIOPool`.  The
+   * outer `shift` similarly forces the synchronous prefix of the
+   * results of the inner `shift` onto the specified pool
+   * (`MainPool`), but the results of `shift` have no synchronous
+   * prefix, meaning that the "before" part of the outer `shift` is a
+   * no-op.  The "after" part is not, however, and will force the
+   * continuation of the resulting `IO` back onto the `MainPool`.
+   * Which is exactly what you want most of the time with blocking
+   * actions of this type.
+   */
+  def shift(implicit ec: ExecutionContext): IO[Unit] = {
+    IO async { (cb: Either[Throwable, Unit] => Unit) =>
+      ec.execute(new Runnable {
+        def run() = cb(Right(()))
+      })
     }
   }
 

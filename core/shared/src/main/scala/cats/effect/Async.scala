@@ -22,7 +22,8 @@ import simulacrum._
 import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
-import scala.util.Either
+import scala.concurrent.ExecutionContext
+import scala.util.{Either, Right}
 
 /**
  * A monad that can describe asynchronous or synchronous computations that
@@ -45,6 +46,17 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
   def liftIO[A](ioa: IO[A]): F[A] = ioa.to[F](this)
+
+  /**
+   * @see [[IO#shift]]
+   */
+  def shift(implicit ec: ExecutionContext): F[Unit] = {
+    async { (cb: Either[Throwable, Unit] => Unit) =>
+      ec.execute(new Runnable {
+        def run() = cb(Right(()))
+      })
+    }
+  }
 }
 
 private[effect] trait AsyncInstances {

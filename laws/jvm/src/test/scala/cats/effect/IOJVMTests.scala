@@ -46,15 +46,17 @@ class IOJVMTests extends FunSuite with Matchers {
     }
 
     val test = for {
+      _ <- IO.shift(TestEC)
       n1 <- name
       n2 <- name
       n3 <- aname
       n4 <- name
-      n5 <- name.shift(TestEC)
+      _ <- IO.shift(TestEC)
+      n5 <- name
       n6 <- name
     } yield (n1, n2, n3, n4, n5, n6)
 
-    val (n1, n2, n3, n4, n5, n6) = test.shift(TestEC).unsafeRunSync()
+    val (n1, n2, n3, n4, n5, n6) = test.unsafeRunSync()
 
     n1 shouldEqual ThreadName
     n2 shouldEqual ThreadName
