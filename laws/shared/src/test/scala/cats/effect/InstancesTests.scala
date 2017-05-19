@@ -21,7 +21,15 @@ import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
 import cats.effect.laws.discipline.{AsyncTests, EffectTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
-import cats.laws.discipline.arbitrary._
+
+// can't use underscore here because conflicting instances were added in cats master
+// TODO re-wildcard it once we update to cats 1.0
+import cats.laws.discipline.arbitrary.{
+  catsLawsArbitraryForOptionT,
+  catsLawsArbitraryForKleisli,
+  catsLawsArbitraryForEitherT,
+  catsLawsArbitraryForWriterT
+}
 
 import org.scalacheck._
 import org.scalacheck.rng.Seed
