@@ -49,20 +49,4 @@ class IOJSTests extends AsyncFunSuite with Matchers {
       }
     }
   }
-
-  test("IO#shift works over async boundaries") {
-    val io = delayed(0.millis)(10).shift
-    io.unsafeToFuture().map { r =>
-      r shouldEqual 10
-    }
-  }
-
-  test("Effect#shift works over async boundaries") {
-    import IOTests.{ioEffectDefaults => F}
-
-    val io = F.shift(delayed(0.millis)(10))
-    io.unsafeToFuture().map { r =>
-      r shouldEqual 10
-    }
-  }
 }
