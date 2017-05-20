@@ -25,7 +25,7 @@ import cats.laws.discipline.CartesianTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] with EffectTestsPlatform {
+trait EffectTests[F[_]] extends AsyncTests[F] with EffectTestsPlatform {
   def laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -55,7 +55,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] with SyncTests[F] with EffectTests
     new RuleSet {
       val name = "effect"
       val bases = Nil
-      val parents = Seq(async[A, B, C], sync[A, B, C])
+      val parents = Seq(async[A, B, C])
 
       val baseProps = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
