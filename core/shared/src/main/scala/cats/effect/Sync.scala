@@ -47,36 +47,10 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
 
-private[effect] trait LowPrioritySyncInstances0 {
+private[effect] trait SyncInstances {
 
   implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
     new EitherTSync[F, L] { def F = Sync[F] }
-
-  private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
-
-    def pure[A](x: A): EitherT[F, L, A] =
-      EitherT.pure(x)
-
-    def handleErrorWith[A](fa: EitherT[F, L, A])(f: Throwable => EitherT[F, L, A]): EitherT[F, L, A] =
-      EitherT(F.handleErrorWith(fa.value)(f.andThen(_.value)))
-
-    def raiseError[A](e: Throwable): EitherT[F, L, A] =
-      EitherT.liftT(F.raiseError(e))
-
-    def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
-      fa.flatMap(f)
-
-    def tailRecM[A, B](a: A)(f: A => EitherT[F, L, Either[A, B]]): EitherT[F, L, B] =
-      EitherT.catsDataMonadErrorForEitherT[F, L].tailRecM(a)(f)
-
-    def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
-      EitherT(F.suspend(thunk.value))
-  }
-}
-
-private[effect] trait SyncInstances extends LowPrioritySyncInstances0 {
 
   implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
     new Sync[EitherT[Eval, Throwable, ?]] {
@@ -117,6 +91,30 @@ private[effect] trait SyncInstances extends LowPrioritySyncInstances0 {
 
   implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
+
+  private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    def pure[A](x: A): EitherT[F, L, A] =
+      EitherT.pure(x)
+
+    def handleErrorWith[A](fa: EitherT[F, L, A])(f: Throwable => EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.handleErrorWith(fa.value)(f.andThen(_.value)))
+
+    def raiseError[A](e: Throwable): EitherT[F, L, A] =
+      EitherT.liftT(F.raiseError(e))
+
+    def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => EitherT[F, L, Either[A, B]]): EitherT[F, L, B] =
+      EitherT.catsDataMonadErrorForEitherT[F, L].tailRecM(a)(f)
+
+    def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.suspend(thunk.value))
+  }
+
 
   private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
     protected def F: Sync[F]
