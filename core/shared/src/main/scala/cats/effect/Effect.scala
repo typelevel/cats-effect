@@ -22,7 +22,6 @@ import simulacrum._
 import cats.data.{EitherT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
 import scala.util.Either
 
 /**
@@ -36,25 +35,6 @@ s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
-
-  /**
-   * @see [[IO#shift]]
-   */
-  def shift[A](fa: F[A])(implicit ec: ExecutionContext): F[A] = {
-    val self = flatMap(attempt(fa)) { e =>
-      async { (cb: Either[Throwable, A] => Unit) =>
-        ec.execute(new Runnable {
-          def run() = cb(e)
-        })
-      }
-    }
-
-    async { cb =>
-      ec.execute(new Runnable {
-        def run() = runAsync(self)(e => IO { cb(e) }).unsafeRunSync()
-      })
-    }
-  }
 
   override def liftIO[A](ioa: IO[A]): F[A] = {
     // Implementation for `IO#to` depends on the `Async` type class,

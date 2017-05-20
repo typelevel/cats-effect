@@ -56,7 +56,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
   }
 
   test("IO.apply#shift#runAsync") {
-    testEffectOnRunAsync(IO(10).shift, Success(10))
+    testEffectOnRunAsync(IO.shift.flatMap(_ => IO(10)), Success(10))
   }
 
   test("IO.raiseError#runAsync") {
@@ -66,6 +66,6 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
 
   test("IO.raiseError#shift#runAsync") {
     val dummy = new RuntimeException("dummy")
-    testEffectOnRunAsync(IO.raiseError(dummy).shift, Failure(dummy))
+    testEffectOnRunAsync(IO.shift.flatMap(_ => IO.raiseError(dummy)), Failure(dummy))
   }
 }

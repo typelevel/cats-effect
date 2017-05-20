@@ -72,7 +72,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("shift works for success") { implicit ec =>
-    val expected = IO(1).shift.unsafeToFuture()
+    val expected = IO.shift.flatMap(_ => IO(1)).unsafeToFuture()
     expected.value shouldEqual None
 
     ec.tick()
@@ -82,66 +82,11 @@ class IOTests extends BaseTestsSuite {
   testAsync("shift works for failure") { implicit ec =>
     val dummy = new RuntimeException("dummy")
 
-    val expected = IO.raiseError(dummy).shift.unsafeToFuture()
+    val expected = IO.shift.flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
     expected.value shouldEqual None
 
     ec.tick()
     expected.value shouldEqual Some(Failure(dummy))
-  }
-
-  testAsync("shift is stack safe") { implicit ec =>
-    val io = (0 until 10000).foldLeft(IO(1))((io, _) => io.shift)
-
-    val expected = io.unsafeToFuture()
-    expected.value shouldEqual None
-
-    ec.tick()
-    expected.value shouldEqual Some(Success(1))
-  }
-
-  testAsync("shift is stack safe within flatMap loops") { implicit ec =>
-    def signal(x: Int): IO[Int] =
-      IO(x).shift
-
-    def loop(n: Int): IO[Unit] =
-      signal(n).flatMap { v =>
-        if (v <= 0) IO.unit else loop(v - 1)
-      }
-
-    val expected = loop(100000).unsafeToFuture()
-    expected.value shouldEqual None
-
-    ec.tick()
-    expected.value shouldEqual Some(Success(()))
-  }
-
-  testAsync("default Effect#shift is stack safe") { implicit ec =>
-    import IOTests.{ioEffectDefaults => F}
-    val io = (0 until 10000).foldLeft(IO(1)) { (io, _) => F.shift(io) }
-
-    val expected = io.unsafeToFuture()
-    expected.value shouldEqual None
-
-    ec.tick()
-    expected.value shouldEqual Some(Success(1))
-  }
-
-  testAsync("default Effect#shift is stack safe within flatMap loops") { implicit ec =>
-    import IOTests.{ioEffectDefaults => F}
-
-    def signal(x: Int): IO[Int] =
-      F.shift(IO(x))
-
-    def loop(n: Int): IO[Unit] =
-      signal(n).flatMap { v =>
-        if (v <= 0) IO.unit else loop(v - 1)
-      }
-
-    val expected = loop(100000).unsafeToFuture()
-    expected.value shouldEqual None
-
-    ec.tick()
-    expected.value shouldEqual Some(Success(()))
   }
 
   testAsync("IO.async protects against multiple callback calls") { implicit ec =>
