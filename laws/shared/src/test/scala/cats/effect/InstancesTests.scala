@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
-import cats.effect.laws.discipline.{AsyncTests, EffectTests}
+import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
 import cats.effect.laws.util.TestContext
 import cats.implicits._
 
@@ -40,6 +40,9 @@ import scala.util.Try
 class InstancesTests extends BaseTestsSuite {
   import Generators._
 
+  checkAll("EitherT[Eval, Throwable, ?]",
+    SyncTests[EitherT[Eval, Throwable, ?]].sync[Int, Int, Int])
+
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
 
@@ -55,16 +58,6 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => EffectTests[WriterT[IO, Int, ?]].effect[Int, Int, Int])
 
-  // assume exceptions are equivalent if the exception name + message
-  // match as strings.
-  implicit def throwableEq: Eq[Throwable] =
-    Eq[String].contramap((t: Throwable) => t.toString)
-
-  // we want exceptions which occur during .value calls to be equal to
-  // each other, assuming the exceptions seem equivalent.
-  implicit def eqWithTry[A: Eq]: Eq[Eval[A]] =
-    Eq[Try[A]].on((e: Eval[A]) => Try(e.value))
-
   implicit def arbitraryStateT[F[_], S, A](
     implicit
       arbFSA: Arbitrary[F[S => F[(S, A)]]]): Arbitrary[StateT[F, S, A]] =
@@ -76,6 +69,10 @@ class InstancesTests extends BaseTestsSuite {
   // for some reason, the function1Eq in cats causes spurious test failures?
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
+
+  // this is required to avoid diverging implicit expansion issues on 2.10
+  implicit def eitherTEq: Eq[EitherT[EitherT[Eval, Throwable, ?], Throwable, Int]] =
+    Eq.by[EitherT[EitherT[Eval, Throwable, ?], Throwable, Int], EitherT[Eval, Throwable, Either[Throwable, Int]]](_.value)
 
   implicit def cogenFuture[A](implicit ec: TestContext, cg: Cogen[Try[A]]): Cogen[Future[A]] = {
     Cogen { (seed: Seed, fa: Future[A] ) =>

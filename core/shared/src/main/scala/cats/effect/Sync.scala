@@ -20,6 +20,7 @@ package effect
 import simulacrum._
 
 import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
+import cats.effect.internals.NonFatal
 
 /**
  * A monad that can suspend the execution of side effects
@@ -50,6 +51,34 @@ private[effect] trait SyncInstances {
 
   implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
     new EitherTSync[F, L] { def F = Sync[F] }
+
+  implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
+    new Sync[EitherT[Eval, Throwable, ?]] {
+
+      def pure[A](x: A): EitherT[Eval, Throwable, A] = EitherT.pure(x)
+
+      def handleErrorWith[A](fa: EitherT[Eval, Throwable, A])(f: Throwable => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] =
+        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Eval.now(Right(a)))))
+
+      def raiseError[A](e: Throwable) =
+        EitherT.left(Eval.now(e))
+
+      def flatMap[A, B](fa: EitherT[Eval, Throwable, A])(f: A => EitherT[Eval, Throwable, B]): EitherT[Eval, Throwable, B] =
+        fa.flatMap(f)
+
+      def tailRecM[A, B](a: A)(f: A => EitherT[Eval, Throwable, Either[A, B]]): EitherT[Eval, Throwable, B] =
+        EitherT.catsDataMonadErrorForEitherT[Eval, Throwable].tailRecM(a)(f)
+
+      def suspend[A](thunk: => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] = {
+        EitherT {
+          Eval.always(try {
+            thunk.value.value
+          } catch {
+            case NonFatal(t) => Left(t)
+          })
+        }
+      }
+    }
 
   implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, ?]] =
     new KleisliSync[F, R] { def F = Sync[F] }
@@ -85,6 +114,7 @@ private[effect] trait SyncInstances {
     def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
       EitherT(F.suspend(thunk.value))
   }
+
 
   private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
     protected def F: Sync[F]

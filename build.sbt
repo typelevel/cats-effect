@@ -120,6 +120,16 @@ val mimaSettings = Seq(
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
     versions map { v => organization.value %% name.value % v } toSet
+  },
+
+  mimaBinaryIssueFilters ++= {
+    import com.typesafe.tools.mima.core._
+    import com.typesafe.tools.mima.core.ProblemFilters._
+
+    Seq(
+      // everything in SyncInstances is fine, since it's package-private
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances.cats$effect$SyncInstances$_setter_$catsEitherTEvalSync_="),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances.catsEitherTEvalSync"))
   }
 )
 
