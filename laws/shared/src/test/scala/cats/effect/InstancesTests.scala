@@ -25,9 +25,10 @@ import cats.implicits._
 // can't use underscore here because conflicting instances were added in cats master
 // TODO re-wildcard it once we update to cats 1.0
 import cats.laws.discipline.arbitrary.{
-  catsLawsArbitraryForOptionT,
-  catsLawsArbitraryForKleisli,
   catsLawsArbitraryForEitherT,
+  catsLawsArbitraryForEval,
+  catsLawsArbitraryForKleisli,
+  catsLawsArbitraryForOptionT,
   catsLawsArbitraryForWriterT
 }
 
