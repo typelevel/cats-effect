@@ -25,7 +25,7 @@ import cats.laws.discipline.CartesianTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait AsyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
+trait AsyncTests[F[_]] extends SyncTests[F] {
   def laws: AsyncLaws[F]
 
   def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -53,7 +53,7 @@ trait AsyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
     new RuleSet {
       val name = "async"
       val bases = Nil
-      val parents = Seq(monadError[A, B, C])
+      val parents = Seq(sync[A, B, C])
       val props = Seq(
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
