@@ -22,6 +22,9 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 organization in ThisBuild := "org.typelevel"
 
 val CatsVersion = "0.9.0"
+val SimulacrumVersion = "0.10.0"
+
+val ScalaTestVersion = "3.0.1"
 val ScalaCheckVersion = "1.13.4"
 val DisciplineVersion = "0.7.3"
 
@@ -120,16 +123,6 @@ val mimaSettings = Seq(
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
     versions map { v => organization.value %% name.value % v } toSet
-  },
-
-  mimaBinaryIssueFilters ++= {
-    import com.typesafe.tools.mima.core._
-    import com.typesafe.tools.mima.core.ProblemFilters._
-
-    Seq(
-      // everything in SyncInstances is fine, since it's package-private
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances.cats$effect$SyncInstances$_setter_$catsEitherTEvalSync_="),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances.catsEitherTEvalSync"))
   }
 )
 
@@ -158,10 +151,10 @@ lazy val core = crossProject.in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
-      "com.github.mpilquist" %%% "simulacrum" % "0.10.0" % "compile-time",
+      "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % "compile-time",
 
       "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
-      "org.scalatest"  %%% "scalatest"  % "3.0.1"           % "test",
+      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion  % "test",
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
       "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
@@ -187,7 +180,7 @@ lazy val laws = crossProject
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
       "org.typelevel"  %%% "discipline" % DisciplineVersion,
 
-      "org.scalatest"  %%% "scalatest"  % "3.0.1" % "test"))
+      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion % "test"))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
