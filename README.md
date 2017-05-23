@@ -2,7 +2,7 @@
 
 > For when purity just isn't impure enough.
 
-This project aims to provide a standard [`IO`](https://www.javadoc.io/page/org.typelevel/cats-effect_2.12/latest/cats/effect/IO.html) type for the [cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
+This project aims to provide a standard [`IO`](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.2/cats-effect_2.12-0.2-javadoc.jar/!/cats/effect/IO.html) type for the [cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
 
 - Manages both synchronous *and* asynchronous (callback-driven) effects
 - Compatible with a single-threaded runtime
@@ -39,7 +39,7 @@ These laws are compatible with both Specs2 and ScalaTest.
 
 ## API
 
-Most of the API documentation can be found [in the scaladoc](https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12).  To summarize though, the typeclass hierarchy looks something like this:
+Most of the API documentation can be found [in the scaladoc](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.2/cats-effect_2.12-0.2-javadoc.jar/!/cats/effect/index.html).  To summarize though, the typeclass hierarchy looks something like this:
 
 ![cats-effect typeclasses](https://docs.google.com/drawings/d/1JIxtfEPKxUp402l8mYYDj7tDuEdEFAiqvJJpeAXAwG0/pub?w=1027&h=1076)
 
