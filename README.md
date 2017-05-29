@@ -2,7 +2,7 @@
 
 > For when purity just isn't impure enough.
 
-This project aims to provide a standard [`IO`](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.2/cats-effect_2.12-0.2-javadoc.jar/!/cats/effect/IO.html) type for the [cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
+This project aims to provide a standard [`IO`](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.3/cats-effect_2.12-0.3-javadoc.jar/!/cats/effect/IO.html) type for the [cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
 
 - Manages both synchronous *and* asynchronous (callback-driven) effects
 - Compatible with a single-threaded runtime
@@ -13,10 +13,10 @@ This project does *not* attempt to provide any tools for concurrency or parallel
 
 ## Usage
 
-The most current stable release of cats-effect is **0.2**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release, which will depend on cats-core 1.0 (when it is released).  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
+The most current stable release of cats-effect is **0.3**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release, which will depend on cats-core 1.0 (when it is released).  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "0.2"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "0.3"
 ```
 
 If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 0.9.
@@ -32,14 +32,14 @@ Please see [this document](https://github.com/typelevel/cats-effect/blob/master/
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Async`, `Sync` and `Effect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses.  For an example of this, see [`IOTests.scala`](https://github.com/djspiewak/cats-effect/blob/master/laws/shared/src/test/scala/cats/effect/IOTests.scala).
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.2" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.3" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
 
 ## API
 
-Most of the API documentation can be found [in the scaladoc](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.2/cats-effect_2.12-0.2-javadoc.jar/!/cats/effect/index.html).  To summarize though, the typeclass hierarchy looks something like this:
+Most of the API documentation can be found [in the scaladoc](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.3/cats-effect_2.12-0.3-javadoc.jar/!/cats/effect/index.html).  To summarize though, the typeclass hierarchy looks something like this:
 
 ![cats-effect typeclasses](https://docs.google.com/drawings/d/1JIxtfEPKxUp402l8mYYDj7tDuEdEFAiqvJJpeAXAwG0/pub?w=1027&h=1076)
 
