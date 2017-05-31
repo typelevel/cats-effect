@@ -274,6 +274,8 @@ libraryDependencies in ThisBuild ++= {
   }
 }
 
+useGpg := true
+
 enablePlugins(GitVersioning)
 
 val ReleaseTag = """^v([\d\.]+)$""".r
