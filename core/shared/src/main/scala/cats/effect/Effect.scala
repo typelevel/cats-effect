@@ -35,12 +35,6 @@ s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
 
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
-
-  override def liftIO[A](ioa: IO[A]): F[A] = {
-    // Implementation for `IO#to` depends on the `Async` type class,
-    // and not on `Effect`, so this shouldn't create a cyclic dependency
-    ioa.to[F](this)
-  }
 }
 
 private[effect] trait EffectInstances {

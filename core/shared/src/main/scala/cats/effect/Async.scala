@@ -45,8 +45,6 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
-  def liftIO[A](ioa: IO[A]): F[A] = ioa.to[F](this)
-
   /**
    * @see [[IO#shift]]
    */
@@ -56,6 +54,11 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
         def run() = cb(Right(()))
       })
     }
+  }
+
+  override def liftIO[A](ioa: IO[A]): F[A] = {
+    // Able to provide default with `IO#to`, given this `Async[F]`
+    ioa.to[F](this)
   }
 }
 
