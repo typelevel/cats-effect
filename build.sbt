@@ -220,7 +220,7 @@ lazy val lawsJS = laws.js
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "0.3"
+val BaseVersion = "0.4"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
