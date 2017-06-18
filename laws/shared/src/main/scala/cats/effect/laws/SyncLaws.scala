@@ -51,6 +51,30 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
     change >> change >> read <-> F.pure(f(f(a)))
   }
+
+  lazy val stackSafetyOnRepeatedLeftBinds = {
+    val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
+      acc.flatMap(_ => F.delay(()))
+    }
+
+    result <-> F.pure(())
+  }
+
+  lazy val stackSafetyOnRepeatedRightBinds = {
+    val result = (0 until 10000).foldRight(F.delay(())) { (_, acc) =>
+      F.delay(()).flatMap(_ => acc)
+    }
+
+    result <-> F.pure(())
+  }
+
+  lazy val stackSafetyOnRepeatedAttempts = {
+    val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
+      F.attempt(acc).map(_ => ())
+    }
+
+    result <-> F.pure(())
+  }
 }
 
 object SyncLaws {

@@ -19,6 +19,6 @@ package effect
 package laws
 package discipline
 
-private[discipline] trait EffectTestsPlatform {
+private[discipline] trait TestsPlatform {
   final def isJVM = false
 }

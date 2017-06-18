@@ -25,7 +25,7 @@ import cats.laws.discipline.CartesianTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
+trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with TestsPlatform {
   def laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -43,6 +43,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
       EqT: Eq[Throwable],
       EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherTA: Eq[F[Either[Throwable, A]]],
@@ -54,13 +55,23 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
       val name = "sync"
       val bases = Nil
       val parents = Seq(monadError[A, B, C])
-      val props = Seq(
+
+      val baseProps = Seq(
         "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
         "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
         "throw in suspend is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
         "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
         "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _))
+
+      val jvmProps = Seq(
+        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
+        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
+        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts))
+
+      val jsProps = Seq()
+
+      val props = baseProps ++ (if (isJVM) jvmProps else jsProps)
     }
   }
 }

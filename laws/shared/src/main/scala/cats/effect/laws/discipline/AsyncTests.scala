@@ -43,6 +43,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
       EqT: Eq[Throwable],
       EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherTA: Eq[F[Either[Throwable, A]]],

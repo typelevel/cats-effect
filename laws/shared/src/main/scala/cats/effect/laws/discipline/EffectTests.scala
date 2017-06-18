@@ -19,13 +19,12 @@ package effect
 package laws
 package discipline
 
-import cats.instances.all._
 import cats.laws.discipline._
 import cats.laws.discipline.CartesianTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait EffectTests[F[_]] extends AsyncTests[F] with EffectTestsPlatform {
+trait EffectTests[F[_]] extends AsyncTests[F] {
   def laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -43,6 +42,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] with EffectTestsPlatform {
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
       EqT: Eq[Throwable],
       EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherTA: Eq[F[Either[Throwable, A]]],
@@ -57,21 +57,12 @@ trait EffectTests[F[_]] extends AsyncTests[F] with EffectTestsPlatform {
       val bases = Nil
       val parents = Seq(async[A, B, C])
 
-      val baseProps = Seq(
+      val props = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
         "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
         "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _))
-
-      val jvmProps = Seq(
-        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
-        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
-        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts))
-
-      val jsProps = Seq.empty
-
-      val props = baseProps ++ (if (isJVM) jvmProps else jsProps)
     }
   }
 }
