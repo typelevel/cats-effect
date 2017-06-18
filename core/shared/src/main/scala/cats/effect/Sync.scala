@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
+import cats.data.{EitherT, OptionT, StateT, WriterT}
 import cats.effect.internals.NonFatal
 
 /**
@@ -80,9 +80,6 @@ private[effect] trait SyncInstances {
       }
     }
 
-  implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, ?]] =
-    new KleisliSync[F, R] { def F = Sync[F] }
-
   implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
     new OptionTSync[F] { def F = Sync[F] }
 
@@ -115,33 +112,6 @@ private[effect] trait SyncInstances {
       EitherT(F.suspend(thunk.value))
   }
 
-
-  private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
-
-    def pure[A](x: A): Kleisli[F, R, A] = Kleisli.pure(x)
-
-    // remove duplication when we upgrade to cats 1.0
-    def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] = {
-      Kleisli { r: R =>
-        F.handleErrorWith(fa.run(r))(e => f(e).run(r))
-      }
-    }
-
-    // remove duplication when we upgrade to cats 1.0
-    def raiseError[A](e: Throwable): Kleisli[F, R, A] =
-      Kleisli.lift(F.raiseError(e))
-
-    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
-      fa.flatMap(f)
-
-    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
-      Kleisli.catsDataMonadReaderForKleisli[F, R].tailRecM(a)(f)
-
-    def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli(r => F.suspend(thunk.run(r)))
-  }
 
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
     protected def F: Sync[F]

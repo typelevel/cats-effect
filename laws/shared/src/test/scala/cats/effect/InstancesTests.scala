@@ -27,7 +27,6 @@ import cats.implicits._
 import cats.laws.discipline.arbitrary.{
   catsLawsArbitraryForEitherT,
   catsLawsArbitraryForEval,
-  catsLawsArbitraryForKleisli,
   catsLawsArbitraryForOptionT,
   catsLawsArbitraryForWriterT
 }
@@ -49,9 +48,6 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => AsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
-
-  checkAllAsync("Kleisli[IO, Int, ?]",
-    implicit ec => AsyncTests[Kleisli[IO, Int, ?]].async[Int, Int, Int])
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => EffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
