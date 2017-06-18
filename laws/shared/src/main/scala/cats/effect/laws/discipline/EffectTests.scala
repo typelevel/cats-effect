@@ -50,7 +50,6 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       EqFInt: Eq[F[Int]],
       EqIOA: Eq[IO[A]],
       EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-      EqIOEitherEitherTA: Eq[IO[Either[Throwable, Either[Throwable, A]]]],
       iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
       val name = "effect"
@@ -60,9 +59,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       val props = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
-        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
-        "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _))
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
     }
   }
 }

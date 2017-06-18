@@ -54,25 +54,6 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
 
     test >> readResult <-> IO.pure(f(a))
   }
-
-  // the following law(s) should really be on MonadError
-  def propagateErrorsThroughBindSuspend[A](t: Throwable) = {
-    val fa = F.attempt(F.delay[A](throw t).flatMap(x => F.pure(x)))
-
-    var result: Either[Throwable, Either[Throwable, A]] = Left(new AssertionError)
-    val read = IO { result }
-
-    F.runAsync(fa)(e => IO { result = e }) >> read <-> IO.pure(Right(Left(t)))
-  }
-
-  def propagateErrorsThroughBindAsync[A](t: Throwable) = {
-    val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
-
-    var result: Either[Throwable, Either[Throwable, A]] = Left(new AssertionError)
-    val read = IO { result }
-
-    F.runAsync(fa)(e => IO { result = e }) >> read <-> IO.pure(Right(Left(t)))
-  }
 }
 
 object EffectLaws {

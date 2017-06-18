@@ -42,6 +42,12 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
 
     change >> change >> read <-> F.pure(f(f(a)))
   }
+
+  def propagateErrorsThroughBindAsync[A](t: Throwable) = {
+    val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
+
+    fa <-> F.pure(Left(t))
+  }
 }
 
 object AsyncLaws {
