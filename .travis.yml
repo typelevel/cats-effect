@@ -10,7 +10,7 @@ matrix:
       scala: 2.11.11
       env: COVERAGE=coverage
     - jdk: oraclejdk8
-      scala: 2.12.2
+      scala: 2.12.3
       env: COVERAGE=
 
 script:
