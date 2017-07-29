@@ -177,7 +177,7 @@ private[effect] trait SyncInstances {
       fa.flatMap(f)
 
     def tailRecM[A, B](a: A)(f: A => WriterT[F, L, Either[A, B]]): WriterT[F, L, B] =
-      WriterT.catsDataMonadWriterForWriterT[F, L].tailRecM(a)(f)
+      WriterT.catsDataMonadForWriterT[F, L].tailRecM(a)(f)
 
     def suspend[A](thunk: => WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(F.suspend(thunk.run))

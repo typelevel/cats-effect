@@ -21,7 +21,7 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 organization in ThisBuild := "org.typelevel"
 
-val CatsVersion = "0.9.0"
+val CatsVersion = "1.0.0-MF"
 val SimulacrumVersion = "0.10.0"
 
 val ScalaTestVersion = "3.0.1"

@@ -33,6 +33,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with TestsPlatform {
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbT: Arbitrary[Throwable],

@@ -33,6 +33,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbT: Arbitrary[Throwable],
