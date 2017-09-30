@@ -47,7 +47,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
 
   def repeatedCallbackIgnored[A](a: A, f: A => A) = {
     var cur = a
-    val change = F.delay(cur = f(cur))
+    val change = F delay { cur = f(cur) }
     val readResult = IO { cur }
 
     val double: F[Unit] = F async { cb =>

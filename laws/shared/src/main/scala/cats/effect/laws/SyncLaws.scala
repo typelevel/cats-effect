@@ -38,7 +38,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
     var cur = a
-    val change = F.delay(cur = f(cur))
+    val change = F delay { cur = f(cur) }
     val _ = change
 
     F.delay(cur) <-> F.pure(a)
@@ -46,7 +46,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
 
   def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a
-    val change = F.delay(cur = f(cur))
+    val change = F delay { cur = f(cur) }
     val read = F.delay(cur)
 
     change >> change >> read <-> F.pure(f(f(a)))

@@ -56,14 +56,14 @@ final class TestContext private () extends ExecutionContext {
   private[this] var stateRef = State(Queue.empty, None)
 
   def execute(r: Runnable): Unit =
-    synchronized(stateRef = stateRef.copy(
-      tasks = stateRef.tasks.enqueue(r)
-    ))
+    synchronized {
+      stateRef = stateRef.copy(tasks = stateRef.tasks.enqueue(r))
+    }
 
   def reportFailure(cause: Throwable): Unit =
-    synchronized(stateRef = stateRef.copy(
-      lastReportedFailure = Some(cause)
-    ))
+    synchronized {
+      stateRef = stateRef.copy(lastReportedFailure = Some(cause))
+    }
 
   /**
    * Returns the internal state of the `TestContext`, useful for testing
@@ -92,9 +92,9 @@ final class TestContext private () extends ExecutionContext {
       val batch = Random.shuffle(queue)
       for (r <- batch) try r.run() catch {
         case NonFatal(ex) =>
-          synchronized(stateRef = stateRef.copy(
-            lastReportedFailure = Some(ex)
-          ))
+          synchronized {
+            stateRef = stateRef.copy(lastReportedFailure = Some(ex))
+          }
       }
 
       tick() // Next cycle please
