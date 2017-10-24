@@ -515,6 +515,12 @@ object IO extends IOInstances {
   }
 
   /**
+   * Raises an Either[Throwable, A] into the context IO[A] raising the throwable
+   * if it exists.
+   */
+  def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
+
+  /**
    * Shifts the bind continuation of the `IO` onto the specified thread
    * pool.
    *
