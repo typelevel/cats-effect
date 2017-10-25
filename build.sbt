@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import de.heikoseeberger.sbtheader.license.Apache2_0
-
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 organization in ThisBuild := "org.typelevel"
+organizationName in ThisBuild := "Typelevel"
+startYear in ThisBuild := Some(2017)
 
 val CatsVersion = "1.0.0-MF"
 val SimulacrumVersion = "0.10.0"
@@ -62,10 +62,6 @@ val commonSettings = Seq(
   unmanagedClasspath in Compile ++= update.value.select(configurationFilter("compile-time")),
 
   logBuffered in Test := false,
-
-  headers := Map(
-    "scala" -> Apache2_0("2017", "Typelevel"),
-    "java" -> Apache2_0("2017", "Typelevel")),
 
   isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
 
