@@ -71,6 +71,24 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Failure(dummy))
   }
 
+  test("fromEither handles Throwable in Left Projection") {
+    case object Foo extends Exception
+    val e : Either[Throwable, Nothing] = Left(Foo)
+
+    IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+      case Left(Foo) => ()
+    }
+  }
+
+  test("fromEither handles a Value in Right Projection") {
+    case class Foo(x: Int)
+    val e : Either[Throwable, Foo] = Right(Foo(1))
+
+    IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+      case Right(Foo(_)) => ()
+    }
+  }
+
   testAsync("shift works for success") { implicit ec =>
     val expected = IO.shift.flatMap(_ => IO(1)).unsafeToFuture()
     expected.value shouldEqual None
