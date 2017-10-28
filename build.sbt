@@ -68,6 +68,12 @@ val commonSettings = Seq(
 
   isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
 
+  publishTo := Some(
+    if (isSnapshot.value)
+      Opts.resolver.sonatypeSnapshots
+    else
+      Opts.resolver.sonatypeStaging),
+
   publishMavenStyle := true,
   pomIncludeRepository := { _ => false },
 
@@ -139,9 +145,11 @@ lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(
+    skip in publish := true,
     publish := (()),
     publishLocal := (()),
-    publishArtifact := false)
+    publishArtifact := false,
+    publishTo := None)
 
 lazy val core = crossProject.in(file("core"))
   .settings(commonSettings: _*)
