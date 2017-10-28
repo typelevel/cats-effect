@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-import de.heikoseeberger.sbtheader.license.Apache2_0
-
+import scala.sys.process._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 
 organization in ThisBuild := "org.typelevel"
+organizationName in ThisBuild := "Typelevel"
+startYear in ThisBuild := Some(2017)
+
+val CompileTime = config("CompileTime").hide
 
 val CatsVersion = "1.0.0-MF"
 val SimulacrumVersion = "0.10.0"
@@ -58,14 +61,10 @@ val commonSettings = Seq(
   },
 
   // credit: https://github.com/typelevel/cats/pull/1638
-  ivyConfigurations += config("compile-time").hide,
-  unmanagedClasspath in Compile ++= update.value.select(configurationFilter("compile-time")),
+  ivyConfigurations += CompileTime,
+  unmanagedClasspath in Compile ++= update.value.select(configurationFilter("CompileTime")),
 
   logBuffered in Test := false,
-
-  headers := Map(
-    "scala" -> Apache2_0("2017", "Typelevel"),
-    "java" -> Apache2_0("2017", "Typelevel")),
 
   isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
 
@@ -140,8 +139,8 @@ lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(
-    publish := (),
-    publishLocal := (),
+    publish := (()),
+    publishLocal := (()),
     publishArtifact := false)
 
 lazy val core = crossProject.in(file("core"))
@@ -151,7 +150,7 @@ lazy val core = crossProject.in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
-      "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % "compile-time",
+      "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
 
       "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion  % "test",
