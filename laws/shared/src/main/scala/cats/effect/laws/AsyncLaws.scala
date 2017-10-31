@@ -40,7 +40,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
 
     val read: F[A] = F.delay(cur)
 
-    change >> change >> read <-> F.pure(f(f(a)))
+    change *> change *> read <-> F.pure(f(f(a)))
   }
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {

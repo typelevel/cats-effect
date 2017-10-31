@@ -21,7 +21,7 @@ package discipline
 
 import cats.data._
 import cats.laws.discipline._
-import cats.laws.discipline.CartesianTests.Isomorphisms
+import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 

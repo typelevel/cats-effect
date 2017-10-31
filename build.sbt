@@ -24,12 +24,12 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.0.0-MF"
-val SimulacrumVersion = "0.10.0"
+val CatsVersion = "1.0.0-RC1"
+val SimulacrumVersion = "0.11.0"
 
-val ScalaTestVersion = "3.0.1"
-val ScalaCheckVersion = "1.13.4"
-val DisciplineVersion = "0.7.3"
+val ScalaTestVersion = "3.0.4"
+val ScalaCheckVersion = "1.13.5"
+val DisciplineVersion = "0.8"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll")

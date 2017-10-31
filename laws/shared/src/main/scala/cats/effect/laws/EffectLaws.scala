@@ -29,7 +29,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     var result: Option[Either[Throwable, A]] = None
     val read = IO { result.get }
 
-    F.runAsync(fa)(e => IO { result = Some(e) }) >> read <-> IO.pure(Right(a))
+    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Right(a))
   }
 
   def runAsyncRaiseErrorProducesLeftIO[A](e: Throwable) = {
@@ -37,7 +37,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     var result: Option[Either[Throwable, A]] = None
     val read = IO { result.get }
 
-    F.runAsync(fa)(e => IO { result = Some(e) }) >> read <-> IO.pure(Left(e))
+    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Left(e))
   }
 
   def runAsyncIgnoresErrorInHandler[A](e: Throwable) = {
@@ -55,9 +55,9 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
       cb(Right(()))
     }
 
-    val test = F.runAsync(double >> change) { _ => IO.unit }
+    val test = F.runAsync(double *> change) { _ => IO.unit }
 
-    test >> readResult <-> IO.pure(f(a))
+    test *> readResult <-> IO.pure(f(a))
   }
 }
 
