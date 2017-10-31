@@ -16,16 +16,17 @@
 
 package cats
 package effect
+package laws
+package discipline
 
 import org.scalacheck._
+import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
 
 import scala.concurrent.Future
 import scala.util.Either
 
-object Generators {
-  import Arbitrary._
-
-  implicit def arbIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
+object arbitrary {
+  implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
@@ -47,30 +48,30 @@ object Generators {
   }
 
   def genPure[A: Arbitrary]: Gen[IO[A]] =
-    arbitrary[A].map(IO.pure)
+    getArbitrary[A].map(IO.pure)
 
   def genApply[A: Arbitrary]: Gen[IO[A]] =
-    arbitrary[A].map(IO.apply(_))
+    getArbitrary[A].map(IO.apply(_))
 
   def genFail[A]: Gen[IO[A]] =
-    arbitrary[Throwable].map(IO.raiseError)
+    getArbitrary[Throwable].map(IO.raiseError)
 
   def genAsync[A: Arbitrary]: Gen[IO[A]] =
-    arbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)
+    getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)
 
   def genNestedAsync[A: Arbitrary: Cogen]: Gen[IO[A]] =
-    arbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]
+    getArbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]
       .map(k => IO.async(k).flatMap(x => x))
 
   def genBindSuspend[A: Arbitrary: Cogen]: Gen[IO[A]] =
-    arbitrary[A].map(IO.apply(_).flatMap(IO.pure))
+    getArbitrary[A].map(IO.apply(_).flatMap(IO.pure))
 
   def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
-      ioa <- arbitrary[IO[A]]
-      f <- arbitrary[A => IO[A]]
+      ioa <- getArbitrary[IO[A]]
+      f <- getArbitrary[A => IO[A]]
     } yield ioa.flatMap(f)
 
-  implicit def cogenIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
+  implicit def catsEffectLawsCogenForIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
     cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture)
 }
