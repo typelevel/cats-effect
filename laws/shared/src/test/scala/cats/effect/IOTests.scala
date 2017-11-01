@@ -21,6 +21,7 @@ import cats.Eval.always
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -31,7 +32,6 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
-  import Generators._
 
   checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
