@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, OptionT, StateT, WriterT}
+import cats.data.{EitherT, IndexedStateT, OptionT, StateT, WriterT}
 import cats.effect.internals.NonFatal
 
 /**
@@ -100,7 +100,7 @@ private[effect] trait SyncInstances {
       EitherT(F.handleErrorWith(fa.value)(f.andThen(_.value)))
 
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
-      EitherT.liftT(F.raiseError(e))
+      EitherT.liftF(F.raiseError(e))
 
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
       fa.flatMap(f)
@@ -152,7 +152,7 @@ private[effect] trait SyncInstances {
 
     // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
     def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
-      StateT.catsDataMonadForStateT[F, S].tailRecM(a)(f)
+      IndexedStateT.catsDataMonadForIndexedStateT[F, S].tailRecM(a)(f)
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
       StateT.applyF(F.suspend(thunk.runF))

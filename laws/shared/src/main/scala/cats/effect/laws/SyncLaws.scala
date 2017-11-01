@@ -49,7 +49,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
     val change = F delay { cur = f(cur) }
     val read = F.delay(cur)
 
-    change >> change >> read <-> F.pure(f(f(a)))
+    change *> change *> read <-> F.pure(f(f(a)))
   }
 
   def propagateErrorsThroughBindSuspend[A](t: Throwable) = {

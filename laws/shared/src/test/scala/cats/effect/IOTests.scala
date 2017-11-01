@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.laws.discipline.EffectTests
 import cats.implicits._
-import cats.kernel.laws.GroupLaws
+import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
@@ -34,7 +34,7 @@ class IOTests extends BaseTestsSuite {
   import Generators._
 
   checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
-  checkAllAsync("IO", implicit ec => GroupLaws[IO[Int]].monoid)
+  checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
 
   test("defer evaluation until run") {
     var run = false

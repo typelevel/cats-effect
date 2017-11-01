@@ -54,7 +54,7 @@ private[effect] trait LiftIOInstances {
     private implicit def _FF = FF
 
     override def liftIO[A](ioa: IO[A]): EitherT[F, L, A] =
-      EitherT.liftT(F.liftIO(ioa))
+      EitherT.liftF(F.liftIO(ioa))
   }
 
   private[effect] trait KleisliLiftIO[F[_], R] extends LiftIO[Kleisli[F, R, ?]] {

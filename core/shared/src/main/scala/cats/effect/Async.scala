@@ -86,7 +86,7 @@ private[effect] trait AsyncInstances {
     protected def FF = F
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
-      EitherT.liftT(F.async(k))
+      EitherT.liftF(F.async(k))
   }
 
   private[effect] trait OptionTAsync[F[_]]
