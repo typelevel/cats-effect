@@ -403,9 +403,9 @@ object IO extends IOInstances {
    * instances will be converted into thunk-less `IO` (i.e. eager
    * `IO`), while lazy eval and memoized will be executed as such.
    */
-  def eval[A](effect: Eval[A]): IO[A] = effect match {
+  def eval[A](fa: Eval[A]): IO[A] = fa match {
     case Now(a) => pure(a)
-    case effect => apply(effect.value)
+    case notNow => apply(notNow.value)
   }
 
   /**
@@ -467,26 +467,20 @@ object IO extends IOInstances {
    * produces the result (or failure).
    *
    * Because `Future` eagerly evaluates, as well as because it
-   * memoizes, this function takes its parameter as a `cats.Eval`,
+   * memoizes, this function takes its parameter as an `IO`,
    * which could be lazily evaluated.  If this laziness is
    * appropriately threaded back to the definition site of the
    * `Future`, it ensures that the computation is fully managed by
    * `IO` and thus referentially transparent.
    *
-   * The `cats.Eval` type allows fine grained control of how the
-   * passed `Future` reference gets evaluated. Example:
+   * Example:
    *
    * {{{
-   *   import cats.Eval.{always, later, now}
-   *
    *   // Lazy evaluation, equivalent with by-name params
-   *   IO.fromFuture(always(f))
+   *   IO.fromFuture(IO(f))
    *
-   *   // Memoized, lazy evaluation, equivalent with lazy val
-   *   IO.fromFuture(later(f))
-   *
-   *   // Eager evaluation
-   *   IO.fromFuture(now(f))
+   *   // Eager evaluation, for pure futures
+   *   IO.fromFuture(IO.pure(f))
    * }}}
    *
    * Note that the ''continuation'' of the computation resulting from
@@ -497,17 +491,17 @@ object IO extends IOInstances {
    * Roughly speaking, the following identities hold:
    *
    * {{{
-   * IO.fromFuture(always(f)).unsafeToFuture() === f // true-ish (except for memoization)
-   * IO.fromFuture(always(ioa.unsafeToFuture())) === ioa // true
+   * IO.fromFuture(IO(f)).unsafeToFuture() === f // true-ish (except for memoization)
+   * IO.fromFuture(IO(ioa.unsafeToFuture())) === ioa // true
    * }}}
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](f: Eval[Future[A]])(implicit ec: ExecutionContext): IO[A] = {
+  def fromFuture[A](iof: IO[Future[A]])(implicit ec: ExecutionContext): IO[A] = iof flatMap { f =>
     IO async { cb =>
       import scala.util.{Success, Failure}
 
-      f.value onComplete {
+      f onComplete {
         case Failure(e) => cb(Left(e))
         case Success(a) => cb(Right(a))
       }

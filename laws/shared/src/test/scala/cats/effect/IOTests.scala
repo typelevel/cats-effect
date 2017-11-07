@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.Eval.always
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.laws.discipline.EffectTests
@@ -145,29 +144,41 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("fromFuture works for values") { implicit ec =>
     check { (a: Int, f: Int => Long) =>
-      IO.fromFuture(always(Future(f(a)))) <-> IO(f(a))
+      IO.fromFuture(IO(Future(f(a)))) <-> IO(f(a))
+    }
+  }
+
+  testAsync("fromFuture works for successful completed futures") { implicit ec =>
+    check { (a: Int) =>
+      IO.fromFuture(IO.pure(Future.successful(a))) <-> IO.pure(a)
     }
   }
 
   testAsync("fromFuture works for exceptions") { implicit ec =>
     check { (ex: Throwable) =>
-      val io = IO.fromFuture[Int](always(Future(throw ex)))
+      val io = IO.fromFuture[Int](IO(Future(throw ex)))
       io <-> IO.raiseError[Int](ex)
     }
   }
 
-  testAsync("fromFuture(always) protects against user code") { implicit ec =>
+  testAsync("fromFuture works for failed completed futures") { implicit ec =>
     check { (ex: Throwable) =>
-      val io = IO.fromFuture[Int](always(throw ex))
+      IO.fromFuture[Int](IO.pure(Future.failed(ex))) <-> IO.raiseError[Int](ex)
+    }
+  }
+
+  testAsync("fromFuture protects against user code") { implicit ec =>
+    check { (ex: Throwable) =>
+      val io = IO.fromFuture[Int](IO(throw ex))
       io <-> IO.raiseError[Int](ex)
     }
   }
 
-  testAsync("fromFuture(always) suspends side-effects") { implicit ec =>
+  testAsync("fromFuture suspends side-effects") { implicit ec =>
     check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
       var effect = a
-      val io1 = IO.fromFuture(always(Future { effect = f(effect, a) }))
-      val io2 = IO.fromFuture(always(Future { effect = g(effect, a) }))
+      val io1 = IO.fromFuture(IO(Future { effect = f(effect, a) }))
+      val io2 = IO.fromFuture(IO(Future { effect = g(effect, a) }))
 
       io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
     }
