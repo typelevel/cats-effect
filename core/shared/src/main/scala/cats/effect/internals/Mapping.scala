@@ -40,18 +40,17 @@ private[effect] abstract class Mapping[-A, +R]
 }
 
 private[effect] object Mapping {
-  /** Builds a [[Mapping]] instance. */
   def apply[A, R](fa: A => R, fe: Throwable => R): Mapping[A, R] =
     new Fold(fa, fe)
 
-  /** Builds a [[Mapping]] instance that maps errors,
-    * otherwise mirroring successful values (identity).
+  /** Builds a [[Mapping]] instance that maps errors, but that isn't
+    * defined for successful values (a partial function)
     */
   def onError[R](fe: Throwable => R): Mapping[Any, R] =
     new OnError(fe)
 
-  /** [[Mapping]] reference that only handles errors,
-    * useful for quick filtering of `onErrorHandleWith` frames.
+  /** [[Mapping]] reference that only handles errors, useful for
+    * quick filtering of `onErrorHandleWith` frames.
     */
   final class OnError[+R](fe: Throwable => R)
     extends Mapping[Any, R] {
