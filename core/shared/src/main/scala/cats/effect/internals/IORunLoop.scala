@@ -21,7 +21,7 @@ import cats.effect.IO.{Async, Bind, Pure, RaiseError, Suspend}
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayStack
 
-private[effect] object RunLoop {
+private[effect] object IORunLoop {
   /** Evaluates the given `IO` reference, calling the given callback
     * with the result when completed.
     */
@@ -82,7 +82,7 @@ private[effect] object RunLoop {
         findErrorHandler(bFirst, bRest) match {
           case null => cb(Left(ex))
           case bind =>
-            val fa = try bind.error(ex) catch { case NonFatal(e) => RaiseError(e) }
+            val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
             // Next cycle please
             loop(fa, cb, rcb, null, bRest)
         }
@@ -140,7 +140,7 @@ private[effect] object RunLoop {
         findErrorHandler(bFirst, bRest) match {
           case null => ref
           case bind =>
-            val fa = try bind.error(ex) catch {
+            val fa = try bind.recover(ex) catch {
               case NonFatal(e) => RaiseError(e)
             }
             // Next cycle please
@@ -167,13 +167,13 @@ private[effect] object RunLoop {
     * anything — an optimization for `handleError`.
     */
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
-    if ((bFirst ne null) && !bFirst.isInstanceOf[Mapping.OnError[_]])
+    if ((bFirst ne null) && !bFirst.isInstanceOf[IOFrame.ErrorHandler[_]])
       bFirst
     else if (bRest != null) {
       var cursor: Bind = null
       while (cursor == null && bRest.nonEmpty) {
         val ref = bRest.pop()
-        if (!ref.isInstanceOf[Mapping.OnError[_]]) cursor = ref
+        if (!ref.isInstanceOf[IOFrame.ErrorHandler[_]]) cursor = ref
       }
       cursor
     } else {
@@ -181,17 +181,17 @@ private[effect] object RunLoop {
     }
   }
 
-  /** Finds a [[Mapping]] capable of handling errors in our bind
+  /** Finds a [[IOFrame]] capable of handling errors in our bind
     * call-stack, invoked after a `RaiseError` is observed.
     */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): Mapping[Any, IO[Any]] = {
-    var result: Mapping[Any, IO[Any]] = null
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): IOFrame[Any, IO[Any]] = {
+    var result: IOFrame[Any, IO[Any]] = null
     var cursor = bFirst
     var continue = true
 
     while (continue) {
-      if (cursor != null && cursor.isInstanceOf[Mapping[_, _]]) {
-        result = cursor.asInstanceOf[Mapping[Any, IO[Any]]]
+      if (cursor != null && cursor.isInstanceOf[IOFrame[_, _]]) {
+        result = cursor.asInstanceOf[IOFrame[Any, IO[Any]]]
         continue = false
       } else {
         cursor = if (bRest != null && bRest.nonEmpty) bRest.pop() else null

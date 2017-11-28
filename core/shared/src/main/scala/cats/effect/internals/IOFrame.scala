@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-/** A mapping function type that is also able to handle errors,
+/** A mapping function that is also able to handle errors,
   * being the equivalent of:
   *
   * ```
@@ -26,44 +26,44 @@ package cats.effect.internals
   * Internal to `IO`'s implementations, used to specify
   * error handlers in their respective `Bind` internal states.
   */
-private[effect] abstract class Mapping[-A, +R]
+private[effect] abstract class IOFrame[-A, +R]
   extends (A => R) { self =>
 
   def apply(a: A): R
-  def error(e: Throwable): R
+  def recover(e: Throwable): R
 
-  final def choose(value: Either[Throwable, A]): R =
+  final def fold(value: Either[Throwable, A]): R =
     value match {
       case Right(a) => apply(a)
-      case Left(e) => error(e)
+      case Left(e) => recover(e)
     }
 }
 
-private[effect] object Mapping {
-  def apply[A, R](fa: A => R, fe: Throwable => R): Mapping[A, R] =
+private[effect] object IOFrame {
+  def apply[A, R](fa: A => R, fe: Throwable => R): IOFrame[A, R] =
     new Fold(fa, fe)
 
-  /** Builds a [[Mapping]] instance that maps errors, but that isn't
+  /** Builds a [[IOFrame]] instance that maps errors, but that isn't
     * defined for successful values (a partial function)
     */
-  def onError[R](fe: Throwable => R): Mapping[Any, R] =
-    new OnError(fe)
+  def errorHandler[R](fe: Throwable => R): IOFrame[Any, R] =
+    new ErrorHandler(fe)
 
-  /** [[Mapping]] reference that only handles errors, useful for
+  /** [[IOFrame]] reference that only handles errors, useful for
     * quick filtering of `onErrorHandleWith` frames.
     */
-  final class OnError[+R](fe: Throwable => R)
-    extends Mapping[Any, R] {
+  final class ErrorHandler[+R](fe: Throwable => R)
+    extends IOFrame[Any, R] {
 
-    def error(e: Throwable): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
     def apply(a: Any): R =
-      throw new NotImplementedError("Transformation.OnError.success")
+      throw new NotImplementedError("IOFrame protocol breach")
   }
 
   private final class Fold[-A, +R](fa: A => R, fe: Throwable => R)
-    extends Mapping[A, R] {
+    extends IOFrame[A, R] {
 
     def apply(a: A): R = fa(a)
-    def error(e: Throwable): R = fe(e)
+    def recover(e: Throwable): R = fe(e)
   }
 }

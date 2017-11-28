@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOPlatform, Mapping, NonFatal, RunLoop}
+import cats.effect.internals.{IOPlatform, IOFrame, NonFatal, IORunLoop}
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -126,7 +126,7 @@ sealed abstract class IO[+A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[Mapping[A, IO[Either[Throwable, A]]]], null)
+    Bind(this, AttemptIO.asInstanceOf[IOFrame[A, IO[Either[Throwable, A]]]], null)
 
   /**
    * Produces an `IO` reference that is guaranteed to be safe to run
@@ -181,7 +181,7 @@ sealed abstract class IO[+A] {
    * function ''once'', at the very end of your program.
    */
   final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit =
-    RunLoop.start(this, cb)
+    IORunLoop.start(this, cb)
 
   /**
    * Similar to `unsafeRunSync`, except with a bounded blocking
@@ -210,7 +210,7 @@ sealed abstract class IO[+A] {
    * @see [[unsafeRunSync]]
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
-    RunLoop.step(this) match {
+    IORunLoop.step(this) match {
       case Pure(a) => Some(a)
       case RaiseError(e) => throw e
       case self @ Async(_) =>
@@ -248,10 +248,10 @@ sealed abstract class IO[+A] {
       case Async(k) => F.async(k)
       case ref @ Bind(source, _, _) =>
         ref.function match {
-          case m: Mapping[_, _] =>
+          case m: IOFrame[_, _] =>
             val lh = F.attempt(F.suspend(source.to[F]))
-            val f = m.asInstanceOf[Mapping[Any, IO[A]]]
-            F.flatMap(lh)(e => f.choose(e).to[F])
+            val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
+            F.flatMap(lh)(e => f.fold(e).to[F])
           case f =>
             F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
         }
@@ -562,18 +562,18 @@ object IO extends IOInstances {
 
     def function: E => IO[A] = {
       if (g eq null) f
-      else if (f eq null) Mapping.onError(g)
-      else Mapping(f, g)
+      else if (f eq null) IOFrame.errorHandler(g)
+      else IOFrame(f, g)
     }
   }
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
     * in order to avoid extraneous memory allocations.
     */
-  private object AttemptIO extends Mapping[Any, IO[Either[Throwable, Any]]] {
+  private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {
     override def apply(a: Any) =
       Pure(Right(a))
-    override def error(e: Throwable) =
+    override def recover(e: Throwable) =
       Pure(Left(e))
   }
 }
