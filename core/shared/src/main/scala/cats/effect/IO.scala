@@ -247,7 +247,7 @@ sealed abstract class IO[+A] {
       case Suspend(thunk) => F.suspend(thunk().to[F])
       case Async(k) => F.async(k)
       case ref @ Bind(source, _, _) =>
-        ref.function match {
+        ref.frame match {
           case m: IOFrame[_, _] =>
             val lh = F.attempt(F.suspend(source.to[F]))
             val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
@@ -560,7 +560,7 @@ object IO extends IOInstances {
     source: IO[E], f: E => IO[A], g: Throwable => IO[A])
     extends IO[A] {
 
-    def function: E => IO[A] = {
+    def frame: E => IO[A] = {
       if (g eq null) f
       else if (f eq null) IOFrame.errorHandler(g)
       else IOFrame(f, g)

@@ -55,7 +55,7 @@ private[effect] object IORunLoop {
     source match {
       case ref @ Bind(fa, _, _) =>
         var callStack: CallStack = bRest
-        val bindNext = ref.function
+        val bindNext = ref.frame
 
         if (bFirst ne null) {
           if (callStack eq null) callStack = new ArrayStack()
@@ -109,7 +109,7 @@ private[effect] object IORunLoop {
     source match {
       case ref @ Bind(fa, _, _) =>
         var callStack: CallStack = bRest
-        val bindNext = ref.function
+        val bindNext = ref.frame
 
         if (bFirst ne null) {
           if (callStack eq null) callStack = new ArrayStack()
