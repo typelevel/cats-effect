@@ -69,12 +69,13 @@ trait TestInstances {
 
       // Unwraps exceptions that got caught by Future's implementation
       // and that got wrapped in ExecutionException (`Future(throw ex)`)
-      def extractEx(ex: Throwable): Throwable =
-        ex match {
-          case ref: ExecutionException =>
-            Option(ref.getCause).getOrElse(ref)
-          case _ => ex
+      def extractEx(ex: Throwable): String = {
+        var ref = ex
+        while (ref.isInstanceOf[ExecutionException] && ref.getCause != null) {
+          ref = ref.getCause
         }
+        s"${ref.getClass.getName}: ${ref.getMessage}"
+      }
     }
 }
 
