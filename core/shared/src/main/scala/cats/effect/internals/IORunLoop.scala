@@ -160,7 +160,7 @@ private[effect] object IORunLoop {
   }
 
   /** Pops the next bind function from the stack, but filters out
-    * `Mapping.OnError` references, because we know they won't do
+    * `IOFrame.ErrorHandler` references, because we know they won't do
     * anything — an optimization for `handleError`.
     */
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
