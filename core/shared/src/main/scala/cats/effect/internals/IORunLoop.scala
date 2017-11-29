@@ -18,7 +18,6 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, Pure, RaiseError, Suspend}
-
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayStack
 
@@ -119,17 +118,13 @@ private[effect] object IORunLoop {
         popNextBind(bFirst, bRest) match {
           case null => ref
           case bind =>
-            val fa = try bind(value) catch {
-              case NonFatal(ex) => RaiseError(ex)
-            }
+            val fa = try bind(value) catch { case NonFatal(ex) => RaiseError(ex) }
             // Next iteration please
             step(fa, null, bRest)
         }
 
       case Suspend(thunk) =>
-        val fa = try thunk() catch {
-          case NonFatal(ex) => RaiseError(ex)
-        }
+        val fa = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
         // Next iteration please
         step(fa, bFirst, bRest)
 
@@ -137,9 +132,7 @@ private[effect] object IORunLoop {
         findErrorHandler(bFirst, bRest) match {
           case null => ref
           case bind =>
-            val fa = try bind.recover(ex) catch {
-              case NonFatal(e) => RaiseError(e)
-            }
+            val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
             // Next cycle please
             step(fa, null, bRest)
         }

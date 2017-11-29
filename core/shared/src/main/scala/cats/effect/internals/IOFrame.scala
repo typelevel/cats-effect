@@ -40,9 +40,6 @@ private[effect] abstract class IOFrame[-A, +R]
 }
 
 private[effect] object IOFrame {
-  def apply[A, R](fa: A => R, fe: Throwable => R): IOFrame[A, R] =
-    new Fold(fa, fe)
-
   /** Builds a [[IOFrame]] instance that maps errors, but that isn't
     * defined for successful values (a partial function)
     */
@@ -56,14 +53,10 @@ private[effect] object IOFrame {
     extends IOFrame[Any, R] {
 
     def recover(e: Throwable): R = fe(e)
-    def apply(a: Any): R =
+    def apply(a: Any): R = {
+      // $COVERAGE-OFF$
       throw new NotImplementedError("IOFrame protocol breach")
-  }
-
-  private final class Fold[-A, +R](fa: A => R, fe: Throwable => R)
-    extends IOFrame[A, R] {
-
-    def apply(a: A): R = fa(a)
-    def recover(e: Throwable): R = fe(e)
+      // $COVERAGE-ON$
+    }
   }
 }

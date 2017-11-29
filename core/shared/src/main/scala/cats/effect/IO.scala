@@ -218,7 +218,9 @@ sealed abstract class IO[+A] {
       case self @ Async(_) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
+        // $COVERAGE-OFF$
         throw new AssertionError("unreachable")
+        // $COVERAGE-ON$
     }
 
   /**
