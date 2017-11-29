@@ -17,7 +17,9 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOPlatform, IOFrame, NonFatal, IORunLoop}
+import cats.effect.internals.IOFrame.ErrorHandler
+import cats.effect.internals.{IOFrame, IOPlatform, IORunLoop, NonFatal}
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -110,7 +112,7 @@ sealed abstract class IO[+A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
-    Bind(this, f, null)
+    Bind(this, f)
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -126,7 +128,7 @@ sealed abstract class IO[+A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[IOFrame[A, IO[Either[Throwable, A]]]], null)
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
 
   /**
    * Produces an `IO` reference that is guaranteed to be safe to run
@@ -246,12 +248,19 @@ sealed abstract class IO[+A] {
       case RaiseError(e) => F.raiseError(e)
       case Suspend(thunk) => F.suspend(thunk().to[F])
       case Async(k) => F.async(k)
-      case ref @ Bind(source, _, _) =>
-        ref.frame match {
+      case Bind(source, frame) =>
+        frame match {
           case m: IOFrame[_, _] =>
-            val lh = F.attempt(F.suspend(source.to[F]))
-            val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
-            F.flatMap(lh)(e => f.fold(e).to[F])
+            if (!m.isInstanceOf[ErrorHandler[_]]) {
+              val lh = F.attempt(F.suspend(source.to[F]))
+              val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
+              F.flatMap(lh)(e => f.fold(e).to[F])
+            } else {
+              val lh = F.suspend(source.to[F]).asInstanceOf[F[A]]
+              F.handleErrorWith(lh) { e =>
+                m.asInstanceOf[ErrorHandler[IO[A]]].recover(e).to[F]
+              }
+            }
           case f =>
             F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
         }
@@ -291,7 +300,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] = ioa.attempt
 
     def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      IO.Bind(ioa, null, f)
+      IO.Bind(ioa, IOFrame.errorHandler(f))
 
     def raiseError[A](e: Throwable): IO[A] = IO.raiseError(e)
 
@@ -555,17 +564,8 @@ object IO extends IOInstances {
     extends IO[A]
   private[effect] final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
-
-  private[effect] final case class Bind[E, +A](
-    source: IO[E], f: E => IO[A], g: Throwable => IO[A])
-    extends IO[A] {
-
-    def frame: E => IO[A] = {
-      if (g eq null) f
-      else if (f eq null) IOFrame.errorHandler(g)
-      else IOFrame(f, g)
-    }
-  }
+  private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
+    extends IO[A]
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
     * in order to avoid extraneous memory allocations.

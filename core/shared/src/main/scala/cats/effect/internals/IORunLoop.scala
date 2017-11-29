@@ -18,6 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, Pure, RaiseError, Suspend}
+
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayStack
 
@@ -53,10 +54,8 @@ private[effect] object IORunLoop {
     bRest: CallStack): Unit = {
 
     source match {
-      case ref @ Bind(fa, _, _) =>
+      case Bind(fa, bindNext) =>
         var callStack: CallStack = bRest
-        val bindNext = ref.frame
-
         if (bFirst ne null) {
           if (callStack eq null) callStack = new ArrayStack()
           callStack.push(bFirst)
@@ -107,16 +106,14 @@ private[effect] object IORunLoop {
     bRest: CallStack): IO[Any] = {
 
     source match {
-      case ref @ Bind(fa, _, _) =>
+      case Bind(fa, bindNext) =>
         var callStack: CallStack = bRest
-        val bindNext = ref.frame
-
         if (bFirst ne null) {
           if (callStack eq null) callStack = new ArrayStack()
           callStack.push(bFirst)
         }
         // Next iteration please
-        step(fa, bindNext, callStack)
+        step(fa, bindNext.asInstanceOf[Bind], callStack)
 
       case ref @ Pure(value) =>
         popNextBind(bFirst, bRest) match {
