@@ -30,7 +30,7 @@ import cats.syntax.all._
   *
   *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.HandleErrorBenchmark
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
+  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */

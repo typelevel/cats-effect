@@ -20,7 +20,7 @@ import cats.effect.IO
 import org.openjdk.jmh.annotations._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/** To do comparative benchmarks between Monix versions:
+/** To do comparative benchmarks between versions:
   *
   *     benchmarks/run-benchmark DeepBindBenchmark
   *
@@ -30,7 +30,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
   *
   *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.DeepBindBenchmark
   *
-  * Which means "10 iterations", "10 warm-up iterations", "2 fork", "1 thread".
+  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
   * 10 iterations (as a rule of thumb), but more is better.
   */
