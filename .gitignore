@@ -6,3 +6,4 @@ target/
 # Ignore [ce]tags files
 tags
 .idea
+benchmarks/results
