@@ -28,6 +28,7 @@ import cats.laws.discipline._
 import org.scalacheck._
 
 import scala.concurrent.Future
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
@@ -334,6 +335,49 @@ class IOTests extends BaseTestsSuite {
     val f = repeatedTransformLoop(10000, async(99)).unsafeToFuture()
     ec.tick()
     f.value shouldEqual Some(Success(99))
+  }
+
+  testAsync("io.attempt.to[IO] <-> io.attempt") { implicit ec =>
+    check { (io: IO[Int]) =>
+      val fa = io.attempt
+      fa.to[IO] <-> fa
+    }
+  }
+
+  testAsync("io.handleError(f).to[IO] <-> io.handleError(f)") { implicit ec =>
+    val F = implicitly[Sync[IO]]
+
+    check { (io: IO[Int], f: Throwable => IO[Int]) =>
+      val fa = F.handleErrorWith(io)(f)
+      fa.to[IO] <-> fa
+    }
+  }
+
+  test("unsafeRunTimed throws for raiseError") {
+    class DummyException extends RuntimeException("dummy")
+    val dummy = new DummyException
+    val err = IO.raiseError(dummy)
+    intercept[DummyException] { err.unsafeRunTimed(Duration.Inf) }
+  }
+
+  test("unsafeRunTimed on flatMap chain") {
+    val io = (0 until 100).foldLeft(IO(0))((io, _) => io.flatMap(x => IO.pure(x + 1)))
+    io.unsafeRunSync() shouldEqual 100
+  }
+
+  test("unsafeRunTimed loop protects against user error in flatMap") {
+    val dummy = new RuntimeException("dummy")
+    val io = IO(1).flatMap(_ => throw dummy).attempt
+    io.unsafeRunSync() shouldEqual Left(dummy)
+  }
+
+  test("unsafeRunTimed loop protects against user error in handleError") {
+    val F = implicitly[Sync[IO]]
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
+
+    val io = F.handleErrorWith(IO.raiseError(dummy1))(_ => throw dummy2).attempt
+    io.unsafeRunSync() shouldEqual Left(dummy2)
   }
 }
 

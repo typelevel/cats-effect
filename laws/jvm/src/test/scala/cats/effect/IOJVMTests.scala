@@ -17,6 +17,7 @@
 package cats.effect
 
 import org.scalatest._
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 

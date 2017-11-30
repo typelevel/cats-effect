@@ -141,15 +141,25 @@ def profile: Project => Project = pr => cmdlineProfile match {
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*")
 
+lazy val skipOnPublishSettings = Seq(
+  skip in publish := true,
+  publish := (()),
+  publishLocal := (()),
+  publishArtifact := false,
+  publishTo := None)
+
+lazy val sharedSourcesSettings = Seq(
+  unmanagedSourceDirectories in Compile += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  unmanagedSourceDirectories in Test += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  })
+
 lazy val root = project.in(file("."))
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
-  .settings(
-    skip in publish := true,
-    publish := (()),
-    publishLocal := (()),
-    publishArtifact := false,
-    publishTo := None)
+  .settings(skipOnPublishSettings)
 
 lazy val core = crossProject.in(file("core"))
   .settings(commonSettings: _*)
@@ -195,6 +205,18 @@ lazy val laws = crossProject
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
+
+lazy val benchmarksPrev = project.in(file("benchmarks/vPrev"))
+  .configure(profile)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "0.5")
+  .enablePlugins(JmhPlugin)
+
+lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
+  .configure(profile)
+  .dependsOn(coreJVM)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .enablePlugins(JmhPlugin)
 
 /*
  * Compatibility version.  Use this to declare what version with

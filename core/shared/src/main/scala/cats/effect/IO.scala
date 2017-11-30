@@ -17,8 +17,9 @@
 package cats
 package effect
 
-import cats.effect.internals.{AndThen, IOPlatform, NonFatal}
-import scala.annotation.tailrec
+import cats.effect.internals.IOFrame.ErrorHandler
+import cats.effect.internals.{IOFrame, IOPlatform, IORunLoop, NonFatal}
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -88,11 +89,12 @@ sealed abstract class IO[+A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def map[B](f: A => B): IO[B] = this match {
-    case Pure(a) => try Pure(f(a)) catch { case NonFatal(e) => RaiseError(e) }
-    case RaiseError(e) => RaiseError(e)
-    case _ => flatMap(f.andThen(Pure(_)))
-  }
+  final def map[B](f: A => B): IO[B] =
+    this match {
+      case Pure(a) => try Pure(f(a)) catch { case NonFatal(e) => RaiseError(e) }
+      case ref @ RaiseError(_) => ref
+      case _ => flatMap(a => Pure(f(a)))
+    }
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -110,24 +112,7 @@ sealed abstract class IO[+A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
-    flatMapTotal(AndThen(a => try f(a) catch { case NonFatal(e) => IO.raiseError(e) }))
-
-  private final def flatMapTotal[B](f: AndThen[A, IO[B]]): IO[B] = {
-    this match {
-      case Pure(a) =>
-        Suspend(AndThen((_: Unit) => a).andThen(f))
-      case RaiseError(e) =>
-        Suspend(AndThen(_ => f.error(e, RaiseError)))
-      case Suspend(thunk) =>
-        BindSuspend(thunk, f)
-      case BindSuspend(thunk, g) =>
-        BindSuspend(thunk, g.andThen(AndThen(_.flatMapTotal(f), f.error(_, RaiseError))))
-      case Async(k) =>
-        BindAsync(k, f)
-      case BindAsync(k, g) =>
-        BindAsync(k, g.andThen(AndThen(_.flatMapTotal(f), f.error(_, RaiseError))))
-    }
-  }
+    Bind(this, f)
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -142,17 +127,8 @@ sealed abstract class IO[+A] {
    *
    * @see [[IO.raiseError]]
    */
-  def attempt: IO[Either[Throwable, A]] = {
-    def fe = AndThen((a: A) => Pure(Right(a)), e => Pure(Left(e)))
-
-    this match {
-      case Pure(a) => Pure(Right(a))
-      case RaiseError(e) => Pure(Left(e))
-      case Suspend(thunk) => BindSuspend(thunk, fe)
-      case Async(k) => BindAsync(k, fe)
-      case other => BindSuspend(AndThen(_ => other), fe)
-    }
-  }
+  def attempt: IO[Either[Throwable, A]] =
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
 
   /**
    * Produces an `IO` reference that is guaranteed to be safe to run
@@ -167,13 +143,6 @@ sealed abstract class IO[+A] {
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
-  }
-
-  @tailrec
-  private final def unsafeStep: IO[A] = this match {
-    case Suspend(thunk) => thunk(()).unsafeStep
-    case BindSuspend(thunk, f) => thunk(()).flatMapTotal(f).unsafeStep
-    case _ => this
   }
 
   /**
@@ -213,27 +182,8 @@ sealed abstract class IO[+A] {
    * performs side effects.  You should ideally only call this
    * function ''once'', at the very end of your program.
    */
-  final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit = unsafeStep match {
-    case Pure(a) => cb(Right(a))
-    case RaiseError(e) => cb(Left(e))
-    case Async(k) => k(cb)
-
-    case ba: BindAsync[e, A] =>
-      ba.k { result =>
-        try result match {
-          case Left(t) =>
-            ba.f.error(t, RaiseError).unsafeRunAsync(cb)
-          case Right(a) =>
-            ba.f(a).unsafeRunAsync(cb)
-        }
-        catch {
-          case NonFatal(t) => cb(Left(t))
-        }
-      }
-
-    case _ =>
-      throw new AssertionError("unreachable")
-  }
+  final def unsafeRunAsync(cb: Either[Throwable, A] => Unit): Unit =
+    IORunLoop.start(this, cb)
 
   /**
    * Similar to `unsafeRunSync`, except with a bounded blocking
@@ -261,14 +211,17 @@ sealed abstract class IO[+A] {
    *
    * @see [[unsafeRunSync]]
    */
-  final def unsafeRunTimed(limit: Duration): Option[A] = unsafeStep match {
-    case Pure(a) => Some(a)
-    case RaiseError(e) => throw e
-    case self @ (Async(_) | BindAsync(_, _)) =>
-      IOPlatform.unsafeResync(self, limit)
-    case _ =>
-      throw new AssertionError("unreachable")
-  }
+  final def unsafeRunTimed(limit: Duration): Option[A] =
+    IORunLoop.step(this) match {
+      case Pure(a) => Some(a)
+      case RaiseError(e) => throw e
+      case self @ Async(_) =>
+        IOPlatform.unsafeResync(self, limit)
+      case _ =>
+        // $COVERAGE-OFF$
+        throw new AssertionError("unreachable")
+        // $COVERAGE-ON$
+    }
 
   /**
    * Evaluates the effect and produces the result in a `Future`.
@@ -295,13 +248,24 @@ sealed abstract class IO[+A] {
     this match {
       case Pure(a) => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
-      case Suspend(thunk) => F.suspend(thunk(()).to[F])
+      case Suspend(thunk) => F.suspend(thunk().to[F])
       case Async(k) => F.async(k)
-
-      case BindSuspend(thunk, f) =>
-        F.flatMap(F.suspend(thunk(()).to[F]))(e => f(e).to[F])
-      case BindAsync(k, f) =>
-        F.flatMap(F.async(k))(e => f(e).to[F])
+      case Bind(source, frame) =>
+        frame match {
+          case m: IOFrame[_, _] =>
+            if (!m.isInstanceOf[ErrorHandler[_]]) {
+              val lh = F.attempt(F.suspend(source.to[F]))
+              val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
+              F.flatMap(lh)(e => f.fold(e).to[F])
+            } else {
+              val lh = F.suspend(source.to[F]).asInstanceOf[F[A]]
+              F.handleErrorWith(lh) { e =>
+                m.asInstanceOf[ErrorHandler[IO[A]]].recover(e).to[F]
+              }
+            }
+          case f =>
+            F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
+        }
     }
 
   override def toString = this match {
@@ -338,7 +302,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
     override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] = ioa.attempt
 
     def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      ioa.attempt.flatMap(_.fold(f, pure))
+      IO.Bind(ioa, IOFrame.errorHandler(f))
 
     def raiseError[A](e: Throwable): IO[A] = IO.raiseError(e)
 
@@ -378,7 +342,7 @@ object IO extends IOInstances {
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(AndThen(_ => try thunk catch { case NonFatal(e) => raiseError(e) }))
+    Suspend(thunk _)
 
   /**
    * Suspends a pure value in `IO`.
@@ -594,16 +558,24 @@ object IO extends IOInstances {
     }
   }
 
-  private final case class Pure[+A](a: A)
+  private[effect] final case class Pure[+A](a: A)
     extends IO[A]
-  private final case class RaiseError(e: Throwable)
+  private[effect] final case class RaiseError(e: Throwable)
     extends IO[Nothing]
-  private final case class Suspend[+A](thunk: AndThen[Unit, IO[A]])
+  private[effect] final case class Suspend[+A](thunk: () => IO[A])
     extends IO[A]
-  private final case class BindSuspend[E, +A](thunk: AndThen[Unit, IO[E]], f: AndThen[E, IO[A]])
+  private[effect] final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
-  private final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
+  private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
     extends IO[A]
-  private final case class BindAsync[E, +A](k: (Either[Throwable, E] => Unit) => Unit, f: AndThen[E, IO[A]])
-    extends IO[A]
+
+  /** Internal reference, used as an optimization for [[IO.attempt]]
+    * in order to avoid extraneous memory allocations.
+    */
+  private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {
+    override def apply(a: Any) =
+      Pure(Right(a))
+    override def recover(e: Throwable) =
+      Pure(Left(e))
+  }
 }
