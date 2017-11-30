@@ -345,8 +345,10 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("io.handleError(f).to[IO] <-> io.handleError(f)") { implicit ec =>
+    val F = implicitly[Sync[IO]]
+
     check { (io: IO[Int], f: Throwable => IO[Int]) =>
-      val fa = io.handleErrorWith(f)
+      val fa = F.handleErrorWith(io)(f)
       fa.to[IO] <-> fa
     }
   }
@@ -370,10 +372,11 @@ class IOTests extends BaseTestsSuite {
   }
 
   test("unsafeRunTimed loop protects against user error in handleError") {
+    val F = implicitly[Sync[IO]]
     val dummy1 = new RuntimeException("dummy1")
     val dummy2 = new RuntimeException("dummy2")
 
-    val io = IO.raiseError(dummy1).handleErrorWith(_ => throw dummy2).attempt
+    val io = F.handleErrorWith(IO.raiseError(dummy1))(_ => throw dummy2).attempt
     io.unsafeRunSync() shouldEqual Left(dummy2)
   }
 }
