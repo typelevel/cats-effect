@@ -26,7 +26,6 @@ private[effect] object IORunLoop {
   private type CallStack = ArrayStack[Bind]
   private type Callback = Either[Throwable, Any] => Unit
 
-
   /** Evaluates the given `IO` reference, calling the given callback
     * with the result when completed.
     */
@@ -50,7 +49,6 @@ private[effect] object IORunLoop {
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
-
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -80,8 +78,7 @@ private[effect] object IORunLoop {
           }
 
         case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
-          currentIO = fa
+          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -124,7 +121,6 @@ private[effect] object IORunLoop {
     var currentIO: Current = source
     var bFirst: Bind = null
     var bRest: CallStack = null
-
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -154,8 +150,7 @@ private[effect] object IORunLoop {
           }
 
         case Suspend(thunk) =>
-          val fa = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
-          currentIO = fa
+          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -179,11 +174,10 @@ private[effect] object IORunLoop {
             return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
-            val fa = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
+            currentIO = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
-            currentIO = fa
         }
       }
     } while (true)
@@ -199,8 +193,8 @@ private[effect] object IORunLoop {
     register: (Either[Throwable, Any] => Unit) => Unit): IO[A] = {
 
     // Hitting an async boundary means we have to stop, however
-    // if we had previous `flatMap` operations prior to this, then
-    // we need to resume the loop with the collected stack
+    // if we had previous `flatMap` operations then we need to resume
+    // the loop with the collected stack
     if (bFirst != null || (bRest != null && bRest.nonEmpty))
       Async { cb =>
         val rcb = RestartCallback(cb.asInstanceOf[Callback])
