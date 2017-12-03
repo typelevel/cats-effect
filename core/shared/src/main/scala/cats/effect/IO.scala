@@ -247,6 +247,7 @@ sealed abstract class IO[+A] {
   final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
     this match {
       case Pure(a) => F.pure(a)
+      case Delay(thunk) => F.delay(thunk())
       case RaiseError(e) => F.raiseError(e)
       case Suspend(thunk) => F.suspend(thunk().to[F])
       case Async(k) => F.async(k)
@@ -331,7 +332,7 @@ object IO extends IOInstances {
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
-  def apply[A](body: => A): IO[A] = suspend(Pure(body))
+  def apply[A](body: => A): IO[A] = Delay(body _)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -559,6 +560,8 @@ object IO extends IOInstances {
   }
 
   private[effect] final case class Pure[+A](a: A)
+    extends IO[A]
+  private[effect] final case class Delay[+A](thunk: () => A)
     extends IO[A]
   private[effect] final case class RaiseError(e: Throwable)
     extends IO[Nothing]
