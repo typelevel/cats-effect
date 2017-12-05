@@ -17,139 +17,192 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, Pure, RaiseError, Suspend}
-import scala.annotation.tailrec
+import cats.effect.IO.{Async, Bind, Delay, Pure, RaiseError, Suspend}
 import scala.collection.mutable.ArrayStack
 
 private[effect] object IORunLoop {
+  private type Current = IO[Any]
+  private type Bind = Any => IO[Any]
+  private type CallStack = ArrayStack[Bind]
+  private type Callback = Either[Throwable, Any] => Unit
+
   /** Evaluates the given `IO` reference, calling the given callback
     * with the result when completed.
     */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
     loop(source, cb.asInstanceOf[Callback], null, null, null)
 
+  /** Loop for evaluating an `IO` value.
+    *
+    * The `rcbRef`, `bFirstRef` and `bRestRef`  parameters are
+    * nullable values that can be supplied because the loop needs
+    * to be resumed in [[RestartCallback]].
+    */
+  private def loop(
+    source: Current,
+    cb: Either[Throwable, Any] => Unit,
+    rcbRef: RestartCallback,
+    bFirstRef: Bind,
+    bRestRef: CallStack): Unit = {
+
+    var currentIO: Current = source
+    var bFirst: Bind = bFirstRef
+    var bRest: CallStack = bRestRef
+    var rcb: RestartCallback = rcbRef
+    // Values from Pure and Delay are unboxed in this var,
+    // for code reuse between Pure and Delay
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
+
+    do {
+      currentIO match {
+        case Bind(fa, bindNext) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = new ArrayStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          currentIO = fa
+
+        case Pure(value) =>
+          unboxed = value.asInstanceOf[AnyRef]
+          hasUnboxed = true
+
+        case Delay(thunk) =>
+          try {
+            unboxed = thunk().asInstanceOf[AnyRef]
+            hasUnboxed = true
+            currentIO = null
+          } catch { case NonFatal(e) =>
+            currentIO = RaiseError(e)
+          }
+
+        case Suspend(thunk) =>
+          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
+
+        case RaiseError(ex) =>
+          findErrorHandler(bFirst, bRest) match {
+            case null =>
+              cb(Left(ex))
+              return
+            case bind =>
+              val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
+              bFirst = null
+              currentIO = fa
+          }
+
+        case Async(register) =>
+          if (rcb eq null) rcb = RestartCallback(cb.asInstanceOf[Callback])
+          rcb.prepare(bFirst, bRest)
+          register(rcb)
+          return
+      }
+
+      if (hasUnboxed) {
+        popNextBind(bFirst, bRest) match {
+          case null =>
+            cb(Right(unboxed))
+            return
+          case bind =>
+            val fa = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
+            hasUnboxed = false
+            unboxed = null
+            bFirst = null
+            currentIO = fa
+        }
+      }
+    } while (true)
+  }
+
   /** Evaluates the given `IO` reference until an asynchronous
     * boundary is hit.
     */
-  def step[A](source: IO[A]): IO[A] =
-    step(source, null, null).asInstanceOf[IO[A]]
+  def step[A](source: IO[A]): IO[A] = {
+    var currentIO: Current = source
+    var bFirst: Bind = null
+    var bRest: CallStack = null
+    // Values from Pure and Delay are unboxed in this var,
+    // for code reuse between Pure and Delay
+    var hasUnboxed: Boolean = false
+    var unboxed: AnyRef = null
 
-  private type Current = IO[Any]
-  private type Bind = Any => IO[Any]
-  private type CallStack = ArrayStack[Bind]
-  private type Callback = Either[Throwable, Any] => Unit
+    do {
+      currentIO match {
+        case Bind(fa, bindNext) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = new ArrayStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          currentIO = fa
 
-  /** Tail-recursive loop that evaluates an `IO` reference.
-    *
-    * Note `rcb`, `bFirst` and `bRest` ARE nullable, because
-    * initialization is avoided until the last possible moment to
-    * reduce pressure on heap memory.
-    */
-  @tailrec private def loop(
-    source: Current,
-    cb: Callback,
-    rcb: RestartCallback,
-    bFirst: Bind,
-    bRest: CallStack): Unit = {
+        case Pure(value) =>
+          unboxed = value.asInstanceOf[AnyRef]
+          hasUnboxed = true
 
-    source match {
-      case Bind(fa, bindNext) =>
-        var callStack: CallStack = bRest
-        if (bFirst ne null) {
-          if (callStack eq null) callStack = new ArrayStack()
-          callStack.push(bFirst)
-        }
-        // Next iteration please
-        loop(fa, cb, rcb, bindNext, callStack)
+        case Delay(thunk) =>
+          try {
+            unboxed = thunk().asInstanceOf[AnyRef]
+            hasUnboxed = true
+            currentIO = null
+          } catch { case NonFatal(e) =>
+            currentIO = RaiseError(e)
+          }
 
-      case Pure(value) =>
+        case Suspend(thunk) =>
+          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
+
+        case RaiseError(ex) =>
+          findErrorHandler(bFirst, bRest) match {
+            case null =>
+              return currentIO.asInstanceOf[IO[A]]
+            case bind =>
+              val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
+              bFirst = null
+              currentIO = fa
+          }
+
+        case Async(register) =>
+          // Cannot inline the code of this method — as it would
+          // box those vars in scala.runtime.ObjectRef!
+          return suspendInAsync(currentIO.asInstanceOf[IO[A]], bFirst, bRest, register)
+      }
+
+      if (hasUnboxed) {
         popNextBind(bFirst, bRest) match {
-          case null => cb(Right(value))
+          case null =>
+            return (if (currentIO ne null) currentIO else Pure(unboxed))
+              .asInstanceOf[IO[A]]
           case bind =>
-            val fa = try bind(value) catch { case NonFatal(ex) => RaiseError(ex) }
-            // Next iteration please
-            loop(fa, cb, rcb, null, bRest)
+            currentIO = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
+            hasUnboxed = false
+            unboxed = null
+            bFirst = null
         }
-
-      case Suspend(thunk) =>
-        // Next iteration please
-        val fa = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
-        loop(fa, cb, rcb, bFirst, bRest)
-
-      case RaiseError(ex) =>
-        findErrorHandler(bFirst, bRest) match {
-          case null => cb(Left(ex))
-          case bind =>
-            val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
-            // Next cycle please
-            loop(fa, cb, rcb, null, bRest)
-        }
-
-      case Async(register) =>
-        val restartCallback = if (rcb != null) rcb else RestartCallback(cb)
-        restartCallback.prepare(bFirst, bRest)
-        register(restartCallback)
-    }
+      }
+    } while (true)
+    // $COVERAGE-OFF$
+    null // Unreachable code
+    // $COVERAGE-ON$
   }
 
-  /** A [[loop]] variant that evaluates the given `IO` reference
-    * until the first async boundary, or until the final result,
-    * whichever comes first.
-    *
-    * Note `bFirst` and `bRest` are nullable references, in order
-    * to avoid initialization until the last possible moment.
-    */
-  @tailrec private def step(
-    source: Current,
+  private def suspendInAsync[A](
+    currentIO: IO[A],
     bFirst: Bind,
-    bRest: CallStack): IO[Any] = {
+    bRest: CallStack,
+    register: (Either[Throwable, Any] => Unit) => Unit): IO[A] = {
 
-    source match {
-      case Bind(fa, bindNext) =>
-        var callStack: CallStack = bRest
-        if (bFirst ne null) {
-          if (callStack eq null) callStack = new ArrayStack()
-          callStack.push(bFirst)
-        }
-        // Next iteration please
-        step(fa, bindNext.asInstanceOf[Bind], callStack)
-
-      case ref @ Pure(value) =>
-        popNextBind(bFirst, bRest) match {
-          case null => ref
-          case bind =>
-            val fa = try bind(value) catch { case NonFatal(ex) => RaiseError(ex) }
-            // Next iteration please
-            step(fa, null, bRest)
-        }
-
-      case Suspend(thunk) =>
-        val fa = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
-        // Next iteration please
-        step(fa, bFirst, bRest)
-
-      case ref @ RaiseError(ex) =>
-        findErrorHandler(bFirst, bRest) match {
-          case null => ref
-          case bind =>
-            val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
-            // Next cycle please
-            step(fa, null, bRest)
-        }
-
-      case Async(register) =>
-        // Hitting an async boundary means we have to stop, however
-        // if we had previous `flatMap` operations prior to this, then
-        // we need to resume the loop with the collected stack
-        if (bFirst != null || (bRest != null && bRest.nonEmpty))
-          Async[Any] { cb =>
-            val rcb = RestartCallback(cb)
-            rcb.prepare(bFirst, bRest)
-            register(rcb)
-          }
-        else
-          source
-    }
+    // Hitting an async boundary means we have to stop, however
+    // if we had previous `flatMap` operations then we need to resume
+    // the loop with the collected stack
+    if (bFirst != null || (bRest != null && bRest.nonEmpty))
+      Async { cb =>
+        val rcb = RestartCallback(cb.asInstanceOf[Callback])
+        rcb.prepare(bFirst, bRest)
+        register(rcb)
+      }
+    else
+      currentIO
   }
 
   /** Pops the next bind function from the stack, but filters out
