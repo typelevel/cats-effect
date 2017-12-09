@@ -91,9 +91,14 @@ sealed abstract class IO[+A] {
    */
   final def map[B](f: A => B): IO[B] =
     this match {
-      case Pure(a) => try Pure(f(a)) catch { case NonFatal(e) => RaiseError(e) }
       case ref @ RaiseError(_) => ref
-      case _ => flatMap(a => Pure(f(a)))
+      case Map(source, g, index) =>
+        if (index < 32)
+          Map(source, g.andThen(f), index + 1)
+        else
+          flatMap(a => Pure(f(a)))
+      case _ =>
+        Map(this, f, 0)
     }
 
   /**
@@ -261,12 +266,14 @@ sealed abstract class IO[+A] {
             } else {
               val lh = F.suspend(source.to[F]).asInstanceOf[F[A]]
               F.handleErrorWith(lh) { e =>
-                m.asInstanceOf[ErrorHandler[IO[A]]].recover(e).to[F]
+                m.asInstanceOf[ErrorHandler[A]].recover(e).to[F]
               }
             }
           case f =>
             F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
         }
+      case Map(source, f, _) =>
+        F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
   override def toString = this match {
@@ -571,6 +578,17 @@ object IO extends IOInstances {
     extends IO[A]
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
     extends IO[A]
+
+  /** State for representing `map` ops that itself is a function in
+    * order to avoid extraneous memory allocations when building the
+    * internal call-stack.
+    */
+  private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
+    extends IO[A] with (E => IO[A]) {
+
+    override def apply(value: E): IO[A] =
+      IO.pure(f(value))
+  }
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
     * in order to avoid extraneous memory allocations.
