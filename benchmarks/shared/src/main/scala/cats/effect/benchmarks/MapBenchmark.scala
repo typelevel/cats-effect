@@ -39,30 +39,44 @@ import org.openjdk.jmh.annotations._
 class MapBenchmark {
   @Benchmark
   def one(): Int = {
-    IO(0).map(_ + 1).unsafeRunSync()
+    def loop(io: IO[Int], count: Int): IO[Int] =
+      if (count > 0)
+        io.flatMap(_ => io.map(_ + 1))
+      else
+        io
+    
+    loop(IO(0), 1000).unsafeRunSync()
   }
 
   @Benchmark
   def batch(): Int = {
-    var io = IO(0)
-    var i = 0
-    while (i < 30) {
-      io = io.map(_ + 1)
-      i += 1
-    }
+    def loop(io: IO[Int], count: Int): IO[Int] =
+      if (count <= 0) io else io.flatMap { _ =>
+        var io2 = io
+        var i = 0
+        while (i < 30) {
+          io2 = io2.map(_ + 1)
+          i += 1
+        }
+        io2
+      }
 
-    io.unsafeRunSync()
+    loop(IO(0), 1000).unsafeRunSync()
   }
 
   @Benchmark
   def many(): Int = {
-    var io = IO(0)
-    var i = 0
-    while (i < 1000) {
-      io = io.map(_ + 1)
-      i += 1
-    }
+    def loop(io: IO[Int], count: Int): IO[Int] =
+      if (count <= 0) io else io.flatMap { _ =>
+        var io2 = io
+        var i = 0
+        while (i < 1000) {
+          io2 = io2.map(_ + 1)
+          i += 1
+        }
+        io2
+      }
 
-    io.unsafeRunSync()
+    loop(IO(0), 1000).unsafeRunSync()
   }
 }

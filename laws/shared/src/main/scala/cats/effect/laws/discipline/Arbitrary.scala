@@ -36,6 +36,8 @@ object arbitrary {
       1 -> genFail[A],
       5 -> genAsync[A],
       5 -> genNestedAsync[A],
+      5 -> getMapOne[A],
+      5 -> getMapTwo[A],
       10 -> genFlatMap[A])
   }
 
@@ -71,6 +73,19 @@ object arbitrary {
       ioa <- getArbitrary[IO[A]]
       f <- getArbitrary[A => IO[A]]
     } yield ioa.flatMap(f)
+
+  def getMapOne[A: Arbitrary: Cogen]: Gen[IO[A]] =
+    for {
+      ioa <- getArbitrary[IO[A]]
+      f <- getArbitrary[A => A]
+    } yield ioa.map(f)
+
+  def getMapTwo[A: Arbitrary: Cogen]: Gen[IO[A]] =
+    for {
+      ioa <- getArbitrary[IO[A]]
+      f1 <- getArbitrary[A => A]
+      f2 <- getArbitrary[A => A]
+    } yield ioa.map(f1).map(f2)
 
   implicit def catsEffectLawsCogenForIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
     cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture)

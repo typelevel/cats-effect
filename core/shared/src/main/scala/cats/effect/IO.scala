@@ -93,10 +93,10 @@ sealed abstract class IO[+A] {
     this match {
       case ref @ RaiseError(_) => ref
       case Map(source, g, index) =>
-        if (index < 32)
-          Map(source, g.andThen(f), index + 1)
-        else
-          flatMap(a => Pure(f(a)))
+        // Allowed to do 32 map operations in sequence before
+        // triggering `flatMap` in order to avoid stack overflows
+        if (index != 31) Map(source, g.andThen(f), index + 1)
+        else flatMap(a => Pure(f(a)))
       case _ =>
         Map(this, f, 0)
     }
