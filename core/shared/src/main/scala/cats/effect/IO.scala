@@ -19,7 +19,7 @@ package effect
 
 import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals.{IOFrame, IOPlatform, IORunLoop, NonFatal}
-
+import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -93,9 +93,9 @@ sealed abstract class IO[+A] {
     this match {
       case ref @ RaiseError(_) => ref
       case Map(source, g, index) =>
-        // Allowed to do 32 map operations in sequence before
+        // Allowed to do 128 map operations in sequence before
         // triggering `flatMap` in order to avoid stack overflows
-        if (index != 31) Map(source, g.andThen(f), index + 1)
+        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
         else flatMap(a => Pure(f(a)))
       case _ =>
         Map(this, f, 0)

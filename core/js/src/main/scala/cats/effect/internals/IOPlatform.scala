@@ -17,7 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.IO
+
 import scala.concurrent.duration.Duration
+import scala.util.Try
 
 private[effect] object IOPlatform {
   /**
@@ -44,4 +46,10 @@ private[effect] object IOPlatform {
       f(a)
     }
   }
+
+  /**
+   * Establishes the maximum stack depth for `IO#map` operations
+   * for JavaScript.
+   */
+  private[effect] final val fusionMaxStackDepth = 32
 }

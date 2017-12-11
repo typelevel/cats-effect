@@ -21,13 +21,13 @@ import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between versions:
   *
-  *     benchmarks/run-benchmark MapBenchmark
+  *     benchmarks/run-benchmark MapCallsBenchmark
   *
   * This will generate results in `benchmarks/results`.
   *
   * Or to run the benchmark from within SBT:
   *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.MapBenchmark
+  *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.MapCallsBenchmark
   *
   * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
   * Please note that benchmarks should be usually executed at least in
@@ -36,47 +36,34 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class MapBenchmark {
-  @Benchmark
-  def one(): Int = {
-    def loop(io: IO[Int], count: Int): IO[Int] =
-      if (count > 0)
-        io.flatMap(_ => io.map(_ + 1))
-      else
-        io
-    
-    loop(IO(0), 1000).unsafeRunSync()
-  }
+class MapCallsBenchmark {
+  import MapCallsBenchmark.test
 
   @Benchmark
-  def batch(): Int = {
-    def loop(io: IO[Int], count: Int): IO[Int] =
-      if (count <= 0) io else io.flatMap { _ =>
-        var io2 = io
-        var i = 0
-        while (i < 30) {
-          io2 = io2.map(_ + 1)
-          i += 1
-        }
-        io2
-      }
-
-    loop(IO(0), 1000).unsafeRunSync()
-  }
+  def one(): Long = test(12000, 1)
 
   @Benchmark
-  def many(): Int = {
-    def loop(io: IO[Int], count: Int): IO[Int] =
-      if (count <= 0) io else io.flatMap { _ =>
-        var io2 = io
-        var i = 0
-        while (i < 1000) {
-          io2 = io2.map(_ + 1)
-          i += 1
-        }
-        io2
-      }
+  def batch30(): Long = test(12000 / 30, 30)
 
-    loop(IO(0), 1000).unsafeRunSync()
+  @Benchmark
+  def batch120(): Long = test(12000 / 120, 120)
+}
+
+object MapCallsBenchmark {
+
+  def test(iterations: Int, batch: Int): Long = {
+    val f = (x: Int) => x + 1
+    var io = IO(0)
+
+    var j = 0
+    while (j < batch) { io = io.map(f); j += 1 }
+
+    var sum = 0L
+    var i = 0
+    while (i < iterations) {
+      sum += io.unsafeRunSync()
+      i += 1
+    }
+    sum
   }
 }
