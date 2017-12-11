@@ -17,9 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-
 import scala.concurrent.duration.Duration
-import scala.util.Try
 
 private[effect] object IOPlatform {
   /**
