@@ -88,7 +88,8 @@ private[effect] object IOPlatform {
   /**
    * Establishes the maximum stack depth for `IO#map` operations.
    *
-   * The default is `128`. This default has been reached like this:
+   * The default is `128`, from which we substract one as an 
+   * optimization. This default has been reached like this:
    *
    *  - according to official docs, the default stack size on 32-bits
    *    Windows and Linux was 320 KB, whereas for 64-bits it is 1024 KB

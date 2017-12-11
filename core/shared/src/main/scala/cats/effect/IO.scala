@@ -91,10 +91,10 @@ sealed abstract class IO[+A] {
    */
   final def map[B](f: A => B): IO[B] =
     this match {
-      case ref @ RaiseError(_) => ref
       case Map(source, g, index) =>
-        // Allowed to do 128 map operations in sequence before
-        // triggering `flatMap` in order to avoid stack overflows
+        // Allowed to do fixed number of map operations fused before 
+        // triggering `flatMap` in order to avoid stack overflows;
+        // See `IOPlatform` for details on this maximum.
         if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
         else flatMap(a => Pure(f(a)))
       case _ =>
