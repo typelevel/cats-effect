@@ -93,10 +93,10 @@ sealed abstract class IO[+A] {
     this match {
       case Map(source, g, index) =>
         // Allowed to do fixed number of map operations fused before 
-        // triggering `flatMap` in order to avoid stack overflows;
+        // resetting the counter in order to avoid stack overflows;
         // See `IOPlatform` for details on this maximum.
         if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else flatMap(a => Pure(f(a)))
+        else Map(this, f, 0)
       case _ =>
         Map(this, f, 0)
     }
