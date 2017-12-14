@@ -19,6 +19,7 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import cats.effect.internals.IOPlatform
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
@@ -378,6 +379,19 @@ class IOTests extends BaseTestsSuite {
 
     val io = F.handleErrorWith(IO.raiseError(dummy1))(_ => throw dummy2).attempt
     io.unsafeRunSync() shouldEqual Left(dummy2)
+  }
+
+  test("suspend with unsafeRunSync") {
+    val io = IO.suspend(IO(1)).map(_ + 1)
+    io.unsafeRunSync() shouldEqual 2
+  }
+
+  test("map is stack-safe for unsafeRunSync") {
+    import IOPlatform.{fusionMaxStackDepth => max}
+    val f = (x: Int) => x + 1
+    val io = (0 until (max * 10000)).foldLeft(IO(0))((acc, _) => acc.map(f))
+
+    io.unsafeRunSync() shouldEqual max * 10000
   }
 }
 
