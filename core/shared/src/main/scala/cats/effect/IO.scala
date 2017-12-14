@@ -296,34 +296,40 @@ private[effect] trait IOLowPriorityInstances {
 private[effect] trait IOInstances extends IOLowPriorityInstances {
 
   implicit val ioEffect: Effect[IO] = new Effect[IO] {
-
-    def pure[A](a: A) = IO.pure(a)
-
-    def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] = ioa.flatMap(f)
+    override def pure[A](a: A): IO[A] =
+      IO.pure(a)
+    override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
+      ioa.flatMap(f)
+    override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
+      fa.map(f)
+    override def delay[A](thunk: => A): IO[A] =
+      IO(thunk)
+    override def unit: IO[Unit] =
+      IO.unit
+    override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] =
+      ioa.attempt
+    override def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
+      IO.Bind(ioa, IOFrame.errorHandler(f))
+    override def raiseError[A](e: Throwable): IO[A] =
+      IO.raiseError(e)
+    override def suspend[A](thunk: => IO[A]): IO[A] =
+      IO.suspend(thunk)
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+      IO.async(k)
+    override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+      ioa.runAsync(cb)
+    // creates a new call-site, so *very* slightly faster than using the default
+    override def shift(implicit ec: ExecutionContext): IO[Unit] =
+      IO.shift(ec)
+    override def liftIO[A](ioa: IO[A]): IO[A] =
+      ioa
 
     // this will use stack proportional to the maximum number of joined async suspensions
-    def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] = f(a) flatMap {
-      case Left(a) => tailRecM(a)(f)
-      case Right(b) => pure(b)
-    }
-
-    override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] = ioa.attempt
-
-    def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      IO.Bind(ioa, IOFrame.errorHandler(f))
-
-    def raiseError[A](e: Throwable): IO[A] = IO.raiseError(e)
-
-    def suspend[A](thunk: => IO[A]): IO[A] = IO.suspend(thunk)
-
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = IO.async(k)
-
-    def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = ioa.runAsync(cb)
-
-    // creates a new call-site, so *very* slightly faster than using the default
-    override def shift(implicit ec: ExecutionContext) = IO.shift(ec)
-
-    override def liftIO[A](ioa: IO[A]) = ioa
+    override def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
+      f(a) flatMap {
+        case Left(a) => tailRecM(a)(f)
+        case Right(b) => pure(b)
+      }
   }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {

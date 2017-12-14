@@ -64,12 +64,15 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with TestsPlatform {
         "throw in suspend is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
         "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
         "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _),
-        "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _))
+        "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
+        "bind suspends evaluation" -> forAll(laws.bindSuspendsEvaluation[A] _),
+        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _))
 
       val jvmProps = Seq(
         "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
         "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
-        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts))
+        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts),
+        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps))
 
       val jsProps = Seq()
 

@@ -58,6 +58,26 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
     fa <-> F.raiseError(t)
   }
 
+  def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
+    var state = a1
+    val evolve = F.flatMap(fa) { a2 =>
+      state = f(state, a2)
+      F.pure(state)
+    }
+    // Observing `state` before and after `evolve`
+    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
+  }
+
+  def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
+    var state = a1
+    val evolve = F.map(fa) { a2 =>
+      state = f(state, a2)
+      state
+    }
+    // Observing `state` before and after `evolve`
+    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
+  }
+
   lazy val stackSafetyOnRepeatedLeftBinds = {
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
       acc.flatMap(_ => F.delay(()))
@@ -75,11 +95,21 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   }
 
   lazy val stackSafetyOnRepeatedAttempts = {
+    // Note this isn't enough to guarantee stack safety, unless 
+    // coupled with `bindSuspendsEvaluation`
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
       F.attempt(acc).map(_ => ())
     }
-
     result <-> F.pure(())
+  }
+
+  lazy val stackSafetyOnRepeatedMaps = {
+    // Note this isn't enough to guarantee stack safety, unless 
+    // coupled with `mapSuspendsEvaluation`
+    val result = (0 until 10000).foldLeft(F.delay(0)) { (acc, _) =>
+      F.map(acc)(_ + 1)
+    }
+    result <-> F.pure(10000)
   }
 }
 
