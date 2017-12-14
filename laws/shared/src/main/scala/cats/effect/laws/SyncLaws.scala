@@ -95,8 +95,8 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   }
 
   lazy val stackSafetyOnRepeatedAttempts = {
-    // Note due to usage of `delay` this isn't enough to guarantee 
-    // stack-safety, unless coupled with `bindSuspendsEvaluation`
+    // Note this isn't enough to guarantee stack safety, unless 
+    // coupled with `bindSuspendsEvaluation`
     val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
       F.attempt(acc).map(_ => ())
     }
@@ -104,8 +104,8 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   }
 
   lazy val stackSafetyOnRepeatedMaps = {
-    // Note due to usage of `delay` this isn't enough to guarantee 
-    // stack-safety, unless coupled with `mapSuspendsEvaluation`
+    // Note this isn't enough to guarantee stack safety, unless 
+    // coupled with `mapSuspendsEvaluation`
     val result = (0 until 10000).foldLeft(F.delay(0)) { (acc, _) =>
       F.map(acc)(_ + 1)
     }
