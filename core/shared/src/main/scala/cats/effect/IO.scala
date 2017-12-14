@@ -294,9 +294,8 @@ private[effect] trait IOLowPriorityInstances {
 }
 
 private[effect] trait IOInstances extends IOLowPriorityInstances {
-  /** [[Effect]] implementation for [[IO]]. */
-  implicit val ioEffect: Effect[IO] = new Effect[IO] {
 
+  implicit val ioEffect: Effect[IO] = new Effect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
