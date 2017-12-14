@@ -17,7 +17,8 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, Delay, Pure, RaiseError, Suspend}
+import cats.effect.IO.{Async, Bind, Delay, Map, Pure, RaiseError, Suspend}
+
 import scala.collection.mutable.ArrayStack
 
 private[effect] object IORunLoop {
@@ -91,6 +92,14 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
+        case bindNext @ Map(fa, _, _) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = new ArrayStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          currentIO = fa
+
         case Async(register) =>
           if (rcb eq null) rcb = RestartCallback(cb.asInstanceOf[Callback])
           rcb.prepare(bFirst, bRest)
@@ -161,6 +170,14 @@ private[effect] object IORunLoop {
               bFirst = null
               currentIO = fa
           }
+
+        case bindNext @ Map(fa, _, _) =>
+          if (bFirst ne null) {
+            if (bRest eq null) bRest = new ArrayStack()
+            bRest.push(bFirst)
+          }
+          bFirst = bindNext.asInstanceOf[Bind]
+          currentIO = fa
 
         case Async(register) =>
           // Cannot inline the code of this method — as it would

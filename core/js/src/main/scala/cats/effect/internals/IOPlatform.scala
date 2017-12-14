@@ -44,4 +44,13 @@ private[effect] object IOPlatform {
       f(a)
     }
   }
+
+  /**
+   * Establishes the maximum stack depth for `IO#map` operations
+   * for JavaScript. 
+   *
+   * The default for JavaScript is 32, from which we substract 1
+   * as an optimization.
+   */
+  private[effect] final val fusionMaxStackDepth = 31
 }

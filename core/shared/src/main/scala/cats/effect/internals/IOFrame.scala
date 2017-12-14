@@ -16,6 +16,8 @@
 
 package cats.effect.internals
 
+import cats.effect.IO
+
 /** A mapping function that is also able to handle errors,
   * being the equivalent of:
   *
@@ -43,20 +45,16 @@ private[effect] object IOFrame {
   /** Builds a [[IOFrame]] instance that maps errors, but that isn't
     * defined for successful values (a partial function)
     */
-  def errorHandler[R](fe: Throwable => R): IOFrame[Any, R] =
+  def errorHandler[A](fe: Throwable => IO[A]): IOFrame[A, IO[A]] =
     new ErrorHandler(fe)
 
   /** [[IOFrame]] reference that only handles errors, useful for
     * quick filtering of `onErrorHandleWith` frames.
     */
-  final class ErrorHandler[+R](fe: Throwable => R)
-    extends IOFrame[Any, R] {
+  final class ErrorHandler[A](fe: Throwable => IO[A])
+    extends IOFrame[A, IO[A]] {
 
-    def recover(e: Throwable): R = fe(e)
-    def apply(a: Any): R = {
-      // $COVERAGE-OFF$
-      throw new NotImplementedError("IOFrame protocol breach")
-      // $COVERAGE-ON$
-    }
+    def recover(e: Throwable): IO[A] = fe(e)
+    def apply(a: A): IO[A] = IO.pure(a)
   }
 }
