@@ -27,7 +27,7 @@ import cats.effect.internals.NonFatal
  * in the `F[_]` context.
  */
 @typeclass
-trait Sync[F[_]] extends MonadError[F, Throwable] {
+trait Sync[F[_]] extends MonadError[F, Throwable] with CoflatMap[F] {
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -45,6 +45,8 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
    * in `F`.
    */
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
+
+  override def coflatMap[A, B](fa: F[A])(f: F[A] => B): F[B] = pure(f(fa))
 }
 
 private[effect] trait SyncInstances {
