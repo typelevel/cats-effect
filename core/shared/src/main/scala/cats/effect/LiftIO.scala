@@ -61,7 +61,7 @@ private[effect] trait LiftIOInstances {
     protected def F: LiftIO[F]
 
     override def liftIO[A](ioa: IO[A]): Kleisli[F, R, A] =
-      Kleisli.lift(F.liftIO(ioa))
+      Kleisli.liftF(F.liftIO(ioa))
   }
 
   private[effect] trait OptionTLiftIO[F[_]] extends LiftIO[OptionT[F, ?]] {
@@ -79,7 +79,7 @@ private[effect] trait LiftIOInstances {
     protected def FA: Applicative[F]
     private implicit def _FA = FA
 
-    override def liftIO[A](ioa: IO[A]): StateT[F, S, A] = StateT.lift(F.liftIO(ioa))
+    override def liftIO[A](ioa: IO[A]): StateT[F, S, A] = StateT.liftF(F.liftIO(ioa))
   }
 
   private[effect] trait WriterTLiftIO[F[_], L] extends LiftIO[WriterT[F, L, ?]] {
@@ -92,7 +92,7 @@ private[effect] trait LiftIOInstances {
     private implicit def _L = L
 
     override def liftIO[A](ioa: IO[A]): WriterT[F, L, A] =
-      WriterT.lift(F.liftIO(ioa))
+      WriterT.liftF(F.liftIO(ioa))
   }
 }
 
