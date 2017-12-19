@@ -114,7 +114,7 @@ private[effect] trait AsyncInstances {
     protected def FA = F
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
-      StateT.lift(F.async(k))
+      StateT.liftF(F.async(k))
   }
 
   private[effect] trait WriterTAsync[F[_], L]
@@ -130,7 +130,7 @@ private[effect] trait AsyncInstances {
     private implicit def _L = L
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
-      WriterT.lift(F.async(k))
+      WriterT.liftF(F.async(k))
   }
 }
 
