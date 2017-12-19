@@ -24,7 +24,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.0.0-RC1"
+val CatsVersion = "1.0.0-RC2"
 val SimulacrumVersion = "0.11.0"
 
 val ScalaTestVersion = "3.0.4"
@@ -114,7 +114,7 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.3" cross CrossVersion.binary)
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.5" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
