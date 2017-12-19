@@ -22,6 +22,7 @@ import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
 import cats.effect.laws.discipline.arbitrary._
 import cats.effect.laws.util.TestContext
 import cats.implicits._
+import cats.laws.discipline.CoflatMapTests
 
 // can't use underscore here because conflicting instances were added in cats master
 // TODO re-wildcard it once we update to cats 1.0
@@ -54,6 +55,8 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => EffectTests[WriterT[IO, Int, ?]].effect[Int, Int, Int])
+
+  checkAllAsync("IO", implicit ec => CoflatMapTests[IO].coflatMap[Int, Int, Int])
 
   implicit def arbitraryStateT[F[_], S, A](
     implicit
