@@ -145,7 +145,7 @@ private[effect] trait SyncInstances {
       StateT(s => F.handleErrorWith(fa.run(s))(e => f(e).run(s)))
 
     def raiseError[A](e: Throwable): StateT[F, S, A] =
-      StateT.lift(F.raiseError(e))
+      StateT.liftF(F.raiseError(e))
 
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)

@@ -64,8 +64,8 @@ class ShallowBindBenchmark {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): IO[Int] =
-      if (i < size) IO.pure(i + 1).forEffect(IO.shift).flatMap(loop)
-      else IO.pure(i).forEffect(IO.shift)
+      if (i < size) (IO.pure(i + 1) <* IO.shift).flatMap(loop)
+      else IO.pure(i) <* IO.shift
 
     IO(0).flatMap(loop).unsafeRunSync()
   }
