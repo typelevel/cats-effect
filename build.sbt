@@ -285,23 +285,7 @@ scalacOptions in ThisBuild ++= {
   }
 }
 
-scalacOptions in ThisBuild ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, major)) if major >= 12 || scalaVersion.value == "2.11.11" =>
-      Seq("-Ypartial-unification")
-
-    case _ => Seq.empty
-  }
-}
-
 scalacOptions in Test += "-Yrangepos"
-
-libraryDependencies in ThisBuild ++= {
-  scalaVersion.value match {
-    case "2.11.8" | "2.10.6" => Seq(compilerPlugin("com.milessabin" % "si2712fix-plugin" % "1.2.0" cross CrossVersion.full))
-    case _ => Seq.empty
-  }
-}
 
 useGpg := true
 
