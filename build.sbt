@@ -24,7 +24,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.0.0"
+val CatsVersion = "1.0.1"
 val SimulacrumVersion = "0.11.0"
 
 val ScalaTestVersion = "3.0.4"
@@ -175,7 +175,7 @@ lazy val core = crossProject.in(file("core"))
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
       "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full))
+    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
