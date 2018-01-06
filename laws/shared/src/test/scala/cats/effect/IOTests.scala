@@ -36,6 +36,7 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
+  checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
 
   test("defer evaluation until run") {
     var run = false
