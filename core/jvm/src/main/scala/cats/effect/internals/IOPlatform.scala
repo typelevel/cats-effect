@@ -69,10 +69,18 @@ private[effect] object IOPlatform {
    * that has the idempotency property, making sure that its
    * side effects get triggered only once
    */
-  def onceOnly[A](f: A => Unit): A => Unit = {
+  def onceOnly[A](f: Either[Throwable, A] => Unit): Either[Throwable, A] => Unit = {
     val wasCalled = new AtomicBoolean(false)
 
-    a => if (wasCalled.getAndSet(true)) () else f(a)
+    a => if (wasCalled.getAndSet(true)) {
+      // Re-throwing error in case we can't signal it
+      a match {
+        case Left(err) => throw err
+        case Right(_) => ()
+      }
+    } else {
+      f(a)
+    }
   }
 
   private final class OneShotLatch extends AbstractQueuedSynchronizer {
