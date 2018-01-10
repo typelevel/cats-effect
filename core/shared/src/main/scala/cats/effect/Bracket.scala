@@ -20,7 +20,7 @@ package effect
 
 trait Bracket[F[_], E] extends MonadError[F, E] {
   def bracket[A, B](acquire: F[A])(use: A => F[B])
-    (release: (A, Either[Throwable, B]) => F[Unit]): F[B]
+    (release: (A, Either[E, B]) => F[Unit]): F[B]
 }
 
 object Bracket {

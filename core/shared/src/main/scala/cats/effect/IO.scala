@@ -278,10 +278,10 @@ sealed abstract class IO[+A] {
 
   def bracket[B](use: A => IO[B])(release: (A, Either[Throwable, B]) => IO[Unit]): IO[B] =
     for {
-      eta <- attempt
-      etb <- eta.fold(IO.raiseError, use).attempt
-      _ <- eta.fold(_ => IO.unit, a => release(a, etb))
-      b <- etb.fold(IO.raiseError, b => IO(b))
+      a <- this
+      etb <- use(a).attempt
+      _ <- release(a, etb)
+      b <- IO.fromEither(etb)
     } yield b
 
   override def toString = this match {
@@ -502,7 +502,11 @@ object IO extends IOInstances {
    * Lifts an Either[Throwable, A] into the IO[A] context raising the throwable
    * if it exists.
    */
-  def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
+  def fromEither[A](e: Either[Throwable, A]): IO[A] =
+    e match {
+      case Right(a) => pure(a)
+      case Left(err) => raiseError(err)
+    }
 
   /**
    * Shifts the bind continuation of the `IO` onto the specified thread
