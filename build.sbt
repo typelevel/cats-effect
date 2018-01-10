@@ -128,6 +128,23 @@ val mimaSettings = Seq(
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
     versions map { v => organization.value %% name.value % v } toSet
+  },
+  mimaBinaryIssueFilters ++= {
+    import com.typesafe.tools.mima.core._
+    import com.typesafe.tools.mima.core.ProblemFilters._
+    Seq(
+      exclude[MissingTypesProblem]("cats.effect.Sync$"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.EffectInstances"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.SyncInstances"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOLowPriorityInstances"),
+      exclude[MissingTypesProblem]("cats.effect.Async$"),
+      exclude[MissingTypesProblem]("cats.effect.IO$"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.LiftIOInstances"),
+      exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
+      exclude[MissingTypesProblem]("cats.effect.Effect$"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances")
+    )
   }
 )
 
