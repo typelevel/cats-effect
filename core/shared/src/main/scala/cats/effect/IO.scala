@@ -283,7 +283,7 @@ sealed abstract class IO[+A] {
   }
 }
 
-private[effect] trait IOLowPriorityInstances {
+private[effect] abstract class IOLowPriorityInstances {
 
   private[effect] class IOSemigroup[A: Semigroup] extends Semigroup[IO[A]] {
     def combine(ioa1: IO[A], ioa2: IO[A]) =
@@ -293,7 +293,7 @@ private[effect] trait IOLowPriorityInstances {
   implicit def ioSemigroup[A: Semigroup]: Semigroup[IO[A]] = new IOSemigroup[A]
 }
 
-private[effect] trait IOInstances extends IOLowPriorityInstances {
+private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
   implicit val ioEffect: Effect[IO] = new Effect[IO] {
     override def pure[A](a: A): IO[A] =
