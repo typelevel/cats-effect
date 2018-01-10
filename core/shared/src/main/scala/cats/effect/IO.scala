@@ -276,6 +276,14 @@ sealed abstract class IO[+A] {
         F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
+  def bracket[B](use: A => IO[B])(release: (A, Either[Throwable, B]) => IO[Unit]): IO[B] =
+    for {
+      eta <- attempt
+      etb <- eta.fold(IO.raiseError, use).attempt
+      _ <- eta.fold(_ => IO.unit, a => release(a, etb))
+      b <- etb.fold(IO.raiseError, b => IO(b))
+    } yield b
+
   override def toString = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
@@ -330,6 +338,10 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
         case Left(a) => tailRecM(a)(f)
         case Right(b) => pure(b)
       }
+
+    override def bracket[A, B](acquire: IO[A])(use: A => IO[B])
+      (release: (A, Either[Throwable, B]) => IO[Unit]): IO[B] =
+        acquire.bracket(use)(release)
   }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
