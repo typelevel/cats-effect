@@ -335,6 +335,11 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
     def empty = IO.pure(Monoid[A].empty)
   }
+
+  implicit val ioSemigroupK: SemigroupK[IO] = new SemigroupK[IO] {
+    def combineK[A](a: IO[A], b: IO[A]): IO[A] =
+      ApplicativeError[IO, Throwable].handleErrorWith(a)(_ => b)
+  }
 }
 
 object IO extends IOInstances {
