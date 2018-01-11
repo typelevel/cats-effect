@@ -62,7 +62,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   }
 }
 
-private[effect] trait AsyncInstances {
+private[effect] abstract class AsyncInstances {
 
   implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
     new EitherTAsync[F, L] { def F = Async[F] }
