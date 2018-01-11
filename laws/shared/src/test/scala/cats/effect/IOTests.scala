@@ -51,6 +51,24 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("thrown exceptions after callback was called once are re-thrown") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val io = IO.async[Int] { cb =>
+      cb(Right(10))
+      throw dummy
+    }
+
+    var effect: Option[Either[Throwable, Int]] = None
+    try {
+      io.unsafeRunAsync { v => effect = Some(v) }
+      ec.tick()
+      fail("should have thrown exception")
+    } catch {
+      case `dummy` =>
+        effect shouldEqual Some(Right(10))
+    }
+  }
+
   test("catch exceptions within main block") {
     case object Foo extends Exception
 

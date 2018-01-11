@@ -36,10 +36,16 @@ private[effect] object IOPlatform {
    * that has the idempotency property, making sure that its
    * side effects get triggered only once
    */
-  def onceOnly[A](f: A => Unit): A => Unit = {
+  def onceOnly[A](f: Either[Throwable, A] => Unit): Either[Throwable, A] => Unit = {
     var wasCalled = false
 
-    a => if (wasCalled) () else {
+    a => if (wasCalled) {
+      // Re-throwing error in case we can't signal it
+      a match {
+        case Left(err) => throw err
+        case Right(_) => ()
+      }
+    } else {
       wasCalled = true
       f(a)
     }
