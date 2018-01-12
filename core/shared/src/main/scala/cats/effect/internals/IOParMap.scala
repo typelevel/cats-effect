@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package cats
-package effect
-package laws
-package discipline
+package cats.effect.internals
 
-private[discipline] trait TestsPlatform {
-  final def isJVM = true
+import cats.effect.IO
+
+private[effect] object IOParMap {
+
+  def apply[A, B, C](fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
+    IO.async { cb => }
 }
