@@ -276,11 +276,11 @@ sealed abstract class IO[+A] {
         F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
-  def bracket[B](use: A => IO[B])(release: (A, Either[Throwable, B]) => IO[Unit]): IO[B] =
+  def bracket[B](use: A => IO[B])(release: (A, Either[Option[Throwable], B]) => IO[Unit]): IO[B] =
     for {
       a <- this
       etb <- use(a).attempt
-      _ <- release(a, etb)
+      _ <- release(a, etb.left.map(Option.apply _))
       b <- IO.fromEither(etb)
     } yield b
 
@@ -340,7 +340,7 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
       }
 
     override def bracket[A, B](acquire: IO[A])(use: A => IO[B])
-      (release: (A, Either[Throwable, B]) => IO[Unit]): IO[B] =
+      (release: (A, Either[Option[Throwable], B]) => IO[Unit]): IO[B] =
         acquire.bracket(use)(release)
   }
 

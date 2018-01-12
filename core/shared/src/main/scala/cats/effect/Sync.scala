@@ -64,10 +64,10 @@ private[effect] trait SyncInstances {
         EitherT.left(Eval.now(e))
 
       def bracket[A, B](acquire: EitherT[Eval, Throwable, A])(use: A => EitherT[Eval, Throwable, B])
-                       (release: (A, Either[Throwable, B]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] =
+                       (release: (A, Either[Option[Throwable], B]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] =
         acquire.flatMap { a =>
           EitherT(FlatMap[Eval].flatTap(use(a).value){ etb =>
-            release(a, etb).value
+            release(a, etb.left.map(Option.apply _)).value
           })
         }
 
@@ -111,7 +111,7 @@ private[effect] trait SyncInstances {
       EitherT.liftF(F.raiseError(e))
 
     def bracket[A, B](acquire: EitherT[F, L, A])(use: A => EitherT[F, L, B])
-                     (release: (A, Either[Throwable, B]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
+                     (release: (A, Either[Option[Throwable], B]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
       ???
 
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
@@ -138,16 +138,8 @@ private[effect] trait SyncInstances {
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
     def bracket[A, B](acquire: OptionT[F, A])(use: A => OptionT[F, B])
-                              (release: (A, Either[Throwable, B]) => OptionT[F, Unit]): OptionT[F, B] = {
-
-      acquire.flatMap { a =>
-        OptionT(
-          F.bracket(Sync[F].pure(a))(use.andThen(_.value)) { (a: A, etob: Either[Throwable, Option[B]]) =>
-            F.map(release(a, etob.flatMap(_.toRight(new Throwable("Empty Option")))).value)(_ => ())
-          }
-        )
-      }
-    }
+                              (release: (A, Either[Option[Throwable], B]) => OptionT[F, Unit]): OptionT[F, B] =
+      ???
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
       fa.flatMap(f)
@@ -172,7 +164,7 @@ private[effect] trait SyncInstances {
       StateT.liftF(F.raiseError(e))
 
     def bracket[A, B](acquire: StateT[F, S, A])(use: A => StateT[F, S, B])
-                     (release: (A, Either[Throwable, B]) => StateT[F, S, Unit]): StateT[F, S, B] = ???
+                     (release: (A, Either[Option[Throwable], B]) => StateT[F, S, Unit]): StateT[F, S, B] = ???
 
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)
@@ -201,7 +193,7 @@ private[effect] trait SyncInstances {
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
 
     def bracket[A, B](acquire: WriterT[F, L, A])(use: A => WriterT[F, L, B])
-                     (release: (A, Either[Throwable, B]) => WriterT[F, L, Unit]): WriterT[F, L, B] = ???
+                     (release: (A, Either[Option[Throwable], B]) => WriterT[F, L, Unit]): WriterT[F, L, B] = ???
 
     def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
       fa.flatMap(f)
