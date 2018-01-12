@@ -138,7 +138,16 @@ private[effect] trait SyncInstances {
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
     def bracket[A, B](acquire: OptionT[F, A])(use: A => OptionT[F, B])
-                              (release: (A, Either[Throwable, B]) => OptionT[F, Unit]): OptionT[F, B] = ???
+                              (release: (A, Either[Throwable, B]) => OptionT[F, Unit]): OptionT[F, B] = {
+
+      acquire.flatMap { a =>
+        OptionT(
+          F.bracket(Sync[F].pure(a))(use.andThen(_.value)) { (a: A, etob: Either[Throwable, Option[B]]) =>
+            F.map(release(a, etob.flatMap(_.toRight(new Throwable("Empty Option")))).value)(_ => ())
+          }
+        )
+      }
+    }
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
       fa.flatMap(f)
