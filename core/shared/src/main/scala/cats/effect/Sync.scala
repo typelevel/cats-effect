@@ -101,6 +101,8 @@ private[effect] trait SyncInstances {
     protected def F: Sync[F]
     private implicit def _F = F
 
+    import instances.either._
+
     def pure[A](x: A): EitherT[F, L, A] =
       EitherT.pure(x)
 
@@ -112,7 +114,16 @@ private[effect] trait SyncInstances {
 
     def bracket[A, B](acquire: EitherT[F, L, A])(use: A => EitherT[F, L, B])
                      (release: (A, Either[Option[Throwable], B]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
-      ???
+      acquire.flatMap { a =>
+        EitherT(
+          F.bracket(F.pure(a))(use.andThen(_.value)) { (a: A, etob: Either[Option[Throwable], Either[L, B]]) =>
+            val etb: Either[Option[Throwable], B] =
+              Traverse[Either[Option[Throwable], ?]].sequence(etob).toOption.getOrElse(Left(None))
+
+            F.map(release(a, etb).value)(_ => ())
+          }
+        )
+      }
 
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
       fa.flatMap(f)
@@ -129,6 +140,8 @@ private[effect] trait SyncInstances {
     protected def F: Sync[F]
     private implicit def _F = F
 
+    import instances.all._
+
     def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
 
     def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
@@ -139,7 +152,16 @@ private[effect] trait SyncInstances {
 
     def bracket[A, B](acquire: OptionT[F, A])(use: A => OptionT[F, B])
                               (release: (A, Either[Option[Throwable], B]) => OptionT[F, Unit]): OptionT[F, B] =
-      ???
+      acquire.flatMap { a =>
+        OptionT(
+          F.bracket(F.pure(a))(use.andThen(_.value)) { (a: A, etob: Either[Option[Throwable], Option[B]]) =>
+            val etb: Either[Option[Throwable], B] =
+              Traverse[Either[Option[Throwable], ?]].sequence(etob).getOrElse(Left(None))
+
+            F.map(release(a, etb).value)(_ => ())
+          }
+        )
+      }
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
       fa.flatMap(f)
