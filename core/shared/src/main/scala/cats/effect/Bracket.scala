@@ -25,7 +25,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
     (release: (A, BracketResult[E, B]) => F[Unit]): F[B]
 }
 
-sealed trait BracketResult[E, A] { self =>
+sealed abstract class BracketResult[E, A] { self =>
   def toEither: Either[Option[E], A] = self match {
     case BracketResult.Success(a) => Right(a)
     case BracketResult.Error(oe) => Left(oe)
