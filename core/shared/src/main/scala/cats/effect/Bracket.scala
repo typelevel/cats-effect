@@ -26,10 +26,10 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
 }
 
 sealed abstract class BracketResult[E, A] { self =>
-  def toEither: Either[Option[E], A] = self match {
-    case BracketResult.Success(a) => Right(a)
-    case BracketResult.Error(oe) => Left(oe)
-    case BracketResult.Cancelled() => Left(None)
+  def map[B](f: A => B): BracketResult[E, B] = self match {
+    case BracketResult.Success(a) => BracketResult.success(f(a))
+    case BracketResult.Cancelled() => BracketResult.cancelled
+    case BracketResult.Error(oe) => BracketResult.error(oe)
   }
 }
 
@@ -41,12 +41,6 @@ object BracketResult {
   def cancelled[E, A]: BracketResult[E, A] = Cancelled[E, A]
   def error[E, A](e: Option[E]): BracketResult[E, A] = Error[E, A](e)
   def success[E, A](a: A): BracketResult[E, A] = Success[E, A](a)
-
-  def fromEither[E, A](e: Either[Option[E], A]): BracketResult[E, A] =
-    e match {
-      case Left(o) => BracketResult.error(o)
-      case Right(b) => BracketResult.success(b)
-    }
 }
 
 

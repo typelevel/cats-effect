@@ -127,7 +127,7 @@ private[effect] trait SyncInstances {
               }
             }
 
-            F.map(release(a, result).value)(_ => ())
+            F.void(release(a, result).value)
           }
         )
       }
@@ -169,7 +169,7 @@ private[effect] trait SyncInstances {
               }
             }
 
-            F.map(release(a, result).value)(_ => ())
+            F.void(release(a, result).value)
           }
         )
       }
@@ -197,7 +197,17 @@ private[effect] trait SyncInstances {
       StateT.liftF(F.raiseError(e))
 
     def bracket[A, B](acquire: StateT[F, S, A])(use: A => StateT[F, S, B])
-                     (release: (A, BracketResult[Throwable, B]) => StateT[F, S, Unit]): StateT[F, S, B] = ???
+                     (release: (A, BracketResult[Throwable, B]) => StateT[F, S, Unit]): StateT[F, S, B] =
+      acquire.flatMap { a =>
+        StateT { s =>
+          F.bracket(F.pure(a))(a => F.flatMap(use(a).runF)(_.apply(s))) { (a, res: BracketResult[Throwable, (S, B)]) =>
+            res match {
+              case BracketResult.Success((s, b)) => release(a, BracketResult.success(b)).runA(s)
+              case r@ _ => release(a, r.map(_._2)).runA(s)
+            }
+          }
+        }
+      }
 
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)
@@ -226,7 +236,14 @@ private[effect] trait SyncInstances {
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
 
     def bracket[A, B](acquire: WriterT[F, L, A])(use: A => WriterT[F, L, B])
-                     (release: (A, BracketResult[Throwable, B]) => WriterT[F, L, Unit]): WriterT[F, L, B] = ???
+                     (release: (A, BracketResult[Throwable, B]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
+      acquire.flatMap { a =>
+        WriterT(
+          F.bracket(F.pure(a))(use.andThen(_.run)){ (a, res) =>
+            release(a, res.map(_._2)).value
+          }
+        )
+      }
 
     def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
       fa.flatMap(f)
