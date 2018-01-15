@@ -417,7 +417,7 @@ object IOTests {
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
     def bracket[A, B](acquire: IO[A])(use: A => IO[B])
-                     (release: (A, Either[Option[Throwable], B]) => IO[Unit]): IO[B] =
+                     (release: (A, BracketResult[E, B]) => IO[Unit]): IO[B] =
       ref.bracket(acquire)(use)(release)
   }
 }
