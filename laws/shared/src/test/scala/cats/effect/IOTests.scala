@@ -471,7 +471,8 @@ class IOTests extends BaseTestsSuite {
     val count = if (IOPlatform.isJVM) 100000 else 5000
     val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
 
-    io.unsafeRunSync() shouldEqual (count * (count - 1) / 2)
+    val f = io.unsafeToFuture()
+    f.value shouldEqual Some(Success(count * (count - 1) / 2))
   }
 }
 
