@@ -74,7 +74,7 @@ private[effect] object IOParMap {
           fb.unsafeRunAsync { attemptB =>
             // Using Java 8 platform intrinsics
             state.getAndSet(Right(attemptB)) match {
-              case null => () // wait for B
+              case null => () // wait for A
               case Left(attemptA) => complete(attemptA, attemptB)
               case right =>
                 // $COVERAGE-OFF$
