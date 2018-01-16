@@ -18,6 +18,7 @@ package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.IO
+import cats.effect.util.CompositeException
 import scala.concurrent.ExecutionContext
 
 private[effect] object IOParMap {
@@ -28,7 +29,7 @@ private[effect] object IOParMap {
     IO.async { cb =>
       // For preventing stack-overflow errors; using a
       // trampolined execution context, so no thread forks
-      private implicit val ec: ExecutionContext = TrampolineEC.immediate
+      implicit val ec: ExecutionContext = TrampolineEC.immediate
 
       // Light async boundary to prevent SO errors
       ec.execute(new Runnable {
@@ -44,13 +45,15 @@ private[effect] object IOParMap {
                     case Right(b) =>
                       cb(try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
                     case error @ Left(_) =>
-                      cb(error)
+                      cb(error.asInstanceOf[Left[Throwable, C]])
                   }
-                case error @ Left(_) =>
-                  cb(error)
+                case left @ Left(e1) =>
                   rb match {
-                    case Left(error2) => throw error2
-                    case _ => ()
+                    case Right(_) =>
+                      cb(left.asInstanceOf[Left[Throwable, C]])
+                    case Left(e2) =>
+                      // Signaling both errors
+                      cb(Left(new CompositeException(e1, e2)))
                   }
               }
             })
@@ -61,7 +64,10 @@ private[effect] object IOParMap {
             state.getAndSet(Left(attemptA)) match {
               case null => () // wait for B
               case Right(attemptB) => complete(attemptA, attemptB)
-              case left => throw new IllegalStateException(s"parMap: $left")
+              case left =>
+                // $COVERAGE-OFF$
+                throw new IllegalStateException(s"parMap: $left")
+                // $COVERAGE-ON$
             }
           }
           // Second execution
@@ -70,7 +76,10 @@ private[effect] object IOParMap {
             state.getAndSet(Right(attemptB)) match {
               case null => () // wait for B
               case Left(attemptA) => complete(attemptA, attemptB)
-              case right => throw new IllegalStateException(s"parMap: $right")
+              case right =>
+                // $COVERAGE-OFF$
+                throw new IllegalStateException(s"parMap: $right")
+                // $COVERAGE-ON$
             }
           }
         }

@@ -17,7 +17,7 @@
 package cats.effect
 
 import org.scalatest._
-
+import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -83,6 +83,18 @@ class IOJVMTests extends FunSuite with Matchers {
 
     received shouldEqual None
     assert(elapsed >= 100)
+  }
+
+  test("parMap2 concurrently") {
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    val io1 = IO.shift *> IO(1)
+    val io2 = IO.shift *> IO(2)
+
+    for (_ <- 0 until 1000) {
+      val r = (io1, io2).parMapN(_ + _).unsafeRunSync
+      r shouldEqual 3
+    }
   }
 
   // this is expected behavior

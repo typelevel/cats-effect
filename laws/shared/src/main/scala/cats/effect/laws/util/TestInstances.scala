@@ -40,6 +40,16 @@ trait TestInstances {
     }
 
   /**
+    * Defines equality for `IO.Par` references that can
+    * get interpreted by means of a [[TestContext]].
+    */
+  implicit def eqIOPar[A](implicit A: Eq[A], ec: TestContext): Eq[IO.Par[A]] =
+    new Eq[IO.Par[A]] {
+      def eqv(x: IO.Par[A], y: IO.Par[A]): Boolean =
+        eqFuture[A].eqv(x.toIO.unsafeToFuture(), y.toIO.unsafeToFuture())
+    }
+
+  /**
    * Defines equality for `Future` references that can
    * get interpreted by means of a [[TestContext]].
    */

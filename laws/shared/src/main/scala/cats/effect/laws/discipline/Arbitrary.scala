@@ -29,6 +29,9 @@ object arbitrary {
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
+  implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
+    Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(_.toPar))
+
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
     Gen.frequency(
       5 -> genPure[A],

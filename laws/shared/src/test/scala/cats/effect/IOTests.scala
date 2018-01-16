@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.effect.internals.IOPlatform
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.laws.util.TestContext
+import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -37,6 +39,9 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
+
+  checkAllAsync("IO.Par", implicit ec => ApplicativeTests[IO.Par].applicative[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
 
   test("defer evaluation until run") {
     var run = false
@@ -411,6 +416,62 @@ class IOTests extends BaseTestsSuite {
     val io = (0 until (max * 10000)).foldLeft(IO(0))((acc, _) => acc.map(f))
 
     io.unsafeRunSync() shouldEqual max * 10000
+  }
+
+  test("parMap2 for successful values") {
+    implicit val ec = TestContext()
+    val io1 = IO.shift *> IO.pure(1)
+    val io2 = IO.shift *> IO.pure(2)
+
+    val io3 = (io1, io2).parMapN(_ + _)
+    val f = io3.unsafeToFuture()
+    ec.tick()
+    f.value shouldEqual Some(Success(3))
+  }
+
+  test("parMap2 can fail for one") {
+    implicit val ec = TestContext()
+    val dummy = new RuntimeException("dummy")
+    val io1 = IO.shift *> IO.pure(1)
+    val io2 = IO.shift *> IO.raiseError[Int](dummy)
+
+    val io3 = (io1, io2).parMapN(_ + _)
+    val f1 = io3.unsafeToFuture()
+
+    ec.tick()
+    f1.value shouldEqual Some(Failure(dummy))
+
+    val io4 = (io2, io1).parMapN(_ + _)
+    val f2 = io4.unsafeToFuture()
+
+    ec.tick()
+    f2.value shouldEqual Some(Failure(dummy))
+  }
+
+  test("parMap2 can fail for both") {
+    implicit val ec = TestContext()
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
+
+    val io1 = IO.shift *> IO.raiseError[Int](dummy1)
+    val io2 = IO.shift *> IO.raiseError[Int](dummy2)
+
+    val io3 = (io1, io2).parMapN(_ + _)
+    val f1 = io3.unsafeToFuture()
+    ec.tick()
+
+    val errors = f1.value.collect {
+      case Failure(ref: CompositeException) => ref.errors
+    }
+
+    errors shouldBe Some(List(dummy1, dummy2))
+  }
+
+  test("parMap2 is stack safe") {
+    val count = if (IOPlatform.isJVM) 100000 else 5000
+    val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
+
+    io.unsafeRunSync() shouldEqual (count * (count - 1) / 2)
   }
 }
 

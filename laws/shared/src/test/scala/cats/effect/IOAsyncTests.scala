@@ -18,7 +18,6 @@ package cats.effect
 
 import org.scalactic.source.Position
 import org.scalatest.{Assertion, AsyncFunSuite, Matchers}
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success, Try}
 
