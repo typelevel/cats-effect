@@ -293,7 +293,7 @@ private[effect] abstract class IOParallelNewtype {
     * Helpers are provided as extension methods for converting back and forth
     * in [[IO.IOExtensions.toPar .toPar]] and [[IO.ParExtensions.toIO .toIO]].
     *
-    * The encoding is inspired based on the "newtypes" project by
+    * The encoding is based on the "newtypes" project by
     * Alexander Konovalov, chosen because it's devoid of boxing issues and
     * a good choice until opaque types will land in Scala.
     */
