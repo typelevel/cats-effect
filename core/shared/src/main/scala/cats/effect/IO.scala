@@ -286,9 +286,9 @@ sealed abstract class IO[+A] {
 }
 
 private[effect] abstract class IOParallelNewtype {
-  /** Newtype encoding for an `IO` datatype that has a [[cats.Applicative]]
-    * capable of doing parallel processing in `ap` and `map2`, needed
-    * for implementing [[cats.Parallel]].
+  /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
+    * capable of doing parallel processing in ap` and `map2`, needed
+    * for implementing `cats.Parallel`.
     *
     * Helpers are provided as extension methods for converting back and forth
     * in [[IO.IOExtensions.toPar .toPar]] and [[IO.ParExtensions.toIO .toIO]].
