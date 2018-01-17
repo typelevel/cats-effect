@@ -290,8 +290,8 @@ private[effect] abstract class IOParallelNewtype {
     * capable of doing parallel processing in `ap` and `map2`, needed
     * for implementing `cats.Parallel`.
     *
-    * Helpers are provided for converting back and forth in [[Par.apply]]
-    * for wrapping any `IO` value and [[Par.unwrap]] for unwrapping.
+    * Helpers are provided for converting back and forth in [[IO.Par.apply]]
+    * for wrapping any IO` value and [[IO.Par.unwrap]] for unwrapping.
     *
     * The encoding is based on the "newtypes" project by
     * Alexander Konovalov, chosen because it's devoid of boxing issues and
