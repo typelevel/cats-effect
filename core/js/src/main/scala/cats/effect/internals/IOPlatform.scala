@@ -58,5 +58,9 @@ private[effect] object IOPlatform {
    * The default for JavaScript is 32, from which we substract 1
    * as an optimization.
    */
-  private[effect] final val fusionMaxStackDepth = 31
+  final val fusionMaxStackDepth = 31
+
+  /** Returns `true` if the underlying platform is the JVM,
+    * `false` if it's JavaScript. */
+  final val isJVM = false
 }

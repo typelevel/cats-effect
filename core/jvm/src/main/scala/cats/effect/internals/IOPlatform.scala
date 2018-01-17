@@ -116,11 +116,15 @@ private[effect] object IOPlatform {
    *        ...
    * </pre>
    */
-  private[effect] final val fusionMaxStackDepth =
+  final val fusionMaxStackDepth =
     Option(System.getProperty("cats.effect.fusionMaxStackDepth", ""))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .map(_ - 1)
       .getOrElse(127)
+
+  /** Returns `true` if the underlying platform is the JVM,
+    * `false` if it's JavaScript. */
+  final val isJVM = true
 }
