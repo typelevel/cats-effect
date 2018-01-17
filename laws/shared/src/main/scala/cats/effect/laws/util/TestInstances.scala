@@ -17,7 +17,10 @@
 package cats.effect.laws.util
 
 import cats.effect.IO
+import cats.effect.util.CompositeException
 import cats.kernel.Eq
+
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionException, Future}
 import scala.util.{Failure, Success}
 
@@ -79,12 +82,15 @@ trait TestInstances {
 
       // Unwraps exceptions that got caught by Future's implementation
       // and that got wrapped in ExecutionException (`Future(throw ex)`)
-      def extractEx(ex: Throwable): String = {
-        var ref = ex
-        while (ref.isInstanceOf[ExecutionException] && ref.getCause != null) {
-          ref = ref.getCause
+      @tailrec def extractEx(ex: Throwable): String = {
+        ex match {
+          case e: ExecutionException if e.getCause != null =>
+            extractEx(e.getCause)
+          case e: CompositeException =>
+            extractEx(e.head)
+          case _ =>
+            s"${ex.getClass.getName}: ${ex.getMessage}"
         }
-        s"${ref.getClass.getName}: ${ref.getMessage}"
       }
     }
 }

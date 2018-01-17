@@ -302,11 +302,7 @@ private[effect] abstract class IOParallelNewtype {
   /** Newtype encoding, see the [[IO.Par]] type alias
     * for more details.
     */
-  object Par {
-    type Base
-    trait Tag extends Any
-    type Type[+A] <: Base with Tag
-  }
+  object Par extends Newtype1
 }
 
 private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype {

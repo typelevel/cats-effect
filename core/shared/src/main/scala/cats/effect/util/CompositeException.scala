@@ -16,22 +16,31 @@
 
 package cats.effect.util
 
+import cats.data.NonEmptyList
+
 /** A composite exception represents a list of exceptions
-  * caught from evaluating multiple independent IO actions
+  * caught from evaluating multiple independent actions
   * and that need to be signaled together.
+  *
+  * Note the constructor doesn't allow wrapping anything less
+  * than two throwable references.
+  *
+  * Use [[cats.effect.util.CompositeException.apply apply]]
+  * for building composite exceptions.
   */
-class CompositeException(val errors: List[Throwable])
-  extends RuntimeException() with Serializable {
+final class CompositeException(val head: Throwable, val tail: NonEmptyList[Throwable])
+  extends RuntimeException(
+    s"Multiple exceptions were thrown (${1 + tail.size}), " +
+    s"first ${head.getClass.getName}: ${head.getMessage}")
+    with Serializable {
 
-  def this(args: Throwable*) = this(args.toList)
+  /** Returns the set of all errors wrapped by this composite. */
+  def all: NonEmptyList[Throwable] =
+    head :: tail
+}
 
-  override def toString: String = {
-    getClass.getName + (
-      if (errors.isEmpty) "" else {
-        val (first, last) = errors.splitAt(2)
-        val str = first.map(e => s"${e.getClass.getName}: ${e.getMessage}").mkString(", ")
-        val reasons = if (last.nonEmpty) str + "..." else str
-        "(" + reasons + ")"
-      })
-  }
+object CompositeException {
+  /** Simple builder for [[CompositeException]]. */
+  def apply(first: Throwable, second: Throwable, rest: List[Throwable] = Nil): CompositeException =
+    new CompositeException(first, NonEmptyList(second, rest))
 }

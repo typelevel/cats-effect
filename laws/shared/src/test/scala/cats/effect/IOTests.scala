@@ -43,6 +43,10 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO.Par", implicit ec => ApplicativeTests[IO.Par].applicative[Int, Int, Int])
   checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
 
+  test("IO.Par's applicative instance is different") {
+    implicitly[Applicative[IO]] shouldNot be(implicitly[Applicative[IO.Par]])
+  }
+
   test("defer evaluation until run") {
     var run = false
     val ioa = IO { run = true }
@@ -461,7 +465,7 @@ class IOTests extends BaseTestsSuite {
     ec.tick()
 
     val errors = f1.value.collect {
-      case Failure(ref: CompositeException) => ref.errors
+      case Failure(ref: CompositeException) => ref.all.toList
     }
 
     errors shouldBe Some(List(dummy1, dummy2))

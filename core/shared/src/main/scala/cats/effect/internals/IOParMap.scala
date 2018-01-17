@@ -53,7 +53,7 @@ private[effect] object IOParMap {
                       cb(left.asInstanceOf[Left[Throwable, C]])
                     case Left(e2) =>
                       // Signaling both errors
-                      cb(Left(new CompositeException(e1, e2)))
+                      cb(Left(CompositeException(e1, e2)))
                   }
               }
             })

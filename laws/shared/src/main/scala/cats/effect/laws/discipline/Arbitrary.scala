@@ -91,5 +91,5 @@ object arbitrary {
     } yield ioa.map(f1).map(f2)
 
   implicit def catsEffectLawsCogenForIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
-    cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture)
+    cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture())
 }
