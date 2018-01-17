@@ -374,9 +374,9 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
         parApplicative
       override def monad: Monad[IO] =
         ioEffect
-      override def sequential: ~>[IO.Par, IO] =
+      override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = fa.toIO }
-      override def parallel: ~>[IO, IO.Par] =
+      override val parallel: ~>[IO, IO.Par] =
         new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = fa.toPar }
     }
 
