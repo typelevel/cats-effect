@@ -48,8 +48,9 @@ trait TestInstances {
     */
   implicit def eqIOPar[A](implicit A: Eq[A], ec: TestContext): Eq[IO.Par[A]] =
     new Eq[IO.Par[A]] {
+      import IO.Par.unwrap
       def eqv(x: IO.Par[A], y: IO.Par[A]): Boolean =
-        eqFuture[A].eqv(x.toIO.unsafeToFuture(), y.toIO.unsafeToFuture())
+        eqFuture[A].eqv(unwrap(x).unsafeToFuture(), unwrap(y).unsafeToFuture())
     }
 
   /**

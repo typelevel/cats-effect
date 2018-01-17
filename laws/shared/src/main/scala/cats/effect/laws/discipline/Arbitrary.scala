@@ -19,9 +19,9 @@ package effect
 package laws
 package discipline
 
+import cats.effect.IO.Par
 import org.scalacheck._
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
-
 import scala.concurrent.Future
 import scala.util.Either
 
@@ -30,7 +30,7 @@ object arbitrary {
     Arbitrary(Gen.delay(genIO[A]))
 
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
-    Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(_.toPar))
+    Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
 
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
     Gen.frequency(

@@ -290,8 +290,8 @@ private[effect] abstract class IOParallelNewtype {
     * capable of doing parallel processing in `ap` and `map2`, needed
     * for implementing `cats.Parallel`.
     *
-    * Helpers are provided as extension methods for converting back and forth
-    * in [[IO.IOExtensions.toPar .toPar]] and [[IO.ParExtensions.toIO .toIO]].
+    * Helpers are provided for converting back and forth in [[Par.apply]]
+    * for wrapping any `IO` value and [[Par.unwrap]] for unwrapping.
     *
     * The encoding is based on the "newtypes" project by
     * Alexander Konovalov, chosen because it's devoid of boxing issues and
@@ -302,7 +302,7 @@ private[effect] abstract class IOParallelNewtype {
   /** Newtype encoding, see the [[IO.Par]] type alias
     * for more details.
     */
-  object Par extends Newtype1
+  object Par extends IONewtype
 }
 
 private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype {
@@ -317,18 +317,21 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
   implicit val parApplicative: Applicative[IO.Par] = new Applicative[IO.Par] {
+    import IO.Par.unwrap
+    import IO.Par.{apply => par}
+    
     override def pure[A](x: A): IO.Par[A] =
-      IO.pure(x).toPar
+      par(IO.pure(x))
     override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
-      IOParMap(fa.toIO, fb.toIO)(f).toPar
+      par(IOParMap(unwrap(fa), unwrap(fb))(f))
     override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
       map2(ff, fa)(_(_))
     override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
       map2(fa, fb)((_, _))
     override def map[A, B](fa: IO.Par[A])(f: A => B): IO.Par[B] =
-      fa.toIO.map(f).toPar
+      par(unwrap(fa).map(f))
     override def unit: IO.Par[Unit] =
-      IO.unit.toPar
+      par(IO.unit)
   }
 
   implicit val ioEffect: Effect[IO] = new Effect[IO] {
@@ -375,9 +378,9 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       override def monad: Monad[IO] =
         ioEffect
       override val sequential: ~>[IO.Par, IO] =
-        new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = fa.toIO }
+        new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
       override val parallel: ~>[IO, IO.Par] =
-        new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = fa.toPar }
+        new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa) }
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
@@ -657,15 +660,5 @@ object IO extends IOInstances {
       Pure(Right(a))
     override def recover(e: Throwable) =
       Pure(Left(e))
-  }
-
-  implicit final class IOExtensions[+A](val self: IO[A]) extends AnyVal {
-    /** Wraps any `IO` value into an [[IO.Par]] type. */
-    def toPar: IO.Par[A] = self.asInstanceOf[Par[A]]
-  }
-
-  implicit final class ParExtensions[+A](val self: Par[A]) extends AnyVal {
-    /** Unwraps `IO.Par` values back to the base [[IO]] type. */
-    def toIO: IO[A] = self.asInstanceOf[IO[A]]
   }
 }

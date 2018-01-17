@@ -16,19 +16,27 @@
 
 package cats.effect.internals
 
+import cats.effect.IO
+
 /** INTERNAL API — Newtype encoding, used for defining `IO.Par`.
   *
-  * The `Newtype1` abstract class indirection is needed for Scala 2.10,
+  * The `IONewtype` abstract class indirection is needed for Scala 2.10,
   * otherwise we could just define these types straight on the 
-  * `IO.Par` companion object. In Scala 2.10 definining these types
-  * straight on the companion object yields an error like:
+  * `IO.Par` companion object. In Scala 2.10 defining these types
+  * straight on the companion object yields an error like
   * ''"only classes can have declared but undefined members"''.
   *
   * Inspired by
   * [[https://github.com/alexknvl/newtypes alexknvl/newtypes]].
   */
-private[effect] abstract class Newtype1 {
+private[effect] abstract class IONewtype { self =>
   type Base
   trait Tag extends Any
-  type Type[+A] <: Base with Tag  
+  type Type[+A] <: Base with Tag
+
+  def apply[A](fa: IO[A]): Type[A] =
+    fa.asInstanceOf[Type[A]]
+
+  def unwrap[A](fa: Type[A]): IO[A] =
+    fa.asInstanceOf[IO[A]]
 }
