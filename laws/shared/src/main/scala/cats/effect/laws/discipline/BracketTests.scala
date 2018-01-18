@@ -22,8 +22,8 @@ package discipline
 import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-
-import org.scalacheck._, Prop.forAll
+import org.scalacheck._
+import Prop.forAll
 
 trait BracketTests[F[_], E] extends MonadErrorTests[F, E] with TestsPlatform {
   def laws: BracketLaws[F, E]
@@ -57,8 +57,10 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] with TestsPlatform {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "release is called on success" -> forAll(laws.releaseIsCalledOnSuccess[A, B] _),
-        "release is called on error" -> forAll(laws.releaseIsCalledOnError[A, B] _))
+        "bracket eqv to attempt + flatMap + rethrow" -> forAll(laws.bracketEquivalence[A, B] _),
+        "bracket with pure unit on release is eqv to map" -> forAll(laws.bracketWithPureUnitIsEqvMap[A, B] _),
+        "bracket with pure unit on release is eqv to flatMap" -> forAll(laws.bracketWithPureUnitIsEqvFlatMap[A, B] _)
+      )
 
     }
   }

@@ -18,17 +18,37 @@ package cats
 package effect
 package laws
 
+import cats.effect.BracketResult._
 import cats.implicits._
 import cats.laws._
+
+import scala.util.{Left, Right}
 
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   implicit def F: Bracket[F, E]
 
-  def releaseIsCalledOnSuccess[A, B](fa: F[A], f: A => B, funit: F[Unit]) =
-    F.bracket(fa)(a => f(a).pure[F])((_, _) => funit) <-> fa.map(f).flatTap(_ => funit)
 
-  def releaseIsCalledOnError[A, B](fa: F[A], e: E, funit: F[Unit], f: E => B) =
-    F.bracket(fa)(_ => F.raiseError[B](e))((_,_) => funit).handleError(f) <-> fa *> funit *> f(e).pure[F]
+  def bracketWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
+    F.bracket(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
+
+  def bracketWithPureUnitIsEqvFlatMap[A, B](fa: F[A], f: A => F[B]) =
+    F.bracket(fa)(f)((_, _) => F.unit) <-> F.flatMap(fa)(f)
+
+
+  def bracketEquivalence[A, B](acquire: F[A], use: A => F[B], release: Either[Option[E], Option[B]] => F[Unit]): IsEq[F[B]] = {
+
+    def toEither(r: BracketResult[E, B]): Either[Option[E], Option[B]] = r match {
+      case Success(b) => Right(Some(b))
+      case Error(oe) => Left(oe)
+      case Cancelled() => Right(None)
+    }
+
+    val result = acquire.flatMap(a => use(a).attempt).flatMap { eeb =>
+      release(eeb.bimap(e => Option(e), b => Option(b))).flatMap(_ => eeb.pure[F].rethrow)
+    }
+    F.bracket(acquire)(use)((a, res) => release(toEither(res))) <-> result
+  }
+
 }
 
 object BracketLaws {
