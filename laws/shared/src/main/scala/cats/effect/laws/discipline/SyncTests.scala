@@ -20,12 +20,14 @@ package laws
 package discipline
 
 import cats.data._
+import cats.effect.internals.IOPlatform.isJVM
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-
 import org.scalacheck._, Prop.forAll
 
+
 trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
+
   def laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](

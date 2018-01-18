@@ -25,7 +25,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._
 import Prop.forAll
 
-trait BracketTests[F[_], E] extends MonadErrorTests[F, E] with TestsPlatform {
+trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
   def laws: BracketLaws[F, E]
 
   def bracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](

@@ -17,9 +17,11 @@
 package cats
 package effect
 
+import cats.arrow.FunctionK
 import cats.effect.internals.IOFrame.ErrorHandler
-import cats.effect.internals.{IOFrame, IOPlatform, IORunLoop, NonFatal}
+import cats.effect.internals._
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
+
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -294,8 +296,27 @@ sealed abstract class IO[+A] {
   }
 }
 
-private[effect] trait IOLowPriorityInstances {
+private[effect] abstract class IOParallelNewtype {
+  /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
+    * capable of doing parallel processing in `ap` and `map2`, needed
+    * for implementing `cats.Parallel`.
+    *
+    * Helpers are provided for converting back and forth in `Par.apply`
+    * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
+    *
+    * The encoding is based on the "newtypes" project by
+    * Alexander Konovalov, chosen because it's devoid of boxing issues and
+    * a good choice until opaque types will land in Scala.
+    */
+  type Par[+A] = Par.Type[A]
 
+  /** Newtype encoding, see the [[IO.Par]] type alias
+    * for more details.
+    */
+  object Par extends IONewtype
+}
+
+private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype {
   private[effect] class IOSemigroup[A: Semigroup] extends Semigroup[IO[A]] {
     def combine(ioa1: IO[A], ioa2: IO[A]) =
       ioa1.flatMap(a1 => ioa2.map(a2 => Semigroup[A].combine(a1, a2)))
@@ -304,7 +325,25 @@ private[effect] trait IOLowPriorityInstances {
   implicit def ioSemigroup[A: Semigroup]: Semigroup[IO[A]] = new IOSemigroup[A]
 }
 
-private[effect] trait IOInstances extends IOLowPriorityInstances {
+private[effect] abstract class IOInstances extends IOLowPriorityInstances {
+
+  implicit val parApplicative: Applicative[IO.Par] = new Applicative[IO.Par] {
+    import IO.Par.unwrap
+    import IO.Par.{apply => par}
+    
+    override def pure[A](x: A): IO.Par[A] =
+      par(IO.pure(x))
+    override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
+      par(IOParMap(unwrap(fa), unwrap(fb))(f))
+    override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
+      map2(ff, fa)(_(_))
+    override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
+      map2(fa, fb)((_, _))
+    override def map[A, B](fa: IO.Par[A])(f: A => B): IO.Par[B] =
+      par(unwrap(fa).map(f))
+    override def unit: IO.Par[Unit] =
+      par(IO.unit)
+  }
 
   implicit val ioEffect: Effect[IO] = new Effect[IO] {
     override def pure[A](a: A): IO[A] =
@@ -347,8 +386,25 @@ private[effect] trait IOInstances extends IOLowPriorityInstances {
         acquire.bracket(use)(release)
   }
 
+  implicit val ioParallel: Parallel[IO, IO.Par] =
+    new Parallel[IO, IO.Par] {
+      override def applicative: Applicative[IO.Par] =
+        parApplicative
+      override def monad: Monad[IO] =
+        ioEffect
+      override val sequential: ~>[IO.Par, IO] =
+        new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
+      override val parallel: ~>[IO, IO.Par] =
+        new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa) }
+    }
+
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
     def empty = IO.pure(Monoid[A].empty)
+  }
+
+  implicit val ioSemigroupK: SemigroupK[IO] = new SemigroupK[IO] {
+    def combineK[A](a: IO[A], b: IO[A]): IO[A] =
+      ApplicativeError[IO, Throwable].handleErrorWith(a)(_ => b)
   }
 }
 

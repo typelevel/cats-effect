@@ -69,10 +69,18 @@ private[effect] object IOPlatform {
    * that has the idempotency property, making sure that its
    * side effects get triggered only once
    */
-  def onceOnly[A](f: A => Unit): A => Unit = {
+  def onceOnly[A](f: Either[Throwable, A] => Unit): Either[Throwable, A] => Unit = {
     val wasCalled = new AtomicBoolean(false)
 
-    a => if (wasCalled.getAndSet(true)) () else f(a)
+    a => if (wasCalled.getAndSet(true)) {
+      // Re-throwing error in case we can't signal it
+      a match {
+        case Left(err) => throw err
+        case Right(_) => ()
+      }
+    } else {
+      f(a)
+    }
   }
 
   private final class OneShotLatch extends AbstractQueuedSynchronizer {
@@ -108,11 +116,15 @@ private[effect] object IOPlatform {
    *        ...
    * </pre>
    */
-  private[effect] final val fusionMaxStackDepth =
+  final val fusionMaxStackDepth =
     Option(System.getProperty("cats.effect.fusionMaxStackDepth", ""))
       .filter(s => s != null && s.nonEmpty)
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .map(_ - 1)
       .getOrElse(127)
+
+  /** Returns `true` if the underlying platform is the JVM,
+    * `false` if it's JavaScript. */
+  final val isJVM = true
 }

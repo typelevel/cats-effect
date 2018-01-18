@@ -47,7 +47,7 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
 
-private[effect] trait SyncInstances {
+private[effect] abstract class SyncInstances {
 
   implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
     new EitherTSync[F, L] { def F = Sync[F] }
