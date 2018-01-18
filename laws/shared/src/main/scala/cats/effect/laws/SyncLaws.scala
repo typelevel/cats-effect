@@ -33,6 +33,18 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
     F.bracket(fa)(f)((a, _) => update) *> read <-> fa.flatMap(f) *> F.pure(g(a1))
   }
 
+  def releaseIsCalledOnError[A](fa: F[A], e: Throwable, funit: F[Unit], f: A => A, a1: A) = {
+
+    var input = a1
+    val update = F.delay { input = f(input) }
+    val read = F.delay(input)
+
+    F.handleErrorWith(F.bracket(fa)(_ => F.raiseError[Unit](e))((_, _) => update))(_ => update) *> read <->
+      fa *> F.pure(f(f(a1)))
+
+  }
+
+
   def delayConstantIsPure[A](a: A) =
     F.delay(a) <-> F.pure(a)
 

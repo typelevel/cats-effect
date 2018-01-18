@@ -43,7 +43,7 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
       case Cancelled() => Right(None)
     }
 
-    val result = acquire.flatMap(a => use(a).attempt).flatMap { eeb =>
+    val result = acquire.flatMap(a => F.attempt(use(a))).flatMap { eeb =>
       release(eeb.bimap(e => Option(e), b => Option(b))).flatMap(_ => eeb.pure[F].rethrow)
     }
     F.bracket(acquire)(use)((a, res) => release(toEither(res))) <-> result
