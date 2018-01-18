@@ -36,10 +36,16 @@ private[effect] object IOPlatform {
    * that has the idempotency property, making sure that its
    * side effects get triggered only once
    */
-  def onceOnly[A](f: A => Unit): A => Unit = {
+  def onceOnly[A](f: Either[Throwable, A] => Unit): Either[Throwable, A] => Unit = {
     var wasCalled = false
 
-    a => if (wasCalled) () else {
+    a => if (wasCalled) {
+      // Re-throwing error in case we can't signal it
+      a match {
+        case Left(err) => throw err
+        case Right(_) => ()
+      }
+    } else {
       wasCalled = true
       f(a)
     }
@@ -52,5 +58,9 @@ private[effect] object IOPlatform {
    * The default for JavaScript is 32, from which we substract 1
    * as an optimization.
    */
-  private[effect] final val fusionMaxStackDepth = 31
+  final val fusionMaxStackDepth = 31
+
+  /** Returns `true` if the underlying platform is the JVM,
+    * `false` if it's JavaScript. */
+  final val isJVM = false
 }

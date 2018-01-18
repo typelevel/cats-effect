@@ -17,7 +17,10 @@
 package cats.effect.laws.util
 
 import cats.effect.IO
+import cats.effect.util.CompositeException
 import cats.kernel.Eq
+
+import scala.annotation.tailrec
 import scala.concurrent.{ExecutionException, Future}
 import scala.util.{Failure, Success}
 
@@ -37,6 +40,17 @@ trait TestInstances {
     new Eq[IO[A]] {
       def eqv(x: IO[A], y: IO[A]): Boolean =
         eqFuture[A].eqv(x.unsafeToFuture(), y.unsafeToFuture())
+    }
+
+  /**
+    * Defines equality for `IO.Par` references that can
+    * get interpreted by means of a [[TestContext]].
+    */
+  implicit def eqIOPar[A](implicit A: Eq[A], ec: TestContext): Eq[IO.Par[A]] =
+    new Eq[IO.Par[A]] {
+      import IO.Par.unwrap
+      def eqv(x: IO.Par[A], y: IO.Par[A]): Boolean =
+        eqFuture[A].eqv(unwrap(x).unsafeToFuture(), unwrap(y).unsafeToFuture())
     }
 
   /**
@@ -69,12 +83,15 @@ trait TestInstances {
 
       // Unwraps exceptions that got caught by Future's implementation
       // and that got wrapped in ExecutionException (`Future(throw ex)`)
-      def extractEx(ex: Throwable): String = {
-        var ref = ex
-        while (ref.isInstanceOf[ExecutionException] && ref.getCause != null) {
-          ref = ref.getCause
+      @tailrec def extractEx(ex: Throwable): String = {
+        ex match {
+          case e: ExecutionException if e.getCause != null =>
+            extractEx(e.getCause)
+          case e: CompositeException =>
+            extractEx(e.head)
+          case _ =>
+            s"${ex.getClass.getName}: ${ex.getMessage}"
         }
-        s"${ref.getClass.getName}: ${ref.getMessage}"
       }
     }
 }

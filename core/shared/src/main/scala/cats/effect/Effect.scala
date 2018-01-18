@@ -37,7 +37,7 @@ trait Effect[F[_]] extends Async[F] {
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 }
 
-private[effect] trait EffectInstances {
+private[effect] abstract class EffectInstances {
 
   implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
     new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] {

@@ -28,28 +28,51 @@ class OnceOnlyTests extends AsyncFunSuite with Matchers {
   test("onceOnly provides idempotency guarantees for sequential execution") {
     Future.successful {
       var effect = 0
-      val f: Int => Unit =
-        onceOnly { x => effect += x }
+      val f: Either[Throwable, Int] => Unit =
+        onceOnly {
+          case Right(x) => effect += x
+          case Left(_) => ()
+        }
 
-      f(10)
+      f(Right(10))
       effect shouldEqual 10
 
-      f(20)
+      f(Right(20))
       effect shouldEqual 10
     }
   }
 
   test("onceOnly provides idempotency guarantees for parallel execution") {
     val effect = new AtomicInteger(0)
-    val f: Int => Unit =
-      onceOnly { x => effect.addAndGet(x) }
+    val f: Either[Throwable, Int] => Unit =
+      onceOnly {
+        case Right(x) => effect.addAndGet(x)
+        case Left(_) => ()
+      }
 
-    val f1 = Future(f(10))
-    val f2 = Future(f(10))
-    val f3 = Future(f(10))
+    val f1 = Future(f(Right(10)))
+    val f2 = Future(f(Right(10)))
+    val f3 = Future(f(Right(10)))
 
     for (_ <- f1; _ <- f2; _ <- f3) yield {
       effect.get() shouldEqual 10
+    }
+  }
+
+  test("onceOnly re-throws exception after it was called once") {
+    case object DummyException extends RuntimeException
+
+    Future.successful {
+      var effect = 0
+      val f: Either[Throwable, Int] => Unit =
+        onceOnly {
+          case Right(x) => effect += x
+          case Left(_) => ()
+        }
+
+      f(Right(10))
+      intercept[DummyException.type] { f(Left(DummyException)) }
+      effect shouldEqual 10
     }
   }
 }

@@ -31,7 +31,7 @@ trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
 
-private[effect] trait LiftIOInstances {
+private[effect] abstract class LiftIOInstances {
 
   implicit def catsEitherTLiftIO[F[_]: LiftIO: Functor, L]: LiftIO[EitherT[F, L, ?]] =
     new EitherTLiftIO[F, L] { def F = LiftIO[F]; def FF = Functor[F] }
