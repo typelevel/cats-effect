@@ -61,7 +61,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
     var state = a1
     val evolve = F.flatMap(fa) { a2 =>
-      state = f(state, a2)
+      state = f(a1, a2)
       F.pure(state)
     }
     // Observing `state` before and after `evolve`
@@ -71,7 +71,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
   def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
     var state = a1
     val evolve = F.map(fa) { a2 =>
-      state = f(state, a2)
+      state = f(a1, a2)
       state
     }
     // Observing `state` before and after `evolve`
