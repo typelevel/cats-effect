@@ -57,7 +57,6 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "bracket eqv to attempt + flatMap + rethrow" -> forAll(laws.bracketEquivalence[A, B] _),
         "bracket with pure unit on release is eqv to map" -> forAll(laws.bracketWithPureUnitIsEqvMap[A, B] _),
         "bracket with pure unit on release is eqv to flatMap" -> forAll(laws.bracketWithPureUnitIsEqvFlatMap[A, B] _)
       )
