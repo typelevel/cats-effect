@@ -24,24 +24,13 @@ import cats.laws._
 trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
   implicit def F: Sync[F]
 
-  def releaseCalledOnSuccess[A, B](fa: F[A], f: A => F[B], g: A => A, a1: A) = {
+  def bracketReleaseIsAlwaysCalled[A, B](fa: F[A], fb: F[B], g: A => A, a1: A) = {
 
     var input = a1
     val update = F.delay { input = g(input) }
     val read = F.delay(input)
 
-    F.bracket(fa)(f)((a, _) => update) *> read <-> fa.flatMap(f) *> F.pure(g(a1))
-  }
-
-  def releaseIsCalledOnError[A](fa: F[A], e: Throwable, funit: F[Unit], f: A => A, a1: A) = {
-
-    var input = a1
-    val update = F.delay { input = f(input) }
-    val read = F.delay(input)
-
-    F.handleErrorWith(F.bracket(fa)(_ => F.raiseError[Unit](e))((_, _) => update))(_ => update) *> read <->
-      fa *> F.pure(f(f(a1)))
-
+    F.bracket(fa)(_ => fb)((a, _) => update) *> read <-> fa *> fb *> F.pure(g(a1))
   }
 
 
