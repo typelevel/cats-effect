@@ -32,6 +32,9 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketWithPureUnitIsEqvFlatMap[A, B](fa: F[A], f: A => F[B]) =
     F.bracket(fa)(f)((_, _) => F.unit) <-> F.flatMap(fa)(f)
 
+  def bracketFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
+    F.bracket(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
+
 }
 
 object BracketLaws {
