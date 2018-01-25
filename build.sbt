@@ -143,7 +143,12 @@ val mimaSettings = Seq(
       exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
       exclude[MissingTypesProblem]("cats.effect.Effect$"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances")
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#WriterTSync.bracket"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket")
     )
   }
 )
