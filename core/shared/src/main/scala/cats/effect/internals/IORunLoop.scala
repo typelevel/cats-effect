@@ -31,7 +31,13 @@ private[effect] object IORunLoop {
     * with the result when completed.
     */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, Connection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
+
+  /** Evaluates the given `IO` reference, calling the given callback
+    * with the result when completed.
+    */
+  def startCancelable[A](source: IO[A], conn: Connection, cb: Either[Throwable, A] => Unit): Unit =
+    loop(source, conn, cb.asInstanceOf[Callback], null, null, null)
 
   /** Loop for evaluating an `IO` value.
     *
@@ -41,12 +47,14 @@ private[effect] object IORunLoop {
     */
   private def loop(
     source: Current,
+    cancelable: Connection,
     cb: Either[Throwable, Any] => Unit,
     rcbRef: RestartCallback,
     bFirstRef: Bind,
     bRestRef: CallStack): Unit = {
 
     var currentIO: Current = source
+    var conn: Connection = cancelable
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -101,9 +109,10 @@ private[effect] object IORunLoop {
           currentIO = fa
 
         case Async(register) =>
-          if (rcb eq null) rcb = RestartCallback(cb.asInstanceOf[Callback])
+          if (conn eq null) conn = Connection()
+          if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
           rcb.prepare(bFirst, bRest)
-          register(rcb)
+          register(conn, rcb)
           return
       }
 
@@ -207,16 +216,16 @@ private[effect] object IORunLoop {
     currentIO: IO[A],
     bFirst: Bind,
     bRest: CallStack,
-    register: (Either[Throwable, Any] => Unit) => Unit): IO[A] = {
+    register: (Connection, Either[Throwable, Any] => Unit) => Unit): IO[A] = {
 
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
     // the loop with the collected stack
     if (bFirst != null || (bRest != null && bRest.nonEmpty))
-      Async { cb =>
-        val rcb = RestartCallback(cb.asInstanceOf[Callback])
+      Async { (conn, cb) =>
+        val rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
         rcb.prepare(bFirst, bRest)
-        register(rcb)
+        register(conn, rcb)
       }
     else
       currentIO
@@ -261,7 +270,7 @@ private[effect] object IORunLoop {
     result
   }
 
-  /** A `RestartCallback` gets created only once, per [[start]]
+  /** A `RestartCallback` gets created only once, per [[startCancelable]]
     * (`unsafeRunAsync`) invocation, once an `Async` state is hit,
     * its job being to resume the loop after the boundary, but with
     * the bind call-stack restored
@@ -273,7 +282,7 @@ private[effect] object IORunLoop {
     * It's an ugly, mutable implementation.
     * For internal use only, here be dragons!
     */
-  private final class RestartCallback private (cb: Callback)
+  private final class RestartCallback(conn: Connection, cb: Callback)
     extends Callback {
 
     private[this] var canCall = false
@@ -291,19 +300,10 @@ private[effect] object IORunLoop {
         canCall = false
         either match {
           case Right(value) =>
-            loop(Pure(value), cb, this, bFirst, bRest)
+            loop(Pure(value), conn, cb, this, bFirst, bRest)
           case Left(e) =>
-            loop(RaiseError(e), cb, this, bFirst, bRest)
+            loop(RaiseError(e), conn, cb, this, bFirst, bRest)
         }
-      }
-  }
-
-  private object RestartCallback {
-    /** Builder that avoids double wrapping. */
-    def apply(cb: Callback): RestartCallback =
-      cb match {
-        case ref: RestartCallback => ref
-        case _ => new RestartCallback(cb)
       }
   }
 }

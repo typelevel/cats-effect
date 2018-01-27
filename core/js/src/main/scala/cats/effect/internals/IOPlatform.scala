@@ -32,26 +32,6 @@ private[effect] object IOPlatform {
   }
 
   /**
-   * Given any side-effecting function, builds a new one
-   * that has the idempotency property, making sure that its
-   * side effects get triggered only once
-   */
-  def onceOnly[A](f: Either[Throwable, A] => Unit): Either[Throwable, A] => Unit = {
-    var wasCalled = false
-
-    a => if (wasCalled) {
-      // Re-throwing error in case we can't signal it
-      a match {
-        case Left(err) => throw err
-        case Right(_) => ()
-      }
-    } else {
-      wasCalled = true
-      f(a)
-    }
-  }
-
-  /**
    * Establishes the maximum stack depth for `IO#map` operations
    * for JavaScript. 
    *

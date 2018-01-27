@@ -193,6 +193,24 @@ sealed abstract class IO[+A] {
     IORunLoop.start(this, cb)
 
   /**
+   * Evaluates the source `IO`, passing the result of the encapsulated
+   * effects to the given callback.
+   *
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects.  You should ideally only call this
+   * function ''once'', at the very end of your program.
+   *
+   * @return an side-effectful function that, when executed, sends a
+   *         cancellation reference to `IO`'s run-loop implementation,
+   *         having the potential to interrupt it.
+   */
+  final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
+    val conn = Connection()
+    IORunLoop.startCancelable(this, conn, cb)
+    conn.cancel
+  }
+
+  /**
    * Similar to `unsafeRunSync`, except with a bounded blocking
    * duration when awaiting asynchronous results.
    *
@@ -248,6 +266,35 @@ sealed abstract class IO[+A] {
   }
 
   /**
+   * Signals cancellation of the source.
+   *
+   * Returns a new task that will complete when the cancellation is
+   * sent (but not when it is observed or acted upon).
+   */
+  final def cancel: IO[Unit] =
+    IOCancel.signal(this)
+
+  /**
+   * Returns a new `IO` that mirrors the source task for normal termination,
+   * but that triggers the given error on cancellation.
+   *
+   * Normally tasks that are cancelled become non-terminating.
+   *
+   * This `onCancelRaiseError` operator transforms a task that is
+   * non-terminating on cancellation into one that yields an error,
+   * thus equivalent with [[IO.raiseError]].
+   */
+  final def onCancelRaiseError(e: Throwable): IO[A] =
+    IOCancel.raise(this, e)
+
+  /**
+   * Makes the source `Task` uninterruptible such that a [[cancel]]
+   * signal has no effect.
+   */
+  final def uncancelable: IO[A] =
+    IOCancel.uncancelable(this)
+
+  /**
    * Converts the source `IO` into any `F` type that implements
    * the [[cats.effect.Async Async]] type class.
    */
@@ -257,7 +304,7 @@ sealed abstract class IO[+A] {
       case Delay(thunk) => F.delay(thunk())
       case RaiseError(e) => F.raiseError(e)
       case Suspend(thunk) => F.suspend(thunk().to[F])
-      case Async(k) => F.async(k)
+      case Async(k) => F.async(cb => k(Connection.alreadyCanceled, cb))
       case Bind(source, frame) =>
         frame match {
           case m: IOFrame[_, _] =>
@@ -478,11 +525,27 @@ object IO extends IOInstances {
    * `Future`.
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    Async { cb =>
-      val cb2 = IOPlatform.onceOnly(cb)
+    Async { (_, cb) =>
+      val cb2 = new SafeCallback(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
+
+  /**
+   * Builds a cancelable `IO`.
+   */
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => (() => Unit)): IO[A] =
+    Async { (conn, cb) =>
+      val cb2 = new SafeCallback(conn, cb)
+      val ref = ForwardCancelable()
+      conn.push(ref)
+
+      ref := (
+        try k(cb2) catch { case NonFatal(t) =>
+          cb2(Left(t))
+          Connection.dummy
+        })
+    }
 
   /**
    * Constructs an `IO` which sequences the specified exception.
@@ -623,7 +686,7 @@ object IO extends IOInstances {
   def shift(implicit ec: ExecutionContext): IO[Unit] = {
     IO async { (cb: Either[Throwable, Unit] => Unit) =>
       ec.execute(new Runnable {
-        def run() = cb(Right(()))
+        def run() = cb(Callback.rightUnit)
       })
     }
   }
@@ -636,9 +699,10 @@ object IO extends IOInstances {
     extends IO[Nothing]
   private[effect] final case class Suspend[+A](thunk: () => IO[A])
     extends IO[A]
-  private[effect] final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
-    extends IO[A]
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
+    extends IO[A]
+  private[effect] final case class Async[+A](
+    k: (Connection, Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
 
   /** State for representing `map` ops that itself is a function in
