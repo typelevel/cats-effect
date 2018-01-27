@@ -17,9 +17,7 @@
 package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
-
-import cats.effect.util.CompositeException
-
+import cats.effect.internals.Cancelable.{dummy, Type => Cancelable}
 import scala.annotation.tailrec
 
 /**
@@ -34,7 +32,7 @@ import scala.annotation.tailrec
  * Used in the implementation of `cats.effect.IO`. Inspired by the
  * implementation of `StackedCancelable` from the Monix library.
  */
-private[effect] sealed abstract class Connection {
+private[effect] sealed abstract class IOConnection {
   /**
    * Cancels the unit of work represented by this reference.
    *
@@ -42,7 +40,7 @@ private[effect] sealed abstract class Connection {
    * same side-effect as calling it only once. Implementations
    * of this method should also be thread-safe.
    */
-  def cancel: () => Unit
+  def cancel: Cancelable
 
   /**
    * @return true in case this cancelable hasn't been canceled,
@@ -54,67 +52,64 @@ private[effect] sealed abstract class Connection {
    * Pushes a cancelable reference on the stack, to be
    * popped or cancelled later in FIFO order.
    */
-  def push(cancelable: () => Unit): Unit
+  def push(cancelable: Cancelable): Unit
 
   /**
    * Removes a cancelable reference from the stack in FIFO order.
    *
    * @return the cancelable reference that was removed.
    */
-  def pop(): () => Unit
+  def pop(): Cancelable
 }
 
-private[effect] object Connection {
-  /** Builder for [[Connection]]. */
-  def apply(): Connection =
+private[effect] object IOConnection {
+  /** Builder for [[IOConnection]]. */
+  def apply(): IOConnection =
     new Impl
 
   /**
-   * Reusable [[Connection]] reference that is already
+   * Reusable [[IOConnection]] reference that is already
    * cancelled.
    */
-  val alreadyCanceled: Connection =
+  val alreadyCanceled: IOConnection =
     new AlreadyCanceled
 
   /**
-   * Reusable [[Connection]] reference that cannot
+   * Reusable [[IOConnection]] reference that cannot
    * be cancelled.
    */
-  val uncancelable: Connection =
+  val uncancelable: IOConnection =
     new Uncancelable
 
-  /** Reusable no-op function reference. */
-  final val dummy: () => Unit =
-    () => ()
-
-  private final class AlreadyCanceled extends Connection {
+  private final class AlreadyCanceled extends IOConnection {
     def cancel = dummy
     def isCanceled: Boolean = true
-    def pop(): () => Unit = dummy
-    def push(cancelable: () => Unit): Unit =
+    def pop(): Cancelable = dummy
+    def push(cancelable: Cancelable): Unit =
       cancelable()
   }
 
-  private final class Uncancelable extends Connection {
+  private final class Uncancelable extends IOConnection {
     def cancel = dummy
     def isCanceled: Boolean = false
-    def push(cancelable: () => Unit): Unit = ()
-    def pop(): () => Unit = dummy
+    def push(cancelable: Cancelable): Unit = ()
+    def pop(): Cancelable = dummy
   }
 
-  private final class Impl extends Connection {
-    private[this] val state = new AtomicReference(List.empty[() => Unit])
+  private final class Impl extends IOConnection {
+    private[this] val state = new AtomicReference(List.empty[Cancelable])
 
     val cancel = () =>
       state.getAndSet(null) match {
         case null | Nil => ()
-        case list => cancelAll(list)
+        case list =>
+          Cancelable.cancelAll(list:_*)
       }
 
     def isCanceled: Boolean =
       state.get eq null
 
-    @tailrec def push(cancelable: () => Unit): Unit =
+    @tailrec def push(cancelable: Cancelable): Unit =
       state.get() match {
         case null => cancelable()
         case list =>
@@ -122,28 +117,12 @@ private[effect] object Connection {
           if (!state.compareAndSet(list, update)) push(cancelable)
       }
 
-    @tailrec def pop(): () => Unit =
+    @tailrec def pop(): Cancelable =
       state.get() match {
         case null | Nil => dummy
         case current @ (x :: xs) =>
           if (!state.compareAndSet(current, xs)) pop()
           else x
       }
-  }
-
-  private def cancelAll(seq: List[() => Unit]): Unit = {
-    var errors = List.empty[Throwable]
-    val cursor = seq.iterator
-    while (cursor.hasNext) {
-      try cursor.next().apply()
-      catch { case ex if NonFatal(ex) => errors = ex :: errors }
-    }
-
-    errors match {
-      case Nil => ()
-      case x :: Nil => throw x
-      case first :: second :: rest =>
-        throw CompositeException(first, second, rest)
-    }
   }
 }

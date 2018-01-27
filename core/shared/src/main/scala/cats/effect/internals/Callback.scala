@@ -16,8 +16,14 @@
 
 package cats.effect.internals
 
-import scala.util.Left
+import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.util.Left
+import cats.effect.internals.TrampolineEC.immediate
+
+/**
+ * Internal API — utilities for working with `IO.async` callbacks.
+ */
 private[effect] object Callback {
   type Type[-A] = Either[Throwable, A] => Unit
 
@@ -25,9 +31,12 @@ private[effect] object Callback {
    * Builds a callback reference that throws any received
    * error immediately.
    */
-  val report = (r: Either[Throwable, _]) =>
+  def report[A]: Type[A] =
+    reportRef.asInstanceOf[Type[A]]
+
+  private val reportRef = (r: Either[Throwable, _]) =>
     r match {
-      case Left(e) => throw e
+      case Left(e) => Logger.reportFailure(e)
       case _ => ()
     }
 
@@ -44,12 +53,70 @@ private[effect] object Callback {
    * Also pops the `Connection` just before triggering
    * the underlying callback.
    */
-  def async[A](conn: Connection, cb: Type[A]): Type[A] =
-    value => TrampolineEC.immediate.execute(
+  def async[A](conn: IOConnection, cb: Type[A]): Type[A] =
+    value => immediate.execute(
       new Runnable {
         def run(): Unit = {
           if (conn ne null) conn.pop()
           cb(value)
         }
       })
+
+  /**
+   * Callback wrapper used in `IO.async` that:
+   *
+   *  1. guarantees (thread safe) idempotency
+   *  2. triggers light (trampolined) async boundary for stack safety
+   *  3. pops the given `Connection` (only if != null)
+   *  4. logs extraneous errors after callback was already called once
+   */
+  def asyncIdempotent[A](conn: IOConnection, cb: Type[A]): Type[A] =
+    new SafeCallback[A](conn, cb)
+
+  /** Helpers async callbacks. */
+  implicit final class Extensions[-A](val self: Type[A]) extends AnyVal {
+    /**
+     * Executes the source callback with a light (trampolined) async
+     * boundary, meant to protect against stack overflows.
+     */
+    def async(value: Either[Throwable, A]): Unit =
+      async(null, value)
+
+    /**
+     * Executes the source callback with a light (trampolined) async
+     * boundary, meant to protect against stack overflows.
+     *
+     * Also pops the given `Connection` before calling the callback.
+     */
+    def async(conn: IOConnection, value: Either[Throwable, A]): Unit =
+      immediate.execute(new Runnable {
+        def run(): Unit = {
+          if (conn ne null) conn.pop()
+          self(value)
+        }
+      })
+  }
+
+  private final class SafeCallback[-A](
+    conn: IOConnection,
+    cb: Either[Throwable, A] => Unit)
+    extends (Either[Throwable, A] => Unit) {
+
+    private[this] val canCall = new AtomicBoolean(true)
+
+    def apply(value: Either[Throwable, A]): Unit = {
+      if (canCall.getAndSet(false)) {
+        immediate.execute(new Runnable {
+          def run(): Unit = {
+            if (conn ne null) conn.pop()
+            cb(value)
+          }
+        })
+      } else value match {
+        case Right(_) => ()
+        case Left(e) =>
+          Logger.reportFailure(e)
+      }
+    }
+  }
 }

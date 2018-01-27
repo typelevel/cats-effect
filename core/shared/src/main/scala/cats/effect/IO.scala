@@ -205,7 +205,7 @@ sealed abstract class IO[+A] {
    *         having the potential to interrupt it.
    */
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
-    val conn = Connection()
+    val conn = IOConnection()
     IORunLoop.startCancelable(this, conn, cb)
     conn.cancel
   }
@@ -304,7 +304,7 @@ sealed abstract class IO[+A] {
       case Delay(thunk) => F.delay(thunk())
       case RaiseError(e) => F.raiseError(e)
       case Suspend(thunk) => F.suspend(thunk().to[F])
-      case Async(k) => F.async(cb => k(Connection.alreadyCanceled, cb))
+      case Async(k) => F.async(cb => k(IOConnection.alreadyCanceled, cb))
       case Bind(source, frame) =>
         frame match {
           case m: IOFrame[_, _] =>
@@ -526,7 +526,7 @@ object IO extends IOInstances {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { (_, cb) =>
-      val cb2 = new SafeCallback(null, cb)
+      val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
@@ -536,14 +536,14 @@ object IO extends IOInstances {
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => (() => Unit)): IO[A] =
     Async { (conn, cb) =>
-      val cb2 = new SafeCallback(conn, cb)
+      val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref)
 
       ref := (
         try k(cb2) catch { case NonFatal(t) =>
           cb2(Left(t))
-          Connection.dummy
+          Cancelable.dummy
         })
     }
 
@@ -702,7 +702,7 @@ object IO extends IOInstances {
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
     extends IO[A]
   private[effect] final case class Async[+A](
-    k: (Connection, Either[Throwable, A] => Unit) => Unit)
+    k: (IOConnection, Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
 
   /** State for representing `map` ops that itself is a function in

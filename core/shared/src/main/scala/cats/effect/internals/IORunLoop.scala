@@ -32,13 +32,13 @@ private[effect] object IORunLoop {
    * with the result when completed.
    */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, Connection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
-  def startCancelable[A](source: IO[A], conn: Connection, cb: Either[Throwable, A] => Unit): Unit =
+  def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null)
 
   /**
@@ -50,14 +50,14 @@ private[effect] object IORunLoop {
    */
   private def loop(
     source: Current,
-    cancelable: Connection,
+    cancelable: IOConnection,
     cb: Either[Throwable, Any] => Unit,
     rcbRef: RestartCallback,
     bFirstRef: Bind,
     bRestRef: CallStack): Unit = {
 
     var currentIO: Current = source
-    var conn: Connection = cancelable
+    var conn: IOConnection = cancelable
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -112,7 +112,7 @@ private[effect] object IORunLoop {
           currentIO = fa
 
         case Async(register) =>
-          if (conn eq null) conn = Connection()
+          if (conn eq null) conn = IOConnection()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
           rcb.prepare(bFirst, bRest)
           register(conn, rcb)
@@ -220,7 +220,7 @@ private[effect] object IORunLoop {
     currentIO: IO[A],
     bFirst: Bind,
     bRest: CallStack,
-    register: (Connection, Either[Throwable, Any] => Unit) => Unit): IO[A] = {
+    register: (IOConnection, Either[Throwable, Any] => Unit) => Unit): IO[A] = {
 
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
@@ -289,7 +289,7 @@ private[effect] object IORunLoop {
    * It's an ugly, mutable implementation.
    * For internal use only, here be dragons!
    */
-  private final class RestartCallback(conn: Connection, cb: Callback)
+  private final class RestartCallback(conn: IOConnection, cb: Callback)
     extends Callback {
 
     private[this] var canCall = false

@@ -17,6 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
+import cats.effect.internals.Callback.Extensions
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 
@@ -45,30 +46,20 @@ private[effect] object IOParMap {
          */
         private[this] val state = new AtomicReference[AnyRef]()
 
-        /**
-         * Purpose of this reference is two fold. For one, this creates a
-         * second async boundary, just before signaling the result.
-         *
-         * But also it calls `Connection.pop()` to get rid of the currently
-         * active cancelable.
-         */
-        private[this] val ecAsync = Callback.async(conn, cb)
-
         def run(): Unit = {
-          val connA = Connection()
-          val connB = Connection()
+          val connA = IOConnection()
+          val connB = IOConnection()
 
-          conn.push(() => {
-            try connA.cancel()
-            finally connB.cancel()
-          })
+          // Composite cancelable that cancels both.
+          // NOTE: conn.pop() happens when cb gets called!
+          conn.push(() => Cancelable.cancelAll(connA.cancel, connB.cancel))
 
           IORunLoop.startCancelable(fa, connA, callbackA(connB))
           IORunLoop.startCancelable(fb, connB, callbackB(connA))
         }
 
         /** Callback for the left task. */
-        def callbackA(connB: Connection): Callback[A] = {
+        def callbackA(connB: IOConnection): Callback[A] = {
           case Left(e) => sendError(connB, e)
           case Right(a) =>
             // Using Java 8 platform intrinsics
@@ -85,7 +76,7 @@ private[effect] object IOParMap {
         }
 
         /** Callback for the right task. */
-        def callbackB(connA: Connection): Callback[B] = {
+        def callbackB(connA: IOConnection): Callback[B] = {
           case Left(e) => sendError(connA, e)
           case Right(b) =>
             // Using Java 8 platform intrinsics
@@ -103,18 +94,18 @@ private[effect] object IOParMap {
 
         /** Called when both results are ready. */
         def complete(a: A, b: B): Unit = {
-          ecAsync(try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
+          cb.async(conn, try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
         }
 
         /** Called when an error is generated. */
-        def sendError(other: Connection, e: Throwable): Unit =
+        def sendError(other: IOConnection, e: Throwable): Unit =
           state.getAndSet(e) match {
             case _: Throwable =>
-              Logger.reportException(e)
+              Logger.reportFailure(e)
             case null | Left(_) | Right(_) =>
               // Cancels the other before signaling the error
-              try other.cancel()
-              finally ecAsync(Left(e))
+              try other.cancel() finally
+                cb.async(conn, Left(e))
           }
       })
     }

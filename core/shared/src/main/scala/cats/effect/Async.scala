@@ -20,7 +20,6 @@ package effect
 import simulacrum._
 import cats.data.{EitherT, OptionT, StateT, WriterT}
 import cats.effect.internals.Callback
-
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 import scala.util.Either

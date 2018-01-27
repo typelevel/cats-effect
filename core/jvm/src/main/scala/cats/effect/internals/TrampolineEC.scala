@@ -118,6 +118,6 @@ private[effect] object TrampolineEC {
     new TrampolineEC(new ExecutionContext {
       def execute(r: Runnable): Unit = r.run()
       def reportFailure(e: Throwable): Unit =
-        Logger.reportException(e)
+        Logger.reportFailure(e)
     })
 }

@@ -43,4 +43,8 @@ object CompositeException {
   /** Simple builder for [[CompositeException]]. */
   def apply(first: Throwable, second: Throwable, rest: List[Throwable] = Nil): CompositeException =
     new CompositeException(first, NonEmptyList(second, rest))
+
+  /** For easy pattern matching a `CompositeException`. */
+  def unapplySeq(ref: CompositeException): Option[Seq[Throwable]] =
+    Some(ref.head :: ref.tail.toList)
 }

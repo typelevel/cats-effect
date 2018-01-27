@@ -18,6 +18,8 @@ package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
 
+import cats.effect.internals.Cancelable.Dummy
+
 import scala.annotation.tailrec
 
 /**
@@ -75,8 +77,4 @@ private[effect] object ForwardCancelable {
   private object IsEmpty extends Dummy
   private object IsCanceled extends Dummy
   private object IsEmptyCanceled extends Dummy
-
-  private class Dummy extends (() => Unit) {
-    def apply(): Unit = ()
-  }
 }

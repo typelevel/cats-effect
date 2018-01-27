@@ -16,13 +16,12 @@
 
 package cats.effect.internals
 
-import scala.concurrent.ExecutionContext
+import java.util.concurrent.atomic.AtomicBoolean
 
-private[effect] object Logger {
-  /** Logs an uncaught error. */
-  def reportFailure(e: Throwable): Unit =
-    logger(e)
+case class BooleanCancelable(thunk: () => Unit = () => ())
+  extends (() => Unit) {
 
-  private[this] lazy val logger =
-    ExecutionContext.defaultReporter
+  private[this] val canCall = new AtomicBoolean(true)
+  def isCanceled: Boolean = !canCall.get()
+  def apply(): Unit = if (canCall.getAndSet(false)) thunk()
 }

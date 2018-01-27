@@ -30,7 +30,7 @@ private[effect] object IOCancel {
     Async { (_, cb) =>
       ec.execute(new Runnable {
         def run(): Unit = {
-          IORunLoop.startCancelable(fa, Connection.alreadyCanceled, Callback.report)
+          IORunLoop.startCancelable(fa, IOConnection.alreadyCanceled, Callback.report)
           cb(rightUnit)
         }
       })
@@ -67,7 +67,7 @@ private[effect] object IOCancel {
 
   private final class RaiseCallback[A](
     waitsForResult: AtomicBoolean,
-    conn: Connection,
+    conn: IOConnection,
     cb: Callback[A])
     extends Callback[A] {
 
