@@ -19,6 +19,14 @@ package cats.effect.internals
 import java.util.concurrent.atomic.AtomicBoolean
 import cats.effect.internals.TrampolineEC.{immediate => ec}
 
+/**
+ * INTERNAL API - callback wrapper used in `IO.async` that:
+ *
+ *  1. guarantees (thread safe) idempotency
+ *  2. triggers light (trampolined) async boundary for stack safety
+ *
+ * This is the JVM specific version.
+ */
 private[effect] final class SafeCallback[-A](
   conn: Connection,
   cb: Either[Throwable, A] => Unit)

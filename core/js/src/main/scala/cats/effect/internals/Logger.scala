@@ -16,28 +16,13 @@
 
 package cats.effect.internals
 
-import cats.effect.internals.TrampolineEC.{immediate => ec}
+import scala.concurrent.ExecutionContext
 
-private[effect] final class SafeCallback[-A](
-  conn: Connection,
-  cb: Either[Throwable, A] => Unit)
-  extends (Either[Throwable, A] => Unit) {
+private[effect] object Logger {
+  /** Logs an uncaught error. */
+  def reportException(e: Throwable): Unit =
+    logger(e)
 
-  private[this] var canCall = true
-
-  def apply(value: Either[Throwable, A]): Unit = {
-    if (canCall) {
-      canCall = false
-      // Light async boundary, to make async safe!
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          if (conn ne null) conn.pop()
-          cb(value)
-        }
-      })
-    } else value match {
-      case Right(_) => ()
-      case Left(e) => ec.reportFailure(e)
-    }
-  }
+  private[this] lazy val logger =
+    ExecutionContext.defaultReporter
 }

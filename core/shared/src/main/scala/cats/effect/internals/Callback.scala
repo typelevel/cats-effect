@@ -36,8 +36,20 @@ private[effect] object Callback {
 
   /** Builds a callback with async execution. */
   def async[A](cb: Type[A]): Type[A] =
+    async(null, cb)
+
+  /**
+   * Builds a callback with async execution.
+   *
+   * Also pops the `Connection` just before triggering
+   * the underlying callback.
+   */
+  def async[A](conn: Connection, cb: Type[A]): Type[A] =
     value => TrampolineEC.immediate.execute(
       new Runnable {
-        def run(): Unit = cb(value)
+        def run(): Unit = {
+          if (conn ne null) conn.pop()
+          cb(value)
+        }
       })
 }
