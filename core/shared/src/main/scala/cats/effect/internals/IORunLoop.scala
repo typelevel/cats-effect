@@ -27,24 +27,27 @@ private[effect] object IORunLoop {
   private type CallStack = ArrayStack[Bind]
   private type Callback = Either[Throwable, Any] => Unit
 
-  /** Evaluates the given `IO` reference, calling the given callback
-    * with the result when completed.
-    */
+  /**
+   * Evaluates the given `IO` reference, calling the given callback
+   * with the result when completed.
+   */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
     loop(source, Connection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
 
-  /** Evaluates the given `IO` reference, calling the given callback
-    * with the result when completed.
-    */
+  /**
+   * Evaluates the given `IO` reference, calling the given callback
+   * with the result when completed.
+   */
   def startCancelable[A](source: IO[A], conn: Connection, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null)
 
-  /** Loop for evaluating an `IO` value.
-    *
-    * The `rcbRef`, `bFirstRef` and `bRestRef`  parameters are
-    * nullable values that can be supplied because the loop needs
-    * to be resumed in [[RestartCallback]].
-    */
+  /**
+   * Loop for evaluating an `IO` value.
+   *
+   * The `rcbRef`, `bFirstRef` and `bRestRef`  parameters are
+   * nullable values that can be supplied because the loop needs
+   * to be resumed in [[RestartCallback]].
+   */
   private def loop(
     source: Current,
     cancelable: Connection,
@@ -132,9 +135,10 @@ private[effect] object IORunLoop {
     } while (true)
   }
 
-  /** Evaluates the given `IO` reference until an asynchronous
-    * boundary is hit.
-    */
+  /**
+   * Evaluates the given `IO` reference until an asynchronous
+   * boundary is hit.
+   */
   def step[A](source: IO[A]): IO[A] = {
     var currentIO: Current = source
     var bFirst: Bind = null
@@ -231,10 +235,11 @@ private[effect] object IORunLoop {
       currentIO
   }
 
-  /** Pops the next bind function from the stack, but filters out
-    * `IOFrame.ErrorHandler` references, because we know they won't do
-    * anything — an optimization for `handleError`.
-    */
+  /**
+   * Pops the next bind function from the stack, but filters out
+   * `IOFrame.ErrorHandler` references, because we know they won't do
+   * anything — an optimization for `handleError`.
+   */
   private def popNextBind(bFirst: Bind, bRest: CallStack): Bind = {
     if ((bFirst ne null) && !bFirst.isInstanceOf[IOFrame.ErrorHandler[_]])
       bFirst
@@ -250,9 +255,10 @@ private[effect] object IORunLoop {
     }
   }
 
-  /** Finds a [[IOFrame]] capable of handling errors in our bind
-    * call-stack, invoked after a `RaiseError` is observed.
-    */
+  /**
+   * Finds a [[IOFrame]] capable of handling errors in our bind
+   * call-stack, invoked after a `RaiseError` is observed.
+   */
   private def findErrorHandler(bFirst: Bind, bRest: CallStack): IOFrame[Any, IO[Any]] = {
     var result: IOFrame[Any, IO[Any]] = null
     var cursor = bFirst
@@ -270,18 +276,19 @@ private[effect] object IORunLoop {
     result
   }
 
-  /** A `RestartCallback` gets created only once, per [[startCancelable]]
-    * (`unsafeRunAsync`) invocation, once an `Async` state is hit,
-    * its job being to resume the loop after the boundary, but with
-    * the bind call-stack restored
-    *
-    * This is a trick the implementation is using to avoid creating
-    * extraneous callback references on asynchronous boundaries, in
-    * order to reduce memory pressure.
-    *
-    * It's an ugly, mutable implementation.
-    * For internal use only, here be dragons!
-    */
+  /**
+   * A `RestartCallback` gets created only once, per [[startCancelable]]
+   * (`unsafeRunAsync`) invocation, once an `Async` state is hit,
+   * its job being to resume the loop after the boundary, but with
+   * the bind call-stack restored
+   *
+   * This is a trick the implementation is using to avoid creating
+   * extraneous callback references on asynchronous boundaries, in
+   * order to reduce memory pressure.
+   *
+   * It's an ugly, mutable implementation.
+   * For internal use only, here be dragons!
+   */
   private final class RestartCallback(conn: Connection, cb: Callback)
     extends Callback {
 

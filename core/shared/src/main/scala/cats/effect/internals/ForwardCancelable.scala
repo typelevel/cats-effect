@@ -58,13 +58,15 @@ private[effect] final class ForwardCancelable private (plusOne: () => Unit)
     }
 }
 
-object ForwardCancelable {
-  /** Builder for a [[ForwardCancelable]]. */
+private[effect] object ForwardCancelable {
+  /**
+   * Builder for a `ForwardCancelable`.
+   */
   def apply(): ForwardCancelable =
     new ForwardCancelable(null)
 
   /**
-   * Builder for a [[ForwardCancelable]] that also cancels
+   * Builder for a `ForwardCancelable` that also cancels
    * a second reference when cancelled.
    */
   def plusOne(ref: () => Unit): ForwardCancelable =
