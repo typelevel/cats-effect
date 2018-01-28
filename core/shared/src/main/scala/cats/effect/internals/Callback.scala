@@ -71,7 +71,7 @@ private[effect] object Callback {
    *  4. logs extraneous errors after callback was already called once
    */
   def asyncIdempotent[A](conn: IOConnection, cb: Type[A]): Type[A] =
-    new SafeCallback[A](conn, cb)
+    new AsyncIdempotentCallback[A](conn, cb)
 
   /** Helpers async callbacks. */
   implicit final class Extensions[-A](val self: Type[A]) extends AnyVal {
@@ -97,7 +97,7 @@ private[effect] object Callback {
       })
   }
 
-  private final class SafeCallback[-A](
+  private final class AsyncIdempotentCallback[-A](
     conn: IOConnection,
     cb: Either[Throwable, A] => Unit)
     extends (Either[Throwable, A] => Unit) {

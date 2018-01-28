@@ -30,6 +30,11 @@ private[effect] object IOCancel {
     Async { (_, cb) =>
       ec.execute(new Runnable {
         def run(): Unit = {
+          // Ironically, in order to describe cancellation as a pure operation
+          // we have to actually execute our `IO` task - the implementation passing an
+          // IOConnection.alreadyCanceled which will cancel any pushed cancelable
+          // tokens along the way and also return `false` on `isCanceled`
+          // (relevant for `IO.cancelBoundary`)
           IORunLoop.startCancelable(fa, IOConnection.alreadyCanceled, Callback.report)
           cb(rightUnit)
         }
@@ -40,13 +45,14 @@ private[effect] object IOCancel {
   def raise[A](fa: IO[A], e: Throwable): IO[A] =
     Async { (conn, cb) =>
       val canCall = new AtomicBoolean(true)
-      val cancelRef = ForwardCancelable.plusOne(new RaiseCancelable(canCall, cb, e))
-      conn.push(cancelRef)
+      // Registering a special cancelable that will trigger error on cancel.
+      // Note the pair `conn.pop` happens in `RaiseCallback`.
+      conn.push(new RaiseCancelable(canCall, cb, e))
 
       ec.execute(new Runnable {
         def run(): Unit = {
           val cb2 = new RaiseCallback[A](canCall, conn, cb)
-          cancelRef := fa.unsafeRunCancelable(cb2)
+          IORunLoop.startCancelable(fa, conn, cb2)
         }
       })
     }
