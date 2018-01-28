@@ -16,20 +16,20 @@
 
 package cats.effect
 
+import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck.Prop
-
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 
 class IOCancelableTests extends BaseTestsSuite {
-  def fork[A](fa: IO[A])(implicit ec: ExecutionContext): IO[IO[A]] =
+  def start[A](fa: IO[A]): IO[IO[A]] =
     IO.async { cb =>
       val p = Promise[A]()
-      val cancelable = fa.unsafeRunCancelable {
+      val thunk = fa.unsafeRunCancelable {
         case Right(a) => p.success(a)
         case Left(e) => p.failure(e)
       }
@@ -39,8 +39,8 @@ class IOCancelableTests extends BaseTestsSuite {
           p.future.onComplete {
             case Success(a) => cb(Right(a))
             case Failure(e) => cb(Left(e))
-          }(ec)
-          cancelable
+          }(immediate)
+          thunk
         }))
     }
 
@@ -66,7 +66,7 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
-          f <- fork(fa <* IO.cancelBoundary)
+          f <- start(fa <* IO.cancelBoundary)
           _ <- f.cancel
           a <- f
         } yield a
@@ -85,7 +85,7 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int], e: Throwable) =>
       val received =
         for {
-          f <- fork((fa <* IO.cancelBoundary).onCancelRaiseError(e))
+          f <- start((fa <* IO.cancelBoundary).onCancelRaiseError(e))
           _ <- f.cancel
           a <- f
         } yield a
@@ -98,7 +98,7 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
-          f <- fork((fa <* IO.cancelBoundary).uncancelable)
+          f <- start((fa <* IO.cancelBoundary).uncancelable)
           _ <- f.cancel
           a <- f
         } yield a
