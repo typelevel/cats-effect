@@ -21,8 +21,9 @@ import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck.Prop
+
 import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.Success
+import scala.util.{Failure, Success}
 
 class IOCancelableTests extends BaseTestsSuite {
   def fork[A](fa: IO[A])(implicit ec: ExecutionContext): IO[IO[A]] =
@@ -35,7 +36,10 @@ class IOCancelableTests extends BaseTestsSuite {
       // Signaling a new IO reference
       cb(Right(
         IO.cancelable { cb =>
-          p.future.onComplete(r => cb(r.toEither))(ec)
+          p.future.onComplete {
+            case Success(a) => cb(Right(a))
+            case Failure(e) => cb(Left(e))
+          }(ec)
           cancelable
         }))
     }
