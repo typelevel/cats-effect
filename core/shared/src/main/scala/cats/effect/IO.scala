@@ -20,6 +20,7 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals._
+import cats.effect.internals.Callback.Extensions
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -684,10 +685,42 @@ object IO extends IOInstances {
    * `async` actions.
    */
   def shift(implicit ec: ExecutionContext): IO[Unit] = {
-    IO async { (cb: Either[Throwable, Unit] => Unit) =>
+    IO.Async { (_, cb: Either[Throwable, Unit] => Unit) =>
       ec.execute(new Runnable {
         def run() = cb(Callback.rightUnit)
       })
+    }
+  }
+
+  /**
+   * Returns a cancelable boundary — an `IO` task that checks for the
+   * cancellation status of the run-loop and does not allow for the
+   * bind continuation to keep executing in case cancellation happened.
+   *
+   * This operation is very similar to [[IO.shift]], as it can be dropped
+   * in `flatMap` chains in order to make loops cancelable.
+   *
+   * Example:
+   *
+   * {{{
+   *  def fib(n: Int, a: Long, b: Long): IO[Long] =
+   *    IO.suspend {
+   *      if (n <= 0) IO.pure(a) else {
+   *        val next = fib(n - 1, b, a + b)
+   *
+   *        // Every 100-th cycle, check cancellation status
+   *        if (n % 100 == 0)
+   *          IO.cancelBoundary *> next
+   *        else
+   *          next
+   *      }
+   *    }
+   * }}}
+   */
+  val cancelBoundary: IO[Unit] = {
+    IO.Async { (conn, cb) =>
+      if (!conn.isCanceled)
+        cb.async(Callback.rightUnit)
     }
   }
 
