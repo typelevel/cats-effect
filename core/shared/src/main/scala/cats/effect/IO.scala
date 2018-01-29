@@ -309,7 +309,7 @@ sealed abstract class IO[+A] {
     IOCancel.raise(this, e)
 
   /**
-   * Makes the source `Task` uninterruptible such that a [[cancel]]
+   * Makes the source `Task` uninterruptible such that a [[Fiber.cancel]]
    * signal has no effect.
    */
   final def uncancelable: IO[A] =
