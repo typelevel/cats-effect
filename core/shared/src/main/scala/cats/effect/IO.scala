@@ -267,13 +267,33 @@ sealed abstract class IO[+A] {
   }
 
   /**
-   * Signals cancellation of the source.
+   * Start execution of the source suspended in the `IO` context.
    *
-   * Returns a new task that will complete when the cancellation is
-   * sent (but not when it is observed or acted upon).
+   * This can be used for non-deterministic / concurrent execution.
+   * The following code is more or less equivalent with `parMap2`
+   * (minus the behavior on error handling and cancellation):
+   *
+   * {{{
+   *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
+   *     for {
+   *       fa <- ioa.start
+   *       fb <- iob.start
+   *        a <- fa.join
+   *        b <- fb.join
+   *     } yield (a, b)
+   * }}}
+   *
+   * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
+   * still recommended because of behavior on error and cancellation —
+   * consider in the example above what would happen if the first task
+   * finishes in error. In that case the second task doesn't get cancelled,
+   * which creates a potential memory leak.
+   *
+   * IMPORTANT — this operation does not start with an asynchronous boundary.
+   * But you can use [[IO.shift]] to force an async boundary just before `start`.
    */
-  final def cancel: IO[Unit] =
-    IOCancel.signal(this)
+  final def start: IO[Fiber[IO, A]] =
+    IOStart(this)
 
   /**
    * Returns a new `IO` that mirrors the source task for normal termination,

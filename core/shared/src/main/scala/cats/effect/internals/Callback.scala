@@ -17,9 +17,9 @@
 package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.util.Left
 import cats.effect.internals.TrampolineEC.immediate
+import scala.concurrent.Promise
+import scala.util.{Failure, Left, Success, Try}
 
 /**
  * Internal API — utilities for working with `IO.async` callbacks.
@@ -73,6 +73,14 @@ private[effect] object Callback {
   def asyncIdempotent[A](conn: IOConnection, cb: Type[A]): Type[A] =
     new AsyncIdempotentCallback[A](conn, cb)
 
+  /**
+   * Builds a callback from a standard Scala `Promise`.
+   */
+  def promise[A](p: Promise[A]): Type[A] = {
+    case Right(a) => p.success(a)
+    case Left(e) => p.failure(e)
+  }
+
   /** Helpers async callbacks. */
   implicit final class Extensions[-A](val self: Type[A]) extends AnyVal {
     /**
@@ -95,6 +103,25 @@ private[effect] object Callback {
           self(value)
         }
       })
+
+    /**
+     * Given a standard Scala `Try`, converts it to an `Either` and
+     * call the callback with it.
+     */
+    def completeWithTry(result: Try[A]): Unit =
+      self(result match {
+        case Success(a) => Right(a)
+        case Failure(e) => Left(e)
+      })
+
+    /**
+     * Like [[completeWithTry]], but with an extra light async boundary.
+     */
+    def completeWithTryAsync(result: Try[A]): Unit =
+      result match {
+        case Success(a) => self(Right(a))
+        case Failure(e) => self(Left(e))
+      }
   }
 
   private final class AsyncIdempotentCallback[-A](

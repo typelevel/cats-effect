@@ -16,34 +16,17 @@
 
 package cats.effect
 
-import cats.effect.internals.TrampolineEC.immediate
+import cats.effect.internals.Callback
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck.Prop
+
 import scala.concurrent.Promise
-import scala.util.{Failure, Success}
+import scala.util.Success
 
 class IOCancelableTests extends BaseTestsSuite {
-  def start[A](fa: IO[A]): IO[IO[A]] =
-    IO.async { cb =>
-      val p = Promise[A]()
-      val thunk = fa.unsafeRunCancelable {
-        case Right(a) => p.success(a)
-        case Left(e) => p.failure(e)
-      }
-      // Signaling a new IO reference
-      cb(Right(
-        IO.cancelable { cb =>
-          p.future.onComplete {
-            case Success(a) => cb(Right(a))
-            case Failure(e) => cb(Left(e))
-          }(immediate)
-          thunk
-        }))
-    }
-
   testAsync("IO.cancelBoundary <-> IO.unit") { implicit ec =>
     val f = IO.cancelBoundary.unsafeToFuture()
     f.value shouldBe Some(Success(()))
@@ -66,9 +49,9 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
-          f <- start(fa <* IO.cancelBoundary)
+          f <- (fa <* IO.cancelBoundary).start
           _ <- f.cancel
-          a <- f
+          a <- f.join
         } yield a
 
       received <-> IO.async(_ => ())
@@ -85,9 +68,9 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int], e: Throwable) =>
       val received =
         for {
-          f <- start((fa <* IO.cancelBoundary).onCancelRaiseError(e))
+          f <- (fa <* IO.cancelBoundary).onCancelRaiseError(e).start
           _ <- f.cancel
-          a <- f
+          a <- f.join
         } yield a
 
       received <-> IO.raiseError(e)
@@ -98,12 +81,31 @@ class IOCancelableTests extends BaseTestsSuite {
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
-          f <- start((fa <* IO.cancelBoundary).uncancelable)
+          f <- (fa <* IO.cancelBoundary).uncancelable.start
           _ <- f.cancel
-          a <- f
+          a <- f.join
         } yield a
 
       received <-> fa
     }
+  }
+
+  testAsync("task.start.flatMap(id) <-> task") { implicit sc =>
+    Prop.forAll { (task: IO[Int]) =>
+      task.start.flatMap(_.join) <-> task
+    }
+  }
+
+  testAsync("task.start is cancelable") { implicit sc =>
+    val task = (IO.shift *> IO.cancelBoundary *> IO(1)).start.flatMap(_.join)
+
+    val p = Promise[Int]()
+    val cancel = task.unsafeRunCancelable(Callback.promise(p))
+    sc.state.tasks.isEmpty shouldBe false
+
+    cancel()
+    sc.tick()
+    sc.state.tasks.isEmpty shouldBe true
+    p.future.value shouldBe None
   }
 }
