@@ -38,8 +38,18 @@ trait TestInstances {
    */
   implicit def eqIO[A](implicit A: Eq[A], ec: TestContext): Eq[IO[A]] =
     new Eq[IO[A]] {
-      def eqv(x: IO[A], y: IO[A]): Boolean =
-        eqFuture[A].eqv(x.unsafeToFuture(), y.unsafeToFuture())
+      def eqv(x: IO[A], y: IO[A]): Boolean = {
+        val a = x.unsafeToFuture()
+        val b = y.unsafeToFuture()
+        val r: Boolean = eqFuture[A].eqv(a, b)
+
+        {
+          if (!r) for {c <- a; d <- b} println(c + "/" + d)
+          else ()
+        }
+
+        r
+      }
     }
 
   /**

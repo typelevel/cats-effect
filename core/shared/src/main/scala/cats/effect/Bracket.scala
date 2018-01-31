@@ -22,25 +22,15 @@ package effect
 
 trait Bracket[F[_], E] extends MonadError[F, E] {
   def bracket[A, B](acquire: F[A])(use: A => F[B])
-    (release: (A, BracketResult[E, B]) => F[Unit]): F[B]
+    (release: (A, BracketResult[E]) => F[Unit]): F[B]
 }
 
-sealed abstract class BracketResult[E, A] { self =>
-  def map[B](f: A => B): BracketResult[E, B] = self match {
-    case BracketResult.Success(a) => BracketResult.success(f(a))
-    case BracketResult.Cancelled() => BracketResult.cancelled
-    case BracketResult.Error(oe) => BracketResult.error(oe)
-  }
-}
+sealed abstract class BracketResult[+E]
 
 object BracketResult {
-  final case class Success[E, A](a: A) extends BracketResult[E, A]
-  final case class Error[E, A](e: Option[E]) extends BracketResult[E, A]
-  final case class Cancelled[E, A]() extends BracketResult[E, A]
-
-  def cancelled[E, A]: BracketResult[E, A] = Cancelled[E, A]
-  def error[E, A](e: Option[E]): BracketResult[E, A] = Error[E, A](e)
-  def success[E, A](a: A): BracketResult[E, A] = Success[E, A](a)
+  final case object Success extends BracketResult[Nothing]
+  final case class Error[E](e: Option[E]) extends BracketResult[E]
+  final case object Cancelled extends BracketResult[Nothing]
 }
 
 
