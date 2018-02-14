@@ -19,7 +19,7 @@ The most current stable release of cats-effect is **0.8**.  We are confident in 
 libraryDependencies += "org.typelevel" %% "cats-effect" % "0.8"
 ```
 
-If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.0.0-RC1.
+If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.0.1.
 
 Cross-builds are available for Scala 2.12, 2.11 and 2.10, Scala.js major version 0.8.
 
