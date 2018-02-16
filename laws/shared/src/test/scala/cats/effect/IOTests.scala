@@ -18,7 +18,8 @@ package cats
 package effect
 
 import java.util.concurrent.atomic.AtomicInteger
-import cats.effect.internals.IOPlatform
+
+import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
@@ -26,7 +27,8 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
-import scala.concurrent.Future
+
+import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 
@@ -491,7 +493,7 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     var wasCancelled = false
 
-    val io1 = IO.cancelable[Int](cb => () => { wasCancelled = true })
+    val io1 = IO.cancelable[Int](_ => IO { wasCancelled = true })
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
@@ -506,13 +508,29 @@ class IOTests extends BaseTestsSuite {
     var wasCancelled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
-    val io2 = IO.cancelable[Int](cb => () => { wasCancelled = true })
+    val io2 = IO.cancelable[Int](_ => IO { wasCancelled = true })
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
     wasCancelled shouldBe true
     f.value shouldBe Some(Failure(dummy))
+  }
+
+  testAsync("IO.cancelable IOs can be canceled") { implicit ec =>
+    var wasCancelled = false
+    val p = Promise[Int]()
+
+    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val cancel = io1.unsafeRunCancelable(Callback.promise(p))
+
+    cancel()
+    // Signal not observed yet due to IO.shift
+    wasCancelled shouldBe false
+
+    ec.tick()
+    wasCancelled shouldBe true
+    p.future.value shouldBe None
   }
 }
 

@@ -17,9 +17,8 @@
 package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
-
+import cats.effect.IO
 import cats.effect.internals.Cancelable.Dummy
-
 import scala.annotation.tailrec
 
 /**
@@ -58,6 +57,9 @@ private[effect] final class ForwardCancelable private (plusOne: () => Unit)
       case _ =>
         throw new IllegalStateException("ForwardCancelable already assigned")
     }
+
+  def :=(task: IO[Unit]): Unit =
+    this.:= { () => task.unsafeRunAsync(Callback.report) }
 }
 
 private[effect] object ForwardCancelable {

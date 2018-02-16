@@ -28,7 +28,7 @@ package cats.effect
  * {{{
  *   val io = IO.shift *> IO(println("Hello!"))
  *
- *   val fiber: IO[Fiber[Unit]] = io.start
+ *   val fiber: IO[Fiber[IO, Unit]] = io.start
  * }}}
  *
  * Usage example:

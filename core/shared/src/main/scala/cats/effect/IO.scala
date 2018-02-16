@@ -555,7 +555,7 @@ object IO extends IOInstances {
   /**
    * Builds a cancelable `IO`.
    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => (() => Unit)): IO[A] =
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
     Async { (conn, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
@@ -564,7 +564,7 @@ object IO extends IOInstances {
       ref := (
         try k(cb2) catch { case NonFatal(t) =>
           cb2(Left(t))
-          Cancelable.dummy
+          IO.unit
         })
     }
 
