@@ -73,7 +73,7 @@ trait TestInstances {
               case Some(Failure(_)) =>
                 // All exceptions are non-terminating and given exceptions
                 // aren't values (being mutable, they implement reference
-                // equality), then we can't really test them reliable,
+                // equality), then we can't really test them reliably,
                 // especially due to race conditions or outside logic
                 // that wraps them (e.g. ExecutionException)
                 true
