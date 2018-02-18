@@ -60,7 +60,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
         "repeated async evaluation not memoized" -> forAll(laws.repeatedAsyncEvaluationNotMemoized[A] _),
-        "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _))
+        "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _))
     }
   }
 }
