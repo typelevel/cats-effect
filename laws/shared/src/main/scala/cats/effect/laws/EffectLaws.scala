@@ -25,19 +25,19 @@ trait EffectLaws[F[_]] extends AsyncStartLaws[F] {
   implicit def F: Effect[F]
 
   def runAsyncPureProducesRightIO[A](a: A) = {
-    val fa = F.pure(a)
-    var result: Option[Either[Throwable, A]] = None
-    val read = IO { result.get }
-
-    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Right(a))
+    val lh = IO.async[Either[Throwable, A]] { cb =>
+      F.runAsync(F.pure(a))(r => IO(cb(Right(r))))
+        .unsafeRunSync()
+    }
+    lh <-> IO.pure(Right(a))
   }
 
   def runAsyncRaiseErrorProducesLeftIO[A](e: Throwable) = {
-    val fa: F[A] = F.raiseError(e)
-    var result: Option[Either[Throwable, A]] = None
-    val read = IO { result.get }
-
-    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Left(e))
+    val lh = IO.async[Either[Throwable, A]] { cb =>
+      F.runAsync(F.raiseError(e))(r => IO(cb(Right(r))))
+        .unsafeRunSync()
+    }
+    lh <-> IO.pure(Left(e))
   }
 
   def runAsyncIgnoresErrorInHandler[A](e: Throwable) = {
@@ -45,25 +45,36 @@ trait EffectLaws[F[_]] extends AsyncStartLaws[F] {
     F.runAsync(fa)(_ => IO.raiseError(e)) <-> IO.pure(())
   }
 
-  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
-    var cur = a
-    val change = F delay { cur = f(cur) }
-    val readResult = IO { cur }
-
-    val double: F[Unit] = F async { cb =>
-      cb(Right(()))
-      cb(Right(()))
-    }
-
-    val test = F.runAsync(double *> change) { _ => IO.unit }
-
-    test *> readResult <-> IO.pure(f(a))
-  }
-
   def runAsyncRunCancelableCoherence[A](fa: F[A]) = {
     val fa1 = IO.async[A] { cb => F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync() }
     val fa2 = IO.cancelable[A] { cb => F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync() }
     fa1 <-> fa2
+  }
+
+  def runCancelableIsSynchronous[A](fa: F[A]) = {
+    // Creating never ending tasks
+    def never[T] = IO.async[T](_ => {})
+    val ff = F.cancelable[A](_ => F.runAsync(fa)(_ => never))
+
+    val lh = IO(F.runCancelable(ff)(_ => never).unsafeRunSync().unsafeRunSync())
+    lh <-> IO.unit
+  }
+
+  def runCancelableStartCancelCoherence[A](a: A, f: (A, A) => A) = {
+    // Cancellation via runCancelable
+    val f1 = F.delay {
+      var effect = a
+      val never = F.cancelable[A](_ => IO { effect = f(effect, a) })
+      F.runCancelable(never)(_ => IO.unit).unsafeRunSync().unsafeRunSync()
+      effect
+    }
+    // Cancellation via start.flatMap(_.cancel)
+    val f2 = F.suspend {
+      var effect = a
+      val never = F.cancelable[A](_ => IO { effect = f(effect, a) })
+      F.start(never).flatMap(_.cancel).map(_ => effect)
+    }
+    f1 <-> f2
   }
 }
 

@@ -33,7 +33,6 @@ private[effect] final class EffectFiber[F[_], A](
   extends Fiber[F, A]
 
 private[effect] object EffectFiber {
-
   /** Implementation for `cats.data.EitherT`. */
   def eitherT[F[_], A](fa: EitherT[F, Throwable, A])
     (implicit F: Effect[F]): EitherT[F, Throwable, Fiber[EitherT[F, Throwable, ?], A]] = {

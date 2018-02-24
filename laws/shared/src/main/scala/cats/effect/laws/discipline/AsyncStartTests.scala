@@ -59,7 +59,7 @@ trait AsyncStartTests[F[_]] extends AsyncTests[F] {
       val props = Seq(
         "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
         "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
-        "pure cancel is unit" -> forAll(laws.pureCancelIsUnit[A] _))
+        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _))
     }
   }
 }

@@ -63,7 +63,9 @@ trait EffectTests[F[_]] extends AsyncStartTests[F] {
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _))
+        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
+        "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
+        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _))
     }
   }
 }

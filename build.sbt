@@ -159,7 +159,12 @@ val mimaSettings = Seq(
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+      // Work on cancelable hierarchy
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.AsyncStart.start"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.cancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift")
     )
   }
 )

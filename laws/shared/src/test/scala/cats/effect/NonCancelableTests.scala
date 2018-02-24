@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
 
-import scala.util.{Failure, Success, Try}
+import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.discipline.arbitrary._
+import cats.implicits._
 
 /**
- * Internal API — describes internal conversions.
+ * Tests laws for a dummy data type that is not
+ * cancelable, unlike the reference `IO`.
  */
-private[effect] object Conversions {
-
-  def toTry[A](a: Either[Throwable, A]): Try[A] =
-    a match {
-      case Right(r) => Success(r)
-      case Left(l) => Failure(l)
-    }
-
-  def toEither[A](a: Try[A]): Either[Throwable, A] =
-    a match {
-      case Success(r) => Right(r)
-      case Failure(l) => Left(l)
-    }
+class NonCancelableTests extends BaseTestsSuite {
+  // Effect, w00t!
+  checkAllAsync("LTask", implicit ec => EffectTests[LTask].effect[Int, Int, Int])
 }

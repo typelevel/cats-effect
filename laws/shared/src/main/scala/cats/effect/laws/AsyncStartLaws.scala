@@ -32,7 +32,7 @@ trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
     F.start(fa).flatMap(t => t.join *> t.join) <-> F.pure(f(a, a))
   }
 
-  def pureCancelIsUnit[A](fa: F[A]) = {
+  def startCancelIsUnit[A](fa: F[A]) = {
     F.start(fa).flatMap(_.cancel) <-> F.unit
   }
 }

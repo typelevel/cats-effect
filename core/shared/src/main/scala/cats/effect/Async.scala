@@ -19,7 +19,10 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, OptionT, StateT, WriterT}
+import cats.effect.internals.Callback
+
 import scala.annotation.implicitNotFound
+import scala.concurrent.ExecutionContext
 import scala.util.Either
 
 /**
@@ -172,16 +175,19 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 }
 
 private[effect] abstract class AsyncInstances {
-
+  /** [[Async]] instance for [[cats.data.EitherT]]. */
   implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
     new EitherTAsync[F, L] { def F = Async[F] }
 
+  /** [[Async]] instance for [[cats.data.OptionT]]. */
   implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
     new OptionTAsync[F] { def F = Async[F] }
 
+  /** [[Async]] instance for [[cats.data.StateT]]. */
   implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
     new StateTAsync[F, S] { def F = Async[F] }
 
+  /** [[Async]] instance for [[cats.data.WriterT]]. */
   implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 
@@ -247,4 +253,17 @@ private[effect] abstract class AsyncInstances {
   }
 }
 
-object Async extends AsyncInstances
+object Async extends AsyncInstances {
+  /**
+   * Generic shift operation, defined for any `Async` data type.
+   *
+   * Shifts the bind continuation onto the specified thread pool.
+   * Analogous with [[IO.shift]].
+   */
+  def shift[F[_]](ec: ExecutionContext)(implicit F: Async[F]): F[Unit] =
+    F.async { cb =>
+      ec.execute(new Runnable {
+        def run(): Unit = cb(Callback.rightUnit)
+      })
+    }
+}

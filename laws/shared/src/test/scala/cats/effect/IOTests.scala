@@ -136,6 +136,13 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Failure(dummy))
   }
 
+  testAsync("Async.shift[IO]") { implicit ec =>
+    val f = Async.shift[IO](ec).unsafeToFuture()
+    f.value shouldEqual None
+    ec.tick()
+    f.value shouldEqual Some(Success(()))
+  }
+
   testAsync("IO.async protects against multiple callback calls") { implicit ec =>
     val effect = new AtomicInteger()
 
