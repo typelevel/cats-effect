@@ -535,18 +535,6 @@ class IOTests extends BaseTestsSuite {
     wasCancelled shouldBe true
     p.future.value shouldBe None
   }
-//
-//  testAsync("pula") { implicit ec =>
-//    import cats.effect.Effect.ops._
-//
-//    val dummy = new RuntimeException("dummy")
-//    val fa = EitherT[IO, Throwable, Int](IO(Left(dummy)))
-//
-//    val f1 = fa.start.flatMap(_.join).value.unsafeToFuture()
-//    val f2 = fa.value.unsafeToFuture()
-//    ec.tick()
-//    println(f.value)
-//  }
 }
 
 object IOTests {
