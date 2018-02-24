@@ -43,7 +43,7 @@ private[effect] object Callback {
   /** Reusable `Right(())` reference. */
   final val rightUnit = Right(())
 
-  /** Reusable no-op, side-effectful `Function2` reference. */
+  /** Reusable no-op, side-effectful `Function1` reference. */
   final val dummy1: Any => Unit = _ => ()
 
   /** Builds a callback with async execution. */

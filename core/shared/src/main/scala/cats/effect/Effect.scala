@@ -86,7 +86,7 @@ private[effect] abstract class EffectInstances {
     }
 
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
-    new Effect[({type λ[α] = StateT[F, S, α]})#λ] with Async.StateTAsync[F, S] {
+    new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] {
       protected def F = Effect[F]
 
       def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
@@ -98,7 +98,7 @@ private[effect] abstract class EffectInstances {
     }
 
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
-    new Effect[({type λ[α] = WriterT[F, L, α]})#λ] with Async.WriterTAsync[F, L] {
+    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] {
       protected def F = Effect[F]
       protected def L = Monoid[L]
 
