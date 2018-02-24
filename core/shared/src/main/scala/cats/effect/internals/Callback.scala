@@ -43,6 +43,9 @@ private[effect] object Callback {
   /** Reusable `Right(())` reference. */
   final val rightUnit = Right(())
 
+  /** Reusable no-op, side-effectful `Function2` reference. */
+  final val dummy1: Any => Unit = _ => ()
+
   /** Builds a callback with async execution. */
   def async[A](cb: Type[A]): Type[A] =
     async(null, cb)

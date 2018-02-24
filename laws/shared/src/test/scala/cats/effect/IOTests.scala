@@ -18,7 +18,6 @@ package cats
 package effect
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
@@ -33,13 +32,17 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
-
   checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
 
   checkAllAsync("IO.Par", implicit ec => ApplicativeTests[IO.Par].applicative[Int, Int, Int])
   checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
+
+  checkAllAsync("IO(defaults)", implicit ec => {
+    implicit val ioEffect = IOTests.ioEffectDefaults
+    EffectTests[IO].effect[Int, Int, Int]
+  })
 
   test("IO.Par's applicative instance is different") {
     implicitly[Applicative[IO]] shouldNot be(implicitly[Applicative[IO.Par]])
@@ -532,6 +535,18 @@ class IOTests extends BaseTestsSuite {
     wasCancelled shouldBe true
     p.future.value shouldBe None
   }
+//
+//  testAsync("pula") { implicit ec =>
+//    import cats.effect.Effect.ops._
+//
+//    val dummy = new RuntimeException("dummy")
+//    val fa = EitherT[IO, Throwable, Int](IO(Left(dummy)))
+//
+//    val f1 = fa.start.flatMap(_.join).value.unsafeToFuture()
+//    val f2 = fa.value.unsafeToFuture()
+//    ec.tick()
+//    println(f.value)
+//  }
 }
 
 object IOTests {
@@ -555,5 +570,11 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
+    def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      fa.runCancelable(cb)
+    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.cancelable(k)
+    def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+      fa.start
   }
 }

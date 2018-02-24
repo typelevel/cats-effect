@@ -14,17 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect
-package internals
+package cats.effect.internals
+
+import scala.util.{Failure, Success, Try}
 
 /**
- * INTERNAL API - [[Fiber]] instantiated for [[IO]].
- *
- * Not exposed, the `IO` implementation exposes [[Fiber]] directly.
+ * Internal API — describes internal conversions.
  */
-private[effect] final case class IOFiber[A](join: IO[A])
-  extends Fiber[IO, A] {
+private[internals] object Conversions {
 
-  def cancel: IO[Unit] =
-    IOCancel.signal(join)
+  def toTry[A](a: Either[Throwable, A]): Try[A] =
+    a match {
+      case Right(r) => Success(r)
+      case Left(l) => Failure(l)
+    }
+
+  def toEither[A](a: Try[A]): Either[Throwable, A] =
+    a match {
+      case Success(r) => Right(r)
+      case Failure(l) => Left(l)
+    }
 }

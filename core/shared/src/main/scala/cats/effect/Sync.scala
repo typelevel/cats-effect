@@ -18,7 +18,6 @@ package cats
 package effect
 
 import simulacrum._
-
 import cats.data.{EitherT, IndexedStateT, OptionT, StateT, WriterT}
 import cats.effect.internals.NonFatal
 

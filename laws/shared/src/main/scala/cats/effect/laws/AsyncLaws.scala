@@ -45,8 +45,11 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {
     val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
-
     fa <-> F.pure(Left(t))
+  }
+
+  def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
+    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
   }
 }
 

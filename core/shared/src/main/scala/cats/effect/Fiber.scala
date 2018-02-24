@@ -47,7 +47,7 @@ package cats.effect
  *   }
  * }}}
  */
-trait Fiber[F[+_], +A] {
+trait Fiber[F[_], A] {
   /**
    * Triggers the cancellation of the fiber.
    *

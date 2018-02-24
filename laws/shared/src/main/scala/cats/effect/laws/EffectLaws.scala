@@ -21,7 +21,7 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait EffectLaws[F[_]] extends AsyncLaws[F] {
+trait EffectLaws[F[_]] extends AsyncStartLaws[F] {
   implicit def F: Effect[F]
 
   def runAsyncPureProducesRightIO[A](a: A) = {
@@ -58,6 +58,12 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     val test = F.runAsync(double *> change) { _ => IO.unit }
 
     test *> readResult <-> IO.pure(f(a))
+  }
+
+  def runAsyncRunCancelableCoherence[A](fa: F[A]) = {
+    val fa1 = IO.async[A] { cb => F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync() }
+    val fa2 = IO.cancelable[A] { cb => F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync() }
+    fa1 <-> fa2
   }
 }
 

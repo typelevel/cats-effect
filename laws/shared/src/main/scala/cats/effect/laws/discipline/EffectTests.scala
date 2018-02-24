@@ -24,7 +24,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait EffectTests[F[_]] extends AsyncTests[F] {
+trait EffectTests[F[_]] extends AsyncStartTests[F] {
   def laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -56,13 +56,14 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
     new RuleSet {
       val name = "effect"
       val bases = Nil
-      val parents = Seq(async[A, B, C])
+      val parents = Seq(asyncStart[A, B, C])
 
       val props = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
-        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
+        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _))
     }
   }
 }
