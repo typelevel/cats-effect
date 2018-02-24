@@ -17,11 +17,8 @@
 package cats.effect.laws.util
 
 import cats.effect.IO
-import cats.effect.util.CompositeException
 import cats.kernel.Eq
-
-import scala.annotation.tailrec
-import scala.concurrent.{ExecutionException, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
@@ -71,26 +68,18 @@ trait TestInstances {
               case Some(Success(b)) => A.eqv(a, b)
               case _ => false
             }
-          case Some(Failure(ex1)) =>
+          case Some(Failure(_)) =>
             y.value match {
-              case Some(Failure(ex2)) =>
-                extractEx(ex1) == extractEx(ex2)
+              case Some(Failure(_)) =>
+                // All exceptions are non-terminating and given exceptions
+                // aren't values (being mutable, they implement reference
+                // equality), then we can't really test them reliably,
+                // especially due to race conditions or outside logic
+                // that wraps them (e.g. ExecutionException)
+                true
               case _ =>
                 false
             }
-        }
-      }
-
-      // Unwraps exceptions that got caught by Future's implementation
-      // and that got wrapped in ExecutionException (`Future(throw ex)`)
-      @tailrec def extractEx(ex: Throwable): String = {
-        ex match {
-          case e: ExecutionException if e.getCause != null =>
-            extractEx(e.getCause)
-          case e: CompositeException =>
-            extractEx(e.head)
-          case _ =>
-            s"${ex.getClass.getName}: ${ex.getMessage}"
         }
       }
     }
