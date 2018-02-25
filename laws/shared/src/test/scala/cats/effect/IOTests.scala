@@ -501,5 +501,8 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
+    def bracket[A, B](acquire: IO[A])(use: A => IO[B])
+                     (release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
+      ref.bracket(acquire)(use)(release)
   }
 }

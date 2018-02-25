@@ -278,6 +278,17 @@ sealed abstract class IO[+A] {
         F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
+  def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
+    for {
+      a <- this
+      etb <- use(a).attempt
+      _ <- release(a, etb match {
+        case Left(t) => BracketResult.error[Throwable, B](Some(t))
+        case Right(b) => BracketResult.success[Throwable, B](b)
+      })
+      b <- IO.fromEither(etb)
+    } yield b
+
   override def toString = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
@@ -369,6 +380,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
         case Left(a) => tailRecM(a)(f)
         case Right(b) => pure(b)
       }
+
+    override def bracket[A, B](acquire: IO[A])(use: A => IO[B])
+      (release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
+        acquire.bracket(use)(release)
   }
 
   implicit val ioParallel: Parallel[IO, IO.Par] =
@@ -546,7 +561,11 @@ object IO extends IOInstances {
    * Lifts an Either[Throwable, A] into the IO[A] context raising the throwable
    * if it exists.
    */
-  def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
+  def fromEither[A](e: Either[Throwable, A]): IO[A] =
+    e match {
+      case Right(a) => pure(a)
+      case Left(err) => raiseError(err)
+    }
 
   /**
    * Shifts the bind continuation of the `IO` onto the specified thread

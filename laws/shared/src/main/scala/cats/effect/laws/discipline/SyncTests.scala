@@ -26,7 +26,8 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
 
-trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
+trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
+
   def laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -56,9 +57,10 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] {
     new RuleSet {
       val name = "sync"
       val bases = Nil
-      val parents = Seq(monadError[A, B, C])
+      val parents = Seq(bracket[A, B, C])
 
       val baseProps = Seq(
+        "bracket release is always called" -> forAll(laws.bracketReleaseIsAlwaysCalled[A, B] _),
         "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
         "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),

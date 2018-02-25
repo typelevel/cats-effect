@@ -27,7 +27,7 @@ import cats.effect.internals.NonFatal
  * in the `F[_]` context.
  */
 @typeclass
-trait Sync[F[_]] extends MonadError[F, Throwable] {
+trait Sync[F[_]] extends Bracket[F, Throwable] {
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -62,6 +62,17 @@ private[effect] abstract class SyncInstances {
 
       def raiseError[A](e: Throwable) =
         EitherT.left(Eval.now(e))
+
+      def bracket[A, B](acquire: EitherT[Eval, Throwable, A])(use: A => EitherT[Eval, Throwable, B])
+                       (release: (A, BracketResult[Throwable, B]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] =
+        acquire.flatMap { a =>
+          EitherT(FlatMap[Eval].flatTap(use(a).value){ etb =>
+            release(a, etb match {
+              case Left(t) => BracketResult.error(Some(t))
+              case Right(b) => BracketResult.success(b)
+            }).value
+          })
+        }
 
       def flatMap[A, B](fa: EitherT[Eval, Throwable, A])(f: A => EitherT[Eval, Throwable, B]): EitherT[Eval, Throwable, B] =
         fa.flatMap(f)
@@ -102,6 +113,25 @@ private[effect] abstract class SyncInstances {
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
       EitherT.liftF(F.raiseError(e))
 
+    def bracket[A, B](acquire: EitherT[F, L, A])(use: A => EitherT[F, L, B])
+                     (release: (A, BracketResult[Throwable, B]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
+      acquire.flatMap { a =>
+        EitherT(
+          F.bracket(F.pure(a))(use.andThen(_.value)) { (a: A, etob: BracketResult[Throwable, Either[L, B]]) =>
+            val result: BracketResult[Throwable, B] = etob match {
+              case BracketResult.Error(t) => BracketResult.error(t)
+              case BracketResult.Cancelled() => BracketResult.cancelled
+              case BracketResult.Success(ob) => ob match {
+                case Right(b) => BracketResult.success(b)
+                case Left(_) => BracketResult.error(None)
+              }
+            }
+
+            F.void(release(a, result).value)
+          }
+        )
+      }
+
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
       fa.flatMap(f)
 
@@ -125,6 +155,25 @@ private[effect] abstract class SyncInstances {
     def raiseError[A](e: Throwable): OptionT[F, A] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
+    def bracket[A, B](acquire: OptionT[F, A])(use: A => OptionT[F, B])
+                              (release: (A, BracketResult[Throwable, B]) => OptionT[F, Unit]): OptionT[F, B] =
+      acquire.flatMap { a =>
+        OptionT(
+          F.bracket(F.pure(a))(use.andThen(_.value)) { (a: A, etob: BracketResult[Throwable, Option[B]]) =>
+            val result: BracketResult[Throwable, B] = etob match {
+              case BracketResult.Error(t) => BracketResult.error(t)
+              case BracketResult.Cancelled() => BracketResult.cancelled
+              case BracketResult.Success(ob) => ob match {
+                case Some(b) => BracketResult.success(b)
+                case None => BracketResult.error(None)
+              }
+            }
+
+            F.void(release(a, result).value)
+          }
+        )
+      }
+
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
       fa.flatMap(f)
 
@@ -146,6 +195,19 @@ private[effect] abstract class SyncInstances {
 
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
+
+    def bracket[A, B](acquire: StateT[F, S, A])(use: A => StateT[F, S, B])
+                     (release: (A, BracketResult[Throwable, B]) => StateT[F, S, Unit]): StateT[F, S, B] =
+      acquire.flatMap { a =>
+        StateT { s =>
+          F.bracket(F.pure(a))(a => F.flatMap(use(a).runF)(_.apply(s))) { (a, res: BracketResult[Throwable, (S, B)]) =>
+            res match {
+              case BracketResult.Success((s, b)) => release(a, BracketResult.success(b)).runA(s)
+              case r@ _ => release(a, r.map(_._2)).runA(s)
+            }
+          }
+        }
+      }
 
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)
@@ -172,6 +234,16 @@ private[effect] abstract class SyncInstances {
 
     def raiseError[A](e: Throwable): WriterT[F, L, A] =
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
+
+    def bracket[A, B](acquire: WriterT[F, L, A])(use: A => WriterT[F, L, B])
+                     (release: (A, BracketResult[Throwable, B]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
+      acquire.flatMap { a =>
+        WriterT(
+          F.bracket(F.pure(a))(use.andThen(_.run)){ (a, res) =>
+            release(a, res.map(_._2)).value
+          }
+        )
+      }
 
     def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
       fa.flatMap(f)
