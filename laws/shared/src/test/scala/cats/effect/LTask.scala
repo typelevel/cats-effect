@@ -80,7 +80,7 @@ object LTask {
             val f = fa.run(ec)
             new Fiber[LTask, A] {
               def join = LTask(_ => f)
-              def cancel = LTask(_ => Future.unit)
+              def cancel = LTask(_ => Future.successful(()))
             }
           }
         }
