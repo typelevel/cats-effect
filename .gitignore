@@ -7,3 +7,4 @@ target/
 tags
 .idea
 benchmarks/results
+.java-version
