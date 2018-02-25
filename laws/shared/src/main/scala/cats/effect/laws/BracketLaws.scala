@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,10 +21,8 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   implicit def F: Bracket[F, E]
-
 
   def bracketWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
     F.bracket(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
@@ -34,7 +32,6 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def bracketFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracket(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
-
 }
 
 object BracketLaws {

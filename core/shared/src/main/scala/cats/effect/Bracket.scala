@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,32 +17,28 @@
 package cats
 package effect
 
-
-
-
 trait Bracket[F[_], E] extends MonadError[F, E] {
   def bracket[A, B](acquire: F[A])(use: A => F[B])
-    (release: (A, BracketResult[E, B]) => F[Unit]): F[B]
+    (release: (A, BracketResult[E]) => F[Unit]): F[B]
 }
 
-sealed abstract class BracketResult[E, A] { self =>
-  def map[B](f: A => B): BracketResult[E, B] = self match {
-    case BracketResult.Success(a) => BracketResult.success(f(a))
-    case BracketResult.Cancelled() => BracketResult.cancelled
-    case BracketResult.Error(oe) => BracketResult.error(oe)
-  }
-}
+sealed abstract class BracketResult[+E]
 
 object BracketResult {
-  final case class Success[E, A](a: A) extends BracketResult[E, A]
-  final case class Error[E, A](e: Option[E]) extends BracketResult[E, A]
-  final case class Cancelled[E, A]() extends BracketResult[E, A]
+  case object Completed extends BracketResult[Nothing]
+  case class Error[+E](e: E) extends BracketResult[E]
+  case class Canceled[+E](e: Option[E]) extends BracketResult[E]
 
-  def cancelled[E, A]: BracketResult[E, A] = Cancelled[E, A]
-  def error[E, A](e: Option[E]): BracketResult[E, A] = Error[E, A](e)
-  def success[E, A](a: A): BracketResult[E, A] = Success[E, A](a)
+  def complete[E]: BracketResult[E] = Completed
+  def error[E](e: E): BracketResult[E] = Error[E](e)
+  def cancelled[E](e: Option[E] = None): BracketResult[E] = Canceled(e)
+
+  def attempt[E, A](value: Either[E, A]): BracketResult[E] =
+    value match {
+      case Left(e) => BracketResult.error(e)
+      case Right(_) => BracketResult.complete
+    }
 }
-
 
 object Bracket {
   def apply[F[_], E](implicit ev: Bracket[F, E]): Bracket[F, E] = ev

@@ -278,13 +278,13 @@ sealed abstract class IO[+A] {
         F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
-  def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
+  def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
     for {
       a <- this
       etb <- use(a).attempt
       _ <- release(a, etb match {
-        case Left(t) => BracketResult.error[Throwable, B](Some(t))
-        case Right(b) => BracketResult.success[Throwable, B](b)
+        case Left(e) => BracketResult.error[Throwable](e)
+        case Right(_) => BracketResult.complete
       })
       b <- IO.fromEither(etb)
     } yield b
@@ -381,9 +381,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
         case Right(b) => pure(b)
       }
 
-    override def bracket[A, B](acquire: IO[A])(use: A => IO[B])
-      (release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
-        acquire.bracket(use)(release)
+    override def bracket[A, B](acquire: IO[A])
+      (use: A => IO[B])
+      (release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
+      acquire.bracket(use)(release)
   }
 
   implicit val ioParallel: Parallel[IO, IO.Par] =
