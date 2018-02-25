@@ -164,7 +164,14 @@ val mimaSettings = Seq(
       exclude[InheritedNewAbstractMethodProblem]("cats.effect.AsyncStart.start"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runCancelable"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.cancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift")
+      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift"),
+      // Scala < 2.12
+      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#WriterTAsync.cancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#OptionTAsync.cancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#EitherTAsync.cancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runCancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.AsyncStart#Ops.start"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#StateTAsync.cancelable")
     )
   }
 )
