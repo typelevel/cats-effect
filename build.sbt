@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -308,7 +308,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "0.7"
+val BaseVersion = "0.10"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
