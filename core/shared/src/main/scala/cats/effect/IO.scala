@@ -20,6 +20,7 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals._
+import cats.effect.internals.Callback.Extensions
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -193,6 +194,24 @@ sealed abstract class IO[+A] {
     IORunLoop.start(this, cb)
 
   /**
+   * Evaluates the source `IO`, passing the result of the encapsulated
+   * effects to the given callback.
+   *
+   * As the name says, this is an UNSAFE function as it is impure and
+   * performs side effects.  You should ideally only call this
+   * function ''once'', at the very end of your program.
+   *
+   * @return an side-effectful function that, when executed, sends a
+   *         cancellation reference to `IO`'s run-loop implementation,
+   *         having the potential to interrupt it.
+   */
+  final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
+    val conn = IOConnection()
+    IORunLoop.startCancelable(this, conn, cb)
+    conn.cancel
+  }
+
+  /**
    * Similar to `unsafeRunSync`, except with a bounded blocking
    * duration when awaiting asynchronous results.
    *
@@ -248,6 +267,55 @@ sealed abstract class IO[+A] {
   }
 
   /**
+   * Start execution of the source suspended in the `IO` context.
+   *
+   * This can be used for non-deterministic / concurrent execution.
+   * The following code is more or less equivalent with `parMap2`
+   * (minus the behavior on error handling and cancellation):
+   *
+   * {{{
+   *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
+   *     for {
+   *       fa <- ioa.start
+   *       fb <- iob.start
+   *        a <- fa.join
+   *        b <- fb.join
+   *     } yield (a, b)
+   * }}}
+   *
+   * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
+   * still recommended because of behavior on error and cancellation —
+   * consider in the example above what would happen if the first task
+   * finishes in error. In that case the second task doesn't get cancelled,
+   * which creates a potential memory leak.
+   *
+   * IMPORTANT — this operation does not start with an asynchronous boundary.
+   * But you can use [[IO.shift]] to force an async boundary just before `start`.
+   */
+  final def start: IO[Fiber[IO, A]] =
+    IOStart(this)
+
+  /**
+   * Returns a new `IO` that mirrors the source task for normal termination,
+   * but that triggers the given error on cancellation.
+   *
+   * Normally tasks that are cancelled become non-terminating.
+   *
+   * This `onCancelRaiseError` operator transforms a task that is
+   * non-terminating on cancellation into one that yields an error,
+   * thus equivalent with [[IO.raiseError]].
+   */
+  final def onCancelRaiseError(e: Throwable): IO[A] =
+    IOCancel.raise(this, e)
+
+  /**
+   * Makes the source `Task` uninterruptible such that a [[Fiber.cancel]]
+   * signal has no effect.
+   */
+  final def uncancelable: IO[A] =
+    IOCancel.uncancelable(this)
+
+  /**
    * Converts the source `IO` into any `F` type that implements
    * the [[cats.effect.Async Async]] type class.
    */
@@ -257,7 +325,7 @@ sealed abstract class IO[+A] {
       case Delay(thunk) => F.delay(thunk())
       case RaiseError(e) => F.raiseError(e)
       case Suspend(thunk) => F.suspend(thunk().to[F])
-      case Async(k) => F.async(k)
+      case Async(k) => F.async(cb => k(IOConnection.alreadyCanceled, cb))
       case Bind(source, frame) =>
         frame match {
           case m: IOFrame[_, _] =>
@@ -478,11 +546,27 @@ object IO extends IOInstances {
    * `Future`.
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    Async { cb =>
-      val cb2 = IOPlatform.onceOnly(cb)
+    Async { (_, cb) =>
+      val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
+
+  /**
+   * Builds a cancelable `IO`.
+   */
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    Async { (conn, cb) =>
+      val cb2 = Callback.asyncIdempotent(conn, cb)
+      val ref = ForwardCancelable()
+      conn.push(ref)
+
+      ref := (
+        try k(cb2) catch { case NonFatal(t) =>
+          cb2(Left(t))
+          IO.unit
+        })
+    }
 
   /**
    * Constructs an `IO` which sequences the specified exception.
@@ -621,10 +705,42 @@ object IO extends IOInstances {
    * `async` actions.
    */
   def shift(implicit ec: ExecutionContext): IO[Unit] = {
-    IO async { (cb: Either[Throwable, Unit] => Unit) =>
+    IO.Async { (_, cb: Either[Throwable, Unit] => Unit) =>
       ec.execute(new Runnable {
-        def run() = cb(Right(()))
+        def run() = cb(Callback.rightUnit)
       })
+    }
+  }
+
+  /**
+   * Returns a cancelable boundary — an `IO` task that checks for the
+   * cancellation status of the run-loop and does not allow for the
+   * bind continuation to keep executing in case cancellation happened.
+   *
+   * This operation is very similar to [[IO.shift]], as it can be dropped
+   * in `flatMap` chains in order to make loops cancelable.
+   *
+   * Example:
+   *
+   * {{{
+   *  def fib(n: Int, a: Long, b: Long): IO[Long] =
+   *    IO.suspend {
+   *      if (n <= 0) IO.pure(a) else {
+   *        val next = fib(n - 1, b, a + b)
+   *
+   *        // Every 100-th cycle, check cancellation status
+   *        if (n % 100 == 0)
+   *          IO.cancelBoundary *> next
+   *        else
+   *          next
+   *      }
+   *    }
+   * }}}
+   */
+  val cancelBoundary: IO[Unit] = {
+    IO.Async { (conn, cb) =>
+      if (!conn.isCanceled)
+        cb.async(Callback.rightUnit)
     }
   }
 
@@ -636,9 +752,10 @@ object IO extends IOInstances {
     extends IO[Nothing]
   private[effect] final case class Suspend[+A](thunk: () => IO[A])
     extends IO[A]
-  private[effect] final case class Async[+A](k: (Either[Throwable, A] => Unit) => Unit)
-    extends IO[A]
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
+    extends IO[A]
+  private[effect] final case class Async[+A](
+    k: (IOConnection, Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
 
   /** State for representing `map` ops that itself is a function in

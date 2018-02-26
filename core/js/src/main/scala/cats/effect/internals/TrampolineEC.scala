@@ -97,6 +97,7 @@ private[effect] object TrampolineEC {
   val immediate: TrampolineEC =
     new TrampolineEC(new ExecutionContext {
       def execute(r: Runnable): Unit = r.run()
-      def reportFailure(e: Throwable): Unit = throw e
+      def reportFailure(e: Throwable): Unit =
+        Logger.reportFailure(e)
     })
 }

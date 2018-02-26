@@ -60,6 +60,13 @@ val commonSettings = Seq(
     }
   },
 
+  // Disable parallel execution in tests; otherwise we cannot test System.err
+  parallelExecution in Test := false,
+  parallelExecution in IntegrationTest := false,
+  testForkedParallel in Test := false,
+  testForkedParallel in IntegrationTest := false,
+  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
+
   // credit: https://github.com/typelevel/cats/pull/1638
   ivyConfigurations += CompileTime,
   unmanagedClasspath in Compile ++= update.value.select(configurationFilter("CompileTime")),
@@ -157,7 +164,16 @@ val mimaSettings = Seq(
       exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
       exclude[MissingTypesProblem]("cats.effect.Effect$"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances")
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances"),
+      // Work on cancelable IO
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
     )
   }
 )

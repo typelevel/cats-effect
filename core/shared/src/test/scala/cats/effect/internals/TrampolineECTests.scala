@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import org.scalatest.{FunSuite, Matchers}
 import cats.effect.internals.TrampolineEC.immediate
-
 import scala.concurrent.ExecutionContext
 import cats.effect.internals.IOPlatform.isJVM
-
 import scala.collection.immutable.Queue
 
-class TrampolineECTests extends FunSuite with Matchers {
+class TrampolineECTests extends FunSuite with Matchers with TestUtils {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =
@@ -89,12 +88,12 @@ class TrampolineECTests extends FunSuite with Matchers {
     effects shouldBe Queue(1, 4, 4, 2, 3)
   }
 
-  test("thrown exceptions should trigger scheduled execution") {
+  test("thrown exceptions should get logged to System.err (immediate)") {
     val dummy1 = new RuntimeException("dummy1")
-    val dummy2 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
     var effects = 0
 
-    try {
+    val output = catchSystemErr {
       executeImmediate {
         executeImmediate { effects += 1 }
         executeImmediate { effects += 1 }
@@ -105,10 +104,10 @@ class TrampolineECTests extends FunSuite with Matchers {
         }
         throw dummy1
       }
-      fail("should have thrown exception")
-    } catch {
-      case `dummy2` =>
-        effects shouldBe 4
     }
+
+    output should include("dummy1")
+    output should include("dummy2")
+    effects shouldBe 4
   }
 }
