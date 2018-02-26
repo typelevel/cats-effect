@@ -22,6 +22,13 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
+/**
+ * Internal API — JVM specific implementation of a `Timer[IO]`.
+ *
+ * Depends on having a Scala `ExecutionContext` for the actual
+ * execution of tasks (i.e. bind continuations) and on a Java
+ * `ScheduledExecutorService` for scheduling ticks with a delay.
+ */
 private[internals] final class IOTimer private (
   ec: ExecutionContext, sc: ScheduledExecutorService)
   extends Timer[IO] {
