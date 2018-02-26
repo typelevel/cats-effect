@@ -29,7 +29,7 @@ import cats.laws.discipline._
 import org.scalacheck._
 
 import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
@@ -115,7 +115,7 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("shift works for success") { implicit ec =>
+  testAsync("shift works for success (via Timer)") { implicit ec =>
     val expected = IO.shift.flatMap(_ => IO(1)).unsafeToFuture()
     expected.value shouldEqual None
 
@@ -123,7 +123,16 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Success(1))
   }
 
-  testAsync("shift works for failure") { implicit ec =>
+  testAsync("shift works for success (via ExecutionContext)") { ec =>
+    val expected = IO.shift(ec).flatMap(_ => IO(1)).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+
+  testAsync("shift works for failure (via Timer)") { implicit ec =>
     val dummy = new RuntimeException("dummy")
 
     val expected = IO.shift.flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
@@ -131,6 +140,30 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick()
     expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("shift works for failure (via ExecutionContext)") { ec =>
+    val dummy = new RuntimeException("dummy")
+
+    val expected = IO.shift(ec).flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("IO.sleep") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val io = IO.sleep(10.seconds) *> IO(1 + 1)
+    val f = io.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual None
+    ec.tick(9.seconds)
+    f.value shouldEqual None
+    ec.tick(1.second)
+    f.value shouldEqual Some(2)
   }
 
   testAsync("IO.async protects against multiple callback calls") { implicit ec =>

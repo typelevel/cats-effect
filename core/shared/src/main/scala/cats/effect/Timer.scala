@@ -82,7 +82,7 @@ trait Timer[F[_]] {
    * boundary, even if the provided `timespan` is less or
    * equal to zero.
    */
-  def sleep(timespan: FiniteDuration): F[Unit]
+  def sleep(duration: FiniteDuration): F[Unit]
 
   /**
    * Asynchronous boundary described as an effectful `F[_]` that

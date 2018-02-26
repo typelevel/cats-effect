@@ -20,6 +20,7 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
+import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
@@ -755,6 +756,46 @@ object IO extends IOInstances {
       })
     }
   }
+
+  /**
+   * Creates an asynchronous task that on evaluation sleeps for the
+   * specified duration, emitting a notification on completion.
+   *
+   * This is the pure, non-blocking equivalent to:
+   *
+   *  - `Thread.sleep` (JVM)
+   *  - `ScheduledExecutorService.schedule` (JVM)
+   *  - `setTimeout` (JavaScript)
+   *
+   * Similar with [[IO.shift(implicit* IO.shift]], you can combine it
+   * via `flatMap` to create delayed tasks:
+   *
+   * {{{
+   *   val timeout = IO.sleep(10.seconds).flatMap { _ =>
+   *     IO.raiseError(new TimeoutException)
+   *   }
+   * }}}
+   *
+   * This operation creates an asynchronous boundary, even if the
+   * specified duration is zero, so you can count on this equivalence:
+   *
+   * {{{
+   *   IO.sleep(Duration.Zero) <-> IO.shift
+   * }}}
+   *
+   * The created task is cancellable and so it can be used safely in race
+   * conditions without resource leakage.
+   *
+   * @param duration is the time span to wait before emitting the tick
+   *
+   * @param timer is the [[Timer]] used to manage this delayed task,
+   *        `IO.sleep` being in fact just an alias for [[Timer.sleep]]
+   *
+   * @return a new asynchronous and cancelable `IO` that will sleep for
+   *         the specified duration and then finally emit a tick
+   */
+  def sleep(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[Unit] =
+    timer.sleep(duration)
 
   /**
    * Returns a cancelable boundary — an `IO` task that checks for the
