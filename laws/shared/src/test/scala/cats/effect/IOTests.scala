@@ -163,7 +163,7 @@ class IOTests extends BaseTestsSuite {
     ec.tick(9.seconds)
     f.value shouldEqual None
     ec.tick(1.second)
-    f.value shouldEqual Some(2)
+    f.value shouldEqual Some(Success(2))
   }
 
   testAsync("IO.async protects against multiple callback calls") { implicit ec =>
