@@ -26,7 +26,7 @@ import scala.util.Random
 
 /**
  * A `scala.concurrent.ExecutionContext` implementation and a provider
- * of [[cats.effect.Timer]] instances, that can simulate async boundaries
+ * of `cats.effect.Timer` instances, that can simulate async boundaries
  * and time passage, useful for testing purposes.
  *
  * Usage for simulating an `ExecutionContext`):
@@ -54,8 +54,8 @@ import scala.util.Random
  * }}}
  *
  * Our `TestContext` can also simulate time passage, as we are able
- * to builds a [[cats.effect.Timer Timer]] instance for any data type that
- * has a [[cats.effect.LiftIO LiftIO]] instance:
+ * to builds a `cats.effect.Timer` instance for any data type that
+ * has a `LiftIO` instance:
  *
  * {{{
  *   val ctx = TestContext()
@@ -134,8 +134,8 @@ final class TestContext private () extends ExecutionContext { self =>
   )
 
   /**
-   * Derives a [[cats.effect.Timer]] from this `TestContext`, for any data
-   * type that has a [[cats.effect.LiftIO LiftIO]] instance.
+   * Derives a `cats.effect.Timer` from this `TestContext`, for any data
+   * type that has a `LiftIO` instance.
    *
    * Example:
    *
@@ -237,7 +237,7 @@ final class TestContext private () extends ExecutionContext { self =>
    * }}}
    *
    * The optional parameter can be used for simulating time, to be used in
-   * combination with [[cats.effect.Timer]]. See the
+   * combination with `cats.effect.Timer`. See the
    * [[TestContext.timer timer]] method.
    *
    * Example:

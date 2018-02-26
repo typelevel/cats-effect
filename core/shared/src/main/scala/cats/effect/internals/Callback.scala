@@ -65,10 +65,10 @@ private[effect] object Callback {
   /**
    * Callback wrapper used in `IO.async` that:
    *
-   *  1. guarantees (thread safe) idempotency
-   *  2. triggers light (trampolined) async boundary for stack safety
-   *  3. pops the given `Connection` (only if != null)
-   *  4. logs extraneous errors after callback was already called once
+   *  - guarantees (thread safe) idempotency
+   *  - triggers light (trampolined) async boundary for stack safety
+   *  - pops the given `Connection` (only if != null)
+   *  - logs extraneous errors after callback was already called once
    */
   def asyncIdempotent[A](conn: IOConnection, cb: Type[A]): Type[A] =
     new AsyncIdempotentCallback[A](conn, cb)

@@ -22,16 +22,18 @@ import scala.concurrent.duration.FiniteDuration
 /**
  * Timer is a scheduler of tasks.
  *
- * This is the purely functional equivalent of Java's
- * [[https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html ScheduledExecutorService]]
- * or of JavaScript's
- * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
+ * This is the purely functional equivalent of:
+ *
+ *  - Java's
+ *    [[https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html ScheduledExecutorService]]
+ *  - JavaScript's
+ *    [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
  *
  * It provides:
  *
  *  1. the ability to get the current time
- *  2. thread / call-stack shifting
- *  3. ability to delay the execution of a task with a specified time duration
+ *  1. thread / call-stack shifting
+ *  1. ability to delay the execution of a task with a specified time duration
  *
  * It does all of that in an `F` monadic context that can suspend
  * side effects and is capable of asynchronous execution (e.g. [[IO]]).

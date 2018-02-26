@@ -45,7 +45,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
   /**
-   * @see [[IO#shift]]
+   * @see [[IO.shift(ec* IO#shift]]
    */
   def shift(implicit ec: ExecutionContext): F[Unit] = {
     async { (cb: Either[Throwable, Unit] => Unit) =>
