@@ -16,9 +16,11 @@
 
 package cats.effect.laws.util
 
-import cats.effect.BaseTestsSuite
-import scala.concurrent.Future
-import scala.util.Success
+import cats.effect.{BaseTestsSuite, IO}
+
+import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 class TestContextTests extends BaseTestsSuite {
   testAsync("recursive loop") { implicit ec =>
@@ -63,5 +65,112 @@ class TestContextTests extends BaseTestsSuite {
 
     assert(effect === true)
     assert(ec.state.lastReportedFailure === Some(dummy))
+  }
+
+  testAsync("tickOne") { implicit ec =>
+    val f = Future(1 + 1)
+    assert(f.value === None)
+    ec.tickOne()
+    assert(f.value === Some(Success(2)))
+
+    var count = 0
+    for (_ <- 0 until 100)
+      ec.execute(new Runnable {
+        def run(): Unit = count += 1
+      })
+
+    assert(count === 0)
+    var executed = 0
+    while (ec.tickOne()) {
+      executed += 1
+    }
+
+    assert(count === 100)
+    assert(executed === 100)
+  }
+
+  testAsync("IO.shift via implicit ExecutionContext") { implicit ec =>
+    val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
+    assert(f.value === None)
+
+    ec.tick()
+    assert(f.value === Some(Success(2)))
+  }
+
+  testAsync("IO.shift via Timer") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
+    assert(f.value === None)
+
+    ec.tick()
+    assert(f.value === Some(Success(2)))
+  }
+
+  testAsync("timer.currentTimeMillis") { ec =>
+    val timer = ec.timer[IO]
+
+    val t1 = timer.currentTimeMillis.unsafeRunSync()
+    assert(t1 === 0)
+
+    ec.tick(5.seconds)
+    val t2 = timer.currentTimeMillis.unsafeRunSync()
+    assert(t2 === 5000)
+
+    ec.tick(10.seconds)
+    val t3 = timer.currentTimeMillis.unsafeRunSync()
+    assert(t3 === 15000)
+  }
+
+  testAsync("timer.sleep") { ec =>
+    val timer = ec.timer[IO]
+    val delay = timer.sleep(10.seconds).map(_ => 1)
+    val f = delay.unsafeToFuture()
+
+    ec.tick()
+    assert(f.value === None)
+
+    ec.tick(1.second)
+    assert(f.value === None)
+    ec.tick(8.second)
+    assert(f.value === None)
+    ec.tick(1.second)
+    assert(f.value === Some(Success(1)))
+  }
+
+  testAsync("timer.sleep is cancelable") { ec =>
+    def callback[A](p: Promise[A]): (Either[Throwable, A] => Unit) =
+      r => p.complete(
+        r match {
+          case Left(e) => Failure(e)
+          case Right(a) => Success(a)
+        })
+
+    val timer = ec.timer[IO]
+    val delay = timer.sleep(10.seconds).map(_ => 1)
+
+    val p1 = Promise[Int]()
+    val p2 = Promise[Int]()
+    val p3 = Promise[Int]()
+
+    delay.unsafeRunCancelable(callback(p1))
+    val cancel = delay.unsafeRunCancelable(callback(p2))
+    delay.unsafeRunCancelable(callback(p3))
+
+    ec.tick()
+    assert(p1.future.value === None)
+    assert(p2.future.value === None)
+    assert(p3.future.value === None)
+
+    cancel()
+    ec.tick()
+    assert(p2.future.value === None)
+
+    ec.tick(10.seconds)
+    assert(p1.future.value === Some(Success(1)))
+    assert(p2.future.value === None)
+    assert(p3.future.value === Some(Success(1)))
+
+    assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }
 }
