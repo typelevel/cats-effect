@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.laws.util
+package cats.effect
 
-import cats.effect.{BaseTestsSuite, IO}
-
-import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success}
 
 class TestContextTests extends BaseTestsSuite {
@@ -110,15 +108,15 @@ class TestContextTests extends BaseTestsSuite {
   testAsync("timer.currentTimeMillis") { ec =>
     val timer = ec.timer[IO]
 
-    val t1 = timer.currentTimeMillis.unsafeRunSync()
+    val t1 = timer.currentTime(MILLISECONDS).unsafeRunSync()
     assert(t1 === 0)
 
     ec.tick(5.seconds)
-    val t2 = timer.currentTimeMillis.unsafeRunSync()
+    val t2 = timer.currentTime(MILLISECONDS).unsafeRunSync()
     assert(t2 === 5000)
 
     ec.tick(10.seconds)
-    val t3 = timer.currentTimeMillis.unsafeRunSync()
+    val t3 = timer.currentTime(MILLISECONDS).unsafeRunSync()
     assert(t3 === 15000)
   }
 

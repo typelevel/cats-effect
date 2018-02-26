@@ -17,7 +17,7 @@
 package cats.effect
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 /**
  * Timer is a scheduler of tasks.
@@ -48,21 +48,39 @@ import scala.concurrent.ExecutionContext.Implicits.global
 """)
 trait Timer[F[_]] {
   /**
-   * Returns the current time in milliseconds, suspended in `F[_]`.
+   * Returns the current time, as a Unix timestamp (number of time units
+   * passed since the epoch), suspended in `F[_]`.
    *
    * This is the pure equivalent to Java's
    * [[https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#currentTimeMillis-- System.currentTimeMillis]].
    *
-   * Note that while the unit of time of the return value is a millisecond,
-   * the granularity of the value depends on the underlying operating
-   * system and may be larger. For example, some operating systems
-   * measure time in units of tens of milliseconds.
+   * The provided `TimeUnit` determines the time unit of the output.
+   * For example this will return the number of milliseconds since
+   * the epoch:
    *
-   * Also implementations of this interface might implement this
-   * in terms of `System.nanoTime`, which is possible, but the
-   * granularity returned must remain in milliseconds.
+   * {{{
+   *   import scala.concurrent.duration.MILLISECONDS
+   *
+   *   timer.currentTime(MILLISECONDS)
+   * }}}
+   *
+   * N.B. the granularity is limited by the underlying implementation
+   * and by the underlying CPU and OS. For example:
+   *
+   *  - if the implementation uses `System.currentTimeMillis`,
+   *    then it can't have a better granularity than 1 millisecond,
+   *    plus depending on underlying runtime (e.g. Node.js) it might
+   *    return multiples of 10 milliseconds
+   *  - if the implementation uses `System.nanoTime`, then that's
+   *    the best granularity you can have, but note that its behavior
+   *    is highly dependent on the underlying runtime, OS and CPU and
+   *    on top of JavaScript / Node.js (at the moment of writing) the
+   *    granularity of `nanoTime` is in milliseconds
+   *
+   * The default `Timer` implementation uses `System.currentTimeMillis`.
+   * But if you want `System.nanoTime`, you can always implement your own.
    */
-  def currentTimeMillis: F[Long]
+  def currentTime(unit: TimeUnit): F[Long]
 
   /**
    * Creates a new task that will sleep for the given duration,
@@ -120,7 +138,7 @@ object Timer {
         F.liftIO(timer.shift)
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(timer.sleep(timespan))
-      def currentTimeMillis: F[Long] =
-        F.liftIO(timer.currentTimeMillis)
+      def currentTime(unit: TimeUnit): F[Long] =
+        F.liftIO(timer.currentTime(unit))
     }
 }

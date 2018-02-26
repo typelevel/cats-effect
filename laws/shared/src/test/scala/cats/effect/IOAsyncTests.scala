@@ -77,7 +77,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
 
   test("Timer[IO].currentTimeMillis") {
     val time = System.currentTimeMillis()
-    val io = Timer[IO].currentTimeMillis
+    val io = Timer[IO].currentTime(MILLISECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
       time should be > 0L

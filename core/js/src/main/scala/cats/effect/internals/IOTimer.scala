@@ -17,7 +17,8 @@
 package cats.effect
 package internals
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
 import scala.scalajs.js
 
 /**
@@ -29,29 +30,51 @@ import scala.scalajs.js
  * on top of Node.js and has much better performance since `setTimeout`
  * introduces latency even when the specified delay is zero).
  */
-private[internals] object IOTimer extends Timer[IO] {
+private[internals] class IOTimer extends Timer[IO] {
+  import IOTimer.{Tick, setTimeout, clearTimeout, setImmediateRef}
 
-  override def currentTimeMillis: IO[Long] =
-    IO(System.currentTimeMillis())
+  final def currentTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-  override def sleep(timespan: FiniteDuration): IO[Unit] =
+  final def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.cancelable { cb =>
       val task = setTimeout(timespan.toMillis, new Tick(cb))
       IO(clearTimeout(task))
     }
 
-  override def shift: IO[Unit] =
-    IO.async(cb => setImmediate(new Tick(cb)))
+  final def shift: IO[Unit] =
+    IO.async(cb => execute(new Tick(cb)))
+
+  protected def execute(r: Runnable): Unit = {
+    setImmediateRef(() =>
+      try r.run()
+      catch { case e: Throwable => e.printStackTrace() })
+  }
+}
+
+/**
+ * Internal API
+ */
+private[internals] object IOTimer {
+  /**
+   * Globally available implementation.
+   */
+  val global: Timer[IO] = new IOTimer
+
+  /**
+   * Returns an implementation that defers execution of the
+   * `shift` operation to an underlying `ExecutionContext`.
+   */
+  def deferred(ec: ExecutionContext): Timer[IO] =
+    new IOTimer {
+      override def execute(r: Runnable): Unit =
+        ec.execute(r)
+    }
 
   private final class Tick(cb: Either[Throwable, Unit] => Unit)
     extends Runnable {
     def run() = cb(Callback.rightUnit)
   }
-
-  private def setImmediate(r: Runnable): Unit =
-    setImmediateRef(() =>
-      try r.run()
-      catch { case e: Throwable => e.printStackTrace() })
 
   private def setTimeout(delayMillis: Long, r: Runnable): js.Dynamic = {
     val lambda: js.Function = () =>
@@ -61,7 +84,7 @@ private[internals] object IOTimer extends Timer[IO] {
     js.Dynamic.global.setTimeout(lambda, delayMillis)
   }
 
-  private def clearTimeout(task: js.Dynamic): js.Dynamic = {
+  private def clearTimeout(task: js.Dynamic): Unit = {
     js.Dynamic.global.clearTimeout(task)
   }
 

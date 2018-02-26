@@ -19,9 +19,10 @@ package cats.effect.laws.util
 import cats.effect.internals.Cancelable.{Type => Cancelable}
 import cats.effect.internals.NonFatal
 import cats.effect.{IO, LiftIO, Timer}
+
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
 
 /**
@@ -152,8 +153,11 @@ final class TestContext private () extends ExecutionContext { self =>
           val cancel = self.schedule(timespan, tick(cb))
           IO(cancel())
         })
-      override def currentTimeMillis: F[Long] =
-        F.liftIO(IO(self.state.clock.toMillis))
+      override def currentTime(unit: TimeUnit): F[Long] =
+        F.liftIO(IO {
+          val d = self.state.clock
+          unit.convert(d.length, d.unit)
+        })
     }
 
   /**
