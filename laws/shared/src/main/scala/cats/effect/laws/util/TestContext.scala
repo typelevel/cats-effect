@@ -153,7 +153,7 @@ final class TestContext private () extends ExecutionContext { self =>
           val cancel = self.schedule(timespan, tick(cb))
           IO(cancel())
         })
-      override def currentTime(unit: TimeUnit): F[Long] =
+      override def currentTime(unit: TimeUnit, tryMonotonic: Boolean): F[Long] =
         F.liftIO(IO {
           val d = self.state.clock
           unit.convert(d.length, d.unit)

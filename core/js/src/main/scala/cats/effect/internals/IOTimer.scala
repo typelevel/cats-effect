@@ -18,7 +18,7 @@ package cats.effect
 package internals
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, TimeUnit}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
 import scala.scalajs.js
 
 /**
@@ -33,8 +33,13 @@ import scala.scalajs.js
 private[internals] class IOTimer extends Timer[IO] {
   import IOTimer.{Tick, setTimeout, clearTimeout, setImmediateRef}
 
-  final def currentTime(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+  final def currentTime(unit: TimeUnit, tryMonotonic: Boolean): IO[Long] =
+    IO {
+      if (tryMonotonic)
+        unit.convert(System.nanoTime(), NANOSECONDS)
+      else
+        unit.convert(System.currentTimeMillis(), MILLISECONDS)
+    }
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.cancelable { cb =>

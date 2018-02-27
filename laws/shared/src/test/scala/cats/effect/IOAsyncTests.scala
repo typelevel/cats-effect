@@ -69,32 +69,16 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
     testEffectOnRunAsync(IO.shift.flatMap(_ => IO.raiseError(dummy)), Failure(dummy))
   }
 
-  test("Timer[IO].shift") {
-    for (_ <- Timer[IO].shift.unsafeToFuture()) yield {
-      assert(1 == 1)
-    }
-  }
-
-  test("Timer[IO].currentTimeMillis") {
-    val time = System.currentTimeMillis()
-    val io = Timer[IO].currentTime(MILLISECONDS)
-
-    for (t2 <- io.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
-    }
-  }
-
-  test("Timer[IO].sleep(10.ms)") {
-    val io = Timer[IO].sleep(10.millis).map(_ => 10)
+  test("IO.sleep(10.ms)") {
+    val io = IO.sleep(10.millis).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
       r shouldBe 10
     }
   }
 
-  test("Timer[IO].sleep(negative)") {
-    val io = Timer[IO].sleep(-10.seconds).map(_ => 10)
+  test("IO.sleep(negative)") {
+    val io = IO.sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
       r shouldBe 10

@@ -48,15 +48,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 """)
 trait Timer[F[_]] {
   /**
-   * Returns the current time, as a Unix timestamp (number of time units
-   * passed since the epoch), suspended in `F[_]`.
+   * Returns the current time, as a Unix timestamp, suspended in `F[_]`.
    *
-   * This is the pure equivalent to Java's
-   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#currentTimeMillis-- System.currentTimeMillis]].
+   * Depending on the `tryMonotonic` parameter, this is the pure equivalent
+   * of Java's `System.currentTimeMillis` or of `System.nanoTime`.
+   * See below.
    *
-   * The provided `TimeUnit` determines the time unit of the output.
-   * For example this will return the number of milliseconds since
-   * the epoch:
+   * The provided `TimeUnit` determines the time unit of the output,
+   * its precision, but not necessarily its resolution, which is
+   * implementation dependent. For example this will return the number
+   * of milliseconds since the epoch:
    *
    * {{{
    *   import scala.concurrent.duration.MILLISECONDS
@@ -64,23 +65,62 @@ trait Timer[F[_]] {
    *   timer.currentTime(MILLISECONDS)
    * }}}
    *
-   * N.B. the granularity is limited by the underlying implementation
+   * N.B. the resolution is limited by the underlying implementation
    * and by the underlying CPU and OS. For example:
    *
    *  - if the implementation uses `System.currentTimeMillis`,
-   *    then it can't have a better granularity than 1 millisecond,
+   *    then it can't have a better resolution than 1 millisecond,
    *    plus depending on underlying runtime (e.g. Node.js) it might
-   *    return multiples of 10 milliseconds
-   *  - if the implementation uses `System.nanoTime`, then that's
-   *    the best granularity you can have, but note that its behavior
-   *    is highly dependent on the underlying runtime, OS and CPU and
-   *    on top of JavaScript / Node.js (at the moment of writing) the
-   *    granularity of `nanoTime` is in milliseconds
+   *    return multiples of 10 milliseconds or more
+   *  - if the implementation uses `System.nanoTime` (see `tryMonotonic`),
+   *    then that's the best granularity you can have, but note that
+   *    its behavior is highly dependent on the underlying runtime, OS
+   *    and CPU and on top of JavaScript / Node.js (at the moment of
+   *    writing) the precision of `nanoTime` is in milliseconds; but the
+   *    only thing `nanoTime` guarantees is that its resolution won't
+   *    be worse than that of `currentTimeMillis`
    *
-   * The default `Timer` implementation uses `System.currentTimeMillis`.
-   * But if you want `System.nanoTime`, you can always implement your own.
+   * The implementation of the default `Timer[IO]` uses:
+   *
+   *  - `System.currentTimeMillis` when `tryMonotonic` is `false`
+   *  - `System.nanoTime` when `tryMonotonic` is `true`
+   *
+   * On top of JavaScript there is no standard way to do monotonic
+   * clock measurements, but the implementation may try using
+   * browser / engine specific measurements.
+   *
+   * '''Monotonic Clock'''
+   *
+   * The `tryMonotonic` parameter is a recommendation for the underlying
+   * implementation to return a monotonically increasing value. It's a
+   * recommendation, as the underlying implementation may or may not
+   * support it.
+   *
+   * {{{
+   *   timer.currentTime(NANOSECONDS, tryMonotonic = true)
+   * }}}
+   *
+   * The returned value can have nanoseconds resolution and represents
+   * the number of time units elapsed since some fixed but arbitrary
+   * origin time. Usually this is the Unix epoch, but that's not
+   * a guarantee, as due to the limits of `Long` this will overflow in
+   * the future (2^63^ is about 292 years in nanoseconds).
+   *
+   * The return value when `tryMonotonic` is `true` should not be considered
+   * related to wall-clock time, the primary use-case being to take time
+   * measurements and compute differences between such values, for
+   * example in order to measure the time it took to execute a task.
+   *
+   * As a matter of implementation detail, the JVM will use
+   * `CLOCK_MONOTONIC` when available, instead of `CLOCK_REALTIME`
+   * (see for example `clock_gettime()` on Linux) and it is up to the
+   * underlying platform to implement it correctly.
+   *
+   * The recommendation is to use `tryMonotonic = true` for when doing
+   * measurements of execution time and `false` for when the current
+   * wall-clock, time-of-day time is needed.
    */
-  def currentTime(unit: TimeUnit): F[Long]
+  def currentTime(unit: TimeUnit, tryMonotonic: Boolean = false): F[Long]
 
   /**
    * Creates a new task that will sleep for the given duration,
@@ -138,7 +178,7 @@ object Timer {
         F.liftIO(timer.shift)
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(timer.sleep(timespan))
-      def currentTime(unit: TimeUnit): F[Long] =
-        F.liftIO(timer.currentTime(unit))
+      def currentTime(unit: TimeUnit, tryMonotonic: Boolean): F[Long] =
+        F.liftIO(timer.currentTime(unit, tryMonotonic))
     }
 }

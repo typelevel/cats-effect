@@ -20,8 +20,7 @@ package internals
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
-import scala.concurrent.duration.MILLISECONDS
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
 
 /**
  * Internal API — JVM specific implementation of a `Timer[IO]`.
@@ -36,8 +35,13 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
-  override def currentTime(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+  override def currentTime(unit: TimeUnit, tryMonotonic: Boolean): IO[Long] =
+    IO {
+      if (tryMonotonic)
+        unit.convert(System.nanoTime(), NANOSECONDS)
+      else
+        unit.convert(System.currentTimeMillis(), MILLISECONDS)
+    }
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.cancelable { cb =>
