@@ -35,13 +35,11 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
-  override def currentTime(unit: TimeUnit, tryMonotonic: Boolean): IO[Long] =
-    IO {
-      if (tryMonotonic)
-        unit.convert(System.nanoTime(), NANOSECONDS)
-      else
-        unit.convert(System.currentTimeMillis(), MILLISECONDS)
-    }
+  override def clockRealTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+
+  override def clockMonotonic(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.cancelable { cb =>
