@@ -18,15 +18,16 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
+import cats.effect.internals.IOFrame.ErrorHandler
+import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
-import scala.util.{Left, Right}
+import scala.util.{Failure, Left, Right, Success}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -95,7 +96,7 @@ sealed abstract class IO[+A] {
   final def map[B](f: A => B): IO[B] =
     this match {
       case Map(source, g, index) =>
-        // Allowed to do fixed number of map operations fused before 
+        // Allowed to do fixed number of map operations fused before
         // resetting the counter in order to avoid stack overflows;
         // See `IOPlatform` for details on this maximum.
         if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
@@ -290,7 +291,8 @@ sealed abstract class IO[+A] {
    * which creates a potential memory leak.
    *
    * IMPORTANT — this operation does not start with an asynchronous boundary.
-   * But you can use [[IO.shift]] to force an async boundary just before `start`.
+   * But you can use [[IO.shift(implicit* IO.shift]] to force an async
+   * boundary just before start.
    */
   final def start: IO[Fiber[IO, A]] =
     IOStart(this)
@@ -353,23 +355,23 @@ sealed abstract class IO[+A] {
   }
 }
 
-private[effect] abstract class IOParallelNewtype {
+private[effect] abstract class IOParallelNewtype extends internals.IOTimerRef {
   /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
-    * capable of doing parallel processing in `ap` and `map2`, needed
-    * for implementing `cats.Parallel`.
-    *
-    * Helpers are provided for converting back and forth in `Par.apply`
-    * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
-    *
-    * The encoding is based on the "newtypes" project by
-    * Alexander Konovalov, chosen because it's devoid of boxing issues and
-    * a good choice until opaque types will land in Scala.
-    */
+   * capable of doing parallel processing in `ap` and `map2`, needed
+   * for implementing `cats.Parallel`.
+   *
+   * Helpers are provided for converting back and forth in `Par.apply`
+   * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
+   *
+   * The encoding is based on the "newtypes" project by
+   * Alexander Konovalov, chosen because it's devoid of boxing issues and
+   * a good choice until opaque types will land in Scala.
+   */
   type Par[+A] = Par.Type[A]
 
   /** Newtype encoding, see the [[IO.Par]] type alias
-    * for more details.
-    */
+   * for more details.
+   */
   object Par extends IONewtype
 }
 
@@ -387,7 +389,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit val parApplicative: Applicative[IO.Par] = new Applicative[IO.Par] {
     import IO.Par.unwrap
     import IO.Par.{apply => par}
-    
+
     override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
     override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
@@ -425,12 +427,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.async(k)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
-    // creates a new call-site, so *very* slightly faster than using the default
-    override def shift(implicit ec: ExecutionContext): IO[Unit] =
-      IO.shift(ec)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
-
     // this will use stack proportional to the maximum number of joined async suspensions
     override def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
       f(a) flatMap {
@@ -461,6 +459,104 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   }
 }
 
+/**
+ * @define shiftDesc For example we can introduce an asynchronous
+ *         boundary in the `flatMap` chain before a certain task:
+ *         {{{
+ *           IO.shift.flatMap(_ => task)
+ *         }}}
+ *
+ *         Or using Cats syntax:
+ *         {{{
+ *           import cats.syntax.all._
+ *
+ *           Task.shift *> task
+ *         }}}
+ *
+ *         Or we can specify an asynchronous boundary ''after'' the
+ *         evaluation of a certain task:
+ *         {{{
+ *           task.flatMap(a => IO.shift.map(_ => a))
+ *         }}}
+ *
+ *         Or using Cats syntax:
+ *         {{{
+ *           task <* IO.shift
+ *         }}}
+ *
+ *         Example of where this might be useful:
+ *         {{{
+ *         for {
+ *           _ <- IO.shift(BlockingIO)
+ *           bytes <- readFileUsingJavaIO(file)
+ *           _ <- IO.shift(DefaultPool)
+ *
+ *           secure = encrypt(bytes, KeyManager)
+ *           _ <- sendResponse(Protocol.v1, secure)
+ *
+ *           _ <- IO { println("it worked!") }
+ *         } yield ()
+ *         }}}
+ *
+ *         In the above, `readFileUsingJavaIO` will be shifted to the
+ *         pool represented by `BlockingIO`, so long as it is defined
+ *         using `apply` or `suspend` (which, judging by the name, it
+ *         probably is).  Once its computation is complete, the rest
+ *         of the `for`-comprehension is shifted ''again'', this time
+ *         onto the `DefaultPool`.  This pool is used to compute the
+ *         encrypted version of the bytes, which are then passed to
+ *         `sendResponse`.  If we assume that `sendResponse` is
+ *         defined using `async` (perhaps backed by an NIO socket
+ *         channel), then we don't actually know on which pool the
+ *         final `IO` action (the `println`) will be run.  If we
+ *         wanted to ensure that the `println` runs on `DefaultPool`,
+ *         we would insert another `shift` following `sendResponse`.
+ *
+ *         Another somewhat less common application of `shift` is to
+ *         reset the thread stack and yield control back to the
+ *         underlying pool. For example:
+ *
+ *         {{{
+ *         lazy val repeat: IO[Unit] = for {
+ *           _ <- doStuff
+ *           _ <- IO.shift
+ *           _ <- repeat
+ *         } yield ()
+ *         }}}
+ *
+ *         In this example, `repeat` is a very long running `IO`
+ *         (infinite, in fact!) which will just hog the underlying
+ *         thread resource for as long as it continues running.  This
+ *         can be a bit of a problem, and so we inject the `IO.shift`
+ *         which yields control back to the underlying thread pool,
+ *         giving it a chance to reschedule things and provide better
+ *         fairness.  This shifting also "bounces" the thread stack,
+ *         popping all the way back to the thread pool and effectively
+ *         trampolining the remainder of the computation.  This sort
+ *         of manual trampolining is unnecessary if `doStuff` is
+ *         defined using `suspend` or `apply`, but if it was defined
+ *         using `async` and does ''not'' involve any real
+ *         concurrency, the call to `shift` will be necessary to avoid
+ *         a `StackOverflowError`.
+ *
+ *         Thus, this function has four important use cases:
+ *
+ *          - shifting blocking actions off of the main compute pool,
+ *          - defensively re-shifting asynchronous continuations back
+ *            to the main compute pool
+ *          - yielding control to some underlying pool for fairness
+ *            reasons, and
+ *          - preventing an overflow of the call stack in the case of
+ *            improperly constructed `async` actions
+ *
+ *         Note there are 2 overloads of this function:
+ *
+ *          - one that takes an [[Timer]] ([[IO.shift(implicit* link]])
+ *          - one that takes a Scala `ExecutionContext` ([[IO.shift(ec* link]])
+ *
+ *         Use the former by default, use the later for fine grained
+ *         control over the thread pool used.
+ */
 object IO extends IOInstances {
 
   /**
@@ -601,11 +697,6 @@ object IO extends IOInstances {
    *   IO.fromFuture(IO.pure(f))
    * }}}
    *
-   * Note that the ''continuation'' of the computation resulting from
-   * a `Future` will run on the future's thread pool.  There is no
-   * thread shifting here; the `ExecutionContext` is solely for the
-   * benefit of the `Future`.
-   *
    * Roughly speaking, the following identities hold:
    *
    * {{{
@@ -615,16 +706,15 @@ object IO extends IOInstances {
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](iof: IO[Future[A]])(implicit ec: ExecutionContext): IO[A] = iof flatMap { f =>
-    IO async { cb =>
-      import scala.util.{Success, Failure}
-
-      f onComplete {
-        case Failure(e) => cb(Left(e))
-        case Success(a) => cb(Right(a))
+  def fromFuture[A](iof: IO[Future[A]]): IO[A] =
+    iof.flatMap { f =>
+      IO.async { cb =>
+        f.onComplete(r => cb(r match {
+          case Success(a) => Right(a)
+          case Failure(e) => Left(e)
+        }))(immediate)
       }
     }
-  }
 
   /**
    * Lifts an Either[Throwable, A] into the IO[A] context raising the throwable
@@ -633,78 +723,33 @@ object IO extends IOInstances {
   def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
 
   /**
-   * Shifts the bind continuation of the `IO` onto the specified thread
-   * pool.
+   * Asynchronous boundary described as an effectful `IO`, managed
+   * by the provided [[Timer]].
    *
-   * Asynchronous actions cannot be shifted, since they are scheduled
-   * rather than run. Also, no effort is made to re-shift synchronous
-   * actions which *follow* asynchronous actions within a bind chain;
-   * those actions will remain on the continuation thread inherited
-   * from their preceding async action.  The only computations which
-   * are shifted are those which are defined as synchronous actions and
-   * are contiguous in the bind chain ''following'' the `shift`.
+   * This operation can be used in `flatMap` chains to "shift" the
+   * continuation of the run-loop to another thread or call stack.
    *
-   * As an example:
+   * $shiftDesc
    *
-   * {{{
-   * for {
-   *   _ <- IO.shift(BlockingIO)
-   *   bytes <- readFileUsingJavaIO(file)
-   *   _ <- IO.shift(DefaultPool)
-   *
-   *   secure = encrypt(bytes, KeyManager)
-   *   _ <- sendResponse(Protocol.v1, secure)
-   *
-   *   _ <- IO { println("it worked!") }
-   * } yield ()
-   * }}}
-   *
-   * In the above, `readFileUsingJavaIO` will be shifted to the pool
-   * represented by `BlockingIO`, so long as it is defined using `apply`
-   * or `suspend` (which, judging by the name, it probably is).  Once
-   * its computation is complete, the rest of the `for`-comprehension is
-   * shifted ''again'', this time onto the `DefaultPool`.  This pool is
-   * used to compute the encrypted version of the bytes, which are then
-   * passed to `sendResponse`.  If we assume that `sendResponse` is
-   * defined using `async` (perhaps backed by an NIO socket channel),
-   * then we don't actually know on which pool the final `IO` action (the
-   * `println`) will be run.  If we wanted to ensure that the `println`
-   * runs on `DefaultPool`, we would insert another `shift` following
-   * `sendResponse`.
-   *
-   * Another somewhat less common application of `shift` is to reset the
-   * thread stack and yield control back to the underlying pool.  For
-   * example:
-   *
-   * {{{
-   * lazy val repeat: IO[Unit] = for {
-   *   _ <- doStuff
-   *   _ <- IO.shift
-   *   _ <- repeat
-   * } yield ()
-   * }}}
-   *
-   * In this example, `repeat` is a very long running `IO` (infinite, in
-   * fact!) which will just hog the underlying thread resource for as long
-   * as it continues running.  This can be a bit of a problem, and so we
-   * inject the `IO.shift` which yields control back to the underlying
-   * thread pool, giving it a chance to reschedule things and provide
-   * better fairness.  This shifting also "bounces" the thread stack, popping
-   * all the way back to the thread pool and effectively trampolining the
-   * remainder of the computation.  This sort of manual trampolining is
-   * unnecessary if `doStuff` is defined using `suspend` or `apply`, but if
-   * it was defined using `async` and does ''not'' involve any real
-   * concurrency, the call to `shift` will be necessary to avoid a
-   * `StackOverflowError`.
-   *
-   * Thus, this function has four important use cases: shifting blocking
-   * actions off of the main compute pool, defensively re-shifting
-   * asynchronous continuations back to the main compute pool, yielding
-   * control to some underlying pool for fairness reasons, and preventing
-   * an overflow of the call stack in the case of improperly constructed
-   * `async` actions.
+   * @param timer is the [[Timer]] that's managing the thread-pool
+   *        used to trigger this async boundary
    */
-  def shift(implicit ec: ExecutionContext): IO[Unit] = {
+  def shift(implicit timer: Timer[IO]): IO[Unit] =
+    timer.shift
+
+  /**
+   * Asynchronous boundary described as an effectful `IO`, managed
+   * by the provided Scala `ExecutionContext`.
+   *
+   * This operation can be used in `flatMap` chains to "shift" the
+   * continuation of the run-loop to another thread or call stack.
+   *
+   * $shiftDesc
+   *
+   * @param ec is the Scala `ExecutionContext` that's managing the
+   *        thread-pool used to trigger this async boundary
+   */
+  def shift(ec: ExecutionContext): IO[Unit] = {
     IO.Async { (_, cb: Either[Throwable, Unit] => Unit) =>
       ec.execute(new Runnable {
         def run() = cb(Callback.rightUnit)
@@ -713,12 +758,53 @@ object IO extends IOInstances {
   }
 
   /**
+   * Creates an asynchronous task that on evaluation sleeps for the
+   * specified duration, emitting a notification on completion.
+   *
+   * This is the pure, non-blocking equivalent to:
+   *
+   *  - `Thread.sleep` (JVM)
+   *  - `ScheduledExecutorService.schedule` (JVM)
+   *  - `setTimeout` (JavaScript)
+   *
+   * Similar with [[IO.shift(implicit* IO.shift]], you can combine it
+   * via `flatMap` to create delayed tasks:
+   *
+   * {{{
+   *   val timeout = IO.sleep(10.seconds).flatMap { _ =>
+   *     IO.raiseError(new TimeoutException)
+   *   }
+   * }}}
+   *
+   * This operation creates an asynchronous boundary, even if the
+   * specified duration is zero, so you can count on this equivalence:
+   *
+   * {{{
+   *   IO.sleep(Duration.Zero) <-> IO.shift
+   * }}}
+   *
+   * The created task is cancellable and so it can be used safely in race
+   * conditions without resource leakage.
+   *
+   * @param duration is the time span to wait before emitting the tick
+   *
+   * @param timer is the [[Timer]] used to manage this delayed task,
+   *        `IO.sleep` being in fact just an alias for [[Timer.sleep]]
+   *
+   * @return a new asynchronous and cancelable `IO` that will sleep for
+   *         the specified duration and then finally emit a tick
+   */
+  def sleep(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[Unit] =
+    timer.sleep(duration)
+
+  /**
    * Returns a cancelable boundary — an `IO` task that checks for the
    * cancellation status of the run-loop and does not allow for the
    * bind continuation to keep executing in case cancellation happened.
    *
-   * This operation is very similar to [[IO.shift]], as it can be dropped
-   * in `flatMap` chains in order to make loops cancelable.
+   * This operation is very similar to [[IO.shift(implicit* IO.shift]],
+   * as it can be dropped in `flatMap` chains in order to make loops
+   * cancelable.
    *
    * Example:
    *
@@ -759,9 +845,9 @@ object IO extends IOInstances {
     extends IO[A]
 
   /** State for representing `map` ops that itself is a function in
-    * order to avoid extraneous memory allocations when building the
-    * internal call-stack.
-    */
+   * order to avoid extraneous memory allocations when building the
+   * internal call-stack.
+   */
   private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
     extends IO[A] with (E => IO[A]) {
 
@@ -770,8 +856,8 @@ object IO extends IOInstances {
   }
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
-    * in order to avoid extraneous memory allocations.
-    */
+   * in order to avoid extraneous memory allocations.
+   */
   private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {
     override def apply(a: Any) =
       Pure(Right(a))
