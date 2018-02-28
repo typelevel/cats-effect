@@ -100,7 +100,8 @@ trait Timer[F[_]] {
    * compute differences between such values, for example in order to
    * measure the time it took to execute a task.
    *
-   * As a matter of implementation detail, the JVM will use
+   * As a matter of implementation detail, the default `Timer[IO]`
+   * implementation uses `System.nanoTime` and the JVM will use
    * `CLOCK_MONOTONIC` when available, instead of `CLOCK_REALTIME`
    * (see `clock_gettime()` on Linux) and it is up to the underlying
    * platform to implement it correctly.
@@ -114,6 +115,9 @@ trait Timer[F[_]] {
    *  - [[https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6458294 bug report]]
    *  - [[http://cs.oswego.edu/pipermail/concurrency-interest/2012-January/008793.html concurrency-interest]]
    *    discussion on the X86 tsc register
+   *
+   * The JVM tries to do the right thing and at worst the resolution
+   * and behavior will be that of `System.currentTimeMillis`.
    *
    * The recommendation is to use this monotonic clock when doing
    * measurements of execution time, or if you value monotonically
