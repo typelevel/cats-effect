@@ -19,6 +19,7 @@ package cats.effect
 import org.scalactic.source.Position
 import org.scalatest.{Assertion, AsyncFunSuite, Matchers}
 import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -66,5 +67,21 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
   test("IO.raiseError#shift#runAsync") {
     val dummy = new RuntimeException("dummy")
     testEffectOnRunAsync(IO.shift.flatMap(_ => IO.raiseError(dummy)), Failure(dummy))
+  }
+
+  test("IO.sleep(10.ms)") {
+    val io = IO.sleep(10.millis).map(_ => 10)
+
+    for (r <- io.unsafeToFuture()) yield {
+      r shouldBe 10
+    }
+  }
+
+  test("IO.sleep(negative)") {
+    val io = IO.sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.unsafeToFuture()) yield {
+      r shouldBe 10
+    }
   }
 }

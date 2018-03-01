@@ -26,8 +26,8 @@ import scala.annotation.tailrec
  *
  * Implementation notes:
  *
- *  1. `cancel()` is idempotent
- *  2. all methods are thread-safe / atomic
+ *  - `cancel()` is idempotent
+ *  - all methods are thread-safe / atomic
  *
  * Used in the implementation of `cats.effect.IO`. Inspired by the
  * implementation of `StackedCancelable` from the Monix library.
