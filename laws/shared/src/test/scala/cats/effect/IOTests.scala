@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -501,8 +501,9 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
-    def bracket[A, B](acquire: IO[A])(use: A => IO[B])
-                     (release: (A, BracketResult[Throwable, B]) => IO[Unit]): IO[B] =
+    def bracket[A, B](acquire: IO[A])
+      (use: A => IO[B])
+      (release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
       ref.bracket(acquire)(use)(release)
   }
 }

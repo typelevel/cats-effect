@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
   def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
     var state = a1
     val evolve = F.flatMap(fa) { a2 =>
-      state = f(state, a2)
+      state = f(a1, a2)
       F.pure(state)
     }
     // Observing `state` before and after `evolve`
@@ -81,7 +81,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
   def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
     var state = a1
     val evolve = F.map(fa) { a2 =>
-      state = f(state, a2)
+      state = f(a1, a2)
       state
     }
     // Observing `state` before and after `evolve`
