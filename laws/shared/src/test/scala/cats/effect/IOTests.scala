@@ -19,19 +19,17 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.effect.internals.IOPlatform
+import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.laws.util.TestContext
-import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
 
-import scala.concurrent.Future
-import scala.concurrent.duration.Duration
+import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
@@ -69,14 +67,13 @@ class IOTests extends BaseTestsSuite {
     }
 
     var effect: Option[Either[Throwable, Int]] = None
-    try {
+    val sysErr = catchSystemErr {
       io.unsafeRunAsync { v => effect = Some(v) }
       ec.tick()
-      fail("should have thrown exception")
-    } catch {
-      case `dummy` =>
-        effect shouldEqual Some(Right(10))
     }
+
+    effect shouldEqual Some(Right(10))
+    sysErr should include("dummy")
   }
 
   test("catch exceptions within main block") {
@@ -118,7 +115,7 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("shift works for success") { implicit ec =>
+  testAsync("shift works for success (via Timer)") { implicit ec =>
     val expected = IO.shift.flatMap(_ => IO(1)).unsafeToFuture()
     expected.value shouldEqual None
 
@@ -126,7 +123,16 @@ class IOTests extends BaseTestsSuite {
     expected.value shouldEqual Some(Success(1))
   }
 
-  testAsync("shift works for failure") { implicit ec =>
+  testAsync("shift works for success (via ExecutionContext)") { ec =>
+    val expected = IO.shift(ec).flatMap(_ => IO(1)).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Success(1))
+  }
+
+
+  testAsync("shift works for failure (via Timer)") { implicit ec =>
     val dummy = new RuntimeException("dummy")
 
     val expected = IO.shift.flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
@@ -134,6 +140,30 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick()
     expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("shift works for failure (via ExecutionContext)") { ec =>
+    val dummy = new RuntimeException("dummy")
+
+    val expected = IO.shift(ec).flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
+    expected.value shouldEqual None
+
+    ec.tick()
+    expected.value shouldEqual Some(Failure(dummy))
+  }
+
+  testAsync("IO.sleep") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val io = IO.sleep(10.seconds) *> IO(1 + 1)
+    val f = io.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldEqual None
+    ec.tick(9.seconds)
+    f.value shouldEqual None
+    ec.tick(1.second)
+    f.value shouldEqual Some(Success(2))
   }
 
   testAsync("IO.async protects against multiple callback calls") { implicit ec =>
@@ -422,8 +452,7 @@ class IOTests extends BaseTestsSuite {
     io.unsafeRunSync() shouldEqual max * 10000
   }
 
-  test("parMap2 for successful values") {
-    implicit val ec = TestContext()
+  testAsync("parMap2 for successful values") { implicit ec =>
     val io1 = IO.shift *> IO.pure(1)
     val io2 = IO.shift *> IO.pure(2)
 
@@ -433,8 +462,7 @@ class IOTests extends BaseTestsSuite {
     f.value shouldEqual Some(Success(3))
   }
 
-  test("parMap2 can fail for one") {
-    implicit val ec = TestContext()
+  testAsync("parMap2 can fail for one") { implicit ec =>
     val dummy = new RuntimeException("dummy")
     val io1 = IO.shift *> IO.pure(1)
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
@@ -452,31 +480,90 @@ class IOTests extends BaseTestsSuite {
     f2.value shouldEqual Some(Failure(dummy))
   }
 
-  test("parMap2 can fail for both") {
-    implicit val ec = TestContext()
-    val dummy1 = new RuntimeException("dummy1")
-    val dummy2 = new RuntimeException("dummy2")
+  testAsync("parMap2 can fail for both, with left failing first") { implicit ec =>
+    val error = catchSystemErr {
+      val dummy1 = new RuntimeException("dummy1")
+      val dummy2 = new RuntimeException("dummy2")
 
-    val io1 = IO.shift *> IO.raiseError[Int](dummy1)
-    val io2 = IO.shift *> IO.raiseError[Int](dummy2)
+      val io1 = IO.raiseError[Int](dummy1)
+      val io2 = IO.shift *> IO.raiseError[Int](dummy2)
+      val io3 = (io1, io2).parMapN(_ + _)
 
-    val io3 = (io1, io2).parMapN(_ + _)
-    val f1 = io3.unsafeToFuture()
-    ec.tick()
-
-    val errors = f1.value.collect {
-      case Failure(ref: CompositeException) => ref.all.toList
+      val f1 = io3.unsafeToFuture()
+      ec.tick()
+      f1.value shouldBe Some(Failure(dummy1))
     }
 
-    errors shouldBe Some(List(dummy1, dummy2))
+    error should include("dummy2")
   }
 
-  test("parMap2 is stack safe") {
+  testAsync("parMap2 can fail for both, with right failing first") { implicit ec =>
+    val error = catchSystemErr {
+      val dummy1 = new RuntimeException("dummy1")
+      val dummy2 = new RuntimeException("dummy2")
+
+      val io1 = IO.shift *> IO.raiseError[Int](dummy1)
+      val io2 = IO.raiseError[Int](dummy2)
+      val io3 = (io1, io2).parMapN(_ + _)
+
+      val f1 = io3.unsafeToFuture()
+      ec.tick()
+      f1.value shouldBe Some(Failure(dummy2))
+    }
+
+    error should include("dummy1")
+  }
+
+  testAsync("parMap2 is stack safe") { implicit ec =>
     val count = if (IOPlatform.isJVM) 100000 else 5000
     val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
 
     val f = io.unsafeToFuture()
     f.value shouldEqual Some(Success(count * (count - 1) / 2))
+  }
+
+  testAsync("parMap2 cancels first, when second terminates in error") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    var wasCancelled = false
+
+    val io1 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io2 = IO.shift *> IO.raiseError[Int](dummy)
+
+    val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
+    ec.tick()
+
+    wasCancelled shouldBe true
+    f.value shouldBe Some(Failure(dummy))
+  }
+
+  testAsync("parMap2 cancels second, when first terminates in error") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    var wasCancelled = false
+
+    val io1 = IO.shift *> IO.raiseError[Int](dummy)
+    val io2 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+
+    val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
+    ec.tick()
+
+    wasCancelled shouldBe true
+    f.value shouldBe Some(Failure(dummy))
+  }
+
+  testAsync("IO.cancelable IOs can be canceled") { implicit ec =>
+    var wasCancelled = false
+    val p = Promise[Int]()
+
+    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val cancel = io1.unsafeRunCancelable(Callback.promise(p))
+
+    cancel()
+    // Signal not observed yet due to IO.shift
+    wasCancelled shouldBe false
+
+    ec.tick()
+    wasCancelled shouldBe true
+    p.future.value shouldBe None
   }
 }
 

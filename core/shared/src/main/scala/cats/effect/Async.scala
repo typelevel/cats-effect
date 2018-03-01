@@ -18,12 +18,11 @@ package cats
 package effect
 
 import simulacrum._
-
 import cats.data.{EitherT, OptionT, StateT, WriterT}
-
+import cats.effect.internals.Callback
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
-import scala.util.{Either, Right}
+import scala.util.Either
 
 /**
  * A monad that can describe asynchronous or synchronous computations that
@@ -46,12 +45,12 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
   /**
-   * @see [[IO#shift]]
+   * @see [[IO.shift(ec* IO#shift]]
    */
   def shift(implicit ec: ExecutionContext): F[Unit] = {
     async { (cb: Either[Throwable, Unit] => Unit) =>
       ec.execute(new Runnable {
-        def run() = cb(Right(()))
+        def run() = cb(Callback.rightUnit)
       })
     }
   }

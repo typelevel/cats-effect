@@ -16,73 +16,97 @@
 
 package cats.effect.internals
 
-import java.util.concurrent.atomic.AtomicReference
 import cats.effect.IO
-import cats.effect.util.CompositeException
+import cats.effect.internals.Callback.Extensions
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 
 private[effect] object IOParMap {
-  type Attempt[A] = Either[Throwable, A]
-  type State[A, B] = Either[Attempt[A], Attempt[B]]
+  import Callback.{Type => Callback}
 
+  /** Implementation for `parMap2`. */
   def apply[A, B, C](fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
-    IO.async { cb =>
+    IO.Async { (conn, cb) =>
       // For preventing stack-overflow errors; using a
       // trampolined execution context, so no thread forks
       implicit val ec: ExecutionContext = TrampolineEC.immediate
 
       // Light async boundary to prevent SO errors
       ec.execute(new Runnable {
+        /**
+         * State synchronized by an atomic reference. Possible values:
+         *
+         *  - null: none of the 2 tasks have finished yet
+         *  - Left(a): the left task is waiting for the right one
+         *  - Right(a): the right task is waiting for the left one
+         *  - Throwable: an error was triggered
+         *
+         * Note - `getAndSet` is used for modifying this atomic, so the
+         * final state (both are finished) is implicit.
+         */
+        private[this] val state = new AtomicReference[AnyRef]()
+
         def run(): Unit = {
-          val state = new AtomicReference[State[A, B]]()
+          val connA = IOConnection()
+          val connB = IOConnection()
 
-          def complete(ra: Attempt[A], rb: Attempt[B]): Unit =
-            // Second async boundary needed just before the callback
-            ec.execute(new Runnable {
-              def run(): Unit = ra match {
-                case Right(a) =>
-                  rb match {
-                    case Right(b) =>
-                      cb(try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
-                    case error @ Left(_) =>
-                      cb(error.asInstanceOf[Left[Throwable, C]])
-                  }
-                case left @ Left(e1) =>
-                  rb match {
-                    case Right(_) =>
-                      cb(left.asInstanceOf[Left[Throwable, C]])
-                    case Left(e2) =>
-                      // Signaling both errors
-                      cb(Left(CompositeException(e1, e2)))
-                  }
-              }
-            })
+          // Composite cancelable that cancels both.
+          // NOTE: conn.pop() happens when cb gets called!
+          conn.push(() => Cancelable.cancelAll(connA.cancel, connB.cancel))
 
-          // First execution
-          fa.unsafeRunAsync { attemptA =>
+          IORunLoop.startCancelable(fa, connA, callbackA(connB))
+          IORunLoop.startCancelable(fb, connB, callbackB(connA))
+        }
+
+        /** Callback for the left task. */
+        def callbackA(connB: IOConnection): Callback[A] = {
+          case Left(e) => sendError(connB, e)
+          case Right(a) =>
             // Using Java 8 platform intrinsics
-            state.getAndSet(Left(attemptA)) match {
+            state.getAndSet(Left(a)) match {
               case null => () // wait for B
-              case Right(attemptB) => complete(attemptA, attemptB)
+              case Right(b) =>
+                complete(a, b.asInstanceOf[B])
+              case _: Throwable => ()
               case left =>
                 // $COVERAGE-OFF$
                 throw new IllegalStateException(s"parMap: $left")
                 // $COVERAGE-ON$
             }
-          }
-          // Second execution
-          fb.unsafeRunAsync { attemptB =>
+        }
+
+        /** Callback for the right task. */
+        def callbackB(connA: IOConnection): Callback[B] = {
+          case Left(e) => sendError(connA, e)
+          case Right(b) =>
             // Using Java 8 platform intrinsics
-            state.getAndSet(Right(attemptB)) match {
+            state.getAndSet(Right(b)) match {
               case null => () // wait for A
-              case Left(attemptA) => complete(attemptA, attemptB)
+              case Left(a) =>
+                complete(a.asInstanceOf[A], b)
+              case _: Throwable => ()
               case right =>
                 // $COVERAGE-OFF$
                 throw new IllegalStateException(s"parMap: $right")
                 // $COVERAGE-ON$
             }
-          }
         }
+
+        /** Called when both results are ready. */
+        def complete(a: A, b: B): Unit = {
+          cb.async(conn, try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
+        }
+
+        /** Called when an error is generated. */
+        def sendError(other: IOConnection, e: Throwable): Unit =
+          state.getAndSet(e) match {
+            case _: Throwable =>
+              Logger.reportFailure(e)
+            case null | Left(_) | Right(_) =>
+              // Cancels the other before signaling the error
+              try other.cancel() finally
+                cb.async(conn, Left(e))
+          }
       })
     }
 }

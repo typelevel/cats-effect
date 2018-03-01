@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Typelevel
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,6 +59,13 @@ val commonSettings = Seq(
       case _ => (sources in (Compile, doc)).value
     }
   },
+
+  // Disable parallel execution in tests; otherwise we cannot test System.err
+  parallelExecution in Test := false,
+  parallelExecution in IntegrationTest := false,
+  testForkedParallel in Test := false,
+  testForkedParallel in IntegrationTest := false,
+  concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
 
   // credit: https://github.com/typelevel/cats/pull/1638
   ivyConfigurations += CompileTime,
@@ -162,7 +169,15 @@ val mimaSettings = Seq(
       exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket")
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
     )
   }
 )
@@ -285,7 +300,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "0.7"
+val BaseVersion = "0.10"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
