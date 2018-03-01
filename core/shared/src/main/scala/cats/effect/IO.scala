@@ -20,7 +20,6 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
-import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 import scala.annotation.unchecked.uncheckedVariance
