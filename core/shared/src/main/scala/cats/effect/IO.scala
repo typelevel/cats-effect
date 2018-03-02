@@ -378,23 +378,10 @@ sealed abstract class IO[+A] {
 
   /**
    * Converts the source `IO` into any `F` type that implements
-   * the [[cats.effect.Async Async]] type class.
+   * the [[cats.effect.CAsync CAsync]] type class.
    */
-  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
-    this match {
-      case Pure(a) => F.pure(a)
-      case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk) => F.delay(thunk())
-      case _ =>
-        F.suspend {
-          IORunLoop.step(this) match {
-            case Pure(a) => F.pure(a)
-            case RaiseError(e) => F.raiseError(e)
-            case async =>
-              F.cancelable { cb => IO.Delay(async.unsafeRunCancelable(cb)) }
-          }
-        }
-    }
+  final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
+    F.liftIO(this)
 
   override def toString = this match {
     case Pure(a) => s"IO($a)"
@@ -452,7 +439,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: Effect[IO] = new Effect[IO] {
+  implicit val ioEffect: CEffect[IO] = new CEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =

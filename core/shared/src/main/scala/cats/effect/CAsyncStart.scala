@@ -27,7 +27,7 @@ import simulacrum._
  * in case of a race condition.
  */
 @typeclass
-trait AsyncStart[F[_]] extends Async[F] {
+trait CAsyncStart[F[_]] extends CAsync[F] {
   /**
    * Start concurrent execution of the source suspended in the `F` context.
    *

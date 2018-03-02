@@ -65,7 +65,7 @@ trait AsyncStartTests[F[_]] extends AsyncTests[F] {
 }
 
 object AsyncStartTests {
-  def apply[F[_]: AsyncStart]: AsyncStartTests[F] = new AsyncStartTests[F] {
+  def apply[F[_]: CAsyncStart]: AsyncStartTests[F] = new AsyncStartTests[F] {
     def laws = AsyncStartLaws[F]
   }
 }

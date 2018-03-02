@@ -19,7 +19,8 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, OptionT, StateT, WriterT}
-import cats.effect.internals.Callback
+import cats.effect.IO.{Delay, Pure, RaiseError}
+import cats.effect.internals.{Callback, IORunLoop}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -69,9 +70,9 @@ import scala.util.Either
  * This type-class allows the modeling of data types that:
  *
  *  1. can start asynchronous processes
- *  2. emit exactly one result on completion
- *  3. can end in error
- *  4. are optionally cancellable
+ *  1. emit exactly one result on completion
+ *  1. can end in error
+ *  1. are optionally cancellable
  *
  * Therefore the signature exposed by the
  * [[Async!.cancelable cancelable]] builder is this:
@@ -103,7 +104,7 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Strategy or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
@@ -128,50 +129,8 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
-  /**
-   * Creates a cancelable `F[A]` instance that executes an
-   * asynchronous process on evaluation.
-   *
-   * This builder accepts a registration function that is
-   * being injected with a side-effectful callback, to be called
-   * when the asynchronous process is complete with a final result.
-   *
-   * The registration function is also supposed to return
-   * an `IO[Unit]` that captures the logic necessary for
-   * cancelling the asynchronous process, for as long as it
-   * is still active.
-   *
-   * In case of non-cancellable `F` data types, the returned
-   * `IO[Unit]` can be ignored.
-   *
-   * Example:
-   *
-   * {{{
-   *   import java.util.concurrent.ScheduledExecutorService
-   *   import scala.concurrent.duration._
-   *
-   *   def sleep[F[_]](d: FiniteDuration)
-   *     (implicit F: Async[F], ec: ScheduledExecutorService): F[A] = {
-   *
-   *     F.cancelable { cb =>
-   *       // Note the callback is pure, so we need to trigger evaluation
-   *       val run = new Runnable { def run() = cb(Right(())).unsafeRunSync }
-   *
-   *       // Schedules task to run after delay
-   *       val future = ec.schedule(run, d.length, d.unit)
-   *
-   *       // Cancellation logic, suspended in IO
-   *       IO(future.cancel())
-   *     }
-   *   }
-   * }}}
-   */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
-
-  override def liftIO[A](ioa: IO[A]): F[A] = {
-    // Able to provide default with `IO#to`, given this `Async[F]`
-    ioa.to[F](this)
-  }
+  override def liftIO[A](ioa: IO[A]): F[A] =
+    Async.liftIO(ioa)(this)
 }
 
 private[effect] abstract class AsyncInstances {
@@ -197,9 +156,6 @@ private[effect] abstract class AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftF(F.async(k))
-
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
-      EitherT.liftF(F.cancelable(k))
   }
 
   private[effect] trait OptionTAsync[F[_]] extends Async[OptionT[F, ?]]
@@ -213,8 +169,6 @@ private[effect] abstract class AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
       OptionT.liftF(F.async(k))
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
-      OptionT.liftF(F.cancelable(k))
   }
 
   private[effect] trait StateTAsync[F[_], S] extends Async[StateT[F, S, ?]]
@@ -228,8 +182,6 @@ private[effect] abstract class AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
       StateT.liftF(F.async(k))
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
-      StateT.liftF(F.cancelable(k))
   }
 
   private[effect] trait WriterTAsync[F[_], L] extends Async[WriterT[F, L, ?]]
@@ -244,8 +196,6 @@ private[effect] abstract class AsyncInstances {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
       WriterT.liftF(F.async(k))
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
-      WriterT.liftF(F.cancelable(k))
   }
 }
 
@@ -261,5 +211,25 @@ object Async extends AsyncInstances {
       ec.execute(new Runnable {
         def run(): Unit = cb(Callback.rightUnit)
       })
+    }
+
+  /**
+   * Lifts any `IO` value into any data type implementing [[Async]].
+   *
+   * This is the default `Async.liftIO` implementation.
+   */
+  def liftIO[F[_], A](io: IO[A])(implicit F: Async[F]): F[A] =
+    io match {
+      case Pure(a) => F.pure(a)
+      case RaiseError(e) => F.raiseError(e)
+      case Delay(thunk) => F.delay(thunk())
+      case _ =>
+        F.suspend {
+          IORunLoop.step(io) match {
+            case Pure(a) => F.pure(a)
+            case RaiseError(e) => F.raiseError(e)
+            case async => F.async(async.unsafeRunAsync)
+          }
+        }
     }
 }

@@ -16,12 +16,12 @@
 
 package cats.effect.laws
 
-import cats.effect.AsyncStart
+import cats.effect.CAsyncStart
 import cats.implicits._
 import cats.laws._
 
 trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
-  implicit def F: AsyncStart[F]
+  implicit def F: CAsyncStart[F]
 
   def startJoinIsIdentity[A](fa: F[A]) =
     F.start(fa).flatMap(_.join) <-> fa
@@ -38,7 +38,7 @@ trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
 }
 
 object AsyncStartLaws {
-  def apply[F[_]](implicit F0: AsyncStart[F]): AsyncStartLaws[F] = new AsyncStartLaws[F] {
+  def apply[F[_]](implicit F0: CAsyncStart[F]): AsyncStartLaws[F] = new AsyncStartLaws[F] {
     val F = F0
   }
 }

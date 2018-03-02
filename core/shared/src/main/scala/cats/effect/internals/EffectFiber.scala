@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.data.{EitherT, StateT, WriterT}
-import cats.effect.{Effect, Fiber, IO}
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.Conversions.{toEither, toTry}
 import cats.kernel.Monoid
-
 import scala.concurrent.Promise
 
 /**
@@ -35,7 +34,7 @@ private[effect] final class EffectFiber[F[_], A](
 private[effect] object EffectFiber {
   /** Implementation for `cats.data.EitherT`. */
   def eitherT[F[_], A](fa: EitherT[F, Throwable, A])
-    (implicit F: Effect[F]): EitherT[F, Throwable, Fiber[EitherT[F, Throwable, ?], A]] = {
+    (implicit F: CEffect[F]): EitherT[F, Throwable, Fiber[EitherT[F, Throwable, ?], A]] = {
 
     EitherT.liftF(F.delay {
       // Shared state
@@ -59,7 +58,7 @@ private[effect] object EffectFiber {
 
   /** Implementation for `cats.data.StateT`. */
   def stateT[F[_], S, A](fa: StateT[F, S, A])
-    (implicit F: Effect[F]): StateT[F, S, Fiber[StateT[F, S, ?], A]] = {
+    (implicit F: CEffect[F]): StateT[F, S, Fiber[StateT[F, S, ?], A]] = {
 
     StateT(startS => F.delay {
       // Shared state
@@ -83,7 +82,7 @@ private[effect] object EffectFiber {
 
   /** Implementation for `cats.data.WriteT`. */
   def writerT[F[_], L, A](fa: WriterT[F, L, A])
-    (implicit F: Effect[F], L: Monoid[L]): WriterT[F, L, Fiber[WriterT[F, L, ?], A]] = {
+    (implicit F: CEffect[F], L: Monoid[L]): WriterT[F, L, Fiber[WriterT[F, L, ?], A]] = {
 
     WriterT.liftF(F.delay {
       // Shared state
