@@ -89,8 +89,7 @@ private[effect] abstract class SyncInstances {
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): EitherT[F, L, A] =
       EitherT.pure(x)
@@ -112,8 +111,7 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
 
@@ -134,8 +132,7 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
 
@@ -157,11 +154,8 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
-
-    protected def L: Monoid[L]
-    private implicit def _L = L
+    protected implicit def F: Sync[F]
+    protected implicit def L: Monoid[L]
 
     def pure[A](x: A): WriterT[F, L, A] = WriterT.value(x)
 

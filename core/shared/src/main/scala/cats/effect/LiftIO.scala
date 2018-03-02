@@ -49,50 +49,43 @@ private[effect] abstract class LiftIOInstances {
     new WriterTLiftIO[F, L] { def F = LiftIO[F]; def FA = Applicative[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTLiftIO[F[_], L] extends LiftIO[EitherT[F, L, ?]] {
-    protected def F: LiftIO[F]
+    protected implicit def F: LiftIO[F]
     protected def FF: Functor[F]
-    private implicit def _FF = FF
 
     override def liftIO[A](ioa: IO[A]): EitherT[F, L, A] =
-      EitherT.liftF(F.liftIO(ioa))
+      EitherT.liftF(F.liftIO(ioa))(FF)
   }
 
   private[effect] trait KleisliLiftIO[F[_], R] extends LiftIO[Kleisli[F, R, ?]] {
-    protected def F: LiftIO[F]
+    protected implicit def F: LiftIO[F]
 
     override def liftIO[A](ioa: IO[A]): Kleisli[F, R, A] =
       Kleisli.liftF(F.liftIO(ioa))
   }
 
   private[effect] trait OptionTLiftIO[F[_]] extends LiftIO[OptionT[F, ?]] {
-    protected def F: LiftIO[F]
-
+    protected implicit def F: LiftIO[F]
     protected def FF: Functor[F]
-    private implicit def _FF = FF
 
     override def liftIO[A](ioa: IO[A]): OptionT[F, A] =
-      OptionT.liftF(F.liftIO(ioa))
+      OptionT.liftF(F.liftIO(ioa))(FF)
   }
 
   private[effect] trait StateTLiftIO[F[_], S] extends LiftIO[StateT[F, S, ?]] {
-    protected def F: LiftIO[F]
+    protected implicit def F: LiftIO[F]
     protected def FA: Applicative[F]
-    private implicit def _FA = FA
 
-    override def liftIO[A](ioa: IO[A]): StateT[F, S, A] = StateT.liftF(F.liftIO(ioa))
+    override def liftIO[A](ioa: IO[A]): StateT[F, S, A] =
+      StateT.liftF(F.liftIO(ioa))(FA)
   }
 
   private[effect] trait WriterTLiftIO[F[_], L] extends LiftIO[WriterT[F, L, ?]] {
-    protected def F: LiftIO[F]
-
+    protected implicit def F: LiftIO[F]
+    protected implicit def L: Monoid[L]
     protected def FA: Applicative[F]
-    private implicit def _FA = FA
-
-    protected def L: Monoid[L]
-    private implicit def _L = L
 
     override def liftIO[A](ioa: IO[A]): WriterT[F, L, A] =
-      WriterT.liftF(F.liftIO(ioa))
+      WriterT.liftF(F.liftIO(ioa))(L, FA)
   }
 }
 

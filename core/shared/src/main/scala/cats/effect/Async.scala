@@ -121,89 +121,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
     Async.liftIO(ioa)(this)
 }
 
-private[effect] abstract class AsyncInstances {
-  /**
-   * [[Async]] instance built for `cats.data.EitherT` values initialized
-   * with any `F` data type that also implements `Async`.
-   */
-  implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
-    new EitherTAsync[F, L] { def F = Async[F] }
-
-  /**
-   * [[Async]] instance built for `cats.data.OptionT` values initialized
-   * with any `F` data type that also implements `Async`.
-   */
-  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
-    new OptionTAsync[F] { def F = Async[F] }
-
-  /**
-   * [[Async]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `Async`.
-   */
-  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
-    new StateTAsync[F, S] { def F = Async[F] }
-
-  /**
-   * [[Async]] instance built for `cats.data.WriterT` values initialized
-   * with any `F` data type that also implements `Async`.
-   */
-  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
-    new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
-
-  private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
-    with Sync.EitherTSync[F, L]
-    with LiftIO.EitherTLiftIO[F, L] {
-
-    override protected def F: Async[F]
-    private implicit def _F = F
-    protected def FF = F
-
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
-      EitherT.liftF(F.async(k))
-  }
-
-  private[effect] trait OptionTAsync[F[_]] extends Async[OptionT[F, ?]]
-    with Sync.OptionTSync[F]
-    with LiftIO.OptionTLiftIO[F] {
-
-    override protected def F: Async[F]
-    private implicit def _F = F
-
-    protected def FF = F
-
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
-      OptionT.liftF(F.async(k))
-  }
-
-  private[effect] trait StateTAsync[F[_], S] extends Async[StateT[F, S, ?]]
-    with Sync.StateTSync[F, S]
-    with LiftIO.StateTLiftIO[F, S] {
-
-    override protected def F: Async[F]
-    private implicit def _F = F
-
-    protected def FA = F
-
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
-      StateT.liftF(F.async(k))
-  }
-
-  private[effect] trait WriterTAsync[F[_], L] extends Async[WriterT[F, L, ?]]
-    with Sync.WriterTSync[F, L]
-    with LiftIO.WriterTLiftIO[F, L] {
-
-    override protected def F: Async[F]
-    private implicit def _F = F
-
-    protected def FA = F
-    private implicit def _L = L
-
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
-      WriterT.liftF(F.async(k))
-  }
-}
-
-object Async extends AsyncInstances {
+object Async {
   /**
    * Generic shift operation, defined for any `Async` data type.
    *
@@ -236,4 +154,76 @@ object Async extends AsyncInstances {
           }
         }
     }
+
+  /**
+   * [[Async]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
+  implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
+    new EitherTAsync[F, L] { def F = Async[F] }
+
+  /**
+   * [[Async]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
+  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
+    new OptionTAsync[F] { def F = Async[F] }
+
+  /**
+   * [[Async]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
+  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
+    new StateTAsync[F, S] { def F = Async[F] }
+
+  /**
+   * [[Async]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
+  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
+    new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
+
+  private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
+    with Sync.EitherTSync[F, L]
+    with LiftIO.EitherTLiftIO[F, L] {
+
+    override implicit protected def F: Async[F]
+    protected def FF = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
+      EitherT.liftF(F.async(k))
+  }
+
+  private[effect] trait OptionTAsync[F[_]] extends Async[OptionT[F, ?]]
+    with Sync.OptionTSync[F]
+    with LiftIO.OptionTLiftIO[F] {
+
+    override protected implicit def F: Async[F]
+    protected def FF = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
+      OptionT.liftF(F.async(k))
+  }
+
+  private[effect] trait StateTAsync[F[_], S] extends Async[StateT[F, S, ?]]
+    with Sync.StateTSync[F, S]
+    with LiftIO.StateTLiftIO[F, S] {
+
+    override protected implicit def F: Async[F]
+    protected def FA = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
+      StateT.liftF(F.async(k))
+  }
+
+  private[effect] trait WriterTAsync[F[_], L] extends Async[WriterT[F, L, ?]]
+    with Sync.WriterTSync[F, L]
+    with LiftIO.WriterTLiftIO[F, L] {
+
+    override protected implicit def F: Async[F]
+    protected def FA = F
+
+    def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
+      WriterT.liftF(F.async(k))(L, FA)
+  }
 }

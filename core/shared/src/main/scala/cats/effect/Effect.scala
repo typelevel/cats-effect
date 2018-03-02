@@ -55,7 +55,7 @@ trait Effect[F[_]] extends Async[F] {
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 }
 
-private[effect] abstract class EffectInstances {
+object Effect {
   /**
    * [[Effect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Effect`.
@@ -106,5 +106,3 @@ private[effect] abstract class EffectInstances {
       F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
   }
 }
-
-object Effect extends EffectInstances

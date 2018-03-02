@@ -63,7 +63,7 @@ trait CEffect[F[_]] extends CAsync[F] with Effect[F] {
   def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]]
 }
 
-private[effect] abstract class CEffectInstances {
+object CEffect {
   /**
    * [[CEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `CEffect`.
@@ -117,5 +117,3 @@ private[effect] abstract class CEffectInstances {
       F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
   }
 }
-
-object CEffect extends CEffectInstances

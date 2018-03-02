@@ -204,7 +204,31 @@ trait CAsync[F[_]] extends Async[F] {
     CAsync.liftIO(ioa)(this)
 }
 
-private[effect] abstract class CAsyncInstances {
+object CAsync {
+  /**
+   * Lifts any `IO` value into any data type implementing [[CAsync]].
+   *
+   * Compared with [[Async.liftIO]], this version preserves the
+   * interruptibility of the given `IO` value.
+   *
+   * This is the default `CAsync.liftIO` implementation.
+   */
+  def liftIO[F[_], A](ioa: IO[A])(implicit F: CAsync[F]): F[A] =
+    ioa match {
+      case Pure(a) => F.pure(a)
+      case RaiseError(e) => F.raiseError(e)
+      case Delay(thunk) => F.delay(thunk())
+      case _ =>
+        F.suspend {
+          IORunLoop.step(ioa) match {
+            case Pure(a) => F.pure(a)
+            case RaiseError(e) => F.raiseError(e)
+            case async =>
+              F.cancelable(cb => IO.Delay(async.unsafeRunCancelable(cb)))
+          }
+        }
+    }
+
   /**
    * [[CAsync]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `CAsync`.
@@ -236,9 +260,8 @@ private[effect] abstract class CAsyncInstances {
   private[effect] trait EitherTCAsync[F[_], L] extends Async.EitherTAsync[F, L]
     with CAsync[EitherT[F, L, ?]] {
 
-    override protected def F: CAsync[F]
+    override protected implicit def F: CAsync[F]
     override protected def FF = F
-    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k))(F)
@@ -255,9 +278,8 @@ private[effect] abstract class CAsyncInstances {
   private[effect] trait OptionTCAsync[F[_]] extends Async.OptionTAsync[F]
     with CAsync[OptionT[F, ?]] {
 
-    override protected def F: CAsync[F]
+    override protected implicit def F: CAsync[F]
     override protected def FF = F
-    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
       OptionT.liftF(F.cancelable(k))(F)
@@ -273,9 +295,8 @@ private[effect] abstract class CAsyncInstances {
   private[effect] trait StateTCAsync[F[_], S] extends Async.StateTAsync[F, S]
     with CAsync[StateT[F, S, ?]] {
 
-    override protected def F: CAsync[F]
+    override protected implicit def F: CAsync[F]
     override protected def FA = F
-    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
       StateT.liftF(F.cancelable(k))(F)
@@ -291,13 +312,11 @@ private[effect] abstract class CAsyncInstances {
   private[effect] trait WriterTCAsync[F[_], L] extends Async.WriterTAsync[F, L]
     with CAsync[WriterT[F, L, ?]] {
 
-    override protected def F: CAsync[F]
-    private implicit def _F = F
+    override protected implicit def F: CAsync[F]
     override protected def FA = F
-    private implicit def _L = L
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
-      WriterT.liftF(F.cancelable(k))
+      WriterT.liftF(F.cancelable(k))(L, F)
 
     def start[A](fa: WriterT[F, L, A]) =
       WriterT(F.start(fa.run).map { fiber =>
@@ -306,30 +325,4 @@ private[effect] abstract class CAsyncInstances {
           WriterT.liftF(fiber.cancel)))
       })
   }
-}
-
-object CAsync extends CAsyncInstances {
-  /**
-   * Lifts any `IO` value into any data type implementing [[CAsync]].
-   *
-   * Compared with [[Async.liftIO]], this version preserves the
-   * interruptibility of the given `IO` value.
-   *
-   * This is the default `CAsync.liftIO` implementation.
-   */
-  def liftIO[F[_], A](ioa: IO[A])(implicit F: CAsync[F]): F[A] =
-    ioa match {
-      case Pure(a) => F.pure(a)
-      case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk) => F.delay(thunk())
-      case _ =>
-        F.suspend {
-          IORunLoop.step(ioa) match {
-            case Pure(a) => F.pure(a)
-            case RaiseError(e) => F.raiseError(e)
-            case async =>
-              F.cancelable(cb => IO.Delay(async.unsafeRunCancelable(cb)))
-          }
-        }
-    }
 }
