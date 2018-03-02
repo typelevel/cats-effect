@@ -57,6 +57,7 @@ trait CAsyncTests[F[_]] extends AsyncTests[F] {
       val parents = Seq(async[A, B, C])
       val props = Seq(
         "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
+        "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
         "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
         "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
         "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _))

@@ -23,8 +23,17 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * A monad that can suspend side effects into the `F` context and
- * that supports lazy and potentially asynchronous evaluation.
+ * Type class describing effect data types that are cancellable.
+ *
+ * N.B. the `CEffect` name comes from ''cancellable effect''.
+ *
+ * In addition to the algebras of [[CAsync]] and of [[Effect]],
+ * instances must also implement a [[CEffect!.runCancelable runCancelable]]
+ * operation that triggers the evaluation, suspended in the `IO` context,
+ * but that also returns a token that can be used for cancelling the
+ * running computation.
+ *
+ * Note this is the safe and generic version of [[IO.unsafeRunCancelable]].
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for CEffect[${F}].

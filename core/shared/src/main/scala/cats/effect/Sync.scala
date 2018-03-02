@@ -111,7 +111,6 @@ private[effect] abstract class SyncInstances {
       EitherT(F.suspend(thunk.value))
   }
 
-
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
     protected def F: Sync[F]
     private implicit def _F = F

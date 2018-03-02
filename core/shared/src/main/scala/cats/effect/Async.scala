@@ -44,13 +44,14 @@ import scala.util.Either
  *
  * This signature can be recognized in the "Observer pattern" described
  * in the "Gang of Four", although it should be noted that without
- * an `onComplete` event (like in Rx Observable pattern) you can't
+ * an `onComplete` event (like in the Rx Observable pattern) you can't
  * detect completion in case this callback can be called zero or
  * multiple times.
  *
  * Some abstractions allow for signaling an error condition
  * (e.g. `MonadError` data types), so this would be a signature
  * that's closer to Scala's `Future#onComplete`:
+ *
  * {{{
  *   (Either[Throwable, A] => Unit) => Unit
  * }}}
@@ -58,12 +59,16 @@ import scala.util.Either
  * And many times the abstractions built to deal with asynchronous tasks
  * also provide a way to cancel such processes, to be used in race
  * conditions in order to cleanup resources early:
+ *
  * {{{
  *   (A => Unit) => Cancelable
  * }}}
  *
  * This is approximately the signature of JavaScript's `setTimeout`,
  * which will return a "task ID" that can be used to cancel it.
+ *
+ * N.B. this type class in particular is NOT describing cancelable
+ * async processes, see the [[CAsync]] type class for that.
  *
  * ==Async Type-class==
  *
@@ -72,34 +77,16 @@ import scala.util.Either
  *  1. can start asynchronous processes
  *  1. emit exactly one result on completion
  *  1. can end in error
- *  1. are optionally cancellable
  *
- * Therefore the signature exposed by the
- * [[Async!.cancelable cancelable]] builder is this:
- * {{{
- *   (Either[Throwable, A] => Unit) => F[Unit]
- * }}}
+ * Therefore the signature exposed by the [[Async!.async async]]
+ * builder is this:
  *
- * `F[Unit]` is used to represent a cancellation action which
- * will send a signal to the producer, that may observe it and
- * cancel the asynchronous process.
- *
- * But it can also model simple asynchronous processes that
- * cannot be cancelled, via the [[Async!.async async]] builder:
  * {{{
  *   (Either[Throwable, A] => Unit) => Unit
  * }}}
  *
- * The ability to cancel the async process is optional. For
- * `F` data types that cannot be cancelled, the `cancelable`
- * builder should be equivalent to this:
- * 
- * {{{
- *   Async[F].cancelable { cb =>
- *     k(cb)
- *     IO.unit
- *   }
- * }}}
+ * N.B. such asynchronous processes are not cancelable.
+ * See the [[CAsync]] alternative for that.
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
@@ -114,21 +101,22 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    * callback for signaling the final result of an asynchronous
    * process.
    *
-   * In case of cancellable `F` data types, this should be
-   * equivalent with:
-   *
-   * {{{
-   *   Async[F].cancelable { cb =>
-   *     k(cb)
-   *     IO.unit
-   *   }
-   * }}}
-   *
    * @param k is a function that should be called with a
    *       callback for signaling the result once it is ready
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
 
+  /**
+   * Inherited from [[LiftIO]], defines a conversion from [[IO]]
+   * in terms of the `Async` type class.
+   *
+   * N.B. expressing this conversion in terms of `Async` and its
+   * capabilities means that the resulting `F` is not cancelable.
+   * [[CAsync]] then overloads this with an implementation that is.
+   *
+   * To access this implementation as a standalone function, you can
+   * use [[Async$.liftIO Async.liftIO]] (on the object companion).
+   */
   override def liftIO[A](ioa: IO[A]): F[A] =
     Async.liftIO(ioa)(this)
 }
@@ -220,7 +208,7 @@ object Async extends AsyncInstances {
    * Generic shift operation, defined for any `Async` data type.
    *
    * Shifts the bind continuation onto the specified thread pool.
-   * Analogous with [[IO.shift]].
+   * Analogous with [[IO.shift(ec* IO.shift]].
    */
   def shift[F[_]](ec: ExecutionContext)(implicit F: Async[F]): F[Unit] =
     F.async { cb =>

@@ -25,6 +25,13 @@ import scala.util.Either
 /**
  * A monad that can suspend side effects into the `F` context and
  * that supports lazy and potentially asynchronous evaluation.
+ *
+ * In addition to the [[Async]] algebra, instances must also implement
+ * a [[Effect!.runAsync runAsync]] operation that triggers the evaluation
+ * in the context of [[IO]].
+ *
+ * Note this is the safe and generic version of [[IO.unsafeRunAsync]]
+ * (aka Haskell's `unsafePerformIO`).
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Effect[${F}].

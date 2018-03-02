@@ -27,6 +27,15 @@ trait CAsyncLaws[F[_]] extends AsyncLaws[F] {
     F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
   }
 
+  def asyncCancelableReceivesCancelSignal[A](a: A, f: (A, A) => A) = {
+    val lh = F.suspend {
+      var effect = a
+      val async = F.cancelable[Unit](_ => IO { effect = f(effect, a) })
+      F.start(async).flatMap(_.cancel).map(_ => effect)
+    }
+    lh <-> F.pure(f(a, a))
+  }
+
   def startJoinIsIdentity[A](fa: F[A]) =
     F.start(fa).flatMap(_.join) <-> fa
 
