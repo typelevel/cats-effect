@@ -58,16 +58,7 @@ trait CEffect[F[_]] extends CAsyncStart[F] with Effect[F] {
 private[effect] abstract class CEffectInstances {
 
   implicit def catsEitherTCEffect[F[_]: CEffect]: CEffect[EitherT[F, Throwable, ?]] =
-    new CEffect[EitherT[F, Throwable, ?]] with CAsync.EitherTCAsync[F, Throwable]
-      with Effect.EitherTEffect[F] {
-
-      protected def F = CEffect[F]
-
-      def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
-      def start[A](fa: EitherT[F, Throwable, A]) =
-        EffectFiber.eitherT(fa)
-    }
+    new EitherTCEffect { def F = CEffect[F] }
 
   implicit def catsStateTCEffect[F[_]: CEffect, S: Monoid]: CEffect[StateT[F, S, ?]] =
     new CEffect[StateT[F, S, ?]] with CAsync.StateTCAsync[F, S]
@@ -94,6 +85,18 @@ private[effect] abstract class CEffectInstances {
       def start[A](fa: WriterT[F, L, A]) =
         EffectFiber.writerT(fa)
     }
+
+  private[effect] trait EitherTCEffect[F] extends CEffect[EitherT[F, Throwable, ?]]
+    with CAsync.EitherTCAsync[F, Throwable]
+    with Effect.EitherTEffect[F] {
+
+    protected def F: CEffect[F]
+
+    def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
+    def start[A](fa: EitherT[F, Throwable, A]) =
+      EffectFiber.eitherT(fa)
+  }
 }
 
 object CEffect extends CEffectInstances
