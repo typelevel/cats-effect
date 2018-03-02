@@ -18,10 +18,9 @@ package cats
 package effect
 package laws
 
-import cats.implicits._
 import cats.laws._
 
-trait EffectLaws[F[_]] extends AsyncStartLaws[F] {
+trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Effect[F]
 
   def runAsyncPureProducesRightIO[A](a: A) = {
@@ -43,38 +42,6 @@ trait EffectLaws[F[_]] extends AsyncStartLaws[F] {
   def runAsyncIgnoresErrorInHandler[A](e: Throwable) = {
     val fa = F.pure(())
     F.runAsync(fa)(_ => IO.raiseError(e)) <-> IO.pure(())
-  }
-
-  def runAsyncRunCancelableCoherence[A](fa: F[A]) = {
-    val fa1 = IO.async[A] { cb => F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync() }
-    val fa2 = IO.cancelable[A] { cb => F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync() }
-    fa1 <-> fa2
-  }
-
-  def runCancelableIsSynchronous[A](fa: F[A]) = {
-    // Creating never ending tasks
-    def never[T] = IO.async[T](_ => {})
-    val ff = F.cancelable[A](_ => F.runAsync(fa)(_ => never))
-
-    val lh = IO(F.runCancelable(ff)(_ => never).unsafeRunSync().unsafeRunSync())
-    lh <-> IO.unit
-  }
-
-  def runCancelableStartCancelCoherence[A](a: A, f: (A, A) => A) = {
-    // Cancellation via runCancelable
-    val f1 = F.delay {
-      var effect = a
-      val never = F.cancelable[A](_ => IO { effect = f(effect, a) })
-      F.runCancelable(never)(_ => IO.unit).unsafeRunSync().unsafeRunSync()
-      effect
-    }
-    // Cancellation via start.flatMap(_.cancel)
-    val f2 = F.suspend {
-      var effect = a
-      val never = F.cancelable[A](_ => IO { effect = f(effect, a) })
-      F.start(never).flatMap(_.cancel).map(_ => effect)
-    }
-    f1 <-> f2
   }
 }
 

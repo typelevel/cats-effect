@@ -19,7 +19,6 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, StateT, WriterT}
-import cats.effect.internals.EffectFiber
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -31,7 +30,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for CEffect[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait CEffect[F[_]] extends CAsyncStart[F] with Effect[F] {
+trait CEffect[F[_]] extends CAsync[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.
    *
@@ -56,37 +55,28 @@ trait CEffect[F[_]] extends CAsyncStart[F] with Effect[F] {
 }
 
 private[effect] abstract class CEffectInstances {
-
+  /**
+   * [[CEffect]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `CEffect`.
+   */
   implicit def catsEitherTCEffect[F[_]: CEffect]: CEffect[EitherT[F, Throwable, ?]] =
-    new EitherTCEffect { def F = CEffect[F] }
+    new EitherTCEffect[F] { def F = CEffect[F] }
 
+  /**
+   * [[CEffect]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `CEffect`.
+   */
   implicit def catsStateTCEffect[F[_]: CEffect, S: Monoid]: CEffect[StateT[F, S, ?]] =
-    new CEffect[StateT[F, S, ?]] with CAsync.StateTCAsync[F, S]
-      with Effect.StateTEffect[F, S] {
+    new StateTCEffect[F, S] { def F = CEffect[F]; def S = Monoid[S] }
 
-      protected def F = CEffect[F]
-      protected def S = Monoid[S]
-
-      def runCancelable[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.runA(Monoid[S].empty))(cb)
-      def start[A](fa: StateT[F, S, A]) =
-        EffectFiber.stateT(fa)
-    }
-
+  /**
+   * [[CEffect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `CEffect`.
+   */
   implicit def catsWriterTCEffect[F[_]: CEffect, L: Monoid]: CEffect[WriterT[F, L, ?]] =
-    new CEffect[WriterT[F, L, ?]] with CAsync.WriterTCAsync[F, L]
-      with Effect.WriterTEffect[F, L] {
+    new WriterTCEffect[F, L] { def F = CEffect[F]; def L = Monoid[L] }
 
-      protected def F = CEffect[F]
-      protected def L = Monoid[L]
-
-      def runCancelable[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
-      def start[A](fa: WriterT[F, L, A]) =
-        EffectFiber.writerT(fa)
-    }
-
-  private[effect] trait EitherTCEffect[F] extends CEffect[EitherT[F, Throwable, ?]]
+  private[effect] trait EitherTCEffect[F[_]] extends CEffect[EitherT[F, Throwable, ?]]
     with CAsync.EitherTCAsync[F, Throwable]
     with Effect.EitherTEffect[F] {
 
@@ -94,8 +84,28 @@ private[effect] abstract class CEffectInstances {
 
     def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
-    def start[A](fa: EitherT[F, Throwable, A]) =
-      EffectFiber.eitherT(fa)
+  }
+
+  private[effect] trait StateTCEffect[F[_], S] extends CEffect[StateT[F, S, ?]]
+    with CAsync.StateTCAsync[F, S]
+    with Effect.StateTEffect[F, S] {
+
+    protected def F: CEffect[F]
+    protected def S: Monoid[S]
+
+    def runCancelable[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.runA(S.empty)(F))(cb)
+  }
+
+  private[effect] trait WriterTCEffect[F[_], L] extends CEffect[WriterT[F, L, ?]]
+    with CAsync.WriterTCAsync[F, L]
+    with Effect.WriterTEffect[F, L] {
+
+    protected def F: CEffect[F]
+    protected def L: Monoid[L]
+
+    def runCancelable[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
   }
 }
 

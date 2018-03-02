@@ -22,7 +22,6 @@ package discipline
 import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-
 import org.scalacheck._, Prop.forAll
 
 trait AsyncTests[F[_]] extends SyncTests[F] {
@@ -60,8 +59,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
         "repeated async evaluation not memoized" -> forAll(laws.repeatedAsyncEvaluationNotMemoized[A] _),
-        "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _),
-        "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _))
+        "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _))
     }
   }
 }

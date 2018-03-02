@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect.laws
+package cats.effect
+package laws
 
-import cats.effect.CAsyncStart
-import cats.implicits._
 import cats.laws._
+import cats.syntax.all._
 
-trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
-  implicit def F: CAsyncStart[F]
+trait CAsyncLaws[F[_]] extends AsyncLaws[F] {
+  implicit def F: CAsync[F]
+
+  def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
+    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
+  }
 
   def startJoinIsIdentity[A](fa: F[A]) =
     F.start(fa).flatMap(_.join) <-> fa
@@ -37,8 +41,8 @@ trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
   }
 }
 
-object AsyncStartLaws {
-  def apply[F[_]](implicit F0: CAsyncStart[F]): AsyncStartLaws[F] = new AsyncStartLaws[F] {
+object CAsyncLaws {
+  def apply[F[_]](implicit F0: CAsync[F]): CAsyncLaws[F] = new CAsyncLaws[F] {
     val F = F0
   }
 }

@@ -57,9 +57,6 @@ object LTask {
       def suspend[A](thunk: => LTask[A]): LTask[A] =
         LTask { implicit ec => Future.successful(()).flatMap(_ => thunk.run(ec)) }
 
-      def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): LTask[A] =
-        async { r => k(r); () }
-
       def async[A](k: (Either[Throwable, A] => Unit) => Unit): LTask[A] =
         LTask { implicit ec =>
           val p = Promise[A]()
@@ -67,23 +64,10 @@ object LTask {
           p.future
         }
 
-      def runCancelable[A](fa: LTask[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        runAsync(fa)(cb).map(_ => IO.unit)
       def runAsync[A](fa: LTask[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
         IO(fa.run(ec).onComplete { r =>
           cb(Conversions.toEither(r)).unsafeRunAsync(Callback.report)
         })
-
-      def start[A](fa: LTask[A]): LTask[Fiber[LTask, A]] =
-        LTask { implicit ec =>
-          Future {
-            val f = fa.run(ec)
-            new Fiber[LTask, A] {
-              def join = LTask(_ => f)
-              def cancel = LTask(_ => Future.successful(()))
-            }
-          }
-        }
 
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =
         LTask { implicit ec =>

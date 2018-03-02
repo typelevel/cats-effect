@@ -19,16 +19,15 @@ package effect
 package laws
 package discipline
 
-import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait AsyncStartTests[F[_]] extends AsyncTests[F] {
-  def laws: AsyncStartLaws[F]
+trait CEffectTests[F[_]] extends CAsyncTests[F] with EffectTests[F] {
+  def laws: CEffectLaws[F]
 
-  def asyncStart[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def cEffect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
@@ -48,24 +47,26 @@ trait AsyncStartTests[F[_]] extends AsyncTests[F] {
     EqT: Eq[Throwable],
     EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
+    EqIOA: Eq[IO[A]],
+    EqIOU: Eq[IO[Unit]],
+    EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
     iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
-      val name = "asyncStart"
+      val name = "cEffect"
       val bases = Nil
-      val parents = Seq(async[A, B, C])
+      val parents = Seq(cAsync[A, B, C], effect[A, B, C])
       val props = Seq(
-        "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
-        "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
-        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _))
+        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
+        "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
+        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _))
     }
   }
 }
 
-object AsyncStartTests {
-  def apply[F[_]: CAsyncStart]: AsyncStartTests[F] = new AsyncStartTests[F] {
-    def laws = AsyncStartLaws[F]
+object CEffectTests {
+  def apply[F[_]: CEffect]: CEffectTests[F] = new CEffectTests[F] {
+    def laws = CEffectLaws[F]
   }
 }

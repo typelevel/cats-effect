@@ -21,6 +21,7 @@ import simulacrum._
 import cats.data.{EitherT, OptionT, StateT, WriterT}
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.IORunLoop
+import cats.syntax.all._
 
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -121,20 +122,46 @@ trait CAsync[F[_]] extends Async[F] {
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
 
+  /**
+   * Start concurrent execution of the source suspended in
+   * the `F` context.
+   *
+   * Returns a [[Fiber]] that can be used to either join or cancel
+   * the running computation, being similar in spirit (but not
+   * in implementation) to starting a thread.
+   */
+  def start[A](fa: F[A]): F[Fiber[F, A]]
+
   override def liftIO[A](ioa: IO[A]): F[A] =
     CAsync.liftIO(ioa)(this)
 }
 
 private[effect] abstract class CAsyncInstances {
+  /**
+   * [[CAsync]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `CAsync`.
+   */
   implicit def catsEitherTCAsync[F[_]: CAsync, L]: CAsync[EitherT[F, L, ?]] =
     new EitherTCAsync[F, L] { def F = CAsync[F] }
 
+  /**
+   * [[CAsync]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `CAsync`.
+   */
   implicit def catsOptionTCAsync[F[_]: CAsync]: CAsync[OptionT[F, ?]] =
     new OptionTCAsync[F] { def F = CAsync[F] }
 
+  /**
+   * [[CAsync]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `CAsync`.
+   */
   implicit def catsStateTAsync[F[_]: CAsync, S]: CAsync[StateT[F, S, ?]] =
     new StateTCAsync[F, S] { def F = CAsync[F] }
 
+  /**
+   * [[CAsync]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `CAsync`.
+   */
   implicit def catsWriterTAsync[F[_]: CAsync, L: Monoid]: CAsync[WriterT[F, L, ?]] =
     new WriterTCAsync[F, L] { def F = CAsync[F]; def L = Monoid[L] }
 
@@ -142,33 +169,55 @@ private[effect] abstract class CAsyncInstances {
     with CAsync[EitherT[F, L, ?]] {
 
     override protected def F: CAsync[F]
-    private implicit def _F = F
     override protected def FF = F
+    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
-      EitherT.liftF(F.cancelable(k))
+      EitherT.liftF(F.cancelable(k))(F)
+
+    def start[A](fa: EitherT[F, L, A]) =
+      EitherT.liftF(
+        F.start(fa.value).map { fiber =>
+          Fiber(
+            EitherT(fiber.join),
+            EitherT.liftF(fiber.cancel))
+        })
   }
 
   private[effect] trait OptionTCAsync[F[_]] extends Async.OptionTAsync[F]
     with CAsync[OptionT[F, ?]] {
 
     override protected def F: CAsync[F]
-    private implicit def _F = F
     override protected def FF = F
+    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
-      OptionT.liftF(F.cancelable(k))
+      OptionT.liftF(F.cancelable(k))(F)
+
+    def start[A](fa: OptionT[F, A]) = {
+      OptionT.liftF(
+        F.start(fa.value).map { fiber =>
+          Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
+        })
+    }
   }
 
   private[effect] trait StateTCAsync[F[_], S] extends Async.StateTAsync[F, S]
     with CAsync[StateT[F, S, ?]] {
 
     override protected def F: CAsync[F]
-    private implicit def _F = F
     override protected def FA = F
+    private implicit def _F = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
-      StateT.liftF(F.cancelable(k))
+      StateT.liftF(F.cancelable(k))(F)
+
+    override def start[A](fa: StateT[F, S, A]) =
+      StateT(s => F.start(fa.run(s)).map { fiber =>
+        (s, Fiber(
+          StateT(_ => fiber.join),
+          StateT.liftF(fiber.cancel)))
+      })
   }
 
   private[effect] trait WriterTCAsync[F[_], L] extends Async.WriterTAsync[F, L]
@@ -181,6 +230,13 @@ private[effect] abstract class CAsyncInstances {
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k))
+
+    def start[A](fa: WriterT[F, L, A]) =
+      WriterT(F.start(fa.run).map { fiber =>
+        (L.empty, Fiber(
+          WriterT(fiber.join),
+          WriterT.liftF(fiber.cancel)))
+      })
   }
 }
 

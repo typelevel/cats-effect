@@ -49,13 +49,24 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 private[effect] abstract class EffectInstances {
-
+  /**
+   * [[Effect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
   implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
     new EitherTEffect[F] { def F = Effect[F] }
 
+  /**
+   * [[Effect]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
     new StateTEffect[F, S] { def F = Effect[F]; def S = Monoid[S] }
 
+  /**
+   * [[Effect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
     new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 

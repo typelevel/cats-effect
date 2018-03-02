@@ -24,7 +24,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait EffectTests[F[_]] extends AsyncStartTests[F] {
+trait EffectTests[F[_]] extends AsyncTests[F] {
   def laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -49,23 +49,18 @@ trait EffectTests[F[_]] extends AsyncStartTests[F] {
       EqFEitherTA: Eq[F[Either[Throwable, A]]],
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
-      EqIOA: Eq[IO[A]],
       EqIOU: Eq[IO[Unit]],
       EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
       iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
       val name = "effect"
       val bases = Nil
-      val parents = Seq(asyncStart[A, B, C])
-
+      val parents = Seq(async[A, B, C])
       val props = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
-        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
-        "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
-        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _))
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
     }
   }
 }

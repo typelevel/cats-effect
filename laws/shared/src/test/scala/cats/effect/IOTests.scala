@@ -19,20 +19,19 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 import cats.effect.internals.{Callback, IOPlatform}
-import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.discipline.{CEffectTests, EffectTests}
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
-
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
-  checkAllAsync("IO", implicit ec => EffectTests[IO].effect[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => CEffectTests[IO].cEffect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
 

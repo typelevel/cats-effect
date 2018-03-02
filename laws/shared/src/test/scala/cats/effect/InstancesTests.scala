@@ -17,8 +17,8 @@
 package cats
 package effect
 
-import cats.data.{EitherT, Kleisli, OptionT, StateT, WriterT}
-import cats.effect.laws.discipline.{AsyncTests, EffectTests, SyncTests}
+import cats.data._
+import cats.effect.laws.discipline._
 import cats.effect.laws.discipline.arbitrary._
 import cats.effect.laws.util.TestContext
 import cats.implicits._
@@ -44,16 +44,16 @@ class InstancesTests extends BaseTestsSuite {
     SyncTests[EitherT[Eval, Throwable, ?]].sync[Int, Int, Int])
 
   checkAllAsync("StateT[IO, S, ?]",
-    implicit ec => EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
+    implicit ec => CEffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
 
   checkAllAsync("OptionT[IO, ?]",
-    implicit ec => AsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
+    implicit ec => CAsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
-    implicit ec => EffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
+    implicit ec => CEffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
 
   checkAllAsync("WriterT[IO, Int, ?]",
-    implicit ec => EffectTests[WriterT[IO, Int, ?]].effect[Int, Int, Int])
+    implicit ec => CEffectTests[WriterT[IO, Int, ?]].effect[Int, Int, Int])
 
   implicit def arbitraryStateT[F[_], S, A](
     implicit

@@ -134,15 +134,31 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 }
 
 private[effect] abstract class AsyncInstances {
+  /**
+   * [[Async]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
     new EitherTAsync[F, L] { def F = Async[F] }
 
+  /**
+   * [[Async]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
     new OptionTAsync[F] { def F = Async[F] }
 
+  /**
+   * [[Async]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
     new StateTAsync[F, S] { def F = Async[F] }
 
+  /**
+   * [[Async]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 
