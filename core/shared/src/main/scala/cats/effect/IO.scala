@@ -20,10 +20,8 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
-import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
-
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -140,18 +138,79 @@ sealed abstract class IO[+A] {
     Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
 
   /**
-   * Produces an `IO` reference that is guaranteed to be safe to run
-   * synchronously (i.e. [[unsafeRunSync]]), being the safe analogue
-   * to [[unsafeRunAsync]].
+   * Produces an `IO` reference that should execute the source on
+   * evaluation, without waiting for its result, being the safe
+   * analogue to [[unsafeRunAsync]].
    *
    * This operation is isomorphic to [[unsafeRunAsync]]. What it does
    * is to let you describe asynchronous execution with a function
    * that stores off the results of the original `IO` as a
    * side effect, thus ''avoiding'' the usage of impure callbacks or
    * eager evaluation.
+   *
+   * The returned `IO` is guaranteed to execute immediately,
+   * and does not wait on any async action to complete, thus this
+   * is safe to do, even on top of runtimes that cannot block threads
+   * (e.g. JavaScript):
+   *
+   * {{{
+   *   // Sample
+   *   val source = IO.shift *> IO(1)
+   *   // Describes execution
+   *   val start = source.runAsync
+   *   // Safe, because it does not block for the source to finish
+   *   start.unsafeRunSync
+   * }}}
+   *
+   * @return an `IO` value that upon evaluation will execute the source,
+   *         but will not wait for its completion
+   *
+   * @see [[runCancelable]] for the version that gives you a cancelable
+   *      token that can be used to send a cancel signal
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
+  }
+
+  /**
+   * Produces an `IO` reference that should execute the source on evaluation,
+   * without waiting for its result and return a cancellable token, being the
+   * safe analogue to [[unsafeRunCancelable]].
+   *
+   * This operation is isomorphic to [[unsafeRunCancelable]]. Just like
+   * [[runAsync]], this operation avoids the usage of impure callbacks or
+   * eager evaluation.
+   *
+   * The returned `IO` boxes an `IO[Unit]` that can be used to cancel the
+   * running asynchronous computation (if the source can be cancelled).
+   *
+   * The returned `IO` is guaranteed to execute immediately,
+   * and does not wait on any async action to complete, thus this
+   * is safe to do, even on top of runtimes that cannot block threads
+   * (e.g. JavaScript):
+   *
+   * {{{
+   *   val source: IO[Int] = ???
+   *   // Describes interruptible execution
+   *   val start: IO[IO[Unit]] = source.runCancelable
+   *
+   *   // Safe, because it does not block for the source to finish
+   *   val cancel: IO[Unit] = start.unsafeRunSync
+   *
+   *   // Safe, because cancellation only sends a signal,
+   *   // but doesn't back-pressure on anything
+   *   cancel.unsafeRunSync
+   * }}}
+   *
+   * @return an `IO` value that upon evaluation will execute the source,
+   *         but will not wait for its completion, yielding a cancellation
+   *         token that can be used to cancel the async process
+   *
+   * @see [[runAsync]] for the simple, uninterruptible version
+   */
+  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] = IO {
+    val cancel = unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ())))
+    IO.Delay(cancel)
   }
 
   /**
@@ -294,7 +353,7 @@ sealed abstract class IO[+A] {
    * But you can use [[IO.shift(implicit* IO.shift]] to force an async
    * boundary just before start.
    */
-  final def start: IO[Fiber[IO, A]] =
+  final def start: IO[Fiber[IO, A @uncheckedVariance]] =
     IOStart(this)
 
   /**
@@ -324,28 +383,17 @@ sealed abstract class IO[+A] {
   final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
     this match {
       case Pure(a) => F.pure(a)
-      case Delay(thunk) => F.delay(thunk())
       case RaiseError(e) => F.raiseError(e)
-      case Suspend(thunk) => F.suspend(thunk().to[F])
-      case Async(k) => F.async(cb => k(IOConnection.alreadyCanceled, cb))
-      case Bind(source, frame) =>
-        frame match {
-          case m: IOFrame[_, _] =>
-            if (!m.isInstanceOf[ErrorHandler[_]]) {
-              val lh = F.attempt(F.suspend(source.to[F]))
-              val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
-              F.flatMap(lh)(e => f.fold(e).to[F])
-            } else {
-              val lh = F.suspend(source.to[F]).asInstanceOf[F[A]]
-              F.handleErrorWith(lh) { e =>
-                m.asInstanceOf[ErrorHandler[A]].recover(e).to[F]
-              }
-            }
-          case f =>
-            F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
+      case Delay(thunk) => F.delay(thunk())
+      case _ =>
+        F.suspend {
+          IORunLoop.step(this) match {
+            case Pure(a) => F.pure(a)
+            case RaiseError(e) => F.raiseError(e)
+            case async =>
+              F.cancelable { cb => IO.Delay(async.unsafeRunCancelable(cb)) }
+          }
         }
-      case Map(source, f, _) =>
-        F.map(source.to[F])(f.asInstanceOf[Any => A])
     }
 
   override def toString = this match {
@@ -423,10 +471,16 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.raiseError(e)
     override def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
+    override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+      fa.start
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.cancelable(k)
+    override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      fa.runCancelable(cb)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     // this will use stack proportional to the maximum number of joined async suspensions

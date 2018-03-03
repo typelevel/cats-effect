@@ -19,6 +19,7 @@ package cats.effect.laws.util
 import cats.effect.IO
 import cats.kernel.Eq
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 /**
@@ -58,7 +59,7 @@ trait TestInstances {
     new Eq[Future[A]] {
       def eqv(x: Future[A], y: Future[A]): Boolean = {
         // Executes the whole pending queue of runnables
-        ec.tick()
+        ec.tick(99.days)
 
         x.value match {
           case None =>
@@ -68,19 +69,24 @@ trait TestInstances {
               case Some(Success(b)) => A.eqv(a, b)
               case _ => false
             }
-          case Some(Failure(_)) =>
+          case Some(Failure(ex)) =>
             y.value match {
-              case Some(Failure(_)) =>
-                // All exceptions are non-terminating and given exceptions
-                // aren't values (being mutable, they implement reference
-                // equality), then we can't really test them reliably,
-                // especially due to race conditions or outside logic
-                // that wraps them (e.g. ExecutionException)
-                true
-              case _ =>
-                false
+              case Some(Failure(ey)) => eqThrowable.eqv(ex, ey)
+              case _ => false
             }
         }
+      }
+    }
+
+  implicit val eqThrowable: Eq[Throwable] =
+    new Eq[Throwable] {
+      def eqv(x: Throwable, y: Throwable): Boolean = {
+        // All exceptions are non-terminating and given exceptions
+        // aren't values (being mutable, they implement reference
+        // equality), then we can't really test them reliably,
+        // especially due to race conditions or outside logic
+        // that wraps them (e.g. ExecutionException)
+        (x ne null) == (y ne null)
       }
     }
 }

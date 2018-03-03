@@ -43,10 +43,26 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     change *> change *> read <-> F.pure(f(f(a)))
   }
 
+  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
+    var cur = a
+    val change = F.delay { cur = f(cur) }
+    val readResult = F.delay { cur }
+
+    val double: F[Unit] = F.async { cb =>
+      cb(Right(()))
+      cb(Right(()))
+    }
+
+    double *> change *> readResult <-> F.delay(f(a))
+  }
+
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {
     val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
-
     fa <-> F.pure(Left(t))
+  }
+
+  def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
+    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
   }
 }
 
