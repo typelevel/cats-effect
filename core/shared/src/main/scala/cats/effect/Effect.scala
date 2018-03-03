@@ -19,7 +19,6 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, StateT, WriterT}
-import cats.effect.internals.EffectFiber
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -71,44 +70,70 @@ trait Effect[F[_]] extends AsyncStart[F] {
   def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]]
 }
 
-private[effect] abstract class EffectInstances {
-
+object Effect {
+  /**
+   * [[Effect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   *
+   * Note this `Effect` instance has been specialized for `Throwable`,
+   * because otherwise there's no way to implement the
+   * [[Effect.runAsync runAsync]] operation due to its signature,
+   * as we couldn't represent `L` values when pulling that value
+   * out of its `EitherT[F, L, ?]` context.
+   *
+   * This is in contrast with the `EitherT` instances defined for
+   * [[Async]] or for [[Sync]], which do not require this
+   * specialization.
+   */
   implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
-    new Effect[EitherT[F, Throwable, ?]] with Async.EitherTAsync[F, Throwable] {
-      protected def F = Effect[F]
+    new EitherTEffect[F] { def F = Effect[F] }
 
-      def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-        F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
-      def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
-      def start[A](fa: EitherT[F, Throwable, A]) =
-        EffectFiber.eitherT(fa)
-    }
-
+  /**
+   * [[Effect]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
   implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
-    new Effect[StateT[F, S, ?]] with Async.StateTAsync[F, S] {
-      protected def F = Effect[F]
+    new StateTEffect[F, S] { def F = Effect[F]; def S = Monoid[S] }
 
-      def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-        F.runAsync(fa.runA(Monoid[S].empty))(cb)
-      def runCancelable[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.runA(Monoid[S].empty))(cb)
-      def start[A](fa: StateT[F, S, A]) =
-        EffectFiber.stateT(fa)
-    }
-
+  /**
+   * [[Effect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
-    new Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] {
-      protected def F = Effect[F]
-      protected def L = Monoid[L]
+    new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 
-      def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-        F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
-      def runCancelable[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-        F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
-      def start[A](fa: WriterT[F, L, A]) =
-        EffectFiber.writerT(fa)
-    }
+  private[effect] trait EitherTEffect[F[_]] extends Effect[EitherT[F, Throwable, ?]]
+    with AsyncStart.EitherTAsyncStart[F, Throwable] {
+
+    protected def F: Effect[F]
+
+    def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+      F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
+    def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
+  }
+
+  private[effect] trait StateTEffect[F[_], S] extends Effect[StateT[F, S, ?]]
+    with AsyncStart.StateTAsyncStart[F, S] {
+
+    protected def F: Effect[F]
+    protected def S: Monoid[S]
+
+    def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+      F.runAsync(fa.runA(S.empty)(F))(cb)
+    def runCancelable[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.runA(S.empty)(F))(cb)
+  }
+
+  private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
+    with AsyncStart.WriterTAsyncStart[F, L] {
+
+    protected def F: Effect[F]
+    protected def L: Monoid[L]
+
+    def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+      F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
+    def runCancelable[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
+  }
 }
-
-object Effect extends EffectInstances

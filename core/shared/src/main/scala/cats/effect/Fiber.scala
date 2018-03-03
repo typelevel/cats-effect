@@ -67,3 +67,14 @@ trait Fiber[F[_], A] {
    */
   def join: F[A]
 }
+
+object Fiber {
+  /**
+   * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
+   */
+  def apply[F[_], A](join: F[A], cancel: F[Unit]): Fiber[F, A] =
+    Tuple(join, cancel)
+
+  private final case class Tuple[F[_], A](join: F[A], cancel: F[Unit])
+    extends Fiber[F, A]
+}

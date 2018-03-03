@@ -23,8 +23,10 @@ import cats.laws._
 trait AsyncStartLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: AsyncStart[F]
 
-  def startJoinIsIdentity[A](fa: F[A]) =
+  def startJoinIsIdentity[A](fa: F[A]) = {
     F.start(fa).flatMap(_.join) <-> fa
+  }
+
 
   def joinIsIdempotent[A](a: A, f: (A, A) => A) = {
     var effect = a

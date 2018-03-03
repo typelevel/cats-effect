@@ -19,6 +19,7 @@ package cats.effect.laws.util
 import cats.effect.IO
 import cats.kernel.Eq
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 /**
@@ -58,7 +59,7 @@ trait TestInstances {
     new Eq[Future[A]] {
       def eqv(x: Future[A], y: Future[A]): Boolean = {
         // Executes the whole pending queue of runnables
-        ec.tick()
+        ec.tick(99.days)
 
         x.value match {
           case None =>
