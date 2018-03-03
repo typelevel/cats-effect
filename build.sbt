@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import microsites.ExtraMdFileConfig
 import scala.sys.process._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -264,6 +265,36 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val microsite = project.in(file("site"))
+  .enablePlugins(MicrositesPlugin)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(
+    micrositeName := "Cats Effect",
+    micrositeDescription := "The IO Monad for Cats",
+    micrositeAuthor := "Cats Effect contributors",
+    micrositeGithubOwner := "typelevel",
+    micrositeGithubRepo := "cats-effect",
+    micrositeBaseUrl := "/cats-effect",
+    micrositeExtraMdFiles := Map(
+      file("README.md") -> ExtraMdFileConfig(
+        "index.md",
+        "home",
+        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+      )
+    ),
+    micrositeHighlightTheme := "atom-one-light",
+    micrositePalette := Map(
+      "brand-primary" -> "#5B5988",
+      "brand-secondary" -> "#292E53",
+      "brand-tertiary" -> "#222749",
+      "gray-dark" -> "#49494B",
+      "gray" -> "#7B7B7E",
+      "gray-light" -> "#E5E5E6",
+      "gray-lighter" -> "#F4F3F4",
+      "white-color" -> "#FFFFFF")
+  )
+  .dependsOn(coreJVM)
 
 /*
  * Compatibility version.  Use this to declare what version with
