@@ -25,13 +25,12 @@ import scala.util.Either
 /**
  * Type class describing effect data types that are cancellable.
  *
- * N.B. the `CEffect` name comes from ''cancellable effect''.
- *
- * In addition to the algebras of [[CAsync]] and of [[Effect]],
- * instances must also implement a [[CEffect!.runCancelable runCancelable]]
- * operation that triggers the evaluation, suspended in the `IO` context,
- * but that also returns a token that can be used for cancelling the
- * running computation.
+ * In addition to the algebras of [[CancelableAsync]] and of
+ * [[Effect]], instances must also implement a
+ * [[CancelableEffect!.runCancelable runCancelable]] operation that
+ * triggers the evaluation, suspended in the `IO` context, but that
+ * also returns a token that can be used for cancelling the running
+ * computation.
  *
  * Note this is the safe and generic version of [[IO.unsafeRunCancelable]].
  */
@@ -39,7 +38,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for CEffect[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait CEffect[F[_]] extends CAsync[F] with Effect[F] {
+trait CancelableEffect[F[_]] extends CancelableAsync[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.
    *
@@ -63,54 +62,54 @@ trait CEffect[F[_]] extends CAsync[F] with Effect[F] {
   def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]]
 }
 
-object CEffect {
+object CancelableEffect {
   /**
-   * [[CEffect]] instance built for `cats.data.EitherT` values initialized
+   * [[CancelableEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `CEffect`.
    */
-  implicit def catsEitherTCEffect[F[_]: CEffect]: CEffect[EitherT[F, Throwable, ?]] =
-    new EitherTCEffect[F] { def F = CEffect[F] }
+  implicit def catsEitherTCEffect[F[_]: CancelableEffect]: CancelableEffect[EitherT[F, Throwable, ?]] =
+    new EitherTCEffect[F] { def F = CancelableEffect[F] }
 
   /**
-   * [[CEffect]] instance built for `cats.data.StateT` values initialized
+   * [[CancelableEffect]] instance built for `cats.data.StateT` values initialized
    * with any `F` data type that also implements `CEffect`.
    */
-  implicit def catsStateTCEffect[F[_]: CEffect, S: Monoid]: CEffect[StateT[F, S, ?]] =
-    new StateTCEffect[F, S] { def F = CEffect[F]; def S = Monoid[S] }
+  implicit def catsStateTCEffect[F[_]: CancelableEffect, S: Monoid]: CancelableEffect[StateT[F, S, ?]] =
+    new StateTCEffect[F, S] { def F = CancelableEffect[F]; def S = Monoid[S] }
 
   /**
-   * [[CEffect]] instance built for `cats.data.WriterT` values initialized
+   * [[CancelableEffect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `CEffect`.
    */
-  implicit def catsWriterTCEffect[F[_]: CEffect, L: Monoid]: CEffect[WriterT[F, L, ?]] =
-    new WriterTCEffect[F, L] { def F = CEffect[F]; def L = Monoid[L] }
+  implicit def catsWriterTCEffect[F[_]: CancelableEffect, L: Monoid]: CancelableEffect[WriterT[F, L, ?]] =
+    new WriterTCEffect[F, L] { def F = CancelableEffect[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTCEffect[F[_]] extends CEffect[EitherT[F, Throwable, ?]]
-    with CAsync.EitherTCAsync[F, Throwable]
+  private[effect] trait EitherTCEffect[F[_]] extends CancelableEffect[EitherT[F, Throwable, ?]]
+    with CancelableAsync.EitherTCAsync[F, Throwable]
     with Effect.EitherTEffect[F] {
 
-    protected def F: CEffect[F]
+    protected def F: CancelableEffect[F]
 
     def runCancelable[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
   }
 
-  private[effect] trait StateTCEffect[F[_], S] extends CEffect[StateT[F, S, ?]]
-    with CAsync.StateTCAsync[F, S]
+  private[effect] trait StateTCEffect[F[_], S] extends CancelableEffect[StateT[F, S, ?]]
+    with CancelableAsync.StateTCAsync[F, S]
     with Effect.StateTEffect[F, S] {
 
-    protected def F: CEffect[F]
+    protected def F: CancelableEffect[F]
     protected def S: Monoid[S]
 
     def runCancelable[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       F.runCancelable(fa.runA(S.empty)(F))(cb)
   }
 
-  private[effect] trait WriterTCEffect[F[_], L] extends CEffect[WriterT[F, L, ?]]
-    with CAsync.WriterTCAsync[F, L]
+  private[effect] trait WriterTCEffect[F[_], L] extends CancelableEffect[WriterT[F, L, ?]]
+    with CancelableAsync.WriterTCAsync[F, L]
     with Effect.WriterTEffect[F, L] {
 
-    protected def F: CEffect[F]
+    protected def F: CancelableEffect[F]
     protected def L: Monoid[L]
 
     def runCancelable[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =

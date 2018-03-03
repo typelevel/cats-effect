@@ -20,8 +20,8 @@ package laws
 import cats.laws._
 import cats.syntax.all._
 
-trait CAsyncLaws[F[_]] extends AsyncLaws[F] {
-  implicit def F: CAsync[F]
+trait CancelableAsyncLaws[F[_]] extends AsyncLaws[F] {
+  implicit def F: CancelableAsync[F]
 
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
     F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
@@ -50,8 +50,8 @@ trait CAsyncLaws[F[_]] extends AsyncLaws[F] {
   }
 }
 
-object CAsyncLaws {
-  def apply[F[_]](implicit F0: CAsync[F]): CAsyncLaws[F] = new CAsyncLaws[F] {
+object CancelableAsyncLaws {
+  def apply[F[_]](implicit F0: CancelableAsync[F]): CancelableAsyncLaws[F] = new CancelableAsyncLaws[F] {
     val F = F0
   }
 }

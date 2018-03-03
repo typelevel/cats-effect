@@ -24,10 +24,10 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait CEffectTests[F[_]] extends CAsyncTests[F] with EffectTests[F] {
-  def laws: CEffectLaws[F]
+trait CancelableEffectTests[F[_]] extends CancelableAsyncTests[F] with EffectTests[F] {
+  def laws: CancelableEffectLaws[F]
 
-  def cEffect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def cancelableEffect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
@@ -54,9 +54,9 @@ trait CEffectTests[F[_]] extends CAsyncTests[F] with EffectTests[F] {
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
     iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
-      val name = "cEffect"
+      val name = "cancelableEffect"
       val bases = Nil
-      val parents = Seq(cAsync[A, B, C], effect[A, B, C])
+      val parents = Seq(cancelableAsync[A, B, C], effect[A, B, C])
       val props = Seq(
         "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
         "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
@@ -65,8 +65,8 @@ trait CEffectTests[F[_]] extends CAsyncTests[F] with EffectTests[F] {
   }
 }
 
-object CEffectTests {
-  def apply[F[_]: CEffect]: CEffectTests[F] = new CEffectTests[F] {
-    def laws = CEffectLaws[F]
+object CancelableEffectTests {
+  def apply[F[_]: CancelableEffect]: CancelableEffectTests[F] = new CancelableEffectTests[F] {
+    def laws = CancelableEffectLaws[F]
   }
 }

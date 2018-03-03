@@ -378,7 +378,7 @@ sealed abstract class IO[+A] {
 
   /**
    * Converts the source `IO` into any `F` type that implements
-   * the [[cats.effect.CAsync CAsync]] type class.
+   * the [[cats.effect.CancelableAsync CAsync]] type class.
    */
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
@@ -439,7 +439,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: CEffect[IO] = new CEffect[IO] {
+  implicit val ioEffect: CancelableEffect[IO] = new CancelableEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
