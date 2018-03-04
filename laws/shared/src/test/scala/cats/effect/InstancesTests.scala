@@ -44,16 +44,16 @@ class InstancesTests extends BaseTestsSuite {
     SyncTests[EitherT[Eval, Throwable, ?]].sync[Int, Int, Int])
 
   checkAllAsync("StateT[IO, S, ?]",
-    implicit ec => CancelableEffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int])
+    implicit ec => CancelableEffectTests[StateT[IO, Int, ?]].cancelableEffect[Int, Int, Int])
 
   checkAllAsync("OptionT[IO, ?]",
-    implicit ec => CancelableAsyncTests[OptionT[IO, ?]].async[Int, Int, Int])
+    implicit ec => CancelableAsyncTests[OptionT[IO, ?]].cancelableAsync[Int, Int, Int])
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
-    implicit ec => CancelableEffectTests[EitherT[IO, Throwable, ?]].effect[Int, Int, Int])
+    implicit ec => CancelableEffectTests[EitherT[IO, Throwable, ?]].cancelableEffect[Int, Int, Int])
 
   checkAllAsync("WriterT[IO, Int, ?]",
-    implicit ec => CancelableEffectTests[WriterT[IO, Int, ?]].effect[Int, Int, Int])
+    implicit ec => CancelableEffectTests[WriterT[IO, Int, ?]].cancelableEffect[Int, Int, Int])
 
   implicit def arbitraryStateT[F[_], S, A](
     implicit
