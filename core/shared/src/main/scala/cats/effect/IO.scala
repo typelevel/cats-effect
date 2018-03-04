@@ -174,7 +174,7 @@ sealed abstract class IO[+A] {
 
   /**
    * Produces an `IO` reference that should execute the source on evaluation,
-   * without waiting for its result and return a cancellable token, being the
+   * without waiting for its result and return a cancelable token, being the
    * safe analogue to [[unsafeRunCancelable]].
    *
    * This operation is isomorphic to [[unsafeRunCancelable]]. Just like
@@ -378,7 +378,7 @@ sealed abstract class IO[+A] {
 
   /**
    * Converts the source `IO` into any `F` type that implements
-   * the [[cats.effect.CancelableAsync CAsync]] type class.
+   * the [[LiftIO]] type class.
    */
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
@@ -824,7 +824,7 @@ object IO extends IOInstances {
    *   IO.sleep(Duration.Zero) <-> IO.shift
    * }}}
    *
-   * The created task is cancellable and so it can be used safely in race
+   * The created task is cancelable and so it can be used safely in race
    * conditions without resource leakage.
    *
    * @param duration is the time span to wait before emitting the tick

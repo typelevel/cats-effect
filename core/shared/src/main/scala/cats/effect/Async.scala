@@ -70,9 +70,9 @@ import scala.util.Either
  * N.B. this type class in particular is NOT describing cancelable
  * async processes, see the [[CancelableAsync]] type class for that.
  *
- * ==Async Type-class==
+ * ==Async Type class==
  *
- * This type-class allows the modeling of data types that:
+ * This type class allows the modeling of data types that:
  *
  *  1. can start asynchronous processes
  *  1. emit exactly one result on completion
@@ -94,7 +94,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
-   * Creates a simple, non-cancelable `F[A]` instance that
+   * Creates a simple, noncancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
    *
    * The given function is being injected with a side-effectful
@@ -112,7 +112,8 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    *
    * N.B. expressing this conversion in terms of `Async` and its
    * capabilities means that the resulting `F` is not cancelable.
-   * [[CancelableAsync]] then overloads this with an implementation that is.
+   * [[CancelableAsync]] then overrides this with an implementation
+   * that is.
    *
    * To access this implementation as a standalone function, you can
    * use [[Async$.liftIO Async.liftIO]] (on the object companion).

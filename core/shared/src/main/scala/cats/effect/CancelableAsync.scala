@@ -27,16 +27,16 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * Type class for [[Async]] data types that are cancellable.
+ * Type class for [[Async]] data types that are cancelable.
  *
- * Thus this type-class allows abstracting over data types that:
+ * Thus this type class allows abstracting over data types that:
  *
  *  1. implement the [[Async]] algebra, with all its restrictions
  *  1. can provide logic for cancellation, to be used in race
  *     conditions in order to release resources early
  *     (in its [[CancelableAsync!.cancelable cancelable]] builder)
  *
- * Due to these restrictions, this type-class also affords to describe
+ * Due to these restrictions, this type class also affords to describe
  * a [[CancelableAsync!.start start]] that can start async processing,
  * suspended in the context of `F[_]` and that can be cancelled or
  * joined.
@@ -84,10 +84,11 @@ import scala.util.Either
  * Java's `ScheduledExecutorService#schedule`, which will return a
  * Java `ScheduledFuture` that has a `.cancel()` operation on it.
  *
- * Similarly, for `CAsync` data types, we can provide cancellation
- * logic, that can be triggered in race conditions to cancel the
- * on-going processing, only that `CAsync`'s cancelable token is an
- * action suspended in an `IO[Unit]`. See [[IO.cancelable]].
+ * Similarly, for `CancelableAsync` data types, we can provide
+ * cancellation logic, that can be triggered in race conditions to
+ * cancel the on-going processing, only that `CancelableAsync`'s
+ * cancelable token is an action suspended in an `IO[Unit]`. See
+ * [[IO.cancelable]].
  *
  * Suppose you want to describe a "sleep" operation, like that described
  * by [[Timer]] to mirror Java's `ScheduledExecutorService.schedule`
@@ -136,7 +137,7 @@ import scala.util.Either
  * operation that is safe.
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for CAsync[${F}].
+@implicitNotFound("""Cannot find implicit value for CancelableAsync[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait CancelableAsync[F[_]] extends Async[F] {
@@ -160,7 +161,7 @@ trait CancelableAsync[F[_]] extends Async[F] {
    *   import scala.concurrent.duration._
    *
    *   def sleep[F[_]](d: FiniteDuration)
-   *     (implicit F: CAsync[F], ec: ScheduledExecutorService): F[A] = {
+   *     (implicit F: CancelableAsync[F], ec: ScheduledExecutorService): F[A] = {
    *
    *     F.cancelable { cb =>
    *       // Note the callback is pure, so we need to trigger evaluation
@@ -189,10 +190,10 @@ trait CancelableAsync[F[_]] extends Async[F] {
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
-   * in terms of the `CAsync` type class.
+   * in terms of the `CancelableAsync` type class.
    *
-   * N.B. expressing this conversion in terms of `CAsync` and its
-   * capabilities means that the resulting `F` is cancelable in
+   * N.B. expressing this conversion in terms of `CancelableAsync` and
+   * its capabilities means that the resulting `F` is cancelable in
    * case the source `IO` is.
    *
    * To access this implementation as a standalone function, you can
@@ -210,7 +211,7 @@ object CancelableAsync {
    * Compared with [[Async.liftIO]], this version preserves the
    * interruptibility of the given `IO` value.
    *
-   * This is the default `CAsync.liftIO` implementation.
+   * This is the default `CancelableAsync.liftIO` implementation.
    */
   def liftIO[F[_], A](ioa: IO[A])(implicit F: CancelableAsync[F]): F[A] =
     ioa match {
@@ -230,28 +231,28 @@ object CancelableAsync {
 
   /**
    * [[CancelableAsync]] instance built for `cats.data.EitherT` values initialized
-   * with any `F` data type that also implements `CAsync`.
+   * with any `F` data type that also implements `CancelableAsync`.
    */
   implicit def catsEitherTCAsync[F[_]: CancelableAsync, L]: CancelableAsync[EitherT[F, L, ?]] =
     new EitherTCAsync[F, L] { def F = CancelableAsync[F] }
 
   /**
    * [[CancelableAsync]] instance built for `cats.data.OptionT` values initialized
-   * with any `F` data type that also implements `CAsync`.
+   * with any `F` data type that also implements `CancelableAsync`.
    */
   implicit def catsOptionTCAsync[F[_]: CancelableAsync]: CancelableAsync[OptionT[F, ?]] =
     new OptionTCAsync[F] { def F = CancelableAsync[F] }
 
   /**
    * [[CancelableAsync]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `CAsync`.
+   * with any `F` data type that also implements `CancelableAsync`.
    */
   implicit def catsStateTAsync[F[_]: CancelableAsync, S]: CancelableAsync[StateT[F, S, ?]] =
     new StateTCAsync[F, S] { def F = CancelableAsync[F] }
 
   /**
    * [[CancelableAsync]] instance built for `cats.data.WriterT` values initialized
-   * with any `F` data type that also implements `CAsync`.
+   * with any `F` data type that also implements `CancelableAsync`.
    */
   implicit def catsWriterTAsync[F[_]: CancelableAsync, L: Monoid]: CancelableAsync[WriterT[F, L, ?]] =
     new WriterTCAsync[F, L] { def F = CancelableAsync[F]; def L = Monoid[L] }

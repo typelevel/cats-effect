@@ -23,7 +23,7 @@ import org.scalacheck.{Arbitrary, Cogen}
 import scala.concurrent.{ExecutionContext, ExecutionException, Future, Promise}
 
 /**
- * Built for testing non-cancelable effect data types.
+ * Built for testing noncancelable effect data types.
  */
 case class LTask[A](run: ExecutionContext => Future[A])
 

@@ -23,7 +23,7 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * Type class describing effect data types that are cancellable.
+ * Type class describing effect data types that are cancelable.
  *
  * In addition to the algebras of [[CancelableAsync]] and of
  * [[Effect]], instances must also implement a
@@ -35,7 +35,7 @@ import scala.util.Either
  * Note this is the safe and generic version of [[IO.unsafeRunCancelable]].
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for CEffect[${F}].
+@implicitNotFound("""Cannot find implicit value for CancelableEffect[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait CancelableEffect[F[_]] extends CancelableAsync[F] with Effect[F] {
@@ -46,7 +46,7 @@ trait CancelableEffect[F[_]] extends CancelableAsync[F] with Effect[F] {
    * can be used to cancel the running computation.
    *
    * Note that evaluating the returned `IO` value, along with
-   * the boxed cancellable action are guaranteed to have immediate
+   * the boxed cancelable action are guaranteed to have immediate
    * (synchronous) execution so you can safely do this, even
    * on top of JavaScript (which has no ability to block threads):
    *
@@ -65,21 +65,21 @@ trait CancelableEffect[F[_]] extends CancelableAsync[F] with Effect[F] {
 object CancelableEffect {
   /**
    * [[CancelableEffect]] instance built for `cats.data.EitherT` values initialized
-   * with any `F` data type that also implements `CEffect`.
+   * with any `F` data type that also implements `CancelableEffect`.
    */
   implicit def catsEitherTCEffect[F[_]: CancelableEffect]: CancelableEffect[EitherT[F, Throwable, ?]] =
     new EitherTCEffect[F] { def F = CancelableEffect[F] }
 
   /**
    * [[CancelableEffect]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `CEffect`.
+   * with any `F` data type that also implements `CancelableEffect`.
    */
   implicit def catsStateTCEffect[F[_]: CancelableEffect, S: Monoid]: CancelableEffect[StateT[F, S, ?]] =
     new StateTCEffect[F, S] { def F = CancelableEffect[F]; def S = Monoid[S] }
 
   /**
    * [[CancelableEffect]] instance built for `cats.data.WriterT` values initialized
-   * with any `F` data type that also implements `CEffect`.
+   * with any `F` data type that also implements `CancelableEffect`.
    */
   implicit def catsWriterTCEffect[F[_]: CancelableEffect, L: Monoid]: CancelableEffect[WriterT[F, L, ?]] =
     new WriterTCEffect[F, L] { def F = CancelableEffect[F]; def L = Monoid[L] }
