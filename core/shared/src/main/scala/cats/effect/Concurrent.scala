@@ -27,7 +27,8 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * Type class for [[Async]] data types that are cancelable.
+ * Type class for [[Async]] data types that are cancelable and
+ * can be started concurrently.
  *
  * Thus this type class allows abstracting over data types that:
  *

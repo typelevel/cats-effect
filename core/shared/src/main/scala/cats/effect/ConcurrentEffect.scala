@@ -23,7 +23,8 @@ import scala.annotation.implicitNotFound
 import scala.util.Either
 
 /**
- * Type class describing effect data types that are cancelable.
+ * Type class describing effect data types that are cancelable and
+ * can be evaluated concurrently.
  *
  * In addition to the algebras of [[Concurrent]] and of
  * [[Effect]], instances must also implement a
