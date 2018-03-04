@@ -439,7 +439,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: CancelableEffect[IO] = new CancelableEffect[IO] {
+  implicit val ioEffect: ConcurrentEffect[IO] = new ConcurrentEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =

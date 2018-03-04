@@ -21,8 +21,8 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait CancelableEffectLaws[F[_]] extends EffectLaws[F] with CancelableAsyncLaws[F] {
-  implicit def F: CancelableEffect[F]
+trait ConcurrentEffectLaws[F[_]] extends EffectLaws[F] with ConcurrentLaws[F] {
+  implicit def F: ConcurrentEffect[F]
 
   def runAsyncRunCancelableCoherence[A](fa: F[A]) = {
     val fa1 = IO.async[A] { cb => F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync() }
@@ -57,8 +57,8 @@ trait CancelableEffectLaws[F[_]] extends EffectLaws[F] with CancelableAsyncLaws[
   }
 }
 
-object CancelableEffectLaws {
-  def apply[F[_]](implicit F0: CancelableEffect[F]): CancelableEffectLaws[F] = new CancelableEffectLaws[F] {
+object ConcurrentEffectLaws {
+  def apply[F[_]](implicit F0: ConcurrentEffect[F]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
     val F = F0
   }
 }

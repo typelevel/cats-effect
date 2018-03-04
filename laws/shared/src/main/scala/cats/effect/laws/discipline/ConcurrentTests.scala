@@ -24,10 +24,10 @@ import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
-trait CancelableAsyncTests[F[_]] extends AsyncTests[F] {
-  def laws: CancelableAsyncLaws[F]
+trait ConcurrentTests[F[_]] extends AsyncTests[F] {
+  def laws: ConcurrentLaws[F]
 
-  def cancelableAsync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
@@ -52,7 +52,7 @@ trait CancelableAsyncTests[F[_]] extends AsyncTests[F] {
     EqFInt: Eq[F[Int]],
     iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
-      val name = "cancelableAsync"
+      val name = "concurrent"
       val bases = Nil
       val parents = Seq(async[A, B, C])
       val props = Seq(
@@ -65,8 +65,8 @@ trait CancelableAsyncTests[F[_]] extends AsyncTests[F] {
   }
 }
 
-object CancelableAsyncTests {
-  def apply[F[_]: CancelableAsync]: CancelableAsyncTests[F] = new CancelableAsyncTests[F] {
-    def laws = CancelableAsyncLaws[F]
+object ConcurrentTests {
+  def apply[F[_]: Concurrent]: ConcurrentTests[F] = new ConcurrentTests[F] {
+    def laws = ConcurrentLaws[F]
   }
 }

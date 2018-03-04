@@ -19,7 +19,7 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 import cats.effect.internals.{Callback, IOPlatform}
-import cats.effect.laws.discipline.{CancelableEffectTests, EffectTests}
+import cats.effect.laws.discipline.{ConcurrentEffectTests, EffectTests}
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
-  checkAllAsync("IO", implicit ec => CancelableEffectTests[IO].cancelableEffect[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
 

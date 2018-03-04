@@ -34,10 +34,10 @@ import scala.util.Either
  *  1. implement the [[Async]] algebra, with all its restrictions
  *  1. can provide logic for cancellation, to be used in race
  *     conditions in order to release resources early
- *     (in its [[CancelableAsync!.cancelable cancelable]] builder)
+ *     (in its [[Concurrent!.cancelable cancelable]] builder)
  *
  * Due to these restrictions, this type class also affords to describe
- * a [[CancelableAsync!.start start]] that can start async processing,
+ * a [[Concurrent!.start start]] that can start async processing,
  * suspended in the context of `F[_]` and that can be cancelled or
  * joined.
  *
@@ -47,7 +47,7 @@ import scala.util.Either
  * ==Cancelable builder==
  *
  * Therefore the signature exposed by the
- * [[CancelableAsync!.cancelable cancelable]] builder is this:
+ * [[Concurrent!.cancelable cancelable]] builder is this:
  *
  * {{{
  *   (Either[Throwable, A] => Unit) => F[Unit]
@@ -84,9 +84,9 @@ import scala.util.Either
  * Java's `ScheduledExecutorService#schedule`, which will return a
  * Java `ScheduledFuture` that has a `.cancel()` operation on it.
  *
- * Similarly, for `CancelableAsync` data types, we can provide
+ * Similarly, for `Concurrent` data types, we can provide
  * cancellation logic, that can be triggered in race conditions to
- * cancel the on-going processing, only that `CancelableAsync`'s
+ * cancel the on-going processing, only that `Concurrent`'s
  * cancelable token is an action suspended in an `IO[Unit]`. See
  * [[IO.cancelable]].
  *
@@ -122,25 +122,25 @@ import scala.util.Either
  * the completion of our sleep and a second `F[Unit]` to cancel the
  * scheduled computation in case we need it. This is in fact the shape
  * of [[Fiber]]'s API. And this is exactly what the
- * [[CancelableAsync!.start start]] operation returns.
+ * [[Concurrent!.start start]] operation returns.
  *
- * The difference between a [[CancelableAsync]] data type and one that
+ * The difference between a [[Concurrent]] data type and one that
  * is only [[Async]] is that you can go from any `F[A]` to a
  * `F[Fiber[F, A]]`, to participate in race conditions and that can be
  * cancelled should the need arise, in order to trigger an early
  * release of allocated resources.
  *
- * Thus a [[CancelableAsync]] data type can safely participate in race
+ * Thus a [[Concurrent]] data type can safely participate in race
  * conditions, whereas a data type that is only [[Async]] cannot do it
  * without exposing and forcing the user to work with cancellation
  * tokens. An [[Async]] data type cannot expose for example a `start`
  * operation that is safe.
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for CancelableAsync[${F}].
+@implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait CancelableAsync[F[_]] extends Async[F] {
+trait Concurrent[F[_]] extends Async[F] {
   /**
    * Creates a cancelable `F[A]` instance that executes an
    * asynchronous process on evaluation.
@@ -161,7 +161,7 @@ trait CancelableAsync[F[_]] extends Async[F] {
    *   import scala.concurrent.duration._
    *
    *   def sleep[F[_]](d: FiniteDuration)
-   *     (implicit F: CancelableAsync[F], ec: ScheduledExecutorService): F[A] = {
+   *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[A] = {
    *
    *     F.cancelable { cb =>
    *       // Note the callback is pure, so we need to trigger evaluation
@@ -190,30 +190,30 @@ trait CancelableAsync[F[_]] extends Async[F] {
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
-   * in terms of the `CancelableAsync` type class.
+   * in terms of the `Concurrent` type class.
    *
-   * N.B. expressing this conversion in terms of `CancelableAsync` and
+   * N.B. expressing this conversion in terms of `Concurrent` and
    * its capabilities means that the resulting `F` is cancelable in
    * case the source `IO` is.
    *
    * To access this implementation as a standalone function, you can
-   * use [[CancelableAsync$.liftIO CancelableAsync.liftIO]]
+   * use [[Concurrent$.liftIO Concurrent.liftIO]]
    * (on the object companion).
    */
   override def liftIO[A](ioa: IO[A]): F[A] =
-    CancelableAsync.liftIO(ioa)(this)
+    Concurrent.liftIO(ioa)(this)
 }
 
-object CancelableAsync {
+object Concurrent {
   /**
-   * Lifts any `IO` value into any data type implementing [[CancelableAsync]].
+   * Lifts any `IO` value into any data type implementing [[Concurrent]].
    *
    * Compared with [[Async.liftIO]], this version preserves the
    * interruptibility of the given `IO` value.
    *
-   * This is the default `CancelableAsync.liftIO` implementation.
+   * This is the default `Concurrent.liftIO` implementation.
    */
-  def liftIO[F[_], A](ioa: IO[A])(implicit F: CancelableAsync[F]): F[A] =
+  def liftIO[F[_], A](ioa: IO[A])(implicit F: Concurrent[F]): F[A] =
     ioa match {
       case Pure(a) => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
@@ -230,37 +230,37 @@ object CancelableAsync {
     }
 
   /**
-   * [[CancelableAsync]] instance built for `cats.data.EitherT` values initialized
-   * with any `F` data type that also implements `CancelableAsync`.
+   * [[Concurrent]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsEitherTCAsync[F[_]: CancelableAsync, L]: CancelableAsync[EitherT[F, L, ?]] =
-    new EitherTCAsync[F, L] { def F = CancelableAsync[F] }
+  implicit def catsEitherTConcurrent[F[_]: Concurrent, L]: Concurrent[EitherT[F, L, ?]] =
+    new EitherTConcurrent[F, L] { def F = Concurrent[F] }
 
   /**
-   * [[CancelableAsync]] instance built for `cats.data.OptionT` values initialized
-   * with any `F` data type that also implements `CancelableAsync`.
+   * [[Concurrent]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsOptionTCAsync[F[_]: CancelableAsync]: CancelableAsync[OptionT[F, ?]] =
-    new OptionTCAsync[F] { def F = CancelableAsync[F] }
+  implicit def catsOptionTConcurrent[F[_]: Concurrent]: Concurrent[OptionT[F, ?]] =
+    new OptionTConcurrent[F] { def F = Concurrent[F] }
 
   /**
-   * [[CancelableAsync]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `CancelableAsync`.
+   * [[Concurrent]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsStateTAsync[F[_]: CancelableAsync, S]: CancelableAsync[StateT[F, S, ?]] =
-    new StateTCAsync[F, S] { def F = CancelableAsync[F] }
+  implicit def catsStateTAsync[F[_]: Concurrent, S]: Concurrent[StateT[F, S, ?]] =
+    new StateTConcurrent[F, S] { def F = Concurrent[F] }
 
   /**
-   * [[CancelableAsync]] instance built for `cats.data.WriterT` values initialized
-   * with any `F` data type that also implements `CancelableAsync`.
+   * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsWriterTAsync[F[_]: CancelableAsync, L: Monoid]: CancelableAsync[WriterT[F, L, ?]] =
-    new WriterTCAsync[F, L] { def F = CancelableAsync[F]; def L = Monoid[L] }
+  implicit def catsWriterTAsync[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
+    new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTCAsync[F[_], L] extends Async.EitherTAsync[F, L]
-    with CancelableAsync[EitherT[F, L, ?]] {
+  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L]
+    with Concurrent[EitherT[F, L, ?]] {
 
-    override protected implicit def F: CancelableAsync[F]
+    override protected implicit def F: Concurrent[F]
     override protected def FF = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
@@ -275,10 +275,10 @@ object CancelableAsync {
         })
   }
 
-  private[effect] trait OptionTCAsync[F[_]] extends Async.OptionTAsync[F]
-    with CancelableAsync[OptionT[F, ?]] {
+  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F]
+    with Concurrent[OptionT[F, ?]] {
 
-    override protected implicit def F: CancelableAsync[F]
+    override protected implicit def F: Concurrent[F]
     override protected def FF = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
@@ -292,10 +292,10 @@ object CancelableAsync {
     }
   }
 
-  private[effect] trait StateTCAsync[F[_], S] extends Async.StateTAsync[F, S]
-    with CancelableAsync[StateT[F, S, ?]] {
+  private[effect] trait StateTConcurrent[F[_], S] extends Async.StateTAsync[F, S]
+    with Concurrent[StateT[F, S, ?]] {
 
-    override protected implicit def F: CancelableAsync[F]
+    override protected implicit def F: Concurrent[F]
     override protected def FA = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
@@ -309,10 +309,10 @@ object CancelableAsync {
       })
   }
 
-  private[effect] trait WriterTCAsync[F[_], L] extends Async.WriterTAsync[F, L]
-    with CancelableAsync[WriterT[F, L, ?]] {
+  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L]
+    with Concurrent[WriterT[F, L, ?]] {
 
-    override protected implicit def F: CancelableAsync[F]
+    override protected implicit def F: Concurrent[F]
     override protected def FA = F
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
