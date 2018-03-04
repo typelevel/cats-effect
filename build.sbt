@@ -266,23 +266,15 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .enablePlugins(JmhPlugin)
 
-lazy val microsite = project.in(file("site"))
-  .enablePlugins(MicrositesPlugin)
-  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
-  .settings(
+lazy val siteSettings = Seq(
     micrositeName := "Cats Effect",
     micrositeDescription := "The IO Monad for Cats",
     micrositeAuthor := "Cats Effect contributors",
     micrositeGithubOwner := "typelevel",
     micrositeGithubRepo := "cats-effect",
     micrositeBaseUrl := "/cats-effect",
-    micrositeExtraMdFiles := Map(
-      file("README.md") -> ExtraMdFileConfig(
-        "index.md",
-        "home",
-        Map("title" -> "Home", "section" -> "home", "position" -> "0")
-      )
-    ),
+    micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
+    //micrositeDataDirectory := (resourceDirectory in Compile).value / "microsite" / "data",
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",
@@ -292,8 +284,20 @@ lazy val microsite = project.in(file("site"))
       "gray" -> "#7B7B7E",
       "gray-light" -> "#E5E5E6",
       "gray-lighter" -> "#F4F3F4",
-      "white-color" -> "#FFFFFF")
-  )
+      "white-color" -> "#FFFFFF"),
+    micrositeExtraMdFiles := Map(
+      file("README.md") -> ExtraMdFileConfig(
+        "index.md",
+        "home",
+        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+      )
+    )
+)
+
+lazy val microsite = project.in(file("site"))
+  .enablePlugins(MicrositesPlugin)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(siteSettings)
   .dependsOn(coreJVM)
 
 /*
