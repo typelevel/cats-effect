@@ -439,7 +439,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: CancelableEffect[IO] = new CancelableEffect[IO] {
+  implicit val ioEffect: ConcurrentEffect[IO] = new ConcurrentEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
@@ -462,6 +462,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       fa.start
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
+    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
+      IO.race(fa, fb)
+    override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+      IO.racePair(fa, fb)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
     override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
@@ -633,6 +637,11 @@ object IO extends IOInstances {
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
+
+  /**
+   * A non-terminating `IO`, alias for `async(_ => ())`.
+   */
+  val never: IO[Nothing] = async(_ => ())
 
   /**
    * Lifts an `Eval` into `IO`.
@@ -870,6 +879,77 @@ object IO extends IOInstances {
         cb.async(Callback.rightUnit)
     }
   }
+
+  /**
+   * Run two IO tasks concurrently, and return the first to
+   * finish, either in success or error. The loser of the race is
+   * cancelled.
+   *
+   * The two tasks are executed in parallel if asynchronous,
+   * the winner being the first that signals a result.
+   *
+   * As an example, this is how a `timeout` operation could be
+   * implemented in terms of `race`:
+   *
+   * {{{
+   *   import cats.effect._
+   *   import scala.concurrent.duration._
+   *
+   *   def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])
+   *     (implicit timer: Timer[IO]): IO[A] = {
+   *
+   *     IO.race(io, timer.sleep(timer)).flatMap {
+   *       case Left((a, _)) => IO.pure(a)
+   *       case Right((_, _)) => fallback
+   *     }
+   *   }
+   *
+   *   def timeout[A](io: IO[A], after: FiniteDuration)
+   *     (implicit timer: Timer[IO]): IO[A] = {
+   *
+   *     timeoutTo(io, after,
+   *       IO.raiseError(new TimeoutException(after.toString)))
+   *   }
+   * }}}
+   *
+   * N.B. this is the implementation of [[Concurrent.race]].
+   *
+   * Also see [[racePair]] for a version that does not cancel
+   * the loser automatically on successful results.
+   */
+  def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] =
+    IORace.simple(lh, rh)
+
+  /**
+   * Run two IO tasks concurrently, and returns a pair
+   * containing both the winner's successful value and the loser
+   * represented as a still-unfinished task.
+   *
+   * If the first task completes in error, then the result will
+   * complete in error, the other task being cancelled.
+   *
+   * On usage the user has the option of cancelling the losing task,
+   * this being equivalent with plain [[race]]:
+   *
+   * {{{
+   *   val ioA: IO[A] = ???
+   *   val ioB: IO[B] = ???
+   *
+   *   IO.racePair(ioA, ioB).flatMap {
+   *     case Left((a, fiberB)) =>
+   *       fiberB.cancel.map(_ => a)
+   *     case Right((fiberA, b)) =>
+   *       fiberA.cancel.map(_ => b)
+   *   }
+   * }}}
+   *
+   * N.B. this is the implementation of [[Concurrent.racePair]].
+   *
+   * See [[race]] for a simpler version that cancels the loser
+   * immediately.
+   */
+  def racePair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+    IORace.pair(lh, rh)
 
   private[effect] final case class Pure[+A](a: A)
     extends IO[A]

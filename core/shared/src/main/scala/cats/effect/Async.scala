@@ -68,7 +68,7 @@ import scala.util.Either
  * which will return a "task ID" that can be used to cancel it.
  *
  * N.B. this type class in particular is NOT describing cancelable
- * async processes, see the [[CancelableAsync]] type class for that.
+ * async processes, see the [[Concurrent]] type class for that.
  *
  * ==Async Type class==
  *
@@ -86,7 +86,7 @@ import scala.util.Either
  * }}}
  *
  * N.B. such asynchronous processes are not cancelable.
- * See the [[CancelableAsync]] alternative for that.
+ * See the [[Concurrent]] alternative for that.
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
@@ -112,7 +112,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    *
    * N.B. expressing this conversion in terms of `Async` and its
    * capabilities means that the resulting `F` is not cancelable.
-   * [[CancelableAsync]] then overrides this with an implementation
+   * [[Concurrent]] then overrides this with an implementation
    * that is.
    *
    * To access this implementation as a standalone function, you can
@@ -123,6 +123,13 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 }
 
 object Async {
+  /**
+   * Returns an non-terminating `F[_]`, that never completes
+   * with a result, being equivalent with `async(_ => ())`.
+   */
+  def never[F[_], A](implicit F: Async[F]): F[A] =
+    F.async(_ => ())
+
   /**
    * Generic shift operation, defined for any `Async` data type.
    *

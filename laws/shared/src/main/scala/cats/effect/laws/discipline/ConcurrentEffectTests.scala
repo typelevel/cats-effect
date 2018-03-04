@@ -19,15 +19,14 @@ package effect
 package laws
 package discipline
 
-import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
-trait CancelableAsyncTests[F[_]] extends AsyncTests[F] {
-  def laws: CancelableAsyncLaws[F]
+trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F] {
+  def laws: ConcurrentEffectLaws[F]
 
-  def cancelableAsync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def concurrentEffect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
@@ -47,26 +46,26 @@ trait CancelableAsyncTests[F[_]] extends AsyncTests[F] {
     EqT: Eq[Throwable],
     EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
+    EqIOA: Eq[IO[A]],
+    EqIOU: Eq[IO[Unit]],
+    EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
     iso: Isomorphisms[F]): RuleSet = {
     new RuleSet {
-      val name = "cancelableAsync"
+      val name = "concurrentEffect"
       val bases = Nil
-      val parents = Seq(async[A, B, C])
+      val parents = Seq(concurrent[A, B, C], effect[A, B, C])
       val props = Seq(
-        "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
-        "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
-        "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
-        "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
-        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _))
+        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
+        "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
+        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _))
     }
   }
 }
 
-object CancelableAsyncTests {
-  def apply[F[_]: CancelableAsync]: CancelableAsyncTests[F] = new CancelableAsyncTests[F] {
-    def laws = CancelableAsyncLaws[F]
+object ConcurrentEffectTests {
+  def apply[F[_]: ConcurrentEffect]: ConcurrentEffectTests[F] = new ConcurrentEffectTests[F] {
+    def laws = ConcurrentEffectLaws[F]
   }
 }

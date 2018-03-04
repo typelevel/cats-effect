@@ -19,7 +19,7 @@ package effect
 
 import java.util.concurrent.atomic.AtomicInteger
 import cats.effect.internals.{Callback, IOPlatform}
-import cats.effect.laws.discipline.{CancelableEffectTests, EffectTests}
+import cats.effect.laws.discipline.ConcurrentEffectTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
@@ -31,7 +31,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOTests extends BaseTestsSuite {
-  checkAllAsync("IO", implicit ec => CancelableEffectTests[IO].cancelableEffect[Int, Int, Int])
+  checkAllAsync("IO", implicit ec => ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
 
@@ -40,7 +40,7 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO(defaults)", implicit ec => {
     implicit val ioEffect = IOTests.ioEffectDefaults
-    EffectTests[IO].effect[Int, Int, Int]
+    ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
   })
 
   test("IO.Par's applicative instance is different") {
