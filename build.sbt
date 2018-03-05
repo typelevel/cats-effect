@@ -144,49 +144,10 @@ val mimaSettings = Seq(
     val TagBase(major, minor) = BaseVersion
 
     val tags = "git tag --list".!! split "\n" map { _.trim }
-
     val versions =
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
-    versions map { v => organization.value %% name.value % v } toSet
-  },
-  mimaBinaryIssueFilters ++= {
-    import com.typesafe.tools.mima.core._
-    import com.typesafe.tools.mima.core.ProblemFilters._
-    Seq(
-      exclude[MissingTypesProblem]("cats.effect.Sync$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.EffectInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.SyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOLowPriorityInstances"),
-      exclude[MissingTypesProblem]("cats.effect.Async$"),
-      exclude[MissingTypesProblem]("cats.effect.IO$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.LiftIOInstances"),
-      exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
-      exclude[MissingTypesProblem]("cats.effect.Effect$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances"),
-      // Work on cancelable IO
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
-      // Work on cancelable hierarchy
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.AsyncStart.start"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.cancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift"),
-      // Scala < 2.12
-      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#WriterTAsync.cancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#OptionTAsync.cancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#EitherTAsync.cancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runCancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.AsyncStart#Ops.start"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.AsyncInstances#StateTAsync.cancelable")
-    )
+    versions.map { v => organization.value %% name.value % v }.toSet
   }
 )
 
