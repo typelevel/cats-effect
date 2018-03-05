@@ -20,9 +20,9 @@ package laws
 package discipline
 
 import cats.effect.IO.Par
-import org.scalacheck._
+import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
-import scala.concurrent.Future
+import org.scalacheck._
 import scala.util.Either
 
 object arbitrary {
@@ -90,6 +90,11 @@ object arbitrary {
       f2 <- getArbitrary[A => A]
     } yield ioa.map(f1).map(f2)
 
-  implicit def catsEffectLawsCogenForIO[A](implicit cgfa: Cogen[Future[A]]): Cogen[IO[A]] =
-    cgfa.contramap((ioa: IO[A]) => ioa.unsafeToFuture())
+  implicit def catsEffectLawsCogenForIO[A, B](implicit cga: Cogen[A]): Cogen[IO[A]] =
+    Cogen { (seed, io) =>
+      IORunLoop.step(io) match {
+        case IO.Pure(a) => cga.perturb(seed, a)
+        case _ => seed
+      }
+    }
 }
