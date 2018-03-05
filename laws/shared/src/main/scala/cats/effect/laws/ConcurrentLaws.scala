@@ -83,7 +83,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def onCancelRaiseErrorCanCancelSource[A](a: A, e: Throwable) = {
     val lh = Pledge[F, A].flatMap { effect =>
       val async = F.cancelable[Unit](_ => effect.complete[IO](a))
-      F.start(F.onCancelRaiseError(async, e)).flatMap(_.cancel) *> effect.await
+      F.start(F.onCancelRaiseError(async, e))
+        .flatMap(_.cancel) *> effect.await
     }
     lh <-> F.pure(a)
   }

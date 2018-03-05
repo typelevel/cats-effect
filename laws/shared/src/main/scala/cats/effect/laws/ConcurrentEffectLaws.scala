@@ -40,7 +40,7 @@ trait ConcurrentEffectLaws[F[_]] extends EffectLaws[F] with ConcurrentLaws[F] {
     lh <-> IO.unit
   }
 
-  def runCancelableStartCancelCoherence[A](a: A, f: (A, A) => A) = {
+  def runCancelableStartCancelCoherence[A](a: A) = {
     // Cancellation via runCancelable
     val f1 = Pledge[IO, A].flatMap { effect1 =>
       val never = F.cancelable[A](_ => effect1.complete[IO](a))
