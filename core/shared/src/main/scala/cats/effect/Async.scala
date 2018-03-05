@@ -75,8 +75,12 @@ import scala.util.Either
  * This type class allows the modeling of data types that:
  *
  *  1. can start asynchronous processes
- *  1. emit exactly one result on completion
+ *  1. can emit one result on completion
  *  1. can end in error
+ *
+ * N.B. on the "one result" signaling, this is not an ''exactly once''
+ * requirement. At this point streaming types can implement `Async`
+ * and such an ''exactly once'' requirement is only clear in [[Effect]].
  *
  * Therefore the signature exposed by the [[Async!.async async]]
  * builder is this:

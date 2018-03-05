@@ -47,8 +47,8 @@ import scala.util.Either
  *
  * ==Cancelable builder==
  *
- * Therefore the signature exposed by the
- * [[Concurrent!.cancelable cancelable]] builder is this:
+ * The signature exposed by the [[Concurrent!.cancelable cancelable]]
+ * builder is this:
  *
  * {{{
  *   (Either[Throwable, A] => Unit) => F[Unit]
