@@ -38,11 +38,11 @@ import scala.util.Either
  *     (in its [[Concurrent!.cancelable cancelable]] builder)
  *
  * Due to these restrictions, this type class also affords to describe
- * a [[Concurrent!.start start]] that can start async processing,
- * suspended in the context of `F[_]` and that can be cancelled or
- * joined.
+ * a [[Concurrent!.start start]] operation that can start async
+ * processing, suspended in the context of `F[_]` and that can be
+ * cancelled or joined.
  *
- * Without cancellation being baked in, we couldn't afford do it.
+ * Without cancellation being baked in, we couldn't afford to do it.
  * See below.
  *
  * ==Cancelable builder==
