@@ -22,7 +22,6 @@ import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.{ExecutionContext, Promise}
 
 private[effect] object IOStart {
-
   /**
    * Implementation for `IO.start`.
    */

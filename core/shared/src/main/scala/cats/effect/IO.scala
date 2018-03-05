@@ -460,6 +460,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.suspend(thunk)
     override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
+    override def uncancelable[A](fa: IO[A]): IO[A] =
+      fa.uncancelable
+    override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
+      fa.onCancelRaiseError(e)
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
