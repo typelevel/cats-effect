@@ -23,8 +23,8 @@ It does all of that in an `F[_]` monadic context that can suspend side effects a
 
 This is NOT a typeclass, as it does not have the coherence requirement.
 
-```scala
-import scala.concurrent.duration.FiniteDuration
+```tut:book:silent
+import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 trait Timer[F[_]] {
   def clockRealTime(unit: TimeUnit): F[Long]

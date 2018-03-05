@@ -274,7 +274,6 @@ lazy val siteSettings = Seq(
     micrositeGithubRepo := "cats-effect",
     micrositeBaseUrl := "/cats-effect",
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
-    //micrositeDataDirectory := (resourceDirectory in Compile).value / "microsite" / "data",
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",
@@ -291,6 +290,14 @@ lazy val siteSettings = Seq(
         "home",
         Map("title" -> "Home", "section" -> "home", "position" -> "0")
       )
+    ),
+    fork in tut := true,
+    scalacOptions in Tut --= Seq(
+      "-Xfatal-warnings",
+      "-Ywarn-unused-import",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-dead-code",
+      "-Xlint:-missing-interpolator,_",
     )
 )
 

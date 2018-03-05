@@ -9,7 +9,7 @@ scaladoc: "#cats.effect.Effect"
 
 A `Monad` that can suspend side effects into the `F[_]` context and supports lazy and potentially asynchronous evaluation.
 
-```scala
+```tut:book:silent
 import cats.effect.{Async, IO}
 
 trait Effect[F[_]] extends Async[F] {
@@ -19,15 +19,16 @@ trait Effect[F[_]] extends Async[F] {
 
 `runAsync` represents the intention to evaluate a given effect in the context of `F[_]` asynchronously and gives you back an `IO[A]`. Eg.:
 
-```scala
-import cats.effect.{Effect, IO}
-import monix.eval.Task
+```tut:book
+import cats.effect.Effect
 
-val task = Task("Hello World!")
+val task = IO("Hello World!")
 
-val ioa: IO[String] =
-  Effect[Task].runAsync(task) {
+val ioa: IO[Unit] =
+  Effect[IO].runAsync(task) {
     case Right(value) => IO(println(value))
     case Left(error)  => IO.raiseError(error)
   }
+
+ioa.unsafeRunSync()
 ```

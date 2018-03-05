@@ -21,9 +21,11 @@ trait Fiber[F[+_], +A] {
 
 For example a `Fiber` value is the result of evaluating `IO.start`:
 
-```scala
+```tut:book
 import cats.effect.{Fiber, IO}
-import cats.syntax.apply._
+import cats.implicits._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 val io = IO.shift *> IO(println("Hello!"))
 val fiber: IO[Fiber[IO, Unit]] = io.start
@@ -31,11 +33,9 @@ val fiber: IO[Fiber[IO, Unit]] = io.start
 
 Usage example:
 
-```scala
-import cats.effect.IO
-import cats.implicits._
-
+```tut:book
 val launchMissiles = IO.raiseError(new Exception("boom!"))
+val runToBunker = IO(println("To the bunker!!!"))
 
 for {
   fiber     <- IO.shift *> launchMissiles.start

@@ -10,7 +10,7 @@ scaladoc: "#cats.effect.Sync"
 
 A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 
-```scala
+```tut:book:silent
 import cats.MonadError
 
 trait Sync[F[_]] extends MonadError[F, Throwable] {
@@ -23,10 +23,11 @@ This is the most basic interface that represents the suspension of synchronous s
 
 Examples:
 
-```scala
+```tut:book
 import cats.effect.{IO, Sync}
 
-val sync = Sync[IO].delay(println("Hello world!"))
+val ioa = Sync[IO].delay(println("Hello world!"))
+ioa.unsafeRunSync()
 ```
 
 So basically using `Sync[IO].delay` is equivalent to using `IO.apply`.
