@@ -93,10 +93,10 @@ private[effect] object IORace {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
       val connL = IOConnection()
-      val promiseL = Promise[A]()
+      val promiseL = Promise[Either[Throwable, A]]()
       // Cancelable connection for the right value
       val connR = IOConnection()
-      val promiseR = Promise[B]()
+      val promiseR = Promise[Either[Throwable, B]]()
 
       // Starts concurrent execution for the left value
       IORunLoop.startCancelable[A](lh, connL, {

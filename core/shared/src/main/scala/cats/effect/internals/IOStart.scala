@@ -32,12 +32,12 @@ private[effect] object IOStart {
       ec.execute(new Runnable {
         def run(): Unit = {
           // Memoization
-          val p = Promise[A]()
+          val p = Promise[Either[Throwable, A]]()
 
           // Starting the source `IO`, with a new connection, because its
           // cancellation is now decoupled from our current one
           val conn2 = IOConnection()
-          IORunLoop.startCancelable(fa, conn2, Callback.promise(p))
+          IORunLoop.startCancelable(fa, conn2, p.success)
 
           // Building a memoized IO - note we cannot use `IO.fromFuture`
           // because we need to link this `IO`'s cancellation with that

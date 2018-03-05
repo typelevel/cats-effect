@@ -34,19 +34,20 @@ private[effect] final case class IOFiber[A](join: IO[A])
 
 private[effect] object IOFiber {
   /** Internal API */
-  def build[A](p: Promise[A], conn: IOConnection): Fiber[IO, A] =
-    IOFiber(IO.Async[A] { (ctx2, cb2) =>
+  def build[A](p: Promise[Either[Throwable, A]], conn: IOConnection): Fiber[IO, A] =
+    IOFiber(IO.Async[A] { (ctx, cb) =>
       implicit val ec = TrampolineEC.immediate
 
       // Short-circuit for already completed `Future`
       p.future.value match {
-        case Some(value) => cb2.completeWithTryAsync(value)
+        case Some(value) =>
+          cb.async(value.get)
         case None =>
           // Cancellation needs to be linked to the active task
-          ctx2.push(conn.cancel)
+          ctx.push(conn.cancel)
           p.future.onComplete { r =>
-            ctx2.pop()
-            cb2.completeWithTry(r)
+            ctx.pop()
+            cb(r.get)
           }
       }
     })
