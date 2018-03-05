@@ -50,7 +50,9 @@ In the example above `ioa` will have a successful value `A` or it will be raise 
 
 ### shift
 
-The `shift` method allows you to process the next computation in the desired `ExecutionContext`. Consider the following example:
+`shift`’s functionality is a little complicated, but generally speaking, you should think of it as a “force this `F[_]` onto this other thread pool” function. Of course, when `ioa` from the example above executes, most of its work isn’t done on any thread at all (since it is simply registering a hook with the kernel), and so that work isn’t thread shifted to any pool, main or otherwise. But when `ioa` gets back to us with the api call response, the callback will be handled and then immediately thread-shifted back onto the main pool, which is passed implicitly as a parameter `ExecutionContext` to shift (you can also pass this explicitly if you like). This thread-shifting means that all of the subsequent actions within the for-comprehension – which is to say, the continuation of `ioa` – will be run on the ec thread pool. This is an extremely common use-case in practice, and `IO` attempts to make it as straightforward as possible.
+
+Another possible application of thread shifting is ensuring that a blocking `IO` action is relocated from the main, CPU-bound thread pool onto one of the pools designated for blocking IO. Consider the following example:
 
 ```tut:book
 import java.util.concurrent.Executors
