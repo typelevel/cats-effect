@@ -68,11 +68,11 @@ private[effect] abstract class SyncInstances {
         (release: (A, BracketResult[Throwable]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] = {
 
         acquire.flatMap { a =>
-          EitherT(use(a).value.flatMap { etb =>
+          EitherT(FlatMap[Eval].flatTap(use(a).value){ etb =>
             release(a, etb match {
               case Left(e) => BracketResult.Error(e)
               case Right(_) => BracketResult.Completed
-            }).value.map(_ => etb)
+            }).value
           })
         }
       }
@@ -216,7 +216,7 @@ private[effect] abstract class SyncInstances {
       StateT.applyF(F.suspend(thunk.runF))
   }
 
-  private[effect] trait WriterTSync[F[_], L] extends Sync[({type λ[α] = WriterT[F, L, α]})#λ] {
+  private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
     protected def F: Sync[F]
     private implicit def _F = F
 
