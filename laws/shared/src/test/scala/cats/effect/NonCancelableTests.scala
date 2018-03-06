@@ -15,16 +15,16 @@
  */
 
 package cats.effect
-package internals
+
+import cats.effect.laws.discipline.EffectTests
+import cats.effect.laws.discipline.arbitrary._
+import cats.implicits._
 
 /**
- * INTERNAL API - [[Fiber]] instantiated for [[IO]].
- *
- * Not exposed, the `IO` implementation exposes [[Fiber]] directly.
+ * Tests laws for a dummy data type that is not
+ * cancelable, unlike the reference `IO`.
  */
-private[effect] final case class IOFiber[A](join: IO[A])
-  extends Fiber[IO, A] {
-
-  def cancel: IO[Unit] =
-    IOCancel.signal(join)
+class NonCancelableTests extends BaseTestsSuite {
+  // Effect, w00t!
+  checkAllAsync("LTask", implicit ec => EffectTests[LTask].effect[Int, Int, Int])
 }

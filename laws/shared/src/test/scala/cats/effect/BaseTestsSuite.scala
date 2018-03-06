@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
-import cats.kernel.Eq
 import org.scalactic.source
 import org.scalatest.prop.Checkers
 import org.scalatest.{FunSuite, Matchers, Tag}
@@ -45,8 +44,4 @@ class BaseTestsSuite extends FunSuite with Matchers with Checkers with Disciplin
         silenceSystemErr(check(prop))
       }
   }
-
-  /** For discipline tests. */
-  implicit def eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals[Throwable]
 }

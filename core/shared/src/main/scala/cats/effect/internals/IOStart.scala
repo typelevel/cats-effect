@@ -22,7 +22,6 @@ import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.{ExecutionContext, Promise}
 
 private[effect] object IOStart {
-
   /**
    * Implementation for `IO.start`.
    */
@@ -33,12 +32,12 @@ private[effect] object IOStart {
       ec.execute(new Runnable {
         def run(): Unit = {
           // Memoization
-          val p = Promise[A]()
+          val p = Promise[Either[Throwable, A]]()
 
           // Starting the source `IO`, with a new connection, because its
           // cancellation is now decoupled from our current one
           val conn2 = IOConnection()
-          IORunLoop.startCancelable(fa, conn2, Callback.promise(p))
+          IORunLoop.startCancelable(fa, conn2, p.success)
 
           // Building a memoized IO - note we cannot use `IO.fromFuture`
           // because we need to link this `IO`'s cancellation with that
@@ -46,13 +45,14 @@ private[effect] object IOStart {
           val io = IO.Async[A] { (ctx2, cb2) =>
             // Short-circuit for already completed `Future`
             p.future.value match {
-              case Some(value) => cb2.completeWithTryAsync(value)
+              case Some(value) =>
+                cb2.async(value.get)
               case None =>
                 // Cancellation needs to be linked to the active task
                 ctx2.push(conn2.cancel)
                 p.future.onComplete { r =>
                   ctx2.pop()
-                  cb2.completeWithTry(r)
+                  cb2(r.get)
                 }
             }
           }

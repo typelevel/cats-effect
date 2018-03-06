@@ -47,7 +47,7 @@ package cats.effect
  *   }
  * }}}
  */
-trait Fiber[F[+_], +A] {
+trait Fiber[F[_], A] {
   /**
    * Triggers the cancellation of the fiber.
    *
@@ -66,4 +66,15 @@ trait Fiber[F[+_], +A] {
    * until that result is available.
    */
   def join: F[A]
+}
+
+object Fiber {
+  /**
+   * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
+   */
+  def apply[F[_], A](join: F[A], cancel: F[Unit]): Fiber[F, A] =
+    Tuple(join, cancel)
+
+  private final case class Tuple[F[_], A](join: F[A], cancel: F[Unit])
+    extends Fiber[F, A]
 }

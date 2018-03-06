@@ -35,7 +35,7 @@ private[effect] object IOCancel {
           // IOConnection.alreadyCanceled which will cancel any pushed cancelable
           // tokens along the way and also return `false` on `isCanceled`
           // (relevant for `IO.cancelBoundary`)
-          IORunLoop.startCancelable(fa, IOConnection.alreadyCanceled, Callback.report)
+          IORunLoop.startCancelable(fa, IOConnection.alreadyCanceled, Callback.dummy1)
           cb(rightUnit)
         }
       })
@@ -72,13 +72,13 @@ private[effect] object IOCancel {
     }
 
   private final class RaiseCallback[A](
-    waitsForResult: AtomicBoolean,
+    active: AtomicBoolean,
     conn: IOConnection,
     cb: Callback[A])
     extends Callback[A] {
 
     def apply(value: Either[Throwable, A]): Unit =
-      if (waitsForResult.getAndSet(false)) {
+      if (active.getAndSet(false)) {
         conn.pop()
         ec.execute(new Runnable { def run() = cb(value) })
       } else value match {
@@ -88,13 +88,13 @@ private[effect] object IOCancel {
   }
 
   private final class RaiseCancelable[A](
-    waitsForResult: AtomicBoolean,
+    active: AtomicBoolean,
     cb: Either[Throwable, A] => Unit,
     e: Throwable)
     extends (() => Unit) {
 
     def apply(): Unit =
-      if (waitsForResult.getAndSet(false)) {
+      if (active.getAndSet(false)) {
         ec.execute(new Runnable { def run() = cb(Left(e)) })
       }
   }
