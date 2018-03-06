@@ -38,7 +38,7 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
  * It does all of that in an `F` monadic context that can suspend
  * side effects and is capable of asynchronous execution (e.g. [[IO]]).
  *
- * This is NOT a type-class, as it does not have the coherence
+ * This is NOT a type class, as it does not have the coherence
  * requirement.
  */
 @implicitNotFound("""Cannot find implicit value for Timer[${F}].
