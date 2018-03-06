@@ -329,7 +329,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   val ioA: IO[A] = ???
    *   val ioB: IO[B] = ???
    *
-   *   Race[IO].racePair(ioA, ioB).flatMap {
+   *   Concurrent[IO].racePair(ioA, ioB).flatMap {
    *     case Left((a, fiberB)) =>
    *       fiberB.cancel.map(_ => a)
    *     case Right((fiberA, b)) =>
@@ -357,7 +357,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   import scala.concurrent.duration._
    *
    *   def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])
-   *     (implicit F: Race[F], timer: Timer[F]): F[A] = {
+   *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
    *
    *      F.race(fa, timer.sleep(timer)).flatMap {
    *        case Left((a, _)) => F.pure(a)
@@ -366,7 +366,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   }
    *
    *   def timeout[F[_], A](fa: F[A], after: FiniteDuration)
-   *     (implicit F: Race[F], timer: Timer[F]): F[A] = {
+   *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
    *
    *      timeoutTo(fa, after,
    *        F.raiseError(new TimeoutException(after.toString)))
