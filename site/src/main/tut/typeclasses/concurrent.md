@@ -20,9 +20,7 @@ Due to these restrictions, this type class also affords to describe a `Concurren
 Without cancelation being baked in, we couldn't afford to do it.
 
 ```tut:book:silent
-import cats.effect.{Async, IO}
-
-trait Fiber[F[_], A] // TODO: Remove this and import cats.effect.Fiber
+import cats.effect.{Async, Fiber, IO}
 
 trait Concurrent[F[_]] extends Async[F] {
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]

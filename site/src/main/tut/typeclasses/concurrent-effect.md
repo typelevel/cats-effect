@@ -15,9 +15,7 @@ In addition to the algebras of `Concurrent` and `Effect`, instances must also im
 *Note this is the safe and generic version of `IO.unsafeRunCancelable`*.
 
 ```tut:book:silent
-import cats.effect.{Effect, IO}
-
-trait Concurrent[F[_]] // TODO: Remove this and import cats.effect.Concurrent
+import cats.effect.{Concurrent, Effect, IO}
 
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
   def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]]
