@@ -65,7 +65,15 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
         "uncancelable prevents cancelation" -> forAll(laws.uncancelablePreventsCancelation[A] _),
         "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
         "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
-        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _))
+        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
+        "race mirrors left winner" -> forAll(laws.raceMirrorsLeftWinner[A] _),
+        "race mirrors right winner" -> forAll(laws.raceMirrorsRightWinner[A] _),
+        "race cancels loser" -> forAll(laws.raceCancelsLoser[A, B] _),
+        "race cancels both" -> forAll(laws.raceCancelsBoth[A, B, C] _),
+        "race pair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
+        "race pair map2 coherence" -> forAll(laws.racePairMap2Coherence[A, B, C] _),
+        "race pair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _)
+      )
     }
   }
 }

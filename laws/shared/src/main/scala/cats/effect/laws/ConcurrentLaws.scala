@@ -20,7 +20,6 @@ package laws
 import cats.effect.laws.util.Pledge
 import cats.laws._
 import cats.syntax.all._
-import scala.Predef.{identity => id}
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
@@ -90,55 +89,84 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.pure(a)
   }
 
-  def raceMirrorsLeftWinner[A](fa: F[A]) = {
-    F.race(fa, Async.never[F, A]) <-> fa.map(a => Left(a))
+  def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
+    F.race(fa, Async.never[F, A]).map(_.left.getOrElse(default)) <-> fa
   }
 
-  def raceMirrorsRightWinner[A](fa: F[A]) = {
-    F.race(Async.never[F, A], fa) <-> fa.map(a => Right(a))
+  def raceMirrorsRightWinner[A](fa: F[A], default: A) = {
+    F.race(Async.never[F, A], fa).map(_.right.getOrElse(default)) <-> fa
   }
 
-  def raceCancelsLeftLoser[A, B](a: A, fb: F[B]) = {
-    val received = Pledge[F, A].flatMap { effect =>
-      val loser = F.cancelable[A](_ => effect.complete[IO](a))
-      F.race(loser, fb) *> effect.await
-    }
-    received <-> F.pure(a)
-  }
-
-  def raceCancelsRightLoser[A, B](fa: F[A], b: B) = {
+  def raceCancelsLoser[A, B](winner: Either[F[A], F[A]], b: B) = {
     val received = Pledge[F, B].flatMap { effect =>
       val loser = F.cancelable[A](_ => effect.complete[IO](b))
-      F.race(fa, loser) *> effect.await
+      val race = winner match {
+        case Left(fa) => F.race(fa, loser)
+        case Right(fa) => F.race(loser, fa)
+      }
+      race.attempt *> effect.await
     }
     received <-> F.pure(b)
   }
 
-  def racePairWinnerCanCancelLoser[A, B](winner: Either[F[A], F[A]], b: B) = {
+  def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
+    val fc = for {
+      pa <- Pledge[F, A]
+      loserA = F.cancelable[A](_ => pa.complete[IO](a))
+      pb <- Pledge[F, B]
+      loserB = F.cancelable[B](_ => pb.complete[IO](b))
+      race <- F.start(F.race(loserA, loserB))
+      _ <- race.cancel
+      a <- pa.await[F]
+      b <- pb.await[F]
+    } yield f(a, b)
+
+    fc <-> F.pure(f(a, b))
+  }
+
+  def racePairCancelsLoser[A, B](winner: Either[F[A], F[A]], b: B) = {
     val received = Pledge[F, B].flatMap { effect =>
       val loser = F.cancelable[A](_ => effect.complete[IO](b))
       val race = winner match {
         case Left(lh) => F.racePair(lh, loser)
         case Right(rh) => F.racePair(loser, rh)
       }
-
-      race.flatMap {
-        case Left((a, fiber)) =>
-          fiber.cancel *> effect.await[F].map((a, _))
-        case Right((fiber, a)) =>
-          fiber.cancel *> effect.await[F].map((a, _))
+      race.attempt.flatMap {
+        case Right(Left((_, fiber))) =>
+          fiber.cancel *> effect.await[F]
+        case Right(Right((fiber, _))) =>
+          fiber.cancel *> effect.await[F]
+        case Left(_) =>
+          effect.await[F]
       }
     }
-    received <-> winner.fold(id, id).map(a => (a, b))
+    received <-> F.pure(b)
   }
 
   def racePairMap2Coherence[A, B, C](fa: F[A], fb: F[B], f: (A, B) => C) = {
     val received =
       F.racePair(fa, fb).flatMap {
-        case Left((a, fiberB)) => fiberB.join.map(b => f(a, b))
-        case Right((fiberA, b)) => fiberA.join.map(a => f(a, b))
+        case Left((a, fiberB)) =>
+          fiberB.join.map(b => f(a, b))
+        case Right((fiberA, b)) =>
+          fiberA.join.map(a => f(a, b))
       }
     received <-> F.map2(fa, fb)(f)
+  }
+
+  def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
+    val fc = for {
+      pa <- Pledge[F, A]
+      loserA = F.cancelable[A](_ => pa.complete[IO](a))
+      pb <- Pledge[F, B]
+      loserB = F.cancelable[B](_ => pb.complete[IO](b))
+      race <- F.start(F.racePair(loserA, loserB))
+      _ <- race.cancel
+      a <- pa.await[F]
+      b <- pb.await[F]
+    } yield f(a, b)
+
+    fc <-> F.pure(f(a, b))
   }
 }
 
