@@ -105,7 +105,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         if (leftWinner) F.race(winner, loser)
         else F.race(loser, winner)
 
-      race.attempt *> effect.await
+      F.attempt(race) *> effect.await
     }
     received <-> F.pure(b)
   }
@@ -135,14 +135,14 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received = Pledge[F, B].flatMap { effect =>
+    val received: F[B] = Pledge[F, B].flatMap { effect =>
       val winner = F.async[A](_(r))
       val loser = F.cancelable[A](_ => effect.complete[IO](b))
       val race =
         if (leftWinner) F.racePair(winner, loser)
         else F.racePair(loser, winner)
 
-      race.attempt.flatMap {
+      F.attempt(race).flatMap {
         case Right(Left((_, fiber))) =>
           fiber.cancel *> effect.await[F]
         case Right(Right((fiber, _))) =>
