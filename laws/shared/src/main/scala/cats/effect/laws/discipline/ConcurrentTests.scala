@@ -47,6 +47,7 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
     EqT: Eq[Throwable],
     EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
+    EqFEitherAB: Eq[F[Either[A, B]]],
     EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
@@ -70,10 +71,11 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
         "race mirrors right winner" -> forAll(laws.raceMirrorsRightWinner[A] _),
         "race cancels loser" -> forAll(laws.raceCancelsLoser[A, B] _),
         "race cancels both" -> forAll(laws.raceCancelsBoth[A, B, C] _),
-        "race pair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
-        "race pair map2 coherence" -> forAll(laws.racePairMap2Coherence[A, B, C] _),
-        "race pair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _)
-      )
+        "racePair derives race" -> forAll(laws.racePairDerivesRace[A, B] _),
+        "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
+        "racePair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _),
+        "racePair can join left" -> forAll(laws.racePairCanJoinLeft[A] _),
+        "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _))
     }
   }
 }

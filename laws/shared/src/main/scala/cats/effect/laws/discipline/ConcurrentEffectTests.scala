@@ -46,6 +46,7 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     EqT: Eq[Throwable],
     EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
+    EqFEitherAB: Eq[F[Either[A, B]]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
     EqIOA: Eq[IO[A]],
