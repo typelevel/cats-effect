@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "Effect"
-number: 5
+number: 7
 source: "shared/src/main/scala/cats/effect/Effect.scala"
 scaladoc: "#cats.effect.Effect"
 ---

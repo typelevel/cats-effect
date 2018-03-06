@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "Timer"
-number: 8
+number: 11
 source: "shared/src/main/scala/cats/effect/Timer.scala"
 scaladoc: "#cats.effect.Timer"
 ---

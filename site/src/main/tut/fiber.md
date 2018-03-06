@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "Fiber"
-number: 7
+number: 10
 source: "shared/src/main/scala/cats/effect/Fiber.scala"
 scaladoc: "#cats.effect.Fiber"
 ---
@@ -13,7 +13,7 @@ It represents the (pure) result of an `Async` data type (e.g. `IO`) being starte
 You can think of fibers as being lightweight threads, a fiber being a concurrency primitive for doing cooperative multi-tasking.
 
 ```scala
-trait Fiber[F[+_], +A] {
+trait Fiber[F[_], A] {
   def cancel: F[Unit]
   def join: F[A]
 }

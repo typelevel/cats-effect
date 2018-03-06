@@ -1,20 +1,29 @@
 options:
   - title: Type Classes
-    url: typeclasses.html
+    url: typeclasses/typeclasses.html
     menu_section: typeclasses
 
     nested_options:
-      - title: LiftIO
-        url: liftio.html
+      - title: Bracket
+        url: typeclasses/bracket.html
         menu_section: typeclasses
       - title: Sync
-        url: sync.html
+        url: typeclasses/sync.html
+        menu_section: typeclasses
+      - title: LiftIO
+        url: typeclasses/liftio.html
         menu_section: typeclasses
       - title: Async
-        url: async.html
+        url: typeclasses/async.html
+        menu_section: typeclasses
+      - title: Concurrent
+        url: typeclasses/concurrent.html
         menu_section: typeclasses
       - title: Effect
-        url: effect.html
+        url: typeclasses/effect.html
+        menu_section: typeclasses
+      - title: ConcurrentEffect
+        url: typeclasses/concurrent-effect.html
         menu_section: typeclasses
 
   - title: IO

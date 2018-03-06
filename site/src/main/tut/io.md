@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "IO"
-number: 6
+number: 9
 source: "shared/src/main/scala/cats/effect/IO.scala"
 scaladoc: "#cats.effect.IO"
 ---

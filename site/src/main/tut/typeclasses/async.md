@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "Async"
-number: 4
+number: 5
 source: "core/shared/src/main/scala/cats/effect/Async.scala"
 scaladoc: "#cats.effect.Async"
 ---

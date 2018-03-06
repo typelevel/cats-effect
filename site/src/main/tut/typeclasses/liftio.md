@@ -1,7 +1,7 @@
 ---
 layout: docs
 title:  "LiftIO"
-number: 2
+number: 4
 source: "shared/src/main/scala/cats/effect/LiftIO.scala"
 scaladoc: "#cats.effect.LiftIO"
 ---
