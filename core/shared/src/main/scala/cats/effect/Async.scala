@@ -136,7 +136,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    * with a concrete, non-polymorphic implementation.
    */
   @deprecated("Moved to Async$.shift, will be removed in 1.0", "0.10")
-  def shift(ec: ExecutionContext): F[Unit] = {
+  private[effect] def shift(ec: ExecutionContext): F[Unit] = {
     // $COVERAGE-OFF$
     Async.shift(ec)(this)
     // $COVERAGE-ON$
