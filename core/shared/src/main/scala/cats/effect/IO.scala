@@ -753,14 +753,13 @@ object IO extends IOInstances {
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](iof: IO[Future[A]])
-    (implicit ec: ExecutionContext = null): IO[A] =
+  def fromFuture[A](iof: IO[Future[A]]): IO[A] =
     iof.flatMap { f =>
       IO.async { cb =>
         f.onComplete(r => cb(r match {
           case Success(a) => Right(a)
           case Failure(e) => Left(e)
-        }))(if (ec == null) immediate else ec)
+        }))(immediate)
       }
     }
 

@@ -93,12 +93,24 @@ object Sync {
   implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
     new EitherTSync[F, L] { def F = Sync[F] }
 
+  /**
+   * [[Sync]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
     new OptionTSync[F] { def F = Sync[F] }
 
+  /**
+   * [[Sync]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
     new StateTSync[F, S] { def F = Sync[F] }
 
+  /**
+   * [[Sync]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 

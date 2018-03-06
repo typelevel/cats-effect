@@ -18,7 +18,10 @@ package cats.effect
 package internals
 
 import cats.effect
+
 import scala.annotation.unchecked.uncheckedVariance
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Left, Right, Success}
 
 /**
  * INTERNAL API — trait that can provide methods on `IO` for keeping
@@ -50,4 +53,26 @@ private[effect] trait IOCompanionBinaryCompat {
    */
   @deprecated("Renamed to ioConcurrentEffect", "0.10")
   private[internals] def ioEffect: Effect[IO] = IO.ioConcurrentEffect
+
+  /**
+   * DEPRECATED — the `ec` parameter is gone.
+   *
+   * This old variant is kept in order to keep binary compatibility
+   * until 1.0 — when it will be removed completely.
+   */
+  @deprecated("ExecutionContext parameter is being removed", "0.10")
+  private[internals] def fromFuture[A](iof: IO[Future[A]])
+    (implicit ec: ExecutionContext): IO[A] = {
+
+    // $COVERAGE-OFF$
+    iof.flatMap { f =>
+      IO.async { cb =>
+        f.onComplete(r => cb(r match {
+          case Success(a) => Right(a)
+          case Failure(e) => Left(e)
+        }))
+      }
+    }
+    // $COVERAGE-ON$
+  }
 }

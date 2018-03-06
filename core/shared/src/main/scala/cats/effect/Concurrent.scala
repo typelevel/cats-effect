@@ -330,6 +330,7 @@ trait Concurrent[F[_]] extends Async[F] {
     Concurrent.liftIO(ioa)(this)
 }
 
+
 object Concurrent {
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].

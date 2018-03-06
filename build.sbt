@@ -208,6 +208,23 @@ val mimaSettings = Seq(
       // Not a problem: SyncInstances and WriterTSync are private
       exclude[MissingClassProblem]("cats.effect.SyncInstances$WriterTSync"),
       //
+      // Not a problem: LiftIOInstances is a private class, we just moved
+      // those directly in the companion object.
+      //
+      // Manual check for:
+      //   - catsEitherTLiftIO
+      //   - catsKleisliLiftIO
+      //   - catsOptionTLiftIO
+      //   - catsStateTLiftIO
+      //   - catsWriterTLiftIO
+      exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$EitherTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
+      //
       // Following are all internal implementation details:
       //
       // Not a problem: IO.Async is a private class
@@ -227,7 +244,7 @@ val mimaSettings = Seq(
       // Not a problem: IOPlatform is private
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
       // Not a problem: IORunLoop is private
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
     )
   })
 
