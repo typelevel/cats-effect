@@ -78,7 +78,7 @@ import scala.util.{Failure, Left, Right, Success}
  * `IO` actions are not interruptible and should be considered
  * broadly-speaking atomic, at least when used purely.
  */
-sealed abstract class IO[+A] {
+sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
 
   /**
@@ -390,7 +390,9 @@ sealed abstract class IO[+A] {
   }
 }
 
-private[effect] abstract class IOParallelNewtype extends internals.IOTimerRef {
+private[effect] abstract class IOParallelNewtype
+  extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
+
   /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
    * for implementing `cats.Parallel`.
@@ -439,7 +441,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: ConcurrentEffect[IO] = new ConcurrentEffect[IO] {
+  implicit val ioConcurrentEffect: ConcurrentEffect[IO] = new ConcurrentEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
@@ -487,7 +489,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       override def applicative: Applicative[IO.Par] =
         parApplicative
       override def monad: Monad[IO] =
-        ioEffect
+        ioConcurrentEffect
       override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
       override val parallel: ~>[IO, IO.Par] =
@@ -751,13 +753,14 @@ object IO extends IOInstances {
    *
    * @see [[IO#unsafeToFuture]]
    */
-  def fromFuture[A](iof: IO[Future[A]]): IO[A] =
+  def fromFuture[A](iof: IO[Future[A]])
+    (implicit ec: ExecutionContext = null): IO[A] =
     iof.flatMap { f =>
       IO.async { cb =>
         f.onComplete(r => cb(r match {
           case Success(a) => Right(a)
           case Failure(e) => Left(e)
-        }))(immediate)
+        }))(if (ec == null) immediate else ec)
       }
     }
 

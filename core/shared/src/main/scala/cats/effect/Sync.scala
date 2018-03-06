@@ -46,11 +46,18 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
 
-private[effect] abstract class SyncInstances {
-
-  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
-    new EitherTSync[F, L] { def F = Sync[F] }
-
+object Sync {
+  /**
+   * [[Sync]] instance built for `EitherT[Eval, Throwable, ?]`.
+   *
+   * The `cats.Eval` data type does not have a `MonadError` implementation,
+   * because it's a `Comonad` and in this case it cannot describe partial
+   * functions that can throw errors, because its `Comonad#value` needs
+   * to be a pure and total function.
+   *
+   * But by wrapping it in `EitherT`, it's then possible to use in pieces
+   * of logic requiring `Sync`.
+   */
   implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
     new Sync[EitherT[Eval, Throwable, ?]] {
 
@@ -78,6 +85,13 @@ private[effect] abstract class SyncInstances {
         }
       }
     }
+
+  /**
+   * [[Sync]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
+  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
+    new EitherTSync[F, L] { def F = Sync[F] }
 
   implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
     new OptionTSync[F] { def F = Sync[F] }
@@ -175,5 +189,3 @@ private[effect] abstract class SyncInstances {
       WriterT(F.suspend(thunk.run))
   }
 }
-
-object Sync extends SyncInstances

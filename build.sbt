@@ -139,6 +139,10 @@ val commonSettings = Seq(
 )
 
 val mimaSettings = Seq(
+  // Setting the previous artifact manually at 0.9
+  // as a temporary measure until we release 0.10
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.9"),
+  /*
   mimaPreviousArtifacts := {
     val TagBase = """^(\d+)\.(\d+).*"""r
     val TagBase(major, minor) = BaseVersion
@@ -148,8 +152,84 @@ val mimaSettings = Seq(
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
     versions.map { v => organization.value %% name.value % v }.toSet
-  }
-)
+  },*/
+  mimaBinaryIssueFilters ++= {
+    import com.typesafe.tools.mima.core._
+    import com.typesafe.tools.mima.core.ProblemFilters._
+    Seq(
+      // Not a problem: AsyncInstances is a private class, we just moved those
+      // directly in the companion object.
+      //
+      // Manually checked:
+      //  - catsEitherTAsync
+      //  - catsOptionTAsync
+      //  - catsStateTAsync
+      //  - catsWriterTAsync
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances"),
+      // Not a problem: AsyncInstances is a private class, WriterTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$WriterTAsync"),
+      // Not a problem: AsyncInstances is a private class, OptionTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$OptionTAsync"),
+      // Not a problem: AsyncInstances is a private class, EitherTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$EitherTAsync"),
+      // Not a problem: AsyncInstances is a private class, StateTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$StateTAsync"),
+      //
+      // Not a problem: EffectInstances is a private class and we just moved
+      // those in the companion object.
+      //
+      // Manual check for:
+      //  - catsEitherTEffect
+      //  - catsStateTEffect
+      //  - catsWriterTEffect
+      //  - catsWriterTEffect
+      exclude[MissingClassProblem]("cats.effect.EffectInstances"),
+      // Not a problem: Missing private traits being inherited
+      exclude[MissingTypesProblem]("cats.effect.Effect$"),
+      //
+      // Not a problem: SyncInstances is a private class, we just moved those
+      // directly in the companion object.
+      //
+      // Manual check for:
+      //   - catsEitherTEvalSync
+      //   - catsEitherTSync
+      //   - catsOptionTSync
+      //   - catsStateTSync
+      //   - catsWriterTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances"),
+      // Not a problem: no longer implementing private traits
+      exclude[MissingTypesProblem]("cats.effect.Sync$"),
+      // Not a problem: SyncInstances and StateTSync are private.
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$StateTSync"),
+      // Not a problem: SyncInstances and OptionTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$OptionTSync"),
+      // Not a problem: SyncInstances and EitherTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$EitherTSync"),
+      // Not a problem: SyncInstances and WriterTSync are private
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$WriterTSync"),
+      //
+      // Following are all internal implementation details:
+      //
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
+      // Not a problem: IO.Async is a private class
+      exclude[MissingTypesProblem]("cats.effect.Async$"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
+      // Not a problem: RestartCallback is a private class
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
+      // Not a problem: IOPlatform is private
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
+      // Not a problem: IORunLoop is private
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+    )
+  })
 
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
