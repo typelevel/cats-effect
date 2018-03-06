@@ -33,28 +33,28 @@ import scala.util.Either
  * Thus this type class allows abstracting over data types that:
  *
  *  1. implement the [[Async]] algebra, with all its restrictions
- *  1. can provide logic for cancellation, to be used in race
+ *  1. can provide logic for cancelation, to be used in race
  *     conditions in order to release resources early
  *     (in its [[Concurrent!.cancelable cancelable]] builder)
  *
  * Due to these restrictions, this type class also affords to describe
- * a [[Concurrent!.start start]] that can start async processing,
- * suspended in the context of `F[_]` and that can be cancelled or
- * joined.
+ * a [[Concurrent!.start start]] operation that can start async
+ * processing, suspended in the context of `F[_]` and that can be
+ * cancelled or joined.
  *
- * Without cancellation being baked in, we couldn't afford do it.
+ * Without cancelation being baked in, we couldn't afford to do it.
  * See below.
  *
  * ==Cancelable builder==
  *
- * Therefore the signature exposed by the
- * [[Concurrent!.cancelable cancelable]] builder is this:
+ * The signature exposed by the [[Concurrent!.cancelable cancelable]]
+ * builder is this:
  *
  * {{{
  *   (Either[Throwable, A] => Unit) => F[Unit]
  * }}}
  *
- * `F[Unit]` is used to represent a cancellation action which will
+ * `F[Unit]` is used to represent a cancelation action which will
  * send a signal to the producer, that may observe it and cancel the
  * asynchronous process.
  *
@@ -86,7 +86,7 @@ import scala.util.Either
  * Java `ScheduledFuture` that has a `.cancel()` operation on it.
  *
  * Similarly, for `Concurrent` data types, we can provide
- * cancellation logic, that can be triggered in race conditions to
+ * cancelation logic, that can be triggered in race conditions to
  * cancel the on-going processing, only that `Concurrent`'s
  * cancelable token is an action suspended in an `IO[Unit]`. See
  * [[IO.cancelable]].
@@ -101,19 +101,19 @@ import scala.util.Either
  *
  * This signature is in fact incomplete for data types that are not
  * cancelable, because such equivalent operations always return some
- * cancellation token that can be used to trigger a forceful
+ * cancelation token that can be used to trigger a forceful
  * interruption of the timer. This is not a normal "dispose" or
  * "finally" clause in a try/catch block, because "cancel" in the
  * context of an asynchronous process is ''concurrent'' with the
  * task's own run-loop.
  *
  * To understand what this means, consider that in the case of our
- * `sleep` as described above, on cancellation we'd need a way to
+ * `sleep` as described above, on cancelation we'd need a way to
  * signal to the underlying `ScheduledExecutorService` to forcefully
  * remove the scheduled `Runnable` from its internal queue of
  * scheduled tasks, ''before'' its execution. Therefore, without a
  * cancelable data type, a safe signature needs to return a
- * cancellation token, so it would look like this:
+ * cancelation token, so it would look like this:
  *
  * {{{
  *   def sleep(d: FiniteDuration): F[(F[Unit], F[Unit])]
@@ -133,7 +133,7 @@ import scala.util.Either
  *
  * Thus a [[Concurrent]] data type can safely participate in race
  * conditions, whereas a data type that is only [[Async]] cannot do it
- * without exposing and forcing the user to work with cancellation
+ * without exposing and forcing the user to work with cancelation
  * tokens. An [[Async]] data type cannot expose for example a `start`
  * operation that is safe.
  */
@@ -178,6 +178,131 @@ trait Concurrent[F[_]] extends Async[F] {
    * }}}
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
+
+  /**
+   * Returns a new `F` that mirrors the source, but that is uninterruptible.
+   *
+   * This means that the [[Fiber.cancel cancel]] signal has no effect on the
+   * result of [[Fiber.join join]] and that the cancelable token returned by
+   * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
+   *
+   * This operation is undoing the cancelation mechanism of [[cancelable]],
+   * with this equivalence:
+   *
+   * {{{
+   *   F.uncancelable(F.cancelable { cb => f(cb); io }) <-> F.async(f)
+   * }}}
+   *
+   * Sample:
+   *
+   * {{{
+   *   val F = Concurrent[IO]
+   *   val timer = Timer[IO]
+   *
+   *   // Normally Timer#sleep yields cancelable tasks
+   *   val tick = F.uncancelable(timer.sleep(10.seconds))
+   *
+   *   // This prints "Tick!" after 10 seconds, even if we are
+   *   // cancelling the Fiber after start:
+   *   for {
+   *     fiber <- F.start(tick)
+   *     _ <- fiber.cancel
+   *     _ <- fiber.join
+   *   } yield {
+   *     println("Tick!")
+   *   }
+   * }}}
+   *
+   * Cancelable effects are great in race conditions, however sometimes
+   * this operation is necessary to ensure that the bind continuation
+   * of a task (the following `flatMap` operations) are also evaluated
+   * no matter what.
+   */
+  def uncancelable[A](fa: F[A]): F[A]
+
+  /**
+   * Returns a new `F` value that mirrors the source for normal
+   * termination, but that triggers the given error on cancelation.
+   *
+   * This `onCancelRaiseError` operator transforms any task into one
+   * that on cancelation will terminate with the given error, thus
+   * transforming potentially non-terminating tasks into ones that
+   * yield a certain error.
+   *
+   * {{{
+   *   import scala.concurrent.CancellationException
+   *
+   *   val F = Concurrent[IO]
+   *   val timer = Timer[IO]
+   *
+   *   val error = new CancellationException("Boo!")
+   *   val fa = F.onCancelRaiseError(timer.sleep(5.seconds, error))
+   *
+   *   fa.start.flatMap { fiber =>
+   *     fiber.cancel *> fiber.join
+   *   }
+   * }}}
+   *
+   * Without "onCancelRaiseError" the [[Timer.sleep sleep]] operation
+   * yields a non-terminating task on cancellation. But by applying
+   * "onCancelRaiseError", the yielded task above will terminate with
+   * the indicated "CancellationException" reference, which we can
+   * then also distinguish from other errors thrown in the `F` context.
+   *
+   * Depending on the implementation, tasks that are canceled can
+   * become non-terminating. This operation ensures that when
+   * cancelation happens, the resulting task is terminated with an
+   * error, such that logic can be scheduled to happen after
+   * cancelation:
+   *
+   * {{{
+   *   import scala.concurrent.CancellationException
+   *   val wasCanceled = new CancellationException()
+   *
+   *   F.onCancelRaiseError(fa, wasCanceled).attempt.flatMap {
+   *     case Right(a) =>
+   *       F.delay(println(s"Success: \$a"))
+   *     case Left(`wasCanceled`) =>
+   *       F.delay(println("Was canceled!"))
+   *     case Left(error) =>
+   *       F.delay(println(s"Terminated in error: \$error"))
+   *   }
+   * }}}
+   *
+   * This technique is how a "bracket" operation can be implemented.
+   *
+   * Besides sending the cancelation signal, this operation also cuts
+   * the connection between the producer and the consumer. Example:
+   *
+   * {{{
+   *   val F = Concurrent[IO]
+   *   val timer = Timer[IO]
+   *
+   *   // This task is uninterruptible ;-)
+   *   val tick = F.uncancelable(
+   *     for {
+   *       _ <- timer.sleep(5.seconds)
+   *       _ <- IO(println("Tick!"))
+   *     } yield ())
+   *
+   *   // Builds an value that triggers an exception on cancellation
+   *   val loud = F.onCancelRaiseError(tick, new CancellationException)
+   * }}}
+   *
+   * In this example the `loud` reference will be completed with a
+   * "CancellationException", as indicated via "onCancelRaiseError".
+   * The logic of the source won't get cancelled, because we've
+   * embedded it all in [[uncancelable]]. But its bind continuation is
+   * not allowed to continue after that, its final result not being
+   * allowed to be signaled.
+   *
+   * Therefore this also transforms [[uncancelable]] values into ones
+   * that can be canceled. The logic of the source, its run-loop
+   * might not be interruptible, however `cancel` on a value on which
+   * `onCancelRaiseError` was applied will cut the connection from
+   * the producer, the consumer receiving the indicated error instead.
+   */
+  def onCancelRaiseError[A](fa: F[A], e: Throwable): F[A]
 
   /**
    * Start concurrent execution of the source suspended in
@@ -273,6 +398,7 @@ trait Concurrent[F[_]] extends Async[F] {
     Concurrent.liftIO(ioa)(this)
 }
 
+
 object Concurrent {
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].
@@ -339,6 +465,12 @@ object Concurrent {
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k))(F)
 
+    def uncancelable[A](fa: EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.uncancelable(fa.value))
+
+    def onCancelRaiseError[A](fa: EitherT[F, L, A], e: Throwable): EitherT[F, L, A] =
+      EitherT(F.onCancelRaiseError(fa.value, e))
+
     def start[A](fa: EitherT[F, L, A]) =
       EitherT.liftF(F.start(fa.value).map(fiberT))
 
@@ -397,6 +529,12 @@ object Concurrent {
               F.pure(Some(Right((fiberT[A](fiberA), r))))
           }
       })
+      
+    def uncancelable[A](fa: OptionT[F, A]): OptionT[F, A] =
+      OptionT(F.uncancelable(fa.value))
+
+    def onCancelRaiseError[A](fa: OptionT[F, A], e: Throwable): OptionT[F, A] =
+      OptionT(F.onCancelRaiseError(fa.value, e))
 
     protected def fiberT[A](fiber: effect.Fiber[F, Option[A]]): Fiber[A] =
       Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
@@ -428,6 +566,12 @@ object Concurrent {
         }
       }
 
+    def uncancelable[A](fa: StateT[F, S, A]): StateT[F, S, A] =
+      fa.transformF(F.uncancelable)
+
+    def onCancelRaiseError[A](fa: StateT[F, S, A], e: Throwable): StateT[F, S, A] =
+      fa.transformF(F.onCancelRaiseError(_, e))
+
     protected def fiberT[A](fiber: effect.Fiber[F, (S, A)]): Fiber[A] =
       Fiber(StateT(_ => fiber.join), StateT.liftF(fiber.cancel))
   }
@@ -444,6 +588,12 @@ object Concurrent {
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k))(L, F)
+
+    def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT(F.uncancelable(fa.run))
+
+    def onCancelRaiseError[A](fa: WriterT[F, L, A], e: Throwable): WriterT[F, L, A] =
+      WriterT(F.onCancelRaiseError(fa.run, e))
 
     def start[A](fa: WriterT[F, L, A]) =
       WriterT(F.start(fa.run).map { fiber =>

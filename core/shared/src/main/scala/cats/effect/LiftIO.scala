@@ -31,20 +31,39 @@ trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
 
-private[effect] abstract class LiftIOInstances {
-
+object LiftIO {
+  /**
+   * [[LiftIO]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
   implicit def catsEitherTLiftIO[F[_]: LiftIO: Functor, L]: LiftIO[EitherT[F, L, ?]] =
     new EitherTLiftIO[F, L] { def F = LiftIO[F]; def FF = Functor[F] }
 
+  /**
+   * [[LiftIO]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
   implicit def catsKleisliLiftIO[F[_]: LiftIO, R]: LiftIO[Kleisli[F, R, ?]] =
     new KleisliLiftIO[F, R] { def F = LiftIO[F] }
 
+  /**
+   * [[LiftIO]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
   implicit def catsOptionTLiftIO[F[_]: LiftIO: Functor]: LiftIO[OptionT[F, ?]] =
     new OptionTLiftIO[F] { def F = LiftIO[F]; def FF = Functor[F] }
 
+  /**
+   * [[LiftIO]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
   implicit def catsStateTLiftIO[F[_]: LiftIO: Applicative, S]: LiftIO[StateT[F, S, ?]] =
     new StateTLiftIO[F, S] { def F = LiftIO[F]; def FA = Applicative[F] }
 
+  /**
+   * [[LiftIO]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
   implicit def catsWriterTLiftIO[F[_]: LiftIO: Applicative, L: Monoid]: LiftIO[WriterT[F, L, ?]] =
     new WriterTLiftIO[F, L] { def F = LiftIO[F]; def FA = Applicative[F]; def L = Monoid[L] }
 
@@ -88,5 +107,3 @@ private[effect] abstract class LiftIOInstances {
       WriterT.liftF(F.liftIO(ioa))(L, FA)
   }
 }
-
-object LiftIO extends LiftIOInstances

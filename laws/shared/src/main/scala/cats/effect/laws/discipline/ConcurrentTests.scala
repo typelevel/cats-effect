@@ -60,7 +60,12 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
         "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
         "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
         "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
-        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _))
+        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _),
+        "uncancelable mirrors source" -> forAll(laws.uncancelableMirrorsSource[A] _),
+        "uncancelable prevents cancelation" -> forAll(laws.uncancelablePreventsCancelation[A] _),
+        "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
+        "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
+        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _))
     }
   }
 }

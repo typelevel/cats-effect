@@ -75,8 +75,12 @@ import scala.util.Either
  * This type class allows the modeling of data types that:
  *
  *  1. can start asynchronous processes
- *  1. emit exactly one result on completion
+ *  1. can emit one result on completion
  *  1. can end in error
+ *
+ * N.B. on the "one result" signaling, this is not an ''exactly once''
+ * requirement. At this point streaming types can implement `Async`
+ * and such an ''exactly once'' requirement is only clear in [[Effect]].
  *
  * Therefore the signature exposed by the [[Async!.async async]]
  * builder is this:
@@ -120,6 +124,23 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    */
   override def liftIO[A](ioa: IO[A]): F[A] =
     Async.liftIO(ioa)(this)
+
+  /**
+   * DEPRECATED — moved to [[Async$.shift]].
+   *
+   * The reason for the deprecation is that there's no potential
+   * for optimisations in implementing instances, so this operation
+   * can be a simple utility.
+   *
+   * It's also a lawless operation that might be better served
+   * with a concrete, non-polymorphic implementation.
+   */
+  @deprecated("Moved to Async$.shift, will be removed in 1.0", "0.10")
+  private[effect] def shift(ec: ExecutionContext): F[Unit] = {
+    // $COVERAGE-OFF$
+    Async.shift(ec)(this)
+    // $COVERAGE-ON$
+  }
 }
 
 object Async {

@@ -30,6 +30,7 @@ import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
+
 class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
