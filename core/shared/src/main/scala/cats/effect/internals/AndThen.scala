@@ -79,8 +79,7 @@ private[effect] sealed abstract class AndThen[-T, +R]
           self = left.asInstanceOf[AndThen[Any, Any]]
           right = inner.andThenF(right)
 
-        // Either Single or ErrorHandler
-        case _ =>
+        case _ => // Single
           self = self.andThenF(right)
           continue = false
       }
