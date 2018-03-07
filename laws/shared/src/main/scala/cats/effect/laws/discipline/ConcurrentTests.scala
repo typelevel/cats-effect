@@ -51,7 +51,9 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
     EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
-    iso: Isomorphisms[F]): RuleSet = {
+    iso: Isomorphisms[F],
+    params: Parameters): RuleSet = {
+
     new RuleSet {
       val name = "concurrent"
       val bases = Nil

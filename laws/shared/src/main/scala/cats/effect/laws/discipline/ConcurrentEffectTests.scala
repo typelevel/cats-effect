@@ -52,7 +52,9 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     EqIOA: Eq[IO[A]],
     EqIOU: Eq[IO[Unit]],
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-    iso: Isomorphisms[F]): RuleSet = {
+    iso: Isomorphisms[F],
+    params: Parameters): RuleSet = {
+
     new RuleSet {
       val name = "concurrentEffect"
       val bases = Nil
