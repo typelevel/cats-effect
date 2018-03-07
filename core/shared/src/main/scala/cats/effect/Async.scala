@@ -145,6 +145,13 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 
 object Async {
   /**
+   * Returns an non-terminating `F[_]`, that never completes
+   * with a result, being equivalent with `async(_ => ())`.
+   */
+  def never[F[_], A](implicit F: Async[F]): F[A] =
+    F.async(_ => ())
+
+  /**
    * Generic shift operation, defined for any `Async` data type.
    *
    * Shifts the bind continuation onto the specified thread pool.

@@ -17,7 +17,6 @@
 package cats.effect.internals
 
 import cats.effect.{Fiber, IO}
-import cats.effect.internals.Callback.Extensions
 import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.{ExecutionContext, Promise}
 
@@ -42,22 +41,9 @@ private[effect] object IOStart {
           // Building a memoized IO - note we cannot use `IO.fromFuture`
           // because we need to link this `IO`'s cancellation with that
           // of the executing task
-          val io = IO.Async[A] { (ctx2, cb2) =>
-            // Short-circuit for already completed `Future`
-            p.future.value match {
-              case Some(value) =>
-                cb2.async(value.get)
-              case None =>
-                // Cancellation needs to be linked to the active task
-                ctx2.push(conn2.cancel)
-                p.future.onComplete { r =>
-                  ctx2.pop()
-                  cb2(r.get)
-                }
-            }
-          }
+          val fiber = IOFiber.build(p, conn2)
           // Signal the newly created fiber
-          cb(Right(IOFiber(io)))
+          cb(Right(fiber))
         }
       })
     }

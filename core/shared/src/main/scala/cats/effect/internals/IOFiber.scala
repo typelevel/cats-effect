@@ -17,6 +17,9 @@
 package cats.effect
 package internals
 
+import scala.concurrent.Promise
+import cats.effect.internals.Callback.Extensions
+
 /**
  * INTERNAL API - [[Fiber]] instantiated for [[IO]].
  *
@@ -27,4 +30,25 @@ private[effect] final case class IOFiber[A](join: IO[A])
 
   def cancel: IO[Unit] =
     IOCancel.signal(join)
+}
+
+private[effect] object IOFiber {
+  /** Internal API */
+  def build[A](p: Promise[Either[Throwable, A]], conn: IOConnection): Fiber[IO, A] =
+    IOFiber(IO.Async[A] { (ctx, cb) =>
+      implicit val ec = TrampolineEC.immediate
+
+      // Short-circuit for already completed `Future`
+      p.future.value match {
+        case Some(value) =>
+          cb.async(value.get)
+        case None =>
+          // Cancellation needs to be linked to the active task
+          ctx.push(conn.cancel)
+          p.future.onComplete { r =>
+            ctx.pop()
+            cb(r.get)
+          }
+      }
+    })
 }

@@ -22,7 +22,7 @@ import cats.effect.laws.util.Pledge
 import cats.implicits._
 import cats.laws._
 
-trait ConcurrentEffectLaws[F[_]] extends EffectLaws[F] with ConcurrentLaws[F] {
+trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
   implicit def F: ConcurrentEffect[F]
 
   def runAsyncRunCancelableCoherence[A](fa: F[A]) = {

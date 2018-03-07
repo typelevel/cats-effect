@@ -54,7 +54,7 @@ class IOCancelableTests extends BaseTestsSuite {
           a <- f.join
         } yield a
 
-      received <-> IO.async(_ => ())
+      received <-> IO.never
     }
   }
 
