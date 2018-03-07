@@ -19,13 +19,26 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
 }
 ```
 
-This is the most basic interface that represents the suspension of synchronous side effects.
-
-Examples:
+This is the most basic interface that represents the suspension of synchronous side effects. On the other hand, its implementation of `flatMap` is stack safe, meaning that you can describe `tailRecM` in terms of it as demonstrated in the laws module.
 
 ```tut:book
 import cats.effect.{IO, Sync}
+import cats.laws._
 
+val F = Sync[IO]
+
+lazy val stackSafetyOnRepeatedRightBinds = {
+  val result = (0 until 10000).foldRight(F.delay(())) { (_, acc) =>
+    F.delay(()).flatMap(_ => acc)
+  }
+
+  result <-> F.pure(())
+}
+```
+
+Example of use:
+
+```tut:book
 val ioa = Sync[IO].delay(println("Hello world!"))
 ioa.unsafeRunSync()
 ```

@@ -20,3 +20,5 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
     (release: (A, BracketResult[E]) => F[Unit]): F[B]
 }
 ```
+
+**NOTE:** _The current version `0.10` does not include `Bracket` but it will be added in the final release `1.0`. Please refer to the [milestone's roadmap](https://github.com/typelevel/cats-effect/milestones) for more information_.

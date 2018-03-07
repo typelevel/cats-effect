@@ -33,3 +33,40 @@ trait Timer[F[_]] {
   def shift: F[Unit]
 }
 ```
+
+As mentioned in the `IO` documentation, there's a default instance of `Timer[IO]` available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:
+
+```tut:book
+import java.util.concurrent.ScheduledExecutorService
+
+import cats.effect.{IO, Timer}
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+final class MyTimer(ec: ExecutionContext, sc: ScheduledExecutorService) extends Timer[IO] {
+
+  override def clockRealTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+
+  override def clockMonotonic(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.nanoTime(), NANOSECONDS))
+
+  override def sleep(timespan: FiniteDuration): IO[Unit] =
+    IO.cancelable { cb =>
+      val tick = new Runnable {
+        def run() = ec.execute(new Runnable {
+          def run() = cb(Right(()))
+        })
+      }
+      val f = sc.schedule(tick, timespan.length, timespan.unit)
+      IO(f.cancel(false))
+    }
+
+  override def shift: IO[Unit] =
+    IO.async(cb => ec.execute(new Runnable {
+      def run() = cb(Right(()))
+    }))
+
+}
+```

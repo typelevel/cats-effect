@@ -27,11 +27,11 @@ program.unsafeRunSync()
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
 
-`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality as it is described below.
+`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality as described below.
 
-## Unsafe Operations
+## "Unsafe" Operations
 
-All of the operations prefixed with `unsafe` are impure functions and perform side effects. But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
+All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
 
 ### unsafeRunSync
 
@@ -101,7 +101,7 @@ Materializes any sequenced exceptions into value space, where they may be handle
 IO.raiseError(new Exception("boom")).attempt.unsafeRunSync()
 ```
 
-Note that this is provided by `IO`'s `MonadError` instance or more specifically from the `ApplicativeError` typeclass. So it can also be used when abstracting over the effect `F[_]`.
+Note that this is provided by `IO`'s `MonadError` instance or more specifically by the `ApplicativeError` typeclass. So it can also be used when abstracting over the effect `F[_]`.
 
 ### shift
 
@@ -109,11 +109,11 @@ Note there are 2 overloads of the `IO.shift` function:
 - One that takes an `Timer` that manages the thread-pool used to trigger async boundaries.
 - Another that takes a Scala `ExecutionContext` as the thread-pool.
 
-***Please use the former by default, use the later for fine grained control over the thread pool used.***
+***Please use the former by default and use the latter only for fine-grained control over the thread pool in use.***
 
 Examples:
 
-There should be an implicit instance of `Timer[IO]` available to manage the thread-pools. By default, `Cats Effect` provides one for `IO`:
+By default, `Cats Effect` provides an instance of `Timer[IO]` that manages thread-pools. Eg.:
 
 ```tut:book
 import cats.effect.Timer
@@ -191,12 +191,21 @@ lazy val repeat: IO[Unit] =
 } yield ()
 ```
 
-In this example, `repeat` is a very long running `IO` (infinite, in fact!) which will just hog the underlying thread resource for as long as it continues running.  This can be a bit of a problem, and so we inject the `IO.shift` which yields control back to the underlying thread pool, giving it a chance to reschedule things and provide better fairness. This shifting also "bounces" the thread stack, popping all the way back to the thread pool and effectively trampolining the remainder of the computation. This sort of manual trampolining is unnecessary if `doStuff` is defined using `suspend` or `apply`, but if it was defined using `async` and does "not" involve any real concurrency, the call to `shift` will be necessary to avoid a `StackOverflowError`.
+In this example, `repeat` is a very long running `IO` (infinite, in fact!) which will just hog the underlying thread resource for as long as it continues running.  This can be a bit of a problem, and so we inject the `IO.shift` which yields control back to the underlying thread pool, giving it a chance to reschedule things and provide better fairness. This shifting also "bounces" the thread stack, popping all the way back to the thread pool and effectively trampolining the remainder of the computation. Although the thread-shifting is not completely necessary, it might help in some cases to aliviate the use of the main thread pool.
 
 Thus, this function has four important use cases:
 - Shifting blocking actions off of the main compute pool.
 - Defensively re-shifting asynchronous continuations back to the main compute pool.
 - Yielding control to some underlying pool for fairness reasons.
-- Preventing an overflow of the call stack in the case of improperly constructed `async` actions.
 
-`IO` is trampolined for all `synchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack.
+`IO` is trampolined for all `synchronous` and `asynchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:
+
+```tut:book
+def signal[A](a: A): IO[A] = IO.async(_(Right(a)))
+
+def loop(n: Int): IO[Int] =
+  signal(n).flatMap { x =>
+    if (x > 0) loop(n - 1) else IO.pure(0)
+  }
+```
+

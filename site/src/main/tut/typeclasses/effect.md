@@ -17,7 +17,15 @@ trait Effect[F[_]] extends Async[F] {
 }
 ```
 
-`runAsync` represents the intention to evaluate a given effect in the context of `F[_]` asynchronously and gives you back an `IO[A]`. Eg.:
+This type class is describing data types that:
+- Implement the `Async` algebra.
+- Implement a lawful `Effect.runAsync` operation that triggers the evaluation (in the context of `IO`).
+
+Note: this is the safe and generic version of `IO.unsafeRunAsync` (aka Haskell's `unsafePerformIO`).
+
+### runAsync
+
+It represents the intention to evaluate a given effect in the context of `F[_]` asynchronously giving you back an `IO[A]`. Eg.:
 
 ```tut:book
 import cats.effect.Effect

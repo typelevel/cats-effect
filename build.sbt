@@ -375,7 +375,7 @@ lazy val microsite = project.in(file("site"))
   .enablePlugins(MicrositesPlugin)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(siteSettings)
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM, lawsJVM)
 
 /*
  * Compatibility version.  Use this to declare what version with
