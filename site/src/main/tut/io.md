@@ -7,9 +7,7 @@ scaladoc: "#cats.effect.IO"
 ---
 # IO
 
-It implements all the typeclasses described above and it adds some extra functionality that will be described below.
-
-`IO` is a pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).
+A data type for encoding side effects as pure values, capable of expressing both synchronous and asynchronous computations.
 
 Effects contained within this abstraction are not evaluated until the "end of the world", which is to say, when one of the "unsafe" methods are used. Effectful results are not memoized, meaning that memory overhead is minimal (and no leaks), and also that a single effect may be run multiple times in a referentially-transparent manner. For example:
 
@@ -29,9 +27,11 @@ program.unsafeRunSync()
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
 
+`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality as it is described below.
+
 ## Unsafe Operations
 
-All of the operations prefixed with `unsafe` are, as the name suggests, UNSAFE functions as they are impure and perform side effects. You should ideally only call it **once**, at the very end of your program.
+All of the operations prefixed with `unsafe` are impure functions and perform side effects. But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
 
 ### unsafeRunSync
 
@@ -101,6 +101,8 @@ Materializes any sequenced exceptions into value space, where they may be handle
 IO.raiseError(new Exception("boom")).attempt.unsafeRunSync()
 ```
 
+Note that this is provided by `IO`'s `MonadError` instance or more specifically from the `ApplicativeError` typeclass. So it can also be used when abstracting over the effect `F[_]`.
+
 ### shift
 
 Note there are 2 overloads of the `IO.shift` function:
@@ -111,32 +113,13 @@ Note there are 2 overloads of the `IO.shift` function:
 
 Examples:
 
-Let's say that you have a `SafeApp` with a `run: F[Unit]` method as a base instead of directly using the "impure" `def main(args: Array[String]): Unit` and in it, you have defined an instance of `Timer[IO]` to manage the thread-pools. It could look like this:
+There should be an implicit instance of `Timer[IO]` available to manage the thread-pools. By default, `Cats Effect` provides one for `IO`:
 
 ```tut:book
 import cats.effect.Timer
+import scala.concurrent.ExecutionContext.Implicits.global
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-
-val ec = ExecutionContext.global
-
-implicit val ioTimer = new Timer[IO] {
-  override def clockRealTime(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
-
-  override def clockMonotonic(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.nanoTime(), NANOSECONDS))
-
-  // This is for the sake of simplicity since we won't use it but please, use a Scheduler to implement it
-  override def sleep(timespan: FiniteDuration): IO[Unit] = IO.unit
-
-  // Not exactly the right implementation, but again for simplicity...
-  override def shift: IO[Unit] =
-    IO.async(cb => ec.execute(new Runnable {
-      def run() = cb(Right(()))
-    }))
-}
+val ioTimer = Timer[IO]
 ```
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
@@ -144,7 +127,7 @@ We can introduce an asynchronous boundary in the `flatMap` chain before a certai
 ```tut:book
 val task = IO(println("task"))
 
-IO.shift.flatMap(_ => task)
+IO.shift(ioTimer).flatMap(_ => task)
 ```
 
 Or using `Cats` syntax:
@@ -152,19 +135,23 @@ Or using `Cats` syntax:
 ```tut:book
 import cats.syntax.apply._
 
-IO.shift *> task
+IO.shift(ioTimer) *> task
+// equivalent to
+Timer[IO].shift *> task
 ```
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
 
 ```tut:book
-task.flatMap(a => IO.shift.map(_ => a))
+task.flatMap(a => IO.shift(ioTimer).map(_ => a))
 ```
 
 Or using `Cats` syntax:
 
 ```tut:book
-task <* IO.shift
+task <* IO.shift(ioTimer)
+// equivalent to
+task <* Timer[IO].shift
 ```
 
 Example of where this might be useful:
@@ -212,15 +199,4 @@ Thus, this function has four important use cases:
 - Yielding control to some underlying pool for fairness reasons.
 - Preventing an overflow of the call stack in the case of improperly constructed `async` actions.
 
-## Gotchas
-
-`IO` is trampolined for all `synchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack. However, `IO` cannot guarantee stack-safety in the presence of arbitrarily nested asynchronous suspensions. This is quite simply because it is "impossible" (on the JVM) to guarantee stack-safety in that case. For example:
-
-```tut:book
-import cats.effect.IO
-
-def lie[A]: IO[A] = IO.async[A](cb => cb(Right(lie.unsafeRunSync)))
-```
-
-This should blow the stack when evaluated. Also note that there is no way to encode this using `tailRecM` in such a way that it does "not" blow the stack. Thus, the `tailRecM` on `Monad[IO]` is not guaranteed to produce an `IO` which is stack-safe when run, but will rather make every attempt to do so barring pathological structure.
-
+`IO` is trampolined for all `synchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack.
