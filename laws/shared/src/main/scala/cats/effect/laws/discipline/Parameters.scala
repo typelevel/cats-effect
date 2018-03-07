@@ -32,6 +32,6 @@ object Parameters {
   /** Default parameters. */
   implicit val default: Parameters =
     Parameters(stackSafeIterationsCount = {
-      if (IOPlatform.isJVM) 100000 else 100
+      if (IOPlatform.isJVM) 10000 else 100
     })
 }
