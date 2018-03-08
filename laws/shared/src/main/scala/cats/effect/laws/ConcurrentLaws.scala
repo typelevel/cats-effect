@@ -20,6 +20,7 @@ package laws
 import cats.effect.laws.util.Pledge
 import cats.laws._
 import cats.syntax.all._
+import scala.Predef.{identity => id}
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
@@ -125,13 +126,28 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     fc <-> F.pure(f(a, b))
   }
 
-  def racePairDerivesRace[A, B](fa: F[A], fb: F[B]) = {
-    val received: F[Either[A, B]] =
-      F.racePair(fa, fb).flatMap {
-        case Left((a, fiberB)) => fiberB.cancel.map(_ => Left(a))
-        case Right((fiberA, b)) => fiberA.cancel.map(_ => Right(b))
+  def racePairMirrorsLeftWinner[A](fa: F[A]) = {
+    val never = F.async[A](_ => ())
+    val received =
+      F.racePair(fa, never).flatMap {
+        case Left((a, fiberB)) =>
+          fiberB.cancel.map(_ => a)
+        case Right(_) =>
+          F.raiseError[A](new IllegalStateException("right"))
       }
-    received <-> F.race(fa, fb)
+    received <-> F.race(fa, never).map(_.fold(id, id))
+  }
+
+  def racePairMirrorsRightWinner[B](fb: F[B]) = {
+    val never = F.async[B](_ => ())
+    val received =
+      F.racePair(never, fb).flatMap {
+        case Right((fiberA, b)) =>
+          fiberA.cancel.map(_ => b)
+        case Left(_) =>
+          F.raiseError[B](new IllegalStateException("left"))
+      }
+    received <-> F.race(never, fb).map(_.fold(id, id))
   }
 
   def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
