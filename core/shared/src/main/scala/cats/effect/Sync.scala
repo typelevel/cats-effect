@@ -20,7 +20,7 @@ package effect
 import simulacrum._
 import cats.syntax.all._
 import cats.data.{EitherT, IndexedStateT, OptionT, StateT, WriterT}
-import cats.effect.internals.NonFatal
+import cats.effect.internals.{AndThen, NonFatal}
 
 /**
  * A monad that can suspend the execution of side effects
@@ -47,11 +47,18 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
 }
 
-private[effect] abstract class SyncInstances {
-
-  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
-    new EitherTSync[F, L] { def F = Sync[F] }
-
+object Sync {
+  /**
+   * [[Sync]] instance built for `EitherT[Eval, Throwable, ?]`.
+   *
+   * The `cats.Eval` data type does not have a `MonadError` implementation,
+   * because it's a `Comonad` and in this case it cannot describe partial
+   * functions that can throw errors, because its `Comonad#value` needs
+   * to be a pure and total function.
+   *
+   * But by wrapping it in `EitherT`, it's then possible to use in pieces
+   * of logic requiring `Sync`.
+   */
   implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
     new Sync[EitherT[Eval, Throwable, ?]] {
 
@@ -94,18 +101,36 @@ private[effect] abstract class SyncInstances {
       }
     }
 
+  /**
+   * [[Sync]] instance built for `cats.data.EitherT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
+  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
+    new EitherTSync[F, L] { def F = Sync[F] }
+
+  /**
+   * [[Sync]] instance built for `cats.data.OptionT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
     new OptionTSync[F] { def F = Sync[F] }
 
+  /**
+   * [[Sync]] instance built for `cats.data.StateT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
     new StateTSync[F, S] { def F = Sync[F] }
 
+  /**
+   * [[Sync]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): EitherT[F, L, A] =
       EitherT.pure(x)
@@ -144,8 +169,7 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
 
@@ -181,8 +205,7 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
     def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
 
@@ -205,8 +228,19 @@ private[effect] abstract class SyncInstances {
       }
     }
 
+    override def map[A, B](fa: StateT[F, S, A])(f: A => B): StateT[F, S, B] =
+      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
+        AndThen(safsba).andThen(fa => F.map(fa) { case (s, a) => (s, f(a)) })
+      })
+
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
-      fa.flatMap(f)
+      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
+        AndThen(safsba).andThen { fsba =>
+          F.flatMap(fsba) { case (sb, a) =>
+            f(a).run(sb)
+          }
+        }
+      })
 
     // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
     def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
@@ -217,11 +251,8 @@ private[effect] abstract class SyncInstances {
   }
 
   private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
-
-    protected def L: Monoid[L]
-    private implicit def _L = L
+    protected implicit def F: Sync[F]
+    protected implicit def L: Monoid[L]
 
     def pure[A](x: A): WriterT[F, L, A] = WriterT.value(x)
 
@@ -254,5 +285,3 @@ private[effect] abstract class SyncInstances {
       WriterT(F.suspend(thunk.run))
   }
 }
-
-object Sync extends SyncInstances

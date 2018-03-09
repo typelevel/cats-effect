@@ -20,7 +20,6 @@ package laws
 package discipline
 
 import cats.data._
-import cats.effect.internals.IOPlatform.isJVM
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
@@ -32,36 +31,39 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      ArbT: Arbitrary[Throwable],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      CogenT: Cogen[Throwable],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqFU: Eq[F[Unit]],
-      EqT: Eq[Throwable],
-      EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
-      EqFEitherTA: Eq[F[Either[Throwable, A]]],
-      EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
-      EqFABC: Eq[F[(A, B, C)]],
-      EqFInt: Eq[F[Int]],
-      iso: Isomorphisms[F]): RuleSet = {
+    ArbFA: Arbitrary[F[A]],
+    ArbFB: Arbitrary[F[B]],
+    ArbFC: Arbitrary[F[C]],
+    ArbFU: Arbitrary[F[Unit]],
+    ArbFAtoB: Arbitrary[F[A => B]],
+    ArbFBtoC: Arbitrary[F[B => C]],
+    ArbT: Arbitrary[Throwable],
+    CogenA: Cogen[A],
+    CogenB: Cogen[B],
+    CogenC: Cogen[C],
+    CogenT: Cogen[Throwable],
+    EqFA: Eq[F[A]],
+    EqFB: Eq[F[B]],
+    EqFC: Eq[F[C]],
+    EqFU: Eq[F[Unit]],
+    EqT: Eq[Throwable],
+    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
+    EqFEitherTA: Eq[F[Either[Throwable, A]]],
+    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
+    EqFABC: Eq[F[(A, B, C)]],
+    EqFInt: Eq[F[Int]],
+    iso: Isomorphisms[F],
+    params: Parameters): RuleSet = {
+
     new RuleSet {
       val name = "sync"
       val bases = Nil
       val parents = Seq(bracket[A, B, C])
 
-      val baseProps = Seq(
-        "bracket release is always called" -> forAll(laws.bracketReleaseIsAlwaysCalled[A, B] _),
-        "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
+
+      val props = Seq(
+          "bracket release is always called" -> forAll(laws.bracketReleaseIsAlwaysCalled[A, B] _),
+          "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
         "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
         "throw in suspend is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
@@ -69,17 +71,11 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
         "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _),
         "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
         "bind suspends evaluation" -> forAll(laws.bindSuspendsEvaluation[A] _),
-        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _))
-
-      val jvmProps = Seq(
-        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds),
-        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds),
-        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts),
-        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps))
-
-      val jsProps = Seq()
-
-      val props = baseProps ++ (if (isJVM) jvmProps else jsProps)
+        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _),
+        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
+        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds(params.stackSafeIterationsCount)),
+        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts(params.stackSafeIterationsCount)),
+        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps(params.stackSafeIterationsCount)))
     }
   }
 }

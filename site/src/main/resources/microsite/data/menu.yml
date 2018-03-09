@@ -1,0 +1,40 @@
+options:
+  - title: Type Classes
+    url: typeclasses/typeclasses.html
+    menu_section: typeclasses
+
+    nested_options:
+      - title: Bracket
+        url: typeclasses/bracket.html
+        menu_section: typeclasses
+      - title: Sync
+        url: typeclasses/sync.html
+        menu_section: typeclasses
+      - title: LiftIO
+        url: typeclasses/liftio.html
+        menu_section: typeclasses
+      - title: Async
+        url: typeclasses/async.html
+        menu_section: typeclasses
+      - title: Concurrent
+        url: typeclasses/concurrent.html
+        menu_section: typeclasses
+      - title: Effect
+        url: typeclasses/effect.html
+        menu_section: typeclasses
+      - title: ConcurrentEffect
+        url: typeclasses/concurrent-effect.html
+        menu_section: typeclasses
+
+  - title: IO
+    url: io.html
+    menu_section: io
+
+  - title: Fiber
+    url: fiber.html
+    menu_section: fiber
+
+  - title: Timer
+    url: timer.html
+    menu_section: timer
+

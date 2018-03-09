@@ -88,38 +88,36 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
     F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
   }
 
-  lazy val stackSafetyOnRepeatedLeftBinds = {
-    val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
+  def stackSafetyOnRepeatedLeftBinds(iterations: Int) = {
+    val result = (0 until iterations).foldLeft(F.delay(())) { (acc, _) =>
       acc.flatMap(_ => F.delay(()))
     }
-
     result <-> F.pure(())
   }
 
-  lazy val stackSafetyOnRepeatedRightBinds = {
-    val result = (0 until 10000).foldRight(F.delay(())) { (_, acc) =>
+  def stackSafetyOnRepeatedRightBinds(iterations: Int) = {
+    val result = (0 until iterations).foldRight(F.delay(())) { (_, acc) =>
       F.delay(()).flatMap(_ => acc)
     }
-
     result <-> F.pure(())
   }
 
-  lazy val stackSafetyOnRepeatedAttempts = {
+  def stackSafetyOnRepeatedAttempts(iterations: Int) = {
     // Note this isn't enough to guarantee stack safety, unless 
     // coupled with `bindSuspendsEvaluation`
-    val result = (0 until 10000).foldLeft(F.delay(())) { (acc, _) =>
+    val result = (0 until iterations).foldLeft(F.delay(())) { (acc, _) =>
       F.attempt(acc).map(_ => ())
     }
     result <-> F.pure(())
   }
 
-  lazy val stackSafetyOnRepeatedMaps = {
+  def stackSafetyOnRepeatedMaps(iterations: Int) = {
     // Note this isn't enough to guarantee stack safety, unless 
     // coupled with `mapSuspendsEvaluation`
-    val result = (0 until 10000).foldLeft(F.delay(0)) { (acc, _) =>
+    val result = (0 until iterations).foldLeft(F.delay(0)) { (acc, _) =>
       F.map(acc)(_ + 1)
     }
-    result <-> F.pure(10000)
+    result <-> F.pure(iterations)
   }
 }
 

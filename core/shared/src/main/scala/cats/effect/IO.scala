@@ -20,10 +20,8 @@ package effect
 import cats.arrow.FunctionK
 import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
-import cats.effect.internals.IOFrame.ErrorHandler
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
-
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -80,7 +78,7 @@ import scala.util.{Failure, Left, Right, Success}
  * `IO` actions are not interruptible and should be considered
  * broadly-speaking atomic, at least when used purely.
  */
-sealed abstract class IO[+A] {
+sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
 
   /**
@@ -140,18 +138,79 @@ sealed abstract class IO[+A] {
     Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
 
   /**
-   * Produces an `IO` reference that is guaranteed to be safe to run
-   * synchronously (i.e. [[unsafeRunSync]]), being the safe analogue
-   * to [[unsafeRunAsync]].
+   * Produces an `IO` reference that should execute the source on
+   * evaluation, without waiting for its result, being the safe
+   * analogue to [[unsafeRunAsync]].
    *
    * This operation is isomorphic to [[unsafeRunAsync]]. What it does
    * is to let you describe asynchronous execution with a function
    * that stores off the results of the original `IO` as a
    * side effect, thus ''avoiding'' the usage of impure callbacks or
    * eager evaluation.
+   *
+   * The returned `IO` is guaranteed to execute immediately,
+   * and does not wait on any async action to complete, thus this
+   * is safe to do, even on top of runtimes that cannot block threads
+   * (e.g. JavaScript):
+   *
+   * {{{
+   *   // Sample
+   *   val source = IO.shift *> IO(1)
+   *   // Describes execution
+   *   val start = source.runAsync
+   *   // Safe, because it does not block for the source to finish
+   *   start.unsafeRunSync
+   * }}}
+   *
+   * @return an `IO` value that upon evaluation will execute the source,
+   *         but will not wait for its completion
+   *
+   * @see [[runCancelable]] for the version that gives you a cancelable
+   *      token that can be used to send a cancel signal
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
+  }
+
+  /**
+   * Produces an `IO` reference that should execute the source on evaluation,
+   * without waiting for its result and return a cancelable token, being the
+   * safe analogue to [[unsafeRunCancelable]].
+   *
+   * This operation is isomorphic to [[unsafeRunCancelable]]. Just like
+   * [[runAsync]], this operation avoids the usage of impure callbacks or
+   * eager evaluation.
+   *
+   * The returned `IO` boxes an `IO[Unit]` that can be used to cancel the
+   * running asynchronous computation (if the source can be cancelled).
+   *
+   * The returned `IO` is guaranteed to execute immediately,
+   * and does not wait on any async action to complete, thus this
+   * is safe to do, even on top of runtimes that cannot block threads
+   * (e.g. JavaScript):
+   *
+   * {{{
+   *   val source: IO[Int] = ???
+   *   // Describes interruptible execution
+   *   val start: IO[IO[Unit]] = source.runCancelable
+   *
+   *   // Safe, because it does not block for the source to finish
+   *   val cancel: IO[Unit] = start.unsafeRunSync
+   *
+   *   // Safe, because cancellation only sends a signal,
+   *   // but doesn't back-pressure on anything
+   *   cancel.unsafeRunSync
+   * }}}
+   *
+   * @return an `IO` value that upon evaluation will execute the source,
+   *         but will not wait for its completion, yielding a cancellation
+   *         token that can be used to cancel the async process
+   *
+   * @see [[runAsync]] for the simple, uninterruptible version
+   */
+  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] = IO {
+    val cancel = unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ())))
+    IO.Delay(cancel)
   }
 
   /**
@@ -294,7 +353,7 @@ sealed abstract class IO[+A] {
    * But you can use [[IO.shift(implicit* IO.shift]] to force an async
    * boundary just before start.
    */
-  final def start: IO[Fiber[IO, A]] =
+  final def start: IO[Fiber[IO, A @uncheckedVariance]] =
     IOStart(this)
 
   /**
@@ -319,34 +378,10 @@ sealed abstract class IO[+A] {
 
   /**
    * Converts the source `IO` into any `F` type that implements
-   * the [[cats.effect.Async Async]] type class.
+   * the [[LiftIO]] type class.
    */
-  final def to[F[_]](implicit F: cats.effect.Async[F]): F[A @uncheckedVariance] =
-    this match {
-      case Pure(a) => F.pure(a)
-      case Delay(thunk) => F.delay(thunk())
-      case RaiseError(e) => F.raiseError(e)
-      case Suspend(thunk) => F.suspend(thunk().to[F])
-      case Async(k) => F.async(cb => k(IOConnection.alreadyCanceled, cb))
-      case Bind(source, frame) =>
-        frame match {
-          case m: IOFrame[_, _] =>
-            if (!m.isInstanceOf[ErrorHandler[_]]) {
-              val lh = F.attempt(F.suspend(source.to[F]))
-              val f = m.asInstanceOf[IOFrame[Any, IO[A]]]
-              F.flatMap(lh)(e => f.fold(e).to[F])
-            } else {
-              val lh = F.suspend(source.to[F]).asInstanceOf[F[A]]
-              F.handleErrorWith(lh) { e =>
-                m.asInstanceOf[ErrorHandler[A]].recover(e).to[F]
-              }
-            }
-          case f =>
-            F.flatMap(F.suspend(source.to[F]))(e => f(e).to[F])
-        }
-      case Map(source, f, _) =>
-        F.map(source.to[F])(f.asInstanceOf[Any => A])
-    }
+  final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
+    F.liftIO(this)
 
   def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
     for {
@@ -366,7 +401,9 @@ sealed abstract class IO[+A] {
   }
 }
 
-private[effect] abstract class IOParallelNewtype extends internals.IOTimerRef {
+private[effect] abstract class IOParallelNewtype
+  extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
+
   /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
    * for implementing `cats.Parallel`.
@@ -415,7 +452,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit val ioEffect: Effect[IO] = new Effect[IO] {
+  implicit val ioConcurrentEffect: ConcurrentEffect[IO] = new ConcurrentEffect[IO] {
     override def pure[A](a: A): IO[A] =
       IO.pure(a)
     override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
@@ -434,10 +471,24 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.raiseError(e)
     override def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
+    override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+      fa.start
+    override def uncancelable[A](fa: IO[A]): IO[A] =
+      fa.uncancelable
+    override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
+      fa.onCancelRaiseError(e)
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
+    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
+      IO.race(fa, fb)
+    override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+      IO.racePair(fa, fb)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.cancelable(k)
+    override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      fa.runCancelable(cb)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     // this will use stack proportional to the maximum number of joined async suspensions
@@ -458,7 +509,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       override def applicative: Applicative[IO.Par] =
         parApplicative
       override def monad: Monad[IO] =
-        ioEffect
+        ioConcurrentEffect
       override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
       override val parallel: ~>[IO, IO.Par] =
@@ -608,6 +659,11 @@ object IO extends IOInstances {
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
+
+  /**
+   * A non-terminating `IO`, alias for `async(_ => ())`.
+   */
+  val never: IO[Nothing] = async(_ => ())
 
   /**
    * Lifts an `Eval` into `IO`.
@@ -803,7 +859,7 @@ object IO extends IOInstances {
    *   IO.sleep(Duration.Zero) <-> IO.shift
    * }}}
    *
-   * The created task is cancellable and so it can be used safely in race
+   * The created task is cancelable and so it can be used safely in race
    * conditions without resource leakage.
    *
    * @param duration is the time span to wait before emitting the tick
@@ -849,6 +905,77 @@ object IO extends IOInstances {
         cb.async(Callback.rightUnit)
     }
   }
+
+  /**
+   * Run two IO tasks concurrently, and return the first to
+   * finish, either in success or error. The loser of the race is
+   * cancelled.
+   *
+   * The two tasks are executed in parallel if asynchronous,
+   * the winner being the first that signals a result.
+   *
+   * As an example, this is how a `timeout` operation could be
+   * implemented in terms of `race`:
+   *
+   * {{{
+   *   import cats.effect._
+   *   import scala.concurrent.duration._
+   *
+   *   def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])
+   *     (implicit timer: Timer[IO]): IO[A] = {
+   *
+   *     IO.race(io, timer.sleep(timer)).flatMap {
+   *       case Left((a, _)) => IO.pure(a)
+   *       case Right((_, _)) => fallback
+   *     }
+   *   }
+   *
+   *   def timeout[A](io: IO[A], after: FiniteDuration)
+   *     (implicit timer: Timer[IO]): IO[A] = {
+   *
+   *     timeoutTo(io, after,
+   *       IO.raiseError(new TimeoutException(after.toString)))
+   *   }
+   * }}}
+   *
+   * N.B. this is the implementation of [[Concurrent.race]].
+   *
+   * Also see [[racePair]] for a version that does not cancel
+   * the loser automatically on successful results.
+   */
+  def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] =
+    IORace.simple(lh, rh)
+
+  /**
+   * Run two IO tasks concurrently, and returns a pair
+   * containing both the winner's successful value and the loser
+   * represented as a still-unfinished task.
+   *
+   * If the first task completes in error, then the result will
+   * complete in error, the other task being cancelled.
+   *
+   * On usage the user has the option of cancelling the losing task,
+   * this being equivalent with plain [[race]]:
+   *
+   * {{{
+   *   val ioA: IO[A] = ???
+   *   val ioB: IO[B] = ???
+   *
+   *   IO.racePair(ioA, ioB).flatMap {
+   *     case Left((a, fiberB)) =>
+   *       fiberB.cancel.map(_ => a)
+   *     case Right((fiberA, b)) =>
+   *       fiberA.cancel.map(_ => b)
+   *   }
+   * }}}
+   *
+   * N.B. this is the implementation of [[Concurrent.racePair]].
+   *
+   * See [[race]] for a simpler version that cancels the loser
+   * immediately.
+   */
+  def racePair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+    IORace.pair(lh, rh)
 
   private[effect] final case class Pure[+A](a: A)
     extends IO[A]

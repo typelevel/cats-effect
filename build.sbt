@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import microsites.ExtraMdFileConfig
 import scala.sys.process._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -139,28 +140,84 @@ val commonSettings = Seq(
 )
 
 val mimaSettings = Seq(
+  // Setting the previous artifact manually at 0.9
+  // as a temporary measure until we release 0.10
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.9"),
+  /*
   mimaPreviousArtifacts := {
     val TagBase = """^(\d+)\.(\d+).*"""r
     val TagBase(major, minor) = BaseVersion
 
     val tags = "git tag --list".!! split "\n" map { _.trim }
-
     val versions =
       tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
 
-    versions map { v => organization.value %% name.value % v } toSet
-  },
+    versions.map { v => organization.value %% name.value % v }.toSet
+  },*/
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
     Seq(
+      // Not a problem: AsyncInstances is a private class, we just moved those
+      // directly in the companion object.
+      //
+      // Manually checked:
+      //  - catsEitherTAsync
+      //  - catsOptionTAsync
+      //  - catsStateTAsync
+      //  - catsWriterTAsync
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances"),
+      // Not a problem: AsyncInstances is a private class, WriterTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$WriterTAsync"),
+      // Not a problem: AsyncInstances is a private class, OptionTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$OptionTAsync"),
+      // Not a problem: AsyncInstances is a private class, EitherTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$EitherTAsync"),
+      // Not a problem: AsyncInstances is a private class, StateTAsync too
+      exclude[MissingClassProblem]("cats.effect.AsyncInstances$StateTAsync"),
+      //
+      // Not a problem: EffectInstances is a private class and we just moved
+      // those in the companion object.
+      //
+      // Manual check for:
+      //  - catsEitherTEffect
+      //  - catsStateTEffect
+      //  - catsWriterTEffect
+      //  - catsWriterTEffect
+      exclude[MissingClassProblem]("cats.effect.EffectInstances"),
+      // Not a problem: Missing private traits being inherited
+      exclude[MissingTypesProblem]("cats.effect.Effect$"),
+      //
+      // Not a problem: SyncInstances is a private class, we just moved those
+      // directly in the companion object.
+      //
+      // Manual check for:
+      //   - catsEitherTEvalSync
+      //   - catsEitherTSync
+      //   - catsOptionTSync
+      //   - catsStateTSync
+      //   - catsWriterTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances"),
+      // Not a problem: no longer implementing private traits
       exclude[MissingTypesProblem]("cats.effect.Sync$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.EffectInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.SyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOLowPriorityInstances"),
-      exclude[MissingTypesProblem]("cats.effect.Async$"),
-      exclude[MissingTypesProblem]("cats.effect.IO$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.LiftIOInstances"),
+      // Not a problem: SyncInstances and StateTSync are private.
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$StateTSync"),
+      // Not a problem: SyncInstances and OptionTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$OptionTSync"),
+      // Not a problem: SyncInstances and EitherTSync
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$EitherTSync"),
+      // Not a problem: SyncInstances and WriterTSync are private
+      exclude[MissingClassProblem]("cats.effect.SyncInstances$WriterTSync"),
+      //
+      // Not a problem: LiftIOInstances is a private class, we just moved
+      // those directly in the companion object.
+      //
+      // Manual check for:
+      //   - catsEitherTLiftIO
+      //   - catsKleisliLiftIO
+      //   - catsOptionTLiftIO
+      //   - catsStateTLiftIO
+      //   - catsWriterTLiftIO
       exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
       exclude[MissingTypesProblem]("cats.effect.Effect$"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
@@ -170,17 +227,35 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$EitherTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
+      //
+      // Following are all internal implementation details:
+      //
+      // Not a problem: IO.Async is a private class
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
+      // Not a problem: IO.Async is a private class
+      exclude[MissingTypesProblem]("cats.effect.Async$"),
+      // Not a problem: IO.Async is a private class
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      // Not a problem: IO.Async is a private class
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
+      // Not a problem: IO.Async is a private class
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      // Not a problem: IO.Async is a private class
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
+      // Not a problem: RestartCallback is a private class
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
+      // Not a problem: IOPlatform is private
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
+      // Not a problem: IORunLoop is private
       exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
     )
-  }
-)
+  })
 
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
@@ -268,6 +343,47 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val siteSettings = Seq(
+    micrositeName := "Cats Effect",
+    micrositeDescription := "The IO Monad for Cats",
+    micrositeAuthor := "Cats Effect contributors",
+    micrositeGithubOwner := "typelevel",
+    micrositeGithubRepo := "cats-effect",
+    micrositeBaseUrl := "/cats-effect",
+    micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
+    micrositeHighlightTheme := "atom-one-light",
+    micrositePalette := Map(
+      "brand-primary" -> "#5B5988",
+      "brand-secondary" -> "#292E53",
+      "brand-tertiary" -> "#222749",
+      "gray-dark" -> "#49494B",
+      "gray" -> "#7B7B7E",
+      "gray-light" -> "#E5E5E6",
+      "gray-lighter" -> "#F4F3F4",
+      "white-color" -> "#FFFFFF"),
+    micrositeExtraMdFiles := Map(
+      file("README.md") -> ExtraMdFileConfig(
+        "index.md",
+        "home",
+        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+      )
+    ),
+    fork in tut := true,
+    scalacOptions in Tut --= Seq(
+      "-Xfatal-warnings",
+      "-Ywarn-unused-import",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-dead-code",
+      "-Xlint:-missing-interpolator,_",
+    )
+)
+
+lazy val microsite = project.in(file("site"))
+  .enablePlugins(MicrositesPlugin)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(siteSettings)
+  .dependsOn(coreJVM, lawsJVM)
 
 /*
  * Compatibility version.  Use this to declare what version with

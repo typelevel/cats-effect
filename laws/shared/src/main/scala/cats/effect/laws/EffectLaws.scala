@@ -18,46 +18,30 @@ package cats
 package effect
 package laws
 
-import cats.implicits._
 import cats.laws._
 
 trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Effect[F]
 
   def runAsyncPureProducesRightIO[A](a: A) = {
-    val fa = F.pure(a)
-    var result: Option[Either[Throwable, A]] = None
-    val read = IO { result.get }
-
-    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Right(a))
+    val lh = IO.async[Either[Throwable, A]] { cb =>
+      F.runAsync(F.pure(a))(r => IO(cb(Right(r))))
+        .unsafeRunSync()
+    }
+    lh <-> IO.pure(Right(a))
   }
 
   def runAsyncRaiseErrorProducesLeftIO[A](e: Throwable) = {
-    val fa: F[A] = F.raiseError(e)
-    var result: Option[Either[Throwable, A]] = None
-    val read = IO { result.get }
-
-    F.runAsync(fa)(e => IO { result = Some(e) }) *> read <-> IO.pure(Left(e))
+    val lh = IO.async[Either[Throwable, A]] { cb =>
+      F.runAsync(F.raiseError(e))(r => IO(cb(Right(r))))
+        .unsafeRunSync()
+    }
+    lh <-> IO.pure(Left(e))
   }
 
   def runAsyncIgnoresErrorInHandler[A](e: Throwable) = {
     val fa = F.pure(())
     F.runAsync(fa)(_ => IO.raiseError(e)) <-> IO.pure(())
-  }
-
-  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
-    var cur = a
-    val change = F delay { cur = f(cur) }
-    val readResult = IO { cur }
-
-    val double: F[Unit] = F async { cb =>
-      cb(Right(()))
-      cb(Right(()))
-    }
-
-    val test = F.runAsync(double *> change) { _ => IO.unit }
-
-    test *> readResult <-> IO.pure(f(a))
   }
 }
 

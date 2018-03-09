@@ -29,35 +29,35 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      ArbT: Arbitrary[Throwable],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      CogenT: Cogen[Throwable],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqFU: Eq[F[Unit]],
-      EqT: Eq[Throwable],
-      EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
-      EqFEitherTA: Eq[F[Either[Throwable, A]]],
-      EqFABC: Eq[F[(A, B, C)]],
-      EqFInt: Eq[F[Int]],
-      EqIOA: Eq[IO[A]],
-      EqIOU: Eq[IO[Unit]],
-      EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-      iso: Isomorphisms[F]): RuleSet = {
+    ArbFA: Arbitrary[F[A]],
+    ArbFB: Arbitrary[F[B]],
+    ArbFC: Arbitrary[F[C]],
+    ArbFU: Arbitrary[F[Unit]],
+    ArbFAtoB: Arbitrary[F[A => B]],
+    ArbFBtoC: Arbitrary[F[B => C]],
+    ArbT: Arbitrary[Throwable],
+    CogenA: Cogen[A],
+    CogenB: Cogen[B],
+    CogenC: Cogen[C],
+    CogenT: Cogen[Throwable],
+    EqFA: Eq[F[A]],
+    EqFB: Eq[F[B]],
+    EqFC: Eq[F[C]],
+    EqFU: Eq[F[Unit]],
+    EqT: Eq[Throwable],
+    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
+    EqFEitherTA: Eq[F[Either[Throwable, A]]],
+    EqFABC: Eq[F[(A, B, C)]],
+    EqFInt: Eq[F[Int]],
+    EqIOU: Eq[IO[Unit]],
+    EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
+    iso: Isomorphisms[F],
+    params: Parameters): RuleSet = {
+
     new RuleSet {
       val name = "effect"
       val bases = Nil
       val parents = Seq(async[A, B, C])
-
       val props = Seq(
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
