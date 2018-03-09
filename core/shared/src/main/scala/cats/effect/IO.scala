@@ -22,8 +22,9 @@ import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
+
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{CancellationException, ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Left, Right, Success}
 
@@ -383,10 +384,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
 
+  private final val cancelException = new CancellationException("cancel in bracket")
+
   def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
     for {
       a <- this
-      etb <- use(a).attempt
+      etb <- use(a).onCancelRaiseError(cancelException).attempt
       _ <- release(a, etb match {
         case Left(e) => BracketResult.error[Throwable](e)
         case Right(_) => BracketResult.complete

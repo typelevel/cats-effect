@@ -25,6 +25,8 @@ import scala.Predef.{identity => id}
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
 
+  //TODO Add law that ensures Bracket works with cancelation
+
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
     F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
   }
