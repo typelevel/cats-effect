@@ -27,81 +27,154 @@ program.unsafeRunSync()
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
 
-`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality as described below.
+## Basic Operations
 
-## "Unsafe" Operations
+`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality, therefore all the operations described in these typeclasses are available for `IO` as well.
 
-All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
+### apply
 
-### unsafeRunSync
-
-Produces the result by running the encapsulated effects as impure side effects.
-
-If any component of the computation is asynchronous, the current thread will block awaiting the results of the async computation. On JavaScript, an exception will be thrown instead to avoid generating a deadlock. By default, this blocking will be unbounded. To limit the thread block to some fixed time, use `unsafeRunTimed` instead.
-
-Any exceptions raised within the effect will be re-thrown during evaluation.
+It probably is the most used operation and, as explained before, the equivalent of `Sync[IO].delay`:
 
 ```tut:book
-IO(println("Sync!")).unsafeRunSync()
+def apply[A](body: => A): IO[A] = ???
 ```
 
-### unsafeRunAsync
-
-Passes the result of the encapsulated effects to the given callback by running them as impure side effects.
-
-Any exceptions raised within the effect will be passed to the callback in the `Either`. The callback will be invoked at most *once*. Note that it is very possible to construct an `IO` which never returns while still never blocking a thread, and attempting to evaluate that `IO` with this method will result in a situation where the callback is *never* invoked.
+The idea is to wrap side effects such as reading / writing from / to the console:
 
 ```tut:book
-IO(println("Async!")).unsafeRunAsync(_ => ())
+def putStrlLn(value: String) = IO(println(value))
+val readLn = IO(scala.io.StdIn.readLine)
 ```
 
-### unsafeRunCancelable
+A good practice is also to keep the granularity so please don't do something like this:
 
-Evaluates the source `IO`, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.
+```scala
+IO {
+  readingFile
+  writingToDatabase
+  sendBytesOverTcp
+  launchMissiles
+}
+```
+
+In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention` for example:
+
+```
+val program =
+  for {
+    _     <- putStrlLn("Please enter your name:")
+    name  <- readLn
+    _     <- putStrlLn(s"Hi $name!")
+  } yield ()
+```
+
+Here you have a simple prompt program that is, at the same time, composable with other programs. Monads compose ;)
+
+### pure
+
+Sometimes you want to lift pure values into `IO`. For that purpose the following method is defined:
 
 ```tut:book
-IO(println("Potentially cancelable!")).unsafeRunCancelable(_ => ())
+def pure[A](a: A): IO[A] = ???
 ```
 
-### unsafeRunTimed
-
-Similar to `unsafeRunSync`, except with a bounded blocking duration when awaiting asynchronous results.
-
-Please note that the `limit` parameter does not limit the time of the total computation, but rather acts as an upper bound on any *individual* asynchronous block.  Thus, if you pass a limit of `5 seconds` to an `IO` consisting solely of synchronous actions, the evaluation may take considerably longer than 5 seconds!
-
-Furthermore, if you pass a limit of `5 seconds` to an `IO` consisting of several asynchronous actions joined together, evaluation may take up to `n * 5 seconds`, where `n` is the number of joined async actions.
-
-As soon as an async blocking limit is hit, evaluation "immediately" aborts and `None` is returned.
-
-Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://github.com/functional-streams-for-scala/fs2) or [Monix](https://monix.io/)).
+For example we can lift a number (pure value) into `IO` and compose it with another `IO` that wraps a side a effect in a safe manner, nothing is going to be executed:
 
 ```tut:book
-import scala.concurrent.duration._
-
-IO(println("Timed!")).unsafeRunTimed(5.seconds)
+IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
-### unsafeToFuture
-
-Evaluates the effect and produces the result in a `Future`.
-
-This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effect in a non-blocking fashion, but uses a `Future` rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.
+You should never use `pure` to wrap side effects, that is very much wrong, so please don't do this:
 
 ```tut:book
-IO("Gimme a Future!").unsafeToFuture()
+IO.pure(println("THIS IS WRONG!"))
 ```
 
-## Additional Operations
+See above in the previous example how from a pure value we `flatMap` with an `IO` that wraps a side effect. That's fine. However, you should never use `map` in similar cases since this function is only meant for pure transformations and not to enclose side effects. So this would be very wrong:
+
+```tut:book
+IO.pure(123).map(n => println(s"DON'T DO THIS EITHER! $n"))
+```
+
+### unit & never
+
+In addition to `apply` and `pure` there are two useful functions that are just aliases, namely `unit` and `never`.
+
+`unit` is simply an alias for `pure(())`:
+
+```tut:book
+val unit: IO[Unit] = IO.pure(())
+```
+
+`never` represents a non-terminating `IO` defined in terms of `async`:
+```tut:book
+val never: IO[Nothing] = IO.async(_ => ())
+```
+
+## From Operations
+
+There are two useful operations defined in the `IO` companion object to lift both a scala `Future` and an `Either` into `IO`.
+
+### fromFuture
+
+Constructs an `IO` which evaluates the given `Future` and produces either a result or a failure. It is defined as follow:
+
+```tut:book
+import scala.concurrent.Future
+
+def fromFuture[A](iof: IO[Future[A]]): IO[A] = ???
+```
+
+Because `Future` eagerly evaluates, as well as because it memoizes, this function takes its parameter as an `IO`, which could be lazily evaluated. If this laziness is appropriately threaded back to the definition site of the `Future`, it ensures that the computation is fully managed by `IO` and thus referentially transparent.
+
+Lazy evaluation, equivalent with by-name parameters:
+
+```tut:book
+val f = Future.successful("I come from the Future!")
+
+IO.fromFuture(IO(f))
+```
+
+Eager evaluation, for pure futures:
+
+```tut:book
+IO.fromFuture(IO.pure(f))
+```
+
+### fromEither
+
+Lifts an `Either[Throwable, A]` into the `IO[A]` context raising the throwable if it exists.
+
+```tut:book
+def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
+```
+
+## Error Handling
+
+Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for `MonadError` and thus for `ApplicativeError` on `IO` as long as the error type is a `Throwable`. Operations such as `raiseError`, `attempt`, `handleErrorWith`, `recoverWith`, etc. Just make sure you have the syntax import in scope such as `cats.implicits._`.
+
+### raiseError
+
+Constructs an `IO` which sequences the specified exception.
+
+```tut:nofail
+val boom = IO.raiseError(new Exception("boom"))
+boom.unsafeRunSync()
+```
 
 ### attempt
 
 Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the `catch` clause in `try`/`catch`, being the inverse of `IO.raiseError`. Example:
 
 ```tut:book
-IO.raiseError(new Exception("boom")).attempt.unsafeRunSync()
+boom.attempt.unsafeRunSync()
 ```
 
-Note that this is provided by `IO`'s `MonadError` instance or more specifically by the `ApplicativeError` typeclass. So it can also be used when abstracting over the effect `F[_]`.
+Look at the [MonadError](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala) typeclass for more.
+
+## Thread Shifting
+
+`IO` provides a function `shift` to give you more control over the execution of your operations.
 
 ### shift
 
@@ -207,5 +280,114 @@ def loop(n: Int): IO[Int] =
   signal(n).flatMap { x =>
     if (x > 0) loop(n - 1) else IO.pure(0)
   }
+```
+
+## Parallelism
+
+Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two given `IO`s in parallel.
+
+TODO: `parMapN` example.
+
+## Concurrency
+
+There are two methods defined by the `Concurrent` typeclasss to help you achieve concurrency, namely `race` and `racePair`.
+
+### race
+
+Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is cancelled.
+
+The two tasks are executed in parallel if asynchronous, the winner being the first that signals a result. As an example, this is how a `timeout` operation could be implemented in terms of `race`:
+
+```tut:book:silent
+import scala.concurrent.duration._
+
+def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])(implicit timer: Timer[IO]): IO[A] = {
+  IO.race(io, timer.sleep(after)).flatMap {
+    case Left(a)  => IO.pure(a)
+    case Right(_) => fallback
+  }
+}
+
+def timeout[A](io: IO[A], after: FiniteDuration)(implicit timer: Timer[IO]): IO[A] = {
+  timeoutTo(io, after, IO.raiseError(new Exception(s"Timeout after: $after")))
+}
+```
+
+### racePair
+
+Run two `IO` tasks concurrently, and returns a pair containing both the winner's successful value and the loser represented as a still-unfinished task.
+
+If the first task completes in error, then the result will complete in error, the other task being cancelled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
+
+```tut:book:silent
+def racing[A, B](ioA: IO[A], ioB: IO[B]) =
+  IO.racePair(ioA, ioB).flatMap {
+    case Left((a, fiberB)) =>
+       fiberB.cancel.map(_ => a)
+    case Right((fiberA, b)) =>
+      fiberA.cancel.map(_ => b)
+  }
+```
+
+## "Unsafe" Operations
+
+Pretty much we have been using some "unsafe" operations in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
+
+### unsafeRunSync
+
+Produces the result by running the encapsulated effects as impure side effects.
+
+If any component of the computation is asynchronous, the current thread will block awaiting the results of the async computation. On JavaScript, an exception will be thrown instead to avoid generating a deadlock. By default, this blocking will be unbounded. To limit the thread block to some fixed time, use `unsafeRunTimed` instead.
+
+Any exceptions raised within the effect will be re-thrown during evaluation.
+
+```tut:book
+IO(println("Sync!")).unsafeRunSync()
+```
+
+### unsafeRunAsync
+
+Passes the result of the encapsulated effects to the given callback by running them as impure side effects.
+
+Any exceptions raised within the effect will be passed to the callback in the `Either`. The callback will be invoked at most *once*. Note that it is very possible to construct an `IO` which never returns while still never blocking a thread, and attempting to evaluate that `IO` with this method will result in a situation where the callback is *never* invoked.
+
+```tut:book
+IO(println("Async!")).unsafeRunAsync(_ => ())
+```
+
+### unsafeRunCancelable
+
+Evaluates the source `IO`, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.
+
+```tut:book
+IO(println("Potentially cancelable!")).unsafeRunCancelable(_ => ())
+```
+
+### unsafeRunTimed
+
+Similar to `unsafeRunSync`, except with a bounded blocking duration when awaiting asynchronous results.
+
+Please note that the `limit` parameter does not limit the time of the total computation, but rather acts as an upper bound on any *individual* asynchronous block.  Thus, if you pass a limit of `5 seconds` to an `IO` consisting solely of synchronous actions, the evaluation may take considerably longer than 5 seconds!
+
+Furthermore, if you pass a limit of `5 seconds` to an `IO` consisting of several asynchronous actions joined together, evaluation may take up to `n * 5 seconds`, where `n` is the number of joined async actions.
+
+As soon as an async blocking limit is hit, evaluation "immediately" aborts and `None` is returned.
+
+Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://github.com/functional-streams-for-scala/fs2) or [Monix](https://monix.io/)).
+
+```tut:book
+import scala.concurrent.duration._
+
+IO(println("Timed!")).unsafeRunTimed(5.seconds)
+```
+
+### unsafeToFuture
+
+Evaluates the effect and produces the result in a `Future`.
+
+This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effect in a non-blocking fashion, but uses a `Future` rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.
+
+```tut:book
+IO("Gimme a Future!").unsafeToFuture()
 ```
 
