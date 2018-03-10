@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, OptionT, StateT, WriterT}
+import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.{Callback, IORunLoop}
 
@@ -212,6 +212,13 @@ object Async {
   implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 
+  /**
+   * [[Async]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
+  implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, ?]] =
+    new KleisliAsync[F, R] { def F = Async[F]; }
+
   private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
     with Sync.EitherTSync[F, L]
     with LiftIO.EitherTLiftIO[F, L] {
@@ -254,5 +261,14 @@ object Async {
 
     def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
       WriterT.liftF(F.async(k))(L, FA)
+  }
+
+  private[effect] trait KleisliAsync[F[_], R] extends Async[Kleisli[F, R, ?]]
+    with Sync.KleisliSync[F, R] {
+
+    override protected implicit def F: Async[F]
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
+      Kleisli.liftF(F.async(k))
   }
 }

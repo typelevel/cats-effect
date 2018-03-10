@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, OptionT, StateT, WriterT}
+import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.IORunLoop
 import cats.syntax.all._
@@ -446,6 +446,13 @@ object Concurrent {
     new StateTConcurrent[F, S] { def F = Concurrent[F] }
 
   /**
+   * [[Concurrent]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Concurrent`.
+   */
+  implicit def catsKleisliConcurrent[F[_]: Concurrent, R]: Concurrent[Kleisli[F, R, ?]] =
+    new KleisliConcurrent[F, R] { def F = Concurrent[F] }
+
+  /**
    * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
@@ -611,4 +618,38 @@ object Concurrent {
     protected def fiberT[A](fiber: effect.Fiber[F, (L, A)]): Fiber[A] =
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
   }
+
+  private[effect] trait KleisliConcurrent[F[_], R] 
+    extends Concurrent[({type λ[α] = Kleisli[F, R, α]})#λ]
+    with Async.KleisliAsync[F, R] {
+
+    override protected implicit def F: Concurrent[F]
+    // Needed to drive static checks, otherwise the
+    // compiler can choke on type inference :-(
+    type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
+
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Kleisli[F, R, A] =
+      Kleisli.liftF(F.cancelable(k))
+
+    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
+
+    override def onCancelRaiseError[A](fa: Kleisli[F, R, A], e: Throwable): ReaderT[F, R, A] =
+      Kleisli { r => F.suspend(F.onCancelRaiseError(fa.run(r), e)) }
+
+    override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
+      Kleisli(r => F.start(fa.run(r)).map(fiberT))
+
+    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+      Kleisli { r =>
+        F.racePair(fa.run(r), fb.run(r)).map {
+          case Left((a, fb)) => Left((a, fiberT(fb)))
+          case Right((fa, b)) => Right((fiberT(fa), b))
+        }
+      }
+
+    protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
+      Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
+  }
+
 }

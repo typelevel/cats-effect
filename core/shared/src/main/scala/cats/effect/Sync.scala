@@ -18,8 +18,9 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, IndexedStateT, OptionT, StateT, WriterT}
+import cats.data._
 import cats.effect.internals.{AndThen, NonFatal}
+import cats.syntax.all._
 
 /**
  * A monad that can suspend the execution of side effects
@@ -113,6 +114,13 @@ object Sync {
    */
   implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
+
+  /**
+   * [[Sync]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
+  implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, ?]] =
+    new KleisliSync[F, R] { def F = Sync[F] }
 
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
     protected implicit def F: Sync[F]
@@ -210,5 +218,28 @@ object Sync {
 
     def suspend[A](thunk: => WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(F.suspend(thunk.run))
+  }
+
+  private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
+    protected def F: Sync[F]
+    private implicit def _F = F
+
+    def pure[A](x: A): Kleisli[F, R, A] = Kleisli.pure(x)
+
+    // remove duplication when we upgrade to cats 1.0
+    def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r))) }
+
+    def raiseError[A](e: Throwable): Kleisli[F, R, A] =
+      Kleisli.liftF(F.raiseError(e))
+
+    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
+      Kleisli { r => F.suspend(fa.run(r).flatMap(f.andThen(_.run(r)))) }
+
+    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
+      Kleisli.catsDataMonadForKleisli[F, R].tailRecM(a)(f)
+
+    def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli(r => F.suspend(thunk.run(r)))
   }
 }
