@@ -619,8 +619,7 @@ object Concurrent {
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
   }
 
-  private[effect] trait KleisliConcurrent[F[_], R] 
-    extends Concurrent[({type λ[α] = Kleisli[F, R, α]})#λ]
+  private[effect] trait KleisliConcurrent[F[_], R] extends Concurrent[Kleisli[F, R, ?]]
     with Async.KleisliAsync[F, R] {
 
     override protected implicit def F: Concurrent[F]
@@ -640,16 +639,15 @@ object Concurrent {
     override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
       Kleisli(r => F.start(fa.run(r)).map(fiberT))
 
-    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]) =
       Kleisli { r =>
         F.racePair(fa.run(r), fb.run(r)).map {
-          case Left((a, fb)) => Left((a, fiberT(fb)))
-          case Right((fa, b)) => Right((fiberT(fa), b))
+          case Left((a, fiber)) => Left((a, fiberT[B](fiber)))
+          case Right((fiber, b)) => Right((fiberT[A](fiber), b))
         }
       }
 
     protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
   }
-
 }
