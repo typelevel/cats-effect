@@ -904,7 +904,7 @@ object IO extends IOInstances {
    *   def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])
    *     (implicit timer: Timer[IO]): IO[A] = {
    *
-   *     IO.race(io, timer.sleep(timer)).flatMap {
+   *     IO.race(io, timer.sleep(after)).flatMap {
    *       case Left((a, _)) => IO.pure(a)
    *       case Right((_, _)) => fallback
    *     }
