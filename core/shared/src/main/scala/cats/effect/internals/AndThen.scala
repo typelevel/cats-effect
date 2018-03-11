@@ -46,10 +46,9 @@ private[effect] sealed abstract class AndThen[-T, +R]
     runLoop(a)
 
   override def andThen[A](g: R => A): T => A = {
-    // Fusing calls up to a certain threshold, using the fusion
-    // technique implemented for `cats.effect.IO#map`
+    // Using the fusion technique implemented for `cats.effect.IO#map`
     this match {
-      case Single(f, index) if index != 127 =>
+      case Single(f, index) if index != IOPlatform.fusionMaxStackDepth =>
         Single(f.andThen(g), index + 1)
       case _ =>
         andThenF(AndThen(g))
@@ -57,10 +56,9 @@ private[effect] sealed abstract class AndThen[-T, +R]
   }
 
   override def compose[A](g: A => T): A => R = {
-    // Fusing calls up to a certain threshold, using the fusion
-    // technique implemented for `cats.effect.IO#map`
+    // Using the fusion technique implemented for `cats.effect.IO#map`
     this match {
-      case Single(f, index) if index != 127 =>
+      case Single(f, index) if index != IOPlatform.fusionMaxStackDepth =>
         Single(f.compose(g), index + 1)
       case _ =>
         composeF(AndThen(g))
