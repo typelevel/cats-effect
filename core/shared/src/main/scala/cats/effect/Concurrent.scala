@@ -359,7 +359,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])
    *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
    *
-   *      F.race(fa, timer.sleep(timer)).flatMap {
+   *      F.race(fa, timer.sleep(after)).flatMap {
    *        case Left((a, _)) => F.pure(a)
    *        case Right((_, _)) => fallback
    *      }
