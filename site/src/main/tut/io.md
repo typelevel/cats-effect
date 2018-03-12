@@ -291,7 +291,51 @@ def loop(n: Int): IO[Int] =
 
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
-TODO: `parMapN` example.
+### parMapN
+
+It runs an arbitrary number of `IO`s in parallel and allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. In the following example `ioA` takes 2 seconds to complete, so `ioB` and `ioC` complete immediately and the whole computation finishes only when `ioA` completes.
+
+```scala
+import fs2.{Scheduler, Stream}
+
+val stream: Stream[IO, Unit] =
+  Scheduler[IO](2).flatMap { implicit scheduler =>
+    Stream.eval(runInParallel.flatMap(x => IO(println(x))))
+  }
+
+def runInParallel(implicit S: Scheduler): IO[String] = {
+  val ioa = IO("io A") <* IO(println("Running ioA"))
+  val ioA = S.effect.delay(ioa, 2.seconds)
+  val ioB = IO("io B") <* IO(println("Running ioB"))
+  val ioC = IO("io C") <* IO(println("Running ioC"))
+
+  (ioA, ioB, ioC).parMapN { (a, b, c) => s"Result: $a | $b | $c" }
+}
+
+stream.compile.drain.unsafeRunSync()
+// Running ioB
+// Running ioC
+// Running ioA
+// Result: io A | io B | io C
+// res0: Unit = ()
+```
+
+If any of the `IO`s completes with a failure then the result of the whole computation will be failed but not until all the `IO`s are completed. Example:
+
+```tut:nofail
+import cats.syntax.all._
+
+def parallelFailure: IO[String] = {
+  val ioA = IO.raiseError[String](new Exception("boom")) <* IO(println("Running ioA"))
+  val ioB = IO("io B") <* IO(println("Running ioB"))
+
+  (ioA, ioB).parMapN { (a, b) => s"Result: $a | $b" }
+}
+
+parallelFailure.unsafeRunSync()
+```
+
+If we schedule `ioB` to finish in 10 seconds, then the whole computation will wait until it completes to return a failed `IO` even though `ioA` failes immediately.
 
 ## Concurrency
 
