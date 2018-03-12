@@ -29,7 +29,7 @@ The above example prints "hey!" twice, as the effect re-runs each time it is seq
 
 ## Basic Operations
 
-`IO` implements all the typeclasses shown in the hierarchy and it adds some extra functionality, therefore all the operations described in these typeclasses are available for `IO` as well.
+`IO` implements all the typeclasses shown in the hierarch. Therefore all these operations are available for `IO`, in addition to some others.
 
 ### apply
 
@@ -39,7 +39,7 @@ It probably is the most used operation and, as explained before, the equivalent 
 def apply[A](body: => A): IO[A] = ???
 ```
 
-The idea is to wrap side effects such as reading / writing from / to the console:
+The idea is to wrap synchronous side effects such as reading / writing from / to the console:
 
 ```tut:book
 def putStrlLn(value: String) = IO(println(value))
@@ -90,10 +90,12 @@ You should never use `pure` to wrap side effects, that is very much wrong, so pl
 IO.pure(println("THIS IS WRONG!"))
 ```
 
-See above in the previous example how from a pure value we `flatMap` with an `IO` that wraps a side effect. That's fine. However, you should never use `map` in similar cases since this function is only meant for pure transformations and not to enclose side effects. So this would be very wrong:
+This will be stricly evaluated (immediately) and that's something you wouldn't want when working with side effects.
+
+See above in the previous example how from a pure value we `flatMap` with an `IO` that wraps a side effect. That's fine. However, using `map` in similar cases is not recommended since this function is only meant for pure transformations and not to enclose side effects. For example, this works but it is fundamentally wrong:
 
 ```tut:book
-IO.pure(123).map(n => println(s"DON'T DO THIS EITHER! $n"))
+IO.pure(123).map(n => println(s"NOT RECOMMENDED! $n"))
 ```
 
 ### unit & never
@@ -130,14 +132,18 @@ Because `Future` eagerly evaluates, as well as because it memoizes, this functio
 Lazy evaluation, equivalent with by-name parameters:
 
 ```tut:book
-val f = Future.successful("I come from the Future!")
+import scala.concurrent.ExecutionContext.Implicits.global
 
-IO.fromFuture(IO(f))
+IO.fromFuture(IO {
+  Future(println("I come from the Future!"))
+})
 ```
 
-Eager evaluation, for pure futures:
+Eager evaluation:
 
 ```tut:book
+val f = Future.successful("I come from the Future!")
+
 IO.fromFuture(IO.pure(f))
 ```
 
@@ -190,7 +196,6 @@ By default, `Cats Effect` provides an instance of `Timer[IO]` that manages threa
 
 ```tut:book
 import cats.effect.Timer
-import scala.concurrent.ExecutionContext.Implicits.global
 
 val ioTimer = Timer[IO]
 ```
@@ -284,7 +289,7 @@ def loop(n: Int): IO[Int] =
 
 ## Parallelism
 
-Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two given `IO`s in parallel.
+Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
 TODO: `parMapN` example.
 
