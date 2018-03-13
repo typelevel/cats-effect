@@ -19,13 +19,23 @@ package cats.effect.internals
 import java.io.Serializable
 
 /**
- * A type-aligned seq for representing function composition in
- * constant stack space with amortized linear time application (in the
- * number of constituent functions).
+ * Internal API — A type-aligned seq for representing
+ * function composition in constant stack space with amortized
+ * linear time application (in the number of constituent functions).
  *
- * Implementation is enormously uglier than it should be since
- * `tailrec` doesn't work properly on functions with existential
- * types.
+ * A variation of this implementation was first introduced in the
+ * `cats-effect` project. Implementation is enormously uglier than
+ * it should be since `@tailrec` doesn't work properly on functions
+ * with existential types.
+ *
+ * Example:
+ *
+ * {{{
+ *   val seed = AndThen.of((x: Int) => x + 1))
+ *   val f = (0 until 10000).foldLeft(seed)((acc, _) => acc.andThen(_ + 1))
+ *   // This should not trigger stack overflow ;-)
+ *   f(0)
+ * }}}
  */
 private[effect] sealed abstract class AndThen[-T, +R]
   extends (T => R) with Product with Serializable {
@@ -35,11 +45,25 @@ private[effect] sealed abstract class AndThen[-T, +R]
   final def apply(a: T): R =
     runLoop(a)
 
-  override def compose[A](g: A => T): A => R =
-    composeF(AndThen(g))
+  override def andThen[A](g: R => A): T => A = {
+    // Using the fusion technique implemented for `cats.effect.IO#map`
+    this match {
+      case Single(f, index) if index != IOPlatform.fusionMaxStackDepth =>
+        Single(f.andThen(g), index + 1)
+      case _ =>
+        andThenF(AndThen(g))
+    }
+  }
 
-  override def andThen[A](g: R => A): T => A =
-    andThenF(AndThen(g))
+  override def compose[A](g: A => T): A => R = {
+    // Using the fusion technique implemented for `cats.effect.IO#map`
+    this match {
+      case Single(f, index) if index != IOPlatform.fusionMaxStackDepth =>
+        Single(f.compose(g), index + 1)
+      case _ =>
+        composeF(AndThen(g))
+    }
+  }
 
   private def runLoop(start: T): R = {
     var self: AndThen[Any, Any] = this.asInstanceOf[AndThen[Any, Any]]
@@ -48,11 +72,11 @@ private[effect] sealed abstract class AndThen[-T, +R]
 
     while (continue) {
       self match {
-        case Single(f) =>
+        case Single(f, _) =>
           current = f(current)
           continue = false
 
-        case Concat(Single(f), right) =>
+        case Concat(Single(f, _), right) =>
           current = f(current)
           self = right.asInstanceOf[AndThen[Any, Any]]
 
@@ -63,9 +87,9 @@ private[effect] sealed abstract class AndThen[-T, +R]
     current.asInstanceOf[R]
   }
 
-  final def andThenF[X](right: AndThen[R, X]): AndThen[T, X] =
+  private final def andThenF[X](right: AndThen[R, X]): AndThen[T, X] =
     Concat(this, right)
-  final def composeF[X](right: AndThen[X, T]): AndThen[X, R] =
+  private final def composeF[X](right: AndThen[X, T]): AndThen[X, R] =
     Concat(right, this)
 
   // converts left-leaning to right-leaning
@@ -87,7 +111,7 @@ private[effect] sealed abstract class AndThen[-T, +R]
     self.asInstanceOf[AndThen[T, E]]
   }
 
-  override def toString =
+  override def toString: String =
     "AndThen$" + System.identityHashCode(this)
 }
 
@@ -96,11 +120,15 @@ private[effect] object AndThen {
   def apply[A, B](f: A => B): AndThen[A, B] =
     f match {
       case ref: AndThen[A, B] @unchecked => ref
-      case _ => Single(f)
+      case _ => Single(f, 0)
     }
 
-  final case class Single[-A, +B](f: A => B)
+  /** Alias for `apply` that returns a `Function1` type. */
+  def of[A, B](f: A => B): (A => B) =
+    apply(f)
+
+  private final case class Single[-A, +B](f: A => B, index: Int)
     extends AndThen[A, B]
-  final case class Concat[-A, E, +B](left: AndThen[A, E], right: AndThen[E, B])
+  private final case class Concat[-A, E, +B](left: AndThen[A, E], right: AndThen[E, B])
     extends AndThen[A, B]
 }
