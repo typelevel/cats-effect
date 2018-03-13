@@ -293,49 +293,43 @@ Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/
 
 ### parMapN
 
-It runs an arbitrary number of `IO`s in parallel and allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. In the following example `ioA` takes 2 seconds to complete, so `ioB` and `ioC` complete immediately and the whole computation finishes only when `ioA` completes.
+It has the potential to run an arbitrary number of `IO`s in parallel, as long as the `IO` values have asynchronous execution, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
-```scala
-import fs2.{Scheduler, Stream}
+```tut:book
+import cats.syntax.all._
 
-val stream: Stream[IO, Unit] =
-  Scheduler[IO](2).flatMap { implicit scheduler =>
-    Stream.eval(runInParallel.flatMap(x => IO(println(x))))
-  }
+val ioA = IO.shift *> IO(println("Running ioA"))
+val ioB = IO.shift *> IO(println("Running ioB"))
+val ioC = IO.shift *> IO(println("Running ioC"))
 
-def runInParallel(implicit S: Scheduler): IO[String] = {
-  val ioa = IO("io A") <* IO(println("Running ioA"))
-  val ioA = S.effect.delay(ioa, 2.seconds)
-  val ioB = IO("io B") <* IO(println("Running ioB"))
-  val ioC = IO("io C") <* IO(println("Running ioC"))
+val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
-  (ioA, ioB, ioC).parMapN { (a, b, c) => s"Result: $a | $b | $c" }
-}
-
-stream.compile.drain.unsafeRunSync()
-// Running ioB
-// Running ioC
-// Running ioA
-// Result: io A | io B | io C
-// res0: Unit = ()
+program.unsafeRunSync()
 ```
 
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed but not until all the `IO`s are completed. Example:
 
 ```tut:nofail
-import cats.syntax.all._
+val a = IO.shift *> (IO.raiseError[Unit](new Exception("boom")) <* IO(println("Running ioA")))
+val b = IO.shift *> IO(println("Running ioB"))
 
-def parallelFailure: IO[String] = {
-  val ioA = IO.raiseError[String](new Exception("boom")) <* IO(println("Running ioA"))
-  val ioB = IO("io B") <* IO(println("Running ioB"))
+val parFailure = (a, b).parMapN { (_, _) => () }
 
-  (ioA, ioB).parMapN { (a, b) => s"Result: $a | $b" }
-}
-
-parallelFailure.unsafeRunSync()
+parFailure.unsafeRunSync()
 ```
 
-If we schedule `ioB` to finish in 10 seconds, then the whole computation will wait until it completes to return a failed `IO` even though `ioA` failes immediately.
+If we schedule `ioB` to finish in 10 seconds, then the whole computation will wait until it completes to return a failed `IO` even though `ioA` fails immediately.
+
+Please notice that the following example **will not run in parallel** because it's missing the asynchronous execution:
+
+```tut:book
+val c = IO(println("Hey C!"))
+val d = IO(println("Hey D!"))
+
+val nonParallel = (c, d).parMapN { (_, _) => () }
+
+nonParallel.unsafeRunSync()
+```
 
 ## Concurrency
 
