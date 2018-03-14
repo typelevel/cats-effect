@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Timer"
 number: 11
 source: "shared/src/main/scala/cats/effect/Timer.scala"
 scaladoc: "#cats.effect.Timer"
 ---
-
-# Timer
 
 It is a scheduler of tasks. You can think of it as the purely functional equivalent of:
 

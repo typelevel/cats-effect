@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Sync"
 number: 3
 source: "core/shared/src/main/scala/cats/effect/Sync.scala"
 scaladoc: "#cats.effect.Sync"
 ---
-
-# Sync
 
 A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 

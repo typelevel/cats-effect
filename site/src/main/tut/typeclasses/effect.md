@@ -1,11 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Effect"
 number: 7
 source: "shared/src/main/scala/cats/effect/Effect.scala"
 scaladoc: "#cats.effect.Effect"
 ---
-# Effect
 
 A `Monad` that can suspend side effects into the `F[_]` context and supports lazy and potentially asynchronous evaluation.
 

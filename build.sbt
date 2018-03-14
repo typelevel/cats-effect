@@ -345,6 +345,7 @@ lazy val siteSettings = Seq(
     micrositeBaseUrl := "/cats-effect",
     micrositeTwitterCreator := "@typelevel",
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
+    micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",

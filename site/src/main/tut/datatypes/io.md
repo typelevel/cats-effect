@@ -1,14 +1,18 @@
 ---
-layout: docs
+layout: docsplus
 title:  "IO"
 number: 9
 source: "shared/src/main/scala/cats/effect/IO.scala"
 scaladoc: "#cats.effect.IO"
 ---
 
-# IO
-
 A data type for encoding side effects as pure values, capable of expressing both synchronous and asynchronous computations.
+
+<nav role="navigation" id="toc"></nav>
+
+## Introduction
+
+A value of type `IO[A]` is a computation which, when evaluated, can perform effects before returning a value of type `A`.
 
 Effects contained within this abstraction are not evaluated until the "end of the world", which is to say, when one of the "unsafe" methods are used. Effectful results are not memoized, meaning that memory overhead is minimal (and no leaks), and also that a single effect may be run multiple times in a referentially-transparent manner. For example:
 
@@ -28,7 +32,7 @@ program.unsafeRunSync()
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
 
-## On Referential Transparency and Lazy Evaluation
+### On Referential Transparency and Lazy Evaluation
 
 `IO` can suspend side effects and is thus a lazily evaluated data type, being many times compared with `Future` from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:
 
