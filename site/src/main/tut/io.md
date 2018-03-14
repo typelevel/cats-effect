@@ -27,7 +27,7 @@ program.unsafeRunSync()
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
 
-## On Lazy Evaluation
+## On Referential Transparency and Lazy Evaluation
 
 `IO` can suspend side effects and is thus a lazily evaluated data type, being many times compared with `Future` from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:
 
@@ -38,9 +38,31 @@ The above example prints "hey!" twice, as the effect re-runs each time it is seq
 | **Asynchronous**   | (A => Unit) => Unit | () => (A => Unit) => Unit  |
 |                    |      Future[A]      |          IO[A]             |
 
-So in comparison with Scala's `Future`, the `IO` data type preserves _referential transparency_ even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.
+In comparison with Scala's `Future`, the `IO` data type preserves _referential transparency_ even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.
 
 Similar with `Future`, with `IO` you can reason about the results of asynchronous processes, but due to its purity and laziness `IO` can be thought of as a specification (to be evaluated at the "_end of the world_"), yielding more control over the evaluation model and being more predictable, for example when dealing with sequencing vs parallelism, when composing multiple IOs or when dealing with failure.
+
+Note laziness goes hand in hand with referential transparency. Consider this example:
+
+```scala
+for {
+  _ <- addToGauge(32)
+  _ <- addToGauge(32)
+} yield ()
+```
+
+If we have referential transparency, we can rewrite that example as:
+
+```scala
+val task = addToGauge(32)
+
+for {
+  _ <- task
+  _ <- task
+} yield ()
+```
+
+This doesn't work with `Future`, but works with `IO`.
 
 ## Basic Operations
 
