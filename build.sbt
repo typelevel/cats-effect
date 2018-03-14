@@ -106,7 +106,7 @@ val commonSettings = Seq(
       </developer>
     </developers>,
 
-  homepage := Some(url("https://github.com/typelevel/cats-effect")),
+  homepage := Some(url("https://typelevel.org/cats-effect/")),
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
   headerLicense := Some(HeaderLicense.Custom(
     """|Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
@@ -338,11 +338,12 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
 
 lazy val siteSettings = Seq(
     micrositeName := "Cats Effect",
-    micrositeDescription := "The IO Monad for Cats",
+    micrositeDescription := "The IO Monad for Scala",
     micrositeAuthor := "Cats Effect contributors",
     micrositeGithubOwner := "typelevel",
     micrositeGithubRepo := "cats-effect",
     micrositeBaseUrl := "/cats-effect",
+    micrositeTwitterCreator := "@typelevel",
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
@@ -358,7 +359,7 @@ lazy val siteSettings = Seq(
       file("README.md") -> ExtraMdFileConfig(
         "index.md",
         "home",
-        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+        Map("section" -> "home", "position" -> "0")
       )
     ),
     fork in tut := true,

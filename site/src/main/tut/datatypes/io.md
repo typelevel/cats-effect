@@ -5,6 +5,7 @@ number: 9
 source: "shared/src/main/scala/cats/effect/IO.scala"
 scaladoc: "#cats.effect.IO"
 ---
+
 # IO
 
 A data type for encoding side effects as pure values, capable of expressing both synchronous and asynchronous computations.
@@ -26,6 +27,43 @@ program.unsafeRunSync()
 ```
 
 The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
+
+## On Referential Transparency and Lazy Evaluation
+
+`IO` can suspend side effects and is thus a lazily evaluated data type, being many times compared with `Future` from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:
+
+|                    |        Eager        |            Lazy            |
+|:------------------:|:-------------------:|:--------------------------:|
+| **Synchronous**    |          A          |           () => A          |
+|                    |                     | [Eval[A]](https://typelevel.org/cats/datatypes/eval.html) |
+| **Asynchronous**   | (A => Unit) => Unit | () => (A => Unit) => Unit  |
+|                    |      Future[A]      |          IO[A]             |
+
+In comparison with Scala's `Future`, the `IO` data type preserves _referential transparency_ even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.
+
+Similar with `Future`, with `IO` you can reason about the results of asynchronous processes, but due to its purity and laziness `IO` can be thought of as a specification (to be evaluated at the "_end of the world_"), yielding more control over the evaluation model and being more predictable, for example when dealing with sequencing vs parallelism, when composing multiple IOs or when dealing with failure.
+
+Note laziness goes hand in hand with referential transparency. Consider this example:
+
+```scala
+for {
+  _ <- addToGauge(32)
+  _ <- addToGauge(32)
+} yield ()
+```
+
+If we have referential transparency, we can rewrite that example as:
+
+```scala
+val task = addToGauge(32)
+
+for {
+  _ <- task
+  _ <- task
+} yield ()
+```
+
+This doesn't work with `Future`, but works with `IO` and this ability is essential for _functional programming_.
 
 ## Basic Operations
 
@@ -113,7 +151,7 @@ val unit: IO[Unit] = IO.pure(())
 val never: IO[Nothing] = IO.async(_ => ())
 ```
 
-## From Operations
+## Conversions
 
 There are two useful operations defined in the `IO` companion object to lift both a scala `Future` and an `Either` into `IO`.
 
@@ -177,6 +215,29 @@ boom.attempt.unsafeRunSync()
 ```
 
 Look at the [MonadError](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala) typeclass for more.
+
+### Example: Retrying with Exponential Backoff
+
+With `IO` you can easily model a loop that retries evaluation until success or some other condition is met.
+
+For example here's a way to implement retries with exponential back-off:
+
+```tut:silent
+import cats.effect._
+import cats.syntax.all._
+import scala.concurrent.duration._
+
+def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: Int)
+  (implicit timer: Timer[IO]): IO[A] = {
+
+  ioa.handleErrorWith { error =>
+    if (maxRetries > 0)
+      IO.sleep(initialDelay) *> retryWithBackoff(ioa, initialDelay * 2, maxRetries - 1)
+    else
+      IO.raiseError(error)
+  }
+}
+```
 
 ## Thread Shifting
 
@@ -318,9 +379,16 @@ val parFailure = (a, b).parMapN { (_, _) => () }
 parFailure.unsafeRunSync()
 ```
 
-If we schedule `ioB` to finish in 10 seconds, then the whole computation will wait until it completes to return a failed `IO` even though `ioA` fails immediately.
+If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
-Please notice that the following example **will not run in parallel** because it's missing the asynchronous execution:
+```tut:silent
+val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
+val ioB = IO.shift *> IO.raiseError[Unit](new Exception("dummy"))
+
+(ioA, ioB).parMapN((_, _) => ())
+```
+
+Note that the following example **will not run in parallel** because it's missing the asynchronous execution:
 
 ```tut:book
 val c = IO(println("Hey C!"))
@@ -331,13 +399,15 @@ val nonParallel = (c, d).parMapN { (_, _) => () }
 nonParallel.unsafeRunSync()
 ```
 
+With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
+
 ## Concurrency
 
 There are two methods defined by the `Concurrent` typeclasss to help you achieve concurrency, namely `race` and `racePair`.
 
 ### race
 
-Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is cancelled.
+Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is canceled.
 
 The two tasks are executed in parallel if asynchronous, the winner being the first that signals a result. As an example, this is how a `timeout` operation could be implemented in terms of `race`:
 
@@ -360,7 +430,7 @@ def timeout[A](io: IO[A], after: FiniteDuration)(implicit timer: Timer[IO]): IO[
 
 Run two `IO` tasks concurrently, and returns a pair containing both the winner's successful value and the loser represented as a still-unfinished task.
 
-If the first task completes in error, then the result will complete in error, the other task being cancelled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
+If the first task completes in error, then the result will complete in error, the other task being canceled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
 
 ```tut:book:silent
 def racing[A, B](ioA: IO[A], ioB: IO[B]) =
