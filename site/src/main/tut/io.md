@@ -398,7 +398,7 @@ val nonParallel = (c, d).parMapN { (_, _) => () }
 nonParallel.unsafeRunSync()
 ```
 
-With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` or for `start` as well. So scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
+With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
 
 ## Concurrency
 
