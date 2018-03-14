@@ -221,12 +221,11 @@ object Sync {
   }
 
   private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
-    protected def F: Sync[F]
-    private implicit def _F = F
+    protected implicit def F: Sync[F]
 
-    def pure[A](x: A): Kleisli[F, R, A] = Kleisli.pure(x)
+    def pure[A](x: A): Kleisli[F, R, A] = 
+      Kleisli.pure(x)
 
-    // remove duplication when we upgrade to cats 1.0
     def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r => F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r))) }
 
