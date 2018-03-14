@@ -62,7 +62,7 @@ for {
 } yield ()
 ```
 
-This doesn't work with `Future`, but works with `IO`.
+This doesn't work with `Future`, but works with `IO` and this ability is essential for _functional programming_.
 
 ## Basic Operations
 
