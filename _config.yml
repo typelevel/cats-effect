@@ -1,0 +1,11 @@
+name: Cats Effect
+baseurl: /cats-effect
+description: The IO Monad for Scala
+highlighter: rouge
+docs: true
+collections:
+  tut:
+    output: true
+version: 0.10-606c2b6
+org: Typelevel
+markdown: kramdown

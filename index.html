@@ -1,0 +1,102 @@
+<html><head><title>Cats Effect</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect" /><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/style.css" /><link rel="stylesheet" href="/cats-effect/css/palette.css" /><link rel="stylesheet" href="/cats-effect/css/codemirror.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body><header id="site-header"><div class="navbar-wrapper"><div class="container"><div class="row"><div class="col-xs-6"><a href="/cats-effect/" class="brand"><div class="icon-wrapper"><span>Cats Effect</span></div></a></div><div class="col-xs-6"><nav class="text-right"><ul class=""><li><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-github"></i><span class="hidden-xs">GitHub</span></a></li><li><a href="https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12"><i class="fa fa-file-text"></i><span class="hidden-xs">Documentation</span></a></li></ul></nav></div></div></div></div><div class="jumbotron"><div class="container"><h1 class="text-center">The IO Monad for Scala</h1><h2></h2><p class="text-center"><a href="https://github.com/typelevel/cats-effect" class="btn btn-outline-inverse">View on GitHub</a></p></div></div><div><ul class="horizontalNav">                         <li><a class=" active " href="/cats-effect/"></a></li>  <li><a class="" href="/cats-effect/datatypes/">Data Types</a></li>  <li><a class="" href="/cats-effect/typeclasses/">Type Classes</a></li> </ul></div></header><main id="site-main"><section class="use"><div class="container"><div id="content"><h1 id="cats-effect">cats-effect</h1>
+
+<p><a href="https://travis-ci.org/typelevel/cats-effect"><img src="https://travis-ci.org/typelevel/cats-effect.svg?branch=master" alt="Build Status" /></a> <a href="https://gitter.im/typelevel/cats"><img src="https://img.shields.io/gitter/room/typelevel/cats.svg" alt="Gitter" /></a> <a href="https://index.scala-lang.org/typelevel/cats-effect/cats-effect"><img src="https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange" alt="Latest version" /></a> <a href="https://codecov.io/gh/typelevel/cats-effect?branch=master"><img src="https://codecov.io/gh/typelevel/cats-effect/coverage.svg?branch=master" alt="Coverage Status" /></a></p>
+
+<blockquote>
+  <p>For when purity just isn’t impure enough.</p>
+</blockquote>
+
+<p>This project aims to provide a standard <a href="https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.5/cats-effect_2.12-0.5-javadoc.jar/!/cats/effect/IO.html"><code class="highlighter-rouge">IO</code></a> type for the <a href="http://typelevel.org/cats/">cats</a> ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was <em>explicitly</em> designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:</p>
+
+<ul>
+  <li>Manages both synchronous <em>and</em> asynchronous (callback-driven) effects</li>
+  <li>Compatible with a single-threaded runtime</li>
+</ul>
+
+<p>In this way, <code class="highlighter-rouge">IO</code> is more similar to common <code class="highlighter-rouge">Task</code> implementations than it is to the classic <code class="highlighter-rouge">scalaz.effect.IO</code> or even Haskell’s <code class="highlighter-rouge">IO</code>, both of which are purely synchronous in nature.  As Haskell’s runtime uses green threading, a synchronous <code class="highlighter-rouge">IO</code> (and the requisite thread blocking) makes a lot of sense.  With Scala though, we’re either on a runtime with native threads (the JVM) or only a single thread (JavaScript), meaning that asynchronous effects are every bit as important as synchronous ones.</p>
+
+<h2 id="usage">Usage</h2>
+
+<p>The most current stable release of cats-effect is <strong>0.9</strong>.  We are confident in the quality of this release, and do consider it “production-ready”.  However, we will not be <em>guaranteeing</em> source compatibility until the 1.0 release, which will depend on cats-core 1.0 (when it is released).  See <a href="https://github.com/typelevel/cats-effect/blob/master/versioning.md">compatibility and versioning</a> for more information on our compatibility and semantic versioning policies.</p>
+
+<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect" % "0.9"
+</code></pre>
+
+<p>If your project uses Scala.js, replace the double-<code class="highlighter-rouge">%</code> with a triple.  Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 1.0.1.</p>
+
+<p>Cross-builds are available for Scala 2.12, 2.11 and 2.10, Scala.js major version 0.6.x.</p>
+
+<p>The most current snapshot (or major release) can be found in the maven badge at the top of this readme.  If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable <code class="highlighter-rouge">-SNAPSHOT</code> suffix, but they do not come with any particular confidence or compatibility guarantees.</p>
+
+<p>Please see <a href="https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md">this document</a> for information on how to cryptographically verify the integrity of cats-effect releases.  You should <em>absolutely</em> be doing this!  It takes five minutes and eliminates the need to trust a third-party with your classpath.</p>
+
+<h2 id="laws">Laws</h2>
+
+<p>The <strong>cats-effect-laws</strong> artifact provides <a href="https://github.com/typelevel/discipline">Discipline-style</a> laws for the <code class="highlighter-rouge">Sync</code>, <code class="highlighter-rouge">Async</code>, <code class="highlighter-rouge">Concurrent</code>, <code class="highlighter-rouge">Effect</code> and <code class="highlighter-rouge">ConcurrentEffect</code> typeclasses (<code class="highlighter-rouge">LiftIO</code> is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look <a href="https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws">here</a> for more.</p>
+
+<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.9" % "test"
+</code></pre>
+
+<p>These laws are compatible with both Specs2 and ScalaTest.</p>
+
+<h2 id="libraries">Libraries</h2>
+
+<p>These are some well known libraries that depend on <code class="highlighter-rouge">cats-effect</code>:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Project</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="http://tpolecat.github.io/doobie/">Doobie</a></td>
+      <td>A principled JDBC layer for Scala</td>
+    </tr>
+    <tr>
+      <td><a href="http://atnos-org.github.io/eff/">Eff</a></td>
+      <td>Extensible Effects for Scala</td>
+    </tr>
+    <tr>
+      <td><a href="https://functional-streams-for-scala.github.io/fs2/">Fs2</a></td>
+      <td>Functional Streams for Scala (Streaming I/O library)</td>
+    </tr>
+    <tr>
+      <td><a href="http://http4s.org/">Http4s</a></td>
+      <td>Typeful, functional, streaming HTTP for Scala</td>
+    </tr>
+    <tr>
+      <td><a href="https://monix.io/">Monix</a></td>
+      <td>Asynchronous, Reactive Programming for Scala and Scala.js</td>
+    </tr>
+    <tr>
+      <td><a href="https://pureconfig.github.io/">Pure Config</a></td>
+      <td>A boilerplate-free library for loading configuration files</td>
+    </tr>
+    <tr>
+      <td><a href="https://cb372.github.io/scalacache/">Scala Cache</a></td>
+      <td>A facade for the most popular cache implementations for Scala</td>
+    </tr>
+    <tr>
+      <td><a href="http://sttp.readthedocs.io/en/latest/">Sttp</a></td>
+      <td>The Scala HTTP client you always wanted</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="development">Development</h2>
+
+<p>We use the standard pull request driven github workflow.  Pull requests are always welcome, even if it’s for something as minor as a whitespace tweak!  If you’re a maintainer, you are expected to do your work in pull requests, rather than pushing directly to master.  Ideally, someone other than yourself will merge and push your PR to master.  However, if you’ve received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general cats community), you may merge your own PR in the interest of moving forward with important efforts.  Please don’t abuse this policy.</p>
+
+<p>Do <em>not</em> rebase commits that have been PR’d!  That history doesn’t belong to you anymore, and it is not yours to rewrite.  This goes for maintainers and contributors alike.  Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not.  Just don’t rebase something that’s already out there unless you’ve <em>explicitly</em> marked it as a work in progress (e.g. <code class="highlighter-rouge">[WIP]</code>) in some clear and unambiguous way.</p>
+
+<p>cats-effect is a <a href="http://typelevel.org/">Typelevel</a> project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the Typelevel <a href="http://typelevel.org/conduct.html">Code of Conduct</a>.</p>
+
+</div></div></section><section class="technologies"><div class="container"><div class="row"></div></div></section></main><footer id="site-footer"><div class="container"><div class="row"><div class="col-xs-6"><p>Cats Effect is designed and developed by <a href="https://typelevel.org/cats-effect/" target="_blank">Cats Effect contributors</a></p></div><div class="col-xs-6"><p class="text-right"><a href="https://github.com/typelevel/cats-effect"><span class="fa fa-github"></span>View on GitHub</a></p></div></div></div></footer><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/cats-effect/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script src="/cats-effect/js/toc.js"></script><script>((window.gitter = {}).chat = {}).options = {
+room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script></body></html>
