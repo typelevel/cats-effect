@@ -348,7 +348,7 @@ lazy val siteSettings = Seq(
     micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
     micrositePushSiteWith := GitHub4s,
-    micrositeGithubToken := getEnvVar("GITHUB_TOKEN"),
+    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",
       "brand-secondary" -> "#292E53",
