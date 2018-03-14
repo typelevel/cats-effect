@@ -106,7 +106,7 @@ val commonSettings = Seq(
       </developer>
     </developers>,
 
-  homepage := Some(url("https://github.com/typelevel/cats-effect")),
+  homepage := Some(url("https://typelevel.org/cats-effect/")),
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
   headerLicense := Some(HeaderLicense.Custom(
     """|Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
@@ -343,6 +343,7 @@ lazy val siteSettings = Seq(
     micrositeGithubOwner := "typelevel",
     micrositeGithubRepo := "cats-effect",
     micrositeBaseUrl := "/cats-effect",
+    micrositeTwitterCreator := "@typelevel",
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
