@@ -202,6 +202,7 @@ For example here's a way to implement retries with exponential back-off:
 ```tut:silent
 import cats.effect._
 import cats.syntax.all._
+import scala.concurrent.duration._
 
 def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: Int)
   (implicit timer: Timer[IO]): IO[A] = {
@@ -355,9 +356,16 @@ val parFailure = (a, b).parMapN { (_, _) => () }
 parFailure.unsafeRunSync()
 ```
 
-If we schedule `ioB` to finish in 10 seconds, then the whole computation will wait until it completes to return a failed `IO` even though `ioA` fails immediately.
+If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
-Please notice that the following example **will not run in parallel** because it's missing the asynchronous execution:
+```tut:silent
+val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
+val ioB = IO.shift *> IO.raiseError(new Exception("dummy"))
+
+(ioA, ioB).parMapN((_, _) => ())
+```
+
+Note that the following example **will not run in parallel** because it's missing the asynchronous execution:
 
 ```tut:book
 val c = IO(println("Hey C!"))
@@ -368,13 +376,15 @@ val nonParallel = (c, d).parMapN { (_, _) => () }
 nonParallel.unsafeRunSync()
 ```
 
+With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` or for `start` as well. So scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
+
 ## Concurrency
 
 There are two methods defined by the `Concurrent` typeclasss to help you achieve concurrency, namely `race` and `racePair`.
 
 ### race
 
-Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is cancelled.
+Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is canceled.
 
 The two tasks are executed in parallel if asynchronous, the winner being the first that signals a result. As an example, this is how a `timeout` operation could be implemented in terms of `race`:
 
@@ -397,7 +407,7 @@ def timeout[A](io: IO[A], after: FiniteDuration)(implicit timer: Timer[IO]): IO[
 
 Run two `IO` tasks concurrently, and returns a pair containing both the winner's successful value and the loser represented as a still-unfinished task.
 
-If the first task completes in error, then the result will complete in error, the other task being cancelled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
+If the first task completes in error, then the result will complete in error, the other task being canceled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
 
 ```tut:book:silent
 def racing[A, B](ioA: IO[A], ioB: IO[B]) =
