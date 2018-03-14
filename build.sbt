@@ -338,7 +338,7 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
 
 lazy val siteSettings = Seq(
     micrositeName := "Cats Effect",
-    micrositeDescription := "The IO Monad for Cats",
+    micrositeDescription := "The IO Monad for Scala",
     micrositeAuthor := "Cats Effect contributors",
     micrositeGithubOwner := "typelevel",
     micrositeGithubRepo := "cats-effect",
@@ -358,7 +358,7 @@ lazy val siteSettings = Seq(
       file("README.md") -> ExtraMdFileConfig(
         "index.md",
         "home",
-        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+        Map("section" -> "home", "position" -> "0")
       )
     ),
     fork in tut := true,

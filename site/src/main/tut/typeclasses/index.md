@@ -1,9 +1,10 @@
 ---
 layout: docs
 title:  "Type Classes"
-number: 1
-position: 1
+position: 2
 ---
+
+# Type Classes
 
 The following graphic represents the current hierarchy of `Cats Effect`:
 

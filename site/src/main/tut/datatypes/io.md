@@ -5,6 +5,7 @@ number: 9
 source: "shared/src/main/scala/cats/effect/IO.scala"
 scaladoc: "#cats.effect.IO"
 ---
+
 # IO
 
 A data type for encoding side effects as pure values, capable of expressing both synchronous and asynchronous computations.
@@ -382,7 +383,7 @@ If one of the tasks fails immediately, then the other gets canceled and the comp
 
 ```tut:silent
 val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
-val ioB = IO.shift *> IO.raiseError(new Exception("dummy"))
+val ioB = IO.shift *> IO.raiseError[Unit](new Exception("dummy"))
 
 (ioA, ioB).parMapN((_, _) => ())
 ```

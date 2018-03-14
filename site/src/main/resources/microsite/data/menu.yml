@@ -1,6 +1,23 @@
 options:
+  - title: Data Types
+    url: datatypes/
+    menu_section: datatypes
+
+    nested_options:
+      - title: IO
+        url: datatypes/io.html
+        menu_section: io
+
+      - title: Fiber
+        url: datatypes/fiber.html
+        menu_section: fiber
+
+      - title: Timer
+        url: datatypes/timer.html
+        menu_section: timer
+        
   - title: Type Classes
-    url: typeclasses/typeclasses.html
+    url: typeclasses/
     menu_section: typeclasses
 
     nested_options:
@@ -25,16 +42,3 @@ options:
       - title: ConcurrentEffect
         url: typeclasses/concurrent-effect.html
         menu_section: typeclasses
-
-  - title: IO
-    url: io.html
-    menu_section: io
-
-  - title: Fiber
-    url: fiber.html
-    menu_section: fiber
-
-  - title: Timer
-    url: timer.html
-    menu_section: timer
-
