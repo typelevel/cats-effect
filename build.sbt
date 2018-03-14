@@ -33,7 +33,7 @@ val ScalaCheckVersion = "1.13.5"
 val DisciplineVersion = "0.8"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
-addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll")
+addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
@@ -347,8 +347,6 @@ lazy val siteSettings = Seq(
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
     micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
-    micrositePushSiteWith := GitHub4s,
-    micrositeGithubToken := sys.env.get("GITHUB_TOKEN"),
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",
       "brand-secondary" -> "#292E53",
