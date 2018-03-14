@@ -193,6 +193,28 @@ boom.attempt.unsafeRunSync()
 
 Look at the [MonadError](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala) typeclass for more.
 
+### Example: Retrying with Exponential Backoff
+
+With `IO` you can easily model a loop that retries evaluation until success or some other condition is met.
+
+For example here's a way to implement retries with exponential back-off:
+
+```tut:silent
+import cats.effect._
+import cats.syntax.all._
+
+def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: Int)
+  (implicit timer: Timer[IO]): IO[A] = {
+
+  ioa.handleErrorWith { error =>
+    if (maxRetries > 0)
+      IO.sleep(initialDelay) *> retryWithBackoff(ioa, initialDelay * 2, maxRetries - 1)
+    else
+      IO.raiseError(error)
+  }
+}
+```
+
 ## Thread Shifting
 
 `IO` provides a function `shift` to give you more control over the execution of your operations.
