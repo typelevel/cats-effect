@@ -347,6 +347,8 @@ lazy val siteSettings = Seq(
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
     micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
+    micrositePushSiteWith := GitHub4s,
+    micrositeGithubToken := getEnvVar("GITHUB_TOKEN"),
     micrositePalette := Map(
       "brand-primary" -> "#5B5988",
       "brand-secondary" -> "#292E53",
