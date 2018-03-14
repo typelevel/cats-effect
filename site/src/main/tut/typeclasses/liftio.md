@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "LiftIO"
 number: 4
 source: "shared/src/main/scala/cats/effect/LiftIO.scala"
 scaladoc: "#cats.effect.LiftIO"
 ---
-
-# LiftIO
 
 A `Monad` that can convert any given `IO[A]` into a `F[A]`, useful for defining parametric signatures and composing monad transformer stacks.
 

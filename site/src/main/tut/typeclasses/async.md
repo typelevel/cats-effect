@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Async"
 number: 5
 source: "core/shared/src/main/scala/cats/effect/Async.scala"
 scaladoc: "#cats.effect.Async"
 ---
-
-# Async
 
 A `Monad` that can describe asynchronous or synchronous computations that produce exactly one result.
 

@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "ConcurrentEffect"
 number: 8
 source: "core/shared/src/main/scala/cats/effect/ConcurrentEffect.scala"
 scaladoc: "#cats.effect.ConcurrentEffect"
 ---
-
-# ConcurrentEffect
 
 Type class describing effect data types that are cancelable and can be evaluated concurrently.
 
