@@ -34,6 +34,9 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int])
 
+  checkAllAsync("Kleisli[IO, ?]",
+    implicit ec => ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int])
+
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int])
 
