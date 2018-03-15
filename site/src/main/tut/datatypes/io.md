@@ -69,89 +69,103 @@ for {
 
 This doesn't work with `Future`, but works with `IO` and this ability is essential for _functional programming_.
 
-## Basic Operations
+## Building IOs
 
 `IO` implements all the typeclasses shown in the hierarch. Therefore all these operations are available for `IO`, in addition to some others.
 
-### apply
+### Synchronous Evaluation: IO.apply
 
-It probably is the most used operation and, as explained before, the equivalent of `Sync[IO].delay`:
+It probably is the most used operation and, as explained before, the equivalent of `Sync[IO].delay`, describing `IO` operations that can be evaluated immediately, on the current thread and call-stack:
 
 ```tut:book
 def apply[A](body: => A): IO[A] = ???
 ```
 
-The idea is to wrap synchronous side effects such as reading / writing from / to the console:
+An example would be reading / writing from / to the console, which on top of the JVM uses blocking I/O:
 
 ```tut:book
 def putStrlLn(value: String) = IO(println(value))
 val readLn = IO(scala.io.StdIn.readLine)
 ```
 
-A good practice is also to keep the granularity so please don't do something like this:
+### Eager Initialization: IO.pure
 
-```scala
-IO {
-  readingFile
-  writingToDatabase
-  sendBytesOverTcp
-  launchMissiles
-}
-```
-
-In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention` for example:
-
-```
-val program =
-  for {
-    _     <- putStrlLn("Please enter your name:")
-    name  <- readLn
-    _     <- putStrlLn(s"Hi $name!")
-  } yield ()
-```
-
-Here you have a simple prompt program that is, at the same time, composable with other programs. Monads compose ;)
-
-### pure
-
-Sometimes you want to lift pure values into `IO`. For that purpose the following method is defined:
+Sometimes you want to lift pure values into `IO`. For that purpose the following function is defined:
 
 ```tut:book
 def pure[A](a: A): IO[A] = ???
 ```
 
-For example we can lift a number (pure value) into `IO` and compose it with another `IO` that wraps a side a effect in a safe manner, nothing is going to be executed:
+For example we can lift a number (pure value) into `IO` and compose it with another `IO` that wraps a side a effect in a safe manner, as nothing is going to be executed:
 
 ```tut:book
 IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
-You should never use `pure` to wrap side effects, that is very much wrong, so please don't do this:
+It should be obvious that `IO.pure` cannot wrap side effects, because `IO.pure` is eagerly evaluated, so don't do this:
 
 ```tut:book
 IO.pure(println("THIS IS WRONG!"))
 ```
 
-This will be stricly evaluated (immediately) and that's something you wouldn't want when working with side effects.
+This will be eagerly evaluated, the `println` call triggering a side effect that is not suspended in `IO`.
 
-See above in the previous example how from a pure value we `flatMap` with an `IO` that wraps a side effect. That's fine. However, using `map` in similar cases is not recommended since this function is only meant for pure transformations and not to enclose side effects. For example, this works but it is fundamentally wrong:
+### Deferred Execution: IO.suspend
 
-```tut:book
-IO.pure(123).map(n => println(s"NOT RECOMMENDED! $n"))
+The `IO.suspend` builder has this equivalence:
+
+```scala
+IO.suspend(f) <-> IO(f).flatMap(x => x)
 ```
 
-### unit & never
+So it is useful for suspending effects, but that defers the completion of the returned `IO` to some other reference. It's also useful for modeling stack safe, tail recursive loops:
 
-In addition to `apply` and `pure` there are two useful functions that are just aliases, namely `unit` and `never`.
+```tut:silent
+def fib(n: Int, a: Long, b: Long): IO[Long] =
+  IO.suspend {
+    if (n > 0)
+      fib(n - 1, b, a + b)
+    else
+      IO.pure(a)
+  }
+```
 
-`unit` is simply an alias for `pure(())`:
+Normally a function like this would eventually yield a stack overflow error on top of the JVM. By using `IO.suspend` and doing all of those cycles using `IO`'s run-loop, its evaluation is lazy and it's going to use constant memory.
 
-```tut:book
+Of course, we could describe this function using Scala's `@tailrec` mechanism, however by using `IO` we can also preserve fairness by inserting asynchronous boundaries:
+
+```tut:silent
+import cats.implicits._
+import cats.effect.Timer
+
+def fib(n: Int, a: Long, b: Long)(implicit timer: Timer[IO]): IO[Long] =
+  IO.suspend {
+    if (n == 0) IO.pure(a) else {
+      val next = fib(n - 1, b, a + b)
+      // Every 100 cycles, introduce a logical thread fork
+      if (n % 100 == 0)
+        timer.shift *> next
+      else
+        next
+    }
+  }
+```
+
+And now we have something more interesting than a `@tailrec` loop. As can be seen, `IO` allows very precise control over the evaluation.
+
+### IO.unit & IO.never
+
+In addition to `IO.apply` and `IO.pure` there are two useful functions that are just aliases, namely `unit` and `never`.
+
+`IO.unit` is simply an alias for `IO.pure(())`, being a reusable reference that you can use when an `IO[Unit]` value is required, but you don't need to trigger any other side effects:
+
+```tut:silent
 val unit: IO[Unit] = IO.pure(())
 ```
 
-`never` represents a non-terminating `IO` defined in terms of `async`:
-```tut:book
+And `never` represents a non-terminating `IO` defined in terms of `async`, also useful as a reusable reference:
+
+```tut:silent
 val never: IO[Nothing] = IO.async(_ => ())
 ```
 
@@ -508,3 +522,66 @@ This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effe
 IO("Gimme a Future!").unsafeToFuture()
 ```
 
+## Best Practices
+
+This section presents some best practices for working with `IO`:
+
+### Keep Granularity
+
+It's better to keep the granularity, so please don't do something like this:
+
+```scala
+IO {
+  readingFile
+  writingToDatabase
+  sendBytesOverTcp
+  launchMissiles
+}
+```
+
+In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention` for example:
+
+```
+val program =
+  for {
+    _     <- putStrlLn("Please enter your name:")
+    name  <- readLn
+    _     <- putStrlLn(s"Hi $name!")
+  } yield ()
+```
+
+Here you have a simple prompt program that is, at the same time, composable with other programs.
+`IO` values compose.
+
+### Use pure functions in map / flatMap
+
+When using `map` or `flatMap` it is not recommended to pass a side effectful function, as mapping functions should also be pure.
+So this should be avoided:
+
+```tut:book
+IO.pure(123).map(n => println(s"NOT RECOMMENDED! $n"))
+```
+
+This too should be avoided, because the side effect is not suspended in the returned `IO` value:
+
+```tut:book
+IO.pure(123).flatMap { n =>
+  println(s"NOT RECOMMENDED! $n")
+  IO.unit
+}
+```
+
+The correct approach would be this:
+
+```tut:book
+IO.pure(123).flatMap { n =>
+  // Properly suspending the side effect
+  IO(println(s"NOT RECOMMENDED! $n"))
+}
+```
+
+Note that as far as the actual behavior of `IO` is concerned, something like `IO.pure(x).map(f)` is equivalent with `IO(f(x))` and `IO.pure(x).flatMap(f)` is equivalent with `IO.suspend(f(x))`.
+
+But you should not rely on this behavior, because it is NOT described by the laws required by the `Sync` type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.
+
+Stick with pure functions.
