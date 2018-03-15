@@ -8,3 +8,4 @@ tags
 .idea
 benchmarks/results
 .java-version
+.DS_Store

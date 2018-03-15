@@ -348,9 +348,9 @@ lazy val siteSettings = Seq(
     micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
-      "brand-primary" -> "#5B5988",
-      "brand-secondary" -> "#292E53",
-      "brand-tertiary" -> "#222749",
+      "brand-primary" -> "#3e5b95",
+      "brand-secondary" -> "#294066",
+      "brand-tertiary" -> "#2d5799",
       "gray-dark" -> "#49494B",
       "gray" -> "#7B7B7E",
       "gray-light" -> "#E5E5E6",
