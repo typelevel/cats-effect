@@ -26,7 +26,7 @@
 <span class="c1">// io: cats.effect.IO[Unit] = &lt;function1&gt;
 </span>
 <span class="k">val</span> <span class="n">fiber</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="n">io</span><span class="o">.</span><span class="n">start</span>
-<span class="c1">// fiber: cats.effect.IO[cats.effect.Fiber[cats.effect.IO,Unit]] = IO$1565331507
+<span class="c1">// fiber: cats.effect.IO[cats.effect.Fiber[cats.effect.IO,Unit]] = IO$627994926
 </span></code></pre>
 </div>
 
@@ -36,7 +36,7 @@
 <span class="c1">// launchMissiles: cats.effect.IO[Nothing] = IO(throw java.lang.Exception: boom!)
 </span>
 <span class="k">val</span> <span class="n">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
-<span class="c1">// runToBunker: cats.effect.IO[Unit] = IO$1902738020
+<span class="c1">// runToBunker: cats.effect.IO[Unit] = IO$806656014
 </span>
 <span class="k">for</span> <span class="o">{</span>
   <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span> <span class="o">*&gt;</span> <span class="n">launchMissiles</span><span class="o">.</span><span class="n">start</span>
@@ -47,7 +47,7 @@
        <span class="o">}</span>
   <span class="n">aftermath</span> <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
-<span class="c1">// res0: cats.effect.IO[Nothing] = IO$994910128
+<span class="c1">// res0: cats.effect.IO[Nothing] = IO$2140640961
 </span></code></pre>
 </div>
 
