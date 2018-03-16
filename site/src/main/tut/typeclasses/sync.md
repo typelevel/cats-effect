@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Sync"
 number: 3
 source: "core/shared/src/main/scala/cats/effect/Sync.scala"
 scaladoc: "#cats.effect.Sync"
 ---
-
-# Sync
 
 A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 
@@ -45,4 +43,4 @@ ioa.unsafeRunSync()
 
 So basically using `Sync[IO].delay` is equivalent to using `IO.apply`.
 
-The use of `suspend` is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it's used by `delay` to represent an internal stack of calls. Any exceptions thrown by the side effect willbe caught and sequenced into the `F[_]` context.
+The use of `suspend` is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it's used by `delay` to represent an internal stack of calls. Any exceptions thrown by the side effect will be caught and sequenced into the `F[_]` context.

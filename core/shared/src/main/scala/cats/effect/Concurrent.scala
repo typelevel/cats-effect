@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, OptionT, StateT, WriterT}
+import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.IORunLoop
 import cats.syntax.all._
@@ -359,7 +359,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])
    *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
    *
-   *      F.race(fa, timer.sleep(timer)).flatMap {
+   *      F.race(fa, timer.sleep(after)).flatMap {
    *        case Left((a, _)) => F.pure(a)
    *        case Right((_, _)) => fallback
    *      }
@@ -444,6 +444,13 @@ object Concurrent {
    */
   implicit def catsStateTConcurrent[F[_]: Concurrent, S]: Concurrent[StateT[F, S, ?]] =
     new StateTConcurrent[F, S] { def F = Concurrent[F] }
+
+  /**
+   * [[Concurrent]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Concurrent`.
+   */
+  implicit def catsKleisliConcurrent[F[_]: Concurrent, R]: Concurrent[Kleisli[F, R, ?]] =
+    new KleisliConcurrent[F, R] { def F = Concurrent[F] }
 
   /**
    * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
@@ -610,5 +617,37 @@ object Concurrent {
 
     protected def fiberT[A](fiber: effect.Fiber[F, (L, A)]): Fiber[A] =
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
+  }
+
+  private[effect] trait KleisliConcurrent[F[_], R] extends Concurrent[Kleisli[F, R, ?]]
+    with Async.KleisliAsync[F, R] {
+
+    override protected implicit def F: Concurrent[F]
+    // Needed to drive static checks, otherwise the
+    // compiler can choke on type inference :-(
+    type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
+
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Kleisli[F, R, A] =
+      Kleisli.liftF(F.cancelable(k))
+
+    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
+
+    override def onCancelRaiseError[A](fa: Kleisli[F, R, A], e: Throwable): ReaderT[F, R, A] =
+      Kleisli { r => F.suspend(F.onCancelRaiseError(fa.run(r), e)) }
+
+    override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
+      Kleisli(r => F.start(fa.run(r)).map(fiberT))
+
+    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]) =
+      Kleisli { r =>
+        F.racePair(fa.run(r), fb.run(r)).map {
+          case Left((a, fiber)) => Left((a, fiberT[B](fiber)))
+          case Right((fiber, b)) => Right((fiberT[A](fiber), b))
+        }
+      }
+
+    protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
+      Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
   }
 }

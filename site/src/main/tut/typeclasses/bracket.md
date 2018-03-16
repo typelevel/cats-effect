@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Bracket"
 number: 2
 source: "core/shared/src/main/scala/cats/effect/Bracket.scala"
 scaladoc: "#cats.effect.Bracket"
 ---
-
-# Bracket
 
 A `Monad` that can acquire, use and release resources in a safe way.
 

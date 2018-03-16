@@ -33,7 +33,7 @@ val ScalaCheckVersion = "1.13.5"
 val DisciplineVersion = "0.8"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
-addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll")
+addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
@@ -106,7 +106,7 @@ val commonSettings = Seq(
       </developer>
     </developers>,
 
-  homepage := Some(url("https://github.com/typelevel/cats-effect")),
+  homepage := Some(url("https://typelevel.org/cats-effect/")),
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
   headerLicense := Some(HeaderLicense.Custom(
     """|Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
@@ -346,17 +346,19 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
 
 lazy val siteSettings = Seq(
     micrositeName := "Cats Effect",
-    micrositeDescription := "The IO Monad for Cats",
+    micrositeDescription := "The IO Monad for Scala",
     micrositeAuthor := "Cats Effect contributors",
     micrositeGithubOwner := "typelevel",
     micrositeGithubRepo := "cats-effect",
     micrositeBaseUrl := "/cats-effect",
+    micrositeTwitterCreator := "@typelevel",
     micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
+    micrositeFooterText := None,
     micrositeHighlightTheme := "atom-one-light",
     micrositePalette := Map(
-      "brand-primary" -> "#5B5988",
-      "brand-secondary" -> "#292E53",
-      "brand-tertiary" -> "#222749",
+      "brand-primary" -> "#3e5b95",
+      "brand-secondary" -> "#294066",
+      "brand-tertiary" -> "#2d5799",
       "gray-dark" -> "#49494B",
       "gray" -> "#7B7B7E",
       "gray-light" -> "#E5E5E6",
@@ -366,7 +368,7 @@ lazy val siteSettings = Seq(
       file("README.md") -> ExtraMdFileConfig(
         "index.md",
         "home",
-        Map("title" -> "Home", "section" -> "home", "position" -> "0")
+        Map("section" -> "home", "position" -> "0")
       )
     ),
     fork in tut := true,

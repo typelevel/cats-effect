@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Concurrent"
 number: 6
 source: "core/shared/src/main/scala/cats/effect/Concurrent.scala"
 scaladoc: "#cats.effect.Concurrent"
 ---
-
-# Concurrent
 
 Type class for `Async` data types that are cancelable and can be started concurrently.
 

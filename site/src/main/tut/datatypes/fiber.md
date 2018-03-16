@@ -1,12 +1,10 @@
 ---
-layout: docs
+layout: docsplus
 title:  "Fiber"
 number: 10
 source: "shared/src/main/scala/cats/effect/Fiber.scala"
 scaladoc: "#cats.effect.Fiber"
 ---
-
-# Fiber
 
 It represents the (pure) result of an `Async` data type (e.g. `IO`) being started concurrently and that can be either joined or cancelled.
 

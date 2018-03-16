@@ -1,0 +1,32 @@
+
+#toc.styling {
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    padding: 0;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;    
+}
+
+#toc h2 {
+    margin: 0;
+    margin-top: 12.5px;
+    margin-bottom: 12.5px;
+    color: #888;
+    font-size: 24px;
+}
+
+#toc ul {
+    margin: 0;
+    margin-right: 10px;
+    list-style-position: inside;
+    padding: 0;
+}
+
+#toc ul li {
+    margin-left: 10px;
+}
+
+#toc > ul > li {
+    margin-left: 0;
+}
