@@ -4,7 +4,7 @@
 
 > For when purity just isn't impure enough.
 
-This project aims to provide a standard [`IO`](https://oss.sonatype.org/service/local/repositories/releases/archive/org/typelevel/cats-effect_2.12/0.10/cats-effect_2.12-0.10-javadoc.jar/!/cats/effect/IO.html) type for the [cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
+This project aims to provide a standard `IO` type ([doc](https://typelevel.org/cats-effect/datatypes/io.html) / [api](https://typelevel.org/cats-effect/api/cats/effect/IO.html)) for the [Cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
 
 - Manages both synchronous *and* asynchronous (callback-driven) effects
 - Compatible with a single-threaded runtime
@@ -27,7 +27,7 @@ The most current snapshot (or major release) can be found in the maven badge at 
 
 Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases.  You should *absolutely* be doing this!  It takes five minutes and eliminates the need to trust a third-party with your classpath.
 
-## Laws
+### Laws
 
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
 
@@ -36,6 +36,13 @@ libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.10" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
+
+## Documentation
+
+Links:
+
+1. Website: [typelevel.org/cats-effect/](https://typelevel.org/cats-effect/)
+2. ScalaDoc: [typelevel.org/cats-effect/api/](https://typelevel.org/cats-effect/api/)
 
 ## Libraries
 
@@ -60,3 +67,21 @@ We use the standard pull request driven github workflow.  Pull requests are alwa
 Do *not* rebase commits that have been PR'd!  That history doesn't belong to you anymore, and it is not yours to rewrite.  This goes for maintainers and contributors alike.  Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not.  Just don't rebase something that's already out there unless you've *explicitly* marked it as a work in progress (e.g. `[WIP]`) in some clear and unambiguous way.
 
 cats-effect is a [Typelevel](http://typelevel.org/) project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the Typelevel [Code of Conduct](http://typelevel.org/conduct.html).
+
+## License
+
+```
+Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```

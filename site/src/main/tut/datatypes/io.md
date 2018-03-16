@@ -107,7 +107,7 @@ def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
   }
 ```
 
-`IO` implements all the typeclasses shown in the hierarch. Therefore
+`IO` implements all the typeclasses shown in the hierarchy. Therefore
 all those operations are available for `IO`, in addition to some
 others.
 
