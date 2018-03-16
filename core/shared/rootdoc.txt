@@ -1,0 +1,18 @@
+<img src="https://typelevel.org/cats-effect/img/cats-logo.png" align="right"  />
+
+This is the API documentation for the
+[[https://typelevel.org/cats-effect/ cats-effect]] library.
+
+See the [[cats.effect]] package for a quick overview.
+
+==Links==
+
+Canonical documentation links:
+
+ 1. [[https://typelevel.org/cats-effect/ Website]]
+ 1. [[https://typelevel.org/cats-effect/api/ ScalaDoc]]
+
+Related Cats links (the core):
+
+ 1. [[https://typelevel.org/cats/ Website]]
+ 1. [[https://typelevel.org/cats/api/ ScalaDoc]]
