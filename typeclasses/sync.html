@@ -20,7 +20,7 @@
 <span class="c1">// import cats.laws._
 </span>
 <span class="k">val</span> <span class="n">F</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@515933e6
+<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@50a33860
 </span>
 <span class="k">lazy</span> <span class="k">val</span> <span class="n">stackSafetyOnRepeatedRightBinds</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">10000</span><span class="o">).</span><span class="n">foldRight</span><span class="o">(</span><span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(()))</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="n">acc</span><span class="o">)</span> <span class="k">=&gt;</span>
@@ -36,7 +36,7 @@
 <p>Example of use:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$96787753
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1099407501
 </span>
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// Hello world!
@@ -45,7 +45,7 @@
 
 <p>So basically using <code class="highlighter-rouge">Sync[IO].delay</code> is equivalent to using <code class="highlighter-rouge">IO.apply</code>.</p>
 
-<p>The use of <code class="highlighter-rouge">suspend</code> is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it’s used by <code class="highlighter-rouge">delay</code> to represent an internal stack of calls. Any exceptions thrown by the side effect willbe caught and sequenced into the <code class="highlighter-rouge">F[_]</code> context.</p>
+<p>The use of <code class="highlighter-rouge">suspend</code> is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it’s used by <code class="highlighter-rouge">delay</code> to represent an internal stack of calls. Any exceptions thrown by the side effect will be caught and sequenced into the <code class="highlighter-rouge">F[_]</code> context.</p>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
