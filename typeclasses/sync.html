@@ -20,7 +20,7 @@
 <span class="c1">// import cats.laws._
 </span>
 <span class="k">val</span> <span class="n">F</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@6c19e002
+<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@f5991e2
 </span>
 <span class="k">lazy</span> <span class="k">val</span> <span class="n">stackSafetyOnRepeatedRightBinds</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">10000</span><span class="o">).</span><span class="n">foldRight</span><span class="o">(</span><span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(()))</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="n">acc</span><span class="o">)</span> <span class="k">=&gt;</span>
@@ -36,7 +36,7 @@
 <p>Example of use:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$148176566
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$980009545
 </span>
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// Hello world!
