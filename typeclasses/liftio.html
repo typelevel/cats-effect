@@ -34,7 +34,7 @@
 <p>Having an implicit instance of <code class="highlighter-rouge">LiftIO</code> in scope you can, at any time, <code class="highlighter-rouge">lift</code> any given <code class="highlighter-rouge">IO[A]</code> into <code class="highlighter-rouge">MyEffect[A]</code>:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
-<span class="c1">// ioa: cats.effect.IO[String] = IO$343278541
+<span class="c1">// ioa: cats.effect.IO[String] = IO$334036792
 </span>
 <span class="k">val</span> <span class="n">effect</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">].</span><span class="n">liftIO</span><span class="o">(</span><span class="n">ioa</span><span class="o">)</span>
 <span class="c1">// effect: MyEffect[String] = Future(Success(Right(Hello World!)))
@@ -53,7 +53,7 @@
 <span class="c1">// import scala.concurrent.ExecutionContext.Implicits.global
 </span>
 <span class="k">val</span> <span class="n">L</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]]</span>
-<span class="c1">// L: cats.effect.LiftIO[MyEffect] = $anon$1@4f86a8b4
+<span class="c1">// L: cats.effect.LiftIO[MyEffect] = $anon$1@45a33a8b
 </span>
 <span class="k">val</span> <span class="n">service1</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">22</span><span class="o">))</span>
 <span class="c1">// service1: MyEffect[Int] = Future(Success(Right(22)))
