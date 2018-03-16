@@ -43,4 +43,4 @@ ioa.unsafeRunSync()
 
 So basically using `Sync[IO].delay` is equivalent to using `IO.apply`.
 
-The use of `suspend` is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it's used by `delay` to represent an internal stack of calls. Any exceptions thrown by the side effect willbe caught and sequenced into the `F[_]` context.
+The use of `suspend` is useful for trampolining (i.e. when the side effect is conceptually the allocation of a stack frame) and it's used by `delay` to represent an internal stack of calls. Any exceptions thrown by the side effect will be caught and sequenced into the `F[_]` context.
