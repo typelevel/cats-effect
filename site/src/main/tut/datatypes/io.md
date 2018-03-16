@@ -136,7 +136,7 @@ nothing is going to be executed:
 IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
-It should be obvious that `IO.pure` cannot wrap side effects, because
+It should be obvious that `IO.pure` cannot suspend side effects, because
 `IO.pure` is eagerly evaluated, with the given parameter being passed
 by value, so don't do this:
 
@@ -145,7 +145,7 @@ IO.pure(println("THIS IS WRONG!"))
 ```
 
 In this case the `println` will trigger a side effect that is not
-suspended in `IO` and given this code that probably not your
+suspended in `IO` and given this code that probably is not our
 intention.
 
 `IO.unit` is simply an alias for `IO.pure(())`, being a reusable
@@ -182,7 +182,7 @@ def putStrlLn(value: String) = IO(println(value))
 val readLn = IO(scala.io.StdIn.readLine)
 ```
 
-And then we can do that to model interactions with the console in a
+And then we can use that to model interactions with the console in a
 purely functional way:
 
 ```tut:silent
@@ -322,7 +322,7 @@ ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
 The `IO.suspend` builder has this equivalence:
 
 ```scala
-IO.suspend(f) <-> IO(f).flatMap(x => x)
+IO.suspend(f) <-> IO(f).flatten
 ```
 
 So it is useful for suspending effects, but that defers the completion
@@ -345,9 +345,9 @@ cycles using `IO`'s run-loop, its evaluation is lazy and it's going to
 use constant memory. This would work with `flatMap` as well, of
 course, `suspend` being just nicer in this example.
 
-Of course, we could describe this function using Scala's `@tailrec`
-mechanism, however by using `IO` we can also preserve fairness by
-inserting asynchronous boundaries:
+We could describe this function using Scala's `@tailrec` mechanism,
+however by using `IO` we can also preserve fairness by inserting
+asynchronous boundaries:
 
 ```tut:silent
 import cats.implicits._
@@ -392,8 +392,8 @@ Also this might be a point of confusion for folks coming from Java and
 that expect the features of `Thread.interrupt` or of the old and
 deprecated `Thread.stop`:
 
-`IO` cancelation does NOT work like that and note that thread
-interruption in Java is inherently unsafe and unreliable!
+`IO` cancelation does NOT work like that, as thread interruption in
+Java is inherently *unsafe, unreliable and not portable*!
 
 ### Building cancelable IO tasks
 
@@ -433,7 +433,6 @@ def unsafeFileToString(file: File) = {
     while (hasNext) {
       hasNext = false
       val line = in.readLine()
-    
       if (line != null) {
         hasNext = true
         sb.append(line)
@@ -551,14 +550,23 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
   }
 ```
 
-This is using an `AtomicBoolean` for thread-safety concerns, but don't
-shy away from using intrinsic locks / mutexes via `synchronize` blocks
-or whatever else concurrency primitives the JVM provides. This is
-unfortunately the drawback of working with shared memory concurrency.
+In this example it is the cancelation logic itself that calls
+`in.close()`, but the call is safe due to the thread-safe guard that
+we're creating by usage of an atomic `getAndSet`.
 
-Note that in this example it is the cancelation logic itself that
-calls `in.close()`, but the call is safe due to the thread-safe guard
-that we're creating by usage of an atomic `getAndSet`.
+This is using an `AtomicBoolean` for thread-safety, but don't shy away
+from using intrinsic locks / mutexes via `synchronize` blocks or
+whatever else concurrency primitives the JVM provides, whatever is
+needed in these side effectful functions. And don't worry, this is
+usually needed only in `IO.cancelable`, `IO.async` or `IO.apply`, as
+these builders represents the FFI for interacting with the impure
+world, aka the dark side, otherwise once you're in `IO`'s context, you
+can compose concurrent tasks using higher level tools.
+
+Shared memory concurrency is unfortunately both the blessing and the
+curse of working with kernel threads. Not a big problem on N:1
+platforms like JavaScript, but there you don't get in-process CPU
+parallelism either. Such is life, a big trail of tradeoffs.
 
 ### Versus the "async interruption" from Haskell
 
