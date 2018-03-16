@@ -43,6 +43,7 @@ These are some well known libraries that depend on `cats-effect`:
 
 | Project | Description |
 | ------- | ----------- |
+| [Ciris](https://cir.is) | Lightweight, extensible, and validated configuration loading in Scala |
 | [Doobie](http://tpolecat.github.io/doobie/) | A principled JDBC layer for Scala |
 | [Eff](http://atnos-org.github.io/eff/) | Extensible Effects for Scala |
 | [Fs2](https://functional-streams-for-scala.github.io/fs2/) | Functional Streams for Scala (Streaming I/O library) |
