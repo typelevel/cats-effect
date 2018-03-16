@@ -32,12 +32,26 @@ import scala.util.{Failure, Left, Right, Success}
  * side effect, where the result of that side effect may be obtained
  * synchronously (via return) or asynchronously (via callback).
  *
- * Effects contained within this abstraction are not evaluated until
+ * `IO` values are pure, immutable values and thus preserve
+ * referential transparency, being usable in functional programming.
+ * An `IO` is a data structure that represents just a description
+ * of a side effectful computation.
+ *
+ * `IO` can describe synchronous or asynchronous computations that:
+ *
+ *  1. on evaluation yield exactly one result
+ *  1. can end in either success or failure and in case of failure
+ *     `flatMap` chains get short-circuited (`IO` implementing
+ *     the algebra of `MonadError`)
+ *  1. can be canceled, but note this capability relies on the
+ *     user to provide cancelation logic
+ *
+ * Effects described via this abstraction are not evaluated until
  * the "end of the world", which is to say, when one of the "unsafe"
- * methods are used.  Effectful results are not memoized, meaning that
+ * methods are used. Effectful results are not memoized, meaning that
  * memory overhead is minimal (and no leaks), and also that a single
  * effect may be run multiple times in a referentially-transparent
- * manner.  For example:
+ * manner. For example:
  *
  * {{{
  * val ioa = IO { println("hey!") }
@@ -53,30 +67,19 @@ import scala.util.{Failure, Left, Right, Success}
  * The above will print "hey!" twice, as the effect will be re-run
  * each time it is sequenced in the monadic chain.
  *
- * `IO` is trampolined for all ''synchronous'' joins.  This means that
+ * `IO` is trampolined in its `flatMap` evaluation. This means that
  * you can safely call `flatMap` in a recursive function of arbitrary
- * depth, without fear of blowing the stack.  However, `IO` cannot
- * guarantee stack-safety in the presence of arbitrarily nested
- * asynchronous suspensions.  This is quite simply because it is
- * ''impossible'' (on the JVM) to guarantee stack-safety in that case.
- * For example:
+ * depth, without fear of blowing the stack.
  *
  * {{{
- * def lie[A]: IO[A] = IO.async(cb => cb(Right(lie))).flatMap(a => a)
+ *   def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
+ *     IO(a + b).flatMap { b2 =>
+ *       if (n > 0)
+ *         fib(n - 1, b, b2)
+ *       else
+ *         IO.pure(b2)
+ *     }
  * }}}
- *
- * This should blow the stack when evaluated. Also note that there is
- * no way to encode this using `tailRecM` in such a way that it does
- * ''not'' blow the stack.  Thus, the `tailRecM` on `Monad[IO]` is not
- * guaranteed to produce an `IO` which is stack-safe when run, but
- * will rather make every attempt to do so barring pathological
- * structure.
- *
- * `IO` makes no attempt to control finalization or guaranteed
- * resource-safety in the presence of concurrent preemption, simply
- * because `IO` does not care about concurrent preemption at all!
- * `IO` actions are not interruptible and should be considered
- * broadly-speaking atomic, at least when used purely.
  */
 sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
