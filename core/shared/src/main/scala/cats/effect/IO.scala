@@ -391,8 +391,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
       a <- this
       etb <- use(a).onCancelRaiseError(cancelException).attempt
       _ <- release(a, etb match {
-        case Left(e) => BracketResult.error[Throwable](e)
         case Right(_) => BracketResult.complete
+        case Left(e: CancellationException) => BracketResult.canceledWith(Some(e))
+        case Left(e) => BracketResult.error[Throwable](e)
       })
       b <- IO.fromEither(etb)
     } yield b

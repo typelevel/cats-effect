@@ -31,7 +31,8 @@ object BracketResult {
 
   def complete[E]: BracketResult[E] = Completed
   def error[E](e: E): BracketResult[E] = Error[E](e)
-  def cancelled[E](e: Option[E] = None): BracketResult[E] = Canceled(e)
+  def canceled[E]: BracketResult[E] = Canceled(None)
+  def canceledWith[E](e: Option[E]): BracketResult[E] = Canceled(e)
 
   def attempt[E, A](value: Either[E, A]): BracketResult[E] =
     value match {
