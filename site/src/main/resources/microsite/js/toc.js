@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     $('#toc').toc({
       title: '',
-      headers: 'h2, h3',
+      headers: 'h2, h3, h4',
       listType: 'ul',
       showSpeed: 0,
       classes: {

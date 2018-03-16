@@ -6,15 +6,36 @@ source: "shared/src/main/scala/cats/effect/IO.scala"
 scaladoc: "#cats.effect.IO"
 ---
 
-A data type for encoding side effects as pure values, capable of expressing both synchronous and asynchronous computations.
+A data type for encoding side effects as pure values, capable of
+expressing both synchronous and asynchronous computations.
 
 <nav role="navigation" id="toc"></nav>
 
 ## Introduction
 
-A value of type `IO[A]` is a computation which, when evaluated, can perform effects before returning a value of type `A`.
+A value of type `IO[A]` is a computation which, when evaluated, can
+perform effects before returning a value of type `A`.
 
-Effects contained within this abstraction are not evaluated until the "end of the world", which is to say, when one of the "unsafe" methods are used. Effectful results are not memoized, meaning that memory overhead is minimal (and no leaks), and also that a single effect may be run multiple times in a referentially-transparent manner. For example:
+`IO` values are pure, immutable values and thus preserves referential
+transparency, being usable in functional programming. An `IO` is a
+data structure that represents just a description of a side effectful
+computation.
+
+`IO` can describe synchronous or asynchronous computations that:
+
+1. on evaluation yield exactly one result
+2. can end in either success or failure and in case of failure
+   `flatMap` chains get short-circuited (`IO` implementing the algebra
+   of `MonadError`)
+3. can be canceled, but note this capability relies on the
+   user to provide cancelation logic
+
+Effects described via this abstraction are not evaluated until the
+"end of the world", which is to say, when one of the "unsafe" methods
+are used. Effectful results are not memoized, meaning that memory
+overhead is minimal (and no leaks), and also that a single effect may
+be run multiple times in a referentially-transparent manner. For
+example:
 
 ```tut:book
 import cats.effect.IO
@@ -30,7 +51,8 @@ val program: IO[Unit] =
 program.unsafeRunSync()
 ```
 
-The above example prints "hey!" twice, as the effect re-runs each time it is sequenced in the monadic chain.
+The above example prints "hey!" twice, as the effect re-runs each time
+it is sequenced in the monadic chain.
 
 ### On Referential Transparency and Lazy Evaluation
 
@@ -69,48 +91,233 @@ for {
 
 This doesn't work with `Future`, but works with `IO` and this ability is essential for _functional programming_.
 
-## Building IOs
+### Stack Safety
 
-`IO` implements all the typeclasses shown in the hierarch. Therefore all these operations are available for `IO`, in addition to some others.
+`IO` is trampolined in its `flatMap` evaluation. This means that you
+can safely call `flatMap` in a recursive function of arbitrary depth,
+without fear of blowing the stack:
 
-### Synchronous Evaluation: IO.apply
-
-It probably is the most used operation and, as explained before, the equivalent of `Sync[IO].delay`, describing `IO` operations that can be evaluated immediately, on the current thread and call-stack:
-
-```tut:book
-def apply[A](body: => A): IO[A] = ???
+```tut:silent
+def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
+  IO(a + b).flatMap { b2 =>
+    if (n > 0) 
+      fib(n - 1, b, b2)
+    else 
+      IO.pure(b2)
+  }
 ```
 
-An example would be reading / writing from / to the console, which on top of the JVM uses blocking I/O:
+`IO` implements all the typeclasses shown in the hierarch. Therefore
+all those operations are available for `IO`, in addition to some
+others.
 
-```tut:book
-def putStrlLn(value: String) = IO(println(value))
-val readLn = IO(scala.io.StdIn.readLine)
-```
+## Describing Effects
 
-### Eager Initialization: IO.pure
+`IO` is a potent abstraction that can efficiently describe multiple
+kinds of effects:
 
-Sometimes you want to lift pure values into `IO`. For that purpose the following function is defined:
+### Pure Values — IO.pure & IO.unit
+
+You can lift pure values into `IO`, yielding `IO` values that are
+"already evaluated", the following function being defined on IO's 
+companion:
 
 ```tut:book
 def pure[A](a: A): IO[A] = ???
 ```
 
-For example we can lift a number (pure value) into `IO` and compose it with another `IO` that wraps a side a effect in a safe manner, as nothing is going to be executed:
+Note that the given parameter is passed by value, not by name.
+
+For example we can lift a number (pure value) into `IO` and compose it
+with another `IO` that wraps a side a effect in a safe manner, as
+nothing is going to be executed:
 
 ```tut:book
 IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
-It should be obvious that `IO.pure` cannot wrap side effects, because `IO.pure` is eagerly evaluated, so don't do this:
+It should be obvious that `IO.pure` cannot wrap side effects, because
+`IO.pure` is eagerly evaluated, with the given parameter being passed
+by value, so don't do this:
 
 ```tut:book
 IO.pure(println("THIS IS WRONG!"))
 ```
 
-This will be eagerly evaluated, the `println` call triggering a side effect that is not suspended in `IO`.
+In this case the `println` will trigger a side effect that is not
+suspended in `IO` and given this code that probably not your
+intention.
 
-### Deferred Execution: IO.suspend
+`IO.unit` is simply an alias for `IO.pure(())`, being a reusable
+reference that you can use when an `IO[Unit]` value is required, but
+you don't need to trigger any other side effects:
+
+```tut:silent
+val unit: IO[Unit] = IO.pure(())
+```
+
+Given `IO[Unit]` is so prevalent in Scala code, the `Unit` type itself
+being meant to signal completion of side effectful routines, this
+proves useful as a shortcut and as an optimization, since the same
+reference is returned.
+
+### Synchronous Effects — IO.apply
+
+It's probably is the most used builder and the equivalent of
+`Sync[IO].delay`, describing `IO` operations that can be evaluated
+immediately, on the current thread and call-stack:
+
+```tut:silent
+def apply[A](body: => A): IO[A] = ???
+```
+
+Note the given parameter is passed ''by name'', its execution being
+"suspended" in the `IO` context.
+
+An example would be reading / writing from / to the console, which on
+top of the JVM uses blocking I/O, so their execution is immediate:
+
+```tut:silent
+def putStrlLn(value: String) = IO(println(value))
+val readLn = IO(scala.io.StdIn.readLine)
+```
+
+And then we can do that to model interactions with the console in a
+purely functional way:
+
+```tut:silent
+for {
+  _ <- putStrlLn("What's your name?")
+  n <- readLn
+  _ <- putStrlLn(s"Hello, $n!")
+} yield ()
+```
+
+### Asynchronous Effects — IO.async & IO.cancelable
+
+`IO` can describe asynchronous processes via the `IO.async` and
+`IO.cancelable` builders.
+
+`IO.async` is the operation that complies with the laws of
+`Async#async` (see [Async](../typeclasses/async.html)) and can
+describe simple asynchronous processes that cannot be canceled,
+its signature being:
+
+```tut:silent
+def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = ???
+```
+
+The provided registration function injects a callback that you can use
+to signal either successful results (with `Right(a)`), or failures
+(with `Left(error)`). Users can trigger whatever asynchronous side
+effects are required, then use the injected callback to signal
+completion.
+
+For example, you don't need to convert Scala's `Future`, because you
+already have a conversion operation defined in `IO.fromFuture`,
+however the code for converting a `Future` would be straightforward:
+
+```tut:silent
+import scala.concurrent.{Future, ExecutionContext}
+import scala.util.{Success, Failure}
+
+def convert[A](fa: => Future[A])(implicit ec: ExecutionContext): IO[A] =
+  IO.async { cb =>
+    // This triggers evaluation of the by-name param and of onComplete, 
+    // so it's OK to have side effects in this callback
+    fa.onComplete {
+      case Success(a) => cb(Right(a))
+      case Failure(e) => cb(Left(e))
+    }
+  }
+```
+
+#### Cancelable Processes
+
+For building cancelable `IO` tasks you need to use the
+`IO.cancelable` builder, this being compliant with
+`Concurrent#cancelable` (see [Concurrent](../typeclasses/concurrent.html))) 
+and has this signature:
+
+```tut:silent
+def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = ???
+```
+
+So it is similar with `IO.async`, but in that registration function
+the user is expected to provide an `IO[Unit]` that captures the
+required cancelation logic.
+
+N.B. cancelation is the ability to interrupt an `IO` task before
+completion, possibly releasing any acquired resources, useful in race
+conditions to prevent leaks.
+
+As example suppose we want to describe a `sleep` operation that
+depends on Java's `ScheduledExecutorService`, delaying a tick for a
+certain time duration:
+
+```tut:silent
+import java.util.concurrent.ScheduledExecutorService
+import scala.concurrent.duration._
+
+def delayedTick(d: FiniteDuration)
+  (implicit sc: ScheduledExecutorService): IO[Unit] = {
+ 
+  IO.cancelable { cb =>
+    val r = new Runnable { def run() = cb(Right(())) }
+    val f = sc.schedule(r, d.length, d.unit)
+    
+    // Returning the cancelation token needed to cancel 
+    // the scheduling and release resources early
+    IO(f.cancel(false))
+  }
+}
+```
+
+Note this delayed tick is already described by `IO.sleep` (via
+`Timer`), so you don't need to do it.
+
+More on dealing with ''cancelation'' below.
+
+#### IO.never
+
+`IO.never` represents a non-terminating `IO` defined in terms of
+`async`, useful as shortcut and as a reusable reference:
+
+```tut:silent
+val never: IO[Nothing] = IO.async(_ => ())
+```
+
+This is useful in order to use non-termination in certain cases, like
+race conditions. For example, given `IO.race`, we have these
+equivalences:
+
+```scala
+IO.race(lh, IO.never) <-> lh.map(Left(_))
+
+IO.race(IO.never, rh) <-> rh.map(Right(_))
+```
+
+It's also useful when dealing with the `onCancelRaiseError` operation.
+Because cancelable `IO` values usually become non-terminating on
+cancelation, you might want to use `IO.never` as the continuation of
+an `onCancelRaiseError`, e.g...
+
+```tut:silent
+import cats.syntax.all._
+import scala.concurrent.CancellationException
+
+val wasCanceled = new CancellationException("nope")
+val ioa: IO[Int] = IO(???)
+
+ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
+  case `wasCanceled` =>
+    IO(println("Releasing resources...")) *> IO.never
+  case e =>
+    IO.raiseError(e)
+}
+```
+
+### Deferred Execution — IO.suspend
 
 The `IO.suspend` builder has this equivalence:
 
@@ -118,7 +325,9 @@ The `IO.suspend` builder has this equivalence:
 IO.suspend(f) <-> IO(f).flatMap(x => x)
 ```
 
-So it is useful for suspending effects, but that defers the completion of the returned `IO` to some other reference. It's also useful for modeling stack safe, tail recursive loops:
+So it is useful for suspending effects, but that defers the completion
+of the returned `IO` to some other reference. It's also useful for
+modeling stack safe, tail recursive loops:
 
 ```tut:silent
 def fib(n: Int, a: Long, b: Long): IO[Long] =
@@ -130,9 +339,15 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
   }
 ```
 
-Normally a function like this would eventually yield a stack overflow error on top of the JVM. By using `IO.suspend` and doing all of those cycles using `IO`'s run-loop, its evaluation is lazy and it's going to use constant memory.
+Normally a function like this would eventually yield a stack overflow
+error on top of the JVM. By using `IO.suspend` and doing all of those
+cycles using `IO`'s run-loop, its evaluation is lazy and it's going to
+use constant memory. This would work with `flatMap` as well, of
+course, `suspend` being just nicer in this example.
 
-Of course, we could describe this function using Scala's `@tailrec` mechanism, however by using `IO` we can also preserve fairness by inserting asynchronous boundaries:
+Of course, we could describe this function using Scala's `@tailrec`
+mechanism, however by using `IO` we can also preserve fairness by
+inserting asynchronous boundaries:
 
 ```tut:silent
 import cats.implicits._
@@ -151,24 +366,249 @@ def fib(n: Int, a: Long, b: Long)(implicit timer: Timer[IO]): IO[Long] =
   }
 ```
 
-And now we have something more interesting than a `@tailrec` loop. As can be seen, `IO` allows very precise control over the evaluation.
+And now we have something more interesting than a `@tailrec` loop. As
+can be seen, `IO` allows very precise control over the evaluation.
 
-### IO.unit & IO.never
+## Concurrency and Cancelation
 
-In addition to `IO.apply` and `IO.pure` there are two useful functions that are just aliases, namely `unit` and `never`.
+`IO` can describe interruptible asynchronous processes. As an
+implementation detail:
 
-`IO.unit` is simply an alias for `IO.pure(())`, being a reusable reference that you can use when an `IO[Unit]` value is required, but you don't need to trigger any other side effects:
+1. not all `IO` tasks are cancelable, only tasks built with
+   `IO.cancelable` can cancel the evaluation
+  - should go without saying (after point 1) that `flatMap` chains are
+    not auto-cancelable
+  - if this is a problem, `flatMap` loops can be made cancelable by
+    using `IO.cancelBoundary`    
+2. `IO` tasks that are cancelable, usually become non-terminating on
+   `cancel`   
+  - such tasks can be turned into tasks that trigger an error on
+    cancelation with `onCancelRaiseError`, which can be used for
+    materializing cancelation and thus trigger necessary logic, the
+    `bracket` operation being described in terms of
+    `onCancelRaiseError`
+    
+Also this might be a point of confusion for folks coming from Java and
+that expect the features of `Thread.interrupt` or of the old and
+deprecated `Thread.stop`:
+
+`IO` cancelation does NOT work like that and note that thread
+interruption in Java is inherently unsafe and unreliable!
+
+### Building cancelable IO tasks
+
+Cancelable `IO` tasks can be described via the `IO.cancelable`
+builder. The `delayedTick` example making use of the Java's
+`ScheduledExecutorService` was already given above, but to recap:
 
 ```tut:silent
-val unit: IO[Unit] = IO.pure(())
+def sleep(d: FiniteDuration)
+  (implicit sc: ScheduledExecutorService): IO[Unit] = {
+
+  IO.cancelable { cb => 
+    val r = new Runnable { def run() = cb(Right(())) }
+    val f = sc.schedule(r, d.length, d.unit)
+    // Returning a function that can cancel our scheduling
+    IO(f.cancel(false))
+  }
+}
 ```
 
-And `never` represents a non-terminating `IO` defined in terms of `async`, also useful as a reusable reference:
+N.B. if you don't specify cancelation logic for a task, then the task
+is NOT cancelable. So for example, using Java's blocking I/O still:
 
 ```tut:silent
-val never: IO[Nothing] = IO.async(_ => ())
+import java.io._
+import scala.util.control.NonFatal
+
+def unsafeFileToString(file: File) = {
+  // Freaking Java :-)
+  val in = new BufferedReader(
+    new InputStreamReader(new FileInputStream(file), "utf-8"))
+  
+  try {
+    // Uninterruptible loop
+    val sb = new StringBuilder()
+    var hasNext = true
+    while (hasNext) {
+      hasNext = false
+      val line = in.readLine()
+    
+      if (line != null) {
+        hasNext = true
+        sb.append(line)
+      }
+    }
+    sb.toString
+  } finally {
+    in.close()
+  }
+}
+
+def readFile(file: File)(implicit ec: ExecutionContext) =
+  IO.async[String] { cb =>
+    ec.execute(() => {
+      try {
+        // Signal completion
+        cb(Right(unsafeFileToString(file)))
+      } catch {
+        case NonFatal(e) =>
+          cb(Left(e))
+      }
+    })
+  }
 ```
 
+This is obviously not cancelable and there's no magic that the `IO`
+implementation does to make that loop cancelable. No, we are not going
+to use Java's `Thread.interrupt`, because that would be unsafe and
+unreliable and besides, whatever the `IO` does has to be portable
+between platforms.
+
+But there's a lot of flexibility in what can be done, including here.
+We could simply introduce a variable that changes to `false`, to be
+observed in that `while` loop:
+
+```tut:silent
+import java.util.concurrent.atomic.AtomicBoolean
+
+def unsafeFileToString(file: File, isActive: AtomicBoolean) = {
+  val sc = new StringBuilder
+  // ...
+  var hasNext = true
+  while (hasNext && isActive.get) { 
+    ??? 
+  }
+  sc.toString
+}
+
+def readFile(file: File)(implicit ec: ExecutionContext) =
+  IO.cancelable[String] { cb =>
+    val isActive = new AtomicBoolean(true)
+    
+    ec.execute(() => {
+      try {
+        // Signal completion
+        cb(Right(unsafeFileToString(file, isActive)))
+      } catch {
+        case NonFatal(e) =>
+          cb(Left(e))
+      }
+    })    
+    // On cancel, signal it
+    IO(isActive.set(true))
+  }
+```
+
+#### Gotcha: Cancelation is a Concurrent Action!
+
+This is not always obvious, not from the above examples, but you might
+be tempted to do something like this:
+
+```tut:silent
+def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
+  IO.cancelable[String] { cb =>
+    ec.execute(() => cb(
+      try Right(in.readLine()) 
+      catch { case NonFatal(e) => Left(e) }))
+      
+    // Cancelation logic is not thread-safe!
+    IO(in.close())
+  }
+```
+
+An operation like this might be useful in streaming abstractions that
+stream I/O chunks via `IO` (via libraries like FS2, Monix, or others).
+
+But the described operation is incorrect, because `in.close()` is
+*concurrent* with `io.readLine`, which can lead to thrown exceptions
+and in many cases it can lead to data *corruption*. This is a big
+no-no. We want to interrupt whatever it is that the `IO` is doing, but
+not at the cost of data corruption.
+
+Therefore the user needs to handle thread safety concerns. So here's
+one way of doing it:
+
+```tut:silent
+def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
+  IO.cancelable[String] { cb =>
+    val isActive = new AtomicBoolean(true)
+    ec.execute { () => 
+      if (isActive.getAndSet(false)) {
+        try cb(Right(in.readLine()))
+        catch { case NonFatal(e) => cb(Left(e)) }
+      }
+      // Note there's no else; if cancelation was executed
+      // then we don't call the callback; task becoming 
+      // non-terminating ;-)
+    }
+    // Cancelation logic
+    IO {
+      // Thread-safe gate
+      if (isActive.getAndSet(false))
+        in.close()
+    }
+  }
+```
+
+This is using an `AtomicBoolean` for thread-safety concerns, but don't
+shy away from using intrinsic locks / mutexes via `synchronize` blocks
+or whatever else concurrency primitives the JVM provides. This is
+unfortunately the drawback of working with shared memory concurrency.
+
+Note that in this example it is the cancelation logic itself that
+calls `in.close()`, but the call is safe due to the thread-safe guard
+that we're creating by usage of an atomic `getAndSet`.
+
+### Versus the "async interruption" from Haskell
+
+Haskell treats interruption with what they call "asynchronous
+exceptions", being able to interrupt a running task by specifying a
+thrown exception from another thread (concurrently).
+
+For `cats.effect`, for the "cancel" action, what happens is that
+whatever you specify in the `IO.cancelable` builder gets executed. And
+depending on the implementation of an `IO.cancelable` task, it can
+become non-terminating. If we'd need to describe our `cancel`
+operation with an impure signature, it would be:
+
+```scala
+() => Unit
+```
+
+By comparison Haskell (and possibly the upcoming Scalaz 8 `IO`), sends
+an error, a `Throwable` on interruption and canceled tasks get
+completed with that `Throwable`. Their impure cancel is:
+
+```scala
+Throwable => Unit
+```
+
+We on the other hand have an `onCancelRaiseError(e: Throwable)`, which
+can transform a task that's non-terminating on cancel, into one that
+raises an error on cancel. This operation also creates a race
+condition, cutting off the signaling to downstream, even if the source
+is not cancelable.
+
+`Throwable => Unit` allows the task's logic to know the cancelation
+reason, however cancelation is about cutting the connection to the
+producer, closing all resources as soon as possible, because you're no
+longer interested in the result, due to some race condition that
+happened.
+
+`Throwable => Unit` is also a little confusing, being too broad in
+scope. Users might be tricked into sending messages back to the
+producer via this channel, in order to steer it, to change its
+outcome - however cancelation is cancelation, we're doing it for the
+purpose of releasing resources and the implementation of race
+conditions will end up closing the connection, disallowing the
+canceled task to send anything downstream.
+
+Therefore it's confusing for the user and the only practical use is to
+release resources differently, based on the received error. But that's
+not a use-case that's worth pursuing, given the increase in
+complexity.
+  
 ## Conversions
 
 There are two useful operations defined in the `IO` companion object to lift both a scala `Future` and an `Either` into `IO`.
