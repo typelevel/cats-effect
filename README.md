@@ -44,6 +44,11 @@ Links:
 1. Website: [typelevel.org/cats-effect/](https://typelevel.org/cats-effect/)
 2. ScalaDoc: [typelevel.org/cats-effect/api/](https://typelevel.org/cats-effect/api/)
 
+Related Cats links (the core):
+
+1. Website: [typelevel.org/cats/](https://typelevel.org/cats/)
+2. ScalaDoc: [typelevel.org/cats/api/](https://typelevel.org/cats/api/)
+
 ## Libraries
 
 These are some well known libraries that depend on `cats-effect`:

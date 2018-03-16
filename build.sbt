@@ -61,6 +61,11 @@ val commonSettings = Seq(
     }
   },
 
+  scalacOptions in (Compile, doc) ++=
+    Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
+  scalacOptions in (Compile, doc) ++=
+    Opts.doc.title("cats-effect"),
+
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
