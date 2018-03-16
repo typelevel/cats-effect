@@ -300,22 +300,9 @@ IO.race(IO.never, rh) <-> rh.map(Right(_))
 It's also useful when dealing with the `onCancelRaiseError` operation.
 Because cancelable `IO` values usually become non-terminating on
 cancelation, you might want to use `IO.never` as the continuation of
-an `onCancelRaiseError`, e.g...
+an `onCancelRaiseError`.
 
-```tut:silent
-import cats.syntax.all._
-import scala.concurrent.CancellationException
-
-val wasCanceled = new CancellationException("nope")
-val ioa: IO[Int] = IO(???)
-
-ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
-  case `wasCanceled` =>
-    IO(println("Releasing resources...")) *> IO.never
-  case e =>
-    IO.raiseError(e)
-}
-```
+See the description of `onCancelRaiseError`.
 
 ### Deferred Execution — IO.suspend
 
@@ -568,11 +555,230 @@ curse of working with kernel threads. Not a big problem on N:1
 platforms like JavaScript, but there you don't get in-process CPU
 parallelism either. Such is life, a big trail of tradeoffs.
 
-### Versus the "async interruption" from Haskell
+### Concurrent start + cancel
+
+You can use `IO` as a green-threads system, with the "fork" operation
+being available via `IO#start`, the operation that's compliant with
+`Concurrent#start`. This is a method with the following signature:
+
+```scala
+def start: IO[Fiber[IO, A]]
+```
+
+Returned is a [Fiber](./fiber.html). You can think of fibers as being
+lightweight threads, a fiber being the pure and light equivalent of a
+thread that can be either joined (via `join`) or interrupted (via
+`cancel`).
+
+Example:
+
+```tut:silent
+// Needed in order to get a Timer[IO], for IO.shift below
+import scala.concurrent.ExecutionContext.Implicits.global
+
+val launchMissiles = IO.raiseError(new Exception("boom!"))
+val runToBunker = IO(println("To the bunker!!!"))
+
+for {
+  fiber <- IO.shift *> launchMissiles.start
+  _ <- runToBunker.handleErrorWith { error =>
+    // Retreat failed, cancel launch (maybe we should
+    // have retreated to our bunker before the launch?)
+    fiber.cancel *> IO.raiseError(error)
+  }
+  aftermath <- fiber.join
+} yield {
+  aftermath
+}
+```
+
+Implementation notes:
+
+- `start` does NOT fork automatically, only asynchronous `IO` values
+  will actually execute concurrently via `start`, so in order to
+  ensure parallel execution for synchronous actions, then you can use
+  `IO.shift` (remember, with `IO` such behavior is always explicit!)
+- the `*>` operator is defined in Cats and you can treat it as an
+  alias for `lh.flatMap(_ => rh)`
+  
+### runCancelable & unsafeRunCancelable
+
+The above is the pure `cancel`, accessible via `Fiber`. However the
+second way to access cancelation and thus interrupt tasks is via
+`runCancelable` (the pure version) and `unsafeRunCancelable` (the
+unsafe version).
+
+Example relying on the side-effecting `unsafeRunCancelable` and note
+this kind of code is impure and should be used with care:
+
+```tut:silent
+// Delayed println
+val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
+
+val cancel: () => Unit = 
+  io.unsafeRunCancelable(r => println(s"Done: $r"))
+
+// ... if a race condition happens, we can cancel it,
+// thus cancelling the scheduling of `IO.sleep`
+cancel()
+```
+
+The `runCancelable` alternative is the operation that's compliant with
+the laws of [ConcurrentEffect](../typeclasses/concurrent-effect.html).
+Same idea, only the actual execution is suspended in `IO`:
+
+```tut:silent
+val pureResult: IO[IO[Unit]] = io.runCancelable { r => 
+  IO(println(s"Done: $r"))
+}
+
+// On evaluation, this will first execute the source, then it 
+// will cancel it, because it makes perfect sense :-)
+val cancel = pureResult.flatten
+```
+
+### uncancelable marker
+
+Given a cancelable `IO`, we can turn it into an `IO` that cannot be
+canceled:
+
+```tut:silent
+// Our reference from above
+val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
+
+// This IO can't be canceled, even if we try
+io.uncancelable
+```
+
+Sometimes you need to ensure that an `IO`'s execution is *atomic*, or
+in other words, either all of it executes, or none of it. And this is
+what this operation does — cancelable IOs are by definition not atomic
+and in certain cases we need to make them atomic.
+
+This law is compliant with the laws of `Concurrent#uncancelable` (see
+[Concurrent](../typeclasses/concurrent.html)).
+
+### Materialization of interruption via onCancelRaiseError
+
+`IO` tasks usually become non-terminating when canceled, creating
+problems in case you want to release resources.
+
+Just like `attempt` (from `MonadError`) can materialize thrown errors,
+we have `onCancelRaiseError` that can materialize cancelation.  This
+way we can detect cancelation and trigger specific logic in response.
+
+As example, this is more or less how a `bracket` operation can get
+implemented for `IO`:
+
+
+```tut:silent
+import cats.syntax.all._
+import scala.concurrent.CancellationException
+
+val wasCanceled = new CancellationException("nope")
+val ioa: IO[Int] = IO(???)
+
+ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
+  case `wasCanceled` =>
+    IO(println("Was canceled!")) *> IO.never
+  case e =>
+    IO.raiseError(e)
+}
+```
+
+### IO.cancelBoundary
+
+Returns a cancelable boundary — an `IO` task that checks for the
+cancelation status of the run-loop and does not allow for the bind
+continuation to keep executing in case cancelation happened.
+
+This operation is very similar to `IO.shift`, as it can be dropped in
+`flatMap` chains in order to make such long loops cancelable:
+
+```tut:silent
+def fib(n: Int, a: Long, b: Long): IO[Long] =
+  IO.suspend {
+    if (n <= 0) IO.pure(a) else {
+      val next = fib(n - 1, b, a + b)
+
+      // Every 100-th cycle check cancellation status
+      if (n % 100 == 0)
+        IO.cancelBoundary *> next
+      else
+        next
+    }
+  }
+```
+
+Again mentioning this for posterity: with `IO` everything is explicit,
+the protocol being easy to follow and predictable in a WYSIWYG
+fashion.
+
+### Race Conditions — race & racePair
+
+A race condition is a piece of logic that creates a race between two
+or more tasks, with the winner being signaled immediately, with the
+losers being usually canceled.
+
+`IO` provides two operations for races in its companion:
+
+```scala
+// simple version
+def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]]
+  
+// advanced version
+def racePair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
+```
+
+The simple version, `IO.race`, will cancel the loser immediately,
+whereas the second version gives you a [Fiber](./fiber.html), letting
+you decide what to do next.
+
+So `race` can be derived with `racePair` like so:
+
+```tut:silent
+def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] =
+  IO.racePair(lh, rh).flatMap {
+    case Left((a, fiber)) => 
+      fiber.cancel.map(_ => Left(a))
+    case Right((fiber, b)) => 
+      fiber.cancel.map(_ => Right(b))
+  }
+```
+
+Using `race` we could implement a "timeout" operation:
+
+```tut:silent
+def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
+  (implicit timer: Timer[IO]): IO[A] = {
+
+  IO.race(fa, timer.sleep(after)).flatMap {
+    case Left(a) => IO.pure(a)
+    case Right(_) => fallback
+  }
+}
+
+def timeout[A](fa: IO[A], after: FiniteDuration)
+  (implicit timer: Timer[IO]): IO[A] = {
+
+  val error = new CancellationException(after.toString)
+  timeoutTo(fa, after, IO.raiseError(error))
+}
+```
+
+NOTE: like all things with `IO`, tasks are not forked automatically
+and `race` won't do automatic forking either. So if the given tasks
+are asynchronous, they could be executed in parallel, but if they
+are not asynchronous (and thus have immediate execution), then
+they won't run in parallel.
+
+Always remember that IO's policy is WYSIWYG.
+
+### Comparison with Haskell's "async interruption"
 
 Haskell treats interruption with what they call "asynchronous
-exceptions", being able to interrupt a running task by specifying a
-thrown exception from another thread (concurrently).
+exceptions", providing the ability to interrupt a running task by 
+throwing an exception from another thread (concurrently).
 
 For `cats.effect`, for the "cancel" action, what happens is that
 whatever you specify in the `IO.cancelable` builder gets executed. And
@@ -866,47 +1072,6 @@ nonParallel.unsafeRunSync()
 ```
 
 With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
-
-## Concurrency
-
-There are two methods defined by the `Concurrent` typeclasss to help you achieve concurrency, namely `race` and `racePair`.
-
-### race
-
-Run two `IO` tasks concurrently, and return the first to finish, either in success or error. The loser of the race is canceled.
-
-The two tasks are executed in parallel if asynchronous, the winner being the first that signals a result. As an example, this is how a `timeout` operation could be implemented in terms of `race`:
-
-```tut:book:silent
-import scala.concurrent.duration._
-
-def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])(implicit timer: Timer[IO]): IO[A] = {
-  IO.race(io, timer.sleep(after)).flatMap {
-    case Left(a)  => IO.pure(a)
-    case Right(_) => fallback
-  }
-}
-
-def timeout[A](io: IO[A], after: FiniteDuration)(implicit timer: Timer[IO]): IO[A] = {
-  timeoutTo(io, after, IO.raiseError(new Exception(s"Timeout after: $after")))
-}
-```
-
-### racePair
-
-Run two `IO` tasks concurrently, and returns a pair containing both the winner's successful value and the loser represented as a still-unfinished task.
-
-If the first task completes in error, then the result will complete in error, the other task being canceled. On usage the user has the option of cancelling the losing task, this being equivalent with plain `race`:
-
-```tut:book:silent
-def racing[A, B](ioA: IO[A], ioB: IO[B]) =
-  IO.racePair(ioA, ioB).flatMap {
-    case Left((a, fiberB)) =>
-       fiberB.cancel.map(_ => a)
-    case Right((fiberA, b)) =>
-      fiberA.cancel.map(_ => b)
-  }
-```
 
 ## "Unsafe" Operations
 
