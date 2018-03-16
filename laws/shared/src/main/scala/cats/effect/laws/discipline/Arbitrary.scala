@@ -90,7 +90,7 @@ object arbitrary {
       f2 <- getArbitrary[A => A]
     } yield ioa.map(f1).map(f2)
 
-  implicit def catsEffectLawsCogenForIO[A, B](implicit cga: Cogen[A]): Cogen[IO[A]] =
+  implicit def catsEffectLawsCogenForIO[A](implicit cga: Cogen[A]): Cogen[IO[A]] =
     Cogen { (seed, io) =>
       IORunLoop.step(io) match {
         case IO.Pure(a) => cga.perturb(seed, a)
