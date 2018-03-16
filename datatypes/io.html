@@ -37,14 +37,14 @@ example:</p>
 <span class="c1">// import cats.effect.IO
 </span>
 <span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">IO</span> <span class="o">{</span> <span class="n">println</span><span class="o">(</span><span class="s">"hey!"</span><span class="o">)</span> <span class="o">}</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1976481364
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$2065391364
 </span>
 <span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">ioa</span>
      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">ioa</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-<span class="c1">// program: cats.effect.IO[Unit] = IO$1405212738
+<span class="c1">// program: cats.effect.IO[Unit] = IO$1348956540
 </span>
 <span class="n">program</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// hey!
@@ -160,7 +160,7 @@ with another <code class="highlighter-rouge">IO</code> that wraps a side a effec
 nothing is going to be executed:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="mi">25</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Number is: $n"</span><span class="o">)))</span>
-<span class="c1">// res1: cats.effect.IO[Unit] = IO$2114651788
+<span class="c1">// res1: cats.effect.IO[Unit] = IO$113667967
 </span></code></pre>
 </div>
 
@@ -888,7 +888,7 @@ complexity.</p>
 <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="nc">IO</span> <span class="o">{</span>
   <span class="nc">Future</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"I come from the Future!"</span><span class="o">))</span>
 <span class="o">})</span>
-<span class="c1">// res32: cats.effect.IO[Unit] = IO$545119468
+<span class="c1">// res32: cats.effect.IO[Unit] = IO$303268519
 </span></code></pre>
 </div>
 
@@ -898,7 +898,7 @@ complexity.</p>
 <span class="c1">// f: scala.concurrent.Future[String] = Future(Success(I come from the Future!))
 </span>
 <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>
-<span class="c1">// res33: cats.effect.IO[String] = IO$281296356
+<span class="c1">// res33: cats.effect.IO[String] = IO$689131838
 </span></code></pre>
 </div>
 
@@ -984,17 +984,17 @@ complexity.</p>
 <span class="c1">// import cats.effect.Timer
 </span>
 <span class="k">val</span> <span class="n">ioTimer</span> <span class="k">=</span> <span class="nc">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// ioTimer: cats.effect.Timer[cats.effect.IO] = cats.effect.internals.IOTimer@2292cd51
+<span class="c1">// ioTimer: cats.effect.Timer[cats.effect.IO] = cats.effect.internals.IOTimer@74428174
 </span></code></pre>
 </div>
 
 <p>We can introduce an asynchronous boundary in the <code class="highlighter-rouge">flatMap</code> chain before a certain task:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">task</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"task"</span><span class="o">))</span>
-<span class="c1">// task: cats.effect.IO[Unit] = IO$210297111
+<span class="c1">// task: cats.effect.IO[Unit] = IO$1449000824
 </span>
 <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span><span class="o">(</span><span class="n">ioTimer</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">task</span><span class="o">)</span>
-<span class="c1">// res37: cats.effect.IO[Unit] = IO$1814210681
+<span class="c1">// res37: cats.effect.IO[Unit] = IO$748246037
 </span></code></pre>
 </div>
 
@@ -1015,7 +1015,7 @@ complexity.</p>
 <p>Or we can specify an asynchronous boundary “after” the evaluation of a certain task:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="n">task</span><span class="o">.</span><span class="n">flatMap</span><span class="o">(</span><span class="n">a</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span><span class="o">(</span><span class="n">ioTimer</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">a</span><span class="o">))</span>
-<span class="c1">// res41: cats.effect.IO[Unit] = IO$176951104
+<span class="c1">// res41: cats.effect.IO[Unit] = IO$556947025
 </span></code></pre>
 </div>
 
@@ -1039,13 +1039,13 @@ complexity.</p>
 <span class="c1">// import scala.concurrent.ExecutionContext
 </span>
 <span class="k">val</span> <span class="n">cachedThreadPool</span> <span class="k">=</span> <span class="nc">Executors</span><span class="o">.</span><span class="n">newCachedThreadPool</span><span class="o">()</span>
-<span class="c1">// cachedThreadPool: java.util.concurrent.ExecutorService = java.util.concurrent.ThreadPoolExecutor@a493f21[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0]
+<span class="c1">// cachedThreadPool: java.util.concurrent.ExecutorService = java.util.concurrent.ThreadPoolExecutor@5f1ee02a[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0]
 </span>
 <span class="k">val</span> <span class="nc">BlockingFileIO</span>   <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="n">cachedThreadPool</span><span class="o">)</span>
-<span class="c1">// BlockingFileIO: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@1527daf0
+<span class="c1">// BlockingFileIO: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@7409c10c
 </span>
 <span class="k">implicit</span> <span class="k">val</span> <span class="nc">Main</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span>
-<span class="c1">// Main: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@e7a4560
+<span class="c1">// Main: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@677ef2f4
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
@@ -1056,7 +1056,7 @@ complexity.</p>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Welcome $name!"</span><span class="o">))</span>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">cachedThreadPool</span><span class="o">.</span><span class="n">shutdown</span><span class="o">())</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$100865307
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1849319626
 </span></code></pre>
 </div>
 
@@ -1155,10 +1155,10 @@ complexity.</p>
 <p>Note that the following example <strong>will not run in parallel</strong> because it’s missing the asynchronous execution:</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">c</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hey C!"</span><span class="o">))</span>
-<span class="c1">// c: cats.effect.IO[Unit] = IO$7265637
+<span class="c1">// c: cats.effect.IO[Unit] = IO$564393439
 </span>
 <span class="k">val</span> <span class="n">d</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hey D!"</span><span class="o">))</span>
-<span class="c1">// d: cats.effect.IO[Unit] = IO$542552519
+<span class="c1">// d: cats.effect.IO[Unit] = IO$315048295
 </span>
 <span class="k">val</span> <span class="n">nonParallel</span> <span class="k">=</span> <span class="o">(</span><span class="n">c</span><span class="o">,</span> <span class="n">d</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 <span class="c1">// nonParallel: cats.effect.IO[Unit] = &lt;function1&gt;
@@ -1205,7 +1205,7 @@ complexity.</p>
 
 <div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!
-// res52: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$13806/651651571@67482a7
+// res52: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$9056/1463286387@6d329621
 </span></code></pre>
 </div>
 
@@ -1288,7 +1288,7 @@ So this should be avoided:</p>
   <span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"NOT RECOMMENDED! $n"</span><span class="o">)</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
 <span class="o">}</span>
-<span class="c1">// res56: cats.effect.IO[Unit] = IO$1278438869
+<span class="c1">// res56: cats.effect.IO[Unit] = IO$1440729605
 </span></code></pre>
 </div>
 
@@ -1298,7 +1298,7 @@ So this should be avoided:</p>
   <span class="c1">// Properly suspending the side effect
 </span>  <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"NOT RECOMMENDED! $n"</span><span class="o">))</span>
 <span class="o">}</span>
-<span class="c1">// res57: cats.effect.IO[Unit] = IO$1529665519
+<span class="c1">// res57: cats.effect.IO[Unit] = IO$1217792613
 </span></code></pre>
 </div>
 
