@@ -13,7 +13,7 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 
 ## Usage
 
-The most current stable release of cats-effect is **0.10**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release, which will depend on cats-core 1.0 (when it is released).  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
+The most current stable release of cats-effect is **0.10**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release.  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect" % "0.10"
