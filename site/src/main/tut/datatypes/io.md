@@ -482,7 +482,7 @@ def readFile(file: File)(implicit ec: ExecutionContext) =
       }
     })    
     // On cancel, signal it
-    IO(isActive.set(true))
+    IO(isActive.set(false))
   }
 ```
 
@@ -507,7 +507,7 @@ An operation like this might be useful in streaming abstractions that
 stream I/O chunks via `IO` (via libraries like FS2, Monix, or others).
 
 But the described operation is incorrect, because `in.close()` is
-*concurrent* with `io.readLine`, which can lead to thrown exceptions
+*concurrent* with `in.readLine`, which can lead to thrown exceptions
 and in many cases it can lead to data *corruption*. This is a big
 no-no. We want to interrupt whatever it is that the `IO` is doing, but
 not at the cost of data corruption.
