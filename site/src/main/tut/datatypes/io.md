@@ -1152,19 +1152,21 @@ IO {
 }
 ```
 
-In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention` for example:
+In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention`.
+For example:
 
-```
+```scala
 val program =
   for {
-    _     <- putStrlLn("Please enter your name:")
-    name  <- readLn
-    _     <- putStrlLn(s"Hi $name!")
+    data <- readFile
+    _    <- writeToDatabase(data)
+    _    <- sendBytesOverTcp(data)
+    _    <- launchMissiles
   } yield ()
 ```
 
-Here you have a simple prompt program that is, at the same time, composable with other programs.
-`IO` values compose.
+Each step of the comprehension is a small program, and the resulting `program` is a composition of all those small steps,
+which you can still compose with other programs. `IO` values compose.
 
 ### Use pure functions in map / flatMap
 
