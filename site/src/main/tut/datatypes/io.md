@@ -1189,7 +1189,7 @@ The correct approach would be this:
 ```tut:book
 IO.pure(123).flatMap { n =>
   // Properly suspending the side effect
-  IO(println(s"NOT RECOMMENDED! $n"))
+  IO(println(s"RECOMMENDED! $n"))
 }
 ```
 
