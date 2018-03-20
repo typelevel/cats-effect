@@ -61,7 +61,6 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "bracket with failure in acquisition remains failure" -> forAll(laws.bracketFailureInAcquisitionRemainsFailure[A, B] _),
         "bracket with pure unit on release is eqv to flatMap" -> forAll(laws.bracketWithPureUnitIsEqvFlatMap[A, B] _)
       )
-
     }
   }
 }
