@@ -33,16 +33,16 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
     F.bracket(fa)(_ => fb)((a, _) => update) *> read <-> fa *> fb *> F.pure(g(a1))
   }
 
-  def bracketIsCalledError[A](fa: F[A]) = {
+  def bracketReleaseCalledForError[A](a: A) = {
     var input = 42
     val update = F.delay { input = input + 1 }
     val read = F.delay(input)
     val ex = new Exception()
+    val fa = F.pure(a)
 
     val bracketed = F.bracket(fa)(_ => F.raiseError[A](ex))((_, _) => update)
-    bracketed.handleErrorWith(_ => fa) *> read <-> fa *> fa *> F.pure(43)
 
-
+    bracketed.handleError(_ => a) *> read <-> fa *> F.raiseError[A](ex).handleError(_ => a) *> F.pure(43)
   }
 
 
