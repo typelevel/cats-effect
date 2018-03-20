@@ -1166,7 +1166,7 @@ val program =
 ```
 
 Each step of the comprehension is a small program, and the resulting `program` is a composition of all those small steps,
-which you can still compose with other programs. `IO` values compose.
+which is compositional with other programs. `IO` values compose.
 
 ### Use pure functions in map / flatMap
 
