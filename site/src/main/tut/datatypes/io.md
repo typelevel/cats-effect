@@ -107,7 +107,7 @@ def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
   }
 ```
 
-`IO` implements all the typeclasses shown in the hierarchy. Therefore
+`IO` implements all the typeclasses shown in the [hierarchy](https://typelevel.org/cats-effect/typeclasses/). Therefore
 all those operations are available for `IO`, in addition to some
 others.
 
@@ -163,7 +163,7 @@ reference is returned.
 
 ### Synchronous Effects — IO.apply
 
-It's probably is the most used builder and the equivalent of
+It's probably the most used builder and the equivalent of
 `Sync[IO].delay`, describing `IO` operations that can be evaluated
 immediately, on the current thread and call-stack:
 
