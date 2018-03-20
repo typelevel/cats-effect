@@ -1152,7 +1152,7 @@ IO {
 }
 ```
 
-In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention`.
+In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehension`.
 For example:
 
 ```scala
