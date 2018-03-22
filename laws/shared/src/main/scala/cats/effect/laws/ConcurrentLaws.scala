@@ -25,7 +25,26 @@ import scala.Predef.{identity => id}
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
 
-  //TODO Add law that ensures Bracket works with cancelation
+  def cancelOnBracketReleases[A, B](f: A => A, a1: A, b1: B) = {
+    var input = a1
+    val update = F.delay { input = f(input) }
+    val read = F.delay(input)
+
+    val fa = F.pure(a1)
+    val fb = F.cancelable[B] { cb => cb(Right(b1)); IO.unit }
+
+
+    val bracketed = for {
+      fiber <- F.start(fb)
+      _ <- fiber.cancel
+      result <- F.bracket(fa)(_ => fiber.join) {
+        case (_, BracketResult.Canceled(_)) => update
+        case (_, _) => F.unit
+      }
+    } yield result
+
+    bracketed *> read <-> F.pure(f(a1))
+  }
 
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
     F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
