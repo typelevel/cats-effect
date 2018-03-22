@@ -32,6 +32,9 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def bracketFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracket(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
+
+  def bracketEmitsUseFailure[A](e: E, e2: E, fa: F[A]) =
+    F.bracket(fa)(_ => F.raiseError[A](e))((_, _) => F.raiseError(e2)) <-> fa *> F.raiseError(e)
 }
 
 object BracketLaws {
