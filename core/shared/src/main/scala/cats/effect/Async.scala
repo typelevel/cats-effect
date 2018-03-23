@@ -126,6 +126,12 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
     Async.liftIO(ioa)(this)
 
   /**
+    * Returns a non-terminating `F[_]`, that never completes
+    * with a result, being equivalent to `async(_ => ())`
+    */
+  def never[A]: F[A] = async(_ => ())
+
+  /**
    * DEPRECATED — moved to [[Async$.shift]].
    *
    * The reason for the deprecation is that there's no potential
@@ -148,8 +154,9 @@ object Async {
    * Returns an non-terminating `F[_]`, that never completes
    * with a result, being equivalent with `async(_ => ())`.
    */
+  @deprecated("Moved to Async[F]", "0.10")
   def never[F[_], A](implicit F: Async[F]): F[A] =
-    F.async(_ => ())
+    F.never
 
   /**
    * Generic shift operation, defined for any `Async` data type.
