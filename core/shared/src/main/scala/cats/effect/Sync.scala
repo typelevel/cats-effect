@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
-import cats.effect.internals.{AndThen, NonFatal}
+import cats.effect.internals.NonFatal
 import cats.syntax.all._
 
 /**
@@ -176,19 +176,8 @@ object Sync {
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
 
-    override def map[A, B](fa: StateT[F, S, A])(f: A => B): StateT[F, S, B] =
-      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
-        AndThen(safsba).andThen(fa => F.map(fa) { case (s, a) => (s, f(a)) })
-      })
-
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
-      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
-        AndThen(safsba).andThen { fsba =>
-          F.flatMap(fsba) { case (sb, a) =>
-            f(a).run(sb)
-          }
-        }
-      })
+      fa.flatMap(f)
 
     // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
     def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
