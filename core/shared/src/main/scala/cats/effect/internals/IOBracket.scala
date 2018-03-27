@@ -27,7 +27,9 @@ private[effect] object IOBracket {
   /**
     * Implementation for `IO.bracket`.
     */
-  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] = {
+  def apply[A, B](acquire: IO[A])
+        (use: A => IO[B])
+        (release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] = {
     acquire.flatMap { a =>
       IO.Bind(use(a).onCancelRaiseError(cancelException), new ReleaseFrame[A, B](a, release))
     }

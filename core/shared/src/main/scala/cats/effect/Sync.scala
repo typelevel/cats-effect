@@ -154,7 +154,7 @@ object Sync {
 
       EitherT(F.bracket(acquire.value) {
         case Right(a) => use(a).value
-        case e @ Left(_) => F.pure(e.asInstanceOf[Either[L, B]])
+        case e @ Left(_) => F.pure(e.rightCast[B]])
       } { (ea, br) =>
         ea match {
           case Right(a) =>
