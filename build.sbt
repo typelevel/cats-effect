@@ -25,7 +25,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.0.1"
+val CatsVersion = "1.1.0"
 val SimulacrumVersion = "0.11.0"
 
 val ScalaTestVersion = "3.0.4"
@@ -60,6 +60,11 @@ val commonSettings = Seq(
       case _ => (sources in (Compile, doc)).value
     }
   },
+
+  scalacOptions in (Compile, doc) ++=
+    Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
+  scalacOptions in (Compile, doc) ++=
+    Opts.doc.title("cats-effect"),
 
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
@@ -344,45 +349,51 @@ lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .enablePlugins(JmhPlugin)
 
+lazy val docsMappingsAPIDir =
+  settingKey[String]("Name of subdirectory in site target directory for api docs")
+
 lazy val siteSettings = Seq(
-    micrositeName := "Cats Effect",
-    micrositeDescription := "The IO Monad for Scala",
-    micrositeAuthor := "Cats Effect contributors",
-    micrositeGithubOwner := "typelevel",
-    micrositeGithubRepo := "cats-effect",
-    micrositeBaseUrl := "/cats-effect",
-    micrositeTwitterCreator := "@typelevel",
-    micrositeDocumentationUrl := "https://www.javadoc.io/doc/org.typelevel/cats-effect_2.12",
-    micrositeFooterText := None,
-    micrositeHighlightTheme := "atom-one-light",
-    micrositePalette := Map(
-      "brand-primary" -> "#3e5b95",
-      "brand-secondary" -> "#294066",
-      "brand-tertiary" -> "#2d5799",
-      "gray-dark" -> "#49494B",
-      "gray" -> "#7B7B7E",
-      "gray-light" -> "#E5E5E6",
-      "gray-lighter" -> "#F4F3F4",
-      "white-color" -> "#FFFFFF"),
-    micrositeExtraMdFiles := Map(
-      file("README.md") -> ExtraMdFileConfig(
-        "index.md",
-        "home",
-        Map("section" -> "home", "position" -> "0")
-      )
-    ),
-    fork in tut := true,
-    scalacOptions in Tut --= Seq(
-      "-Xfatal-warnings",
-      "-Ywarn-unused-import",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-dead-code",
-      "-Xlint:-missing-interpolator,_",
+  micrositeName := "Cats Effect",
+  micrositeDescription := "The IO Monad for Scala",
+  micrositeAuthor := "Cats Effect contributors",
+  micrositeGithubOwner := "typelevel",
+  micrositeGithubRepo := "cats-effect",
+  micrositeBaseUrl := "/cats-effect",
+  micrositeTwitterCreator := "@typelevel",
+  micrositeDocumentationUrl := "https://typelevel.org/cats-effect/api/",
+  micrositeFooterText := None,
+  micrositeHighlightTheme := "atom-one-light",
+  micrositePalette := Map(
+    "brand-primary" -> "#3e5b95",
+    "brand-secondary" -> "#294066",
+    "brand-tertiary" -> "#2d5799",
+    "gray-dark" -> "#49494B",
+    "gray" -> "#7B7B7E",
+    "gray-light" -> "#E5E5E6",
+    "gray-lighter" -> "#F4F3F4",
+    "white-color" -> "#FFFFFF"),
+  micrositeExtraMdFiles := Map(
+    file("README.md") -> ExtraMdFileConfig(
+      "index.md",
+      "home",
+      Map("section" -> "home", "position" -> "0")
     )
+  ),
+  fork in tut := true,
+  scalacOptions in Tut --= Seq(
+    "-Xfatal-warnings",
+    "-Ywarn-unused-import",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-dead-code",
+    "-Xlint:-missing-interpolator,_",
+  ),
+  docsMappingsAPIDir := "api",
+  addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
 
 lazy val microsite = project.in(file("site"))
   .enablePlugins(MicrositesPlugin)
+  .enablePlugins(SiteScaladocPlugin)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(siteSettings)
   .dependsOn(coreJVM, lawsJVM)

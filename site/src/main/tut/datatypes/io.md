@@ -107,7 +107,7 @@ def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
   }
 ```
 
-`IO` implements all the typeclasses shown in the hierarch. Therefore
+`IO` implements all the typeclasses shown in the [hierarchy](../typeclasses/). Therefore
 all those operations are available for `IO`, in addition to some
 others.
 
@@ -163,7 +163,7 @@ reference is returned.
 
 ### Synchronous Effects — IO.apply
 
-It's probably is the most used builder and the equivalent of
+It's probably the most used builder and the equivalent of
 `Sync[IO].delay`, describing `IO` operations that can be evaluated
 immediately, on the current thread and call-stack:
 
@@ -482,7 +482,7 @@ def readFile(file: File)(implicit ec: ExecutionContext) =
       }
     })    
     // On cancel, signal it
-    IO(isActive.set(true))
+    IO(isActive.set(false))
   }
 ```
 
@@ -507,7 +507,7 @@ An operation like this might be useful in streaming abstractions that
 stream I/O chunks via `IO` (via libraries like FS2, Monix, or others).
 
 But the described operation is incorrect, because `in.close()` is
-*concurrent* with `io.readLine`, which can lead to thrown exceptions
+*concurrent* with `in.readLine`, which can lead to thrown exceptions
 and in many cases it can lead to data *corruption*. This is a big
 no-no. We want to interrupt whatever it is that the `IO` is doing, but
 not at the cost of data corruption.
@@ -1152,19 +1152,21 @@ IO {
 }
 ```
 
-In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehention` for example:
+In FP we embrace reasoning about our programs and since `IO` is a `Monad` you can compose bigger programs from small ones in a `for-comprehension`.
+For example:
 
-```
+```scala
 val program =
   for {
-    _     <- putStrlLn("Please enter your name:")
-    name  <- readLn
-    _     <- putStrlLn(s"Hi $name!")
+    data <- readFile
+    _    <- writeToDatabase(data)
+    _    <- sendBytesOverTcp(data)
+    _    <- launchMissiles
   } yield ()
 ```
 
-Here you have a simple prompt program that is, at the same time, composable with other programs.
-`IO` values compose.
+Each step of the comprehension is a small program, and the resulting `program` is a composition of all those small steps,
+which is compositional with other programs. `IO` values compose.
 
 ### Use pure functions in map / flatMap
 
@@ -1189,7 +1191,7 @@ The correct approach would be this:
 ```tut:book
 IO.pure(123).flatMap { n =>
   // Properly suspending the side effect
-  IO(println(s"NOT RECOMMENDED! $n"))
+  IO(println(s"RECOMMENDED! $n"))
 }
 ```
 
