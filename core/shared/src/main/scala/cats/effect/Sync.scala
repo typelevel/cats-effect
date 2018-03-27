@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
-import cats.effect.internals.{AndThen, NonFatal}
+import cats.effect.internals.NonFatal
 import cats.syntax.all._
 
 /**
@@ -154,7 +154,7 @@ object Sync {
 
       EitherT(F.bracket(acquire.value) {
         case Right(a) => use(a).value
-        case e @ Left(_) => F.pure(e.rightCast[B]])
+        case e @ Left(_) => F.pure(e.rightCast[B])
       } { (ea, br) =>
         ea match {
           case Right(a) =>
@@ -222,6 +222,7 @@ object Sync {
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
 
+
     def bracket[A, B](acquire: StateT[F, S, A])
       (use: A => StateT[F, S, B])
       (release: (A, BracketResult[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
@@ -235,19 +236,8 @@ object Sync {
       }
     }
 
-    override def map[A, B](fa: StateT[F, S, A])(f: A => B): StateT[F, S, B] =
-      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
-        AndThen(safsba).andThen(fa => F.map(fa) { case (s, a) => (s, f(a)) })
-      })
-
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
-      IndexedStateT.applyF[F, S, S, B](F.map(fa.runF) { safsba =>
-        AndThen(safsba).andThen { fsba =>
-          F.flatMap(fsba) { case (sb, a) =>
-            f(a).run(sb)
-          }
-        }
-      })
+      fa.flatMap(f)
 
     // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
     def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
