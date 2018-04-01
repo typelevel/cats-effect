@@ -40,7 +40,10 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
     val ex = new Exception()
     val fa = F.pure(a)
 
-    val bracketed = F.bracket(fa)(_ => F.raiseError[A](ex))((_, _) => update)
+    val bracketed = F.bracket(fa)(_ => F.raiseError[A](ex)) {
+      case (_, BracketResult.Error(_)) => update
+      case _ => F.unit
+    }
 
     F.handleError(bracketed)(_ => a) *> read <-> F.pure(f(a))
   }

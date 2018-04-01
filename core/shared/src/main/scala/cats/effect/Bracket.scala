@@ -25,9 +25,9 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
 sealed abstract class BracketResult[+E]
 
 object BracketResult {
-  case object Completed extends BracketResult[Nothing]
-  case class Error[+E](e: E) extends BracketResult[E]
-  case class Canceled[+E](e: Option[E]) extends BracketResult[E]
+  final case object Completed extends BracketResult[Nothing]
+  final case class Error[+E](e: E) extends BracketResult[E]
+  final case class Canceled[+E](e: Option[E]) extends BracketResult[E]
 
   def complete[E]: BracketResult[E] = Completed
   def error[E](e: E): BracketResult[E] = Error[E](e)
