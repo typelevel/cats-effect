@@ -16,13 +16,18 @@
 
 package cats.effect
 
+import cats.data.EitherT
+import cats.laws.discipline.MonadTests
 import cats.effect.laws.discipline.SyncTests
 import cats.effect.laws.discipline.arbitrary._
+import cats.laws.discipline.arbitrary._
 import cats.instances.all._
 
 class EvalEffTests extends BaseTestsSuite {
 
-  checkAll("EvalEff",
-    SyncTests[EvalEff].sync[Int, Int, Int])
+  checkAll("EvalEff", MonadTests[EvalEff].monad[Int, Int, Int])
+
+  checkAll("EitherT[EvalEff, Throwable, ?]",
+    SyncTests[EitherT[EvalEff.Type, Throwable, ?]].sync[Int, Int, Int])
 
 }

@@ -19,7 +19,6 @@ package effect
 package laws
 package discipline
 
-import cats.Eval
 import cats.effect.IO.Par
 import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
@@ -32,7 +31,7 @@ object arbitrary {
     Arbitrary(Gen.delay(genIO[A]))
 
   implicit def catsEffectLawsArbitraryForEvalEff[A: Arbitrary]: Arbitrary[EvalEff[A]] =
-    Arbitrary(catsLawsArbitraryForEitherT[Eval, Throwable, A].arbitrary.map(e => EvalEff(e.value)))
+    Arbitrary(catsLawsArbitraryForEval[A].arbitrary.map(e => EvalEff.create(e)))
 
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))

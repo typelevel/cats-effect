@@ -87,6 +87,34 @@ object Sync {
       }
     }
 
+  implicit val catsEitherTEvalEffSync: Sync[EitherT[EvalEff, Throwable, ?]] =
+    new Sync[EitherT[EvalEff, Throwable, ?]] {
+
+      def pure[A](x: A): EitherT[EvalEff, Throwable, A] = EitherT.pure(x)
+
+      def handleErrorWith[A](fa: EitherT[EvalEff, Throwable, A])(f: Throwable => EitherT[EvalEff, Throwable, A]): EitherT[EvalEff, Throwable, A] =
+        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => EvalEff.now(Right(a)))))
+
+      def raiseError[A](e: Throwable): EitherT[EvalEff, Throwable, A] =
+        EitherT.left(EvalEff.now(e))
+
+      def flatMap[A, B](fa: EitherT[EvalEff, Throwable, A])(f: A => EitherT[EvalEff, Throwable, B]): EitherT[EvalEff, Throwable, B] =
+        fa.flatMap(f)
+
+      def tailRecM[A, B](a: A)(f: A => EitherT[EvalEff, Throwable, Either[A, B]]): EitherT[EvalEff, Throwable, B] =
+        EitherT.catsDataMonadErrorForEitherT[EvalEff, Throwable].tailRecM(a)(f)
+
+      def suspend[A](thunk: => EitherT[EvalEff, Throwable, A]): EitherT[EvalEff, Throwable, A] =
+        EitherT(EvalEffImpl.create(
+          Eval.always(try {
+            thunk.value.unsafeRun
+          } catch {
+            case NonFatal(t) => Left(t)
+          }))
+        )
+
+    }
+
   /**
    * [[Sync]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Sync`.

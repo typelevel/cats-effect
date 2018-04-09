@@ -16,50 +16,41 @@
 
 package cats.effect
 
-import cats.Eval
-import cats.data.EitherT
-import cats.effect.internals.{EitherEvalNewtype, NonFatal}
+import cats.{Eval, Monad}
+import cats.effect.internals.{EvalNewtype, NonFatal}
 
-object EvalEffImpl extends EvalEffInstances with EitherEvalNewtype {
+object EvalEffImpl extends EvalEffInstances with EvalNewtype {
+
+  def now[A](a: A): EvalEff[A] = create(Eval.now(a))
+
+  def apply[A](thunk: => A): EvalEff[A] = create(Eval.always(thunk))
+
+  def delayCatch[A](thunk: => A): EvalEff[Either[Throwable, A]] =
+    create(Eval.always(try {
+      Right(thunk)
+    } catch {
+      case NonFatal(t) => Left(t)
+    }))
 
   implicit def catsEvalEffOps[A](value: EvalEff[A]): EvalEffOps[A] =
     new EvalEffOps(value)
 }
 
 sealed class EvalEffOps[A](val value: EvalEff[A]) {
-  def unsafeToEitherT: EitherT[Eval, Throwable, A] =
-    EitherT(unsafeToEval)
-
-  def unsafeToEval: Eval[Either[Throwable, A]] =
-    EvalEffImpl.unwrap(value)
+  def unsafeRun: A =
+    EvalEffImpl.unwrap(value).value
 }
 
 private[effect] sealed abstract class EvalEffInstances {
 
-  implicit val catsEvalEffSync: Sync[EvalEff] =
-    new Sync[EvalEff] {
+  implicit val catsEvalEffMonad: Monad[EvalEff] = new Monad[EvalEff] {
+    def flatMap[A, B](fa: EvalEff[A])(f: A => EvalEff[B]): EvalEff[B] =
+      EvalEffImpl.create(EvalEffImpl.unwrap(fa).flatMap(f andThen(EvalEffImpl.unwrap)))
 
-      def pure[A](x: A): EvalEff[A] = EvalEff(Eval.now(Right(x)))
+    def tailRecM[A, B](a: A)(f: A => EvalEff[Either[A, B]]): EvalEff[B] =
+      EvalEffImpl.create(Monad[Eval].tailRecM(a)(f andThen(EvalEffImpl.unwrap)))
 
-      def handleErrorWith[A](fa: EvalEff[A])(f: Throwable => EvalEff[A]) =
-        EvalEff(EvalEffImpl.unwrap(fa).flatMap(_.fold(f.andThen(_.unsafeToEval), a => Eval.now(Right(a)))))
-
-      def raiseError[A](e: Throwable) =
-        EvalEff(Eval.now(Left(e)))
-
-      def flatMap[A, B](fa: EvalEff[A])(f: A => EvalEff[B]): EvalEff[B] =
-        EvalEff(fa.unsafeToEitherT.flatMap(f andThen(_.unsafeToEitherT)).value)
-
-      def tailRecM[A, B](a: A)(f: A => EvalEff[Either[A, B]]): EvalEff[B] =
-        EvalEff(EitherT.catsDataMonadErrorForEitherT[Eval, Throwable].tailRecM(a)(f andThen (_.unsafeToEitherT)).value)
-
-      def suspend[A](thunk: => EvalEff[A]): EvalEff[A] =
-        EvalEff(
-          Eval.always(try {
-            EvalEffImpl.unwrap(thunk).value
-          } catch {
-            case NonFatal(t) => Left(t)
-          })
-        )
-    }
+    def pure[A](x: A): EvalEff[A] =
+      EvalEffImpl.create(Eval.now(x))
+  }
 }

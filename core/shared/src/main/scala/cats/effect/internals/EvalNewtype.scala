@@ -18,14 +18,14 @@ package cats.effect.internals
 
 import cats.Eval
 
-private[effect] trait EitherEvalNewtype { self =>
+private[effect] trait EvalNewtype { self =>
   type Base
   trait Tag extends Any
   type Type[+A] <: Base with Tag
 
-  def apply[A](fa: Eval[Either[Throwable, A]]): Type[A] =
+  private[effect] def create[A](fa: Eval[A]): Type[A] =
     fa.asInstanceOf[Type[A]]
 
-  def unwrap[A](fa: Type[A]): Eval[Either[Throwable, A]] =
-    fa.asInstanceOf[Eval[Either[Throwable, A]]]
+  private[effect] def unwrap[A](fa: Type[A]): Eval[A] =
+    fa.asInstanceOf[Eval[A]]
 }
