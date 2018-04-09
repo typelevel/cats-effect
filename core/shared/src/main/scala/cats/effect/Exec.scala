@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import cats.{Eval, Monad}
+import cats.{Eval, Monad, Now}
 import cats.effect.internals.{ExecNewtype, NonFatal}
-import cats.kernel.{Semigroup, Monoid}
+import cats.kernel.{Monoid, Semigroup}
 
 object ExecImpl extends ExecInstances with ExecNewtype {
 
@@ -46,6 +46,19 @@ object ExecImpl extends ExecInstances with ExecNewtype {
     } catch {
       case NonFatal(t) => Left(t)
     }))
+
+  /**
+    * Lifts an `Eval` into `Exec`.
+    *
+    * This function will preserve the evaluation semantics of any
+    * actions that are lifted into the pure `Exec`.  Eager `Eval`
+    * instances will be converted into thunk-less `Exec` (i.e. eager
+    * `Exec`), while lazy eval and memoized will be executed as such.
+    */
+  def eval[A](fa: Eval[A]): Exec[A] = fa match {
+    case Now(a) => now(a)
+    case notNow => delayNoCatch(notNow.value)
+  }
 
   implicit def catsEvalEffOps[A](value: Exec[A]): EvalEffOps[A] =
     new EvalEffOps(value)
