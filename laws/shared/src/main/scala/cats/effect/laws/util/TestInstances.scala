@@ -16,10 +16,11 @@
 
 package cats.effect.laws.util
 
-import cats.effect.IO
+import cats.effect.{EvalEff, IO}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import cats.instances.either._
 
 /**
  * Defines instances for `Future` and for `IO`, meant for law testing
@@ -88,6 +89,9 @@ trait TestInstances {
         (x ne null) == (y ne null)
       }
     }
+
+  implicit def eqEvalEff[A: Eq]: Eq[EvalEff[A]] =
+    Eq.by(_.unsafeToEval)
 }
 
 object TestInstances extends TestInstances
