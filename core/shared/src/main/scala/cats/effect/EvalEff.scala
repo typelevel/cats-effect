@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.{Eval, Monad}
 import cats.effect.internals.{EvalNewtype, NonFatal}
+import cats.kernel.{Semigroup, Monoid}
 
 object EvalEffImpl extends EvalEffInstances with EvalNewtype {
 
@@ -41,7 +42,7 @@ sealed class EvalEffOps[A](val value: EvalEff[A]) {
     EvalEffImpl.unwrap(value).value
 }
 
-private[effect] sealed abstract class EvalEffInstances {
+private[effect] sealed abstract class EvalEffInstances extends EvalEffInstances0 {
 
   implicit val catsEvalEffMonad: Monad[EvalEff] = new Monad[EvalEff] {
     def flatMap[A, B](fa: EvalEff[A])(f: A => EvalEff[B]): EvalEff[B] =
@@ -53,4 +54,25 @@ private[effect] sealed abstract class EvalEffInstances {
     def pure[A](x: A): EvalEff[A] =
       EvalEffImpl.create(Eval.now(x))
   }
+
+  implicit def catsEvalEffMonoid[A: Monoid]: Monoid[EvalEff[A]] = new EvalEffMonoid[A] {
+    val algebra = Monoid[A]
+  }
+}
+
+private[effect] sealed abstract class EvalEffInstances0 {
+  implicit def catsEvalEffSemigroup[A: Semigroup]: Semigroup[EvalEff[A]] = new EvalEffSemigroup[A] {
+    val algebra = Semigroup[A]
+  }
+}
+
+trait EvalEffMonoid[A] extends EvalEffSemigroup[A] with Monoid[EvalEff[A]] {
+  implicit val algebra: Monoid[A]
+  val empty: EvalEff[A] = EvalEff.now(algebra.empty)
+}
+
+trait EvalEffSemigroup[A] extends Semigroup[EvalEff[A]] {
+  implicit val algebra: Semigroup[A]
+  def combine(x: EvalEff[A], y: EvalEff[A]): EvalEff[A] =
+    EvalEff.create(EvalEffImpl.unwrap(x).flatMap(a => EvalEffImpl.unwrap(y).map(algebra.combine(a, _))))
 }
