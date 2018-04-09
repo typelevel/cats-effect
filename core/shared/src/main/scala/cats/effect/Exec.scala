@@ -22,11 +22,25 @@ import cats.kernel.{Semigroup, Monoid}
 
 object ExecImpl extends ExecInstances with ExecNewtype {
 
+  /**
+    * Construct a non-effectful value of `Exec`.
+    * This should NOT be used with side-effects as evaluation is eager in this case.
+    */
   def now[A](a: A): Exec[A] = create(Eval.now(a))
 
-  def apply[A](thunk: => A): Exec[A] = create(Eval.always(thunk))
+  /**
+    * Suspends a synchronous side effect in `Exec`.
+    * Warning: It does not, however catch any Exceptions.
+    * Therefore it is recommended to be very conservative with this function
+    * and only use it when you are 100% sure the body never throws an Exception.
+    * If you're not sure if you should be using this method or not, use `delayCatch`
+    */
+  def delayNoCatch[A](thunk: => A): Exec[A] = create(Eval.always(thunk))
 
-  def delayCatch[A](thunk: => A): Exec[Either[Throwable, A]] =
+  /**
+    * Suspends a synchronous side effect in `Exec` and catches non-fatal exceptions inside `Either`.
+    */
+  def apply[A](thunk: => A): Exec[Either[Throwable, A]] =
     create(Eval.always(try {
       Right(thunk)
     } catch {
@@ -38,6 +52,15 @@ object ExecImpl extends ExecInstances with ExecNewtype {
 }
 
 sealed class EvalEffOps[A](val value: Exec[A]) {
+
+  /**
+    * Produces the result by running the encapsulated effects as impure
+    * side effects.
+    *
+    * As the name says, this is an UNSAFE function as it is impure and
+    * performs side effects. You should ideally only call this function
+    * *once*, at the very end of your program.
+    */
   def unsafeRun: A =
     ExecImpl.unwrap(value).value
 }

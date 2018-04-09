@@ -18,7 +18,12 @@ package cats
 
 package object effect {
 
+  /**
+    * Exec is a data type that allows for suspending synchronous computations.
+    * It can be seen as the synchronous non-concurrent counterpart to `IO`.
+    * However, it is important realize, that unlike `IO`, `Exec` does not catch any errors
+    * and in order to form a valid `Sync` needs to be combined with `EitherT`.
+    */
   type Exec[A] = ExecImpl.Type[A]
   val Exec = ExecImpl
-
 }
