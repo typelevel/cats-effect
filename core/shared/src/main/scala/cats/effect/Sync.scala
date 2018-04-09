@@ -87,25 +87,25 @@ object Sync {
       }
     }
 
-  implicit val catsEitherTEvalEffSync: Sync[EitherT[EvalEff, Throwable, ?]] =
-    new Sync[EitherT[EvalEff, Throwable, ?]] {
+  implicit val catsEitherTEvalEffSync: Sync[EitherT[Exec, Throwable, ?]] =
+    new Sync[EitherT[Exec, Throwable, ?]] {
 
-      def pure[A](x: A): EitherT[EvalEff, Throwable, A] = EitherT.pure(x)
+      def pure[A](x: A): EitherT[Exec, Throwable, A] = EitherT.pure(x)
 
-      def handleErrorWith[A](fa: EitherT[EvalEff, Throwable, A])(f: Throwable => EitherT[EvalEff, Throwable, A]): EitherT[EvalEff, Throwable, A] =
-        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => EvalEff.now(Right(a)))))
+      def handleErrorWith[A](fa: EitherT[Exec, Throwable, A])(f: Throwable => EitherT[Exec, Throwable, A]): EitherT[Exec, Throwable, A] =
+        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Exec.now(Right(a)))))
 
-      def raiseError[A](e: Throwable): EitherT[EvalEff, Throwable, A] =
-        EitherT.left(EvalEff.now(e))
+      def raiseError[A](e: Throwable): EitherT[Exec, Throwable, A] =
+        EitherT.left(Exec.now(e))
 
-      def flatMap[A, B](fa: EitherT[EvalEff, Throwable, A])(f: A => EitherT[EvalEff, Throwable, B]): EitherT[EvalEff, Throwable, B] =
+      def flatMap[A, B](fa: EitherT[Exec, Throwable, A])(f: A => EitherT[Exec, Throwable, B]): EitherT[Exec, Throwable, B] =
         fa.flatMap(f)
 
-      def tailRecM[A, B](a: A)(f: A => EitherT[EvalEff, Throwable, Either[A, B]]): EitherT[EvalEff, Throwable, B] =
-        EitherT.catsDataMonadErrorForEitherT[EvalEff, Throwable].tailRecM(a)(f)
+      def tailRecM[A, B](a: A)(f: A => EitherT[Exec, Throwable, Either[A, B]]): EitherT[Exec, Throwable, B] =
+        EitherT.catsDataMonadErrorForEitherT[Exec, Throwable].tailRecM(a)(f)
 
-      def suspend[A](thunk: => EitherT[EvalEff, Throwable, A]): EitherT[EvalEff, Throwable, A] =
-        EitherT(EvalEffImpl.create(
+      def suspend[A](thunk: => EitherT[Exec, Throwable, A]): EitherT[Exec, Throwable, A] =
+        EitherT(ExecImpl.create(
           Eval.always(try {
             thunk.value.unsafeRun
           } catch {

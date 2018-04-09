@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import cats.Eval
 
-private[effect] trait EvalNewtype { self =>
+private[effect] trait ExecNewtype { self =>
   type Base
   trait Tag extends Any
   type Type[+A] <: Base with Tag

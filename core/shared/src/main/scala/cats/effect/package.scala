@@ -18,7 +18,7 @@ package cats
 
 package object effect {
 
-  type EvalEff[A] = EvalEffImpl.Type[A]
-  val EvalEff = EvalEffImpl
+  type Exec[A] = ExecImpl.Type[A]
+  val Exec = ExecImpl
 
 }

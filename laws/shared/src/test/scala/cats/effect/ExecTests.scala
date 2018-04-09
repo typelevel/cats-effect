@@ -16,18 +16,21 @@
 
 package cats.effect
 
-import cats.data.EitherT
+import cats.data.{EitherT, NonEmptyList}
 import cats.laws.discipline.MonadTests
+import cats.kernel.laws.discipline.{MonoidTests, SemigroupTests}
 import cats.effect.laws.discipline.SyncTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.laws.discipline.arbitrary._
 import cats.instances.all._
 
-class EvalEffTests extends BaseTestsSuite {
+class ExecTests extends BaseTestsSuite {
 
-  checkAll("EvalEff", MonadTests[EvalEff].monad[Int, Int, Int])
+  checkAll("Exec", MonadTests[Exec].monad[Int, Int, Int])
+  checkAll("Exec[String]", MonoidTests[Exec[String]].monoid)
+  checkAll("Exec[NonEmptyList[String]]", SemigroupTests[Exec[NonEmptyList[String]]].semigroup)
 
-  checkAll("EitherT[EvalEff, Throwable, ?]",
-    SyncTests[EitherT[EvalEff.Type, Throwable, ?]].sync[Int, Int, Int])
+  checkAll("EitherT[Exec, Throwable, ?]",
+    SyncTests[EitherT[Exec.Type, Throwable, ?]].sync[Int, Int, Int])
 
 }

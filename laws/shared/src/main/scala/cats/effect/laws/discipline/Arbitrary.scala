@@ -30,8 +30,8 @@ object arbitrary {
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
-  implicit def catsEffectLawsArbitraryForEvalEff[A: Arbitrary]: Arbitrary[EvalEff[A]] =
-    Arbitrary(catsLawsArbitraryForEval[A].arbitrary.map(e => EvalEff.create(e)))
+  implicit def catsEffectLawsArbitraryForExec[A: Arbitrary]: Arbitrary[Exec[A]] =
+    Arbitrary(catsLawsArbitraryForEval[A].arbitrary.map(e => Exec.create(e)))
 
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
