@@ -93,10 +93,10 @@ object Sync {
       def pure[A](x: A): EitherT[Exec, Throwable, A] = EitherT.pure(x)
 
       def handleErrorWith[A](fa: EitherT[Exec, Throwable, A])(f: Throwable => EitherT[Exec, Throwable, A]): EitherT[Exec, Throwable, A] =
-        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Exec.now(Right(a)))))
+        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Exec.pure(Right(a)))))
 
       def raiseError[A](e: Throwable): EitherT[Exec, Throwable, A] =
-        EitherT.left(Exec.now(e))
+        EitherT.left(Exec.pure(e))
 
       def flatMap[A, B](fa: EitherT[Exec, Throwable, A])(f: A => EitherT[Exec, Throwable, B]): EitherT[Exec, Throwable, B] =
         fa.flatMap(f)

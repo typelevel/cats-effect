@@ -26,7 +26,10 @@ object ExecImpl extends ExecInstances with ExecNewtype {
     * Construct a non-effectful value of `Exec`.
     * This should NOT be used with side-effects as evaluation is eager in this case.
     */
-  def now[A](a: A): Exec[A] = create(Eval.now(a))
+  def pure[A](a: A): Exec[A] = create(Eval.now(a))
+
+  /** Alias for `Exec.pure(())`. */
+  val unit: Exec[Unit] = pure(())
 
   /**
     * Suspends a synchronous side effect in `Exec`.
@@ -56,15 +59,15 @@ object ExecImpl extends ExecInstances with ExecNewtype {
     * `Exec`), while lazy eval and memoized will be executed as such.
     */
   def eval[A](fa: Eval[A]): Exec[A] = fa match {
-    case Now(a) => now(a)
+    case Now(a) => pure(a)
     case notNow => delayNoCatch(notNow.value)
   }
 
-  implicit def catsEvalEffOps[A](value: Exec[A]): EvalEffOps[A] =
-    new EvalEffOps(value)
+  implicit def catsEvalEffOps[A](value: Exec[A]): ExecOps[A] =
+    new ExecOps(value)
 }
 
-sealed class EvalEffOps[A](val value: Exec[A]) {
+sealed class ExecOps[A](val value: Exec[A]) {
 
   /**
     * Produces the result by running the encapsulated effects as impure
@@ -76,6 +79,19 @@ sealed class EvalEffOps[A](val value: Exec[A]) {
     */
   def unsafeRun: A =
     ExecImpl.unwrap(value).value
+
+  /**
+    * Convert this `Exec` to an `IO`, preserving purity and allowing
+    * for interop with asynchronous computations.
+    */
+  def toIO: IO[A] =
+    to[IO]
+
+  /**
+    * Convert this `Exec` to another effect type that implements the [[Sync]] type class.
+    */
+  def to[F[_]: Sync]: F[A] =
+    Sync[F].delay(unsafeRun)
 }
 
 private[effect] sealed abstract class ExecInstances extends ExecInstances0 {
@@ -92,7 +108,7 @@ private[effect] sealed abstract class ExecInstances extends ExecInstances0 {
   }
 
   implicit def catsExecMonoid[A: Monoid]: Monoid[Exec[A]] = new ExecSemigroup[A] with Monoid[Exec[A]] {
-    val empty: Exec[A] = Exec.now(Monoid[A].empty)
+    val empty: Exec[A] = Exec.pure(Monoid[A].empty)
   }
 }
 
