@@ -374,7 +374,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOCancel.raise(this, e)
 
   /**
-   * Makes the source `Task` uninterruptible such that a [[Fiber.cancel]]
+   * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]
    * signal has no effect.
    */
   final def uncancelable: IO[A] =
@@ -410,15 +410,15 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * {{{
    *   import java.io._
    *
-   *   def readFile(file: File): Task[String] = {
+   *   def readFile(file: File): IO[String] = {
    *     // Opening a file handle for reading text
-   *     val acquire = Task.eval(new BufferedReader(
+   *     val acquire = IO(new BufferedReader(
    *       new InputStreamReader(new FileInputStream(file), "utf-8")
    *     ))
    *
    *     acquire.bracket { in =>
    *       // Usage part
-   *       Task.eval {
+   *       IO {
    *         // Yes, ugly Java, non-FP loop;
    *         // side-effects are suspended though
    *         var line: String = null
@@ -431,7 +431,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *       }
    *     } { in =>
    *       // The release part
-   *       Task.eval(in.close())
+   *       IO(in.close())
    *     }
    *   }
    * }}}
@@ -671,7 +671,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *         {{{
  *           import cats.syntax.all._
  *
- *           Task.shift *> task
+ *           IO.shift *> task
  *         }}}
  *
  *         Or we can specify an asynchronous boundary ''after'' the
