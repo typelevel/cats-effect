@@ -166,19 +166,40 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.Sync#StateTSync.map"),
       exclude[IncompatibleMethTypeProblem]("cats.effect.Sync#StateTSync.map"),
       exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket"),
       exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketE"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat$"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$EitherTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
+      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#EitherTSync.bracketE"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#KleisliSync.bracketE"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#OptionTSync.bracketE"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#StateTSync.bracketE"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#WriterTSync.bracketE")
+      //
+      // Following are all internal implementation details:
+      //
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
+      // Not a problem: IO.Async is a private class
+      exclude[MissingTypesProblem]("cats.effect.Async$"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      // Not a problem: IO.Async is a private class
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
+      // Not a problem: RestartCallback is a private class
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
+      // Not a problem: IOPlatform is private
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
+      // Not a problem: IORunLoop is private
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+      // Not a problem: Async.never implementation is just moved
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never")
     )
   })
 
