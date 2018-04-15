@@ -97,14 +97,14 @@ object LTask {
           }
         }
 
-      def bracket[A, B](acquire: LTask[A])
+      def bracketE[A, B](acquire: LTask[A])
           (use: A => LTask[B])
-          (release: (A, BracketResult[Throwable]) => LTask[Unit]): LTask[B] = for {
+          (release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] = for {
         a <- acquire
         etb <- attempt(use(a))
         _ <- release(a, etb match {
-          case Left(e) => BracketResult.error[Throwable](e)
-          case Right(_) => BracketResult.complete
+          case Left(e) => ExitCase.error[Throwable](e)
+          case Right(_) => ExitCase.complete
         })
         b <- rethrow(pure(etb))
       } yield b

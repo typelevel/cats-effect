@@ -201,13 +201,13 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *   // Safe, because it does not block for the source to finish
    *   val cancel: IO[Unit] = start.unsafeRunSync
    *
-   *   // Safe, because cancellation only sends a signal,
+   *   // Safe, because cancelation only sends a signal,
    *   // but doesn't back-pressure on anything
    *   cancel.unsafeRunSync
    * }}}
    *
    * @return an `IO` value that upon evaluation will execute the source,
-   *         but will not wait for its completion, yielding a cancellation
+   *         but will not wait for its completion, yielding a cancelation
    *         token that can be used to cancel the async process
    *
    * @see [[runAsync]] for the simple, uninterruptible version
@@ -266,7 +266,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * function ''once'', at the very end of your program.
    *
    * @return an side-effectful function that, when executed, sends a
-   *         cancellation reference to `IO`'s run-loop implementation,
+   *         cancelation reference to `IO`'s run-loop implementation,
    *         having the potential to interrupt it.
    */
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
@@ -335,7 +335,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * This can be used for non-deterministic / concurrent execution.
    * The following code is more or less equivalent with `parMap2`
-   * (minus the behavior on error handling and cancellation):
+   * (minus the behavior on error handling and cancelation):
    *
    * {{{
    *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
@@ -348,7 +348,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * }}}
    *
    * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
-   * still recommended because of behavior on error and cancellation —
+   * still recommended because of behavior on error and cancelation —
    * consider in the example above what would happen if the first task
    * finishes in error. In that case the second task doesn't get cancelled,
    * which creates a potential memory leak.
@@ -362,12 +362,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 
   /**
    * Returns a new `IO` that mirrors the source task for normal termination,
-   * but that triggers the given error on cancellation.
+   * but that triggers the given error on cancelation.
    *
    * Normally tasks that are cancelled become non-terminating.
    *
    * This `onCancelRaiseError` operator transforms a task that is
-   * non-terminating on cancellation into one that yields an error,
+   * non-terminating on cancelation into one that yields an error,
    * thus equivalent with [[IO.raiseError]].
    */
   final def onCancelRaiseError(e: Throwable): IO[A] =
@@ -387,8 +387,142 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
 
+  /**
+   * Returns an `IO` action that treats the source task as the
+   * acquisition of a resource, which is then exploited by the `use`
+   * function and then `released`.
+   *
+   * The `bracket` operation is the equivalent of the
+   * `try {} catch {} finally {}` statements from mainstream languages.
+   *
+   * The `bracket` operation installs the necessary exception handler
+   * to release the resource in the event of an exception being raised
+   * during the computation, or in case of cancelation.
+   *
+   * If an exception is raised, then `bracket` will re-raise the
+   * exception ''after'' performing the `release`. If the resulting
+   * task gets cancelled, then `bracket` will still perform the
+   * `release`, but the yielded task will be non-terminating
+   * (equivalent with [[IO.never]]).
+   *
+   * Example:
+   *
+   * {{{
+   *   import java.io._
+   *
+   *   def readFile(file: File): Task[String] = {
+   *     // Opening a file handle for reading text
+   *     val acquire = Task.eval(new BufferedReader(
+   *       new InputStreamReader(new FileInputStream(file), "utf-8")
+   *     ))
+   *
+   *     acquire.bracket { in =>
+   *       // Usage part
+   *       Task.eval {
+   *         // Yes, ugly Java, non-FP loop;
+   *         // side-effects are suspended though
+   *         var line: String = null
+   *         val buff = new StringBuilder()
+   *         do {
+   *           line = in.readLine()
+   *           if (line != null) buff.append(line)
+   *         } while (line != null)
+   *         buff.toString()
+   *       }
+   *     } { in =>
+   *       // The release part
+   *       Task.eval(in.close())
+   *     }
+   *   }
+   * }}}
+   *
+   * Note that in case of cancelation the underlying implementation
+   * cannot guarantee that the computation described by `use` doesn't
+   * end up executed concurrently with the computation from
+   * `release`. In the example above that ugly Java loop might end up
+   * reading from a `BufferedReader` that is already closed due to the
+   * task being cancelled, thus triggering an error in the background
+   * with nowhere to get signaled.
+   *
+   * In this particular example, given that we are just reading from a
+   * file, it doesn't matter. But in other cases it might matter, as
+   * concurrency on top of the JVM when dealing with I/O might lead to
+   * corrupted data.
+   *
+   * For those cases you might want to do synchronization (e.g. usage
+   * of locks and semaphores) and you might want to use [[bracketE]],
+   * the version that allows you to differentiate between normal
+   * termination and cancelation.
+   *
+   * '''NOTE on error handling''': one big difference versus
+   * `try/finally` statements is that, in case both the `release`
+   * function and the `use` function throws, the error raised by `use`
+   * gets signaled.
+   *
+   * For example:
+   *
+   * {{{
+   *   IO("resource").bracket { _ =>
+   *     // use
+   *     IO.raiseError(new RuntimeException("Foo"))
+   *   } { _ =>
+   *     // release
+   *     IO.raiseError(new RuntimeException("Bar"))
+   *   }
+   * }}}
+   *
+   * In this case the error signaled downstream is `"Foo"`, while the
+   * `"Bar"` error gets reported. This is consistent with the behavior
+   * of Haskell's `bracket` operation and NOT with `try {} finally {}`
+   * from Scala, Java or JavaScript.
+   *
+   * @see [[bracketE]]
+   *
+   * @param use is a function that evaluates the resource yielded by
+   *        the source, yielding a result that will get generated by
+   *        the task returned by this `bracket` function
+   *
+   * @param release is a function that gets called after `use`
+   *        terminates, either normally or in error, or if it gets
+   *        cancelled, receiving as input the resource that needs to
+   *        be released
+   */
+  final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
+    bracketE(use)((a, _) => release(a))
 
-  def bracket[B](use: A => IO[B])(release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
+  /**
+   * Returns a new `IO` task that treats the source task as the
+   * acquisition of a resource, which is then exploited by the `use`
+   * function and then `released`, with the possibility of
+   * distinguishing between normal termination and cancelation, such
+   * that an appropriate release of resources can be executed.
+   *
+   * The `bracketE` operation is the equivalent of
+   * `try {} catch {} finally {}` statements from mainstream languages
+   * when used for the acquisition and release of resources.
+   *
+   * The `bracketE` operation installs the necessary exception handler
+   * to release the resource in the event of an exception being raised
+   * during the computation, or in case of cancelation.
+   *
+   * In comparison with the simpler [[bracket]] version, this one
+   * allows the caller to differentiate between normal termination,
+   * termination in error and cancelation via an [[ExitCase]]
+   * parameter.
+   *
+   * @see [[bracket]]
+   *
+   * @param use is a function that evaluates the resource yielded by
+   *        the source, yielding a result that will get generated by
+   *        this function on evaluation
+   *
+   * @param release is a function that gets called after `use`
+   *        terminates, either normally or in error, or if it gets
+   *        canceled, receiving as input the resource that needs that
+   *        needs release, along with the result of `use`
+   *        (cancelation, error or successful result)
+   */
+  def bracketE[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
     IOBracket(this)(use)(release)
 
   override def toString = this match {
@@ -494,11 +628,14 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
         case Left(a) => tailRecM(a)(f)
         case Right(b) => pure(b)
       }
-
     override def bracket[A, B](acquire: IO[A])
       (use: A => IO[B])
-      (release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
+      (release: A => IO[Unit]): IO[B] =
       acquire.bracket(use)(release)
+    override def bracketE[A, B](acquire: IO[A])
+      (use: A => IO[B])
+      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      acquire.bracketE(use)(release)
   }
 
   implicit val ioParallel: Parallel[IO, IO.Par] =
@@ -872,8 +1009,8 @@ object IO extends IOInstances {
 
   /**
    * Returns a cancelable boundary — an `IO` task that checks for the
-   * cancellation status of the run-loop and does not allow for the
-   * bind continuation to keep executing in case cancellation happened.
+   * cancelation status of the run-loop and does not allow for the
+   * bind continuation to keep executing in case cancelation happened.
    *
    * This operation is very similar to [[IO.shift(implicit* IO.shift]],
    * as it can be dropped in `flatMap` chains in order to make loops
@@ -887,7 +1024,7 @@ object IO extends IOInstances {
    *      if (n <= 0) IO.pure(a) else {
    *        val next = fib(n - 1, b, a + b)
    *
-   *        // Every 100-th cycle, check cancellation status
+   *        // Every 100-th cycle, check cancelation status
    *        if (n % 100 == 0)
    *          IO.cancelBoundary *> next
    *        else
