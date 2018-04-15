@@ -222,7 +222,6 @@ object Sync {
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
 
-
     def bracketE[A, B](acquire: StateT[F, S, A])
       (use: A => StateT[F, S, B])
       (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
@@ -304,8 +303,9 @@ object Sync {
       Kleisli(r => F.suspend(thunk.run(r)))
 
     def bracketE[A, B](acquire: Kleisli[F, R, A])
-                     (use: A => Kleisli[F, R, B])
-                     (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+      (use: A => Kleisli[F, R, B])
+      (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+
       Kleisli { r =>
         F.bracketE(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
           release(a, br).run(r)
