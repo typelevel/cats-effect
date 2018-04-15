@@ -97,7 +97,7 @@ object LTask {
           }
         }
 
-      def bracketE[A, B](acquire: LTask[A])
+      def bracketCase[A, B](acquire: LTask[A])
           (use: A => LTask[B])
           (release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] = for {
         a <- acquire

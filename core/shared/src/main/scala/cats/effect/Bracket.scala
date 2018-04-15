@@ -40,7 +40,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *        allocated resource after `use` is done, by observing
    *        and acting on its exit condition
    */
-  def bracketE[A, B](acquire: F[A])(use: A => F[B])
+  def bracketCase[A, B](acquire: F[A])(use: A => F[B])
     (release: (A, ExitCase[E]) => F[Unit]): F[B]
 
   /**
@@ -60,7 +60,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
   def bracket[A, B](acquire: F[A])(use: A => F[B])
     (release: A => F[Unit]): F[B] = {
 
-    bracketE(acquire)(use)((a, _) => release(a))
+    bracketCase(acquire)(use)((a, _) => release(a))
   }
 }
 
