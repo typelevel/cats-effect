@@ -24,20 +24,20 @@ import cats.laws._
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   implicit def F: Bracket[F, E]
 
-  def bracketEWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
-    F.bracketE(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
+  def bracketCaseWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
+    F.bracketCase(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
 
-  def bracketEWithPureUnitIsEqvFlatMap[A, B](fa: F[A], f: A => F[B]) =
-    F.bracketE(fa)(f)((_, _) => F.unit) <-> F.flatMap(fa)(f)
+  def bracketCaseWithPureUnitIsEqvFlatMap[A, B](fa: F[A], f: A => F[B]) =
+    F.bracketCase(fa)(f)((_, _) => F.unit) <-> F.flatMap(fa)(f)
 
-  def bracketEFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
-    F.bracketE(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
+  def bracketCaseFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
+    F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
 
-  def bracketEmitsUseFailure[A](e: E, e2: E, fa: F[A]) =
-    F.bracketE(fa)(_ => F.raiseError[A](e))((_, _) => F.raiseError(e2)) <-> fa *> F.raiseError(e)
+  def bracketCaseEmitsUseFailure[A](e: E, e2: E, fa: F[A]) =
+    F.bracketCase(fa)(_ => F.raiseError[A](e))((_, _) => F.raiseError(e2)) <-> fa *> F.raiseError(e)
 
-  def bracketIsDerivedFromBracketE[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
-    F.bracket(fa)(use)(release) <-> F.bracketE(fa)(use)((a, _) => release(a))
+  def bracketIsDerivedFromBracketCase[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
+    F.bracket(fa)(use)(release) <-> F.bracketCase(fa)(use)((a, _) => release(a))
 }
 
 object BracketLaws {

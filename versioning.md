@@ -22,7 +22,7 @@ Within a single *major/minor* version (e.g. the **1.0** in **1.0.5**), all relea
 
 *Backward binary compatibility* is not guaranteed.  Thus, code compiled against 1.0.5 may not run with the same semantics against 1.0, though it is *very* likely that it will.
 
-Please note that there are some limits in Scala's binary compatibility story prior to Scala 2.12.  At the present time, the guarantees in this section hold for all cats-effect cross-builds: 2.10, 2.11 and 2.12; but we reserve the right to restrict certain guarantees to just 2.12 in the future.
+Please note that there are some limits in Scala's binary compatibility story prior to Scala 2.12.  At the present time, the guarantees in this section hold for all cats-effect cross-builds: 2.11 and 2.12; but we reserve the right to restrict certain guarantees to just 2.12 in the future.
 
 ## Snapshots
 

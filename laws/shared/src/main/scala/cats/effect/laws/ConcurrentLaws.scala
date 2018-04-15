@@ -32,7 +32,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       // A promise that waits for `release` to be executed
       exitLatch <- Pledge[F, A]
       // What we're actually testing
-      bracketed = F.bracketE(F.pure(a))(a => startLatch.complete[F](a) *> F.never[A]) {
+      bracketed = F.bracketCase(F.pure(a))(a => startLatch.complete[F](a) *> F.never[A]) {
         case (r, ExitCase.Canceled(_)) => exitLatch.complete[F](r)
         case (_, _) => F.unit
       }

@@ -36,6 +36,8 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
+  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
   scalacOptions in (Compile, doc) ++= {
@@ -49,17 +51,8 @@ val commonSettings = Seq(
     Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
   },
 
-  sources in (Compile, doc) := {
-    val log = streams.value.log
-
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        log.warn("scaladoc generation is disabled on Scala 2.10")
-        Nil
-
-      case _ => (sources in (Compile, doc)).value
-    }
-  },
+  sources in (Compile, doc) :=
+    (sources in (Compile, doc)).value,
 
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
@@ -147,7 +140,7 @@ val commonSettings = Seq(
 val mimaSettings = Seq(
   // Setting the previous artifact manually at 0.9
   // as a temporary measure until we release 0.10
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.9"),
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
   /*
   mimaPreviousArtifacts := {
     val TagBase = """^(\d+)\.(\d+).*"""r
@@ -163,82 +156,16 @@ val mimaSettings = Seq(
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
     Seq(
-      // Not a problem: AsyncInstances is a private class, we just moved those
-      // directly in the companion object.
-      //
-      // Manually checked:
-      //  - catsEitherTAsync
-      //  - catsOptionTAsync
-      //  - catsStateTAsync
-      //  - catsWriterTAsync
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances"),
-      // Not a problem: AsyncInstances is a private class, WriterTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$WriterTAsync"),
-      // Not a problem: AsyncInstances is a private class, OptionTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$OptionTAsync"),
-      // Not a problem: AsyncInstances is a private class, EitherTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$EitherTAsync"),
-      // Not a problem: AsyncInstances is a private class, StateTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$StateTAsync"),
-      //
-      // Not a problem: EffectInstances is a private class and we just moved
-      // those in the companion object.
-      //
-      // Manual check for:
-      //  - catsEitherTEffect
-      //  - catsStateTEffect
-      //  - catsWriterTEffect
-      //  - catsWriterTEffect
-      exclude[MissingClassProblem]("cats.effect.EffectInstances"),
-      // Not a problem: Missing private traits being inherited
-      exclude[MissingTypesProblem]("cats.effect.Effect$"),
-      //
-      // Not a problem: SyncInstances is a private class, we just moved those
-      // directly in the companion object.
-      //
-      // Manual check for:
-      //   - catsEitherTEvalSync
-      //   - catsEitherTSync
-      //   - catsOptionTSync
-      //   - catsStateTSync
-      //   - catsWriterTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances"),
-      // Not a problem: no longer implementing private traits
-      exclude[MissingTypesProblem]("cats.effect.Sync$"),
-      // Not a problem: SyncInstances and StateTSync are private.
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$StateTSync"),
-      // Not a problem: SyncInstances and OptionTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$OptionTSync"),
-      // Not a problem: SyncInstances and EitherTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$EitherTSync"),
-      // Not a problem: SyncInstances and WriterTSync are private
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$WriterTSync"),
-      //
-      // Not a problem: LiftIOInstances is a private class, we just moved
-      // those directly in the companion object.
-      //
-      // Manual check for:
-      //   - catsEitherTLiftIO
-      //   - catsKleisliLiftIO
-      //   - catsOptionTLiftIO
-      //   - catsStateTLiftIO
-      //   - catsWriterTLiftIO
-      exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
-      exclude[MissingTypesProblem]("cats.effect.Effect$"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.AsyncInstances"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.IOInstances"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#WriterTSync.bracket"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Sync#StateTSync.map"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.Sync#StateTSync.map"),
       exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketE"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$EitherTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketCase"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat$"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
       exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
       //
@@ -457,18 +384,11 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-dead-code"
 )
 
-scalacOptions in ThisBuild ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, major)) if major >= 11 => Seq(
-      "-Ywarn-unused-import", // Not available in 2.10
-      "-Ywarn-numeric-widen", // In 2.10 this produces a some strange spurious error
-      "-Xlint:-missing-interpolator,_"
-    )
-    case _ => Seq(
-      "-Xlint" // Scala 2.10
-    )
-  }
-}
+scalacOptions in ThisBuild ++= Seq(
+  "-Ywarn-unused-import",
+  "-Ywarn-numeric-widen",
+  "-Xlint:-missing-interpolator,_"
+)
 
 scalacOptions in Test += "-Yrangepos"
 

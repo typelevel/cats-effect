@@ -19,7 +19,6 @@ package effect
 
 import simulacrum._
 import cats.data._
-import cats.effect.internals.NonFatal
 import cats.syntax.all._
 
 /**
@@ -48,58 +47,6 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
 }
 
 object Sync {
-  /**
-   * [[Sync]] instance built for `EitherT[Eval, Throwable, ?]`.
-   *
-   * The `cats.Eval` data type does not have a `MonadError` implementation,
-   * because it's a `Comonad` and in this case it cannot describe partial
-   * functions that can throw errors, because its `Comonad#value` needs
-   * to be a pure and total function.
-   *
-   * But by wrapping it in `EitherT`, it's then possible to use in pieces
-   * of logic requiring `Sync`.
-   */
-  implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
-    new Sync[EitherT[Eval, Throwable, ?]] {
-
-      def pure[A](x: A): EitherT[Eval, Throwable, A] = EitherT.pure(x)
-
-      def handleErrorWith[A](fa: EitherT[Eval, Throwable, A])(f: Throwable => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] =
-        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Eval.now(Right(a)))))
-
-      def raiseError[A](e: Throwable) =
-        EitherT.left(Eval.now(e))
-
-      def bracketE[A, B](acquire: EitherT[Eval, Throwable, A])
-        (use: A => EitherT[Eval, Throwable, B])
-        (release: (A, ExitCase[Throwable]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] = {
-
-        acquire.flatMap { a =>
-          EitherT(FlatMap[Eval].flatTap(use(a).value){ etb =>
-            release(a, etb match {
-              case Left(e) => ExitCase.Error(e)
-              case Right(_) => ExitCase.Completed
-            }).value
-          })
-        }
-      }
-
-      def flatMap[A, B](fa: EitherT[Eval, Throwable, A])(f: A => EitherT[Eval, Throwable, B]): EitherT[Eval, Throwable, B] =
-        fa.flatMap(f)
-
-      def tailRecM[A, B](a: A)(f: A => EitherT[Eval, Throwable, Either[A, B]]): EitherT[Eval, Throwable, B] =
-        EitherT.catsDataMonadErrorForEitherT[Eval, Throwable].tailRecM(a)(f)
-
-      def suspend[A](thunk: => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] = {
-        EitherT {
-          Eval.always(try {
-            thunk.value.value
-          } catch {
-            case NonFatal(t) => Left(t)
-          })
-        }
-      }
-    }
 
   /**
    * [[Sync]] instance built for `cats.data.EitherT` values initialized
@@ -148,11 +95,11 @@ object Sync {
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
       EitherT.liftF(F.raiseError(e))
 
-    def bracketE[A, B](acquire: EitherT[F, L, A])
+    def bracketCase[A, B](acquire: EitherT[F, L, A])
       (use: A => EitherT[F, L, B])
       (release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] = {
 
-      EitherT(F.bracketE(acquire.value) {
+      EitherT(F.bracketCase(acquire.value) {
         case Right(a) => use(a).value
         case e @ Left(_) => F.pure(e.rightCast[B])
       } { (ea, br) =>
@@ -186,11 +133,11 @@ object Sync {
     def raiseError[A](e: Throwable): OptionT[F, A] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
-    def bracketE[A, B](acquire: OptionT[F, A])
+    def bracketCase[A, B](acquire: OptionT[F, A])
       (use: A => OptionT[F, B])
       (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
 
-      OptionT(F.bracketE(acquire.value) {
+      OptionT(F.bracketCase(acquire.value) {
         case Some(a) => use(a).value
         case None => F.pure[Option[B]](None)
       } {
@@ -222,13 +169,12 @@ object Sync {
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
 
-
-    def bracketE[A, B](acquire: StateT[F, S, A])
+    def bracketCase[A, B](acquire: StateT[F, S, A])
       (use: A => StateT[F, S, B])
       (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
 
       StateT { startS =>
-        F.bracketE(acquire.run(startS)) { case (s, a) =>
+        F.bracketCase(acquire.run(startS)) { case (s, a) =>
           use(a).run(s)
         } { case ((s, a), br) =>
           release(a, br).run(s).void
@@ -259,13 +205,13 @@ object Sync {
     def raiseError[A](e: Throwable): WriterT[F, L, A] =
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
 
-    def bracketE[A, B](acquire: WriterT[F, L, A])
+    def bracketCase[A, B](acquire: WriterT[F, L, A])
       (use: A => WriterT[F, L, B])
       (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
 
       acquire.flatMap { a =>
         WriterT(
-          F.bracketE(F.pure(a))(use.andThen(_.run)){ (a, res) =>
+          F.bracketCase(F.pure(a))(use.andThen(_.run)){ (a, res) =>
             release(a, res).value
           }
         )
@@ -303,11 +249,12 @@ object Sync {
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli(r => F.suspend(thunk.run(r)))
 
-    def bracketE[A, B](acquire: Kleisli[F, R, A])
-                     (use: A => Kleisli[F, R, B])
-                     (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+    def bracketCase[A, B](acquire: Kleisli[F, R, A])
+      (use: A => Kleisli[F, R, B])
+      (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+
       Kleisli { r =>
-        F.bracketE(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
+        F.bracketCase(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
           release(a, br).run(r)
         }
       }

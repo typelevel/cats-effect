@@ -4,9 +4,6 @@ language: scala
 matrix:
   include:
     - jdk: oraclejdk8
-      scala: 2.10.7
-      env: COVERAGE=
-    - jdk: oraclejdk8
       scala: 2.11.12
       env: COVERAGE=coverage
     - jdk: oraclejdk8

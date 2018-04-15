@@ -25,9 +25,6 @@ import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
 
-  checkAll("EitherT[Eval, Throwable, ?]",
-    SyncTests[EitherT[Eval, Throwable, ?]].sync[Int, Int, Int])
-
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int])
 
@@ -49,7 +46,4 @@ class InstancesTests extends BaseTestsSuite {
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
 
-  // this is required to avoid diverging implicit expansion issues on 2.10
-  implicit def eitherTEq: Eq[EitherT[EitherT[Eval, Throwable, ?], Throwable, Int]] =
-    Eq.by[EitherT[EitherT[Eval, Throwable, ?], Throwable, Int], EitherT[Eval, Throwable, Either[Throwable, Int]]](_.value)
 }
