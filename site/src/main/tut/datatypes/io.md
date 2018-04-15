@@ -822,7 +822,192 @@ Therefore it's confusing for the user and the only practical use is to
 release resources differently, based on the received error. But that's
 not a use-case that's worth pursuing, given the increase in
 complexity.
-  
+
+## Safe Resource Acquisition and Release
+
+### Status Quo
+
+In mainstream imperative languages you usually have `try / finally`
+statements at disposal for acquisition and safe release of resources.
+Pattern goes like this:
+
+```tut:silent
+import java.io._
+
+def javaReadFirstLine(file: File): String = {
+  val in = new BufferedReader(new FileReader(file))
+  try {
+    in.readLine()
+  } finally {
+    in.close()
+  }
+}
+```
+
+It does have problems like:
+
+1. this statement is obviously meant for side-effectful computations
+   and can't be used by FP abstractions
+2. it's only meant for synchronous execution, so we can't use it
+   when working with abstractions capable of asynchrony
+   (e.g. `IO`, `Task`, `Future`)
+3. `finally` executes irregardless of the exception type, 
+   indiscriminately, so if you get an out of memory error it still
+   tries to close the file handle, unnecessarily delaying a process
+   crash
+4. if the body of `try` throws an exception, then followed by
+   the body of `finally` also throwing an exception, then the
+   exception of `finally` gets rethrown, hiding the original problem
+   
+### bracket
+
+Via the `bracket` operation we can easily describe the above:
+
+```tut:silent
+def readFirstLine(file: File): IO[String] =
+  IO(new BufferedReader(new FileReader(file))).bracket { in =>
+    // Usage (the try block)
+    IO(in.readLine())
+  } { in =>
+    // Releasing the reader (the finally block)
+    IO(in.close())
+  }
+```
+
+Notes:
+
+1. this is pure, so it can be used for FP
+2. this works with asynchronous `IO` actions
+3. the `release` action will happen regardless of the exit status 
+   of the `use` action, so it will execute for successful completion,
+   for thrown errors or for cancelled execution
+4. if the `use` action throws an error and then the `release` action
+   throws an error as well, the reported error will be that of
+   `use`, whereas the error thrown by `release` will just get logged
+   (via `System.err`)   
+
+Of special consideration is that `bracket` calls the `release` action
+on cancelation as well. Consider this sample:
+
+```tut:silent
+def readFile(file: File): IO[String] = {
+  // Opens file with an asynchronous boundary before it, 
+  // ensuring that processing doesn't block the "current thread"
+  val acquire = IO.shift *> IO(new BufferedReader(new FileReader(file)))
+    
+  acquire.bracket { in =>
+    // Usage (the try block)
+    IO {
+      // Ugly, low-level Java code warning!
+      val content = new StringBuilder()
+      var line: String = null
+      do {
+        line = in.readLine()
+        if (line != null) content.append(line)
+      } while (line != null)
+      content.toString()
+    }
+  } { in =>
+    // Releasing the reader (the finally block)
+    // This is problematic if the resulting `IO` can get 
+    // canceled, because it can lead to data corruption
+    IO(in.close())
+  }
+}
+```
+
+That loop can be slow, we could be talking about a big file and
+as described in the "*Concurrency and Cancelation*" section,
+cancelation is a concurrent action with whatever goes on in `use`.
+
+And in this case, on top of the JVM that is capable of multi-threading, 
+calling `io.close()` concurrently with that loop
+can lead to data corruption. Depending on use-case synchronization
+might be needed to prevent it: 
+
+```tut:silent
+def readFile(file: File): IO[String] = {
+  // Opens file with an asynchronous boundary before it, 
+  // ensuring that processing doesn't block the "current thread"
+  val acquire = IO.shift *> IO(new BufferedReader(new FileReader(file)))
+    
+  // Suspended execution because we are going to mutate 
+  // a shared variable
+  IO.suspend {
+    // Shared state meant to signal cancelation
+    var isCanceled = false
+    
+    acquire.bracket { in =>
+      IO {
+        val content = new StringBuilder()
+        var line: String = null
+        do {
+        // Synchronized access to isCanceled and to the reader
+          line = in.synchronized {
+            if (!isCanceled)
+              in.readLine()
+            else
+              null
+          }
+          if (line != null) content.append(line)
+        } while (line != null)
+        content.toString()
+      }
+    } { in =>
+      IO {
+        // Synchronized access to isCanceled and to the reader
+        in.synchronized {
+          isCanceled = true
+          in.close()
+        }
+      }
+    }
+  }
+}
+```
+
+### bracketCase
+
+The `bracketCase` operation is the generalized `bracket`, also receiving
+an `ExitCode` in `release` in order to distinguish between:
+
+1. successful completion
+2. completion in error
+3. cancelation
+
+Usage sample:
+
+```tut:silent
+import cats.effect.ExitCase.{Completed, Error, Canceled}
+
+def readLine(in: BufferedReader): IO[String] =
+  IO.pure(in).bracketCase { in =>
+    IO(in.readLine())
+  } { 
+    case (_, Completed | Error(_)) =>
+      // Do nothing
+      IO.unit
+    case (in, Canceled(_)) =>
+      IO(in.close())
+  }
+```
+
+In this example we are only closing the passed resource in case
+cancelation occurred. As to why we're doing this — consider that 
+the `BufferedReader` reference was given to us and usually the 
+producer of such a resource should also be in charge of releasing 
+it. If this function would release the given `BufferedReader` on
+a successful result, then this would be a flawed implementation.
+
+Remember the age old C++ idiom of "_resource acquisition is 
+initialization (RAII)_", which says that the lifetime of a resource
+should be tied to the lifetime of its parent.
+
+But in case we detect cancelation, we might want to close that 
+resource, because in the case of a cancelation event, we might
+not have a "run-loop" active after this `IO` returns its result,
+so there might not be anybody available to release it.
+
 ## Conversions
 
 There are two useful operations defined in the `IO` companion object to lift both a scala `Future` and an `Either` into `IO`.
