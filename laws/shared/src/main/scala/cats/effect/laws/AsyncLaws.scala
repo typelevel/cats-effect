@@ -60,6 +60,11 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
     fa <-> F.pure(Left(t))
   }
+
+  def neverIsDerivedFromAsync[A](a: A): IsEq[F[A]] = {
+    F.never[A] <-> F.async[A]( _ => ())
+  }
+
 }
 
 object AsyncLaws {
