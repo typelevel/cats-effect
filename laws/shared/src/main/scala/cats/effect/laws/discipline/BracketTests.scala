@@ -57,11 +57,11 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "bracketCase with pure unit on release is eqv to map" -> forAll(laws.bracketEWithPureUnitIsEqvMap[A, B] _),
-        "bracketCase with failure in use and release is use" -> forAll(laws.bracketEmitsUseFailure[A] _),
-        "bracketCase with failure in acquisition remains failure" -> forAll(laws.bracketEFailureInAcquisitionRemainsFailure[A, B] _),
-        "bracketCase with pure unit on release is eqv to flatMap" -> forAll(laws.bracketEWithPureUnitIsEqvFlatMap[A, B] _),
-        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketE[A, B] _)
+        "bracketCase with pure unit on release is eqv to map" -> forAll(laws.bracketCaseWithPureUnitIsEqvMap[A, B] _),
+        "bracketCase with failure in use and release is use" -> forAll(laws.bracketCaseEmitsUseFailure[A] _),
+        "bracketCase with failure in acquisition remains failure" -> forAll(laws.bracketCaseFailureInAcquisitionRemainsFailure[A, B] _),
+        "bracketCase with pure unit on release is eqv to flatMap" -> forAll(laws.bracketCaseWithPureUnitIsEqvFlatMap[A, B] _),
+        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _)
       )
     }
   }
