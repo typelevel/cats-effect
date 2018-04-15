@@ -604,9 +604,9 @@ object IOTests {
       IO.cancelable(k)
     def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
-    def bracket[A, B](acquire: IO[A])
+    def bracketE[A, B](acquire: IO[A])
       (use: A => IO[B])
-      (release: (A, BracketResult[Throwable]) => IO[Unit]): IO[B] =
-      ref.bracket(acquire)(use)(release)
+      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      ref.bracketE(acquire)(use)(release)
   }
 }
