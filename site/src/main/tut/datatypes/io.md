@@ -969,7 +969,7 @@ def readFile(file: File): IO[String] = {
 ### bracketCase
 
 The `bracketCase` operation is the generalized `bracket`, also receiving
-an `ExitCode` in `release` in order to distinguish between:
+an `ExitCase` in `release` in order to distinguish between:
 
 1. successful completion
 2. completion in error
