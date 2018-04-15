@@ -232,6 +232,7 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#StateTSync.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#OptionTSync.bracket"),
       exclude[ReversedMissingMethodProblem]("cats.effect.SyncInstances#EitherTSync.bracket"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketE"),
       exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
       exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
       exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
