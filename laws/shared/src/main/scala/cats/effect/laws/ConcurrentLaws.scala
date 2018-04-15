@@ -91,7 +91,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def onCancelRaiseErrorTerminatesOnCancel[A](e: Throwable) = {
-    val never = F.onCancelRaiseError(F.async[A](_ => ()), e)
+    val never = F.onCancelRaiseError(F.never[A], e)
     val received =
       for {
         fiber <- F.start(never)
@@ -112,11 +112,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
-    F.race(fa, Async.never[F, A]).map(_.left.getOrElse(default)) <-> fa
+    F.race(fa, F.never[A]).map(_.left.getOrElse(default)) <-> fa
   }
 
   def raceMirrorsRightWinner[A](fa: F[A], default: A) = {
-    F.race(Async.never[F, A], fa).map(_.right.getOrElse(default)) <-> fa
+    F.race(F.never[A], fa).map(_.right.getOrElse(default)) <-> fa
   }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
@@ -148,7 +148,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairMirrorsLeftWinner[A](fa: F[A]) = {
-    val never = F.async[A](_ => ())
+    val never = F.never[A]
     val received =
       F.racePair(fa, never).flatMap {
         case Left((a, fiberB)) =>
@@ -160,7 +160,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairMirrorsRightWinner[B](fb: F[B]) = {
-    val never = F.async[B](_ => ())
+    val never = F.never[B]
     val received =
       F.racePair(never, fb).flatMap {
         case Right((fiberA, b)) =>
