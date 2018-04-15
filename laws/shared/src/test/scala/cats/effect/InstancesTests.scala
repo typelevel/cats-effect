@@ -25,9 +25,6 @@ import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
 
-  checkAll("EitherT[Eval, Throwable, ?]",
-    SyncTests[EitherT[Eval, Throwable, ?]].sync[Int, Int, Int])
-
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int])
 
