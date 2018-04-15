@@ -25,25 +25,28 @@ import scala.Predef.{identity => id}
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
 
-  def cancelOnBracketReleases[A, B](f: A => A, a1: A, b1: B) = {
-    var input = a1
-    val update = F.delay { input = f(input) }
-    val read = F.delay(input)
-
-    val fa = F.pure(a1)
-    val fb = F.cancelable[B] { cb => cb(Right(b1)); IO.unit }
-
-
-    val bracketed = for {
-      fiber <- F.start(fb)
-      _ <- fiber.cancel
-      result <- F.bracket(fa)(_ => fiber.join) {
-        case (_, BracketResult.Canceled(_)) => update
+  def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
+    val received = for {
+      // A promise that waits for `use` to get executed
+      startLatch <- Pledge[F, A]
+      // A promise that waits for `release` to be executed
+      exitLatch <- Pledge[F, A]
+      // What we're actually testing
+      bracketed = F.bracketE(F.pure(a))(a => startLatch.complete[F](a) *> F.never[A]) {
+        case (r, ExitCase.Canceled(_)) => exitLatch.complete[F](r)
         case (_, _) => F.unit
       }
-    } yield result
+      // Forked execution, allowing us to cancel it later
+      fiber <- F.start(bracketed)
+      // Waits for the `use` action to execute
+      waitStart <- startLatch.await[F]
+      // Triggers cancelation
+      _ <- fiber.cancel
+      // Observes cancelation via bracket's `release`
+      waitExit <- exitLatch.await[F]
+    } yield f(waitStart, waitExit)
 
-    bracketed *> read <-> F.pure(f(a1))
+    received <-> F.pure(f(a, a))
   }
 
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
@@ -91,7 +94,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def onCancelRaiseErrorTerminatesOnCancel[A](e: Throwable) = {
-    val never = F.onCancelRaiseError(F.async[A](_ => ()), e)
+    val never = F.onCancelRaiseError(F.never[A], e)
     val received =
       for {
         fiber <- F.start(never)
@@ -112,11 +115,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
-    F.race(fa, Async.never[F, A]).map(_.left.getOrElse(default)) <-> fa
+    F.race(fa, F.never[A]).map(_.left.getOrElse(default)) <-> fa
   }
 
   def raceMirrorsRightWinner[A](fa: F[A], default: A) = {
-    F.race(Async.never[F, A], fa).map(_.right.getOrElse(default)) <-> fa
+    F.race(F.never[A], fa).map(_.right.getOrElse(default)) <-> fa
   }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
@@ -148,7 +151,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairMirrorsLeftWinner[A](fa: F[A]) = {
-    val never = F.async[A](_ => ())
+    val never = F.never[A]
     val received =
       F.racePair(fa, never).flatMap {
         case Left((a, fiberB)) =>
@@ -160,7 +163,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairMirrorsRightWinner[B](fb: F[B]) = {
-    val never = F.async[B](_ => ())
+    val never = F.never[B]
     val received =
       F.racePair(never, fb).flatMap {
         case Right((fiberA, b)) =>

@@ -258,7 +258,9 @@ val mimaSettings = Seq(
       // Not a problem: IOPlatform is private
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
       // Not a problem: IORunLoop is private
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+      // Not a problem: Async.never implementation is just moved
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never")
     )
   })
 

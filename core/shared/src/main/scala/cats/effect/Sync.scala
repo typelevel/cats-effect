@@ -70,15 +70,15 @@ object Sync {
       def raiseError[A](e: Throwable) =
         EitherT.left(Eval.now(e))
 
-      def bracket[A, B](acquire: EitherT[Eval, Throwable, A])
+      def bracketE[A, B](acquire: EitherT[Eval, Throwable, A])
         (use: A => EitherT[Eval, Throwable, B])
-        (release: (A, BracketResult[Throwable]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] = {
+        (release: (A, ExitCase[Throwable]) => EitherT[Eval, Throwable, Unit]): EitherT[Eval, Throwable, B] = {
 
         acquire.flatMap { a =>
           EitherT(FlatMap[Eval].flatTap(use(a).value){ etb =>
             release(a, etb match {
-              case Left(e) => BracketResult.Error(e)
-              case Right(_) => BracketResult.Completed
+              case Left(e) => ExitCase.Error(e)
+              case Right(_) => ExitCase.Completed
             }).value
           })
         }
@@ -148,11 +148,11 @@ object Sync {
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
       EitherT.liftF(F.raiseError(e))
 
-    def bracket[A, B](acquire: EitherT[F, L, A])
+    def bracketE[A, B](acquire: EitherT[F, L, A])
       (use: A => EitherT[F, L, B])
-      (release: (A, BracketResult[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] = {
+      (release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] = {
 
-      EitherT(F.bracket(acquire.value) {
+      EitherT(F.bracketE(acquire.value) {
         case Right(a) => use(a).value
         case e @ Left(_) => F.pure(e.rightCast[B])
       } { (ea, br) =>
@@ -186,11 +186,11 @@ object Sync {
     def raiseError[A](e: Throwable): OptionT[F, A] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
-    def bracket[A, B](acquire: OptionT[F, A])
+    def bracketE[A, B](acquire: OptionT[F, A])
       (use: A => OptionT[F, B])
-      (release: (A, BracketResult[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
+      (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
 
-      OptionT(F.bracket(acquire.value) {
+      OptionT(F.bracketE(acquire.value) {
         case Some(a) => use(a).value
         case None => F.pure[Option[B]](None)
       } {
@@ -223,12 +223,12 @@ object Sync {
       StateT.liftF(F.raiseError(e))
 
 
-    def bracket[A, B](acquire: StateT[F, S, A])
+    def bracketE[A, B](acquire: StateT[F, S, A])
       (use: A => StateT[F, S, B])
-      (release: (A, BracketResult[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
+      (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
 
       StateT { startS =>
-        F.bracket(acquire.run(startS)) { case (s, a) =>
+        F.bracketE(acquire.run(startS)) { case (s, a) =>
           use(a).run(s)
         } { case ((s, a), br) =>
           release(a, br).run(s).void
@@ -259,13 +259,13 @@ object Sync {
     def raiseError[A](e: Throwable): WriterT[F, L, A] =
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
 
-    def bracket[A, B](acquire: WriterT[F, L, A])
+    def bracketE[A, B](acquire: WriterT[F, L, A])
       (use: A => WriterT[F, L, B])
-      (release: (A, BracketResult[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
+      (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
 
       acquire.flatMap { a =>
         WriterT(
-          F.bracket(F.pure(a))(use.andThen(_.run)){ (a, res) =>
+          F.bracketE(F.pure(a))(use.andThen(_.run)){ (a, res) =>
             release(a, res).value
           }
         )
@@ -303,11 +303,11 @@ object Sync {
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli(r => F.suspend(thunk.run(r)))
 
-    def bracket[A, B](acquire: Kleisli[F, R, A])
+    def bracketE[A, B](acquire: Kleisli[F, R, A])
                      (use: A => Kleisli[F, R, B])
-                     (release: (A, BracketResult[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+                     (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
       Kleisli { r =>
-        F.bracket(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
+        F.bracketE(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
           release(a, br).run(r)
         }
       }
