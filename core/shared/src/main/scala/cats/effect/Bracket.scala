@@ -58,10 +58,9 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *        its exit condition
    */
   def bracket[A, B](acquire: F[A])(use: A => F[B])
-    (release: A => F[Unit]): F[B] = {
+    (release: A => F[Unit]): F[B] =
+      bracketCase(acquire)(use)((a, _) => release(a))
 
-    bracketCase(acquire)(use)((a, _) => release(a))
-  }
 }
 
 /**
@@ -77,7 +76,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
  *    (via `MonadError[F, E]`)
  *  - [[ExitCase$.Canceled Canceled]]: for abortion
  */
-sealed abstract class ExitCase[+E]
+sealed abstract class ExitCase[+E] extends Serializable
 
 object ExitCase {
   /**
