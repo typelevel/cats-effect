@@ -240,6 +240,7 @@ val mimaSettings = Seq(
       exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
       exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
       //
       // Following are all internal implementation details:
       //
