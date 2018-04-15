@@ -36,6 +36,8 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
+  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
   scalacOptions in (Compile, doc) ++= {
@@ -49,17 +51,8 @@ val commonSettings = Seq(
     Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
   },
 
-  sources in (Compile, doc) := {
-    val log = streams.value.log
-
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 10)) =>
-        log.warn("scaladoc generation is disabled on Scala 2.10")
-        Nil
-
-      case _ => (sources in (Compile, doc)).value
-    }
-  },
+  sources in (Compile, doc) :=
+    (sources in (Compile, doc)).value,
 
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
@@ -250,7 +243,9 @@ val mimaSettings = Seq(
       // Not a problem: IOPlatform is private
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
       // Not a problem: IORunLoop is private
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$")
+      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
+      // Not a problem: Async.never implementation is just moved
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never")
     )
   })
 
@@ -444,18 +439,11 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-dead-code"
 )
 
-scalacOptions in ThisBuild ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, major)) if major >= 11 => Seq(
-      "-Ywarn-unused-import", // Not available in 2.10
-      "-Ywarn-numeric-widen", // In 2.10 this produces a some strange spurious error
-      "-Xlint:-missing-interpolator,_"
-    )
-    case _ => Seq(
-      "-Xlint" // Scala 2.10
-    )
-  }
-}
+scalacOptions in ThisBuild ++= Seq(
+  "-Ywarn-unused-import",
+  "-Ywarn-numeric-widen",
+  "-Xlint:-missing-interpolator,_"
+)
 
 scalacOptions in Test += "-Yrangepos"
 

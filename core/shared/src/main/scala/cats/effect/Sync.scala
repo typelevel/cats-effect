@@ -19,7 +19,6 @@ package effect
 
 import simulacrum._
 import cats.data._
-import cats.effect.internals.NonFatal
 import cats.syntax.all._
 
 /**
@@ -48,44 +47,6 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
 }
 
 object Sync {
-  /**
-   * [[Sync]] instance built for `EitherT[Eval, Throwable, ?]`.
-   *
-   * The `cats.Eval` data type does not have a `MonadError` implementation,
-   * because it's a `Comonad` and in this case it cannot describe partial
-   * functions that can throw errors, because its `Comonad#value` needs
-   * to be a pure and total function.
-   *
-   * But by wrapping it in `EitherT`, it's then possible to use in pieces
-   * of logic requiring `Sync`.
-   */
-  implicit val catsEitherTEvalSync: Sync[EitherT[Eval, Throwable, ?]] =
-    new Sync[EitherT[Eval, Throwable, ?]] {
-
-      def pure[A](x: A): EitherT[Eval, Throwable, A] = EitherT.pure(x)
-
-      def handleErrorWith[A](fa: EitherT[Eval, Throwable, A])(f: Throwable => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] =
-        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Eval.now(Right(a)))))
-
-      def raiseError[A](e: Throwable) =
-        EitherT.left(Eval.now(e))
-
-      def flatMap[A, B](fa: EitherT[Eval, Throwable, A])(f: A => EitherT[Eval, Throwable, B]): EitherT[Eval, Throwable, B] =
-        fa.flatMap(f)
-
-      def tailRecM[A, B](a: A)(f: A => EitherT[Eval, Throwable, Either[A, B]]): EitherT[Eval, Throwable, B] =
-        EitherT.catsDataMonadErrorForEitherT[Eval, Throwable].tailRecM(a)(f)
-
-      def suspend[A](thunk: => EitherT[Eval, Throwable, A]): EitherT[Eval, Throwable, A] = {
-        EitherT {
-          Eval.always(try {
-            thunk.value.value
-          } catch {
-            case NonFatal(t) => Left(t)
-          })
-        }
-      }
-    }
 
   implicit val catsEitherTEvalEffSync: Sync[EitherT[Exec, Throwable, ?]] =
     new Sync[EitherT[Exec, Throwable, ?]] {
@@ -240,7 +201,7 @@ object Sync {
   private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
     protected implicit def F: Sync[F]
 
-    def pure[A](x: A): Kleisli[F, R, A] = 
+    def pure[A](x: A): Kleisli[F, R, A] =
       Kleisli.pure(x)
 
     def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
