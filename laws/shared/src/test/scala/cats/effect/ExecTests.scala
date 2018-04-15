@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.Eq
 import cats.data.{EitherT, NonEmptyList}
 import cats.laws.discipline.MonadTests
 import cats.kernel.laws.discipline.{MonoidTests, SemigroupTests}
@@ -32,10 +31,6 @@ class ExecTests extends BaseTestsSuite {
   checkAll("Exec[NonEmptyList[String]]", SemigroupTests[Exec[NonEmptyList[String]]].semigroup)
 
   checkAll("EitherT[Exec, Throwable, ?]",
-    SyncTests[EitherT[Exec, Throwable, ?]].sync[Int, Int, Int])
-
-  // this is required to avoid diverging implicit expansion issues on 2.10
-  implicit def eitherTEq: Eq[EitherT[EitherT[Exec, Throwable, ?], Throwable, Int]] =
-    Eq.by[EitherT[EitherT[Exec, Throwable, ?], Throwable, Int], EitherT[Exec, Throwable, Either[Throwable, Int]]](_.value)
+    SyncTests[EitherT[Exec.Type, Throwable, ?]].sync[Int, Int, Int])
 
 }

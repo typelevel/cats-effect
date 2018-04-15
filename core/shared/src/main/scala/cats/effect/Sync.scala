@@ -20,6 +20,7 @@ package effect
 import simulacrum._
 import cats.data._
 import cats.syntax.all._
+import cats.effect.internals.NonFatal
 
 /**
  * A monad that can suspend the execution of side effects
