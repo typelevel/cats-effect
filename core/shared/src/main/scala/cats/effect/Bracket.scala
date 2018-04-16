@@ -76,7 +76,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
  *    (via `MonadError[F, E]`)
  *  - [[ExitCase$.Canceled Canceled]]: for abortion
  */
-sealed abstract class ExitCase[+E] extends Serializable
+sealed abstract class ExitCase[+E] extends Product with Serializable
 
 object ExitCase {
   /**
