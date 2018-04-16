@@ -173,7 +173,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *      token that can be used to send a cancel signal
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
-    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(_ => ())))
+    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(Callback.report)))
   }
 
   /**
