@@ -61,10 +61,9 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     fa <-> F.pure(Left(t))
   }
 
-  def neverIsDerivedFromAsync[A](a: A): IsEq[F[A]] = {
+  def neverIsDerivedFromAsync[A] = {
     F.never[A] <-> F.async[A]( _ => ())
   }
-
 }
 
 object AsyncLaws {

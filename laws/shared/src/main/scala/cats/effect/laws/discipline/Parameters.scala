@@ -24,25 +24,35 @@ import cats.effect.internals.IOPlatform
  * @param stackSafeIterationsCount specifies the number of iterations
  *        necessary in loops meant to prove stack safety; needed
  *        because these tests can be very heavy
+ *
+ * @param allowNonTerminationLaws specifies if the laws that detect
+ *        non-termination (e.g. `IO.never`) should be enabled or not.
+ *        Default is `true`, however if the only way to detect non-termination
+ *        is to block the thread with a timeout, then that makes tests
+ *        really hard to evaluate, so it's best if they are disabled
  */
-final case class Parameters(stackSafeIterationsCount: Int)
+final case class Parameters(
+  stackSafeIterationsCount: Int,
+  allowNonTerminationLaws: Boolean)
 
 object Parameters {
   /** Default parameters. */
   implicit val default: Parameters =
-    Parameters(stackSafeIterationsCount = {
-      if (IOPlatform.isJVM) {
-        val isCISystem =
-          System.getenv("TRAVIS") == "true" ||
-          System.getenv("CI") == "true"
+    Parameters(
+      allowNonTerminationLaws = true,
+      stackSafeIterationsCount = {
+        if (IOPlatform.isJVM) {
+          val isCISystem =
+            System.getenv("TRAVIS") == "true" ||
+            System.getenv("CI") == "true"
 
-        // Continuous integration services like Travis are CPU-restrained
-        // and struggle with CPU intensive tasks, so being gentle with it
-        if (isCISystem) 10000 else 100000
-      } else {
-        // JavaScript tests are costly, plus it's the same logic
-        // as the JVM, so no need for more than a couple of rounds
-        100
-      }
-    })
+          // Continuous integration services like Travis are CPU-restrained
+          // and struggle with CPU intensive tasks, so being gentle with it
+          if (isCISystem) 10000 else 100000
+        } else {
+          // JavaScript tests are costly, plus it's the same logic
+          // as the JVM, so no need for more than a couple of rounds
+          100
+        }
+      })
 }
