@@ -21,8 +21,33 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] {
+trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
   implicit def F: Sync[F]
+
+  def bracketReleaseCalledForSuccess[A, B](fa: F[A], fb: F[B], g: A => A, a1: A) = {
+
+    var input = a1
+    val update = F.delay { input = g(input) }
+    val read = F.delay(input)
+
+    F.bracketCase(fa)(_ => fb)((_, _) => update) *> read <-> fa *> fb *> F.pure(g(a1))
+  }
+
+  def bracketReleaseCalledForError[A](a: A, f: A => A) = {
+    var input = a
+    val update = F.delay { input = f(input) }
+    val read = F.delay(input)
+    val ex = new Exception()
+    val fa = F.pure(a)
+
+    val bracketed = F.bracketCase(fa)(_ => F.raiseError[A](ex)) {
+      case (_, ExitCase.Error(_)) => update
+      case _ => F.unit
+    }
+
+    F.handleError(bracketed)(_ => a) *> read <-> F.pure(f(a))
+  }
+
 
   def delayConstantIsPure[A](a: A) =
     F.delay(a) <-> F.pure(a)

@@ -151,7 +151,7 @@ class IOTests extends BaseTestsSuite {
     ec.tick()
     f.value shouldEqual Some(Success(()))
   }
-  
+
   testAsync("shift works for failure (via ExecutionContext)") { ec =>
     val dummy = new RuntimeException("dummy")
 
@@ -604,5 +604,9 @@ object IOTests {
       IO.cancelable(k)
     def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
+    def bracketCase[A, B](acquire: IO[A])
+      (use: A => IO[B])
+      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+      ref.bracketCase(acquire)(use)(release)
   }
 }
