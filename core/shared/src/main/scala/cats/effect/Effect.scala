@@ -59,7 +59,7 @@ trait Effect[F[_]] extends Async[F] {
 
 object Effect {
   /**
-   * [[Effect]] instance built for `cats.data.WriterT` values initialized
+   * [[Effect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Effect`.
    */
   implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
