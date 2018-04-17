@@ -160,7 +160,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *   // Sample
    *   val source = IO.shift *> IO(1)
    *   // Describes execution
-   *   val start = source.runAsync
+   *   val start = source.runAsync {
+   *     case Left(e) => IO(e.printStackTrace())
+   *     case Right(_) => IO.unit
+   *   }
    *   // Safe, because it does not block for the source to finish
    *   start.unsafeRunSync
    * }}}
