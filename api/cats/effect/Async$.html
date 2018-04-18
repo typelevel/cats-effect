@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -200,7 +208,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -641,23 +649,6 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
-    </li><li name="cats.effect.Async#never" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="never[F[_],A](implicitF:cats.effect.Async[F]):F[A]"></a><a id="never[F[_],A](Async[F]):F[A]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Async$.html#never[F[_],A](implicitF:cats.effect.Async[F]):F[A]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">never</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.never.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.never.F">F</span>[<span class="extype" name="cats.effect.Async.never.A">A</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Returns an non-terminating <code>F[_]</code>, that never completes
-with a result, being equivalent with <code>async(_ =&gt; ())</code>.</p>
     </li><li name="scala.AnyRef#notify" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notify():Unit"></a>
       <span class="permalink">
@@ -852,7 +843,32 @@ Analogous with <a href="IO$.html#shift(ec:scala.concurrent.ExecutionContext):cat
 
         
 
-        
+        <div class="values members">
+              <h3>Deprecated Value Members</h3>
+              <ol><li name="cats.effect.Async#never" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="never[F[_],A](implicitF:cats.effect.Async[F]):F[A]"></a><a id="never[F[_],A](Async[F]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async$.html#never[F[_],A](implicitF:cats.effect.Async[F]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name deprecated" title="Deprecated: (Since version 0.10) Moved to Async[F]">never</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.never.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.never.F">F</span>[<span class="extype" name="cats.effect.Async.never.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an non-terminating <code>F[_]</code>, that never completes
+with a result, being equivalent with <code>async(_ =&gt; ())</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an non-terminating <code>F[_]</code>, that never completes
+with a result, being equivalent with <code>async(_ =&gt; ())</code>.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 0.10)</i> Moved to Async[F]</p></dd></dl></div>
+    </li></ol>
+            </div>
         </div>
 
         <div id="inheritedMembers">

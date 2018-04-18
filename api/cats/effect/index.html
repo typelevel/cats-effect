@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -275,6 +283,24 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Bracket" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
+      <a id="Bracket[F[_],E]extendsMonadError[F,E]"></a><a id="Bracket[F[_],E]:Bracket[F,E]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Bracket[F[_],E]extendsMonadError[F,E]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption." href="Bracket.html"><span class="name">Bracket</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="E">E</span>]</span><span class="result"> extends <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.Bracket.F">F</span>, <span class="extype" name="cats.effect.Bracket.E">E</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">An extension of <code>MonadError</code> exposing the <code>bracket</code> operation,
+a generalized abstracted pattern of safe resource acquisition and
+release in the face of errors or interruption.</p>
     </li><li name="cats.effect.Concurrent" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Concurrent[F[_]]extendsAsync[F]withSerializable"></a><a id="Concurrent[F[_]]:Concurrent[F]"></a>
       <span class="permalink">
@@ -405,6 +431,29 @@ that supports lazy and potentially asynchronous evaluation.</p><p>This type clas
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.ExitCase" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="ExitCase[+E]extendsProductwithSerializable"></a><a id="ExitCase[+E]:ExitCase[E]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ExitCase[+E]extendsProductwithSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">sealed abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled." href="ExitCase.html"><span class="name">ExitCase</span></a><span class="tparams">[<span name="E">+E</span>]</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">Type for signaling the exit condition of an effectful
+computation, that may either succeed, fail with an error or
+get canceled.</p><div class="fullcomment"><div class="comment cmt"><p>Type for signaling the exit condition of an effectful
+computation, that may either succeed, fail with an error or
+get canceled.</p><p>The types of exit signals are:</p><ul><li><a href="ExitCase$$Completed$.html" class="extype" name="cats.effect.ExitCase.Completed">Completed</a>: for successful
+   completion (from the type of view of this <code>MonadError</code>)</li><li><a href="ExitCase$$Error.html" class="extype" name="cats.effect.ExitCase.Error">Error</a>: for termination in failure
+   (via <code>MonadError[F, E]</code>)</li><li><a href="ExitCase$$Canceled.html" class="extype" name="cats.effect.ExitCase.Canceled">Canceled</a>: for abortion
+</li></ul></div></div>
     </li><li name="cats.effect.Fiber" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Fiber[F[_],A]extendsAnyRef"></a><a id="Fiber[F[_],A]:Fiber[F,A]"></a>
       <span class="permalink">
@@ -505,9 +554,9 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
               
         </dd></dl></div>
     </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
-      <a id="Sync[F[_]]extendsMonadError[F,Throwable]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
+      <a id="Sync[F[_]]extendsBracket[F,Throwable]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#Sync[F[_]]extendsMonadError[F,Throwable]withSerializable" title="Permalink">
+      <a href="../../cats/effect/index.html#Sync[F[_]]extendsBracket[F,Throwable]withSerializable" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -516,7 +565,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
         <span class="kind">trait</span>
       </span>
       <span class="symbol">
-        <a title="A monad that can suspend the execution of side effects in the F[_] context." href="Sync.html"><span class="name">Sync</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.Sync.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>] with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="A monad that can suspend the execution of side effects in the F[_] context." href="Sync.html"><span class="name">Sync</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Sync.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>] with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       <p class="shortcomment cmt">A monad that can suspend the execution of side effects
@@ -572,6 +621,22 @@ requirement.
       </span>
       
       
+    </li><li name="cats.effect.Bracket" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Bracket"></a><a id="Bracket:Bracket"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Bracket" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Bracket$.html"><span class="name">Bracket</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
     </li><li name="cats.effect.Concurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Concurrent"></a><a id="Concurrent:Concurrent"></a>
       <span class="permalink">
@@ -617,6 +682,22 @@ requirement.
       </span>
       <span class="symbol">
         <a title="" href="Effect$.html"><span class="name">Effect</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="cats.effect.ExitCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ExitCase"></a><a id="ExitCase:ExitCase"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ExitCase" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ExitCase$.html"><span class="name">ExitCase</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       

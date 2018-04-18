@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -200,7 +208,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -391,31 +399,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
-    </li><li name="cats.effect.Sync#catsEitherTEvalSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsEitherTEvalSync:cats.effect.Sync[[γ$0$]cats.data.EitherT[cats.Eval,Throwable,γ$0$]]"></a><a id="catsEitherTEvalSync:Sync[[γ$0$]EitherT[Eval,Throwable,γ$0$]]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsEitherTEvalSync:cats.effect.Sync[[γ$0$]cats.data.EitherT[cats.Eval,Throwable,γ$0$]]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">implicit </span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">catsEitherTEvalSync</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$0$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.Eval">Eval</span>, <span class="extype" name="java.lang.Throwable">Throwable</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$0$">γ$0$</span>]]</span>
-      </span>
-      
-      <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>EitherT[Eval, Throwable, ?]</code>.</p><div class="fullcomment"><div class="comment cmt"><p><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>EitherT[Eval, Throwable, ?]</code>.</p><p>The <code>cats.Eval</code> data type does not have a <code>MonadError</code> implementation,
-because it's a <code>Comonad</code> and in this case it cannot describe partial
-functions that can throw errors, because its <code>Comonad#value</code> needs
-to be a pure and total function.</p><p>But by wrapping it in <code>EitherT</code>, it's then possible to use in pieces
-of logic requiring <code>Sync</code>.
-</p></div></div>
     </li><li name="cats.effect.Sync#catsEitherTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsEitherTSync[F[_],L](implicitevidence$1:cats.effect.Sync[F]):cats.effect.Sync[[γ$2$]cats.data.EitherT[F,L,γ$2$]]"></a><a id="catsEitherTSync[F[_],L](Sync[F]):Sync[[γ$2$]EitherT[F,L,γ$2$]]"></a>
+      <a id="catsEitherTSync[F[_],L](implicitevidence$1:cats.effect.Sync[F]):cats.effect.Sync[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTSync[F[_],L](Sync[F]):Sync[[γ$0$]EitherT[F,L,γ$0$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsEitherTSync[F[_],L](implicitevidence$1:cats.effect.Sync[F]):cats.effect.Sync[[γ$2$]cats.data.EitherT[F,L,γ$2$]]" title="Permalink">
+      <a href="../../cats/effect/Sync$.html#catsEitherTSync[F[_],L](implicitevidence$1:cats.effect.Sync[F]):cats.effect.Sync[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -424,15 +411,15 @@ of logic requiring <code>Sync</code>.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsEitherTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsEitherTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$2$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.effect.Sync.catsEitherTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsEitherTSync.L">L</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$2$">γ$2$</span>]]</span>
+        <span class="name">catsEitherTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsEitherTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$0$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.effect.Sync.catsEitherTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsEitherTSync.L">L</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$0$">γ$0$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.EitherT</code> values initialized
 with any <code>F</code> data type that also implements <code>Sync</code>.</p>
     </li><li name="cats.effect.Sync#catsKleisliSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsKleisliSync[F[_],R](implicitevidence$6:cats.effect.Sync[F]):cats.effect.Sync[[γ$6$]cats.data.Kleisli[F,R,γ$6$]]"></a><a id="catsKleisliSync[F[_],R](Sync[F]):Sync[[γ$6$]Kleisli[F,R,γ$6$]]"></a>
+      <a id="catsKleisliSync[F[_],R](implicitevidence$6:cats.effect.Sync[F]):cats.effect.Sync[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]"></a><a id="catsKleisliSync[F[_],R](Sync[F]):Sync[[γ$4$]Kleisli[F,R,γ$4$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsKleisliSync[F[_],R](implicitevidence$6:cats.effect.Sync[F]):cats.effect.Sync[[γ$6$]cats.data.Kleisli[F,R,γ$6$]]" title="Permalink">
+      <a href="../../cats/effect/Sync$.html#catsKleisliSync[F[_],R](implicitevidence$6:cats.effect.Sync[F]):cats.effect.Sync[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -441,15 +428,15 @@ with any <code>F</code> data type that also implements <code>Sync</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsKleisliSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="R">R</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsKleisliSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$6$]<span class="extype" name="cats.data.Kleisli">Kleisli</span>[<span class="extype" name="cats.effect.Sync.catsKleisliSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsKleisliSync.R">R</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$6$">γ$6$</span>]]</span>
+        <span class="name">catsKleisliSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="R">R</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsKleisliSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$4$]<span class="extype" name="cats.data.Kleisli">Kleisli</span>[<span class="extype" name="cats.effect.Sync.catsKleisliSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsKleisliSync.R">R</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$4$">γ$4$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.Kleisli</code> values initialized
 with any <code>F</code> data type that also implements <code>Sync</code>.</p>
     </li><li name="cats.effect.Sync#catsOptionTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsOptionTSync[F[_]](implicitevidence$2:cats.effect.Sync[F]):cats.effect.Sync[[β$3$]cats.data.OptionT[F,β$3$]]"></a><a id="catsOptionTSync[F[_]](Sync[F]):Sync[[β$3$]OptionT[F,β$3$]]"></a>
+      <a id="catsOptionTSync[F[_]](implicitevidence$2:cats.effect.Sync[F]):cats.effect.Sync[[β$1$]cats.data.OptionT[F,β$1$]]"></a><a id="catsOptionTSync[F[_]](Sync[F]):Sync[[β$1$]OptionT[F,β$1$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsOptionTSync[F[_]](implicitevidence$2:cats.effect.Sync[F]):cats.effect.Sync[[β$3$]cats.data.OptionT[F,β$3$]]" title="Permalink">
+      <a href="../../cats/effect/Sync$.html#catsOptionTSync[F[_]](implicitevidence$2:cats.effect.Sync[F]):cats.effect.Sync[[β$1$]cats.data.OptionT[F,β$1$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -458,15 +445,15 @@ with any <code>F</code> data type that also implements <code>Sync</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsOptionTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsOptionTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[β$3$]<span class="extype" name="cats.data.OptionT">OptionT</span>[<span class="extype" name="cats.effect.Sync.catsOptionTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.β$3$">β$3$</span>]]</span>
+        <span class="name">catsOptionTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsOptionTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[β$1$]<span class="extype" name="cats.data.OptionT">OptionT</span>[<span class="extype" name="cats.effect.Sync.catsOptionTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.β$1$">β$1$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.OptionT</code> values initialized
 with any <code>F</code> data type that also implements <code>Sync</code>.</p>
     </li><li name="cats.effect.Sync#catsStateTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsStateTSync[F[_],S](implicitevidence$3:cats.effect.Sync[F]):cats.effect.Sync[[γ$4$]cats.data.IndexedStateT[F,S,S,γ$4$]]"></a><a id="catsStateTSync[F[_],S](Sync[F]):Sync[[γ$4$]IndexedStateT[F,S,S,γ$4$]]"></a>
+      <a id="catsStateTSync[F[_],S](implicitevidence$3:cats.effect.Sync[F]):cats.effect.Sync[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]"></a><a id="catsStateTSync[F[_],S](Sync[F]):Sync[[γ$2$]IndexedStateT[F,S,S,γ$2$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsStateTSync[F[_],S](implicitevidence$3:cats.effect.Sync[F]):cats.effect.Sync[[γ$4$]cats.data.IndexedStateT[F,S,S,γ$4$]]" title="Permalink">
+      <a href="../../cats/effect/Sync$.html#catsStateTSync[F[_],S](implicitevidence$3:cats.effect.Sync[F]):cats.effect.Sync[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -475,15 +462,15 @@ with any <code>F</code> data type that also implements <code>Sync</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsStateTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsStateTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$4$]<span class="extype" name="cats.data.IndexedStateT">IndexedStateT</span>[<span class="extype" name="cats.effect.Sync.catsStateTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.catsStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$4$">γ$4$</span>]]</span>
+        <span class="name">catsStateTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsStateTSync.F">F</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$2$]<span class="extype" name="cats.data.IndexedStateT">IndexedStateT</span>[<span class="extype" name="cats.effect.Sync.catsStateTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.catsStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$2$">γ$2$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.StateT</code> values initialized
 with any <code>F</code> data type that also implements <code>Sync</code>.</p>
     </li><li name="cats.effect.Sync#catsWriterTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsWriterTSync[F[_],L](implicitevidence$4:cats.effect.Sync[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Sync[[γ$5$]cats.data.WriterT[F,L,γ$5$]]"></a><a id="catsWriterTSync[F[_],L](Sync[F],Monoid[L]):Sync[[γ$5$]WriterT[F,L,γ$5$]]"></a>
+      <a id="catsWriterTSync[F[_],L](implicitevidence$4:cats.effect.Sync[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Sync[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTSync[F[_],L](Sync[F],Monoid[L]):Sync[[γ$3$]WriterT[F,L,γ$3$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Sync$.html#catsWriterTSync[F[_],L](implicitevidence$4:cats.effect.Sync[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Sync[[γ$5$]cats.data.WriterT[F,L,γ$5$]]" title="Permalink">
+      <a href="../../cats/effect/Sync$.html#catsWriterTSync[F[_],L](implicitevidence$4:cats.effect.Sync[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Sync[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -492,7 +479,7 @@ with any <code>F</code> data type that also implements <code>Sync</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsWriterTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.L">L</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$5$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsWriterTSync.L">L</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$5$">γ$5$</span>]]</span>
+        <span class="name">catsWriterTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.L">L</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[γ$3$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Sync.catsWriterTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsWriterTSync.L">L</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.γ$3$">γ$3$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.WriterT</code> values initialized

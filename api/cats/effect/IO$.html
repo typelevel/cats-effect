@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -200,7 +208,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -419,17 +427,17 @@ version of <code>Promise</code>, where <code>IO</code> is like a safer, lazy ver
       </span>
       
       <p class="shortcomment cmt">Returns a cancelable boundary — an <code>IO</code> task that checks for the
-cancellation status of the run-loop and does not allow for the
-bind continuation to keep executing in case cancellation happened.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a cancelable boundary — an <code>IO</code> task that checks for the
-cancellation status of the run-loop and does not allow for the
-bind continuation to keep executing in case cancellation happened.</p><p>This operation is very similar to <a href="#shift(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">IO.shift</a>,
+cancelation status of the run-loop and does not allow for the
+bind continuation to keep executing in case cancelation happened.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a cancelable boundary — an <code>IO</code> task that checks for the
+cancelation status of the run-loop and does not allow for the
+bind continuation to keep executing in case cancelation happened.</p><p>This operation is very similar to <a href="#shift(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">IO.shift</a>,
 as it can be dropped in <code>flatMap</code> chains in order to make loops
 cancelable.</p><p>Example:</p><pre><span class="kw">def</span> fib(n: <span class="std">Int</span>, a: <span class="std">Long</span>, b: <span class="std">Long</span>): IO[<span class="std">Long</span>] =
   IO.suspend {
     <span class="kw">if</span> (n &lt;= <span class="num">0</span>) IO.pure(a) <span class="kw">else</span> {
       <span class="kw">val</span> next = fib(n - <span class="num">1</span>, b, a + b)
 
-      <span class="cmt">// Every 100-th cycle, check cancellation status</span>
+      <span class="cmt">// Every 100-th cycle, check cancelation status</span>
       <span class="kw">if</span> (n % <span class="num">100</span> == <span class="num">0</span>)
         IO.cancelBoundary *&gt; next
       <span class="kw">else</span>
@@ -950,7 +958,7 @@ by the provided Scala <code>ExecutionContext</code>.</p><p>This operation can be
 continuation of the run-loop to another thread or call stack.</p><p>For example we can introduce an asynchronous
         boundary in the <code>flatMap</code> chain before a certain task:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.all._
 
-Task.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
+IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
         evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre>task &lt;* IO.shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
   _ <span class="kw">&lt;-</span> IO.shift(BlockingIO)
   bytes <span class="kw">&lt;-</span> readFileUsingJavaIO(file)
@@ -1019,7 +1027,7 @@ by the provided <a href="Timer.html" class="extype" name="cats.effect.Timer">Tim
 continuation of the run-loop to another thread or call stack.</p><p>For example we can introduce an asynchronous
         boundary in the <code>flatMap</code> chain before a certain task:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.all._
 
-Task.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
+IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
         evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre>task &lt;* IO.shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
   _ <span class="kw">&lt;-</span> IO.shift(BlockingIO)
   bytes <span class="kw">&lt;-</span> readFileUsingJavaIO(file)

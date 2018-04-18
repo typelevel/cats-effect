@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -229,7 +237,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -369,6 +377,126 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
 they may be handled.</p><div class="fullcomment"><div class="comment cmt"><p>Materializes any sequenced exceptions into value space, where
 they may be handled.</p><p>This is analogous to the <code>catch</code> clause in <code>try</code>/<code>catch</code>, being
 the inverse of <code>IO.raiseError</code>. Thus:</p><pre>IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)</pre></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="IO$.html#raiseError[A](e:Throwable):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#raiseError">IO.raiseError</a></p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#bracket" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]"></a><a id="bracket[B]((A)⇒IO[B])((A)⇒IO[Unit]):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">bracket</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="use">use: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.bracket.B">B</span>]</span>)</span><span class="params">(<span name="release">release: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.bracket.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an <code>IO</code> action that treats the source task as the
+acquisition of a resource, which is then exploited by the <code>use</code>
+function and then <code>released</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an <code>IO</code> action that treats the source task as the
+acquisition of a resource, which is then exploited by the <code>use</code>
+function and then <code>released</code>.</p><p>The <code>bracket</code> operation is the equivalent of the
+<code>try {} catch {} finally {}</code> statements from mainstream languages.</p><p>The <code>bracket</code> operation installs the necessary exception handler
+to release the resource in the event of an exception being raised
+during the computation, or in case of cancelation.</p><p>If an exception is raised, then <code>bracket</code> will re-raise the
+exception <i>after</i> performing the <code>release</code>. If the resulting
+task gets cancelled, then <code>bracket</code> will still perform the
+<code>release</code>, but the yielded task will be non-terminating
+(equivalent with <a href="IO$.html#never:cats.effect.IO[Nothing]" class="extmbr" name="cats.effect.IO#never">IO.never</a>).</p><p>Example:</p><pre><span class="kw">import</span> java.io._
+
+<span class="kw">def</span> readFile(file: File): IO[<span class="std">String</span>] = {
+  <span class="cmt">// Opening a file handle for reading text</span>
+  <span class="kw">val</span> acquire = IO(<span class="kw">new</span> BufferedReader(
+    <span class="kw">new</span> InputStreamReader(<span class="kw">new</span> FileInputStream(file), <span class="lit">"utf-8"</span>)
+  ))
+
+  acquire.bracket { in <span class="kw">=&gt;</span>
+    <span class="cmt">// Usage part</span>
+    IO {
+      <span class="cmt">// Yes, ugly Java, non-FP loop;</span>
+      <span class="cmt">// side-effects are suspended though</span>
+      <span class="kw">var</span> line: <span class="std">String</span> = <span class="kw">null</span>
+      <span class="kw">val</span> buff = <span class="kw">new</span> StringBuilder()
+      <span class="kw">do</span> {
+        line = in.readLine()
+        <span class="kw">if</span> (line != <span class="kw">null</span>) buff.append(line)
+      } <span class="kw">while</span> (line != <span class="kw">null</span>)
+      buff.toString()
+    }
+  } { in <span class="kw">=&gt;</span>
+    <span class="cmt">// The release part</span>
+    IO(in.close())
+  }
+}</pre><p>Note that in case of cancelation the underlying implementation
+cannot guarantee that the computation described by <code>use</code> doesn't
+end up executed concurrently with the computation from
+<code>release</code>. In the example above that ugly Java loop might end up
+reading from a <code>BufferedReader</code> that is already closed due to the
+task being cancelled, thus triggering an error in the background
+with nowhere to get signaled.</p><p>In this particular example, given that we are just reading from a
+file, it doesn't matter. But in other cases it might matter, as
+concurrency on top of the JVM when dealing with I/O might lead to
+corrupted data.</p><p>For those cases you might want to do synchronization (e.g. usage
+of locks and semaphores) and you might want to use <a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a>,
+the version that allows you to differentiate between normal
+termination and cancelation.</p><p><b>NOTE on error handling</b>: one big difference versus
+<code>try/finally</code> statements is that, in case both the <code>release</code>
+function and the <code>use</code> function throws, the error raised by <code>use</code>
+gets signaled.</p><p>For example:</p><pre>IO(<span class="lit">"resource"</span>).bracket { _ <span class="kw">=&gt;</span>
+  <span class="cmt">// use</span>
+  IO.raiseError(<span class="kw">new</span> RuntimeException(<span class="lit">"Foo"</span>))
+} { _ <span class="kw">=&gt;</span>
+  <span class="cmt">// release</span>
+  IO.raiseError(<span class="kw">new</span> RuntimeException(<span class="lit">"Bar"</span>))
+}</pre><p>In this case the error signaled downstream is <code>&quot;Foo&quot;</code>, while the
+<code>&quot;Bar&quot;</code> error gets reported. This is consistent with the behavior
+of Haskell's <code>bracket</code> operation and NOT with <code>try {} finally {}</code>
+from Scala, Java or JavaScript.
+</p></div><dl class="paramcmts block"><dt class="param">use</dt><dd class="cmt"><p>is a function that evaluates the resource yielded by
+       the source, yielding a result that will get generated by
+       the task returned by this <code>bracket</code> function</p></dd><dt class="param">release</dt><dd class="cmt"><p>is a function that gets called after <code>use</code>
+       terminates, either normally or in error, or if it gets
+       cancelled, receiving as input the resource that needs to
+       be released</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a></p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#bracketCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]"></a><a id="bracketCase[B]((A)⇒IO[B])((A,ExitCase[Throwable])⇒IO[Unit]):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">bracketCase</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="use">use: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.bracketCase.B">B</span>]</span>)</span><span class="params">(<span name="release">release: (<span class="extype" name="cats.effect.IO.A">A</span>, <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="scala.Throwable">Throwable</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.bracketCase.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns a new <code>IO</code> task that treats the source task as the
+acquisition of a resource, which is then exploited by the <code>use</code>
+function and then <code>released</code>, with the possibility of
+distinguishing between normal termination and cancelation, such
+that an appropriate release of resources can be executed.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> task that treats the source task as the
+acquisition of a resource, which is then exploited by the <code>use</code>
+function and then <code>released</code>, with the possibility of
+distinguishing between normal termination and cancelation, such
+that an appropriate release of resources can be executed.</p><p>The <code>bracketCase</code> operation is the equivalent of
+<code>try {} catch {} finally {}</code> statements from mainstream languages
+when used for the acquisition and release of resources.</p><p>The <code>bracketCase</code> operation installs the necessary exception handler
+to release the resource in the event of an exception being raised
+during the computation, or in case of cancelation.</p><p>In comparison with the simpler <a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> version, this one
+allows the caller to differentiate between normal termination,
+termination in error and cancelation via an <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>
+parameter.
+</p></div><dl class="paramcmts block"><dt class="param">use</dt><dd class="cmt"><p>is a function that evaluates the resource yielded by
+       the source, yielding a result that will get generated by
+       this function on evaluation</p></dd><dt class="param">release</dt><dd class="cmt"><p>is a function that gets called after <code>use</code>
+       terminates, either normally or in error, or if it gets
+       canceled, receiving as input the resource that needs that
+       needs release, along with the result of <code>use</code>
+       (cancelation, error or successful result)</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a></p></span></dd></dl></div>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">
@@ -620,9 +748,9 @@ never terminate on evaluation.
       </span>
       
       <p class="shortcomment cmt">Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancellation.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancellation.</p><p>Normally tasks that are cancelled become non-terminating.</p><p>This <code>onCancelRaiseError</code> operator transforms a task that is
-non-terminating on cancellation into one that yields an error,
+but that triggers the given error on cancelation.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> that mirrors the source task for normal termination,
+but that triggers the given error on cancelation.</p><p>Normally tasks that are cancelled become non-terminating.</p><p>This <code>onCancelRaiseError</code> operator transforms a task that is
+non-terminating on cancelation into one that yields an error,
 thus equivalent with <a href="IO$.html#raiseError[A](e:Throwable):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#raiseError">IO.raiseError</a>.
 </p></div></div>
     </li><li name="cats.effect.IO#runAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -654,7 +782,10 @@ is safe to do, even on top of runtimes that cannot block threads
 (e.g. JavaScript):</p><pre><span class="cmt">// Sample</span>
 <span class="kw">val</span> source = IO.shift *&gt; IO(<span class="num">1</span>)
 <span class="cmt">// Describes execution</span>
-<span class="kw">val</span> start = source.runAsync
+<span class="kw">val</span> start = source.runAsync {
+  <span class="kw">case</span> Left(e) <span class="kw">=&gt;</span> IO(e.printStackTrace())
+  <span class="kw">case</span> Right(_) <span class="kw">=&gt;</span> IO.unit
+}
 <span class="cmt">// Safe, because it does not block for the source to finish</span>
 start.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an <code>IO</code> value that upon evaluation will execute the source,
         but will not wait for its completion</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.IO#runCancelable">runCancelable</a> for the version that gives you a cancelable
@@ -691,10 +822,10 @@ is safe to do, even on top of runtimes that cannot block threads
 <span class="cmt">// Safe, because it does not block for the source to finish</span>
 <span class="kw">val</span> cancel: IO[<span class="std">Unit</span>] = start.unsafeRunSync
 
-<span class="cmt">// Safe, because cancellation only sends a signal,</span>
+<span class="cmt">// Safe, because cancelation only sends a signal,</span>
 <span class="cmt">// but doesn't back-pressure on anything</span>
 cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an <code>IO</code> value that upon evaluation will execute the source,
-        but will not wait for its completion, yielding a cancellation
+        but will not wait for its completion, yielding a cancelation
         token that can be used to cancel the async process</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a> for the simple, uninterruptible version</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#start" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="start:cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="start:IO[Fiber[IO,A]]"></a>
@@ -713,14 +844,14 @@ cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd 
       
       <p class="shortcomment cmt">Start execution of the source suspended in the <code>IO</code> context.</p><div class="fullcomment"><div class="comment cmt"><p>Start execution of the source suspended in the <code>IO</code> context.</p><p>This can be used for non-deterministic / concurrent execution.
 The following code is more or less equivalent with <code>parMap2</code>
-(minus the behavior on error handling and cancellation):</p><pre><span class="kw">def</span> par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
+(minus the behavior on error handling and cancelation):</p><pre><span class="kw">def</span> par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
   <span class="kw">for</span> {
     fa <span class="kw">&lt;-</span> ioa.start
     fb <span class="kw">&lt;-</span> iob.start
      a <span class="kw">&lt;-</span> fa.join
      b <span class="kw">&lt;-</span> fb.join
   } <span class="kw">yield</span> (a, b)</pre><p>Note in such a case usage of <code>parMapN</code> (via <code>cats.Parallel</code>) is
-still recommended because of behavior on error and cancellation —
+still recommended because of behavior on error and cancelation —
 consider in the example above what would happen if the first task
 finishes in error. In that case the second task doesn't get cancelled,
 which creates a potential memory leak.</p><p>IMPORTANT — this operation does not start with an asynchronous boundary.
@@ -791,7 +922,7 @@ the <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a> ty
         <span class="name">uncancelable</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Makes the source <code>Task</code> uninterruptible such that a <a href="Fiber.html#cancel:F[Unit]" class="extmbr" name="cats.effect.Fiber#cancel">Fiber.cancel</a>
+      <p class="shortcomment cmt">Makes the source <code>IO</code> uninterruptible such that a <a href="Fiber.html#cancel:F[Unit]" class="extmbr" name="cats.effect.Fiber#cancel">Fiber.cancel</a>
 signal has no effect.</p>
     </li><li name="cats.effect.IO#unsafeRunAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit"></a><a id="unsafeRunAsync((Either[Throwable,A])⇒Unit):Unit"></a>
@@ -840,7 +971,7 @@ effects to the given callback.</p><p>As the name says, this is an UNSAFE functio
 performs side effects.  You should ideally only call this
 function <i>once</i>, at the very end of your program.
 </p></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an side-effectful function that, when executed, sends a
-        cancellation reference to <code>IO</code>'s run-loop implementation,
+        cancelation reference to <code>IO</code>'s run-loop implementation,
         having the potential to interrupt it.</p></dd></dl></div>
     </li><li name="cats.effect.IO#unsafeRunSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeRunSync():A"></a>

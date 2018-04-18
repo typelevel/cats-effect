@@ -19,7 +19,7 @@
 
 <p>This is NOT a typeclass, as it does not have the coherence requirement.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.duration.</span><span class="o">{</span><span class="nc">FiniteDuration</span><span class="o">,</span> <span class="nc">TimeUnit</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.duration.</span><span class="o">{</span><span class="nc">FiniteDuration</span><span class="o">,</span> <span class="nc">TimeUnit</span><span class="o">}</span>
 
 <span class="k">trait</span> <span class="nc">Timer</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">clockRealTime</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
@@ -27,12 +27,11 @@
   <span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">duration</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>As mentioned in the <code class="highlighter-rouge">IO</code> documentation, there’s a default instance of <code class="highlighter-rouge">Timer[IO]</code> available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
 <span class="c1">// import java.util.concurrent.ScheduledExecutorService
 </span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">}</span>
@@ -70,8 +69,7 @@
 
 <span class="o">}</span>
 <span class="c1">// defined class MyTimer
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

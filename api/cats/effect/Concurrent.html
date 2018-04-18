@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -258,11 +266,11 @@ operation that is safe.
       <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
     </span>)</span>
               
-        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>], <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.FlatMap">FlatMap</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.ApplicativeError">ApplicativeError</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>], <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.InvariantMonoidal">InvariantMonoidal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Apply">Apply</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.ApplyArityFunctions">ApplyArityFunctions</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.InvariantSemigroupal">InvariantSemigroupal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Semigroupal">Semigroupal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Invariant">Invariant</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="scala.Serializable">Serializable</span>, <span class="extype" name="java.io.Serializable">Serializable</span>, <span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
+          <div class="superTypes hiddenContent"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>], <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>], <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.FlatMap">FlatMap</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.ApplicativeError">ApplicativeError</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>], <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.InvariantMonoidal">InvariantMonoidal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Apply">Apply</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.ApplyArityFunctions">ApplyArityFunctions</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.InvariantSemigroupal">InvariantSemigroupal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Semigroupal">Semigroupal</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="cats.Invariant">Invariant</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>], <span class="extype" name="scala.Serializable">Serializable</span>, <span class="extype" name="java.io.Serializable">Serializable</span>, <span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
         </div><div class="toggleContainer block">
             <span class="toggle">
               Known Subclasses
@@ -293,7 +301,7 @@ operation that is safe.
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="cats.effect.Concurrent"><span>Concurrent</span></li><li class="in" name="cats.effect.Async"><span>Async</span></li><li class="in" name="cats.effect.LiftIO"><span>LiftIO</span></li><li class="in" name="cats.effect.Sync"><span>Sync</span></li><li class="in" name="cats.MonadError"><span>MonadError</span></li><li class="in" name="cats.Monad"><span>Monad</span></li><li class="in" name="cats.FlatMap"><span>FlatMap</span></li><li class="in" name="cats.ApplicativeError"><span>ApplicativeError</span></li><li class="in" name="cats.Applicative"><span>Applicative</span></li><li class="in" name="cats.InvariantMonoidal"><span>InvariantMonoidal</span></li><li class="in" name="cats.Apply"><span>Apply</span></li><li class="in" name="cats.ApplyArityFunctions"><span>ApplyArityFunctions</span></li><li class="in" name="cats.InvariantSemigroupal"><span>InvariantSemigroupal</span></li><li class="in" name="cats.Semigroupal"><span>Semigroupal</span></li><li class="in" name="cats.Functor"><span>Functor</span></li><li class="in" name="cats.Invariant"><span>Invariant</span></li><li class="in" name="scala.Serializable"><span>Serializable</span></li><li class="in" name="java.io.Serializable"><span>Serializable</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="cats.effect.Concurrent"><span>Concurrent</span></li><li class="in" name="cats.effect.Async"><span>Async</span></li><li class="in" name="cats.effect.LiftIO"><span>LiftIO</span></li><li class="in" name="cats.effect.Sync"><span>Sync</span></li><li class="in" name="cats.effect.Bracket"><span>Bracket</span></li><li class="in" name="cats.MonadError"><span>MonadError</span></li><li class="in" name="cats.Monad"><span>Monad</span></li><li class="in" name="cats.FlatMap"><span>FlatMap</span></li><li class="in" name="cats.ApplicativeError"><span>ApplicativeError</span></li><li class="in" name="cats.Applicative"><span>Applicative</span></li><li class="in" name="cats.InvariantMonoidal"><span>InvariantMonoidal</span></li><li class="in" name="cats.Apply"><span>Apply</span></li><li class="in" name="cats.ApplyArityFunctions"><span>ApplyArityFunctions</span></li><li class="in" name="cats.InvariantSemigroupal"><span>InvariantSemigroupal</span></li><li class="in" name="cats.Semigroupal"><span>Semigroupal</span></li><li class="in" name="cats.Functor"><span>Functor</span></li><li class="in" name="cats.Invariant"><span>Invariant</span></li><li class="in" name="scala.Serializable"><span>Serializable</span></li><li class="in" name="java.io.Serializable"><span>Serializable</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -339,6 +347,31 @@ callback for signaling the final result of an asynchronous
 process.
 </p></div><dl class="paramcmts block"><dt class="param">k</dt><dd class="cmt"><p>is a function that should be called with a
       callback for signaling the result once it is ready</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Async.html" class="extype" name="cats.effect.Async">Async</a></dd></dl></div>
+    </li><li name="cats.effect.Bracket#bracketCase" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]"></a><a id="bracketCase[A,B](F[A])((A)⇒F[B])((A,ExitCase[Throwable])⇒F[Unit]):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">bracketCase</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="acquire">acquire: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracketCase.A">A</span>]</span>)</span><span class="params">(<span name="use">use: (<span class="extype" name="cats.effect.Bracket.bracketCase.A">A</span>) ⇒ <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracketCase.B">B</span>]</span>)</span><span class="params">(<span name="release">release: (<span class="extype" name="cats.effect.Bracket.bracketCase.A">A</span>, <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="scala.Throwable">Throwable</span>]) ⇒ <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracketCase.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">A generalized version of <a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> which uses <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>
+to distinguish between different exit cases when releasing
+the acquired resource.</p><div class="fullcomment"><div class="comment cmt"><p>A generalized version of <a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> which uses <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>
+to distinguish between different exit cases when releasing
+the acquired resource.
+</p></div><dl class="paramcmts block"><dt class="param">acquire</dt><dd class="cmt"><p>is an action that &quot;acquires&quot; some expensive
+        resource, that needs to be used and then discarded</p></dd><dt class="param">use</dt><dd class="cmt"><p>is the action that uses the newly allocated
+        resource and that will provide the final result</p></dd><dt class="param">release</dt><dd class="cmt"><p>is the action that's supposed to release the
+       allocated resource after <code>use</code> is done, by observing
+       and acting on its exit condition</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd></dl></div>
     </li><li name="cats.effect.Concurrent#cancelable" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]"></a><a id="cancelable[A](((Either[Throwable,A])⇒Unit)⇒IO[Unit]):F[A]"></a>
       <span class="permalink">
@@ -1181,6 +1214,31 @@ no matter what.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.effect.Bracket#bracket" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]"></a><a id="bracket[A,B](F[A])((A)⇒F[B])((A)⇒F[Unit]):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">bracket</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="acquire">acquire: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracket.A">A</span>]</span>)</span><span class="params">(<span name="use">use: (<span class="extype" name="cats.effect.Bracket.bracket.A">A</span>) ⇒ <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracket.B">B</span>]</span>)</span><span class="params">(<span name="release">release: (<span class="extype" name="cats.effect.Bracket.bracket.A">A</span>) ⇒ <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Bracket.bracket.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Operation meant for specifying tasks with safe resource
+acquisition and release in the face of errors and interruption.</p><div class="fullcomment"><div class="comment cmt"><p>Operation meant for specifying tasks with safe resource
+acquisition and release in the face of errors and interruption.</p><p>This operation provides the equivalent of <code>try/catch/finally</code>
+statements in mainstream imperative languages for resource
+acquisition and release.
+</p></div><dl class="paramcmts block"><dt class="param">acquire</dt><dd class="cmt"><p>is an action that &quot;acquires&quot; some expensive
+        resource, that needs to be used and then discarded</p></dd><dt class="param">use</dt><dd class="cmt"><p>is the action that uses the newly allocated
+        resource and that will provide the final result</p></dd><dt class="param">release</dt><dd class="cmt"><p>is the action that's supposed to release the
+       allocated resource after <code>use</code> is done, irregardless of
+       its exit condition</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd></dl></div>
     </li><li name="cats.ApplicativeError#catchNonFatal" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="catchNonFatal[A](a:=&gt;A)(implicitev:Throwable&lt;:&lt;E):F[A]"></a><a id="catchNonFatal[A](⇒A)(&lt;:&lt;[Throwable,Throwable]):F[A]"></a>
       <span class="permalink">
@@ -2171,6 +2229,26 @@ use <a href="Concurrent$.html#liftIO[F[_],A](ioa:cats.effect.IO[A])(implicitF:ca
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li name="cats.effect.Async#never" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="never[A]:F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent.html#never[A]:F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">never</span><span class="tparams">[<span name="A">A</span>]</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.effect.Async.never.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns a non-terminating <code>F[_]</code>, that never completes
+with a result, being equivalent to <code>async(_ =&gt; ())</code>
+</p><div class="fullcomment"><div class="comment cmt"><p>Returns a non-terminating <code>F[_]</code>, that never completes
+with a result, being equivalent to <code>async(_ =&gt; ())</code>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Async.html" class="extype" name="cats.effect.Async">Async</a></dd></dl></div>
     </li><li name="scala.AnyRef#notify" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="notify():Unit"></a>
       <span class="permalink">
@@ -3135,6 +3213,8 @@ the loser automatically on successful results.
               <h3>Inherited from <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>]</h3>
             </div><div class="parent" name="cats.effect.Sync">
               <h3>Inherited from <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>]</h3>
+            </div><div class="parent" name="cats.effect.Bracket">
+              <h3>Inherited from <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</h3>
             </div><div class="parent" name="cats.MonadError">
               <h3>Inherited from <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.Concurrent.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</h3>
             </div><div class="parent" name="cats.Monad">

@@ -139,6 +139,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Bracket$.html" title=""></a>
+                        <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
+                        <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -150,6 +154,10 @@
                         <a class="object" href="" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
                         <a href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation.">Effect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCase$.html" title=""></a>
+                        <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
+                        <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
@@ -200,7 +208,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v0.10/core/shared/src/main/scala/cats/effect/Effect.scala" target="_blank">Effect.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/b6a54463a372dbbda8f3357db8e0fff0d128e789/core/shared/src/main/scala/cats/effect/Effect.scala" target="_blank">Effect.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -406,7 +414,7 @@
         <span class="name">catsEitherTEffect</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a>[<span class="extype" name="cats.effect.Effect.catsEitherTEffect.F">F</span>]</span>)</span><span class="result">: <a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a>[[γ$0$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.effect.Effect.catsEitherTEffect.F">F</span>, <span class="extype" name="java.lang.Throwable">Throwable</span>, <span class="extype" name="cats.effect.Effect.&lt;refinement&gt;.Λ$.γ$0$">γ$0$</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt"><a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a> instance built for <code>cats.data.WriterT</code> values initialized
+      <p class="shortcomment cmt"><a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a> instance built for <code>cats.data.EitherT</code> values initialized
 with any <code>F</code> data type that also implements <code>Effect</code>.</p>
     </li><li name="cats.effect.Effect#catsStateTEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="catsStateTEffect[F[_],S](implicitevidence$2:cats.effect.Effect[F],implicitevidence$3:cats.Monoid[S]):cats.effect.Effect[[γ$1$]cats.data.IndexedStateT[F,S,S,γ$1$]]"></a><a id="catsStateTEffect[F[_],S](Effect[F],Monoid[S]):Effect[[γ$1$]IndexedStateT[F,S,S,γ$1$]]"></a>

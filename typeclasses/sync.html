@@ -2,25 +2,24 @@
 
 <p>A <code class="highlighter-rouge">Monad</code> that can suspend the execution of side effects in the <code class="highlighter-rouge">F[_]</code> context.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.MonadError</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.MonadError</span>
 
 <span class="k">trait</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="nc">extends</span> <span class="nc">MonadError</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Throwable</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">suspend</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">thunk</span><span class="k">:</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">delay</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">thunk</span><span class="k">:</span> <span class="o">=&gt;</span> <span class="n">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="n">suspend</span><span class="o">(</span><span class="n">pure</span><span class="o">(</span><span class="n">thunk</span><span class="o">))</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This is the most basic interface that represents the suspension of synchronous side effects. On the other hand, its implementation of <code class="highlighter-rouge">flatMap</code> is stack safe, meaning that you can describe <code class="highlighter-rouge">tailRecM</code> in terms of it as demonstrated in the laws module.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
 <span class="c1">// import cats.effect.{IO, Sync}
 </span>
 <span class="k">import</span> <span class="nn">cats.laws._</span>
 <span class="c1">// import cats.laws._
 </span>
 <span class="k">val</span> <span class="n">F</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@245d2c0d
+<span class="c1">// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOInstances$$anon$1@3b25acdd
 </span>
 <span class="k">lazy</span> <span class="k">val</span> <span class="n">stackSafetyOnRepeatedRightBinds</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">10000</span><span class="o">).</span><span class="n">foldRight</span><span class="o">(</span><span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(()))</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="n">acc</span><span class="o">)</span> <span class="k">=&gt;</span>
@@ -30,18 +29,16 @@
   <span class="n">result</span> <span class="o">&lt;-&gt;</span> <span class="n">F</span><span class="o">.</span><span class="n">pure</span><span class="o">(())</span>
 <span class="o">}</span>
 <span class="c1">// stackSafetyOnRepeatedRightBinds: cats.laws.package.IsEq[cats.effect.IO[Unit]] = &lt;lazy&gt;
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>Example of use:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1999618881
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1206889821
 </span>
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// Hello world!
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>So basically using <code class="highlighter-rouge">Sync[IO].delay</code> is equivalent to using <code class="highlighter-rouge">IO.apply</code>.</p>
 
