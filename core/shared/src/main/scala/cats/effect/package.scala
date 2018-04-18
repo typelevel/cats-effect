@@ -26,4 +26,7 @@ package object effect {
     */
   type UExec[A] = UExecImpl.Type[A]
   val UExec = UExecImpl
+
+  type Exec[A] = ExecImpl.Type[A]
+  val Exec = ExecImpl
 }

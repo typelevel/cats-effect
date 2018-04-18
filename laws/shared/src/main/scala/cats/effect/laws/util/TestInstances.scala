@@ -16,10 +16,11 @@
 
 package cats.effect.laws.util
 
-import cats.effect.{UExec, IO}
+import cats.effect.{Exec, UExec, IO}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import cats.instances.either._
 
 /**
  * Defines instances for `Future` and for `IO`, meant for law testing
@@ -89,8 +90,11 @@ trait TestInstances {
       }
     }
 
-  implicit def eqExec[A: Eq]: Eq[UExec[A]] =
+  implicit def eqUExec[A: Eq]: Eq[UExec[A]] =
     Eq.by(_.unsafeRun)
+
+  implicit def eqExec[A: Eq]: Eq[Exec[A]] =
+    Eq.by(_.unsafeRunToEither)
 }
 
 object TestInstances extends TestInstances

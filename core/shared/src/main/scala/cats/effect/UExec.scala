@@ -92,6 +92,12 @@ sealed class UExecOps[A](val value: UExec[A]) {
     */
   def to[F[_]: Sync]: F[A] =
     Sync[F].delay(unsafeRun)
+
+  /**
+    * Lift this `UExec` to an `Exec`.
+    */
+  def toExec: Exec[A] =
+    Exec.create(UExec.unwrap(value))
 }
 
 private[effect] sealed abstract class UExecInstances extends UExecInstances0 {
