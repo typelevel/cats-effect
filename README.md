@@ -13,13 +13,18 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 
 ## Usage
 
-The most current stable release of cats-effect is **0.10**.  We are confident in the quality of this release, and do consider it "production-ready".  However, we will not be *guaranteeing* source compatibility until the 1.0 release.  See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
+Versions of Cats Effect:
+
+- Old `0.x` series: `0.10.1`
+- Current: `1.0.0-RC`
+
+See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "0.10"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC"
 ```
 
-If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.0.1.
+If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
 
 Cross-builds are available for Scala 2.12 and 2.11, Scala.js major version 0.6.x.
 
