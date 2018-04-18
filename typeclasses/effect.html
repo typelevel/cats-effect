@@ -25,14 +25,14 @@
 <span class="c1">// import cats.effect.Effect
 </span>
 <span class="k">val</span> <span class="n">task</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
-<span class="c1">// task: cats.effect.IO[String] = IO$352182801
+<span class="c1">// task: cats.effect.IO[String] = IO$363870557
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">Effect</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">runAsync</span><span class="o">(</span><span class="n">task</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">case</span> <span class="nc">Right</span><span class="o">(</span><span class="n">value</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
     <span class="k">case</span> <span class="nc">Left</span><span class="o">(</span><span class="n">error</span><span class="o">)</span>  <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="n">error</span><span class="o">)</span>
   <span class="o">}</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$2145186475
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1673766590
 </span>
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// Hello World!
