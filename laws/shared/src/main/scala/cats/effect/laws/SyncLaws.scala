@@ -24,13 +24,18 @@ import cats.laws._
 trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
   implicit def F: Sync[F]
 
-  def bracketReleaseCalledForSuccess[A, B](fa: F[A], fb: F[B], g: A => A, a1: A) = {
+  def bracketReleaseCalledForSuccess[A, B, C](fa: F[A], b: B, c: C, f: (A, C) => C) = {
+    val lh = F.suspend {
+      var input = c
+      val br = F.bracketCase(fa) { _ =>
+        F.delay(b)
+      } { (a, _) =>
+        F.delay { input = f(a, c) }
+      }
+      br *> F.delay(input)
+    }
 
-    var input = a1
-    val update = F.delay { input = g(input) }
-    val read = F.delay(input)
-
-    F.bracketCase(fa)(_ => fb)((_, _) => update) *> read <-> fa *> fb *> F.pure(g(a1))
+    lh <-> fa.map(a => f(a, c))
   }
 
   def bracketReleaseCalledForError[A](a: A, f: A => A) = {
