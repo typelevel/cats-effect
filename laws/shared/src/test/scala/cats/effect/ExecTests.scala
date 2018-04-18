@@ -26,11 +26,11 @@ import cats.instances.all._
 
 class ExecTests extends BaseTestsSuite {
 
-  checkAll("Exec", MonadTests[Exec].monad[Int, Int, Int])
-  checkAll("Exec[String]", MonoidTests[Exec[String]].monoid)
-  checkAll("Exec[NonEmptyList[String]]", SemigroupTests[Exec[NonEmptyList[String]]].semigroup)
+  checkAll("UExec", MonadTests[UExec].monad[Int, Int, Int])
+  checkAll("UExec[String]", MonoidTests[UExec[String]].monoid)
+  checkAll("UExec[NonEmptyList[String]]", SemigroupTests[UExec[NonEmptyList[String]]].semigroup)
 
-  checkAll("EitherT[Exec, Throwable, ?]",
-    SyncTests[EitherT[Exec.Type, Throwable, ?]].sync[Int, Int, Int])
+  checkAll("EitherT[UExec, Throwable, ?]",
+    SyncTests[EitherT[UExec.Type, Throwable, ?]].sync[Int, Int, Int])
 
 }

@@ -16,7 +16,7 @@
 
 package cats.effect.laws.util
 
-import cats.effect.{Exec, IO}
+import cats.effect.{UExec, IO}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -89,7 +89,7 @@ trait TestInstances {
       }
     }
 
-  implicit def eqExec[A: Eq]: Eq[Exec[A]] =
+  implicit def eqExec[A: Eq]: Eq[UExec[A]] =
     Eq.by(_.unsafeRun)
 }
 
