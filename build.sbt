@@ -401,12 +401,12 @@ useGpg := true
 
 enablePlugins(GitVersioning)
 
-val ReleaseTag = """^v([\d\.]+)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 
 git.baseVersion := BaseVersion
 
 git.gitTagToVersionNumber := {
-  case ReleaseTag(version) => Some(version)
+  case ReleaseTag(v) => Some(v)
   case _ => None
 }
 
