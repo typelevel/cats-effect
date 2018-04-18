@@ -20,7 +20,10 @@ import cats.Eq
 import cats.effect.internals.{Callback, Conversions}
 import cats.effect.laws.util.TestContext
 import org.scalacheck.{Arbitrary, Cogen}
+import cats.syntax.flatMap._
+import cats.syntax.functor._
 import scala.concurrent.{ExecutionContext, ExecutionException, Future, Promise}
+import scala.util.{Left, Right}
 
 /**
  * Built for testing noncancelable effect data types.
@@ -93,5 +96,17 @@ object LTask {
             }
           }
         }
+
+      def bracketCase[A, B](acquire: LTask[A])
+          (use: A => LTask[B])
+          (release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] = for {
+        a <- acquire
+        etb <- attempt(use(a))
+        _ <- release(a, etb match {
+          case Left(e) => ExitCase.error[Throwable](e)
+          case Right(_) => ExitCase.complete
+        })
+        b <- rethrow(pure(etb))
+      } yield b
     }
 }

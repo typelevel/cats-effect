@@ -140,7 +140,7 @@ val commonSettings = Seq(
 val mimaSettings = Seq(
   // Setting the previous artifact manually at 0.9
   // as a temporary measure until we release 0.10
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.9"),
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
   /*
   mimaPreviousArtifacts := {
     val TagBase = """^(\d+)\.(\d+).*"""r
@@ -156,73 +156,23 @@ val mimaSettings = Seq(
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
     Seq(
-      // Not a problem: AsyncInstances is a private class, we just moved those
-      // directly in the companion object.
-      //
-      // Manually checked:
-      //  - catsEitherTAsync
-      //  - catsOptionTAsync
-      //  - catsStateTAsync
-      //  - catsWriterTAsync
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances"),
-      // Not a problem: AsyncInstances is a private class, WriterTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$WriterTAsync"),
-      // Not a problem: AsyncInstances is a private class, OptionTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$OptionTAsync"),
-      // Not a problem: AsyncInstances is a private class, EitherTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$EitherTAsync"),
-      // Not a problem: AsyncInstances is a private class, StateTAsync too
-      exclude[MissingClassProblem]("cats.effect.AsyncInstances$StateTAsync"),
-      //
-      // Not a problem: EffectInstances is a private class and we just moved
-      // those in the companion object.
-      //
-      // Manual check for:
-      //  - catsEitherTEffect
-      //  - catsStateTEffect
-      //  - catsWriterTEffect
-      //  - catsWriterTEffect
-      exclude[MissingClassProblem]("cats.effect.EffectInstances"),
-      // Not a problem: Missing private traits being inherited
-      exclude[MissingTypesProblem]("cats.effect.Effect$"),
-      //
-      // Not a problem: SyncInstances is a private class, we just moved those
-      // directly in the companion object.
-      //
-      // Manual check for:
-      //   - catsEitherTEvalSync
-      //   - catsEitherTSync
-      //   - catsOptionTSync
-      //   - catsStateTSync
-      //   - catsWriterTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances"),
-      // Not a problem: no longer implementing private traits
-      exclude[MissingTypesProblem]("cats.effect.Sync$"),
-      // Not a problem: SyncInstances and StateTSync are private.
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$StateTSync"),
-      // Not a problem: SyncInstances and OptionTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$OptionTSync"),
-      // Not a problem: SyncInstances and EitherTSync
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$EitherTSync"),
-      // Not a problem: SyncInstances and WriterTSync are private
-      exclude[MissingClassProblem]("cats.effect.SyncInstances$WriterTSync"),
-      //
-      // Not a problem: LiftIOInstances is a private class, we just moved
-      // those directly in the companion object.
-      //
-      // Manual check for:
-      //   - catsEitherTLiftIO
-      //   - catsKleisliLiftIO
-      //   - catsOptionTLiftIO
-      //   - catsStateTLiftIO
-      //   - catsWriterTLiftIO
-      exclude[MissingTypesProblem]("cats.effect.LiftIO$"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$OptionTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$KleisliLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$EitherTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$StateTLiftIO"),
-      exclude[MissingClassProblem]("cats.effect.LiftIOInstances$WriterTLiftIO"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Sync#StateTSync.map"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.Sync#StateTSync.map"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketCase"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#OptionTSync.bracketCase"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#WriterTSync.bracketCase"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#StateTSync.bracketCase"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#EitherTSync.bracketCase"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#KleisliSync.bracketCase"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat$"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single"),
+      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
       //
       // Following are all internal implementation details:
       //
@@ -451,12 +401,12 @@ useGpg := true
 
 enablePlugins(GitVersioning)
 
-val ReleaseTag = """^v([\d\.]+)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 
 git.baseVersion := BaseVersion
 
 git.gitTagToVersionNumber := {
-  case ReleaseTag(version) => Some(version)
+  case ReleaseTag(v) => Some(v)
   case _ => None
 }
 

@@ -25,6 +25,30 @@ import scala.Predef.{identity => id}
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
 
+  def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
+    val received = for {
+      // A promise that waits for `use` to get executed
+      startLatch <- Pledge[F, A]
+      // A promise that waits for `release` to be executed
+      exitLatch <- Pledge[F, A]
+      // What we're actually testing
+      bracketed = F.bracketCase(F.pure(a))(a => startLatch.complete[F](a) *> F.never[A]) {
+        case (r, ExitCase.Canceled(_)) => exitLatch.complete[F](r)
+        case (_, _) => F.unit
+      }
+      // Forked execution, allowing us to cancel it later
+      fiber <- F.start(bracketed)
+      // Waits for the `use` action to execute
+      waitStart <- startLatch.await[F]
+      // Triggers cancelation
+      _ <- fiber.cancel
+      // Observes cancelation via bracket's `release`
+      waitExit <- exitLatch.await[F]
+    } yield f(waitStart, waitExit)
+
+    received <-> F.pure(f(a, a))
+  }
+
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
     F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
   }
