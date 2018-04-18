@@ -17,12 +17,19 @@
 
 <h2 id="usage">Usage</h2>
 
-<p>The most current stable release of cats-effect is <strong>0.10</strong>.  We are confident in the quality of this release, and do consider it “production-ready”.  However, we will not be <em>guaranteeing</em> source compatibility until the 1.0 release.  See <a href="https://github.com/typelevel/cats-effect/blob/master/versioning.md">compatibility and versioning</a> for more information on our compatibility and semantic versioning policies.</p>
+<p>Versions of Cats Effect:</p>
 
-<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect" % "0.10"
+<ul>
+  <li>Old <code class="highlighter-rouge">0.x</code> series: <code class="highlighter-rouge">0.10.1</code></li>
+  <li>Current: <code class="highlighter-rouge">1.0.0-RC</code></li>
+</ul>
+
+<p>See <a href="https://github.com/typelevel/cats-effect/blob/master/versioning.md">compatibility and versioning</a> for more information on our compatibility and semantic versioning policies.</p>
+
+<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC"
 </code></pre>
 
-<p>If your project uses Scala.js, replace the double-<code class="highlighter-rouge">%</code> with a triple.  Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 1.0.1.</p>
+<p>If your project uses Scala.js, replace the double-<code class="highlighter-rouge">%</code> with a triple.  Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 1.x.</p>
 
 <p>Cross-builds are available for Scala 2.12 and 2.11, Scala.js major version 0.6.x.</p>
 
@@ -34,7 +41,7 @@
 
 <p>The <strong>cats-effect-laws</strong> artifact provides <a href="https://github.com/typelevel/discipline">Discipline-style</a> laws for the <code class="highlighter-rouge">Sync</code>, <code class="highlighter-rouge">Async</code>, <code class="highlighter-rouge">Concurrent</code>, <code class="highlighter-rouge">Effect</code> and <code class="highlighter-rouge">ConcurrentEffect</code> typeclasses (<code class="highlighter-rouge">LiftIO</code> is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look <a href="https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws">here</a> for more.</p>
 
-<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "0.10" % "test"
+<pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "1.0.0-RC" % "test"
 </code></pre>
 
 <p>These laws are compatible with both Specs2 and ScalaTest.</p>
