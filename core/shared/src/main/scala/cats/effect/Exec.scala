@@ -121,7 +121,19 @@ private[effect] sealed abstract class ExecInstances extends ExecInstances0 {
 
     def suspend[A](thunk: => Exec[A]): Exec[A] =
       ExecImpl.create(Eval.defer(ExecImpl.unwrap(thunk)))
-  }
+
+    def bracketCase[A, B](acquire: Exec[A])
+                         (use: A => Exec[B])
+                         (release: (A, ExitCase[Throwable]) => Exec[Unit]): Exec[B] =
+      flatMap(acquire) { a =>
+        rethrow(flatTap(attempt(use(a))) {
+          case Right(_) => release(a, ExitCase.complete)
+          case Left(t) => release(a, ExitCase.error(t))
+        })
+      }
+
+    }
+
 
   implicit def catsExecMonoid[A: Monoid]: Monoid[Exec[A]] = new ExecSemigroup[A] with Monoid[Exec[A]] {
     val empty: Exec[A] = Exec.pure(Monoid[A].empty)

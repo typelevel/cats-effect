@@ -75,6 +75,18 @@ object Sync {
           }))
         )
 
+      def bracketCase[A, B](acquire: EitherT[UExec, Throwable, A])
+          (use: A => EitherT[UExec, Throwable, B])
+          (release: (A, ExitCase[Throwable]) => EitherT[UExec, Throwable, Unit]): EitherT[UExec, Throwable, B] =
+        acquire.flatMap { a =>
+          EitherT(Monad[UExec].flatTap(use(a).value){ etb =>
+            release(a, etb match {
+              case Left(e) => ExitCase.error(e)
+              case Right(_) => ExitCase.complete
+            }).value
+          })
+        }
+
     }
 
   /**
