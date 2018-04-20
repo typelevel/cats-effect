@@ -19,52 +19,112 @@ package cats.effect
 import cats._
 import cats.implicits._
 
-final class Resource[F[_], A] private (val allocate: F[(A, F[Unit])]) {
-  def apply[B](use: A => F[B])(implicit F: Bracket[F, Throwable]): F[B] =
-    F.bracket(allocate)(a => use(a._1))(a => a._2)
+/**
+  * Effectfully allocates and releases a resource.  Forms a
+  * `MonadError` on the resource type when the effect type has a
+  * [[Bracket]] instance.  Nested resources are released in reverse
+  * order of acquisition.  Outer resources are released even if an
+  * inner use or release fails.
+  *
+  * {{{
+  * def mkResource(s: String) = {
+  *   val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
+  *   def release(s: String) = IO(println(s"Releasing $$s"))
+  *   Resource.make(acquire)(release)
+  * }
+  * val r = for {
+  *   outer <- mkResource("outer")
+  *   inner <- mkResource("inner")
+  * } yield (outer, inner)
+  * r.use { case (a, b) => IO(println(s"Using $$a and $$b")) }.unsafeRunSync
+  * }}}
+  *
+  * The above prints:
+  * {{{
+  * Acquiring outer
+  * Acquiring inner
+  * Using outer and inner
+  * Releasing inner
+  * Releasing outer
+  * }}}
+  *
+  * @tparam F the effect type in which the resource is allocated and released
+  * @tparam A the type of resource
+  */
+sealed abstract class Resource[F[_], A] {
+  /** An effect that returns a tuple of a resource and an effect to
+    * release it.
+    *
+    * Streaming types might implement a bracket operation that keeps
+    * the resource open through multiple outputs of a stream.
+    */
+  def allocate: F[(A, F[Unit])]
+
+  /**
+    * Allocates a resource and supplies it to the given function.  The
+    * resource is released as soon as the resulting `F[B]` is
+    * completed, whether normally or as a raised error.
+    *
+    * @param f the function to apply to the allocated resource
+    * @return the result of applying [F] to
+    */
+  def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] =
+    F.bracket(allocate)(a => f(a._1))(_._2)
 }
 
-object Resource {
-  def apply[F[_]: Functor, A](acquire: F[A])(release: A => F[Unit]): Resource[F, A] =
-    new Resource[F, A](acquire.map(a => (a -> release(a))))
-
-  def allocatedBy[F[_], A](allocate: F[(A, F[Unit])]): Resource[F, A] =
-    new Resource(allocate)
-
-  implicit def resourceEffect[F[_]](implicit F: Effect[F]): Effect[Resource[F, ?]] = new Effect[Resource[F, ?]] {
-    def pure[A](a: A): Resource[F, A] = allocatedBy(F.pure(a -> F.pure(())))
-    
-    def handleErrorWith[A](fa: Resource[F,A])(f: Throwable => Resource[F,A]): Resource[F,A] =
-      allocatedBy(fa.allocate.handleErrorWith(t => f(t).allocate))
-
-    def raiseError[A](e: Throwable): Resource[F,A] =
-      allocatedBy(F.raiseError(e))
-    
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): Resource[F, A] =
-      allocatedBy(F.async(k).map(a => a -> F.pure(())))
-    
-    def bracketCase[A, B](acquire: Resource[F,A])(use: A => Resource[F,B])(release: (A, ExitCase[Throwable]) => Resource[F,Unit]): Resource[F,B] =
-      allocatedBy(acquire.allocate.flatMap { case (a, disposeA) =>
-        use(a).allocate.map { case (b, disposeB) =>
-          b -> F.bracketCase(disposeB)(F.pure)((_, _) => disposeA)
-        }
-      })
-    
-    def runAsync[A](fa: Resource[F,A])(cb: scala.util.Either[Throwable, A] => IO[Unit]): IO[Unit] =
-      F.runAsync(fa(F.pure))(cb)
-    
-    def flatMap[A, B](fa: Resource[F,A])(f: A => Resource[F,B]): Resource[F,B] =
-      allocatedBy(F.flatMap(fa.allocate) { case (a, disposeA) =>
-        f(a).allocate.map { case (b, disposeB) =>
-          b -> F.bracket(disposeB)(F.pure)(_ => disposeA)
-        }
-      })
-
-    def tailRecM[A, B](a: A)(f: A => Resource[F,Either[A,B]]): Resource[F,B] = ???
-    
-    def suspend[A](thunk: => Resource[F,A]): Resource[F, A] =
-      allocatedBy(F.suspend(thunk.allocate))
+object Resource extends ResourceInstances {
+  /** Creates a resource from an allocating effect.
+    *
+    * @tparam F the effect type in which the resource is acquired and released
+    * @tparam A the type of the resource
+    * @param allocate an effect that returns a tuple of a resource and
+    * an effect to release it
+    */
+  def apply[F[_], A](allocate: F[(A, F[Unit])]): Resource[F, A] = {
+    val a = allocate
+    new Resource[F, A] { def allocate = a }
   }
+
+  /** Creates a resource from an acquiring effect and a release function.
+    *
+    * @tparam F the effect type in which the resource is acquired and released
+    * @tparam A the type of the resource
+    * @param acquire a function to effectfully acquire a resource
+    * @param release a function to effectfully release the resource returned by `acquire`
+    */
+  def make[F[_]: Functor, A](acquire: F[A])(release: A => F[Unit]): Resource[F, A] =
+    apply(acquire.map(a => (a -> release(a))))
 }
 
+private[effect] abstract class ResourceInstances {
+  implicit def catsEffectBracketForResource[F[_], E](implicit F0: Bracket[F, E]): MonadError[Resource[F, ?], E] =
+    new ResourceMonadError[F, E] {
+      def F = F0
+    }
+}
 
+private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Resource[F, ?], E] {
+  protected implicit def F: Bracket[F, E]
+
+  def pure[A](a: A): Resource[F, A] =
+    Resource(F.pure(a -> F.pure(())))
+
+  def flatMap[A, B](fa: Resource[F,A])(f: A => Resource[F, B]): Resource[F, B] =
+    Resource(fa.allocate.flatMap { case (a, disposeA) =>
+      f(a).allocate.map { case (b, disposeB) =>
+        b -> F.bracket(disposeB)(F.pure)(_ => disposeA)
+      }
+    })
+
+  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
+    f(a).flatMap {
+      case Left(a) => tailRecM(a)(f)
+      case Right(b) => pure(b)
+    }
+
+  def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
+    Resource(fa.allocate.handleErrorWith(e => f(e).allocate))
+
+  def raiseError[A](e: E): cats.effect.Resource[F, A] =
+    Resource(F.raiseError(e))
+}
