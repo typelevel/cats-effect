@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.data.OptionT
 import cats.effect.laws.discipline.arbitrary._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -29,7 +28,7 @@ import org.scalacheck._
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
-  checkAllAsync("OptionT[Resource[IO, ?], ?]", implicit ec => MonoidKTests[OptionT[Resource[IO, ?], ?]].monoidK[Int])
+  checkAllAsync("Resource[IO, ?]", implicit ec => SemigroupKTests[Resource[IO, ?]].semigroupK[Int])
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     Prop.forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
