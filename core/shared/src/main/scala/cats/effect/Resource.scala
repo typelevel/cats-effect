@@ -95,17 +95,38 @@ object Resource extends ResourceInstances {
   def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
     apply(acquire.map(a => (a -> release(a))))
 
-  /** Lifts an applicative into a resource.  The resource hsa a no-op release.
+  /** Lifts a pure value into a resource.  The resouce has a no-op release.
     *
-    * @param fa the value to be lifted into a resource
+    * @param a the value to lift into a resource
+    */
+  def pure[F[_], A](a: A)(implicit F: Applicative[F]) =
+    Resource(F.pure(a -> F.pure(())))
+
+  /** Lifts an applicative into a resource.  The resource has a no-op release.
+    *
+    * @param fa the value to lift into a resource
     */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
     make(fa)(_ => F.pure(()))
 }
 
-private[effect] abstract class ResourceInstances {
+private[effect] abstract class ResourceInstances extends ResourceInstances0 {
   implicit def catsEffectBracketForResource[F[_], E](implicit F0: Bracket[F, E]): MonadError[Resource[F, ?], E] =
     new ResourceMonadError[F, E] {
+      def F = F0
+    }
+
+  implicit def catsEffectMonoidForResource[F[_], A, E](implicit F0: Bracket[F, E], A0: Monoid[A]): Monoid[Resource[F, A]] =
+    new ResourceMonoid[F, A, E] {
+      def A = A0
+      def F = F0
+    }
+}
+
+private[effect] abstract class ResourceInstances0 {
+  implicit def catsEffectSemigroupForResource[F[_], A, E](implicit F0: Bracket[F, E], A0: Semigroup[A]) =
+    new ResourceSemigroup[F, A, E] {
+      def A = A0
       def F = F0
     }
 }
@@ -134,4 +155,22 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
 
   def raiseError[A](e: E): cats.effect.Resource[F, A] =
     Resource(F.raiseError(e))
+}
+
+private[effect] abstract class ResourceMonoid[F[_], A, E] extends ResourceSemigroup[F, A, E]
+    with Monoid[Resource[F, A]] {
+  protected implicit def A: Monoid[A]
+
+  def empty: Resource[F, A] = Resource.pure(A.empty)
+}
+
+private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[Resource[F, A]] {
+  protected implicit def F: Bracket[F, E]
+  protected implicit def A: Semigroup[A]
+
+  def combine(x: Resource[F, A], y: Resource[F, A]): Resource[F, A] = {
+    Resource(F.map2(x.allocate, y.allocate) { case ((x, disposeX), (y, disposeY)) =>
+      A.combine(x, y) -> F.bracket(disposeX)(F.pure)(_ => disposeY)
+    })
+  }
 }
