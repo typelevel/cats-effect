@@ -129,6 +129,12 @@ private[effect] abstract class ResourceInstances0 {
       def A = A0
       def F = F0
     }
+
+  implicit def catsEffectSemigroupKForResource[F[_], A, E](implicit F0: Bracket[F, E], K0: SemigroupK[F]) =
+    new ResourceSemigroupK[F, E] {
+      def F = F0
+      def K = K0
+    }
 }
 
 private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Resource[F, ?], E] {
@@ -168,9 +174,28 @@ private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[R
   protected implicit def F: Bracket[F, E]
   protected implicit def A: Semigroup[A]
 
-  def combine(x: Resource[F, A], y: Resource[F, A]): Resource[F, A] = {
-    Resource(F.map2(x.allocate, y.allocate) { case ((x, disposeX), (y, disposeY)) =>
-      A.combine(x, y) -> F.bracket(disposeX)(F.pure)(_ => disposeY)
-    })
-  }
+  def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+    } yield A.combine(x, y)
+}
+
+private[effect] abstract class ResourceMonoidK[F[_], E] extends ResourceSemigroupK[F, E]
+    with MonoidK[Resource[F, ?]] {
+  protected implicit def K: MonoidK[F]
+
+  def empty[A]: Resource[F, A] = Resource.liftF(K.empty)
+}
+
+private[effect] abstract class ResourceSemigroupK[F[_], E] extends SemigroupK[Resource[F, ?]] {
+  protected implicit def F: Bracket[F, E]  
+  protected implicit def K: SemigroupK[F]
+
+  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
+    } yield xy
 }

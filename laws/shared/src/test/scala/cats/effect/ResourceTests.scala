@@ -17,16 +17,19 @@
 package cats
 package effect
 
+import cats.data.OptionT
 import cats.effect.laws.discipline.arbitrary._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
+import cats.laws.discipline.arbitrary._
 import cats.implicits._
 import org.scalacheck._
 
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
+  checkAllAsync("OptionT[Resource[IO, ?], ?]", implicit ec => MonoidKTests[OptionT[Resource[IO, ?], ?]].monoidK[Int])
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     Prop.forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
@@ -47,11 +50,24 @@ class ResourceTests extends BaseTestsSuite {
 
   test("releases both resources on combine") {
     Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
+      var acquired: Set[String] = Set.empty
       var released: Set[String] = Set.empty
-      def observeRelease(r: Resource[IO, String]) = r.flatMap { a =>
-        Resource.make(a.pure[IO])(a => IO { released += a }).map(Set(_))
+      def observe(r: Resource[IO, String]) = r.flatMap { a =>
+        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
       }
-      val acquired = (observeRelease(rx) combine observeRelease(ry)).use(IO.pure).unsafeRunSync()
+      (observe(rx) combine observe(ry)).use(_ => IO.unit).unsafeRunSync()
+      released <-> acquired
+    }
+  }
+
+  test("releases both resources on combineK") {
+    Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
+      var acquired: Set[String] = Set.empty
+      var released: Set[String] = Set.empty
+      def observe(r: Resource[IO, String]) = r.flatMap { a =>
+        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
+      }
+      (observe(rx) combineK observe(ry)).use(_ => IO.unit).unsafeRunSync()
       released <-> acquired
     }
   }
