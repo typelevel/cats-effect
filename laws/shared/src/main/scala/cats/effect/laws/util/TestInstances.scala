@@ -91,7 +91,7 @@ trait TestInstances {
     }
 
   /**
-   * Defines equality for a [[Resource]].  Two resources are deemed
+   * Defines equality for a `Resource`.  Two resources are deemed
    * equivalent if they allocate an equivalent resource.  Cleanup,
    * which is run purely for effect, is not considered.
    */
