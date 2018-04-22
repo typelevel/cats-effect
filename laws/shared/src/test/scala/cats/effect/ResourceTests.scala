@@ -42,4 +42,10 @@ class ResourceTests extends BaseTestsSuite {
       released <-> as.map(_._1)
     }
   }
+
+  testAsync("liftF") { implicit ec =>
+    Prop.forAll { fa: IO[String] =>
+      Resource.liftF(fa).use(IO.pure) <-> fa
+    }
+  }
 }

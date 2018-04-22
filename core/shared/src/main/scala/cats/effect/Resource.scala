@@ -92,8 +92,15 @@ object Resource extends ResourceInstances {
     * @param acquire a function to effectfully acquire a resource
     * @param release a function to effectfully release the resource returned by `acquire`
     */
-  def make[F[_]: Functor, A](acquire: F[A])(release: A => F[Unit]): Resource[F, A] =
+  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
     apply(acquire.map(a => (a -> release(a))))
+
+  /** Lifts an applicative into a resource.  The resource hsa a no-op release.
+    *
+    * @param fa the value to be lifted into a resource
+    */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
+    make(fa)(_ => F.pure(()))
 }
 
 private[effect] abstract class ResourceInstances {
