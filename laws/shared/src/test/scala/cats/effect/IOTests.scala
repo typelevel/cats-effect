@@ -534,45 +534,45 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("parMap2 cancels first, when second terminates in error") { implicit ec =>
     val dummy = new RuntimeException("dummy")
-    var wasCancelled = false
+    var wasCanceled = false
 
-    val io1 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io1 = IO.cancelable[Int](_ => IO { wasCanceled = true })
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
   testAsync("parMap2 cancels second, when first terminates in error") { implicit ec =>
     val dummy = new RuntimeException("dummy")
-    var wasCancelled = false
+    var wasCanceled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
-    val io2 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io2 = IO.cancelable[Int](_ => IO { wasCanceled = true })
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
   testAsync("IO.cancelable IOs can be canceled") { implicit ec =>
-    var wasCancelled = false
+    var wasCanceled = false
     val p = Promise[Int]()
 
-    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCanceled = true })
     val cancel = io1.unsafeRunCancelable(Callback.promise(p))
 
     cancel()
     // Signal not observed yet due to IO.shift
-    wasCancelled shouldBe false
+    wasCanceled shouldBe false
 
     ec.tick()
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     p.future.value shouldBe None
   }
 }
