@@ -619,7 +619,7 @@ val cancel: () => Unit =
   io.unsafeRunCancelable(r => println(s"Done: $r"))
 
 // ... if a race condition happens, we can cancel it,
-// thus cancelling the scheduling of `IO.sleep`
+// thus canceling the scheduling of `IO.sleep`
 cancel()
 ```
 

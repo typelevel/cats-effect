@@ -1091,7 +1091,7 @@ object IO extends IOInstances {
    * If the first task completes in error, then the result will
    * complete in error, the other task being cancelled.
    *
-   * On usage the user has the option of cancelling the losing task,
+   * On usage the user has the option of canceling the losing task,
    * this being equivalent with plain [[race]]:
    *
    * {{{

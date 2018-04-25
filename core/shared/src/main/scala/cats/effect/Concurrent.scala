@@ -152,7 +152,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *
    * The registration function is also supposed to return
    * an `IO[Unit]` that captures the logic necessary for
-   * cancelling the asynchronous process, for as long as it
+   * canceling the asynchronous process, for as long as it
    * is still active.
    *
    * Example:
@@ -203,7 +203,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *   val tick = F.uncancelable(timer.sleep(10.seconds))
    *
    *   // This prints "Tick!" after 10 seconds, even if we are
-   *   // cancelling the Fiber after start:
+   *   // canceling the Fiber after start:
    *   for {
    *     fiber <- F.start(tick)
    *     _ <- fiber.cancel
@@ -322,7 +322,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * If the first task completes in error, then the result will
    * complete in error, the other task being cancelled.
    *
-   * On usage the user has the option of cancelling the losing task,
+   * On usage the user has the option of canceling the losing task,
    * this being equivalent with plain [[race]]:
    *
    * {{{
