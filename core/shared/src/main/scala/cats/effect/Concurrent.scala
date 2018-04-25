@@ -33,7 +33,7 @@ import scala.util.Either
  * Thus this type class allows abstracting over data types that:
  *
  *  1. implement the [[Async]] algebra, with all its restrictions
- *  1. can provide logic for cancelation, to be used in race
+ *  1. can provide logic for cancellation, to be used in race
  *     conditions in order to release resources early
  *     (in its [[Concurrent!.cancelable cancelable]] builder)
  *
@@ -42,7 +42,7 @@ import scala.util.Either
  * processing, suspended in the context of `F[_]` and that can be
  * cancelled or joined.
  *
- * Without cancelation being baked in, we couldn't afford to do it.
+ * Without cancellation being baked in, we couldn't afford to do it.
  * See below.
  *
  * ==Cancelable builder==
@@ -54,7 +54,7 @@ import scala.util.Either
  *   (Either[Throwable, A] => Unit) => F[Unit]
  * }}}
  *
- * `F[Unit]` is used to represent a cancelation action which will
+ * `F[Unit]` is used to represent a cancellation action which will
  * send a signal to the producer, that may observe it and cancel the
  * asynchronous process.
  *
@@ -86,7 +86,7 @@ import scala.util.Either
  * Java `ScheduledFuture` that has a `.cancel()` operation on it.
  *
  * Similarly, for `Concurrent` data types, we can provide
- * cancelation logic, that can be triggered in race conditions to
+ * cancellation logic, that can be triggered in race conditions to
  * cancel the on-going processing, only that `Concurrent`'s
  * cancelable token is an action suspended in an `IO[Unit]`. See
  * [[IO.cancelable]].
@@ -101,19 +101,19 @@ import scala.util.Either
  *
  * This signature is in fact incomplete for data types that are not
  * cancelable, because such equivalent operations always return some
- * cancelation token that can be used to trigger a forceful
+ * cancellation token that can be used to trigger a forceful
  * interruption of the timer. This is not a normal "dispose" or
  * "finally" clause in a try/catch block, because "cancel" in the
  * context of an asynchronous process is ''concurrent'' with the
  * task's own run-loop.
  *
  * To understand what this means, consider that in the case of our
- * `sleep` as described above, on cancelation we'd need a way to
+ * `sleep` as described above, on cancellation we'd need a way to
  * signal to the underlying `ScheduledExecutorService` to forcefully
  * remove the scheduled `Runnable` from its internal queue of
  * scheduled tasks, ''before'' its execution. Therefore, without a
  * cancelable data type, a safe signature needs to return a
- * cancelation token, so it would look like this:
+ * cancellation token, so it would look like this:
  *
  * {{{
  *   def sleep(d: FiniteDuration): F[(F[Unit], F[Unit])]
@@ -133,7 +133,7 @@ import scala.util.Either
  *
  * Thus a [[Concurrent]] data type can safely participate in race
  * conditions, whereas a data type that is only [[Async]] cannot do it
- * without exposing and forcing the user to work with cancelation
+ * without exposing and forcing the user to work with cancellation
  * tokens. An [[Async]] data type cannot expose for example a `start`
  * operation that is safe.
  */
@@ -186,7 +186,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * result of [[Fiber.join join]] and that the cancelable token returned by
    * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
    *
-   * This operation is undoing the cancelation mechanism of [[cancelable]],
+   * This operation is undoing the cancellation mechanism of [[cancelable]],
    * with this equivalence:
    *
    * {{{
@@ -222,10 +222,10 @@ trait Concurrent[F[_]] extends Async[F] {
 
   /**
    * Returns a new `F` value that mirrors the source for normal
-   * termination, but that triggers the given error on cancelation.
+   * termination, but that triggers the given error on cancellation.
    *
    * This `onCancelRaiseError` operator transforms any task into one
-   * that on cancelation will terminate with the given error, thus
+   * that on cancellation will terminate with the given error, thus
    * transforming potentially non-terminating tasks into ones that
    * yield a certain error.
    *
@@ -251,9 +251,9 @@ trait Concurrent[F[_]] extends Async[F] {
    *
    * Depending on the implementation, tasks that are canceled can
    * become non-terminating. This operation ensures that when
-   * cancelation happens, the resulting task is terminated with an
+   * cancellation happens, the resulting task is terminated with an
    * error, such that logic can be scheduled to happen after
-   * cancelation:
+   * cancellation:
    *
    * {{{
    *   import scala.concurrent.CancellationException
@@ -271,7 +271,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *
    * This technique is how a "bracket" operation can be implemented.
    *
-   * Besides sending the cancelation signal, this operation also cuts
+   * Besides sending the cancellation signal, this operation also cuts
    * the connection between the producer and the consumer. Example:
    *
    * {{{

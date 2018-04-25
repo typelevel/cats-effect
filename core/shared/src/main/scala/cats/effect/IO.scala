@@ -45,7 +45,7 @@ import scala.util.{Failure, Left, Right, Success}
  *     `flatMap` chains get short-circuited (`IO` implementing
  *     the algebra of `MonadError`)
  *  1. can be canceled, but note this capability relies on the
- *     user to provide cancelation logic
+ *     user to provide cancellation logic
  *
  * Effects described via this abstraction are not evaluated until
  * the "end of the world", which is to say, when one of the "unsafe"
@@ -204,13 +204,13 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *   // Safe, because it does not block for the source to finish
    *   val cancel: IO[Unit] = start.unsafeRunSync
    *
-   *   // Safe, because cancelation only sends a signal,
+   *   // Safe, because cancellation only sends a signal,
    *   // but doesn't back-pressure on anything
    *   cancel.unsafeRunSync
    * }}}
    *
    * @return an `IO` value that upon evaluation will execute the source,
-   *         but will not wait for its completion, yielding a cancelation
+   *         but will not wait for its completion, yielding a cancellation
    *         token that can be used to cancel the async process
    *
    * @see [[runAsync]] for the simple, uninterruptible version
@@ -269,7 +269,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * function ''once'', at the very end of your program.
    *
    * @return an side-effectful function that, when executed, sends a
-   *         cancelation reference to `IO`'s run-loop implementation,
+   *         cancellation reference to `IO`'s run-loop implementation,
    *         having the potential to interrupt it.
    */
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
@@ -338,7 +338,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * This can be used for non-deterministic / concurrent execution.
    * The following code is more or less equivalent with `parMap2`
-   * (minus the behavior on error handling and cancelation):
+   * (minus the behavior on error handling and cancellation):
    *
    * {{{
    *   def par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
@@ -351,7 +351,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * }}}
    *
    * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
-   * still recommended because of behavior on error and cancelation —
+   * still recommended because of behavior on error and cancellation —
    * consider in the example above what would happen if the first task
    * finishes in error. In that case the second task doesn't get cancelled,
    * which creates a potential memory leak.
@@ -365,12 +365,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 
   /**
    * Returns a new `IO` that mirrors the source task for normal termination,
-   * but that triggers the given error on cancelation.
+   * but that triggers the given error on cancellation.
    *
    * Normally tasks that are cancelled become non-terminating.
    *
    * This `onCancelRaiseError` operator transforms a task that is
-   * non-terminating on cancelation into one that yields an error,
+   * non-terminating on cancellation into one that yields an error,
    * thus equivalent with [[IO.raiseError]].
    */
   final def onCancelRaiseError(e: Throwable): IO[A] =
@@ -400,7 +400,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * The `bracket` operation installs the necessary exception handler
    * to release the resource in the event of an exception being raised
-   * during the computation, or in case of cancelation.
+   * during the computation, or in case of cancellation.
    *
    * If an exception is raised, then `bracket` will re-raise the
    * exception ''after'' performing the `release`. If the resulting
@@ -439,7 +439,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *   }
    * }}}
    *
-   * Note that in case of cancelation the underlying implementation
+   * Note that in case of cancellation the underlying implementation
    * cannot guarantee that the computation described by `use` doesn't
    * end up executed concurrently with the computation from
    * `release`. In the example above that ugly Java loop might end up
@@ -455,7 +455,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * For those cases you might want to do synchronization (e.g. usage
    * of locks and semaphores) and you might want to use [[bracketCase]],
    * the version that allows you to differentiate between normal
-   * termination and cancelation.
+   * termination and cancellation.
    *
    * '''NOTE on error handling''': one big difference versus
    * `try/finally` statements is that, in case both the `release`
@@ -497,7 +497,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Returns a new `IO` task that treats the source task as the
    * acquisition of a resource, which is then exploited by the `use`
    * function and then `released`, with the possibility of
-   * distinguishing between normal termination and cancelation, such
+   * distinguishing between normal termination and cancellation, such
    * that an appropriate release of resources can be executed.
    *
    * The `bracketCase` operation is the equivalent of
@@ -506,11 +506,11 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * The `bracketCase` operation installs the necessary exception handler
    * to release the resource in the event of an exception being raised
-   * during the computation, or in case of cancelation.
+   * during the computation, or in case of cancellation.
    *
    * In comparison with the simpler [[bracket]] version, this one
    * allows the caller to differentiate between normal termination,
-   * termination in error and cancelation via an [[ExitCase]]
+   * termination in error and cancellation via an [[ExitCase]]
    * parameter.
    *
    * @see [[bracket]]
@@ -523,7 +523,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        terminates, either normally or in error, or if it gets
    *        canceled, receiving as input the resource that needs that
    *        needs release, along with the result of `use`
-   *        (cancelation, error or successful result)
+   *        (cancellation, error or successful result)
    */
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
     IOBracket(this)(use)(release)
@@ -1012,8 +1012,8 @@ object IO extends IOInstances {
 
   /**
    * Returns a cancelable boundary — an `IO` task that checks for the
-   * cancelation status of the run-loop and does not allow for the
-   * bind continuation to keep executing in case cancelation happened.
+   * cancellation status of the run-loop and does not allow for the
+   * bind continuation to keep executing in case cancellation happened.
    *
    * This operation is very similar to [[IO.shift(implicit* IO.shift]],
    * as it can be dropped in `flatMap` chains in order to make loops
@@ -1027,7 +1027,7 @@ object IO extends IOInstances {
    *      if (n <= 0) IO.pure(a) else {
    *        val next = fib(n - 1, b, a + b)
    *
-   *        // Every 100-th cycle, check cancelation status
+   *        // Every 100-th cycle, check cancellation status
    *        if (n % 100 == 0)
    *          IO.cancelBoundary *> next
    *        else
