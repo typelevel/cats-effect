@@ -6,7 +6,7 @@ source: "shared/src/main/scala/cats/effect/Fiber.scala"
 scaladoc: "#cats.effect.Fiber"
 ---
 
-It represents the (pure) result of an `Async` data type (e.g. `IO`) being started concurrently and that can be either joined or cancelled.
+It represents the (pure) result of an `Async` data type (e.g. `IO`) being started concurrently and that can be either joined or canceled.
 
 You can think of fibers as being lightweight threads, a fiber being a concurrency primitive for doing cooperative multi-tasking.
 

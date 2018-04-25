@@ -880,7 +880,7 @@ Notes:
 2. this works with asynchronous `IO` actions
 3. the `release` action will happen regardless of the exit status 
    of the `use` action, so it will execute for successful completion,
-   for thrown errors or for cancelled execution
+   for thrown errors or for canceled execution
 4. if the `use` action throws an error and then the `release` action
    throws an error as well, the reported error will be that of
    `use`, whereas the error thrown by `release` will just get logged

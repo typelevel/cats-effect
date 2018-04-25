@@ -40,7 +40,7 @@ import scala.util.Either
  * Due to these restrictions, this type class also affords to describe
  * a [[Concurrent!.start start]] operation that can start async
  * processing, suspended in the context of `F[_]` and that can be
- * cancelled or joined.
+ * canceled or joined.
  *
  * Without cancellation being baked in, we couldn't afford to do it.
  * See below.
@@ -74,7 +74,7 @@ import scala.util.Either
  * tasks can also provide a way to cancel such processes, to be used
  * in race conditions in order to cleanup resources early, so a very
  * basic and side-effectful definition of asynchronous processes that
- * can be cancelled would be:
+ * can be canceled would be:
  *
  * {{{
  *   (A => Unit) => Cancelable
@@ -128,7 +128,7 @@ import scala.util.Either
  * The difference between a [[Concurrent]] data type and one that
  * is only [[Async]] is that you can go from any `F[A]` to a
  * `F[Fiber[F, A]]`, to participate in race conditions and that can be
- * cancelled should the need arise, in order to trigger an early
+ * canceled should the need arise, in order to trigger an early
  * release of allocated resources.
  *
  * Thus a [[Concurrent]] data type can safely participate in race
@@ -291,7 +291,7 @@ trait Concurrent[F[_]] extends Async[F] {
    *
    * In this example the `loud` reference will be completed with a
    * "CancellationException", as indicated via "onCancelRaiseError".
-   * The logic of the source won't get cancelled, because we've
+   * The logic of the source won't get canceled, because we've
    * embedded it all in [[uncancelable]]. But its bind continuation is
    * not allowed to continue after that, its final result not being
    * allowed to be signaled.
@@ -320,7 +320,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * represented as a still-unfinished fiber.
    *
    * If the first task completes in error, then the result will
-   * complete in error, the other task being cancelled.
+   * complete in error, the other task being canceled.
    *
    * On usage the user has the option of canceling the losing task,
    * this being equivalent with plain [[race]]:
@@ -344,7 +344,7 @@ trait Concurrent[F[_]] extends Async[F] {
 
   /**
    * Run two tasks concurrently and return the first to finish,
-   * either in success or error. The loser of the race is cancelled.
+   * either in success or error. The loser of the race is canceled.
    *
    * The two tasks are potentially executed in parallel, the winner
    * being the first that signals a result.

@@ -189,7 +189,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * eager evaluation.
    *
    * The returned `IO` boxes an `IO[Unit]` that can be used to cancel the
-   * running asynchronous computation (if the source can be cancelled).
+   * running asynchronous computation (if the source can be canceled).
    *
    * The returned `IO` is guaranteed to execute immediately,
    * and does not wait on any async action to complete, thus this
@@ -353,7 +353,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Note in such a case usage of `parMapN` (via `cats.Parallel`) is
    * still recommended because of behavior on error and cancellation —
    * consider in the example above what would happen if the first task
-   * finishes in error. In that case the second task doesn't get cancelled,
+   * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
    *
    * IMPORTANT — this operation does not start with an asynchronous boundary.
@@ -367,7 +367,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Returns a new `IO` that mirrors the source task for normal termination,
    * but that triggers the given error on cancellation.
    *
-   * Normally tasks that are cancelled become non-terminating.
+   * Normally tasks that are canceled become non-terminating.
    *
    * This `onCancelRaiseError` operator transforms a task that is
    * non-terminating on cancellation into one that yields an error,
@@ -404,7 +404,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * If an exception is raised, then `bracket` will re-raise the
    * exception ''after'' performing the `release`. If the resulting
-   * task gets cancelled, then `bracket` will still perform the
+   * task gets canceled, then `bracket` will still perform the
    * `release`, but the yielded task will be non-terminating
    * (equivalent with [[IO.never]]).
    *
@@ -444,7 +444,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * end up executed concurrently with the computation from
    * `release`. In the example above that ugly Java loop might end up
    * reading from a `BufferedReader` that is already closed due to the
-   * task being cancelled, thus triggering an error in the background
+   * task being canceled, thus triggering an error in the background
    * with nowhere to get signaled.
    *
    * In this particular example, given that we are just reading from a
@@ -487,7 +487,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * @param release is a function that gets called after `use`
    *        terminates, either normally or in error, or if it gets
-   *        cancelled, receiving as input the resource that needs to
+   *        canceled, receiving as input the resource that needs to
    *        be released
    */
   final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
@@ -1046,7 +1046,7 @@ object IO extends IOInstances {
   /**
    * Run two IO tasks concurrently, and return the first to
    * finish, either in success or error. The loser of the race is
-   * cancelled.
+   * canceled.
    *
    * The two tasks are executed in parallel if asynchronous,
    * the winner being the first that signals a result.
@@ -1089,7 +1089,7 @@ object IO extends IOInstances {
    * represented as a still-unfinished task.
    *
    * If the first task completes in error, then the result will
-   * complete in error, the other task being cancelled.
+   * complete in error, the other task being canceled.
    *
    * On usage the user has the option of canceling the losing task,
    * this being equivalent with plain [[race]]:

@@ -50,7 +50,7 @@ private[effect] sealed abstract class IOConnection {
 
   /**
    * Pushes a cancelable reference on the stack, to be
-   * popped or cancelled later in FIFO order.
+   * popped or canceled later in FIFO order.
    */
   def push(cancelable: Cancelable): Unit
 
@@ -69,14 +69,14 @@ private[effect] object IOConnection {
 
   /**
    * Reusable [[IOConnection]] reference that is already
-   * cancelled.
+   * canceled.
    */
   val alreadyCanceled: IOConnection =
     new AlreadyCanceled
 
   /**
    * Reusable [[IOConnection]] reference that cannot
-   * be cancelled.
+   * be canceled.
    */
   val uncancelable: IOConnection =
     new Uncancelable
