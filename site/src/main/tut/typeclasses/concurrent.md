@@ -32,7 +32,7 @@ trait Concurrent[F[_]] extends Async[F] {
 The signature exposed by the `Concurrent.cancelable` builder is this:
 
 ```scala
-(Either[Throwable, A] => Unit) => F[Unit]
+(Either[Throwable, A] => Unit) => IO[Unit]
 ```
 
 `F[Unit]` is used to represent a cancellation action which will send a signal to the producer, that may observe it and cancel the asynchronous process.

@@ -51,10 +51,10 @@ import scala.util.Either
  * builder is this:
  *
  * {{{
- *   (Either[Throwable, A] => Unit) => F[Unit]
+ *   (Either[Throwable, A] => Unit) => IO[Unit]
  * }}}
  *
- * `F[Unit]` is used to represent a cancellation action which will
+ * `IO[Unit]` is used to represent a cancellation action which will
  * send a signal to the producer, that may observe it and cancel the
  * asynchronous process.
  *
@@ -162,17 +162,17 @@ trait Concurrent[F[_]] extends Async[F] {
    *   import scala.concurrent.duration._
    *
    *   def sleep[F[_]](d: FiniteDuration)
-   *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[A] = {
+   *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[Unit] = {
    *
    *     F.cancelable { cb =>
    *       // Note the callback is pure, so we need to trigger evaluation
-   *       val run = new Runnable { def run() = cb(Right(())).unsafeRunSync }
+   *       val run = new Runnable { def run() = cb(Right(())) }
    *
    *       // Schedules task to run after delay
    *       val future = ec.schedule(run, d.length, d.unit)
    *
    *       // Cancellation logic, suspended in IO
-   *       IO(future.cancel())
+   *       IO(future.cancel(true))
    *     }
    *   }
    * }}}
