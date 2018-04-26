@@ -150,11 +150,22 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
       }
     })
 
-  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
-    f(a).flatMap {
-      case Left(a) => tailRecM(a)(f)
-      case Right(b) => pure(b)
+  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
+    def step(adis: (A, F[Unit])): F[Either[(A, F[Unit]), (B, F[Unit])]] = {
+      val (a, dispose) = adis
+      val next: F[(Either[A, B], F[Unit])] = f(a).allocate
+      // todo: this might not be stack safe, we might
+      // need a tailRecM type thing on bracket.
+      def compDisp(d: F[Unit]): F[Unit] =
+        F.bracket(d)(F.pure)(_ => dispose)
+      next.map {
+        case (Left(a), nextDispose) => Left((a, compDisp(nextDispose)))
+        case (Right(b), nextDispose) => Right((b, compDisp(nextDispose)))
+      }
     }
+
+    Resource(F.tailRecM((a, F.pure(())))(step))
+  }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
     Resource(fa.allocate.handleErrorWith(e => f(e).allocate))
