@@ -181,13 +181,6 @@ private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[R
     } yield A.combine(x, y)
 }
 
-private[effect] abstract class ResourceMonoidK[F[_], E] extends ResourceSemigroupK[F, E]
-    with MonoidK[Resource[F, ?]] {
-  protected implicit def K: MonoidK[F]
-
-  def empty[A]: Resource[F, A] = Resource.liftF(K.empty)
-}
-
 private[effect] abstract class ResourceSemigroupK[F[_], E] extends SemigroupK[Resource[F, ?]] {
   protected implicit def F: Bracket[F, E]  
   protected implicit def K: SemigroupK[F]
