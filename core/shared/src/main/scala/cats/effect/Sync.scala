@@ -49,25 +49,25 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
 
 object Sync {
 
-  implicit val catsEitherTEvalEffSync: Sync[EitherT[UExec, Throwable, ?]] =
-    new Sync[EitherT[UExec, Throwable, ?]] {
+  implicit val catsEitherTEvalEffSync: Sync[EitherT[Exec, Throwable, ?]] =
+    new Sync[EitherT[Exec, Throwable, ?]] {
 
-      def pure[A](x: A): EitherT[UExec, Throwable, A] = EitherT.pure(x)
+      def pure[A](x: A): EitherT[Exec, Throwable, A] = EitherT.pure(x)
 
-      def handleErrorWith[A](fa: EitherT[UExec, Throwable, A])(f: Throwable => EitherT[UExec, Throwable, A]): EitherT[UExec, Throwable, A] =
-        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => UExec.pure(Right(a)))))
+      def handleErrorWith[A](fa: EitherT[Exec, Throwable, A])(f: Throwable => EitherT[Exec, Throwable, A]): EitherT[Exec, Throwable, A] =
+        EitherT(fa.value.flatMap(_.fold(f.andThen(_.value), a => Exec.pure(Right(a)))))
 
-      def raiseError[A](e: Throwable): EitherT[UExec, Throwable, A] =
-        EitherT.left(UExec.pure(e))
+      def raiseError[A](e: Throwable): EitherT[Exec, Throwable, A] =
+        EitherT.left(Exec.pure(e))
 
-      def flatMap[A, B](fa: EitherT[UExec, Throwable, A])(f: A => EitherT[UExec, Throwable, B]): EitherT[UExec, Throwable, B] =
+      def flatMap[A, B](fa: EitherT[Exec, Throwable, A])(f: A => EitherT[Exec, Throwable, B]): EitherT[Exec, Throwable, B] =
         fa.flatMap(f)
 
-      def tailRecM[A, B](a: A)(f: A => EitherT[UExec, Throwable, Either[A, B]]): EitherT[UExec, Throwable, B] =
-        EitherT.catsDataMonadErrorForEitherT[UExec, Throwable].tailRecM(a)(f)
+      def tailRecM[A, B](a: A)(f: A => EitherT[Exec, Throwable, Either[A, B]]): EitherT[Exec, Throwable, B] =
+        EitherT.catsDataMonadErrorForEitherT[Exec, Throwable].tailRecM(a)(f)
 
-      def suspend[A](thunk: => EitherT[UExec, Throwable, A]): EitherT[UExec, Throwable, A] =
-        EitherT(UExecImpl.create(
+      def suspend[A](thunk: => EitherT[Exec, Throwable, A]): EitherT[Exec, Throwable, A] =
+        EitherT(Exec.create(
           Eval.always(try {
             thunk.value.unsafeRun
           } catch {
@@ -75,11 +75,11 @@ object Sync {
           }))
         )
 
-      def bracketCase[A, B](acquire: EitherT[UExec, Throwable, A])
-          (use: A => EitherT[UExec, Throwable, B])
-          (release: (A, ExitCase[Throwable]) => EitherT[UExec, Throwable, Unit]): EitherT[UExec, Throwable, B] =
+      def bracketCase[A, B](acquire: EitherT[Exec, Throwable, A])
+          (use: A => EitherT[Exec, Throwable, B])
+          (release: (A, ExitCase[Throwable]) => EitherT[Exec, Throwable, Unit]): EitherT[Exec, Throwable, B] =
         acquire.flatMap { a =>
-          EitherT(Monad[UExec].flatTap(use(a).value){ etb =>
+          EitherT(Monad[Exec].flatTap(use(a).value){ etb =>
             release(a, etb match {
               case Left(e) => ExitCase.error(e)
               case Right(_) => ExitCase.complete

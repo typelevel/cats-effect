@@ -61,7 +61,7 @@ it is sequenced in the monadic chain.
 |                    |        Eager        |            Lazy            |
 |:------------------:|:-------------------:|:--------------------------:|
 | **Synchronous**    |          A          |           () => A          |
-|                    |                     | [UExec[A]](UExec.html)       |
+|                    |                     | [Exec[A]](Exec.html)       |
 | **Asynchronous**   | (A => Unit) => Unit | () => (A => Unit) => Unit  |
 |                    |      Future[A]      |          IO[A]             |
 

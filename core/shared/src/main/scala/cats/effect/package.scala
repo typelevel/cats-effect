@@ -19,14 +19,10 @@ package cats
 package object effect {
 
   /**
-    * UExec is a data type that allows for suspending synchronous computations.
+    * Exec is a data type that allows for suspending synchronous computations.
     * It can be seen as the synchronous non-concurrent counterpart to `IO`.
-    * However, it is important realize, that unlike `IO`, `UExec` does not catch any errors
+    * However, it is important realize, that unlike `IO`, `Exec` does not catch any errors
     * and in order to form a valid `Sync` needs to be combined with `EitherT`.
     */
-  type UExec[A] = UExecImpl.Type[A]
-  val UExec = UExecImpl
-
-  type Exec[A] = ExecImpl.Type[A]
-  val Exec = ExecImpl
+  type Exec[A] = Exec.Type[A]
 }
