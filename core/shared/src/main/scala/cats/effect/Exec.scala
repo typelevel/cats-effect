@@ -67,7 +67,7 @@ private[effect] object ExecImpl extends ExecInstances with ExecNewtype {
     * `Exec`), while lazy eval and memoized will be executed as such.
     */
   def eval[A](fa: Eval[A]): Exec[A] = fa match {
-    case Now(a) => pure(a)
+    case e @ Now(a) => create(e)
     case notNow => delayNoCatch(notNow.value)
   }
 
