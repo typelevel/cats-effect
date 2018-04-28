@@ -20,7 +20,7 @@ import cats.{Eval, Monad, Now}
 import cats.effect.internals.{ExecNewtype, NonFatal}
 import cats.kernel.{Monoid, Semigroup}
 
-object Exec extends ExecInstances with ExecNewtype {
+private[effect] object ExecImpl extends ExecInstances with ExecNewtype {
 
   /**
     * Construct a non-effectful value of `Exec`.

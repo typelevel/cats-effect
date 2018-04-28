@@ -90,7 +90,7 @@ trait TestInstances {
     }
 
   implicit def eqExec[A: Eq]: Eq[Exec[A]] =
-    Eq.by(exec => Exec.unwrap(exec).value)
+    Eq.by(_.unsafeRun)
 }
 
 object TestInstances extends TestInstances

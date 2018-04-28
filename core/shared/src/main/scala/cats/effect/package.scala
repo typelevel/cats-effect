@@ -25,4 +25,5 @@ package object effect {
     * and in order to form a valid `Sync` needs to be combined with `EitherT`.
     */
   type Exec[+A] = Exec.Type[A]
+  val Exec = ExecImpl
 }
