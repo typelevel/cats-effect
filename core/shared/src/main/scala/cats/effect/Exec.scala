@@ -41,6 +41,14 @@ object Exec extends ExecInstances with ExecNewtype {
   def delayNoCatch[A](thunk: => A): Exec[A] = create(Eval.always(thunk))
 
   /**
+   * Suspends a synchronous side effect which produces an `Exec` in `Exec`.
+   *
+   * This is useful for trampolining (i.e. when the side effect is
+   * conceptually the allocation of a stack frame).
+   */
+  def suspend[A](thunk: => Exec[A]) = create(Eval.defer(unwrap(thunk)))
+
+  /**
     * Suspends a synchronous side effect in `Exec` and catches non-fatal exceptions inside `Either`.
     */
   def apply[A](thunk: => A): Exec[Either[Throwable, A]] =
@@ -63,35 +71,34 @@ object Exec extends ExecInstances with ExecNewtype {
     case notNow => delayNoCatch(notNow.value)
   }
 
-  implicit def catsEvalEffOps[A](value: Exec[A]): ExecOps[A] =
-    new ExecOps(value)
-}
+  implicit class catsEvalEffOps[A](val value: Exec[A]) extends AnyVal {
 
-sealed class ExecOps[A](val value: Exec[A]) {
+    /**
+     * Produces the result by running the encapsulated effects as impure
+     * side effects.
+     *
+     * As the name says, this is an UNSAFE function as it is impure and
+     * performs side effects. You should ideally only call this function
+     * *once*, at the very end of your program.
+     */
+    def unsafeRun: A =
+      Exec.unwrap(value).value
 
-  /**
-    * Produces the result by running the encapsulated effects as impure
-    * side effects.
-    *
-    * As the name says, this is an UNSAFE function as it is impure and
-    * performs side effects. You should ideally only call this function
-    * *once*, at the very end of your program.
-    */
-  def unsafeRun: A =
-    Exec.unwrap(value).value
+    /**
+     * Convert this `Exec` to an `IO`, preserving purity and allowing
+     * for interop with asynchronous computations.
+     */
+    def toIO: IO[A] =
+      to[IO]
 
-  /**
-    * Convert this `Exec` to an `IO`, preserving purity and allowing
-    * for interop with asynchronous computations.
-    */
-  def toIO: IO[A] =
-    to[IO]
-
-  /**
-    * Convert this `Exec` to another effect type that implements the [[Sync]] type class.
-    */
-  def to[F[_]: Sync]: F[A] =
-    Sync[F].delay(unsafeRun)
+    /**
+     * Convert this `Exec` to another effect type that implements the [[Sync]] type class.
+     */
+    def to[F[_]](implicit F: Sync[F]): F[A] = unwrap(value) match {
+      case Now(a) => F.pure(a)
+      case notNow => F.delay(notNow.value)
+    }
+  }
 }
 
 private[effect] sealed abstract class ExecInstances extends UExecInstances0 {

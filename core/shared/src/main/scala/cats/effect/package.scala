@@ -24,5 +24,5 @@ package object effect {
     * However, it is important realize, that unlike `IO`, `Exec` does not catch any errors
     * and in order to form a valid `Sync` needs to be combined with `EitherT`.
     */
-  type Exec[A] = Exec.Type[A]
+  type Exec[+A] = Exec.Type[A]
 }
