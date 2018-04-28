@@ -101,9 +101,9 @@ object Exec extends ExecInstances with ExecNewtype {
   }
 }
 
-private[effect] sealed abstract class ExecInstances extends UExecInstances0 {
+private[effect] sealed abstract class ExecInstances extends ExecInstances0 {
 
-  implicit val catsUExecMonad: Monad[Exec] = new Monad[Exec] {
+  implicit val catsExecMonad: Monad[Exec] = new Monad[Exec] {
     def flatMap[A, B](fa: Exec[A])(f: A => Exec[B]): Exec[B] =
       Exec.create(Exec.unwrap(fa).flatMap(f andThen(Exec.unwrap)))
 
@@ -114,17 +114,17 @@ private[effect] sealed abstract class ExecInstances extends UExecInstances0 {
       Exec.create(Eval.now(x))
   }
 
-  implicit def catsUExecMonoid[A: Monoid]: Monoid[Exec[A]] = new UExecSemigroup[A] with Monoid[Exec[A]] {
+  implicit def catsExecMonoid[A: Monoid]: Monoid[Exec[A]] = new ExecSemigroup[A] with Monoid[Exec[A]] {
     val empty: Exec[A] = Exec.pure(Monoid[A].empty)
   }
 }
 
-private[effect] sealed abstract class UExecInstances0 {
-  implicit def catsExecSemigroup[A: Semigroup]: Semigroup[Exec[A]] = new UExecSemigroup[A]
+private[effect] sealed abstract class ExecInstances0 {
+  implicit def catsExecSemigroup[A: Semigroup]: Semigroup[Exec[A]] = new ExecSemigroup[A]
 }
 
 
-private[effect] class UExecSemigroup[A: Semigroup] extends Semigroup[Exec[A]] {
+private[effect] class ExecSemigroup[A: Semigroup] extends Semigroup[Exec[A]] {
   def combine(x: Exec[A], y: Exec[A]): Exec[A] =
     Exec.create(Exec.unwrap(x).flatMap(a => Exec.unwrap(y).map(Semigroup[A].combine(a, _))))
 }
