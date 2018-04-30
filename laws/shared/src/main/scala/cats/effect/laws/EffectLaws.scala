@@ -43,6 +43,14 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     val fa = F.pure(())
     F.runAsync(fa)(_ => IO.raiseError(e)) <-> IO.pure(())
   }
+
+  def runSyncMaybeSuspendPureProducesTheSame[A](fa: F[A]) = {
+    F.runSyncMaybe(F.suspend(fa)) <-> F.runSyncMaybe(fa)
+  }
+
+  def runSyncMaybeAsyncProducesLeftPureIO[A] = {
+    F.runSyncMaybe(F.async[A] { _ => () }) <-> IO.pure(Left(F.async[A] { _ => () }))
+  }
 }
 
 object EffectLaws {

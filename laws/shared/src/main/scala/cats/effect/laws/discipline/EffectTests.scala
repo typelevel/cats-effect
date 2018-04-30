@@ -51,6 +51,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
     EqFInt: Eq[F[Int]],
     EqIOU: Eq[IO[Unit]],
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
+    EqIOEitherFAA: Eq[IO[Either[F[A], A]]],
     iso: Isomorphisms[F],
     params: Parameters): RuleSet = {
 
@@ -62,6 +63,8 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
+        "runSyncMaybe suspend pure produces the same" -> forAll(laws.runSyncMaybeSuspendPureProducesTheSame[A] _),
+        "runSyncMaybe async produces left pure IO" -> Prop.lzy(laws.runSyncMaybeAsyncProducesLeftPureIO[A]),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
     }
   }

@@ -19,6 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, StateT, WriterT}
+import cats.implicits._
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -40,6 +41,7 @@ import scala.util.Either
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
+
   /**
    * Evaluates `F[_]`, with the effect of starting the run-loop
    * being suspended in the `IO` context.
@@ -55,6 +57,8 @@ trait Effect[F[_]] extends Async[F] {
    * }}}
    */
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
+
+  def runSyncMaybe[A](fa: F[A]): IO[Either[F[A], A]]
 }
 
 object Effect {
@@ -86,6 +90,13 @@ object Effect {
 
     def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
+
+    def runSyncMaybe[A](fa: EitherT[F, Throwable, A]): IO[Either[EitherT[F, Throwable, A], A]] = {
+      F.runSyncMaybe(fa.value).flatMap {
+        case Left(feta) => IO.pure(Left(EitherT(feta)))
+        case Right(eta) => IO.fromEither(eta).map(Right(_))
+      }
+    }
   }
 
   private[effect] trait StateTEffect[F[_], S] extends Effect[StateT[F, S, ?]]
@@ -96,6 +107,9 @@ object Effect {
 
     def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       F.runAsync(fa.runA(S.empty)(F))(cb)
+
+    def runSyncMaybe[A](fa: StateT[F, S, A]): IO[Either[StateT[F, S, A], A]] =
+      F.runSyncMaybe(fa.runA(S.empty)(F)).map(_.leftMap(fa => StateT.liftF(fa)(F)))
   }
 
   private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
@@ -106,5 +120,12 @@ object Effect {
 
     def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
+
+    def runSyncMaybe[A](fa: WriterT[F, L, A]): IO[Either[WriterT[F, L, A], A]] = {
+      F.runSyncMaybe(fa.run).map {
+        case Left(fla) => Left(WriterT(fla))
+        case Right(la) => Right(la._2)
+      }
+    }
   }
 }
