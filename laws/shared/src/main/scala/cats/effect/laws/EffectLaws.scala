@@ -19,6 +19,7 @@ package effect
 package laws
 
 import cats.laws._
+import cats.implicits._
 
 trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Effect[F]
@@ -50,6 +51,17 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
 
   def runSyncMaybeAsyncProducesLeftPureIO[A] = {
     F.runSyncMaybe(F.async[A] { _ => () }) <-> IO.pure(Left(F.async[A] { _ => () }))
+  }
+
+  def runSyncMaybeCanBeAttemptedSynchronously[A](fa: F[A]) = {
+    Either.catchNonFatal(F.runSyncMaybe(fa).attempt.unsafeRunSync()).isRight
+  }
+
+  def runSyncMaybeRunAsyncConsistency[A](fa: F[A]) = {
+    def runToIO(fa: F[A]): IO[A] = IO.async { cb =>
+      F.runAsync(fa)(eta => IO { cb(eta) }).unsafeRunSync()
+    }
+    F.runSyncMaybe(fa).flatMap(_.fold(runToIO, IO.pure)) <-> runToIO(fa)
   }
 }
 
