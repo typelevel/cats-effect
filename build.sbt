@@ -174,6 +174,10 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
       exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runSyncMaybe"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runSyncMaybe"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runSyncMaybe"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runSyncMaybe"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runSyncMaybe"),
       //
       // Following are all internal implementation details:
       //
