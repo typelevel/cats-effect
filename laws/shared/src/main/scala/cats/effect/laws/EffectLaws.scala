@@ -49,8 +49,12 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     F.runSyncMaybe(F.suspend(fa)) <-> F.runSyncMaybe(fa)
   }
 
-  def runSyncMaybeAsyncProducesLeftPureIO[A] = {
-    F.runSyncMaybe(F.async[A] { _ => () }) <-> IO.pure(Left(F.async[A] { _ => () }))
+  def runSyncMaybeAsyncProducesLeftPureIO[A](k: (Either[Throwable, A] => Unit) => Unit) = {
+    F.runSyncMaybe(F.async[A](k)) <-> IO.pure(Left(F.async[A](k)))
+  }
+
+  def runSyncMaybeAsyncNeverProducesLeftPureIO[A] = {
+    F.runSyncMaybe(F.never[A]) <-> IO.pure(Left(F.never[A]))
   }
 
   def runSyncMaybeCanBeAttemptedSynchronously[A](fa: F[A]) = {

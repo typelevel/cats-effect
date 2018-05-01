@@ -65,7 +65,8 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
         "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
         "runSyncMaybe suspend pure produces the same" -> forAll(laws.runSyncMaybeSuspendPureProducesTheSame[A] _),
-        "runSyncMaybe async produces left pure IO" -> Prop.lzy(laws.runSyncMaybeAsyncProducesLeftPureIO[A]),
+        "runSyncMaybe async produces left pure IO" -> forAll(laws.runSyncMaybeAsyncProducesLeftPureIO[A] _),
+        "runSyncMaybe async never produces left pure IO" -> Prop.lzy(laws.runSyncMaybeAsyncNeverProducesLeftPureIO[A]),
         "runSyncMaybe can be attempted synchronously" -> forAll(laws.runSyncMaybeCanBeAttemptedSynchronously[A] _),
         "runSyncMaybe runAsync consistency" -> forAll(laws.runSyncMaybeRunAsyncConsistency[A] _),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
