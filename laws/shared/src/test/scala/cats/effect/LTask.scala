@@ -72,7 +72,7 @@ object LTask {
           cb(Conversions.toEither(r)).unsafeRunAsync(Callback.report)
         })
 
-      def runSyncMaybe[A](fa: LTask[A]): IO[Either[LTask[A], A]] =
+      def runSyncStep[A](fa: LTask[A]): IO[Either[LTask[A], A]] =
         IO.pure(Left(fa))
 
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =

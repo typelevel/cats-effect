@@ -576,18 +576,18 @@ class IOTests extends BaseTestsSuite {
     p.future.value shouldBe None
   }
 
-  test("runSyncMaybe pure produces right IO") {
-    IO.pure(42).runSyncMaybe.unsafeRunSync() shouldBe Right(42)
+  test("runSyncStep pure produces right IO") {
+    IO.pure(42).runSyncStep.unsafeRunSync() shouldBe Right(42)
   }
 
-  test("runSyncMaybe raiseError produces error IO") {
+  test("runSyncStep raiseError produces error IO") {
     val e = new Exception
-    IO.raiseError(e).runSyncMaybe.attempt.unsafeRunSync() shouldBe Left(e)
+    IO.raiseError(e).runSyncStep.attempt.unsafeRunSync() shouldBe Left(e)
   }
 
-  test("runSyncMaybe delay produces right IO") {
+  test("runSyncStep delay produces right IO") {
     var v = 42
-    val io = (IO { v += 1 }).runSyncMaybe
+    val io = (IO { v += 1 }).runSyncStep
     v shouldBe 42
     io.unsafeRunSync() shouldBe Right(())
     v shouldBe 43
@@ -615,8 +615,8 @@ object IOTests {
       ref.tailRecM(a)(f)
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       ref.runAsync(fa)(cb)
-    def runSyncMaybe[A](fa: IO[A]): IO[Either[IO[A], A]] =
-      ref.runSyncMaybe(fa)
+    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+      ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
     def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =

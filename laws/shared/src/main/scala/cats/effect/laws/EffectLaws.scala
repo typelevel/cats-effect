@@ -45,27 +45,27 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     F.runAsync(fa)(_ => IO.raiseError(e)) <-> IO.pure(())
   }
 
-  def runSyncMaybeSuspendPureProducesTheSame[A](fa: F[A]) = {
-    F.runSyncMaybe(F.suspend(fa)) <-> F.runSyncMaybe(fa)
+  def runSyncStepSuspendPureProducesTheSame[A](fa: F[A]) = {
+    F.runSyncStep(F.suspend(fa)) <-> F.runSyncStep(fa)
   }
 
-  def runSyncMaybeAsyncProducesLeftPureIO[A](k: (Either[Throwable, A] => Unit) => Unit) = {
-    F.runSyncMaybe(F.async[A](k)) <-> IO.pure(Left(F.async[A](k)))
+  def runSyncStepAsyncProducesLeftPureIO[A](k: (Either[Throwable, A] => Unit) => Unit) = {
+    F.runSyncStep(F.async[A](k)) <-> IO.pure(Left(F.async[A](k)))
   }
 
-  def runSyncMaybeAsyncNeverProducesLeftPureIO[A] = {
-    F.runSyncMaybe(F.never[A]) <-> IO.pure(Left(F.never[A]))
+  def runSyncStepAsyncNeverProducesLeftPureIO[A] = {
+    F.runSyncStep(F.never[A]) <-> IO.pure(Left(F.never[A]))
   }
 
-  def runSyncMaybeCanBeAttemptedSynchronously[A](fa: F[A]) = {
-    Either.catchNonFatal(F.runSyncMaybe(fa).attempt.unsafeRunSync()).isRight
+  def runSyncStepCanBeAttemptedSynchronously[A](fa: F[A]) = {
+    Either.catchNonFatal(F.runSyncStep(fa).attempt.unsafeRunSync()).isRight
   }
 
-  def runSyncMaybeRunAsyncConsistency[A](fa: F[A]) = {
+  def runSyncStepRunAsyncConsistency[A](fa: F[A]) = {
     def runToIO(fa: F[A]): IO[A] = IO.async { cb =>
       F.runAsync(fa)(eta => IO { cb(eta) }).unsafeRunSync()
     }
-    F.runSyncMaybe(fa).flatMap(_.fold(runToIO, IO.pure)) <-> runToIO(fa)
+    F.runSyncStep(fa).flatMap(_.fold(runToIO, IO.pure)) <-> runToIO(fa)
   }
 }
 
