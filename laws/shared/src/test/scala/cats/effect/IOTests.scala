@@ -594,6 +594,21 @@ class IOTests extends BaseTestsSuite {
     io.unsafeRunSync() shouldBe Right(())
     v shouldBe 44
   }
+
+  test("runSyncStep runs bind chain") {
+    var v = 42
+    val tsk = IO.pure(42).flatMap { x =>
+      (IO { v += x }).flatMap { _ =>
+        IO.pure(x)
+      }
+    }
+    val io = tsk.runSyncStep
+    v shouldBe 42
+    io.unsafeRunSync() shouldBe Right(42)
+    v shouldBe 84
+    io.unsafeRunSync() shouldBe Right(42)
+    v shouldBe 126
+  }
 }
 
 object IOTests {
