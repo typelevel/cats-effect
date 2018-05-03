@@ -41,9 +41,9 @@ import scala.annotation.tailrec
   * For this reason, a `Ref` is always initialised to a value.
   *
   * The implementation is nonblocking and lightweight, consisting essentially of
-  * a purely functional wrapper over an `AtomicReference`
+  * a purely functional wrapper over an `AtomicReference`.
   */
-final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F: Sync[F]) {
+final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
 
   /**
     * Obtains the current value.
@@ -51,7 +51,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     * Since `Ref` is always guaranteed to have a value, the returned action
     * completes immediately after being bound.
     */
-  def get: F[A] = F.delay(ar.get)
+  def get(implicit F: Sync[F]): F[A] = F.delay(ar.get)
 
   /**
     * *Synchronously* sets the current value to `a`.
@@ -61,7 +61,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     * Satisfies:
     *   `r.setSync(fa) *> r.get == fa`
     */
-  def setSync(a: A): F[Unit] = F.delay(ar.set(a))
+  def setSync(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.set(a))
 
   /**
     * *Asynchronously* sets the current value to the `a`
@@ -73,7 +73,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     *   `r.setAsync(fa) == async.shiftStart(r.setSync(a))`
     * but it's significantly faster.
     */
-  def setAsync(a: A): F[Unit] = F.delay(ar.lazySet(a))
+  def setAsync(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.lazySet(a))
 
   /**
     * Obtains a snapshot of the current value, and a setter for updating it.
@@ -86,7 +86,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     *   `r.access.map(_._1) == r.get`
     *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryModify(f).map(_.isDefined)`
     */
-  def access: F[(A, A => F[Boolean])] = F.delay {
+  def access(implicit F: Sync[F]): F[(A, A => F[Boolean])] = F.delay {
     val snapshot = ar.get
     val hasBeenCalled = new AtomicBoolean(false)
     def setter =
@@ -106,7 +106,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     * concurrent modification completes between the time the variable is
     * read and the time it is set.
     */
-  def tryModify(f: A => A): F[Option[Ref.Change[A]]] = F.delay {
+  def tryModify(f: A => A)(implicit F: Sync[F]): F[Option[Ref.Change[A]]] = F.delay {
     val c = ar.get
     val u = f(c)
     if (ar.compareAndSet(c, u)) Some(Ref.Change(c, u))
@@ -114,7 +114,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
   }
 
   /** Like `tryModify` but allows returning a `B` along with the update. */
-  def tryModify2[B](f: A => (A, B)): F[Option[(Ref.Change[A], B)]] = F.delay {
+  def tryModify2[B](f: A => (A, B))(implicit F: Sync[F]): F[Option[(Ref.Change[A], B)]] = F.delay {
     val c = ar.get
     val (u, b) = f(c)
     if (ar.compareAndSet(c, u)) Some(Ref.Change(c, u) -> b)
@@ -127,7 +127,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
     * Satisfies:
     *   `r.modify(_ => a).void == r.setSync(a)`
     */
-  def modify(f: A => A): F[Ref.Change[A]] = {
+  def modify(f: A => A)(implicit F: Sync[F]): F[Ref.Change[A]] = {
     @tailrec
     def spin: Ref.Change[A] = {
       val c = ar.get
@@ -139,7 +139,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A])(implicit F
   }
 
   /** Like `modify` but allows returning a `B` along with the update. */
-  def modify2[B](f: A => (A, B)): F[(Ref.Change[A], B)] = {
+  def modify2[B](f: A => (A, B))(implicit F: Sync[F]): F[(Ref.Change[A], B)] = {
     @tailrec
     def spin: (Ref.Change[A], B) = {
       val c = ar.get
@@ -162,7 +162,7 @@ object Ref {
     * This method is considered unsafe because it is not referentially transparent -- it allocates
     * mutable state.
     */
-  def unsafeCreate[F[_]: Sync, A](a: A): Ref[F, A] =
+  def unsafeCreate[F[_], A](a: A): Ref[F, A] =
     new Ref[F, A](new AtomicReference[A](a))
 
   /**

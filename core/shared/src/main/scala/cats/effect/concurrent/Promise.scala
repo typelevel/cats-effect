@@ -53,13 +53,13 @@ import Promise._
   * Finally, the blocking mentioned above is semantic only, no actual threads are
   * blocked by the implementation.
   */
-final class Promise[F[_], A] private (ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) {
+final class Promise[F[_], A] private (ref: AtomicReference[State[A]]) {
 
   /**
    * Obtains the value of the `Promise`, or waits until it has been completed.
    * The returned value may be canceled.
    */
-  def get: F[A] =
+  def get(implicit F: Concurrent[F]): F[A] =
     F.delay(ref.get).flatMap {
       case State.Set(a) => F.pure(a)
       case State.Unset(_) =>
@@ -104,7 +104,7 @@ final class Promise[F[_], A] private (ref: AtomicReference[State[A]])(implicit F
     * Satisfies:
     *   `Promise.empty[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
     */
-  def complete(a: A): F[Unit] = {
+  def complete(a: A)(implicit F: Sync[F]): F[Unit] = {
     def notifyReaders(r: State.Unset[A]): Unit =
       r.waiting.values.foreach { cb =>
         cb(a)
@@ -133,7 +133,7 @@ object Promise {
     * This method is considered unsafe because it is not referentially transparent -- it allocates
     * mutable state.
     */
-  def unsafeCreate[F[_]: Concurrent, A]: Promise[F, A] =
+  def unsafeCreate[F[_], A]: Promise[F, A] =
     new Promise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
 
   /** Raised when trying to complete a [[Promise]] that has already been completed. */
