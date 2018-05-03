@@ -28,9 +28,6 @@ package concurrent
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-import cats.{Eq, Show}
-import cats.implicits._
-
 import scala.annotation.tailrec
 
 /**
@@ -106,18 +103,10 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
     * concurrent modification completes between the time the variable is
     * read and the time it is set.
     */
-  def tryModify(f: A => A)(implicit F: Sync[F]): F[Option[Ref.Change[A]]] = F.delay {
-    val c = ar.get
-    val u = f(c)
-    if (ar.compareAndSet(c, u)) Some(Ref.Change(c, u))
-    else None
-  }
-
-  /** Like `tryModify` but allows returning a `B` along with the update. */
-  def tryModify2[B](f: A => (A, B))(implicit F: Sync[F]): F[Option[(Ref.Change[A], B)]] = F.delay {
+  def tryModify[B](f: A => (A, B))(implicit F: Sync[F]): F[Option[B]] = F.delay {
     val c = ar.get
     val (u, b) = f(c)
-    if (ar.compareAndSet(c, u)) Some(Ref.Change(c, u) -> b)
+    if (ar.compareAndSet(c, u)) Some(b)
     else None
   }
 
@@ -125,27 +114,15 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
     * Like `tryModify` but does not complete until the update has been successfully made.
     *
     * Satisfies:
-    *   `r.modify(_ => a).void == r.setSync(a)`
+    *   `r.modify(_ => (a, ())).void == r.setSync(a)`
     */
-  def modify(f: A => A)(implicit F: Sync[F]): F[Ref.Change[A]] = {
+  def modify[B](f: A => (A, B))(implicit F: Sync[F]): F[B] = {
     @tailrec
-    def spin: Ref.Change[A] = {
-      val c = ar.get
-      val u = f(c)
-      if (!ar.compareAndSet(c, u)) spin
-      else Ref.Change(c, u)
-    }
-    F.delay(spin)
-  }
-
-  /** Like `modify` but allows returning a `B` along with the update. */
-  def modify2[B](f: A => (A, B))(implicit F: Sync[F]): F[(Ref.Change[A], B)] = {
-    @tailrec
-    def spin: (Ref.Change[A], B) = {
+    def spin: B = {
       val c = ar.get
       val (u, b) = f(c)
       if (!ar.compareAndSet(c, u)) spin
-      else (Ref.Change(c, u), b)
+      else b
     }
     F.delay(spin)
   }
@@ -164,22 +141,5 @@ object Ref {
     */
   def unsafeCreate[F[_], A](a: A): Ref[F, A] =
     new Ref[F, A](new AtomicReference[A](a))
-
-  /**
-    * The result of a modification to a [[Ref]].
-    *
-    * @param previous value of the `Ref` before the modification
-    * @param now value of the `Ref` after the modification
-    */
-  final case class Change[+A](previous: A, now: A) {
-    def map[B](f: A => B): Change[B] = Change(f(previous), f(now))
-  }
-
-  object Change {
-    implicit def eqInstance[A: Eq]: Eq[Change[A]] =
-      Eq.by(c => c.previous -> c.now)
-
-    implicit def showInstance[A: Show]: Show[Change[A]] =
-      Show.show(c => show"Change(previous: ${c.previous}, now: ${c.now})")
-  }
 }
+

@@ -55,7 +55,7 @@ class PromiseTests extends AsyncFunSuite with Matchers with EitherValues {
       state <- Ref[IO, Int](0)
       modifyGate <- Promise.empty[IO, Unit]
       readGate <- Promise.empty[IO, Unit]
-      _ <- IO.shift *> (modifyGate.get *> state.modify(_ * 2) *> readGate.complete(())).start
+      _ <- IO.shift *> (modifyGate.get *> state.modify(c => (c * 2, ())) *> readGate.complete(())).start
       _ <- IO.shift *> (state.setSync(1) *> modifyGate.complete(())).start
       _ <- readGate.get
       res <- state.get

@@ -30,6 +30,8 @@ import cats.implicits.{catsSyntaxEither => _, _}
 
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.annotation.tailrec
+
 import Promise._
 
 /**
@@ -110,6 +112,7 @@ final class Promise[F[_], A] private (ref: AtomicReference[State[A]]) {
         cb(a)
       }
 
+    @tailrec
     def loop(): Unit =
       ref.get match {
         case s @ State.Set(_) => throw new AlreadyCompletedException
@@ -125,7 +128,7 @@ final class Promise[F[_], A] private (ref: AtomicReference[State[A]]) {
 object Promise {
 
   /** Creates an unset promise. **/
-  def empty[F[_], A](implicit F: Concurrent[F]): F[Promise[F, A]] =
+  def empty[F[_], A](implicit F: Sync[F]): F[Promise[F, A]] =
     F.delay(unsafeCreate[F, A])
 
   /**
