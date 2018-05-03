@@ -180,6 +180,6 @@ object Ref {
       Eq.by(c => c.previous -> c.now)
 
     implicit def showInstance[A: Show]: Show[Change[A]] =
-      Show(c => show"Change(previous: ${c.previous}, now: ${c.now})")
+      Show.show(c => show"Change(previous: ${c.previous}, now: ${c.now})")
   }
 }
