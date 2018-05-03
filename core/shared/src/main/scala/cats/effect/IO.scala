@@ -179,6 +179,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsync(Callback.report)))
   }
 
+  final def runSyncStep: IO[Either[IO[A], A]] = IO.suspend {
+    IORunLoop.step(this) match {
+      case Pure(a) => Pure(Right(a))
+      case r @ RaiseError(_) => r
+      case async => Pure(Left(async))
+    }
+  }
+
   /**
    * Produces an `IO` reference that should execute the source on evaluation,
    * without waiting for its result and return a cancelable token, being the
@@ -619,6 +627,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.racePair(fa, fb)
     override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
+    override def runSyncStep[A](ioa: IO[A]): IO[Either[IO[A], A]] =
+      ioa.runSyncStep
     override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
       IO.cancelable(k)
     override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
