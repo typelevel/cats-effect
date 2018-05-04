@@ -200,7 +200,9 @@ val mimaSettings = Seq(
       // Not a problem: IORunLoop is private
       exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
       // Not a problem: Async.never implementation is just moved
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never")
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
+      // Deleted
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler")
     )
   })
 

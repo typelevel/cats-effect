@@ -536,7 +536,74 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
     IOBracket(this)(use)(release)
 
-  override def toString = this match {
+  /**
+   * Handle any error, potentially recovering from it, by mapping it to another
+   * `IO` value.
+   *
+   * Implements `ApplicativeError.handleErrorWith`.
+   */
+  def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
+    IO.Bind(this, new IOFrame.ErrorHandler(f))
+
+  /**
+   * Returns a new value that transforms the result of the source,
+   * given the `recover` or `map` functions, which get executed depending
+   * on whether the result is successful or if it ends in error.
+   *
+   * This is an optimization on usage of [[attempt]] and [[map]],
+   * this equivalence being true:
+   *
+   * {{{
+   *   io.redeem(recover, map) <-> io.attempt.map(_.fold(recover, map))
+   * }}}
+   *
+   * Usage of `redeem` subsumes `handleError` because:
+   *
+   * {{{
+   *   io.redeem(fe, id) <-> io.handleError(fe)
+   * }}}
+   *
+   * @param recover is a function used for error recover in case the
+   *        source ends in error
+   * @param map is a function used for mapping the result of the source
+   *        in case it ends in success
+   */
+  def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
+    IO.Bind(this, new IOFrame.Redeem(recover, map))
+
+  /**
+   * Returns a new value that transforms the result of the source,
+   * given the `recover` or `bind` functions, which get executed depending
+   * on whether the result is successful or if it ends in error.
+   *
+   * This is an optimization on usage of [[attempt]] and [[flatMap]],
+   * this equivalence being available:
+   *
+   * {{{
+   *   io.redeemWith(recover, bind) <-> io.attempt.flatMap(_.fold(recover, bind))
+   * }}}
+   *
+   * Usage of `redeemWith` subsumes `handleErrorWith` because:
+   *
+   * {{{
+   *   io.redeemWith(fe, F.pure) <-> io.handleErrorWith(fe)
+   * }}}
+   *
+   * Usage of `redeemWith` also subsumes [[flatMap]] because:
+   *
+   * {{{
+   *   io.redeemWith(F.raiseError, fs) <-> io.flatMap(fs)
+   * }}}
+   *
+   * @param recover is the function that gets called to recover the source
+   *        in case of error
+   * @param bind is the function that gets to transform the source
+   *        in case of success
+   */
+  def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+    IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
+
+  override def toString: String = this match {
     case Pure(a) => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
     case _ => "IO$" + System.identityHashCode(this)
@@ -546,7 +613,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 private[effect] abstract class IOParallelNewtype
   extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
 
-  /** Newtype encoding for an `IO` datatype that has a `cats.Applicative`
+  /**
+   * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
    * for implementing `cats.Parallel`.
    *
@@ -559,7 +627,8 @@ private[effect] abstract class IOParallelNewtype
    */
   type Par[+A] = Par.Type[A]
 
-  /** Newtype encoding, see the [[IO.Par]] type alias
+  /**
+   * Newtype encoding, see the [[IO.Par]] type alias
    * for more details.
    */
   object Par extends IONewtype
@@ -608,7 +677,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
     override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] =
       ioa.attempt
     override def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
-      IO.Bind(ioa, IOFrame.errorHandler(f))
+      ioa.handleErrorWith(f)
     override def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
     override def suspend[A](thunk: => IO[A]): IO[A] =
@@ -637,7 +706,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       ioa
     // this will use stack proportional to the maximum number of joined async suspensions
     override def tailRecM[A, B](a: A)(f: A => IO[Either[A, B]]): IO[B] =
-      f(a) flatMap {
+      f(a).flatMap {
         case Left(a) => tailRecM(a)(f)
         case Right(b) => pure(b)
       }

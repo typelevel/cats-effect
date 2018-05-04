@@ -576,6 +576,30 @@ class IOTests extends BaseTestsSuite {
     p.future.value shouldBe None
   }
 
+  testAsync("IO#redeem(throw, f) <-> IO#map") { implicit ec =>
+    check { (io: IO[Int], f: Int => Int) =>
+      io.redeem(e => throw e, f) <-> io.map(f)
+    }
+  }
+
+  testAsync("IO#redeem(f, identity) <-> IO#handleError") { implicit ec =>
+    check { (io: IO[Int], f: Throwable => Int) =>
+      io.redeem(f, identity) <-> io.handleError(f)
+    }
+  }
+
+  testAsync("IO#redeemWith(raiseError, f) <-> IO#flatMap") { implicit ec =>
+    check { (io: IO[Int], f: Int => IO[Int]) =>
+      io.redeemWith(IO.raiseError, f) <-> io.flatMap(f)
+    }
+  }
+
+  testAsync("IO#redeemWith(f, pure) <-> IO#handleErrorWith") { implicit ec =>
+    check { (io: IO[Int], f: Throwable => IO[Int]) =>
+      io.redeemWith(f, IO.pure) <-> io.handleErrorWith(f)
+    }
+  }
+
   test("runSyncStep pure produces right IO") {
     IO.pure(42).runSyncStep.unsafeRunSync() shouldBe Right(42)
   }
