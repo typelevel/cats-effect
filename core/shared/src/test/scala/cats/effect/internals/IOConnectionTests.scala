@@ -83,7 +83,7 @@ class IOConnectionTests extends FunSuite with Matchers {
     ref1 shouldBe ref2
   }
 
-  test("alreadyCanceled reference is already cancelled") {
+  test("alreadyCanceled reference is already canceled") {
     val ref = IOConnection.alreadyCanceled
     ref.isCanceled shouldBe true
     ref.cancel()
@@ -108,7 +108,7 @@ class IOConnectionTests extends FunSuite with Matchers {
     ref1 shouldBe ref2
   }
 
-  test("uncancelable reference cannot be cancelled") {
+  test("uncancelable reference cannot be canceled") {
     val ref = IOConnection.uncancelable
     ref.isCanceled shouldBe false
     ref.cancel()

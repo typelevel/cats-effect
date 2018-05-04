@@ -72,6 +72,9 @@ object LTask {
           cb(Conversions.toEither(r)).unsafeRunAsync(Callback.report)
         })
 
+      def runSyncStep[A](fa: LTask[A]): IO[Either[LTask[A], A]] =
+        IO.pure(Left(fa))
+
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =
         LTask { implicit ec =>
           Future.successful(()).flatMap { _ =>

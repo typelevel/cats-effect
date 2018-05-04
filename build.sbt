@@ -173,6 +173,11 @@ val mimaSettings = Seq(
       exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
       exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runSyncStep"),
       //
       // Following are all internal implementation details:
       //
@@ -403,12 +408,12 @@ useGpg := true
 
 enablePlugins(GitVersioning)
 
-val ReleaseTag = """^v([\d\.]+)$""".r
+val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
 
 git.baseVersion := BaseVersion
 
 git.gitTagToVersionNumber := {
-  case ReleaseTag(version) => Some(version)
+  case ReleaseTag(v) => Some(v)
   case _ => None
 }
 

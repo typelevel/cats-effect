@@ -29,7 +29,7 @@ import scala.util.Either
  * [[Effect]], instances must also implement a
  * [[ConcurrentEffect!.runCancelable runCancelable]] operation that
  * triggers the evaluation, suspended in the `IO` context, but that
- * also returns a token that can be used for cancelling the running
+ * also returns a token that can be used for canceling the running
  * computation.
  *
  * Note this is the safe and generic version of [[IO.unsafeRunCancelable]].
