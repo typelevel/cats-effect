@@ -64,7 +64,7 @@ abstract class Pledge[F[_], A] {
     * use `async.shiftStart(r.complete)` if you want asynchronous behaviour.
     *
     * If this `Pledge` has already been completed, the returned action immediately fails with
-    * an [[IllegalStateException]]. In the uncommon scenario where this behavior
+    * an `IllegalStateException`. In the uncommon scenario where this behavior
     * is problematic, you can handle failure explicitly using `attempt` or any other 
     * `ApplicativeError`/`MonadError` combinator on the returned action.
     *
