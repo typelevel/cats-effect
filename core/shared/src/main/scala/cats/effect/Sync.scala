@@ -26,7 +26,7 @@ import cats.syntax.all._
  * in the `F[_]` context.
  */
 @typeclass
-trait Sync[F[_]] extends Bracket[F, Throwable] {
+trait Sync[F[_]] extends Bracket[F, Throwable] with USync[F] {
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -44,6 +44,9 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
    * in `F`.
    */
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
+
+  override def delayCatch[A](thunk: => A): F[Either[Throwable, A]] =
+    attempt(delay(thunk))
 }
 
 object Sync {

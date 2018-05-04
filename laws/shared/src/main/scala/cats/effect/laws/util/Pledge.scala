@@ -16,7 +16,7 @@
 
 package cats.effect.laws.util
 
-import cats.effect.{Async, Sync}
+import cats.effect.{UAsync, USync}
 import cats.effect.internals.TrampolineEC
 
 import scala.concurrent.Promise
@@ -55,15 +55,15 @@ final class Pledge[A] {
    * It's a protocol violation to try and complete the
    * pledge twice. The second time will end in error.
    */
-  def complete[F[_]](a: A)(implicit F: Sync[F]): F[Unit] =
-    F.delay(ref.success(a))
+  def complete[F[_]](a: A)(implicit F: USync[F]): F[Unit] =
+    F.delayUnit(ref.success(a))
 
   /**
    * Awaits for the pledge to be completed, then returns
    * the final value.
    */
-  def await[F[_]](implicit F: Async[F]): F[A] =
-    F.async { cb =>
+  def await[F[_]](implicit F: UAsync[F]): F[A] =
+    UAsync.bewareAsyncNoCatch { cb =>
       implicit val ec = TrampolineEC.immediate
       ref.future.onComplete {
         case Success(a) => cb(Right(a))
@@ -76,6 +76,6 @@ object Pledge {
   /**
    * Builder for a `Pledge` instance.
    */
-  def apply[F[_], A](implicit F: Async[F]): F[Pledge[A]] =
-    F.delay(new Pledge[A]())
+  def apply[F[_], A](implicit F: UAsync[F]): F[Pledge[A]] =
+    USync.bewareDelayNoCatch(new Pledge[A]())
 }

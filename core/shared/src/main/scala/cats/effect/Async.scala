@@ -96,7 +96,7 @@ import scala.util.Either
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait Async[F[_]] extends Sync[F] with LiftIO[F] {
+trait Async[F[_]] extends Sync[F] with LiftIO[F] with UAsync[F] {
   /**
    * Creates a simple, noncancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
@@ -129,7 +129,10 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
     * Returns a non-terminating `F[_]`, that never completes
     * with a result, being equivalent to `async(_ => ())`
     */
-  def never[A]: F[A] = async(_ => ())
+  override def never[A]: F[A] = async(_ => ())
+
+  override def asyncCatch[A](k: (Either[Throwable, A] => Unit) => Unit): F[Either[Throwable, A]] =
+    attempt(async(k))
 
   /**
    * DEPRECATED — moved to [[Async$.shift]].
