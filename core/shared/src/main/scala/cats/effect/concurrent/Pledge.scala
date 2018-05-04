@@ -1,0 +1,179 @@
+/*
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package cats
+package effect
+package concurrent
+
+import cats.effect.internals.LinkedMap
+import cats.implicits.{catsSyntaxEither => _, _}
+
+import java.util.concurrent.atomic.AtomicReference
+
+import scala.annotation.tailrec
+
+/**
+  * A purely functional synchronization primitive which represents a single value
+  * which may not yet be available.
+  *
+  * When created, a `Pledge` is empty. It can then be completed exactly once,
+  * and never be made empty again.
+  *
+  * `get` on an empty `Pledge` will block until the `Pledge` is completed.
+  * `get` on a completed `Pledge` will always immediately return its content.
+  *
+  * `complete(a)` on an empty `Pledge` will set it to `a`, and notify any and
+  * all readers currently blocked on a call to `get`.
+  * `complete(a)` on a `Pledge` that has already been completed will not modify
+  * its content, and result in a failed `F`.
+  *
+  * Albeit simple, `Pledge` can be used in conjunction with [[Ref]] to build
+  * complex concurrent behaviour and data structures like queues and semaphores.
+  *
+  * Finally, the blocking mentioned above is semantic only, no actual threads are
+  * blocked by the implementation.
+  */
+abstract class Pledge[F[_], A] {
+
+  /**
+   * Obtains the value of the `Pledge`, or waits until it has been completed.
+   * The returned value may be canceled.
+   */
+  def get: F[A]
+
+  /**
+    * If this `Pledge` is empty, *synchronously* sets the current value to `a`, and notifies
+    * any and all readers currently blocked on a `get`.
+    *
+    * Note that the returned action completes after the reference has been successfully set:
+    * use `async.shiftStart(r.complete)` if you want asynchronous behaviour.
+    *
+    * If this `Pledge` has already been completed, the returned action immediately fails with
+    * an [[IllegalStateException]]. In the uncommon scenario where this behavior
+    * is problematic, you can handle failure explicitly using `attempt` or any other 
+    * `ApplicativeError`/`MonadError` combinator on the returned action.
+    *
+    * Satisfies:
+    *   `Pledge[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
+    */
+  def complete(a: A): F[Unit]
+}
+
+object Pledge {
+
+  /** Creates an unset promise. **/
+  def apply[F[_], A](implicit F: Concurrent[F]): F[Pledge[F, A]] =
+    F.delay(unsafe[F, A])
+
+  /**
+    * Like `apply` but returns the newly allocated promise directly instead of wrapping it in `F.delay`.
+    * This method is considered unsafe because it is not referentially transparent -- it allocates
+    * mutable state.
+    */
+  def unsafe[F[_]: Concurrent, A]: Pledge[F, A] =
+    new ConcurrentPledge[F, A](new AtomicReference(Pledge.State.Unset(LinkedMap.empty)))
+    
+  /** Creates an unset promise that only requires an `Async[F]` and does not support cancelation of `get`. **/
+  def async[F[_], A](implicit F: Async[F]): F[Pledge[F, A]] =
+    F.delay(unsafeAsync[F, A])
+
+  /**
+    * Like `async` but returns the newly allocated promise directly instead of wrapping it in `F.delay`.
+    * This method is considered unsafe because it is not referentially transparent -- it allocates
+    * mutable state.
+    */
+  def unsafeAsync[F[_]: Async, A]: Pledge[F, A] =
+    new AsyncPledge[F, A](new AtomicReference(Pledge.State.Unset(LinkedMap.empty)))
+
+  private final class Id
+
+  private sealed abstract class State[A]
+  private object State {
+    final case class Set[A](a: A) extends State[A]
+    final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
+  }
+
+  private abstract class AbstractPledge[F[_], A] (protected[this] val ref: AtomicReference[State[A]])(implicit F: Sync[F]) extends Pledge[F, A] {
+
+    def complete(a: A): F[Unit] = {
+      def notifyReaders(r: State.Unset[A]): Unit =
+        r.waiting.values.foreach { cb =>
+          cb(a)
+        }
+
+      @tailrec
+      def loop(): Unit =
+        ref.get match {
+          case s @ State.Set(_) => throw new IllegalStateException("Attempting to complete a Pledge that has already been completed")
+          case s @ State.Unset(_) =>
+            if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
+            else loop()
+        }
+
+      F.delay(loop())
+    }
+
+    protected[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
+      val id = new Id
+
+      @tailrec
+      def register(): Option[A] =
+        ref.get match {
+          case State.Set(a) => Some(a)
+          case s @ State.Unset(waiting) =>
+            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
+            if (ref.compareAndSet(s, updated)) None
+            else register()
+        }
+
+      register.foreach(a => cb(Right(a)))
+
+      id
+    }
+  }
+
+  private final class ConcurrentPledge[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends AbstractPledge[F, A](ref)(F) {
+
+    def get: F[A] =
+      F.delay(ref.get).flatMap {
+        case State.Set(a) => F.pure(a)
+        case State.Unset(_) =>
+          F.cancelable { cb =>
+            val id = unsafeRegister(cb)
+            @tailrec
+            def unregister(): Unit =
+              ref.get match {
+                case State.Set(_) => ()
+                case s @ State.Unset(waiting) =>
+                  val updated = State.Unset(waiting - id)
+                  if (ref.compareAndSet(s, updated)) ()
+                  else unregister()
+              }
+            IO(unregister())
+          }
+      }
+
+  }
+
+  private final class AsyncPledge[F[_], A](ref: AtomicReference[State[A]])(implicit F: Async[F]) extends AbstractPledge[F, A](ref)(F) {
+
+    def get: F[A] =
+      F.delay(ref.get).flatMap {
+        case State.Set(a) => F.pure(a)
+        case State.Unset(_) => F.async(unsafeRegister)
+      }
+  }
+}
