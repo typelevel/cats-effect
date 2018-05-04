@@ -27,7 +27,6 @@ package effect
 package concurrent
 
 import cats.data.State
-import cats.implicits._
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
@@ -200,11 +199,15 @@ object Ref {
       F.delay(spin)
     }
 
-    def tryModifyState[B](state: State[A, B]): F[Option[B]] =
-      F.delay(state.runF.value).flatMap(f => tryModifyAndReturn(a => f(a).value))
+    def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
+      val f = state.runF.value
+      tryModifyAndReturn(a => f(a).value)
+    }
 
-    def modifyState[B](state: State[A, B]): F[B] =
-      F.delay(state.runF.value).flatMap(f => modifyAndReturn(a => f(a).value))
+    def modifyState[B](state: State[A, B]): F[B] = {
+      val f = state.runF.value
+      modifyAndReturn(a => f(a).value)
+    }
   }
 }
 
