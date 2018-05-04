@@ -18,12 +18,14 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.LinkedMap
+import cats.effect.internals.{LinkedMap, TrampolineEC}
 import cats.implicits.{catsSyntaxEither => _, _}
 
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.annotation.tailrec
+import scala.concurrent.{ExecutionContext, Promise}
+import scala.util.{Failure, Success}
 
 /**
   * A purely functional synchronization primitive which represents a single value
@@ -96,7 +98,7 @@ object Pledge {
     * mutable state.
     */
   def unsafeAsync[F[_]: Async, A]: Pledge[F, A] =
-    new AsyncPledge[F, A](new AtomicReference(Pledge.State.Unset(LinkedMap.empty)))
+    new AsyncPledge[F, A](Promise[A]())
 
   private final class Id
 
@@ -106,46 +108,7 @@ object Pledge {
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
   }
 
-  private abstract class AbstractPledge[F[_], A] (protected[this] val ref: AtomicReference[State[A]])(implicit F: Sync[F]) extends Pledge[F, A] {
-
-    def complete(a: A): F[Unit] = {
-      def notifyReaders(r: State.Unset[A]): Unit =
-        r.waiting.values.foreach { cb =>
-          cb(a)
-        }
-
-      @tailrec
-      def loop(): Unit =
-        ref.get match {
-          case s @ State.Set(_) => throw new IllegalStateException("Attempting to complete a Pledge that has already been completed")
-          case s @ State.Unset(_) =>
-            if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
-            else loop()
-        }
-
-      F.delay(loop())
-    }
-
-    protected[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
-      val id = new Id
-
-      @tailrec
-      def register(): Option[A] =
-        ref.get match {
-          case State.Set(a) => Some(a)
-          case s @ State.Unset(waiting) =>
-            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
-            if (ref.compareAndSet(s, updated)) None
-            else register()
-        }
-
-      register.foreach(a => cb(Right(a)))
-
-      id
-    }
-  }
-
-  private final class ConcurrentPledge[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends AbstractPledge[F, A](ref)(F) {
+  private final class ConcurrentPledge[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends Pledge[F, A] {
 
     def get: F[A] =
       F.delay(ref.get).flatMap {
@@ -166,14 +129,55 @@ object Pledge {
           }
       }
 
+    private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
+      val id = new Id
+
+      @tailrec
+      def register(): Option[A] =
+        ref.get match {
+          case State.Set(a) => Some(a)
+          case s @ State.Unset(waiting) =>
+            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
+            if (ref.compareAndSet(s, updated)) None
+            else register()
+        }
+
+      register.foreach(a => cb(Right(a)))
+
+      id
+    }
+
+    def complete(a: A): F[Unit] = {
+      def notifyReaders(r: State.Unset[A]): Unit =
+        r.waiting.values.foreach { cb =>
+          cb(a)
+        }
+
+      @tailrec
+      def loop(): Unit =
+        ref.get match {
+          case s @ State.Set(_) => throw new IllegalStateException("Attempting to complete a Pledge that has already been completed")
+          case s @ State.Unset(_) =>
+            if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
+            else loop()
+        }
+
+      F.delay(loop())
+    }
   }
 
-  private final class AsyncPledge[F[_], A](ref: AtomicReference[State[A]])(implicit F: Async[F]) extends AbstractPledge[F, A](ref)(F) {
+  private final class AsyncPledge[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Pledge[F, A] {
 
     def get: F[A] =
-      F.delay(ref.get).flatMap {
-        case State.Set(a) => F.pure(a)
-        case State.Unset(_) => F.async(unsafeRegister)
+      F.async { cb =>
+        implicit val ec: ExecutionContext = TrampolineEC.immediate
+        p.future.onComplete {
+          case Success(a) => cb(Right(a))
+          case Failure(t) => cb(Left(t))
+        }
       }
+
+    def complete(a: A): F[Unit] =
+      F.delay(p.success(a))
   }
 }
