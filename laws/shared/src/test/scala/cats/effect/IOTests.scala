@@ -598,8 +598,9 @@ class IOTests extends BaseTestsSuite {
     check { (io: IO[Int], f: Throwable => IO[Int]) =>
       io.redeemWith(f, IO.pure) <-> io.handleErrorWith(f)
     }
+  }
 
-    test("runSyncStep pure produces right IO") {
+  test("runSyncStep pure produces right IO") {
     IO.pure(42).runSyncStep.unsafeRunSync() shouldBe Right(42)
   }
 
