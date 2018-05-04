@@ -35,38 +35,50 @@ class PromiseTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
-  test("complete") {
-    Promise.empty[IO, Int].flatMap { p =>
-      p.complete(0) *> p.get
-    }.unsafeToFuture.map(_ shouldBe 0)
-  }
+  trait PromiseConstructor { def empty[A]: IO[Promise[IO, A]] }
 
-  test("complete is only successful once") {
-    Promise.empty[IO, Int].flatMap { p =>
-      p.complete(0) *> p.complete(1).attempt product p.get
-    }.unsafeToFuture.map { case (err, value) =>
-      err.left.value shouldBe a[Promise.AlreadyCompletedException]
-      value shouldBe 0
+  def tests(label: String, pc: PromiseConstructor): Unit = {
+
+    test(s"$label - complete") {
+      pc.empty[Int].flatMap { p =>
+        p.complete(0) *> p.get
+      }.unsafeToFuture.map(_ shouldBe 0)
     }
+
+    test(s"$label - complete is only successful once") {
+      pc.empty[Int].flatMap { p =>
+        p.complete(0) *> p.complete(1).attempt product p.get
+      }.unsafeToFuture.map { case (err, value) =>
+        err.left.value shouldBe a[Promise.AlreadyCompletedException]
+        value shouldBe 0
+      }
+    }
+
+    test(s"$label - get blocks until set") {
+      val op = for {
+        state <- Ref[IO, Int](0)
+        modifyGate <- pc.empty[Unit]
+        readGate <- pc.empty[Unit]
+        _ <- IO.shift *> (modifyGate.get *> state.modify(_ * 2) *> readGate.complete(())).start
+        _ <- IO.shift *> (state.set(1) *> modifyGate.complete(())).start
+        _ <- readGate.get
+        res <- state.get
+      } yield res
+      op.unsafeToFuture.map(_ shouldBe 2)
+    }
+
+
   }
 
-  test("get blocks until set") {
-    val op = for {
-      state <- Ref[IO, Int](0)
-      modifyGate <- Promise.empty[IO, Unit]
-      readGate <- Promise.empty[IO, Unit]
-      _ <- IO.shift *> (modifyGate.get *> state.modify(_ * 2) *> readGate.complete(())).start
-      _ <- IO.shift *> (state.set(1) *> modifyGate.complete(())).start
-      _ <- readGate.get
-      res <- state.get
-    } yield res
-    op.unsafeToFuture.map(_ shouldBe 2)
-  }
 
-  test("get - cancel before forcing") {
-    val t = for {
+
+  tests("concurrent", new PromiseConstructor { def empty[A] = Promise.empty[IO, A] })
+  tests("async", new PromiseConstructor { def empty[A] = Promise.emptyAsync[IO, A] })
+
+  private def cancelBeforeForcing(empty: IO[Promise[IO, Int]]): IO[Option[Int]] = 
+    for {
       r <- Ref[IO,Option[Int]](None)
-        p <- Promise.empty[IO,Int]
+        p <- empty
         fiber <- p.get.start
         _ <- fiber.cancel
         _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
@@ -75,7 +87,13 @@ class PromiseTests extends AsyncFunSuite with Matchers with EitherValues {
         _ <- Timer[IO].sleep(100.millis)
         result <- r.get
       } yield result
-    t.unsafeToFuture.map(_ shouldBe None)
+
+  test("concurrent - get - cancel before forcing") {
+    cancelBeforeForcing(Promise.empty).unsafeToFuture.map(_ shouldBe None)
+  }
+
+  test("async - get - cancel before forcing") {
+    cancelBeforeForcing(Promise.emptyAsync).unsafeToFuture.map(_ shouldBe Some(42))
   }
 }
  

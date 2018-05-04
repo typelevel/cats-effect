@@ -93,6 +93,19 @@ object Promise {
     */
   def unsafeEmpty[F[_]: Concurrent, A]: Promise[F, A] =
     new ConcurrentPromise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
+    
+  /** Creates an unset promise that only requires an `Async[F]` and does not support cancelation of `get`. **/
+  def emptyAsync[F[_], A](implicit F: Async[F]): F[Promise[F, A]] =
+    F.delay(unsafeEmptyAsync[F, A])
+
+  /**
+    * Like `emptyAsync` but returns the newly allocated promise directly instead of wrapping it in `F.delay`.
+    * This method is considered unsafe because it is not referentially transparent -- it allocates
+    * mutable state.
+    */
+  def unsafeEmptyAsync[F[_]: Async, A]: Promise[F, A] =
+    new AsyncPromise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
+
 
   /** Raised when trying to complete a [[Promise]] that has already been completed. */
   final class AlreadyCompletedException extends Throwable(
@@ -107,37 +120,7 @@ object Promise {
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
   }
 
-  private final class ConcurrentPromise[F[_], A] (ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends Promise[F, A] {
-
-    def get: F[A] =
-      F.delay(ref.get).flatMap {
-        case State.Set(a) => F.pure(a)
-        case State.Unset(_) =>
-          F.cancelable { cb =>
-            val id = new Id
-
-            def register: Option[A] =
-              ref.get match {
-                case State.Set(a) => Some(a)
-                case s @ State.Unset(waiting) =>
-                  val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
-                  if (ref.compareAndSet(s, updated)) None
-                  else register
-              }
-
-            register.foreach(a => cb(Right(a)))
-
-            def unregister(): Unit =
-              ref.get match {
-                case State.Set(_) => ()
-                case s @ State.Unset(waiting) =>
-                  val updated = State.Unset(waiting - id)
-                  if (ref.compareAndSet(s, updated)) ()
-                  else unregister()
-              }
-            IO(unregister())
-          }
-      }
+  private abstract class AbstractPromise[F[_], A] (protected[this] val ref: AtomicReference[State[A]])(implicit F: Sync[F]) extends Promise[F, A] {
 
     def complete(a: A): F[Unit] = {
       def notifyReaders(r: State.Unset[A]): Unit =
@@ -156,5 +139,55 @@ object Promise {
 
       F.delay(loop())
     }
+
+    protected[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
+      val id = new Id
+
+      @tailrec
+      def register(): Option[A] =
+        ref.get match {
+          case State.Set(a) => Some(a)
+          case s @ State.Unset(waiting) =>
+            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
+            if (ref.compareAndSet(s, updated)) None
+            else register()
+        }
+
+      register.foreach(a => cb(Right(a)))
+
+      id
+    }
+  }
+
+  private final class ConcurrentPromise[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends AbstractPromise[F, A](ref)(F) {
+
+    def get: F[A] =
+      F.delay(ref.get).flatMap {
+        case State.Set(a) => F.pure(a)
+        case State.Unset(_) =>
+          F.cancelable { cb =>
+            val id = unsafeRegister(cb)
+            @tailrec
+            def unregister(): Unit =
+              ref.get match {
+                case State.Set(_) => ()
+                case s @ State.Unset(waiting) =>
+                  val updated = State.Unset(waiting - id)
+                  if (ref.compareAndSet(s, updated)) ()
+                  else unregister()
+              }
+            IO(unregister())
+          }
+      }
+
+  }
+
+  private final class AsyncPromise[F[_], A](ref: AtomicReference[State[A]])(implicit F: Async[F]) extends AbstractPromise[F, A](ref)(F) {
+
+    def get: F[A] =
+      F.delay(ref.get).flatMap {
+        case State.Set(a) => F.pure(a)
+        case State.Unset(_) => F.async(unsafeRegister)
+      }
   }
 }
