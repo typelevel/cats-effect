@@ -26,6 +26,9 @@ package cats
 package effect
 package concurrent
 
+import cats.data.State
+import cats.implicits._
+
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import scala.annotation.tailrec
@@ -124,6 +127,20 @@ abstract class Ref[F[_], A] {
    * Like `tryModifyAndReturn` but does not complete until the update has been successfully made.
    */
   def modifyAndReturn[B](f: A => (A, B)): F[B]
+
+  /**
+   * Update the value of this ref with a state computation.
+   *
+   * The current value of this ref is used as the initial state and the computed output state
+   * is stored in this ref after computation completes. If a concurrent modification occurs,
+   * `None` is returned.
+   */
+  def tryModifyState[B](state: State[A, B]): F[Option[B]]
+
+  /**
+   * Like [[tryModifyState]] but retries the modification until successful.
+   */
+  def modifyState[B](state: State[A, B]): F[B]
 }
 
 object Ref {
@@ -182,6 +199,12 @@ object Ref {
       }
       F.delay(spin)
     }
+
+    def tryModifyState[B](state: State[A, B]): F[Option[B]] =
+      F.delay(state.runF.value).flatMap(f => tryModifyAndReturn(a => f(a).value))
+
+    def modifyState[B](state: State[A, B]): F[B] =
+      F.delay(state.runF.value).flatMap(f => modifyAndReturn(a => f(a).value))
   }
 }
 
