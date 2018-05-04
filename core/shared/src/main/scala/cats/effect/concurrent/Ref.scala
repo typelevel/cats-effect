@@ -73,6 +73,17 @@ abstract class Ref[F[_], A] {
   def lazySet(a: A): F[Unit]
 
   /**
+   * Replaces the current value with `a`, returning the previous value.
+   */
+  def getAndSet(a: A): F[A]
+
+  /**
+   * Sets the value to `newValue` if the current value is `expected`.
+   * Note: reference equality is used here.
+   */
+  def compareAndSet(expected: A, newValue: A): F[Boolean]
+
+  /**
    * Obtains a snapshot of the current value, and a setter for updating it.
    * The setter may noop (in which case `false` is returned) if another concurrent
    * call to `access` uses its setter first.
@@ -136,6 +147,10 @@ object Ref {
     def set(a: A): F[Unit] = F.delay(ar.set(a))
 
     def lazySet(a: A): F[Unit] = F.delay(ar.lazySet(a))
+
+    def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
+    
+    def compareAndSet(expected: A, newValue: A): F[Boolean] = F.delay(ar.compareAndSet(expected, newValue))
 
     def access: F[(A, A => F[Boolean])] = F.delay {
       val snapshot = ar.get
