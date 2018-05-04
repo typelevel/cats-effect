@@ -96,7 +96,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    * read and the time it is set.
    */
   def tryModify(f: A => A)(implicit F: Sync[F]): F[Boolean] =
-    F.map(tryModifyAndReturn(a => (a, ())))(_.isDefined)
+    F.map(tryModifyAndReturn(a => (f(a), ())))(_.isDefined)
 
   /**
    * Like `tryModify` but allows the update function to return an output value of
@@ -120,7 +120,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    *   `r.modify(_ => a).void == r.set(a)`
    */
   def modify(f: A => A)(implicit F: Sync[F]): F[Unit] =
-    modifyAndReturn(a => (a, ()))
+    modifyAndReturn(a => (f(a), ()))
 
   /**
    * Like `tryModifyAndReturn` but does not complete until the update has been successfully made.
