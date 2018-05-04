@@ -26,13 +26,12 @@ package cats
 package effect
 package concurrent
 
+import cats.effect.internals.LinkedMap
 import cats.implicits.{catsSyntaxEither => _, _}
 
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.annotation.tailrec
-
-import Promise._
 
 /**
   * A purely functional synchronization primitive which represents a single value
@@ -55,41 +54,13 @@ import Promise._
   * Finally, the blocking mentioned above is semantic only, no actual threads are
   * blocked by the implementation.
   */
-final class Promise[F[_], A] private (ref: AtomicReference[State[A]]) {
+abstract class Promise[F[_], A] {
 
   /**
    * Obtains the value of the `Promise`, or waits until it has been completed.
    * The returned value may be canceled.
    */
-  def get(implicit F: Concurrent[F]): F[A] =
-    F.delay(ref.get).flatMap {
-      case State.Set(a) => F.pure(a)
-      case State.Unset(_) =>
-        F.cancelable { cb =>
-          val id = new Id
-
-          def register: Option[A] =
-            ref.get match {
-              case State.Set(a) => Some(a)
-              case s @ State.Unset(waiting) =>
-                val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
-                if (ref.compareAndSet(s, updated)) None
-                else register
-            }
-
-          register.foreach(a => cb(Right(a)))
-
-          def unregister(): Unit =
-            ref.get match {
-              case State.Set(_) => ()
-              case s @ State.Unset(waiting) =>
-                val updated = State.Unset(waiting - id)
-                if (ref.compareAndSet(s, updated)) ()
-                else unregister
-            }
-          IO(unregister())
-        }
-    }
+  def get: F[A]
 
   /**
     * If this `Promise` is empty, *synchronously* sets the current value to `a`, and notifies
@@ -106,29 +77,13 @@ final class Promise[F[_], A] private (ref: AtomicReference[State[A]]) {
     * Satisfies:
     *   `Promise.empty[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
     */
-  def complete(a: A)(implicit F: Sync[F]): F[Unit] = {
-    def notifyReaders(r: State.Unset[A]): Unit =
-      r.waiting.values.foreach { cb =>
-        cb(a)
-      }
-
-    @tailrec
-    def loop(): Unit =
-      ref.get match {
-        case s @ State.Set(_) => throw new AlreadyCompletedException
-        case s @ State.Unset(_) =>
-          if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
-          else loop()
-      }
-
-    F.delay(loop())
-  }
+  def complete(a: A): F[Unit]
 }
 
 object Promise {
 
   /** Creates an unset promise. **/
-  def empty[F[_], A](implicit F: Sync[F]): F[Promise[F, A]] =
+  def empty[F[_], A](implicit F: Concurrent[F]): F[Promise[F, A]] =
     F.delay(unsafeEmpty[F, A])
 
   /**
@@ -136,8 +91,8 @@ object Promise {
     * This method is considered unsafe because it is not referentially transparent -- it allocates
     * mutable state.
     */
-  def unsafeEmpty[F[_], A]: Promise[F, A] =
-    new Promise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
+  def unsafeEmpty[F[_]: Concurrent, A]: Promise[F, A] =
+    new ConcurrentPromise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
 
   /** Raised when trying to complete a [[Promise]] that has already been completed. */
   final class AlreadyCompletedException extends Throwable(
@@ -150,5 +105,56 @@ object Promise {
   private object State {
     final case class Set[A](a: A) extends State[A]
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
+  }
+
+  private final class ConcurrentPromise[F[_], A] (ref: AtomicReference[State[A]])(implicit F: Concurrent[F]) extends Promise[F, A] {
+
+    def get: F[A] =
+      F.delay(ref.get).flatMap {
+        case State.Set(a) => F.pure(a)
+        case State.Unset(_) =>
+          F.cancelable { cb =>
+            val id = new Id
+
+            def register: Option[A] =
+              ref.get match {
+                case State.Set(a) => Some(a)
+                case s @ State.Unset(waiting) =>
+                  val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
+                  if (ref.compareAndSet(s, updated)) None
+                  else register
+              }
+
+            register.foreach(a => cb(Right(a)))
+
+            def unregister(): Unit =
+              ref.get match {
+                case State.Set(_) => ()
+                case s @ State.Unset(waiting) =>
+                  val updated = State.Unset(waiting - id)
+                  if (ref.compareAndSet(s, updated)) ()
+                  else unregister()
+              }
+            IO(unregister())
+          }
+      }
+
+    def complete(a: A): F[Unit] = {
+      def notifyReaders(r: State.Unset[A]): Unit =
+        r.waiting.values.foreach { cb =>
+          cb(a)
+        }
+
+      @tailrec
+      def loop(): Unit =
+        ref.get match {
+          case s @ State.Set(_) => throw new AlreadyCompletedException
+          case s @ State.Unset(_) =>
+            if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
+            else loop()
+        }
+
+      F.delay(loop())
+    }
   }
 }

@@ -37,10 +37,10 @@ import scala.annotation.tailrec
  * functionality for synchronisation, which is instead handled by [[Promise]].
  * For this reason, a `Ref` is always initialised to a value.
  *
- * The implementation is nonblocking and lightweight, consisting essentially of
- * a purely functional wrapper over an `AtomicReference`.
+ * The default implementation is nonblocking and lightweight, consisting essentially
+ * of a purely functional wrapper over an `AtomicReference`.
  */
-final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
+abstract class Ref[F[_], A] {
 
   /**
    * Obtains the current value.
@@ -48,7 +48,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    * Since `Ref` is always guaranteed to have a value, the returned action
    * completes immediately after being bound.
    */
-  def get(implicit F: Sync[F]): F[A] = F.delay(ar.get)
+  def get: F[A]
 
   /**
    * Synchronously sets the current value to `a`.
@@ -58,7 +58,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    * Satisfies:
    *   `r.set(fa) *> r.get == fa`
    */
-  def set(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.set(a))
+  def set(a: A): F[Unit]
 
   /**
    * Lazily sets the current value to the `a`.
@@ -70,7 +70,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    *   `r.lazySet(fa) == async.shiftStart(r.set(a))`
    * but it's significantly faster.
    */
-  def lazySet(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.lazySet(a))
+  def lazySet(a: A): F[Unit]
 
   /**
    * Obtains a snapshot of the current value, and a setter for updating it.
@@ -83,33 +83,21 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    *   `r.access.map(_._1) == r.get`
    *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryModify(f).map(_.isDefined)`
    */
-  def access(implicit F: Sync[F]): F[(A, A => F[Boolean])] = F.delay {
-    val snapshot = ar.get
-    val hasBeenCalled = new AtomicBoolean(false)
-    def setter = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
-    (snapshot, setter)
-  }
+  def access: F[(A, A => F[Boolean])]
 
   /**
    * Attempts to modify the current value once, returning `false` if another
    * concurrent modification completes between the time the variable is
    * read and the time it is set.
    */
-  def tryModify(f: A => A)(implicit F: Sync[F]): F[Boolean] =
-    F.map(tryModifyAndReturn(a => (f(a), ())))(_.isDefined)
+  def tryModify(f: A => A): F[Boolean]
 
   /**
    * Like `tryModify` but allows the update function to return an output value of
    * type `B`. The returned action completes with `None` if the value is not updated
    * successfully and `Some(b)` otherwise.
    */
-  def tryModifyAndReturn[B](f: A => (A, B))(implicit F: Sync[F]): F[Option[B]] = F.delay {
-    val c = ar.get
-    val (u, b) = f(c)
-    if (ar.compareAndSet(c, u)) Some(b)
-    else None
-  }
-
+  def tryModifyAndReturn[B](f: A => (A, B)): F[Option[B]]
 
   /**
    * Modifies the current value using the supplied update function. If another modification
@@ -119,22 +107,12 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
    * Satisfies:
    *   `r.modify(_ => a).void == r.set(a)`
    */
-  def modify(f: A => A)(implicit F: Sync[F]): F[Unit] =
-    modifyAndReturn(a => (f(a), ()))
+  def modify(f: A => A): F[Unit]
 
   /**
    * Like `tryModifyAndReturn` but does not complete until the update has been successfully made.
    */
-  def modifyAndReturn[B](f: A => (A, B))(implicit F: Sync[F]): F[B] = {
-    @tailrec
-    def spin: B = {
-      val c = ar.get
-      val (u, b) = f(c)
-      if (!ar.compareAndSet(c, u)) spin
-      else b
-    }
-    F.delay(spin)
-  }
+  def modifyAndReturn[B](f: A => (A, B)): F[B]
 }
 
 object Ref {
@@ -148,7 +126,47 @@ object Ref {
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.
    */
-  def unsafeCreate[F[_], A](a: A): Ref[F, A] =
-    new Ref[F, A](new AtomicReference[A](a))
+  def unsafeCreate[F[_]: Sync, A](a: A): Ref[F, A] =
+    new SyncRef[F, A](new AtomicReference[A](a))
+
+  private final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
+
+    def get: F[A] = F.delay(ar.get)
+
+    def set(a: A): F[Unit] = F.delay(ar.set(a))
+
+    def lazySet(a: A): F[Unit] = F.delay(ar.lazySet(a))
+
+    def access: F[(A, A => F[Boolean])] = F.delay {
+      val snapshot = ar.get
+      val hasBeenCalled = new AtomicBoolean(false)
+      def setter = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
+      (snapshot, setter)
+    }
+
+    def tryModify(f: A => A): F[Boolean] =
+      F.map(tryModifyAndReturn(a => (f(a), ())))(_.isDefined)
+
+    def tryModifyAndReturn[B](f: A => (A, B)): F[Option[B]] = F.delay {
+      val c = ar.get
+      val (u, b) = f(c)
+      if (ar.compareAndSet(c, u)) Some(b)
+      else None
+    }
+
+    def modify(f: A => A): F[Unit] =
+      modifyAndReturn(a => (f(a), ()))
+
+    def modifyAndReturn[B](f: A => (A, B)): F[B] = {
+      @tailrec
+      def spin: B = {
+        val c = ar.get
+        val (u, b) = f(c)
+        if (!ar.compareAndSet(c, u)) spin
+        else b
+      }
+      F.delay(spin)
+    }
+  }
 }
 
