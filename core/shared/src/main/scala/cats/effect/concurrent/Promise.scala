@@ -129,14 +129,14 @@ object Promise {
 
   /** Creates an unset promise. **/
   def empty[F[_], A](implicit F: Sync[F]): F[Promise[F, A]] =
-    F.delay(unsafeCreate[F, A])
+    F.delay(unsafeEmpty[F, A])
 
   /**
     * Like `empty` but returns the newly allocated promise directly instead of wrapping it in `F.delay`.
     * This method is considered unsafe because it is not referentially transparent -- it allocates
     * mutable state.
     */
-  def unsafeCreate[F[_], A]: Promise[F, A] =
+  def unsafeEmpty[F[_], A]: Promise[F, A] =
     new Promise[F, A](new AtomicReference(Promise.State.Unset(LinkedMap.empty)))
 
   /** Raised when trying to complete a [[Promise]] that has already been completed. */

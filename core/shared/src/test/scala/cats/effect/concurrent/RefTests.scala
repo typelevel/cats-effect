@@ -66,7 +66,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       r <- Ref[IO, Int](0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
-      _ <- r.setSync(5)
+      _ <- r.set(5)
       success <- setter(value + 1)
       result <- r.get
     } yield !success && result == 5
@@ -79,7 +79,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       cond1 <- setter(value + 1)
-      _ <- r.setSync(value)
+      _ <- r.set(value)
       cond2 <- setter(value + 1)
       result <- r.get
     } yield cond1 && !cond2 && result == 0

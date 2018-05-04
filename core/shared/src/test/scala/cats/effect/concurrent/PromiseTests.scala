@@ -56,7 +56,7 @@ class PromiseTests extends AsyncFunSuite with Matchers with EitherValues {
       modifyGate <- Promise.empty[IO, Unit]
       readGate <- Promise.empty[IO, Unit]
       _ <- IO.shift *> (modifyGate.get *> state.modify(c => (c * 2, ())) *> readGate.complete(())).start
-      _ <- IO.shift *> (state.setSync(1) *> modifyGate.complete(())).start
+      _ <- IO.shift *> (state.set(1) *> modifyGate.complete(())).start
       _ <- readGate.get
       res <- state.get
     } yield res
@@ -69,7 +69,7 @@ class PromiseTests extends AsyncFunSuite with Matchers with EitherValues {
         p <- Promise.empty[IO,Int]
         fiber <- p.get.start
         _ <- fiber.cancel
-        _ <- (IO.shift *> fiber.join.flatMap(i => r.setSync(Some(i)))).start
+        _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
         _ <- Timer[IO].sleep(100.millis)
         _ <- p.complete(42)
         _ <- Timer[IO].sleep(100.millis)

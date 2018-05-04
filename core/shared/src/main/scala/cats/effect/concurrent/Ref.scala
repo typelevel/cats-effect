@@ -51,26 +51,26 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
   def get(implicit F: Sync[F]): F[A] = F.delay(ar.get)
 
   /**
-    * *Synchronously* sets the current value to `a`.
+    * Synchronously sets the current value to `a`.
     *
     * The returned action completes after the reference has been successfully set.
     *
     * Satisfies:
-    *   `r.setSync(fa) *> r.get == fa`
+    *   `r.set(fa) *> r.get == fa`
     */
-  def setSync(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.set(a))
+  def set(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.set(a))
 
   /**
-    * *Asynchronously* sets the current value to the `a`
+    * Lazily sets the current value to the `a`.
     *
     * After the returned `F[Unit]` is bound, an update will eventually occur,
     * setting the current value to `a`.
     *
     * Satisfies:
-    *   `r.setAsync(fa) == async.shiftStart(r.setSync(a))`
+    *   `r.lazySet(fa) == async.shiftStart(r.set(a))`
     * but it's significantly faster.
     */
-  def setAsync(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.lazySet(a))
+  def lazySet(a: A)(implicit F: Sync[F]): F[Unit] = F.delay(ar.lazySet(a))
 
   /**
     * Obtains a snapshot of the current value, and a setter for updating it.
@@ -86,15 +86,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
   def access(implicit F: Sync[F]): F[(A, A => F[Boolean])] = F.delay {
     val snapshot = ar.get
     val hasBeenCalled = new AtomicBoolean(false)
-    def setter =
-      (a: A) =>
-        F.delay {
-          if (hasBeenCalled.compareAndSet(false, true))
-            ar.compareAndSet(snapshot, a)
-          else
-            false
-      }
-
+    def setter = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
     (snapshot, setter)
   }
 
@@ -114,7 +106,7 @@ final class Ref[F[_], A] private (private val ar: AtomicReference[A]) {
     * Like `tryModify` but does not complete until the update has been successfully made.
     *
     * Satisfies:
-    *   `r.modify(_ => (a, ())).void == r.setSync(a)`
+    *   `r.modify(_ => (a, ())).void == r.set(a)`
     */
   def modify[B](f: A => (A, B))(implicit F: Sync[F]): F[B] = {
     @tailrec
