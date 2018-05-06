@@ -118,7 +118,7 @@ abstract class Ref[F[_], A] {
    * is retried using the new value. Hence, `f` may be invoked multiple times.
    *
    * Satisfies:
-   *   `r.modify(_ => a).void == r.set(a)`
+   *   `r.modify(_ => a) == r.set(a)`
    */
   def modify(f: A => A): F[Unit]
 
