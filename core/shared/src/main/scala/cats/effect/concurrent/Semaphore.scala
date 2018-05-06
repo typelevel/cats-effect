@@ -77,6 +77,11 @@ abstract class Semaphore[F[_]] {
    * decrements).
    */
   def clear: F[Long]
+
+  /**
+   * Returns a task that acquires a permit, runs the supplied task, and then releases the permit.
+   */
+  def withPermit[A](t: F[A]): F[A]
 }
 
 object Semaphore {
@@ -221,6 +226,9 @@ object Semaphore {
       case Left(_)  => 0
       case Right(n) => n
     }
+
+    def withPermit[A](t: F[A]): F[A] =
+      F.bracket(decrement)(_ => t)(_ => increment)
   }
 
   private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
