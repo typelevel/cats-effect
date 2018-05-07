@@ -93,7 +93,7 @@ object Resource extends ResourceInstances {
     * @param release a function to effectfully release the resource returned by `acquire`
     */
   def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    apply(acquire.map(a => (a -> release(a))))
+    Resource(acquire.map(a => (a -> release(a))))
 
   /** Lifts a pure value into a resource.  The resouce has a no-op release.
     *
@@ -154,8 +154,8 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
     def step(adis: (A, F[Unit])): F[Either[(A, F[Unit]), (B, F[Unit])]] = {
       val (a, dispose) = adis
       val next: F[(Either[A, B], F[Unit])] = f(a).allocate
-      // todo: this might not be stack safe, we might
-      // need a tailRecM type thing on bracket.
+      // n.b. F.bracket might not be stack safe, though the laws pass
+      // when tested on a stack-unsafe bracket.
       def compDisp(d: F[Unit]): F[Unit] =
         F.bracket(d)(F.pure)(_ => dispose)
       next.map {
@@ -170,7 +170,7 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
     Resource(fa.allocate.handleErrorWith(e => f(e).allocate))
 
-  def raiseError[A](e: E): cats.effect.Resource[F, A] =
+  def raiseError[A](e: E): Resource[F, A] =
     Resource(F.raiseError(e))
 }
 
