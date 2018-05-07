@@ -100,14 +100,14 @@ object Resource extends ResourceInstances {
     * @param a the value to lift into a resource
     */
   def pure[F[_], A](a: A)(implicit F: Applicative[F]) =
-    Resource(F.pure(a -> F.pure(())))
+    Resource(F.pure(a -> F.unit))
 
   /** Lifts an applicative into a resource.  The resource has a no-op release.
     *
     * @param fa the value to lift into a resource
     */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
-    make(fa)(_ => F.pure(()))
+    make(fa)(_ => F.unit)
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {
@@ -141,7 +141,7 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
   protected implicit def F: Bracket[F, E]
 
   def pure[A](a: A): Resource[F, A] =
-    Resource(F.pure(a -> F.pure(())))
+    Resource(F.pure(a -> F.unit))
 
   def flatMap[A, B](fa: Resource[F,A])(f: A => Resource[F, B]): Resource[F, B] =
     Resource(fa.allocate.flatMap { case (a, disposeA) =>
@@ -164,7 +164,7 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
       }
     }
 
-    Resource(F.tailRecM((a, F.pure(())))(step))
+    Resource(F.tailRecM((a, F.unit))(step))
   }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
