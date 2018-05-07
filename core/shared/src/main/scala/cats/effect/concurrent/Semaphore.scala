@@ -118,9 +118,6 @@ object Semaphore {
     Ref[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
   }
 
-  /** Creates a `Semaphore` with 0 initial permits. */
-  def empty[F[_]: Concurrent]: F[Semaphore[F]] = apply(0)
-
   /**
    * Like [[apply]] but only requires an `Async` constraint at the cost of the various
    * decrement functions being uncancelable.
@@ -129,12 +126,6 @@ object Semaphore {
     assertNonNegative(n)
     Ref[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
-  
-  /**
-   * Like [[empty]] but only requires an `Async` constraint at the cost of the various
-   * decrement functions being uncancelable.
-   */
-  def emptyAsync[F[_]: Async]: F[Semaphore[F]] = async(0)
   
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
     protected def mkGate: F[Pledge[F, Unit]]
