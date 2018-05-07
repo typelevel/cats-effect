@@ -29,6 +29,8 @@ package concurrent
 import cats.effect.internals.Canceled
 import cats.implicits._
 
+import scala.collection.immutable.Queue
+
 /**
  * A purely functional semaphore.
  *
@@ -108,7 +110,7 @@ object Semaphore {
 
   // semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[Vector[(Long, Pledge[F, Unit])], Long]
+  private type State[F[_]] = Either[Queue[(Long, Pledge[F, Unit])], Long]
 
   /** Creates a new `Semaphore`, initialized with `n` available permits. */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
@@ -155,7 +157,7 @@ object Semaphore {
               case Left(waiting) => Left(waiting :+ (n -> gate))
               case Right(m) =>
                 if (n <= m) Right(m - n)
-                else Left(Vector((n - m) -> gate))
+                else Left(Queue((n - m) -> gate))
             }
             (u, u)
           }
@@ -216,8 +218,12 @@ object Semaphore {
                 while (waiting2.nonEmpty && m > 0) {
                   val (k, gate) = waiting2.head
                   if (k > m) {
-                    waiting2 = (k - m, gate) +: waiting2.tail; m = 0;
-                  } else { m -= k; waiting2 = waiting2.tail }
+                    waiting2 = (k - m, gate) +: waiting2.tail
+                    m = 0
+                  } else { 
+                    m -= k
+                    waiting2 = waiting2.tail
+                  }
                 }
                 if (waiting2.nonEmpty) Left(waiting2)
                 else Right(m)
