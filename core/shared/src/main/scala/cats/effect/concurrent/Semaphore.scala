@@ -29,11 +29,37 @@ package concurrent
 import cats.effect.internals.Canceled
 import cats.implicits._
 
-/** A purely functional semaphore. */
+/**
+ * A purely functional semaphore.
+ *
+ * A semaphore has a non-negative number of permits available. Decrementing the semaphore
+ * acquires a permit and incrementing the semaphore releases a permit. A decrement
+ * that occurs when there are no permits available results in semantic blocking until
+ * a permit is available.
+ *
+ * Blocking decrements are cancelable if the semaphore is created with `Semaphore.apply`
+ * (and hence, with a `Concurrent[F]` instance). Blocking decrements are non-cancelable
+ * if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
+ */
 abstract class Semaphore[F[_]] {
 
-  /** Returns the number of permits currently available. Always nonnegative. */
+  /**
+   * Returns the number of permits currently available. Always non-negative.
+   *
+   * May be out of date the instant after it is retrieved.
+   * Use `[[tryDecrement]]` or `[[tryDecrementBy]]` if you wish to attempt a 
+   * decrement and return immediately if the current count is not high enough
+   * to satisfy the request.
+   */
   def available: F[Long]
+
+  /**
+   * Obtains a snapshot of the current count. May be negative.
+   *
+   * Like [[available]] when permits are available but returns the number of permits
+   * callers are blocking on when there are no permits available.
+   */
+  def count: F[Long]
 
   /**
    * Decrements the number of available permits by `n`, blocking until `n`
@@ -62,14 +88,6 @@ abstract class Semaphore[F[_]] {
 
   /** Increments the number of permits by 1. Alias for `[[incrementBy]](1)`. */
   def increment: F[Unit] = incrementBy(1)
-
-  /**
-   * Obtains a snapshot of the current count. May be out of date the instant
-   * after it is retrieved. Use `[[tryDecrement]]` or `[[tryDecrementBy]]`
-   * if you wish to attempt a decrement and return immediately if the
-   * current count is not high enough to satisfy the request.
-   */
-  def count: F[Long]
 
   /**
    * Resets the count of this semaphore back to zero, and returns the previous count.
@@ -123,6 +141,9 @@ object Semaphore {
     private def open(gate: Pledge[F, Unit]): F[Unit] = gate.complete(())
 
     def count = state.get.map(count_)
+
+    private def count_(s: State[F]): Long =
+      s.fold(ws => -ws.map(_._1).sum, identity)
 
     def decrementBy(n: Long) = {
       assertNonNegative(n)
@@ -179,9 +200,6 @@ object Semaphore {
           case Right(n) => F.pure(n)
           case Left(_)  => sys.error("impossible, exception thrown above")
         }
-
-    private def count_(s: State[F]): Long =
-      s.fold(ws => -ws.map(_._1).sum, identity)
 
     def incrementBy(n: Long) = {
       assertNonNegative(n)
