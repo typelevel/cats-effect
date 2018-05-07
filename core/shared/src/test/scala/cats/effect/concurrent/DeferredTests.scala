@@ -31,13 +31,13 @@ import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class PledgeTests extends AsyncFunSuite with Matchers with EitherValues {
+class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
-  trait PledgeConstructor { def apply[A]: IO[Pledge[IO, A]] }
+  trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
 
-  def tests(label: String, pc: PledgeConstructor): Unit = {
+  def tests(label: String, pc: DeferredConstructor): Unit = {
 
     test(s"$label - complete") {
       pc[Int].flatMap { p =>
@@ -68,10 +68,10 @@ class PledgeTests extends AsyncFunSuite with Matchers with EitherValues {
     }
   }
 
-  tests("concurrent", new PledgeConstructor { def apply[A] = Pledge[IO, A] })
-  tests("async", new PledgeConstructor { def apply[A] = Pledge.async[IO, A] })
+  tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
+  tests("async", new DeferredConstructor { def apply[A] = Deferred.async[IO, A] })
 
-  private def cancelBeforeForcing(pc: IO[Pledge[IO, Int]]): IO[Option[Int]] = 
+  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] = 
     for {
       r <- Ref[IO,Option[Int]](None)
         p <- pc
@@ -85,10 +85,10 @@ class PledgeTests extends AsyncFunSuite with Matchers with EitherValues {
       } yield result
 
   test("concurrent - get - cancel before forcing") {
-    cancelBeforeForcing(Pledge.apply).unsafeToFuture.map(_ shouldBe None)
+    cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
   }
 
   test("async - get - cancel before forcing") {
-    cancelBeforeForcing(Pledge.async).unsafeToFuture.map(_ shouldBe Some(42))
+    cancelBeforeForcing(Deferred.async).unsafeToFuture.map(_ shouldBe Some(42))
   }
 }
