@@ -1258,6 +1258,37 @@ nonParallel.unsafeRunSync()
 
 With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
 
+### sequencing
+
+If you have a list of IO, and you want a IO of the result list you can use .parSequence which executes the IO's in parallel.
+
+```tut:silent
+import cats._
+import cats.data._
+import cats.syntax.all._
+import cats.effect.IO
+
+val aLotOfIOs: NonEmptyList[IO[Int]] = 
+  NonEmptyList.one(IO(1))
+
+val ioOfList: IO[NonEmptyList[Int]] = aLotOfIOs.parSequence
+```
+
+### traverse
+
+If you have a list of things that you want to turn into IO's sequentially you can use traverse.
+
+```tut:silent
+import cats._
+import cats.data._
+import cats.syntax.all._
+import cats.effect.IO
+
+val list: IO[NonEmptyList[Int]] = NonEmptyList.of(1, 2, 3).parTraverse { i =>
+  IO(i)
+}
+```
+
 ## "Unsafe" Operations
 
 Pretty much we have been using some "unsafe" operations in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
