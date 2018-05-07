@@ -36,7 +36,7 @@ import scala.annotation.tailrec
  * An asynchronous, concurrent mutable reference.
  *
  * Provides safe concurrent access and modification of its content, but no
- * functionality for synchronisation, which is instead handled by [[Pledge]].
+ * functionality for synchronisation, which is instead handled by [[Deferred]].
  * For this reason, a `Ref` is always initialised to a value.
  *
  * The default implementation is nonblocking and lightweight, consisting essentially

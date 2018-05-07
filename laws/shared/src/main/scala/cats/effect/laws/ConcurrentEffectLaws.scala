@@ -18,7 +18,7 @@ package cats
 package effect
 package laws
 
-import cats.effect.concurrent.Pledge
+import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cats.laws._
 
@@ -42,12 +42,12 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 
   def runCancelableStartCancelCoherence[A](a: A) = {
     // Cancellation via runCancelable
-    val f1 = Pledge[IO, A].flatMap { effect1 =>
+    val f1 = Deferred[IO, A].flatMap { effect1 =>
       val never = F.cancelable[A](_ => effect1.complete(a))
       F.runCancelable(never)(_ => IO.unit).flatten *> effect1.get
     }
     // Cancellation via start.flatMap(_.cancel)
-    val f2 = Pledge[IO, A].flatMap { effect2 =>
+    val f2 = Deferred[IO, A].flatMap { effect2 =>
       val never = F.cancelable[A](_ => effect2.complete(a))
       val task = F.start(never).flatMap(_.cancel)
       F.runAsync(task)(_ => IO.unit) *> effect2.get
