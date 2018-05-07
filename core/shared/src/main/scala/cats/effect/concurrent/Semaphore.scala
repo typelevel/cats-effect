@@ -110,7 +110,7 @@ object Semaphore {
 
   // semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[Queue[(Long, Pledge[F, Unit])], Long]
+  private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
   /** Creates a new `Semaphore`, initialized with `n` available permits. */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
@@ -128,10 +128,10 @@ object Semaphore {
   }
   
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
-    protected def mkGate: F[Pledge[F, Unit]]
-    protected def awaitGate(entry: (Long, Pledge[F, Unit])): F[Unit]
+    protected def mkGate: F[Deferred[F, Unit]]
+    protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit]
 
-    private def open(gate: Pledge[F, Unit]): F[Unit] = gate.complete(())
+    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(())
 
     def count = state.get.map(count_)
 
@@ -247,8 +247,8 @@ object Semaphore {
   }
 
   private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
-    protected def mkGate: F[Pledge[F, Unit]] = Pledge[F, Unit]
-    protected def awaitGate(entry: (Long, Pledge[F, Unit])): F[Unit] =
+    protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
+    protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] =
       F.onCancelRaiseError(entry._2.get, Canceled).recoverWith {
         case Canceled =>
           state.modify {
@@ -259,7 +259,7 @@ object Semaphore {
   }
 
   private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
-    protected def mkGate: F[Pledge[F, Unit]] = Pledge.async[F, Unit]
-    protected def awaitGate(entry: (Long, Pledge[F, Unit])): F[Unit] = entry._2.get
+    protected def mkGate: F[Deferred[F, Unit]] = Deferred.async[F, Unit]
+    protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] = entry._2.get
   }
 }
