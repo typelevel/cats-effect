@@ -35,31 +35,31 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
-    test(s"$label - decrement n synchronously") {
+    test(s"$label - acquire n synchronously") {
       val n = 20
       sc(20).flatMap { s =>
-        (0 until n).toList.traverse(_ => s.decrement).void *> s.available
+        (0 until n).toList.traverse(_ => s.acquire).void *> s.available
       }.unsafeToFuture.map(_ shouldBe 0)
     }
 
-    test(s"$label - offsetting decrements/increments - decrements parallel with increments") {
-      testOffsettingIncrementsDecrements(
-        (s, permits) => permits.traverse(s.decrementBy).void,
-        (s, permits) => permits.reverse.traverse(s.incrementBy).void)
+    test(s"$label - offsetting acquires/releases - acquires parallel with releases") {
+      testOffsettingReleasesAcquires(
+        (s, permits) => permits.traverse(s.acquireN).void,
+        (s, permits) => permits.reverse.traverse(s.releaseN).void)
     }
 
-    test(s"$label - offsetting decrements/increments - individual decrements/increment in parallel") {
-      testOffsettingIncrementsDecrements(
-        (s, permits) => Parallel.parTraverse(permits)(IO.shift *> s.decrementBy(_)).void,
-        (s, permits) => Parallel.parTraverse(permits.reverse)(IO.shift *> s.incrementBy(_)).void)
+    test(s"$label - offsetting acquires/releases - individual acquires/increment in parallel") {
+      testOffsettingReleasesAcquires(
+        (s, permits) => Parallel.parTraverse(permits)(IO.shift *> s.acquireN(_)).void,
+        (s, permits) => Parallel.parTraverse(permits.reverse)(IO.shift *> s.releaseN(_)).void)
     }
 
-    def testOffsettingIncrementsDecrements(decrements: (Semaphore[IO], Vector[Long]) => IO[Unit], increments: (Semaphore[IO], Vector[Long]) => IO[Unit]) = {
+    def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]) = {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       sc(0).flatMap { s =>
         for {
-          dfib <- (IO.shift *> decrements(s, permits)).start
-          ifib <- (IO.shift *> increments(s, permits)).start
+          dfib <- (IO.shift *> acquires(s, permits)).start
+          ifib <- (IO.shift *> releases(s, permits)).start
           _ <- dfib.join
           _ <- ifib.join
           cnt <- s.count

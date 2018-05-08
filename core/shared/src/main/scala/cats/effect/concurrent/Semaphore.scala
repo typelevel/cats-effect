@@ -34,13 +34,13 @@ import scala.collection.immutable.Queue
 /**
  * A purely functional semaphore.
  *
- * A semaphore has a non-negative number of permits available. Decrementing the semaphore
- * acquires a permit and incrementing the semaphore releases a permit. A decrement
- * that occurs when there are no permits available results in semantic blocking until
- * a permit is available.
+ * A semaphore has a non-negative number of permits available. Acquiring a permit
+ * decrements the current number of permits and releasing a permit increases
+ * the current number of permits. An acquire that occurs when there are no
+ * permits available results in semantic blocking until a permit becomes available.
  *
- * Blocking decrements are cancelable if the semaphore is created with `Semaphore.apply`
- * (and hence, with a `Concurrent[F]` instance). Blocking decrements are non-cancelable
+ * Blocking acquires are cancelable if the semaphore is created with `Semaphore.apply`
+ * (and hence, with a `Concurrent[F]` instance). Blocking acquires are non-cancelable
  * if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
  */
 abstract class Semaphore[F[_]] {
@@ -49,8 +49,8 @@ abstract class Semaphore[F[_]] {
    * Returns the number of permits currently available. Always non-negative.
    *
    * May be out of date the instant after it is retrieved.
-   * Use `[[tryDecrement]]` or `[[tryDecrementBy]]` if you wish to attempt a 
-   * decrement and return immediately if the current count is not high enough
+   * Use `[[tryAcquire]]` or `[[tryAcquireBy]]` if you wish to attempt an
+   * acquire, returning immediately if the current count is not high enough
    * to satisfy the request.
    */
   def available: F[Long]
@@ -59,72 +59,73 @@ abstract class Semaphore[F[_]] {
    * Obtains a snapshot of the current count. May be negative.
    *
    * Like [[available]] when permits are available but returns the number of permits
-   * callers are blocking on when there are no permits available.
+   * callers are waiting for when there are no permits available.
    */
   def count: F[Long]
 
   /**
-   * Decrements the number of available permits by `n`, blocking until `n`
-   * are available. Error if `n < 0`. The blocking is semantic; we do not
-   * literally block a thread waiting for permits to become available.
-   * Note that decrements are satisfied in strict FIFO order, so given
-   * `s: Semaphore[F]` with 2 permits available, a `decrementBy(3)` will
-   * always be satisfied before a later call to `decrementBy(1)`.
+   * Acquires `n` permits.
+   *
+   * The returned effect semantically blocks until all requested permits are
+   * available. Note that acquires are statisfied in strict FIFO order, so given
+   * `s: Semaphore[F]` with 2 permits available, an `acquireN(3)` will
+   * always be satisfied before a later call to `acquireN(1)`.
+   *
+   * @param n number of permits to acquire - must be >= 0
    */
-  def decrementBy(n: Long): F[Unit]
+  def acquireN(n: Long): F[Unit]
 
-  /** Decrements the number of permits by 1. Alias for `[[decrementBy]](1)`. */
-  def decrement: F[Unit] = decrementBy(1)
-
-  /** Acquires `n` permits now and returns `true`, or returns `false` immediately. Error if `n < 0`. */
-  def tryDecrementBy(n: Long): F[Boolean]
-
-  /** Alias for `[[tryDecrementBy]](1)`. */
-  def tryDecrement: F[Boolean] = tryDecrementBy(1)
+  /** Acquires a single permit. Alias for `[[acquireN]](1)`. */
+  def acquire: F[Unit] = acquireN(1)
 
   /**
-   * Increments the number of available permits by `n`. Error if `n < 0`.
-   * This will have the effect of unblocking `n` acquisitions.
+   * Acquires `n` permits now and returns `true`, or returns `false` immediately. Error if `n < 0`.
+   *
+   * @param n number of permits to acquire - must be >= 0
    */
-  def incrementBy(n: Long): F[Unit]
+  def tryAcquireN(n: Long): F[Boolean]
 
-  /** Increments the number of permits by 1. Alias for `[[incrementBy]](1)`. */
-  def increment: F[Unit] = incrementBy(1)
+  /** Alias for `[[tryAcquireN]](1)`. */
+  def tryAcquire: F[Boolean] = tryAcquireN(1)
 
   /**
-   * Resets the count of this semaphore back to zero, and returns the previous count.
-   * Throws an `IllegalArgumentException` if count is below zero (due to pending
-   * decrements).
+   * Releases `n` permits, potentially unblocking up to `n` outstanding acquires.
+   *
+   * @param n number of permits to release - must be >= 0
    */
-  def clear: F[Long]
+  def releaseN(n: Long): F[Unit]
+
+  /** Releases a single permit. Alias for `[[releaseN]](1)`. */
+  def release: F[Unit] = releaseN(1)
 
   /**
-   * Returns a task that acquires a permit, runs the supplied task, and then releases the permit.
+   * Returns an effect that acquires a permit, runs the supplied effect, and then releases the permit.
    */
   def withPermit[A](t: F[A]): F[A]
 }
 
 object Semaphore {
 
-  private def assertNonNegative(n: Long) = assert(n >= 0, s"n must be nonnegative, was: $n")
+  private def assertNonNegative[F[_]](n: Long)(implicit F: Sync[F]): F[Unit] =
+    F.delay(assert(n >= 0, s"n must be nonnegative, was: $n"))
 
-  // semaphore is either empty, and there are number of outstanding acquires (Left)
+  // A semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
   /** Creates a new `Semaphore`, initialized with `n` available permits. */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
-    assertNonNegative(n)
-    Ref[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
+    assertNonNegative(n) *>
+      Ref[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
   }
 
   /**
-   * Like [[apply]] but only requires an `Async` constraint at the cost of the various
-   * decrement functions being uncancelable.
+   * Like [[apply]] but only requires an `Async` constraint in exchange for the various
+   * acquire effects being uncancelable.
    */
   def async[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
-    assertNonNegative(n)
-    Ref[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
+    assertNonNegative(n) *>
+      Ref[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
   
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
@@ -138,112 +139,100 @@ object Semaphore {
     private def count_(s: State[F]): Long =
       s.fold(ws => -ws.map(_._1).sum, identity)
 
-    def decrementBy(n: Long) = {
-      assertNonNegative(n)
-      if (n == 0) F.unit
-      else mkGate.flatMap { gate =>
-        state
-          .modifyAndReturn { old =>
-            val u = old match {
-              case Left(waiting) => Left(waiting :+ (n -> gate))
-              case Right(m) =>
-                if (n <= m) Right(m - n)
-                else Left(Queue((n - m) -> gate))
+    def acquireN(n: Long) = {
+      assertNonNegative(n) *> {
+        if (n == 0) F.unit
+        else mkGate.flatMap { gate =>
+          state
+            .modifyAndReturn { old =>
+              val u = old match {
+                case Left(waiting) => Left(waiting :+ (n -> gate))
+                case Right(m) =>
+                  if (n <= m) Right(m - n)
+                  else Left(Queue((n - m) -> gate))
+              }
+              (u, u)
             }
-            (u, u)
-          }
-          .flatMap { 
-            case Left(waiting) =>
-              val entry = waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
-              awaitGate(entry)
-              
-            case Right(_) => F.unit
-          }
+            .flatMap { 
+              case Left(waiting) =>
+                val entry = waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
+                awaitGate(entry)
+                
+              case Right(_) => F.unit
+            }
+        }
       }
     }
 
-    def tryDecrementBy(n: Long) = {
-      assertNonNegative(n)
-      if (n == 0) F.pure(true)
-      else
-        state
-          .modifyAndReturn { old =>
-            val u = old match {
-              case Right(m) if m >= n => Right(m - n)
-              case w                  => w
+    def tryAcquireN(n: Long) = {
+      assertNonNegative(n) *> {
+        if (n == 0) F.pure(true)
+        else
+          state
+            .modifyAndReturn { old =>
+              val u = old match {
+                case Right(m) if m >= n => Right(m - n)
+                case w                  => w
+              }
+              (u, (old, u))
             }
-            (u, (old, u))
-          }
-          .map { case (previous, now) =>
-            now.fold(_ => false, n => previous.fold(_ => false, m => n != m))
-          }
+            .map { case (previous, now) =>
+              now.fold(_ => false, n => previous.fold(_ => false, m => n != m))
+            }
+      }
     }
 
-    def clear: F[Long] =
-      state
-        .modifyAndReturn { old =>
-          val u = old match {
-            case Left(e) =>
-              throw new IllegalStateException("cannot clear a semaphore with negative count")
-            case Right(n) => Right(0L)
-          }
-          (u, old)
-        }
-        .flatMap { 
-          case Right(n) => F.pure(n)
-          case Left(_)  => sys.error("impossible, exception thrown above")
-        }
-
-    def incrementBy(n: Long) = {
-      assertNonNegative(n)
-      if (n == 0) F.pure(())
-      else
-        state
-          .modifyAndReturn { old =>
-            val u = old match {
-              case Left(waiting) =>
-                // just figure out how many to strip from waiting queue,
-                // but don't run anything here inside the modify
-                var m = n
-                var waiting2 = waiting
-                while (waiting2.nonEmpty && m > 0) {
-                  val (k, gate) = waiting2.head
-                  if (k > m) {
-                    waiting2 = (k - m, gate) +: waiting2.tail
-                    m = 0
-                  } else { 
-                    m -= k
-                    waiting2 = waiting2.tail
+    def releaseN(n: Long) = {
+      assertNonNegative(n) *> {
+        if (n == 0) F.pure(())
+        else
+          state
+            .modifyAndReturn { old =>
+              val u = old match {
+                case Left(waiting) =>
+                  // just figure out how many to strip from waiting queue,
+                  // but don't run anything here inside the modify
+                  var m = n
+                  var waiting2 = waiting
+                  while (waiting2.nonEmpty && m > 0) {
+                    val (k, gate) = waiting2.head
+                    if (k > m) {
+                      waiting2 = (k - m, gate) +: waiting2.tail
+                      m = 0
+                    } else { 
+                      m -= k
+                      waiting2 = waiting2.tail
+                    }
                   }
-                }
-                if (waiting2.nonEmpty) Left(waiting2)
-                else Right(m)
-              case Right(m) => Right(m + n)
+                  if (waiting2.nonEmpty) Left(waiting2)
+                  else Right(m)
+                case Right(m) => Right(m + n)
+              }
+              (u, (old, u))
             }
-            (u, (old, u))
-          }
-          .flatMap { case (previous, now) =>
-            // invariant: count_(now) == count_(previous) + n
-            previous match {
-              case Left(waiting) =>
-                // now compare old and new sizes to figure out which actions to run
-                val newSize = now.fold(_.size, _ => 0)
-                val released = waiting.size - newSize
-                waiting.take(released).foldRight(F.pure(())) { (hd, tl) =>
-                  open(hd._2) *> tl
-                }
-              case Right(_) => F.pure(())
+            .flatMap { case (previous, now) =>
+              // invariant: count_(now) == count_(previous) + n
+              previous match {
+                case Left(waiting) =>
+                  // now compare old and new sizes to figure out which actions to run
+                  val newSize = now.fold(_.size, _ => 0)
+                  val released = waiting.size - newSize
+                  waiting.take(released).foldRight(F.pure(())) { (hd, tl) =>
+                    open(hd._2) *> tl
+                  }
+                case Right(_) => F.pure(())
+              }
             }
-          }
+      }
     }
 
-    def available = state.get.map {
+    def available: F[Long] = state.get.map {
       case Left(_)  => 0
       case Right(n) => n
     }
 
     def withPermit[A](t: F[A]): F[A] =
-      F.bracket(decrement)(_ => t)(_ => increment)
+      F.bracket(acquire)(_ => t)(_ => release)
   }
 
   private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
