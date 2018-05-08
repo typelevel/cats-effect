@@ -73,7 +73,7 @@ class TrampolineECTests extends FunSuite with Matchers with TestUtils {
 
   test("on blocking it should fork") {
     assume(isJVM, "test relevant only for the JVM")
-    import concurrent.blocking
+    import scala.concurrent.blocking
 
     var effects = Queue.empty[Int]
     executeImmediate {
