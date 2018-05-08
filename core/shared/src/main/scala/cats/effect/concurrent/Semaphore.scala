@@ -1,25 +1,17 @@
 /*
- * The MIT License (MIT)
- * 
- * Copyright (c) 2013-2018 Paul Chiusano, and respective contributors 
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
+ * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package cats
@@ -106,8 +98,8 @@ abstract class Semaphore[F[_]] {
 
 object Semaphore {
 
-  private def assertNonNegative[F[_]](n: Long)(implicit F: Sync[F]): F[Unit] =
-    F.delay(assert(n >= 0, s"n must be nonnegative, was: $n"))
+  private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
+    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
 
   // A semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
@@ -115,7 +107,7 @@ object Semaphore {
 
   /** Creates a new `Semaphore`, initialized with `n` available permits. */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
-    assertNonNegative(n) *>
+    assertNonNegative[F](n) *>
       Ref[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
   }
 
@@ -124,7 +116,7 @@ object Semaphore {
    * acquire effects being uncancelable.
    */
   def async[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
-    assertNonNegative(n) *>
+    assertNonNegative[F](n) *>
       Ref[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
   
@@ -136,11 +128,13 @@ object Semaphore {
 
     def count = state.get.map(count_)
 
-    private def count_(s: State[F]): Long =
-      s.fold(ws => -ws.map(_._1).sum, identity)
+    private def count_(s: State[F]): Long = s match {
+      case Left(waiting) => -waiting.map(_._1).sum
+      case Right(available) => available
+    }
 
     def acquireN(n: Long) = {
-      assertNonNegative(n) *> {
+      assertNonNegative[F](n) *> {
         if (n == 0) F.unit
         else mkGate.flatMap { gate =>
           state
@@ -165,7 +159,7 @@ object Semaphore {
     }
 
     def tryAcquireN(n: Long) = {
-      assertNonNegative(n) *> {
+      assertNonNegative[F](n) *> {
         if (n == 0) F.pure(true)
         else
           state
@@ -177,14 +171,20 @@ object Semaphore {
               (u, (old, u))
             }
             .map { case (previous, now) =>
-              now.fold(_ => false, n => previous.fold(_ => false, m => n != m))
+              now match {
+                case Left(_) => false
+                case Right(n) => previous match {
+                  case Left(_) => false
+                  case Right(m) => n != m
+                }
+              }
             }
       }
     }
 
     def releaseN(n: Long) = {
-      assertNonNegative(n) *> {
-        if (n == 0) F.pure(())
+      assertNonNegative[F](n) *> {
+        if (n == 0) F.unit
         else
           state
             .modifyAndReturn { old =>
@@ -215,12 +215,15 @@ object Semaphore {
               previous match {
                 case Left(waiting) =>
                   // now compare old and new sizes to figure out which actions to run
-                  val newSize = now.fold(_.size, _ => 0)
+                  val newSize = now match {
+                    case Left(w) => w.size
+                    case Right(_) => 0
+                  }
                   val released = waiting.size - newSize
-                  waiting.take(released).foldRight(F.pure(())) { (hd, tl) =>
+                  waiting.take(released).foldRight(F.unit) { (hd, tl) =>
                     open(hd._2) *> tl
                   }
-                case Right(_) => F.pure(())
+                case Right(_) => F.unit
               }
             }
       }
