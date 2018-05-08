@@ -41,7 +41,7 @@ abstract class Semaphore[F[_]] {
    * Returns the number of permits currently available. Always non-negative.
    *
    * May be out of date the instant after it is retrieved.
-   * Use `[[tryAcquire]]` or `[[tryAcquireBy]]` if you wish to attempt an
+   * Use `[[tryAcquire]]` or `[[tryAcquireN]]` if you wish to attempt an
    * acquire, returning immediately if the current count is not high enough
    * to satisfy the request.
    */
