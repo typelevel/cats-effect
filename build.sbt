@@ -250,6 +250,8 @@ lazy val core = crossProject.in(file("core"))
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
       "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
 
+    excludeFilter.in(headerSources) := HiddenFileFilter || "*Deferred*.scala" || "*Ref*.scala" || "*LinkedMap.scala" || "*Semaphore*.scala",
+
     addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
