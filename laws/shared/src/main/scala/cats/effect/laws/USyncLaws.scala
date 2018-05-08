@@ -31,7 +31,7 @@ trait USyncLaws[F[_]] extends MonadLaws[F] {
   def delayCatchThrowIsPureLeft[A](e: Throwable) =
     F.delayCatch[A](throw e) <-> F.pure(Either.left(e))
 
-  def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
+  def unsequencedDelayCatchIsNoop[A](a: A, f: A => A) = {
     var cur = a
     val change = F delayCatch { cur = f(cur) }
     val _ = change

@@ -31,9 +31,7 @@ trait UAsync[F[_]] extends USync[F] {
     map(asyncCatch(k))(_.getOrElse(a))
 
   def never[A]: F[A] = map(asyncCatch[A](_ => ()))(_.right.get)
-}
 
-object UAsync {
-  def bewareAsyncNoCatch[F[_], A](k: (Either[Throwable, A] => Unit) => Unit)(implicit F: UAsync[F]): F[A] =
-    F.map(F.asyncCatch[A](k))(_.right.get)
+  def bewareAsyncNoCatch[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
+    map(asyncCatch[A](k))(_.right.get)
 }

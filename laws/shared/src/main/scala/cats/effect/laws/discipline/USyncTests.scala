@@ -19,58 +19,56 @@ package effect
 package laws
 package discipline
 
-import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-import org.scalacheck._, Prop.forAll
+import org.scalacheck.Prop.forAll
+import org.scalacheck.{Arbitrary, Cogen, Prop}
 
-trait ConcurrentTests[F[_]] extends AsyncTests[F] with UConcurrentTests[F] {
-  def laws: ConcurrentLaws[F]
+trait USyncTests[F[_]] extends MonadTests[F] {
+  def laws: USyncLaws[F]
 
-  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def usync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
     ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],
-    CogenT: Cogen[Throwable],
     EqFA: Eq[F[A]],
     EqFB: Eq[F[B]],
     EqFC: Eq[F[C]],
     EqFU: Eq[F[Unit]],
-    EqT: Eq[Throwable],
-    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
     iso: Isomorphisms[F],
     params: Parameters): RuleSet = {
 
     new RuleSet {
-      val name = "concurrent"
+      val name = "usync"
       val bases = Nil
-      val parents = Seq(async[A, B, C], uconcurrent[A, B, C])
+      val parents = Seq(monad[A, B, C])
+
+
       val props = Seq(
-        "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
-        "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
-        "bracket release is called on cancel" -> forAll(laws.cancelOnBracketReleases[A, B] _),
-        "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
-        "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
-        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
-        "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _))
+        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _),
+        "bind suspends evaluation" -> forAll(laws.bindSuspendsEvaluation[A] _),
+        "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayCatchIsNoop[A] _),
+        "delayCatch constant is pure" -> forAll(laws.delayCatchConstantIsPure[A] _),
+        "throw in delayCatch is pure" -> forAll(laws.delayCatchThrowIsPureLeft[A] _),
+        "stack safety on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps(params.stackSafeIterationsCount)),
+        "stack safety on repeated left binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
+        "stack safety on repeated right binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds(params.stackSafeIterationsCount)))
     }
   }
 }
 
-object ConcurrentTests {
-  def apply[F[_]: Concurrent]: ConcurrentTests[F] = new ConcurrentTests[F] {
-    def laws = ConcurrentLaws[F]
+object USyncTests {
+  def apply[F[_]: USync]: USyncTests[F] = new USyncTests[F] {
+    def laws = USyncLaws[F]
   }
 }

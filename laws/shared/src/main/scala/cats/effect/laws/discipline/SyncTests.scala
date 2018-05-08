@@ -25,7 +25,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
 
-trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
+trait SyncTests[F[_]] extends BracketTests[F, Throwable] with USyncTests[F] {
 
   def laws: SyncLaws[F]
 
@@ -58,8 +58,7 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
     new RuleSet {
       val name = "sync"
       val bases = Nil
-      val parents = Seq(bracket[A, B, C])
-
+      val parents = Seq(bracket[A, B, C], usync[A, B, C])
 
       val props = Seq(
         "bracket release is called for success" -> forAll(laws.bracketReleaseCalledForSuccess[A, B, C] _),
@@ -71,12 +70,7 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
         "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
         "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _),
         "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
-        "bind suspends evaluation" -> forAll(laws.bindSuspendsEvaluation[A] _),
-        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _),
-        "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
-        "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds(params.stackSafeIterationsCount)),
-        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts(params.stackSafeIterationsCount)),
-        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps(params.stackSafeIterationsCount)))
+        "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts(params.stackSafeIterationsCount)))
     }
   }
 }

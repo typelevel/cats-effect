@@ -19,58 +19,52 @@ package effect
 package laws
 package discipline
 
-import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-import org.scalacheck._, Prop.forAll
+import org.scalacheck.Prop.forAll
+import org.scalacheck.{Arbitrary, Cogen}
 
-trait ConcurrentTests[F[_]] extends AsyncTests[F] with UConcurrentTests[F] {
-  def laws: ConcurrentLaws[F]
+trait UAsyncTests[F[_]] extends USyncTests[F] {
+  def laws: UAsyncLaws[F]
 
-  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def uasync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
     ArbFA: Arbitrary[F[A]],
     ArbFB: Arbitrary[F[B]],
     ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],
-    CogenT: Cogen[Throwable],
     EqFA: Eq[F[A]],
     EqFB: Eq[F[B]],
     EqFC: Eq[F[C]],
     EqFU: Eq[F[Unit]],
-    EqT: Eq[Throwable],
-    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
     EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
     EqFABC: Eq[F[(A, B, C)]],
     EqFInt: Eq[F[Int]],
     iso: Isomorphisms[F],
     params: Parameters): RuleSet = {
 
     new RuleSet {
-      val name = "concurrent"
+      val name = "uasync"
       val bases = Nil
-      val parents = Seq(async[A, B, C], uconcurrent[A, B, C])
+      val parents = Seq(usync[A, B, C])
+
+
       val props = Seq(
-        "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
-        "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
-        "bracket release is called on cancel" -> forAll(laws.cancelOnBracketReleases[A, B] _),
-        "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
-        "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
-        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
-        "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _))
+        "async left is pure left" -> forAll(laws.asyncLeftIsPureLeft[A] _),
+        "async right is pure right" -> forAll(laws.asyncRightIsPureRight[A] _),
+        "repeated asyncCatch evaluation is not memoized" -> forAll(laws.repeatedAsyncCatchEvaluationNotMemoized[A] _),
+        "repeated callbacks are ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
     }
   }
 }
 
-object ConcurrentTests {
-  def apply[F[_]: Concurrent]: ConcurrentTests[F] = new ConcurrentTests[F] {
-    def laws = ConcurrentLaws[F]
+object UAsyncTests {
+  def apply[F[_]: UAsync]: UAsyncTests[F] = new UAsyncTests[F] {
+    def laws = UAsyncLaws[F]
   }
 }

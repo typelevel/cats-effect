@@ -21,19 +21,20 @@ package laws
 import cats.effect.laws.util.Pledge
 import cats.laws._
 import cats.implicits._
+
 import scala.Predef.{identity => id}
 
 
 trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   implicit def F: UConcurrent[F]
 
-  def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
+  def asyncCatchCancelableCatchCoherence[A](r: Either[Throwable, A]) = {
     F.asyncCatch[A](cb => cb(r)) <-> F.cancelableCatch[A] { cb => cb(r); IO.unit }
   }
 
-  def asyncCancelableReceivesCancelSignal[A](a: A) = {
+  def asyncCatchCancelableReceivesCancelSignal[A](a: A) = {
     val lh = Pledge[F, A].flatMap { effect =>
-      val async = F.cancelableCatch[Unit](_ => effect.complete[IO](a))
+      val async = F.cancelableCatch[Unit](_ => effect.completeIdempotent[IO](a))
       F.start(async).flatMap(_.cancel) *> effect.await
     }
     lh <-> F.pure(a)
@@ -45,7 +46,7 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   def joinIsIdempotent[A](a: A) = {
     val lh = Pledge[F, A].flatMap { p =>
       // N.B. doing effect.complete twice triggers error
-      F.start(p.complete(a)).flatMap(t => t.join *> t.join) *> p.await
+      F.start(p.completeIdempotent(a)).flatMap(t => t.join *> t.join) *> p.await
     }
     lh <-> F.pure(a)
   }
@@ -60,7 +61,7 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
 
   def uncancelablePreventsCancelation[A](a: A) = {
     val lh = Pledge[F, A].flatMap { p =>
-      val async = F.cancelableCatch[Unit](_ => p.complete[IO](a))
+      val async = F.cancelableCatch[Unit](_ => p.completeIdempotent[IO](a))
       F.start(F.uncancelable(async)).flatMap(_.cancel) *> p.await
     }
     // Non-terminating
@@ -78,7 +79,7 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
     val received = Pledge[F, B].flatMap { effect =>
       val winner = F.asyncCatch[A](_(r))
-      val loser = F.cancelableCatch[A](_ => effect.complete[IO](b))
+      val loser = F.cancelableCatch[A](_ => effect.completeIdempotent[IO](b))
       val race =
         if (leftWinner) F.race(winner, loser)
         else F.race(loser, winner)
@@ -91,9 +92,9 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
       pa <- Pledge[F, A]
-      loserA = F.cancelableCatch[A](_ => pa.complete[IO](a))
+      loserA = F.cancelableCatch[A](_ => pa.completeIdempotent[IO](a))
       pb <- Pledge[F, B]
-      loserB = F.cancelableCatch[B](_ => pb.complete[IO](b))
+      loserB = F.cancelableCatch[B](_ => pb.completeIdempotent[IO](b))
       race <- F.start(F.race(loserA, loserB))
       _ <- race.cancel
       a <- pa.await[F]
@@ -128,33 +129,12 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   }
 
 
-  def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received: F[B] = Pledge[F, B].flatMap { effect =>
-      val winner = F.asyncCatch[A](_(r))
-      val loser = F.cancelableCatch[A](_ => effect.complete[IO](b))
-      val race =
-        if (leftWinner) F.racePair(winner, loser)
-        else F.racePair(loser, winner)
-
-      race.flatMap {
-        case Right(Left((_, fiber))) =>
-          fiber.cancel *> effect.await[F]
-        case Right(Right((fiber, _))) =>
-          fiber.cancel *> effect.await[F]
-        case Left(_) =>
-          effect.await[F]
-      }
-    }
-    received <-> F.pure(b)
-  }
-
-
   def racePairCanJoinLeft[A](a: A) = {
     val lh = Pledge[F, A].flatMap { fa =>
       F.racePair(fa.await[F], F.unit).flatMap {
         case Left((l, _)) => F.pure(l)
         case Right((fiberL, _)) =>
-          fa.complete[F](a) *> fiberL.join
+          fa.completeIdempotent[F](a) *> fiberL.join
       }
     }
     lh <-> F.pure(a)
@@ -164,7 +144,7 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
     val lh = Pledge[F, A].flatMap { fa =>
       F.racePair(F.unit, fa.await[F]).flatMap {
         case Left((_, fiberR)) =>
-          fa.complete[F](a) *> fiberR.join
+          fa.completeIdempotent[F](a) *> fiberR.join
         case Right((_, r)) =>
           F.pure(r)
       }
@@ -175,9 +155,9 @@ trait UConcurrentLaws[F[_]] extends UAsyncLaws[F] {
   def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
       pa <- Pledge[F, A]
-      loserA = F.cancelableCatch[A](_ => pa.complete[IO](a))
+      loserA = F.cancelableCatch[A](_ => pa.completeIdempotent[IO](a))
       pb <- Pledge[F, B]
-      loserB = F.cancelableCatch[B](_ => pb.complete[IO](b))
+      loserB = F.cancelableCatch[B](_ => pb.completeIdempotent[IO](b))
       race <- F.start(F.racePair(loserA, loserB))
       _ <- race.cancel
       a <- pa.await[F]

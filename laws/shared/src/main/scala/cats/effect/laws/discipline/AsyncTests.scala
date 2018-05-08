@@ -24,7 +24,7 @@ import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
-trait AsyncTests[F[_]] extends SyncTests[F] {
+trait AsyncTests[F[_]] extends SyncTests[F] with UAsyncTests[F] {
   def laws: AsyncLaws[F]
 
   def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
@@ -56,7 +56,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
     new RuleSet {
       val name = "async"
       val bases = Nil
-      val parents = Seq(sync[A, B, C])
+      val parents = Seq(sync[A, B, C], uasync[A, B, C])
       val props = {
         val safeTests = Seq(
           "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),

@@ -23,6 +23,7 @@ import cats.effect.IO.Par
 import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
 import org.scalacheck._
+
 import scala.util.Either
 
 object arbitrary {
@@ -31,6 +32,10 @@ object arbitrary {
 
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
+
+  implicit def arbitraryUIO[A: Arbitrary: Cogen]: Arbitrary[UIO[A]] =
+    Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(io => UIO.create(io)))
+
 
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
     Gen.frequency(

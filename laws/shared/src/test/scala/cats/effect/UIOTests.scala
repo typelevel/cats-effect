@@ -16,19 +16,13 @@
 
 package cats.effect
 
-import cats.Monad
-import simulacrum._
+import cats.effect.laws.discipline.{UConcurrentTests}
+import cats.kernel.laws.discipline.MonoidTests
+import cats.implicits._
+import cats.effect.laws.discipline.arbitrary._
 
-@typeclass
-trait USync[F[_]] extends Monad[F] {
-  def delayCatch[A](thunk: => A): F[Either[Throwable, A]]
+class UIOTests extends BaseTestsSuite {
 
-  def delayUnit(thunk: => Unit): F[Unit] =
-    map(delayCatch(thunk))(_.getOrElse(()))
-
-  def delayDefault[A](thunk: => A)(a: A): F[A] =
-    map(delayCatch(thunk))(_.getOrElse(a))
-
-  def bewareDelayNoCatch[A](thunk: => A): F[A] =
-    map(delayCatch[A](thunk))(_.right.get)
+  checkAllAsync("UIO", implicit ec => MonoidTests[UIO[Int]].monoid)
+  checkAllAsync("UIO", implicit ec => UConcurrentTests[UIO].uconcurrent[Int, Int, Int])
 }

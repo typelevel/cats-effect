@@ -28,10 +28,10 @@ trait UAsyncLaws[F[_]] extends USyncLaws[F] {
   def asyncRightIsPureRight[A](a: A) =
     F.asyncCatch[A](_(Right(a))) <-> F.pure(Right(a))
 
-  def asyncLeftIsPureRight[A](e: Throwable) =
+  def asyncLeftIsPureLeft[A](e: Throwable) =
     F.asyncCatch[A](_(Left(e))) <-> F.pure(Left(e))
 
-  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = {
+  def repeatedAsyncCatchEvaluationNotMemoized[A](a: A, f: A => A) = {
     var cur = a
 
     val change: F[Unit] = F asyncUnit { cb =>

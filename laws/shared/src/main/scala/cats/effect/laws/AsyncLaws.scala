@@ -21,7 +21,7 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait AsyncLaws[F[_]] extends SyncLaws[F] {
+trait AsyncLaws[F[_]] extends SyncLaws[F] with UAsyncLaws[F] {
   implicit def F: Async[F]
 
   def asyncRightIsPure[A](a: A) =
@@ -41,19 +41,6 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     val read: F[A] = F.delay(cur)
 
     change *> change *> read <-> F.pure(f(f(a)))
-  }
-
-  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
-    var cur = a
-    val change = F.delay { cur = f(cur) }
-    val readResult = F.delay { cur }
-
-    val double: F[Unit] = F.async { cb =>
-      cb(Right(()))
-      cb(Right(()))
-    }
-
-    double *> change *> readResult <-> F.delay(f(a))
   }
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {

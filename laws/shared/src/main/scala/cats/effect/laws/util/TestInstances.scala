@@ -16,8 +16,10 @@
 
 package cats.effect.laws.util
 
-import cats.effect.IO
-import cats.kernel.Eq
+import cats.Eq
+import cats.effect.{IO, UIO}
+import cats.instances.eq._
+import cats.syntax.contravariant._
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
@@ -49,6 +51,9 @@ trait TestInstances {
       def eqv(x: IO.Par[A], y: IO.Par[A]): Boolean =
         eqFuture[A].eqv(unwrap(x).unsafeToFuture(), unwrap(y).unsafeToFuture())
     }
+
+  implicit def eqUIO[A](implicit A: Eq[A], ec: TestContext): Eq[UIO[A]] =
+    eqIO[A].contramap(uio => UIO.runUIO(uio))
 
   /**
    * Defines equality for `Future` references that can

@@ -59,6 +59,8 @@ object UIOImpl extends UIOInstances with IONewtype {
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): UIO[Either[Throwable, A]] =
     fromIO(IO.cancelable(k))
 
+  def uncancelable[A](fa: UIO[A]): UIO[A] =
+    unsafeFromIO(runUIO(fa).uncancelable)
 
   def start[A](uioa: UIO[A]): UIO[Fiber[UIO, A]] =
     unsafeFromIO(runUIO(uioa).start.map(uioFiber))
@@ -110,7 +112,7 @@ private[effect] abstract class UIOParallelNewtype {
 
 
 private[effect] sealed abstract class UIOInstances extends UIOParallelNewtype {
-  implicit val catsEffectUAsyncForUIO: UAsync[UIO] = new UAsync[UIO] {
+  implicit val catsEffectUAsyncForUIO: UConcurrent[UIO] = new UConcurrent[UIO] {
     def tailRecM[A, B](a: A)(f: A => UIO[Either[A, B]]): UIO[B] =
       UIOImpl.create(Monad[IO].tailRecM(a)(f andThen UIOImpl.runUIO))
 
@@ -125,6 +127,24 @@ private[effect] sealed abstract class UIOInstances extends UIOParallelNewtype {
 
     def asyncCatch[A](k: (Either[Throwable, A] => Unit) => Unit): UIO[Either[Throwable, A]] =
       UIO.async(k)
+
+    def cancelableCatch[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): UIO[Either[Throwable, A]] =
+      UIO.cancelable(k)
+
+    def start[A](fa: UIO[A]): UIO[Fiber[UIO, A]] =
+      UIO.start(fa)
+
+    def uncancelable[A](fa: UIO[A]): UIO[A] =
+      UIO.uncancelable(fa)
+
+    def racePair[A, B](fa: UIO[A], fb: UIO[B]): UIO[Either[(A, Fiber[UIO, B]), (Fiber[UIO, A], B)]] =
+      UIO.racePair(fa, fb)
+
+    override def bewareDelayNoCatch[A](thunk: => A): UIO[A] =
+      UIO.create(IO(thunk))
+
+    override def bewareAsyncNoCatch[A](k: (Either[Throwable, A] => Unit) => Unit): UIO[A] =
+      UIO.create(IO.async(k))
   }
 
   implicit val catsEffectApplicativeForParUIO: Applicative[UIOImpl.Par] = new Applicative[UIOImpl.Par] {
