@@ -65,11 +65,11 @@ abstract class Deferred[F[_], A] {
   def get: F[A]
 
   /**
-    * If this `Deferred` is empty, *synchronously* sets the current value to `a`, and notifies
+    * If this `Deferred` is empty, sets the current value to `a`, and notifies
     * any and all readers currently blocked on a `get`.
     *
-    * Note that the returned action completes after the reference has been successfully set:
-    * use `async.shiftStart(r.complete)` if you want asynchronous behaviour.
+    * Note that the returned action may complete after the reference has been successfully set:
+    * use `F.start(Async.shift *> r.complete)` if you want asynchronous behaviour.
     *
     * If this `Deferred` has already been completed, the returned action immediately fails with
     * an `IllegalStateException`. In the uncommon scenario where this behavior

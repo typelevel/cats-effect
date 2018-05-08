@@ -53,7 +53,7 @@ abstract class Ref[F[_], A] {
   def get: F[A]
 
   /**
-   * Synchronously sets the current value to `a`.
+   * Sets the current value to `a`.
    *
    * The returned action completes after the reference has been successfully set.
    *
@@ -63,14 +63,9 @@ abstract class Ref[F[_], A] {
   def set(a: A): F[Unit]
 
   /**
-   * Lazily sets the current value to the `a`.
+   * Eventually sets the current value to the `a`.
    *
-   * After the returned `F[Unit]` is bound, an update will eventually occur,
-   * setting the current value to `a`.
-   *
-   * Satisfies:
-   *   `r.lazySet(fa) == async.shiftStart(r.set(a))`
-   * but it's significantly faster.
+   * The returned action completes after the reference has been lazily set.
    */
   def lazySet(a: A): F[Unit]
 
