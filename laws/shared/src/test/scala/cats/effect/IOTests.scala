@@ -534,46 +534,104 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("parMap2 cancels first, when second terminates in error") { implicit ec =>
     val dummy = new RuntimeException("dummy")
-    var wasCancelled = false
+    var wasCanceled = false
 
-    val io1 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io1 = IO.cancelable[Int](_ => IO { wasCanceled = true })
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
   testAsync("parMap2 cancels second, when first terminates in error") { implicit ec =>
     val dummy = new RuntimeException("dummy")
-    var wasCancelled = false
+    var wasCanceled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
-    val io2 = IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io2 = IO.cancelable[Int](_ => IO { wasCanceled = true })
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
   testAsync("IO.cancelable IOs can be canceled") { implicit ec =>
-    var wasCancelled = false
+    var wasCanceled = false
     val p = Promise[Int]()
 
-    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCancelled = true })
+    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCanceled = true })
     val cancel = io1.unsafeRunCancelable(Callback.promise(p))
 
     cancel()
     // Signal not observed yet due to IO.shift
-    wasCancelled shouldBe false
+    wasCanceled shouldBe false
 
     ec.tick()
-    wasCancelled shouldBe true
+    wasCanceled shouldBe true
     p.future.value shouldBe None
+  }
+
+  testAsync("IO#redeem(throw, f) <-> IO#map") { implicit ec =>
+    check { (io: IO[Int], f: Int => Int) =>
+      io.redeem(e => throw e, f) <-> io.map(f)
+    }
+  }
+
+  testAsync("IO#redeem(f, identity) <-> IO#handleError") { implicit ec =>
+    check { (io: IO[Int], f: Throwable => Int) =>
+      io.redeem(f, identity) <-> io.handleError(f)
+    }
+  }
+
+  testAsync("IO#redeemWith(raiseError, f) <-> IO#flatMap") { implicit ec =>
+    check { (io: IO[Int], f: Int => IO[Int]) =>
+      io.redeemWith(IO.raiseError, f) <-> io.flatMap(f)
+    }
+  }
+
+  testAsync("IO#redeemWith(f, pure) <-> IO#handleErrorWith") { implicit ec =>
+    check { (io: IO[Int], f: Throwable => IO[Int]) =>
+      io.redeemWith(f, IO.pure) <-> io.handleErrorWith(f)
+    }
+  }
+
+  test("runSyncStep pure produces right IO") {
+    IO.pure(42).runSyncStep.unsafeRunSync() shouldBe Right(42)
+  }
+
+  test("runSyncStep raiseError produces error IO") {
+    val e = new Exception
+    IO.raiseError(e).runSyncStep.attempt.unsafeRunSync() shouldBe Left(e)
+  }
+
+  test("runSyncStep delay produces right IO") {
+    var v = 42
+    val io = (IO { v += 1 }).runSyncStep
+    v shouldBe 42
+    io.unsafeRunSync() shouldBe Right(())
+    v shouldBe 43
+    io.unsafeRunSync() shouldBe Right(())
+    v shouldBe 44
+  }
+
+  test("runSyncStep runs bind chain") {
+    var v = 42
+    val tsk = IO.pure(42).flatMap { x =>
+      (IO { v += x }).flatMap { _ =>
+        IO.pure(x)
+      }
+    }
+    val io = tsk.runSyncStep
+    v shouldBe 42
+    io.unsafeRunSync() shouldBe Right(42)
+    v shouldBe 84
+    io.unsafeRunSync() shouldBe Right(42)
+    v shouldBe 126
   }
 }
 
@@ -596,6 +654,8 @@ object IOTests {
       ref.tailRecM(a)(f)
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
       ref.runAsync(fa)(cb)
+    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+      ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
     def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =

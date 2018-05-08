@@ -8,7 +8,7 @@ scaladoc: "#cats.effect.ConcurrentEffect"
 
 Type class describing effect data types that are cancelable and can be evaluated concurrently.
 
-In addition to the algebras of `Concurrent` and `Effect`, instances must also implement the `ConcurrentEffect.runCancelable` operation that triggers the evaluation, suspended in the `IO` context, but that also returns a token that can be used for cancelling the running computation.
+In addition to the algebras of `Concurrent` and `Effect`, instances must also implement the `ConcurrentEffect.runCancelable` operation that triggers the evaluation, suspended in the `IO` context, but that also returns a token that can be used for canceling the running computation.
 
 *Note this is the safe and generic version of `IO.unsafeRunCancelable`*.
 

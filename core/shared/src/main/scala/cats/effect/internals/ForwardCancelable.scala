@@ -71,7 +71,7 @@ private[effect] object ForwardCancelable {
 
   /**
    * Builder for a `ForwardCancelable` that also cancels
-   * a second reference when cancelled.
+   * a second reference when canceled.
    */
   def plusOne(ref: () => Unit): ForwardCancelable =
     new ForwardCancelable(ref)

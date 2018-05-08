@@ -101,4 +101,13 @@ object arbitrary {
         case _ => seed
       }
     }
+
+  implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Functor[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+    Arbitrary(Gen.delay(genResource[F, A]))
+
+  def genResource[F[_], A](implicit F: Functor[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] =
+    for {
+      alloc <- getArbitrary[F[A]]
+      dispose <- getArbitrary[F[Unit]]
+    } yield Resource(F.map(alloc)(a => a -> dispose))
 }
