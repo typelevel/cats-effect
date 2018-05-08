@@ -23,7 +23,8 @@ import scala.concurrent.duration.FiniteDuration
 import cats.effect.internals.IONewtype
 
 
-object UIOImpl extends UIOInstances with IONewtype {
+object UIOImpl extends UIOInstances {
+
   private[cats] def create[A](s: IO[A]): Type[A] =
     s.asInstanceOf[Type[A]]
 
@@ -95,7 +96,7 @@ object UIOImpl extends UIOInstances with IONewtype {
 
 }
 
-private[effect] abstract class UIOParallelNewtype {
+private[effect] abstract class UIOParallelNewtype extends IONewtype {
 
   type Par[A] = Par.Type[A]
 

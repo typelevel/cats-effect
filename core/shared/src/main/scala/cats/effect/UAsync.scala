@@ -25,10 +25,10 @@ trait UAsync[F[_]] extends USync[F] {
   def asyncCatch[A](k: (Either[Throwable, A] => Unit) => Unit): F[Either[Throwable, A]]
 
   def asyncUnit(k: (Either[Throwable, Unit] => Unit) => Unit): F[Unit] =
-    map(asyncCatch(k))(_.getOrElse(()))
+    map(asyncCatch(k))(_.right.getOrElse(()))
 
   def asyncDefault[A](k: (Either[Throwable, A] => Unit) => Unit)(a: A): F[A] =
-    map(asyncCatch(k))(_.getOrElse(a))
+    map(asyncCatch(k))(_.right.getOrElse(a))
 
   def never[A]: F[A] = map(asyncCatch[A](_ => ()))(_.right.get)
 

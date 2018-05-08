@@ -24,10 +24,10 @@ trait USync[F[_]] extends Monad[F] {
   def delayCatch[A](thunk: => A): F[Either[Throwable, A]]
 
   def delayUnit(thunk: => Unit): F[Unit] =
-    map(delayCatch(thunk))(_.getOrElse(()))
+    map(delayCatch(thunk))(_.right.getOrElse(()))
 
   def delayDefault[A](thunk: => A)(a: A): F[A] =
-    map(delayCatch(thunk))(_.getOrElse(a))
+    map(delayCatch(thunk))(_.right.getOrElse(a))
 
   def bewareDelayNoCatch[A](thunk: => A): F[A] =
     map(delayCatch[A](thunk))(_.right.get)
