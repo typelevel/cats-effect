@@ -32,7 +32,7 @@ class IOCancelableTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(()))
   }
 
-  testAsync("IO.cancelBoundary can be cancelled") { implicit ec =>
+  testAsync("IO.cancelBoundary can be canceled") { implicit ec =>
     val f = (IO.shift *> IO.cancelBoundary).unsafeToFuture()
     f.value shouldBe None
     ec.tick()

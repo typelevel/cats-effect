@@ -173,6 +173,11 @@ val mimaSettings = Seq(
       exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
       exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runSyncStep"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runSyncStep"),
       //
       // Following are all internal implementation details:
       //
@@ -195,7 +200,9 @@ val mimaSettings = Seq(
       // Not a problem: IORunLoop is private
       exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
       // Not a problem: Async.never implementation is just moved
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never")
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
+      // Deleted
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler")
     )
   })
 

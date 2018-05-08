@@ -16,8 +16,9 @@
 
 package cats.effect.laws.util
 
-import cats.Eq
-import cats.effect.{IO, UIO}
+
+import cats.{Eq, Functor}
+import cats.effect.{IO, UIO, Resource}
 import cats.instances.eq._
 import cats.syntax.contravariant._
 import scala.concurrent.Future
@@ -92,6 +93,17 @@ trait TestInstances {
         // that wraps them (e.g. ExecutionException)
         (x ne null) == (y ne null)
       }
+    }
+
+  /**
+   * Defines equality for a `Resource`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResource[F[_], A](implicit E: Eq[F[A]], F: Functor[F]): Eq[Resource[F, A]] =
+    new Eq[Resource[F, A]] {
+      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
+        E.eqv(F.map(x.allocate)(_._1), F.map(y.allocate)(_._1))
     }
 }
 
