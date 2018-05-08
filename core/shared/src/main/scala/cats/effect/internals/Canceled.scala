@@ -16,6 +16,6 @@
 
 package cats.effect.internals
 
-final object Canceled extends RuntimeException {
+private[effect] final object Canceled extends RuntimeException {
   override def fillInStackTrace = this
 }
