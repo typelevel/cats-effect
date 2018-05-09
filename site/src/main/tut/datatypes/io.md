@@ -1258,9 +1258,9 @@ nonParallel.unsafeRunSync()
 
 With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
 
-### sequencing
+### parSequence
 
-If you have a list of IO, and you want a IO of the result list you can use .parSequence which executes the IO's in parallel.
+If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO's in parallel. The IO's must be asynchronous, which if they are not you can use [shift](#shift).
 
 ```tut:silent
 import cats._
@@ -1268,15 +1268,19 @@ import cats.data._
 import cats.syntax.all._
 import cats.effect.IO
 
-val aLotOfIOs: NonEmptyList[IO[Int]] = 
-  NonEmptyList.one(IO(1))
+val asyncIo = IO.shift(ExecutionContext.global).flatMap(_ => IO(1))
+
+val aLotOfIOs = 
+  NonEmptyList.of(asyncIo, asyncIo)
 
 val ioOfList: IO[NonEmptyList[Int]] = aLotOfIOs.parSequence
 ```
 
-### traverse
+There is also `cats.Traverse.sequence` which does this synchronously.
 
-If you have a list of things that you want to turn into IO's sequentially you can use traverse.
+### parTraverse
+
+If you have a list of data and a way of turning each item into an IO, but you want a single IO for the list of results you can use `parTraverse`
 
 ```tut:silent
 import cats._
