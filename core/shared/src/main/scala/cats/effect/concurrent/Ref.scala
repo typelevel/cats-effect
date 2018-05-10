@@ -146,10 +146,10 @@ object Ref {
   def unsafe[F[_]]: RefUnsafePartiallyApplied[F] = new RefUnsafePartiallyApplied[F]
 
   private[concurrent] final class RefUnsafePartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
-    def apply[A](a: A)(implicit F: Sync[F]) = new SyncRef[F, A](new AtomicReference[A](a))
+    def apply[A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
   }
 
-  private[concurrent] final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
+  private final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
 
     def get: F[A] = F.delay(ar.get)
 
