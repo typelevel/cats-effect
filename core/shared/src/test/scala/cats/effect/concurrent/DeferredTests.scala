@@ -18,10 +18,11 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
-import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+
+import cats.implicits._
+import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
 
 class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
@@ -48,7 +49,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
     test(s"$label - get blocks until set") {
       val op = for {
-        state <- Ref[IO, Int](0)
+        state <- Ref[IO](0)
         modifyGate <- pc[Unit]
         readGate <- pc[Unit]
         _ <- IO.shift *> (modifyGate.get *> state.modify(_ * 2) *> readGate.complete(())).start
@@ -65,7 +66,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] = 
     for {
-      r <- Ref[IO,Option[Int]](None)
+        r <- Ref[IO](Option.empty[Int])
         p <- pc
         fiber <- p.get.start
         _ <- fiber.cancel

@@ -132,18 +132,24 @@ abstract class Ref[F[_], A] {
 object Ref {
 
   /** Creates an asynchronous, concurrent mutable reference initialized to the supplied value. */
-  def apply[F[_], A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] =
-    F.delay(unsafe(a))
+  def apply[F[_]]: RefApplyPartiallyApplied[F] = new RefApplyPartiallyApplied[F]
+
+  private[concurrent] final class RefApplyPartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
+    def apply[A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] = F.delay(unsafe[F](a))
+  }
 
   /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.
    */
-  def unsafe[F[_]: Sync, A](a: A): Ref[F, A] =
-    new SyncRef[F, A](new AtomicReference[A](a))
+  def unsafe[F[_]]: RefUnsafePartiallyApplied[F] = new RefUnsafePartiallyApplied[F]
 
-  private final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
+  private[concurrent] final class RefUnsafePartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
+    def apply[A](a: A)(implicit F: Sync[F]) = new SyncRef[F, A](new AtomicReference[A](a))
+  }
+
+  private[concurrent] final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
 
     def get: F[A] = F.delay(ar.get)
 

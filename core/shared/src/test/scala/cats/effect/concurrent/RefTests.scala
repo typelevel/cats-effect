@@ -37,14 +37,14 @@ class RefTests extends AsyncFunSuite with Matchers {
 
   test("concurrent modifications") {
     val finalValue = 100
-    val r = Ref.unsafe[IO, Int](0)
+    val r = Ref.unsafe[IO](0)
     val modifies = List.fill(finalValue)(IO.shift *> r.modify(_ + 1)).sequence
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
   }
 
   test("access - successful") {
     val op = for {
-      r <- Ref[IO, Int](0)
+      r <- Ref[IO](0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       success <- setter(value + 1)
@@ -55,7 +55,7 @@ class RefTests extends AsyncFunSuite with Matchers {
 
   test("access - setter should fail if value is modified before setter is called") {
     val op = for {
-      r <- Ref[IO, Int](0)
+      r <- Ref[IO](0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       _ <- r.set(5)
@@ -67,7 +67,7 @@ class RefTests extends AsyncFunSuite with Matchers {
 
   test("access - setter should fail if called twice") {
     val op = for {
-      r <- Ref[IO, Int](0)
+      r <- Ref[IO](0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       cond1 <- setter(value + 1)
