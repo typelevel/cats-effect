@@ -1414,3 +1414,4 @@ Note that as far as the actual behavior of `IO` is concerned, something like `IO
 But you should not rely on this behavior, because it is NOT described by the laws required by the `Sync` type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.
 
 Stick with pure functions.
+
