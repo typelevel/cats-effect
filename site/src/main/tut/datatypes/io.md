@@ -1260,38 +1260,32 @@ With `IO` thread forking or call-stack shifting has to be explicit. This goes fo
 
 ### parSequence
 
-If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO's in parallel. The IO's must be asynchronous, which if they are not you can use [shift](#shift).
+If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel. The IO tasks must be asynchronous, which if they are not you can use [shift](#shift).
 
-```tut:silent
-import cats._
-import cats.data._
-import cats.syntax.all._
-import cats.effect.IO
+```tut:book
+import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
 
-val asyncIo = IO.shift(ExecutionContext.global).flatMap(_ => IO(1))
+val asyncIO = IO.shift *> IO(1)
 
 val aLotOfIOs = 
-  NonEmptyList.of(asyncIo, asyncIo)
+  NonEmptyList.of(asyncIO, asyncIO)
 
-val ioOfList: IO[NonEmptyList[Int]] = aLotOfIOs.parSequence
+val ioOfList = aLotOfIOs.parSequence
 ```
 
 There is also `cats.Traverse.sequence` which does this synchronously.
 
 ### parTraverse
 
-If you have a list of data and a way of turning each item into an IO, but you want a single IO for the list of results you can use `parTraverse`
+If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel. The IO tasks must be asynchronous, which if they are not you can use shift.
 
-```tut:silent
-import cats._
-import cats.data._
-import cats.syntax.all._
-import cats.effect.IO
-
-val list: IO[NonEmptyList[Int]] = NonEmptyList.of(1, 2, 3).parTraverse { i =>
-  IO(i)
+```tut:book
+val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
+  IO.shift *> IO(i)
 }
 ```
+
+There is also `cats.Traverse.traverse` which will run each step synchronously.
 
 ## "Unsafe" Operations
 
