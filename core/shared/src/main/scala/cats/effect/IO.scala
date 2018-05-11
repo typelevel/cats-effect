@@ -24,7 +24,7 @@ import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 import scala.util.{Failure, Left, Right, Success}
 
@@ -397,6 +397,23 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
+
+  /**
+   * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
+   * or evaluates the `fallback`.
+   */
+  final def timeoutTo[A](after: FiniteDuration, fallback: IO[A])(implicit timer: Timer[IO]): IO[A] =
+    IO.race(this, timer.sleep(after)) flatMap {
+      case Left((a, _)) => IO.pure(a)
+      case Right(_) => fallback
+    }
+
+  /**
+   * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
+   * or raises a `TimeoutException`.
+   */
+  final def timeout[A](after: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+    timeoutTo(after, IO.raiseError(new TimeoutException(after.toString)))
 
   /**
    * Returns an `IO` action that treats the source task as the
