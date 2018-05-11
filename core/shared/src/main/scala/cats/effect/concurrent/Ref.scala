@@ -185,7 +185,7 @@ object Ref {
    * The recommended alternative is accepting a `Ref[F, A]` as a parameter:
    *
    * {{{
-   *   class Counter (count: Ref[IO, Int) {
+   *   class Counter (count: Ref[IO, Int]) {
    *     // same body
    *   }
    *
