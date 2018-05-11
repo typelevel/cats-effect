@@ -131,7 +131,23 @@ abstract class Ref[F[_], A] {
 
 object Ref {
 
-  /** Creates an asynchronous, concurrent mutable reference initialized to the supplied value. */
+  /**
+   * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
+   *
+   * This method uses the [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
+   * so only effect type needs to be specified explicitly:
+   *
+   * {{{
+   *   import cats.effect.IO
+   *   import cats.effect.concurrent.Ref
+   *
+   *   for {
+   *     intRef <- Ref[IO](10)
+   *     ten <- intRef.get
+   *   } yield ten
+   * }}}
+   *
+   */
   def apply[F[_]]: RefApplyPartiallyApplied[F] = new RefApplyPartiallyApplied[F]
 
   private[concurrent] final class RefApplyPartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
@@ -142,6 +158,41 @@ object Ref {
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.
+   *
+   * This method uses the [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
+   * so only effect type needs to be specified explicitly.
+   *
+   * A care must be taken to preserve referential transparency:
+   *
+   * {{{
+   *   import cats.effect.IO
+   *   import cats.effect.concurrent.Ref
+   *
+   *   class Counter private () {
+   *     private val count = Ref.unsafe[IO](0)
+   *
+   *     def increment: IO[Unit] = count.modify(_ + 1)
+   *     def total: IO[Int] = count.get
+   *   }
+   *
+   *   object Counter {
+   *     def apply(): IO[Counter] = IO(new Counter)
+   *   }
+   * }}}
+   *
+   * Such usage is safe, as long as class constructor is not accessible and public one suspends creation in IO
+   *
+   * The recommended alternative is accepting a `Ref[F, A]` as a parameter:
+   *
+   * {{{
+   *   class Counter (count: Ref[IO, Int) {
+   *     // same body
+   *   }
+   *
+   *   object Counter {
+   *     def apply(): IO[Counter] = Ref[IO](0).map(new Counter(_))
+   *   }
+   * }}}
    */
   def unsafe[F[_]]: RefUnsafePartiallyApplied[F] = new RefUnsafePartiallyApplied[F]
 
