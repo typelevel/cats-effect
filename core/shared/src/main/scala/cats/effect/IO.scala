@@ -404,7 +404,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def timeoutTo[A](after: FiniteDuration, fallback: IO[A])(implicit timer: Timer[IO]): IO[A] =
     IO.race(this, timer.sleep(after)) flatMap {
-      case Left((a, _)) => IO.pure(a)
+      case Left(a) => IO.pure(a)
       case Right(_) => fallback
     }
 
