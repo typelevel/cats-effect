@@ -58,6 +58,17 @@ trait Effect[F[_]] extends Async[F] {
    */
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 
+  /**
+   * Returns an `IO` which runs `fa` until it is possible
+   * to do it synchronously.
+   *
+   * If it is possible to run the entirety of `fa` synchronously, its
+   * result is returned wrapped in a `Right`. Otherwise, the
+   * continuation (asynchronous) effect is returned in a `Left`.
+   *
+   * Note that evaluating the returned `IO` is guaranteed
+   * to execute immediately.
+   */
   def runSyncStep[A](fa: F[A]): IO[Either[F[A], A]]
 }
 
