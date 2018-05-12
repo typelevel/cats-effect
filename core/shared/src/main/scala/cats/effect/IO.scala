@@ -311,6 +311,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * fs2 or Monix).
    *
    * @see [[unsafeRunSync]]
+   * @see [[timeout]] for pure and safe version
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
@@ -401,6 +402,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   /**
    * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
    * or evaluates the `fallback`.
+   *
+   * The IO is cancelled in the event that it takes longer than the `FiniteDuration`
+   * to complete. Cancellation of an IO does not equate to immediate interruption of the IO.
+   * A completed cancel simply means that it has been asked to cancel.
    */
   final def timeoutTo[A2 >: A](after: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
     Concurrent.timeoutTo(this, after, fallback)
@@ -408,6 +413,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   /**
    * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
    * or raises a `TimeoutException`.
+   *
+   * The IO is cancelled in the event that it takes longer than the `FiniteDuration`
+   * to complete. Cancellation of an IO does not equate to immediate interruption of the IO.
+   * A completed cancel simply means that it has been asked to cancel.
    */
   final def timeout(after: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
     timeoutTo(after, IO.raiseError(new TimeoutException(after.toString)))(timer)
@@ -1075,29 +1084,7 @@ object IO extends IOInstances {
    * The two tasks are executed in parallel if asynchronous,
    * the winner being the first that signals a result.
    *
-   * As an example, this is how a `timeout` operation could be
-   * implemented in terms of `race`:
-   *
-   * {{{
-   *   import cats.effect._
-   *   import scala.concurrent.duration._
-   *
-   *   def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])
-   *     (implicit timer: Timer[IO]): IO[A] = {
-   *
-   *     IO.race(io, timer.sleep(after)).flatMap {
-   *       case Left((a, _)) => IO.pure(a)
-   *       case Right((_, _)) => fallback
-   *     }
-   *   }
-   *
-   *   def timeout[A](io: IO[A], after: FiniteDuration)
-   *     (implicit timer: Timer[IO]): IO[A] = {
-   *
-   *     timeoutTo(io, after,
-   *       IO.raiseError(new TimeoutException(after.toString)))
-   *   }
-   * }}}
+   * As an example see [[IO.timeout]] and [[IO.timeoutTo]]
    *
    * N.B. this is the implementation of [[Concurrent.race]].
    *
