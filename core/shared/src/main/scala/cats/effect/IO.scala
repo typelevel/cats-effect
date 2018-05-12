@@ -403,10 +403,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * or evaluates the `fallback`.
    */
   final def timeoutTo[A2 >: A](after: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
-    IO.race(this, timer.sleep(after)) flatMap {
-      case Left(a) => IO.pure(a)
-      case Right(_) => fallback
-    }
+    Concurrent.timeoutTo(this, after, fallback)
 
   /**
    * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
