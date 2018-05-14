@@ -45,12 +45,13 @@ import cats.effect.internals.{MVarAsync, MVarConcurrent}
  * by `scalaz.concurrent.MVar`.
  */
 abstract class MVar[F[_], A] {
-  /** Fills the `MVar` if it is empty, or blocks (asynchronously)
+  /** 
+   * Fills the `MVar` if it is empty, or blocks (asynchronously)
    * if the `MVar` is full, until the given value is next in
    * line to be consumed on [[take]].
    *
    * This operation is atomic.
-   **
+   *
    * @return a task that on evaluation will complete when the
    *         `put` operation succeeds in filling the `MVar`,
    *         with the given value being next in line to
@@ -58,7 +59,8 @@ abstract class MVar[F[_], A] {
    */
   def put(a: A): F[Unit]
 
-  /** Empties the `MVar` if full, returning the contained value,
+  /** 
+   * Empties the `MVar` if full, returning the contained value,
    * or blocks (asynchronously) until a value is available.
    *
    * This operation is atomic.
@@ -83,12 +85,12 @@ object MVar {
    *
    * For creating an empty `MVar`:
    * {{{
-   *   MVar.cancelable[IO].empty[Int]
+   *   MVar[IO].empty[Int]
    * }}}
    *
    * For creating an `MVar` with an initial value:
    * {{{
-   *   MVar.cancelable[IO]("hello")
+   *   MVar[IO].init("hello")
    * }}}
    *
    * @see [[async]]
@@ -113,7 +115,7 @@ object MVar {
    *
    * For creating an `MVar` with an initial value:
    * {{{
-   *   MVar.async[IO]("hello")
+   *   MVar.async[IO].init("hello")
    * }}}
    *
    * @see [[apply]]
@@ -126,11 +128,11 @@ object MVar {
    */
   final class AsyncBuilder[F[_]](val F: Async[F]) extends AnyVal {
     /** Builds an `MVar` with an initial value. */
-    def apply[A](a: A): F[MVar[F, A]] =
+    def init[A](a: A): F[MVar[F, A]] =
       F.delay(MVarAsync[F, A](a)(F))
 
     /** Builds an empty `MVar`. */
-    def empty[A]: F[MVar[F, A]] =
+    def empty[A](implicit F: Async[F]): F[MVar[F, A]] =
       F.delay(MVarAsync.empty[F, A](F))
   }
 
@@ -139,7 +141,7 @@ object MVar {
    */
   final class ConcurrentBuilder[F[_]](val F: Concurrent[F]) extends AnyVal {
     /** Builds an `MVar` with an initial value. */
-    def apply[A](a: A): F[MVar[F, A]] =
+    def init[A](a: A): F[MVar[F, A]] =
       F.delay(MVarConcurrent[F, A](a)(F))
 
     /** Builds an empty `MVar`. */
