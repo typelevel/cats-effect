@@ -51,7 +51,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
         state <- Ref[IO, Int](0)
         modifyGate <- pc[Unit]
         readGate <- pc[Unit]
-        _ <- IO.shift *> (modifyGate.get *> state.modify(_ * 2) *> readGate.complete(())).start
+        _ <- IO.shift *> (modifyGate.get *> state.modify_(_ * 2) *> readGate.complete(())).start
         _ <- IO.shift *> (state.set(1) *> modifyGate.complete(())).start
         _ <- readGate.get
         res <- state.get

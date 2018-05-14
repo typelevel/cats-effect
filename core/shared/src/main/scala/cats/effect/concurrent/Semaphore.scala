@@ -138,7 +138,7 @@ object Semaphore {
         if (n == 0) F.unit
         else mkGate.flatMap { gate =>
           state
-            .modifyAndReturn { old =>
+            .modify { old =>
               val u = old match {
                 case Left(waiting) => Left(waiting :+ (n -> gate))
                 case Right(m) =>
@@ -163,7 +163,7 @@ object Semaphore {
         if (n == 0) F.pure(true)
         else
           state
-            .modifyAndReturn { old =>
+            .modify { old =>
               val u = old match {
                 case Right(m) if m >= n => Right(m - n)
                 case w                  => w
@@ -187,7 +187,7 @@ object Semaphore {
         if (n == 0) F.unit
         else
           state
-            .modifyAndReturn { old =>
+            .modify { old =>
               val u = old match {
                 case Left(waiting) =>
                   // just figure out how many to strip from waiting queue,
@@ -243,7 +243,7 @@ object Semaphore {
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] =
       F.onCancelRaiseError(entry._2.get, Canceled).recoverWith {
         case Canceled =>
-          state.modify {
+          state.modify_ {
             case Left(waiting) => Left(waiting.filter(_ != entry))
             case Right(m)      => Right(m)
           } *> F.async[Unit](cb => ())

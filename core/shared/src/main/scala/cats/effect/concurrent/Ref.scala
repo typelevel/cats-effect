@@ -81,7 +81,7 @@ abstract class Ref[F[_], A] {
    *
    * Satisfies:
    *   `r.access.map(_._1) == r.get`
-   *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryModify(f).map(_.isDefined)`
+   *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryModify_(f).map(_.isDefined)`
    */
   def access: F[(A, A => F[Boolean])]
 
@@ -90,14 +90,14 @@ abstract class Ref[F[_], A] {
    * concurrent modification completes between the time the variable is
    * read and the time it is set.
    */
-  def tryModify(f: A => A): F[Boolean]
+  def tryModify_(f: A => A): F[Boolean]
 
   /**
-   * Like `tryModify` but allows the update function to return an output value of
+   * Like `tryModify_` but allows the update function to return an output value of
    * type `B`. The returned action completes with `None` if the value is not updated
    * successfully and `Some(b)` otherwise.
    */
-  def tryModifyAndReturn[B](f: A => (A, B)): F[Option[B]]
+  def tryModify[B](f: A => (A, B)): F[Option[B]]
 
   /**
    * Modifies the current value using the supplied update function. If another modification
@@ -105,14 +105,14 @@ abstract class Ref[F[_], A] {
    * is retried using the new value. Hence, `f` may be invoked multiple times.
    *
    * Satisfies:
-   *   `r.modify(_ => a) == r.set(a)`
+   *   `r.modify_(_ => a) == r.set(a)`
    */
-  def modify(f: A => A): F[Unit]
+  def modify_(f: A => A): F[Unit]
 
   /**
-   * Like `tryModifyAndReturn` but does not complete until the update has been successfully made.
+   * Like `tryModify` but does not complete until the update has been successfully made.
    */
-  def modifyAndReturn[B](f: A => (A, B)): F[B]
+  def modify[B](f: A => (A, B)): F[B]
 
   /**
    * Update the value of this ref with a state computation.
@@ -162,20 +162,20 @@ object Ref {
       (snapshot, setter)
     }
 
-    def tryModify(f: A => A): F[Boolean] =
-      F.map(tryModifyAndReturn(a => (f(a), ())))(_.isDefined)
+    def tryModify_(f: A => A): F[Boolean] =
+      F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
-    def tryModifyAndReturn[B](f: A => (A, B)): F[Option[B]] = F.delay {
+    def tryModify[B](f: A => (A, B)): F[Option[B]] = F.delay {
       val c = ar.get
       val (u, b) = f(c)
       if (ar.compareAndSet(c, u)) Some(b)
       else None
     }
 
-    def modify(f: A => A): F[Unit] =
-      modifyAndReturn(a => (f(a), ()))
+    def modify_(f: A => A): F[Unit] =
+      modify(a => (f(a), ()))
 
-    def modifyAndReturn[B](f: A => (A, B)): F[B] = {
+    def modify[B](f: A => (A, B)): F[B] = {
       @tailrec
       def spin: B = {
         val c = ar.get
@@ -188,12 +188,12 @@ object Ref {
 
     def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
       val f = state.runF.value
-      tryModifyAndReturn(a => f(a).value)
+      tryModify(a => f(a).value)
     }
 
     def modifyState[B](state: State[A, B]): F[B] = {
       val f = state.runF.value
-      modifyAndReturn(a => f(a).value)
+      modify(a => f(a).value)
     }
   }
 }
