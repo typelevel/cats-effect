@@ -32,6 +32,7 @@ private[effect] final class MVarAsync[F[_], A] private (
 
   import MVarAsync._
 
+  /** Shared mutable state. */
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
@@ -59,8 +60,11 @@ private[effect] final class MVarAsync[F[_], A] private (
     stateRef.get match {
       case current @ WaitForTake(value, puts) =>
         val update = WaitForTake(value, puts.enqueue(a -> onPut))
-        if (!stateRef.compareAndSet(current, update))
+        if (!stateRef.compareAndSet(current, update)) {
+          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
+          // $COVERAGE-ON$
+        }
 
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
@@ -72,9 +76,11 @@ private[effect] final class MVarAsync[F[_], A] private (
             else WaitForPut(Queue.empty, rest)
           }
 
-        if (!stateRef.compareAndSet(current, update))
+        if (!stateRef.compareAndSet(current, update)) {
+          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
-        else {
+          // $COVERAGE-ON$
+        } else {
           val value = Right(a)
           // Satisfies all current `read` requests found
           streamAll(value, reads)
@@ -95,8 +101,11 @@ private[effect] final class MVarAsync[F[_], A] private (
           if (stateRef.compareAndSet(current, State.empty))
             // Signals completion of `take`
             onTake(Right(value))
-          else
+          else {
+            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
+            // $COVERAGE-ON$
+          }
         } else {
           val ((ax, notify), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
@@ -106,13 +115,18 @@ private[effect] final class MVarAsync[F[_], A] private (
             // Complete the `put` request waiting on a notification
             notify(rightUnit)
           } else {
+            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
+            // $COVERAGE-ON$
           }
         }
 
       case WaitForPut(reads, takes) =>
-        if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake))))
+        if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake)))) {
+          // $COVERAGE-ON$
           unsafeTake(onTake)
+          // $COVERAGE-OFF$
+        }
     }
   }
 
@@ -127,8 +141,11 @@ private[effect] final class MVarAsync[F[_], A] private (
 
       case WaitForPut(reads, takes) =>
         // No value available, enqueue the callback
-        if (!stateRef.compareAndSet(current, WaitForPut(reads.enqueue(onRead), takes)))
+        if (!stateRef.compareAndSet(current, WaitForPut(reads.enqueue(onRead), takes))) {
+          // $COVERAGE-OFF$
           unsafeRead(onRead) // retry
+          // $COVERAGE-ON$
+        }
     }
   }
 }

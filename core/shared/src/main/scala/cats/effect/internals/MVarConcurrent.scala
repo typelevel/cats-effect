@@ -31,6 +31,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
 
   import MVarConcurrent._
 
+  /** Shared mutable state. */
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
@@ -47,7 +48,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
       stateRef.get() match {
         case current @ WaitForTake(_, listeners) =>
           val update = current.copy(listeners = listeners - id)
-          if (!stateRef.compareAndSet(current, update)) loop()
+          if (!stateRef.compareAndSet(current, update)) {
+            // $COVERAGE-OFF$
+            loop() // retry
+            // $COVERAGE-ON$
+          }
         case _ =>
           ()
       }
@@ -72,8 +77,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
 
           if (stateRef.compareAndSet(current, update))
             unregisterPut(id)
-          else
+          else {
+            // $COVERAGE-OFF$
             loop() // retry
+            // $COVERAGE-ON$
+          }
 
         case current @ WaitForPut(reads, takes) =>
           var first: Listener[A] = null
@@ -130,7 +138,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
             onTake(Right(value))
             IO.unit
           } else {
+            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
+            // $COVERAGE-ON$
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
@@ -139,7 +149,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
             notify(rightUnit)
             IO.unit
           } else {
+            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
+            // $COVERAGE-ON$
           }
         }
 
@@ -148,8 +160,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val newQueue = takes.updated(id, onTake)
         if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
           unregisterTake(id)
-        else
-          unsafeTake(onTake)
+        else {
+          // $COVERAGE-OFF$
+          unsafeTake(onTake) // retry
+          // $COVERAGE-ON$
+        }
     }
   }
 
@@ -167,10 +182,13 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         // No value available, enqueue the callback
         val id = new Id
         val newQueue = reads.updated(id, onRead)
-        if (!stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
-          unsafeRead(onRead) // retry
-        else
+        if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
           unregisterRead(id)
+        else {
+          // $COVERAGE-OFF$
+          unsafeRead(onRead) // retry
+          // $COVERAGE-ON$
+        }
     }
   }
 
@@ -180,7 +198,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         case current @ WaitForPut(reads, takes) =>
           val newMap = reads - id
           val update: State[A] = WaitForPut(newMap, takes)
-          if (!stateRef.compareAndSet(current, update)) loop()
+          if (!stateRef.compareAndSet(current, update)) {
+            // $COVERAGE-OFF$
+            loop()
+            // $COVERAGE-ON$
+          }
         case _ => ()
       }
     IO(loop())
