@@ -408,7 +408,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * A completed cancel simply means that it has been asked to cancel.
    */
   final def timeoutTo[A2 >: A](after: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
-    Concurrent.timeoutTo(this, after, fallback)
+    Concurrent.timeoutTo(this, after, fallback)(ioConcurrentEffect, timer)
 
   /**
    * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
