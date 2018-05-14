@@ -75,9 +75,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           val newMap = listeners.updated(id, (a, onPut))
           val update = WaitForTake(value, newMap)
 
-          if (stateRef.compareAndSet(current, update))
+          if (stateRef.compareAndSet(current, update)) {
             unregisterPut(id)
-          else {
+          } else {
             // $COVERAGE-OFF$
             loop() // retry
             // $COVERAGE-ON$
@@ -93,9 +93,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
               else WaitForPut(LinkedMap.empty, rest)
             }
 
-          if (!stateRef.compareAndSet(current, update))
-            unsafePut(a)(onPut)
-          else {
+          if (stateRef.compareAndSet(current, update)) {
             val value = Right(a)
             // Satisfies all current `read` requests found
             streamAll(value, reads)
@@ -104,6 +102,10 @@ private[effect] final class MVarConcurrent[F[_], A] private (
             // Signals completion of `put`
             onPut(rightUnit)
             IO.unit
+          } else {
+            // $COVERAGE-OFF$
+            unsafePut(a)(onPut) // retry
+            // $COVERAGE-ON$
           }
       }
     }
@@ -122,8 +124,12 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         case current @ WaitForPut(reads, takes) =>
           val newMap = takes - id
           val update: State[A] = WaitForPut(reads, newMap)
-          if (!stateRef.compareAndSet(current, update)) loop()
-        case _ => ()
+          if (!stateRef.compareAndSet(current, update)) {
+            // $COVERAGE-OFF$
+            loop()
+            // $COVERAGE-ON$
+          }
+        case _ =>
       }
     IO(loop())
   }

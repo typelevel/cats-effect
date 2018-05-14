@@ -18,10 +18,10 @@ package cats.effect
 package concurrent
 
 import catalysts.Platform
-import org.scalatest.{AsyncFunSuite, Matchers}
-
-import scala.concurrent.ExecutionContext
 import cats.implicits._
+import org.scalatest.{AsyncFunSuite, Matchers}
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class MVarConcurrentTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar[IO, A]] =
@@ -62,6 +62,22 @@ class MVarConcurrentTests extends BaseMVarTests {
 
     for (r <- task.unsafeToFuture()) yield {
       r shouldBe List(1, 3)
+    }
+  }
+
+  test("read is cancelable") {
+    val task = for {
+      mVar <- MVar[IO].empty[Int]
+      finished <- Deferred.async[IO, Int]
+      fiber <- mVar.read.flatMap(finished.complete).start
+      _ <- fiber.cancel
+      _ <- mVar.put(10)
+      fallback = IO.sleep(100.millis) *> IO.pure(0)
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe Right(0)
     }
   }
 }

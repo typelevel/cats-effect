@@ -15,7 +15,11 @@ options:
       - title: Timer
         url: datatypes/timer.html
         menu_section: timer
-        
+
+      - title: MVar
+        url: datatypes/mvar.html
+        menu_section: mvar
+
   - title: Type Classes
     url: typeclasses/
     menu_section: typeclasses

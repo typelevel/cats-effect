@@ -123,9 +123,9 @@ private[effect] final class MVarAsync[F[_], A] private (
 
       case WaitForPut(reads, takes) =>
         if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake)))) {
-          // $COVERAGE-ON$
-          unsafeTake(onTake)
           // $COVERAGE-OFF$
+          unsafeTake(onTake)
+          // $COVERAGE-ON$
         }
     }
   }

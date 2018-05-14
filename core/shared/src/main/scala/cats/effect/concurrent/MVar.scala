@@ -23,13 +23,16 @@ import cats.effect.internals.{MVarAsync, MVarConcurrent}
  * A mutable location, that is either empty or contains
  * a value of type `A`.
  *
- * It has 2 fundamental atomic operations:
+ * It has 3 fundamental atomic operations:
  *
  *  - [[put]] which fills the var if empty, or blocks
  *    (asynchronously) until the var is empty again
  *  - [[take]] which empties the var if full, returning the contained
  *    value, or blocks (asynchronously) otherwise until there is
  *    a value to pull
+ *  - [[read]] which reads the current value without touching it,
+ *    assuming there is one, or otherwise it waits until a value
+ *    is made available via `put`
  *
  * The `MVar` is appropriate for building synchronization
  * primitives and performing simple inter-thread communications.
