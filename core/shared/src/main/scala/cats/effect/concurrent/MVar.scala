@@ -69,6 +69,17 @@ abstract class MVar[F[_], A] {
    *         a value was retrieved
    */
   def take: F[A]
+
+  /**
+   * Tries reading the current value, or blocks (asynchronously)
+   * until there is a value available.
+   *
+   * This operation is atomic.
+   *
+   * @return a task that on evaluation will be completed after
+   *         a value has been read
+   */
+  def read: F[A]
 }
 
 /** Builders for [[MVar]]. */

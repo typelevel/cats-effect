@@ -35,69 +35,100 @@ private[effect] final class MVarAsync[F[_], A] private (
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
-    F.async { cb =>
-      if (unsafePut(a, cb)) cb(rightUnit)
-    }
+    F.async(unsafePut(a))
 
   def take: F[A] =
-    F.async { cb =>
-      val r = unsafeTake(cb)
-      if (r != null) cb(Right(r))
-    }
-  
+    F.async(unsafeTake)
+
+  def read: F[A] =
+    F.async(unsafeRead)
+
+  private def streamAll(value: Either[Throwable, A], listeners: Iterable[Listener[A]]): Unit = {
+    val cursor = listeners.iterator
+    while (cursor.hasNext)
+      cursor.next().apply(value)
+  }
+
   @tailrec
-  private def unsafePut(a: A, await: Listener[Unit]): Boolean = {
-    if (a == null) throw new NullPointerException("null not supported in MVarAsync/MVar")
-    val current: State[A] = stateRef.get
+  private def unsafePut(a: A)(onPut: Listener[Unit]): Unit = {
+    if (a == null) {
+      onPut(Left(new NullPointerException("null not supported in MVarAsync/MVar")))
+      return
+    }
 
-    current match {
-      case _: Empty[_] =>
-        if (stateRef.compareAndSet(current, WaitForTake(a, Queue.empty))) true
-        else unsafePut(a, await) // retry
+    stateRef.get match {
+      case current @ WaitForTake(value, puts) =>
+        val update = WaitForTake(value, puts.enqueue(a -> onPut))
+        if (!stateRef.compareAndSet(current, update))
+          unsafePut(a)(onPut) // retry
 
-      case WaitForTake(value, queue) =>
-        val update = WaitForTake(value, queue.enqueue(a -> await))
-        if (stateRef.compareAndSet(current, update)) false
-        else unsafePut(a, await) // retry
+      case current @ WaitForPut(reads, takes) =>
+        var first: Listener[A] = null
+        val update: State[A] =
+          if (takes.isEmpty) State(a) else {
+            val (x, rest) = takes.dequeue
+            first = x
+            if (rest.isEmpty) State.empty[A]
+            else WaitForPut(Queue.empty, rest)
+          }
 
-      case current @ WaitForPut(first, _) =>
-        if (stateRef.compareAndSet(current, current.dequeue)) { first(Right(a)); true }
-        else unsafePut(a, await) // retry
+        if (!stateRef.compareAndSet(current, update))
+          unsafePut(a)(onPut) // retry
+        else {
+          val value = Right(a)
+          // Satisfies all current `read` requests found
+          streamAll(value, reads)
+          // Satisfies the first `take` request found
+          if (first ne null) first(value)
+          // Signals completion of `put`
+          onPut(rightUnit)
+        }
     }
   }
 
   @tailrec
-  private def unsafeTake(await: Listener[A]): A = {
+  private def unsafeTake(onTake: Listener[A]): Unit = {
     val current: State[A] = stateRef.get
     current match {
-      case _: Empty[_] =>
-        if (stateRef.compareAndSet(current, WaitForPut(await, Queue.empty)))
-          null.asInstanceOf[A]
-        else
-          unsafeTake(await) // retry
-
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
-            value
+            // Signals completion of `take`
+            onTake(Right(value))
           else
-            unsafeTake(await)
-        }
-        else {
+            unsafeTake(onTake) // retry
+        } else {
           val ((ax, notify), xs) = queue.dequeue
-          if (stateRef.compareAndSet(current, WaitForTake(ax, xs))) {
-            notify(rightUnit) // notification
-            value
+          val update = WaitForTake(ax, xs)
+          if (stateRef.compareAndSet(current, update)) {
+            // Signals completion of `take`
+            onTake(Right(value))
+            // Complete the `put` request waiting on a notification
+            notify(rightUnit)
           } else {
-            unsafeTake(await) // retry
+            unsafeTake(onTake) // retry
           }
         }
 
-      case WaitForPut(first, queue) =>
-        if (stateRef.compareAndSet(current, WaitForPut(first, queue.enqueue(await))))
-          null.asInstanceOf[A]
-        else
-          unsafeTake(await)
+      case WaitForPut(reads, takes) =>
+        if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake))))
+          unsafeTake(onTake)
+    }
+  }
+
+  @tailrec
+  private def unsafeRead(onRead: Listener[A]): Unit = {
+    val current: State[A] = stateRef.get
+    current match {
+      case WaitForTake(value, _) =>
+        // A value is available, so complete `read` immediately without
+        // changing the sate
+        onRead(Right(value))
+
+      case WaitForPut(reads, takes) =>
+        // No value available, enqueue the callback
+        if (!stateRef.compareAndSet(current, WaitForPut(reads.enqueue(onRead), takes)))
+          unsafeRead(onRead) // retry
     }
   }
 }
@@ -116,50 +147,34 @@ private[effect] object MVarAsync {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = Empty()
+    private[this] val ref = WaitForPut[Any](Queue.empty, Queue.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, Queue.empty)
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
   }
 
   /**
-   * `MVarAsync` state signaling an empty location.
-   *
-   * Evolves into [[WaitForPut]] or [[WaitForTake]],
-   * depending on which operation happens first.
-   */
-  private final case class Empty[A]() extends State[A]
-
-  /**
    * `MVarAsync` state signaling it has `take` callbacks
    * registered and we are waiting for one or multiple
    * `put` operations.
    *
-   * @param first is the first request waiting in line
-   * @param queue are the rest of the requests waiting in line,
+   * @param takes are the rest of the requests waiting in line,
    *        if more than one `take` requests were registered
    */
-  private final case class WaitForPut[A](first: Listener[A], queue: Queue[Listener[A]])
-    extends State[A] {
-
-    def dequeue: State[A] =
-      if (queue.isEmpty) State.empty[A] else {
-        val (x, xs) = queue.dequeue
-        WaitForPut(x, xs)
-      }
-  }
+  private final case class WaitForPut[A](reads: Queue[Listener[A]], takes: Queue[Listener[A]])
+    extends State[A]
 
   /**
    * `MVarAsync` state signaling it has one or more values enqueued,
    * to be signaled on the next `take`.
    *
    * @param value is the first value to signal
-   * @param queue are the rest of the `put` requests, along with the
+   * @param puts are the rest of the `put` requests, along with the
    *        callbacks that need to be called whenever the corresponding
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  private final case class WaitForTake[A](value: A, queue: Queue[(A, Listener[Unit])])
+  private final case class WaitForTake[A](value: A, puts: Queue[(A, Listener[Unit])])
     extends State[A]
 }
 

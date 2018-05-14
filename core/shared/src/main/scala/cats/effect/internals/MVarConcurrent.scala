@@ -18,10 +18,8 @@ package cats.effect
 package internals
 
 import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.concurrent.MVar
 import cats.effect.internals.Callback.{rightUnit, Type => Listener}
-
 import scala.annotation.tailrec
 
 /**
@@ -41,6 +39,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   def take: F[A] =
     F.cancelable(unsafeTake)
 
+  def read: F[A] =
+    F.cancelable(unsafeRead)
+
   private def unregisterPut(id: Id): IO[Unit] = {
     @tailrec def loop(): Unit =
       stateRef.get() match {
@@ -53,18 +54,17 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     IO(loop())
   }
 
+  private def streamAll(value: Either[Throwable, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
+    val cursor = listeners.values.iterator
+    while (cursor.hasNext)
+      cursor.next().apply(value)
+  }
+
   private def unsafePut(a: A)(onPut: Listener[Unit]): IO[Unit] = {
     @tailrec def loop(): IO[Unit] = {
       val current: State[A] = stateRef.get
 
       current match {
-        case _: Empty[_] =>
-          if (stateRef.compareAndSet(current, WaitForTake(a, LinkedMap.empty))) {
-            onPut(rightUnit)
-            IO.unit
-          } else {
-            loop() // retry
-          }
         case WaitForTake(value, listeners) =>
           val id = new Id
           val newMap = listeners.updated(id, (a, onPut))
@@ -75,24 +75,27 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           else
             loop() // retry
 
-        case current @ WaitForPut(listeners) =>
-          if (listeners.isEmpty) {
-            val update = WaitForTake(a, LinkedMap.empty)
-            if (stateRef.compareAndSet(current, update)) {
-              onPut(rightUnit)
-              IO.unit
-            } else {
-              loop()
+        case current @ WaitForPut(reads, takes) =>
+          var first: Listener[A] = null
+          val update: State[A] =
+            if (takes.isEmpty) State(a) else {
+              val (x, rest) = takes.dequeue
+              first = x
+              if (rest.isEmpty) State.empty[A]
+              else WaitForPut(LinkedMap.empty, rest)
             }
-          } else {
-            val (cb, update) = listeners.dequeue
-            if (stateRef.compareAndSet(current, WaitForPut(update))) {
-              cb(Right(a))
-              onPut(rightUnit)
-              IO.unit
-            } else {
-              loop()
-            }
+
+          if (!stateRef.compareAndSet(current, update))
+            unsafePut(a)(onPut)
+          else {
+            val value = Right(a)
+            // Satisfies all current `read` requests found
+            streamAll(value, reads)
+            // Satisfies the first `take` request found
+            if (first ne null) first(value)
+            // Signals completion of `put`
+            onPut(rightUnit)
+            IO.unit
           }
       }
     }
@@ -108,9 +111,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   private def unregisterTake(id: Id): IO[Unit] = {
     @tailrec def loop(): Unit =
       stateRef.get() match {
-        case current @ WaitForPut(listeners) =>
-          val newMap = listeners - id
-          val update: State[A] = if (newMap.isEmpty) State.empty else WaitForPut(newMap)
+        case current @ WaitForPut(reads, takes) =>
+          val newMap = takes - id
+          val update: State[A] = WaitForPut(reads, newMap)
           if (!stateRef.compareAndSet(current, update)) loop()
         case _ => ()
       }
@@ -121,13 +124,6 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   private def unsafeTake(onTake: Listener[A]): IO[Unit] = {
     val current: State[A] = stateRef.get
     current match {
-      case _: Empty[_] =>
-        val id = new Id
-        if (stateRef.compareAndSet(current, WaitForPut(LinkedMap.empty.updated(id, onTake))))
-          unregisterTake(id)
-        else
-          unsafeTake(onTake) // retry
-
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty)) {
@@ -147,14 +143,47 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           }
         }
 
-      case WaitForPut(queue) =>
+      case WaitForPut(reads, takes) =>
         val id = new Id
-        val newQueue = queue.updated(id, onTake)
-        if (stateRef.compareAndSet(current, WaitForPut(newQueue)))
+        val newQueue = takes.updated(id, onTake)
+        if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
           unregisterTake(id)
         else
           unsafeTake(onTake)
     }
+  }
+
+  @tailrec
+  private def unsafeRead(onRead: Listener[A]): IO[Unit] = {
+    val current: State[A] = stateRef.get
+    current match {
+      case WaitForTake(value, _) =>
+        // A value is available, so complete `read` immediately without
+        // changing the sate
+        onRead(Right(value))
+        IO.unit
+
+      case WaitForPut(reads, takes) =>
+        // No value available, enqueue the callback
+        val id = new Id
+        val newQueue = reads.updated(id, onRead)
+        if (!stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
+          unsafeRead(onRead) // retry
+        else
+          unregisterRead(id)
+    }
+  }
+
+  private def unregisterRead(id: Id): IO[Unit] = {
+    @tailrec def loop(): Unit =
+      stateRef.get() match {
+        case current @ WaitForPut(reads, takes) =>
+          val newMap = reads - id
+          val update: State[A] = WaitForPut(newMap, takes)
+          if (!stateRef.compareAndSet(current, update)) loop()
+        case _ => ()
+      }
+    IO(loop())
   }
 }
 
@@ -174,26 +203,19 @@ private[effect] object MVarConcurrent {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = Empty()
+    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty)
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
   }
 
   /**
-   * `MVarConcurrent` state signaling an empty location.
-   *
-   * Evolves into [[WaitForPut]] or [[WaitForTake]],
-   * depending on which operation happens first.
-   */
-  private final case class Empty[A]() extends State[A]
-
-  /**
    * `MVarConcurrent` state signaling it has `take` callbacks
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  private final case class WaitForPut[A](listeners: LinkedMap[Id, Listener[A]])
+  private final case class WaitForPut[A](
+    reads: LinkedMap[Id, Listener[A]], takes: LinkedMap[Id, Listener[A]])
     extends State[A]
 
   /**
@@ -206,7 +228,8 @@ private[effect] object MVarConcurrent {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  private final case class WaitForTake[A](value: A, listeners: LinkedMap[Id, (A, Listener[Unit])])
+  private final case class WaitForTake[A](
+    value: A, listeners: LinkedMap[Id, (A, Listener[Unit])])
     extends State[A]
 }
 
