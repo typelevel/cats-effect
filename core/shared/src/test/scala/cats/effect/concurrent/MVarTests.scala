@@ -234,7 +234,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
           IO.pure(sum) // we are done!
       }
 
-    val count = 1000000
+    val count = 10000
     val sumTask = for {
       channel <- init(Option(0))
       // Ensure they run in parallel
@@ -253,7 +253,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   test("stack overflow test") {
     // Signaling option, because we need to detect completion
     type Channel[A] = MVar[IO, Option[A]]
-    val count = 100000
+    val count = 10000
 
     def consumer(ch: Channel[Int], sum: Long): IO[Long] =
       ch.take.flatMap {
@@ -290,7 +290,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
           ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch))
         }
 
-    val count = if (Platform.isJvm) 100000 else 5000
+    val count = if (Platform.isJvm) 10000 else 5000
     val task = init(1).flatMap(loop(count, 0))
 
     for (r <- task.unsafeToFuture()) yield {
@@ -299,7 +299,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   }
 
   def testStackSequential(channel: MVar[IO, Int]): (Int, IO[Int], IO[Unit]) = {
-    val count = if (Platform.isJvm) 100000 else 5000
+    val count = if (Platform.isJvm) 10000 else 5000
 
     def readLoop(n: Int, acc: Int): IO[Int] = {
       if (n > 0)
