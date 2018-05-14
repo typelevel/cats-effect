@@ -81,7 +81,7 @@ abstract class Ref[F[_], A] {
    *
    * Satisfies:
    *   `r.access.map(_._1) == r.get`
-   *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryModify_(f).map(_.isDefined)`
+   *   `r.access.flatMap { case (v, setter) => setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)`
    */
   def access: F[(A, A => F[Boolean])]
 
@@ -90,10 +90,10 @@ abstract class Ref[F[_], A] {
    * concurrent modification completes between the time the variable is
    * read and the time it is set.
    */
-  def tryModify_(f: A => A): F[Boolean]
+  def tryUpdate(f: A => A): F[Boolean]
 
   /**
-   * Like `tryModify_` but allows the update function to return an output value of
+   * Like `tryUpdate` but allows the update function to return an output value of
    * type `B`. The returned action completes with `None` if the value is not updated
    * successfully and `Some(b)` otherwise.
    */
@@ -105,9 +105,9 @@ abstract class Ref[F[_], A] {
    * is retried using the new value. Hence, `f` may be invoked multiple times.
    *
    * Satisfies:
-   *   `r.modify_(_ => a) == r.set(a)`
+   *   `r.update(_ => a) == r.set(a)`
    */
-  def modify_(f: A => A): F[Unit]
+  def update(f: A => A): F[Unit]
 
   /**
    * Like `tryModify` but does not complete until the update has been successfully made.
@@ -162,7 +162,7 @@ object Ref {
       (snapshot, setter)
     }
 
-    def tryModify_(f: A => A): F[Boolean] =
+    def tryUpdate(f: A => A): F[Boolean] =
       F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
     def tryModify[B](f: A => (A, B)): F[Option[B]] = F.delay {
@@ -172,7 +172,7 @@ object Ref {
       else None
     }
 
-    def modify_(f: A => A): F[Unit] =
+    def update(f: A => A): F[Unit] =
       modify(a => (f(a), ()))
 
     def modify[B](f: A => (A, B)): F[B] = {

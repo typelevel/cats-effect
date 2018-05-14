@@ -243,7 +243,7 @@ object Semaphore {
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] =
       F.onCancelRaiseError(entry._2.get, Canceled).recoverWith {
         case Canceled =>
-          state.modify_ {
+          state.update {
             case Left(waiting) => Left(waiting.filter(_ != entry))
             case Right(m)      => Right(m)
           } *> F.async[Unit](cb => ())
