@@ -371,8 +371,8 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     val count = if (Platform.isJvm) 10000 else 1000
     val task = for {
       mVar <- empty[Int]
-      ref <- Ref[IO, Int](0)
-      takes = (0 until count).map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.modify(_ + x))).toList.parSequence
+      ref <- Ref[IO].of(0)
+      takes = (0 until count).map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.update(_ + x))).toList.parSequence
       puts = (0 until count).map(_ => IO.shift *> mVar.put(1)).toList.parSequence
       fiber1 <- takes.start
       fiber2 <- puts.start
