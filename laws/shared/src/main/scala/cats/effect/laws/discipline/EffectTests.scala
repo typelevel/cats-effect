@@ -69,7 +69,8 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "runSyncStep async never produces left pure IO" -> Prop.lzy(laws.runSyncStepAsyncNeverProducesLeftPureIO[A]),
         "runSyncStep can be attempted synchronously" -> forAll(laws.runSyncStepCanBeAttemptedSynchronously[A] _),
         "runSyncStep runAsync consistency" -> forAll(laws.runSyncStepRunAsyncConsistency[A] _),
-        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
+        "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _))
     }
   }
 }

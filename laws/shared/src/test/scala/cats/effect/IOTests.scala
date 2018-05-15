@@ -695,5 +695,6 @@ object IOTests {
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       ref.bracketCase(acquire)(use)(release)
+    def toIO[A](fa: IO[A]) = fa
   }
 }

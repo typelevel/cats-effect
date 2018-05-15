@@ -72,6 +72,13 @@ trait Effect[F[_]] extends Async[F] {
    * to execute immediately.
    */
   def runSyncStep[A](fa: F[A]): IO[Either[F[A], A]]
+
+  /**
+   * Convert to an IO[A].
+   *
+   * The law is that liftIO(toIO(f)) is the same as f
+   */
+  def toIO[A](fa: F[A]): IO[A]
 }
 
 object Effect {
@@ -110,6 +117,9 @@ object Effect {
         case Right(eta) => IO.fromEither(eta).map(Right(_))
       }
     }
+
+    def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
+      F.toIO(F.rethrow(fa.value))
   }
 
   private[effect] trait StateTEffect[F[_], S] extends Effect[StateT[F, S, ?]]
@@ -123,6 +133,9 @@ object Effect {
 
     def runSyncStep[A](fa: StateT[F, S, A]): IO[Either[StateT[F, S, A], A]] =
       F.runSyncStep(fa.runA(S.empty)(F)).map(_.leftMap(fa => StateT.liftF(fa)(F)))
+
+    def toIO[A](fa: StateT[F, S, A]): IO[A] =
+      F.toIO(fa.runA(S.empty)(F))
   }
 
   private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
@@ -140,5 +153,8 @@ object Effect {
         case Right(la) => Right(la._2)
       }
     }
+
+    def toIO[A](fa: WriterT[F, L, A]): IO[A] =
+      F.toIO(fa.value(F))
   }
 }
