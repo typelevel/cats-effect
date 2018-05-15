@@ -78,7 +78,8 @@ trait Effect[F[_]] extends Async[F] {
    *
    * The law is that toIO(liftIO(ioa)) is the same as ioa
    */
-  def toIO[A](fa: F[A]): IO[A]
+  def toIO[A](fa: F[A]): IO[A] =
+    Effect.toIOFromRunAsync(fa)(this)
 }
 
 object Effect {
@@ -123,7 +124,7 @@ object Effect {
       }
     }
 
-    def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
+    override def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
       F.toIO(F.rethrow(fa.value))
   }
 
@@ -139,7 +140,7 @@ object Effect {
     def runSyncStep[A](fa: StateT[F, S, A]): IO[Either[StateT[F, S, A], A]] =
       F.runSyncStep(fa.runA(S.empty)(F)).map(_.leftMap(fa => StateT.liftF(fa)(F)))
 
-    def toIO[A](fa: StateT[F, S, A]): IO[A] =
+    override def toIO[A](fa: StateT[F, S, A]): IO[A] =
       F.toIO(fa.runA(S.empty)(F))
   }
 
@@ -159,7 +160,7 @@ object Effect {
       }
     }
 
-    def toIO[A](fa: WriterT[F, L, A]): IO[A] =
+    override def toIO[A](fa: WriterT[F, L, A]): IO[A] =
       F.toIO(fa.value(F))
   }
 }

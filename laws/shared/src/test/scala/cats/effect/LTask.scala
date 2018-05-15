@@ -75,7 +75,7 @@ object LTask {
       def runSyncStep[A](fa: LTask[A]): IO[Either[LTask[A], A]] =
         IO.pure(Left(fa))
 
-      def toIO[A](fa: LTask[A]): IO[A] =
+      override def toIO[A](fa: LTask[A]): IO[A] =
         IO.async { cb =>
           fa.run(ec).onComplete { r =>
             cb(Conversions.toEither(r))
