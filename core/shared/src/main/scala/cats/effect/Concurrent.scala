@@ -24,6 +24,8 @@ import cats.effect.internals.IORunLoop
 import cats.syntax.all._
 
 import scala.annotation.implicitNotFound
+import scala.concurrent.TimeoutException
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Either
 
 /**
@@ -349,29 +351,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * The two tasks are potentially executed in parallel, the winner
    * being the first that signals a result.
    *
-   * As an example, this would be the implementation of a "timeout"
-   * operation:
-   *
-   * {{{
-   *   import cats.effect._
-   *   import scala.concurrent.duration._
-   *
-   *   def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])
-   *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
-   *
-   *      F.race(fa, timer.sleep(after)).flatMap {
-   *        case Left((a, _)) => F.pure(a)
-   *        case Right((_, _)) => fallback
-   *      }
-   *   }
-   *
-   *   def timeout[F[_], A](fa: F[A], after: FiniteDuration)
-   *     (implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
-   *
-   *      timeoutTo(fa, after,
-   *        F.raiseError(new TimeoutException(after.toString)))
-   *   }
-   * }}}
+   * As an example see [[Concurrent.timeoutTo]]
    *
    * Also see [[racePair]] for a version that does not cancel
    * the loser automatically on successful results.
@@ -423,6 +403,32 @@ object Concurrent {
           }
         }
     }
+
+  /**
+   * Returns an effect that either completes with the result of `fa` within the specified `FiniteDuration`
+   * or evaluates the `fallback`.
+   *
+   * The `fa` is cancelled in the event that it takes longer than the `FiniteDuration`
+   * to complete. Cancellation of an `fa` does not equate to immediate interruption of the `fa`.
+   * A completed cancel simply means that it has been asked to cancel.
+   */
+
+  def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
+    F.race(fa, timer.sleep(after)) flatMap {
+      case Left(a) => F.pure(a)
+      case Right(_) => fallback
+    }
+
+  /**
+   * Returns an effect that either completes with a result of `F[A]` or raises a `TimeoutException`.
+   *
+   * The `fa` is cancelled in the event that it takes longer than the `FiniteDuration`
+   * to complete. Cancellation of an `fa` does not equate to immediate interruption of the `fa`.
+   * A completed cancel simply means that it has been asked to cancel.
+   */
+
+  def timeout[F[_], A](fa: F[A], after: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
+    timeoutTo(fa, after, F.raiseError(new TimeoutException(after.toString)))
 
   /**
    * [[Concurrent]] instance built for `cats.data.EitherT` values initialized
