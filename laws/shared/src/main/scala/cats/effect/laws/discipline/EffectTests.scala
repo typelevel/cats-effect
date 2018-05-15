@@ -71,7 +71,8 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "runSyncStep can be attempted synchronously" -> forAll(laws.runSyncStepCanBeAttemptedSynchronously[A] _),
         "runSyncStep runAsync consistency" -> forAll(laws.runSyncStepRunAsyncConsistency[A] _),
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _))
+        "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _),
+        "toIO is consistent with runAsync" -> forAll(laws.toIORunAsyncConsistency[A] _))
     }
   }
 }
