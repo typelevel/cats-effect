@@ -372,7 +372,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     val task = for {
       mVar <- empty[Int]
       ref <- Ref[IO, Int](0)
-      takes = (0 until count).map(_ => IO.shift *> mVar.take.flatMap(x => ref.modify(_ + x))).toList.parSequence
+      takes = (0 until count).map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.modify(_ + x))).toList.parSequence
       puts = (0 until count).map(_ => IO.shift *> mVar.put(1)).toList.parSequence
       fiber1 <- takes.start
       fiber2 <- puts.start
@@ -382,7 +382,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield r
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe count
+      r shouldBe count * 2
     }
   }
 }
