@@ -108,7 +108,7 @@ object Semaphore {
   /** Creates a new `Semaphore`, initialized with `n` available permits. */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
     assertNonNegative[F](n) *>
-      Ref[F](Right(n): State[F]).map(stateRef => new ConcurrentSemaphore(stateRef))
+      Ref.of[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
   }
 
   /**
@@ -117,7 +117,7 @@ object Semaphore {
    */
   def async[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
     assertNonNegative[F](n) *>
-      Ref[F](Right(n): State[F]).map(stateRef => new AsyncSemaphore(stateRef))
+      Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
   
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {

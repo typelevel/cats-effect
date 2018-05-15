@@ -130,29 +130,36 @@ abstract class Ref[F[_], A] {
 }
 
 object Ref {
+  /**
+   * Builds a `Ref` value for data types that are [[Sync]]
+   *
+   * This builder uses the
+   * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
+   * technique.
+   *
+   * {{{
+   *   Ref[IO].of(10) <-> Ref.of[IO, Int](10)
+   * }}}
+   *
+   * @see [[of]]
+   */
+  def apply[F[_]](implicit F: Sync[F]): ApplyBuilders[F] = new ApplyBuilders(F)
 
   /**
    * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
-   *
-   * This method uses the [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
-   * so only effect type needs to be specified explicitly:
    *
    * {{{
    *   import cats.effect.IO
    *   import cats.effect.concurrent.Ref
    *
    *   for {
-   *     intRef <- Ref[IO](10)
+   *     intRef <- Ref.of[IO, Int](10)
    *     ten <- intRef.get
    *   } yield ten
    * }}}
    *
    */
-  def apply[F[_]]: RefApplyPartiallyApplied[F] = new RefApplyPartiallyApplied[F]
-
-  private[concurrent] final class RefApplyPartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
-    def apply[A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] = F.delay(unsafe[F](a))
-  }
+  def of[F[_], A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] = F.delay(unsafe(a))
 
   /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
@@ -194,10 +201,15 @@ object Ref {
    *   }
    * }}}
    */
-  def unsafe[F[_]]: RefUnsafePartiallyApplied[F] = new RefUnsafePartiallyApplied[F]
+  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
 
-  private[concurrent] final class RefUnsafePartiallyApplied[F[_]](val dummy: Boolean = true) extends AnyVal {
-    def apply[A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
+  final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
+    /**
+     * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
+     *
+     * @see [[Ref.of]]
+     */
+    def of[A](a: A): F[Ref[F, A]] = Ref.of(a)(F)
   }
 
   private final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {

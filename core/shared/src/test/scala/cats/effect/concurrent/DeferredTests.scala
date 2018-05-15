@@ -49,7 +49,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
     test(s"$label - get blocks until set") {
       val op = for {
-        state <- Ref[IO](0)
+        state <- Ref[IO].of(0)
         modifyGate <- pc[Unit]
         readGate <- pc[Unit]
         _ <- IO.shift *> (modifyGate.get *> state.update(_ * 2) *> readGate.complete(())).start
@@ -66,7 +66,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] = 
     for {
-        r <- Ref[IO](Option.empty[Int])
+        r <- Ref[IO].of(Option.empty[Int])
         p <- pc
         fiber <- p.get.start
         _ <- fiber.cancel
