@@ -370,10 +370,10 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   test("concurrent take and put") {
     val count = if (Platform.isJvm) 10000 else 1000
     val task = for {
-      mvar <- empty[Int]
+      mVar <- empty[Int]
       ref <- Ref[IO, Int](0)
-      takes = (0 until count).toList.map(_ => IO.shift *> mvar.take.flatMap(x => ref.modify(_ + x))).parSequence
-      puts = (0 until count).toList.map(_ => IO.shift *> mvar.put(1)).parSequence
+      takes = (0 until count).map(_ => IO.shift *> mVar.take.flatMap(x => ref.modify(_ + x))).toList.parSequence
+      puts = (0 until count).map(_ => IO.shift *> mVar.put(1)).toList.parSequence
       fiber1 <- takes.start
       fiber2 <- puts.start
       _ <- fiber1.join

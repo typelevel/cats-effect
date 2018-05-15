@@ -95,7 +95,7 @@ object MVar {
    *
    * This builder uses the
    * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
-   * technique. This is a matter of preference.
+   * technique.
    *
    * For creating an empty `MVar`:
    * {{{
@@ -106,6 +106,8 @@ object MVar {
    * {{{
    *   MVar[IO].init("hello") <-> MVar.init[IO, String]("hello")
    * }}}
+   *
+   * @see [[init]], [[initF]] and [[empty]]
    */
   def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
