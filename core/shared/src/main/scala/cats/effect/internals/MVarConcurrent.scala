@@ -43,39 +43,15 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   def read: F[A] =
     F.cancelable(unsafeRead)
 
-  private def unregisterPut(id: Id): IO[Unit] = {
-    @tailrec def loop(): Unit =
-      stateRef.get() match {
-        case current @ WaitForTake(_, listeners) =>
-          val update = current.copy(listeners = listeners - id)
-          if (!stateRef.compareAndSet(current, update)) {
-            // $COVERAGE-OFF$
-            loop() // retry
-            // $COVERAGE-ON$
-          }
-        case _ =>
-          ()
-      }
-    IO(loop())
-  }
-
-  private def streamAll(value: Either[Nothing, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
-    val cursor = listeners.values.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(value)
-  }
-
   @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): IO[Unit] = {
-    val current: State[A] = stateRef.get
-
-    current match {
-      case WaitForTake(value, listeners) =>
+    stateRef.get match {
+      case current @ WaitForTake(value, listeners) =>
         val id = new Id
         val newMap = listeners.updated(id, (a, onPut))
         val update = WaitForTake(value, newMap)
 
         if (stateRef.compareAndSet(current, update)) {
-          unregisterPut(id)
+          IO(unsafeCancelPut(id))
         } else {
           // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
@@ -109,27 +85,24 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     }
   }
 
-  private def unregisterTake(id: Id): IO[Unit] = {
-    @tailrec def loop(): Unit =
-      stateRef.get() match {
-        case current @ WaitForPut(reads, takes) =>
-          val newMap = takes - id
-          val update: State[A] = WaitForPut(reads, newMap)
-          if (!stateRef.compareAndSet(current, update)) {
-            // $COVERAGE-OFF$
-            loop()
-            // $COVERAGE-ON$
-          }
-        case _ =>
-      }
-    IO(loop())
-  }
+  // Impure function meant to cancel the put request
+  @tailrec private def unsafeCancelPut(id: Id): Unit =
+    stateRef.get() match {
+      case current @ WaitForTake(_, listeners) =>
+        val update = current.copy(listeners = listeners - id)
+        if (!stateRef.compareAndSet(current, update)) {
+          // $COVERAGE-OFF$
+          unsafeCancelPut(id) // retry
+          // $COVERAGE-ON$
+        }
+      case _ =>
+        ()
+    }
 
   @tailrec
   private def unsafeTake(onTake: Listener[A]): IO[Unit] = {
-    val current: State[A] = stateRef.get
-    current match {
-      case WaitForTake(value, queue) =>
+    stateRef.get match {
+      case current @ WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty)) {
             onTake(Right(value))
@@ -152,11 +125,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           }
         }
 
-      case WaitForPut(reads, takes) =>
+      case current @ WaitForPut(reads, takes) =>
         val id = new Id
         val newQueue = takes.updated(id, onTake)
         if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
-          unregisterTake(id)
+          IO(unsafeCancelTake(id))
         else {
           // $COVERAGE-OFF$
           unsafeTake(onTake) // retry
@@ -164,6 +137,20 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         }
     }
   }
+
+  @tailrec private def unsafeCancelTake(id: Id): Unit =
+    stateRef.get() match {
+      case current @ WaitForPut(reads, takes) =>
+        val newMap = takes - id
+        val update: State[A] = WaitForPut(reads, newMap)
+        if (!stateRef.compareAndSet(current, update)) {
+          // $COVERAGE-OFF$
+          unsafeCancelTake(id)
+          // $COVERAGE-ON$
+        }
+      case _ =>
+    }
+
 
   @tailrec
   private def unsafeRead(onRead: Listener[A]): IO[Unit] = {
@@ -180,7 +167,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val id = new Id
         val newQueue = reads.updated(id, onRead)
         if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
-          unregisterRead(id)
+          IO(unsafeCancelRead(id))
         else {
           // $COVERAGE-OFF$
           unsafeRead(onRead) // retry
@@ -189,20 +176,24 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     }
   }
 
-  private def unregisterRead(id: Id): IO[Unit] = {
-    @tailrec def loop(): Unit =
-      stateRef.get() match {
-        case current @ WaitForPut(reads, takes) =>
-          val newMap = reads - id
-          val update: State[A] = WaitForPut(newMap, takes)
-          if (!stateRef.compareAndSet(current, update)) {
-            // $COVERAGE-OFF$
-            loop()
-            // $COVERAGE-ON$
-          }
-        case _ => ()
-      }
-    IO(loop())
+  private def unsafeCancelRead(id: Id): Unit =
+    stateRef.get() match {
+      case current @ WaitForPut(reads, takes) =>
+        val newMap = reads - id
+        val update: State[A] = WaitForPut(newMap, takes)
+        if (!stateRef.compareAndSet(current, update)) {
+          // $COVERAGE-OFF$
+          unsafeCancelRead(id)
+          // $COVERAGE-ON$
+        }
+      case _ => ()
+    }
+
+  // For streaming a value to a whole `reads` collection
+  private def streamAll(value: Either[Nothing, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
+    val cursor = listeners.values.iterator
+    while (cursor.hasNext)
+      cursor.next().apply(value)
   }
 }
 
