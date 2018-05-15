@@ -61,5 +61,5 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", n => Semaphore[IO](n))
-  tests("async", n => Semaphore.async[IO](n))
+  tests("async", n => Semaphore.uncancelable[IO](n))
 }

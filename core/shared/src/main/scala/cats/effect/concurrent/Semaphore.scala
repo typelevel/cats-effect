@@ -115,7 +115,7 @@ object Semaphore {
    * Like [[apply]] but only requires an `Async` constraint in exchange for the various
    * acquire effects being uncancelable.
    */
-  def async[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
+  def uncancelable[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
@@ -251,7 +251,7 @@ object Semaphore {
   }
 
   private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
-    protected def mkGate: F[Deferred[F, Unit]] = Deferred.async[F, Unit]
+    protected def mkGate: F[Deferred[F, Unit]] = Deferred.uncancelable[F, Unit]
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] = entry._2.get
   }
 }

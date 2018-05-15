@@ -25,10 +25,10 @@ import scala.concurrent.duration._
 
 class MVarConcurrentTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar[IO, A]] =
-    MVar[IO].init(a)
+    MVar[IO].of(a)
 
   def initF[A](fa: IO[A]): IO[MVar[IO, A]] =
-    MVar[IO].initF(fa)
+    MVar[IO].ofF(fa)
 
   def empty[A]: IO[MVar[IO, A]] =
     MVar[IO].empty[A]
@@ -71,7 +71,7 @@ class MVarConcurrentTests extends BaseMVarTests {
   test("read is cancelable") {
     val task = for {
       mVar <- MVar[IO].empty[Int]
-      finished <- Deferred.async[IO, Int]
+      finished <- Deferred.uncancelable[IO, Int]
       fiber <- mVar.read.flatMap(finished.complete).start
       _ <- fiber.cancel
       _ <- mVar.put(10)
@@ -87,13 +87,13 @@ class MVarConcurrentTests extends BaseMVarTests {
 
 class MVarAsyncTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar[IO, A]] =
-    MVar.initAsync(a)
+    MVar.uncancelableOf(a)
 
   def initF[A](fa: IO[A]): IO[MVar[IO, A]] =
-    MVar.initAsyncF(fa)
+    MVar.uncancelableOfF(fa)
 
   def empty[A]: IO[MVar[IO, A]] =
-    MVar.emptyAsync
+    MVar.uncancelableEmpty
 }
 
 abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
