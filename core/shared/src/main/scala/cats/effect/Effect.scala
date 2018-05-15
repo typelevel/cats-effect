@@ -32,6 +32,8 @@ import scala.util.Either
  *  1. implement the [[Async]] algebra
  *  1. implement a lawful [[Effect!.runAsync runAsync]] operation
  *     that triggers the evaluation (in the context of [[IO]])
+ *  1. implement a lawful [[Effect!.runSyncStep runSyncStep]] operation
+ *     which triggers evaluation up to the first asynchronous boundary
  *
  * Note this is the safe and generic version of [[IO.unsafeRunAsync]]
  * (aka Haskell's `unsafePerformIO`).
@@ -58,6 +60,17 @@ trait Effect[F[_]] extends Async[F] {
    */
   def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
 
+  /**
+   * Returns an `IO` which runs `fa` until it reaches an asynchronous
+   * boundary.
+   *
+   * If it is possible to run the entirety of `fa` synchronously, its
+   * result is returned wrapped in a `Right`. Otherwise, the
+   * continuation (asynchronous) effect is returned in a `Left`.
+   *
+   * Note that evaluating the returned `IO` is guaranteed
+   * to execute immediately.
+   */
   def runSyncStep[A](fa: F[A]): IO[Either[F[A], A]]
 }
 
