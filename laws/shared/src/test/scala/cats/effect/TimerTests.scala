@@ -114,7 +114,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.right.getOrElse(0L) should be >= 9L
+      r.right.getOrElse(0L) should be > 0L
     }
   }
 
