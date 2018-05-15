@@ -146,7 +146,7 @@ object MVar {
       F.delay(MVarAsync[F, A](a)(F))
 
     /** Builds an empty `MVar`. */
-    def empty[A](implicit F: Async[F]): F[MVar[F, A]] =
+    def empty[A]: F[MVar[F, A]] =
       F.delay(MVarAsync.empty[F, A](F))
   }
 
