@@ -35,6 +35,7 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
+    ArbIOA: Arbitrary[IO[A]],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],

@@ -36,6 +36,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
+    ArgIOA: Arbitrary[IO[A]],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],

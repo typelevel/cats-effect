@@ -76,7 +76,7 @@ trait Effect[F[_]] extends Async[F] {
   /**
    * Convert to an IO[A].
    *
-   * The law is that liftIO(toIO(f)) is the same as f
+   * The law is that toIO(liftIO(ioa)) is the same as ioa
    */
   def toIO[A](fa: F[A]): IO[A]
 }
