@@ -25,10 +25,9 @@ It has two fundamental (atomic) operations:
 - `take`: tries reading the current value, or blocks (asynchronously)
   until there is a value available, at which point the operation resorts
   to a `take` followed by a `put`
-
-An additional but non-atomic operation is `read`, which tries reading the
-current value, or blocks (asynchronously) until there is a value available,
-at which point the operation resorts to a `take` followed by a `put`.
+- `read`: which reads the current value without modifying the `MVar`,
+  assuming there is a value available, or otherwise it waits until a value
+  is made available via `put` 
 
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
