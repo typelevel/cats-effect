@@ -53,9 +53,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         if (stateRef.compareAndSet(current, update)) {
           IO(unsafeCancelPut(id))
         } else {
-          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
-          // $COVERAGE-ON$
         }
 
       case current @ WaitForPut(reads, takes) =>
@@ -78,9 +76,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           onPut(rightUnit)
           IO.unit
         } else {
-          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
-          // $COVERAGE-ON$
         }
     }
   }
@@ -91,9 +87,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
       case current @ WaitForTake(_, listeners) =>
         val update = current.copy(listeners = listeners - id)
         if (!stateRef.compareAndSet(current, update)) {
-          // $COVERAGE-OFF$
           unsafeCancelPut(id) // retry
-          // $COVERAGE-ON$
         }
       case _ =>
         ()
@@ -108,9 +102,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
             onTake(Right(value))
             IO.unit
           } else {
-            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
-            // $COVERAGE-ON$
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
@@ -119,9 +111,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
             notify(rightUnit)
             IO.unit
           } else {
-            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
-            // $COVERAGE-ON$
           }
         }
 
@@ -131,9 +121,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
           IO(unsafeCancelTake(id))
         else {
-          // $COVERAGE-OFF$
           unsafeTake(onTake) // retry
-          // $COVERAGE-ON$
         }
     }
   }
@@ -144,9 +132,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val newMap = takes - id
         val update: State[A] = WaitForPut(reads, newMap)
         if (!stateRef.compareAndSet(current, update)) {
-          // $COVERAGE-OFF$
           unsafeCancelTake(id)
-          // $COVERAGE-ON$
         }
       case _ =>
     }
@@ -169,9 +155,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
           IO(unsafeCancelRead(id))
         else {
-          // $COVERAGE-OFF$
           unsafeRead(onRead) // retry
-          // $COVERAGE-ON$
         }
     }
   }
@@ -182,9 +166,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val newMap = reads - id
         val update: State[A] = WaitForPut(newMap, takes)
         if (!stateRef.compareAndSet(current, update)) {
-          // $COVERAGE-OFF$
           unsafeCancelRead(id)
-          // $COVERAGE-ON$
         }
       case _ => ()
     }

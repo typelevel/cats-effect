@@ -44,21 +44,13 @@ private[effect] final class MVarAsync[F[_], A] private (
   def read: F[A] =
     F.async(unsafeRead)
 
-  private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): Unit = {
-    val cursor = listeners.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(value)
-  }
-
   @tailrec
   private def unsafePut(a: A)(onPut: Listener[Unit]): Unit = {
     stateRef.get match {
       case current @ WaitForTake(value, puts) =>
         val update = WaitForTake(value, puts.enqueue(a -> onPut))
         if (!stateRef.compareAndSet(current, update)) {
-          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
-          // $COVERAGE-ON$
         }
 
       case current @ WaitForPut(reads, takes) =>
@@ -72,9 +64,7 @@ private[effect] final class MVarAsync[F[_], A] private (
           }
 
         if (!stateRef.compareAndSet(current, update)) {
-          // $COVERAGE-OFF$
           unsafePut(a)(onPut) // retry
-          // $COVERAGE-ON$
         } else {
           val value = Right(a)
           // Satisfies all current `read` requests found
@@ -97,9 +87,7 @@ private[effect] final class MVarAsync[F[_], A] private (
             // Signals completion of `take`
             onTake(Right(value))
           else {
-            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
-            // $COVERAGE-ON$
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
@@ -110,17 +98,13 @@ private[effect] final class MVarAsync[F[_], A] private (
             // Complete the `put` request waiting on a notification
             notify(rightUnit)
           } else {
-            // $COVERAGE-OFF$
             unsafeTake(onTake) // retry
-            // $COVERAGE-ON$
           }
         }
 
       case WaitForPut(reads, takes) =>
         if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake)))) {
-          // $COVERAGE-OFF$
           unsafeTake(onTake)
-          // $COVERAGE-ON$
         }
     }
   }
@@ -137,11 +121,15 @@ private[effect] final class MVarAsync[F[_], A] private (
       case WaitForPut(reads, takes) =>
         // No value available, enqueue the callback
         if (!stateRef.compareAndSet(current, WaitForPut(reads.enqueue(onRead), takes))) {
-          // $COVERAGE-OFF$
           unsafeRead(onRead) // retry
-          // $COVERAGE-ON$
         }
     }
+  }
+
+  private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): Unit = {
+    val cursor = listeners.iterator
+    while (cursor.hasNext)
+      cursor.next().apply(value)
   }
 }
 
