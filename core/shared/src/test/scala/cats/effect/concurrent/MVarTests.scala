@@ -27,6 +27,9 @@ class MVarConcurrentTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar[IO, A]] =
     MVar[IO].init(a)
 
+  def initF[A](fa: IO[A]): IO[MVar[IO, A]] =
+    MVar[IO].initF(fa)
+
   def empty[A]: IO[MVar[IO, A]] =
     MVar[IO].empty[A]
 
@@ -84,10 +87,13 @@ class MVarConcurrentTests extends BaseMVarTests {
 
 class MVarAsyncTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar[IO, A]] =
-    MVar.async[IO].init(a)
+    MVar.initAsync(a)
+
+  def initF[A](fa: IO[A]): IO[MVar[IO, A]] =
+    MVar.initAsyncF(fa)
 
   def empty[A]: IO[MVar[IO, A]] =
-    MVar.async[IO].empty[A]
+    MVar.emptyAsync
 }
 
 abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
@@ -95,6 +101,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     ExecutionContext.Implicits.global
   
   def init[A](a: A): IO[MVar[IO, A]]
+  def initF[A](fa: IO[A]): IO[MVar[IO, A]]
   def empty[A]: IO[MVar[IO, A]]
 
   test("empty; put; take; put; take") {
@@ -344,6 +351,38 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
     for (r <- task.unsafeToFuture()) yield {
       r shouldBe true
+    }
+  }
+
+  test("initF works") {
+    val task = for {
+      channel <- initF(IO(10))
+      r1 <- channel.read
+      r2 <- channel.read
+      r3 <- channel.take
+    } yield List(r1, r2, r3)
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe List(10, 10, 10)
+    }
+  }
+
+  test("concurrent take and put") {
+    val count = if (Platform.isJvm) 10000 else 1000
+    val task = for {
+      mvar <- empty[Int]
+      ref <- Ref[IO, Int](0)
+      takes = (0 until count).toList.map(_ => IO.shift *> mvar.take.flatMap(x => ref.modify(_ + x))).parSequence
+      puts = (0 until count).toList.map(_ => IO.shift *> mvar.put(1)).parSequence
+      fiber1 <- takes.start
+      fiber2 <- puts.start
+      _ <- fiber1.join
+      _ <- fiber2.join
+      r <- ref.get
+    } yield r
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe count
     }
   }
 }
