@@ -107,7 +107,7 @@ object MVar {
    *   MVar[IO].init("hello") <-> MVar.init[IO, String]("hello")
    * }}}
    *
-   * @see [[of]], [[ofF]] and [[empty]]
+   * @see [[of]]and [[empty]]
    */
   def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
@@ -160,34 +160,6 @@ object MVar {
     F.delay(MVarAsync(initial))
 
   /**
-   * Creates a cancelable `MVar` initialized with a value given
-   * in the `F[A]` context, thus the initial value being lazily evaluated.
-   *
-   * @see [[of]] for creating MVars initialized with strict values
-   * @see [[uncancelableOfF]] for building non-cancelable MVars
- *
-   * @param fa is the value that's going to be used as this MVar's
-   *        initial value, available then for the first `take` or `read`
-   * @param F is a [[Concurrent]] constraint, needed in order to
-   *        describe cancelable operations
-   */
-  def ofF[F[_], A](fa: F[A])(implicit F: Concurrent[F]): F[MVar[F, A]] =
-    F.map(fa)(MVarConcurrent.apply(_))
-
-  /**
-   * Creates a non-cancelable `MVar` initialized with a value given
-   * in the `F[A]` context, thus the initial value being lazily evaluated.
-   *
-   * @see [[uncancelableOf]] for creating MVars initialized with strict values
-   * @see [[ofF]] for building cancelable MVars
- *
-   * @param fa is the value that's going to be used as this MVar's
-   *        initial value, available then for the first `take` or `read`
-   */
-  def uncancelableOfF[F[_], A](fa: F[A])(implicit F: Async[F]): F[MVar[F, A]] =
-    F.map(fa)(MVarAsync.apply(_))
-
-  /**
    * Returned by the [[apply]] builder.
    */
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
@@ -198,14 +170,6 @@ object MVar {
      */
     def of[A](a: A): F[MVar[F, A]] =
       MVar.of(a)(F)
-
-    /**
-     * Builds an `MVar` with an initial value that's lazily evaluated.
-     *
-     * @see documentation for [[MVar.ofF]]
-     */
-    def ofF[A](fa: F[A]): F[MVar[F, A]] =
-      MVar.ofF(fa)(F)
 
     /**
      * Builds an empty `MVar`. 
