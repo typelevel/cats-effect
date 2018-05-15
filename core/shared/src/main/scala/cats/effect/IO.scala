@@ -18,14 +18,14 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
+import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Left, Right, Success}
 
 /**
@@ -311,6 +311,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * fs2 or Monix).
    *
    * @see [[unsafeRunSync]]
+   * @see [[timeout]] for pure and safe version
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
@@ -397,6 +398,38 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
     F.liftIO(this)
+
+  /**
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise evaluates the `fallback`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the `FiniteDuration` to complete, the evaluation of the fallback
+   * happening immediately after that.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, the `fallback` gets evaluated
+   *
+   * @param fallback is the task evaluated after the duration has passed and
+   *        the source canceled
+   */
+  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
+    Concurrent.timeoutTo(this, duration, fallback)
+
+  /**
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the specified time duration to complete.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
+   */
+  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
    * Returns an `IO` action that treats the source task as the
@@ -646,8 +679,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
   implicit val parApplicative: Applicative[IO.Par] = new Applicative[IO.Par] {
-    import IO.Par.unwrap
-    import IO.Par.{apply => par}
+    import IO.Par.{unwrap, apply => par}
 
     override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
@@ -1130,29 +1162,7 @@ object IO extends IOInstances {
    * The two tasks are executed in parallel if asynchronous,
    * the winner being the first that signals a result.
    *
-   * As an example, this is how a `timeout` operation could be
-   * implemented in terms of `race`:
-   *
-   * {{{
-   *   import cats.effect._
-   *   import scala.concurrent.duration._
-   *
-   *   def timeoutTo[A](io: IO[A], after: FiniteDuration, fallback: IO[A])
-   *     (implicit timer: Timer[IO]): IO[A] = {
-   *
-   *     IO.race(io, timer.sleep(after)).flatMap {
-   *       case Left((a, _)) => IO.pure(a)
-   *       case Right((_, _)) => fallback
-   *     }
-   *   }
-   *
-   *   def timeout[A](io: IO[A], after: FiniteDuration)
-   *     (implicit timer: Timer[IO]): IO[A] = {
-   *
-   *     timeoutTo(io, after,
-   *       IO.raiseError(new TimeoutException(after.toString)))
-   *   }
-   * }}}
+   * As an example see [[IO.timeout]] and [[IO.timeoutTo]]
    *
    * N.B. this is the implementation of [[Concurrent.race]].
    *
