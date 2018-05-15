@@ -70,5 +70,5 @@ private[effect] object LinkedMap {
     emptyRef.asInstanceOf[LinkedMap[K, V]]
 
   private val emptyRef =
-    new LinkedMap[Any, Any](Map.empty, LongMap.empty, 0)
+    new LinkedMap[Nothing, Nothing](Map.empty, LongMap.empty, 0)
 }
