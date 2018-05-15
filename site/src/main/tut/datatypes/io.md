@@ -1258,6 +1258,35 @@ nonParallel.unsafeRunSync()
 
 With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
 
+### parSequence
+
+If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel. The IO tasks must be asynchronous, which if they are not you can use [shift](#shift).
+
+```tut:book
+import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
+
+val asyncIO = IO.shift *> IO(1)
+
+val aLotOfIOs = 
+  NonEmptyList.of(asyncIO, asyncIO)
+
+val ioOfList = aLotOfIOs.parSequence
+```
+
+There is also `cats.Traverse.sequence` which does this synchronously.
+
+### parTraverse
+
+If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel. The IO tasks must be asynchronous, which if they are not you can use shift.
+
+```tut:book
+val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
+  IO.shift *> IO(i)
+}
+```
+
+There is also `cats.Traverse.traverse` which will run each step synchronously.
+
 ## "Unsafe" Operations
 
 Pretty much we have been using some "unsafe" operations in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
@@ -1385,3 +1414,4 @@ Note that as far as the actual behavior of `IO` is concerned, something like `IO
 But you should not rely on this behavior, because it is NOT described by the laws required by the `Sync` type class and those laws are the only guarantees of behavior that you get. For example the above equivalence might be broken in the future in regards to error handling. So this behavior is currently there for safety reasons, but you should regard it as an implementation detail that could change in the future.
 
 Stick with pure functions.
+
