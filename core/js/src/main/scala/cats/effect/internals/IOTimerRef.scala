@@ -22,7 +22,7 @@ import scala.concurrent.ExecutionContext
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
-private[effect] abstract class IOTimerRef extends IOTimerRef0 {
+private[effect] abstract class IOTimerRef {
   /**
    * Returns a [[Timer]] instance for [[IO]].
    *
@@ -31,22 +31,11 @@ private[effect] abstract class IOTimerRef extends IOTimerRef0 {
    *        would fallback to `setImmediate` (if available) or
    *        to `setTimeout`
    */
-  implicit def timer(implicit ec: ExecutionContext): Timer[IO] =
+  implicit def timer(implicit ec: ExecutionContext = ExecutionContext.Implicits.global): Timer[IO] =
     ec match {
       case ExecutionContext.Implicits.global =>
         IOTimer.global
       case _ =>
         IOTimer.deferred(ec)
     }
-}
-
-private[effect] abstract class IOTimerRef0 {
-  /**
-   * Returns a [[Timer]] instance for [[IO]].
-   *
-   * This is the JavaScript version, based on the standard `setTimeout`
-   * and `setImmediate` where available.
-   */
-  implicit val timerGlobal: Timer[IO] =
-    IOTimer.global
 }

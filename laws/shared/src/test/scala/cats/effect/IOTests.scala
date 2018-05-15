@@ -18,6 +18,8 @@ package cats
 package effect
 
 import java.util.concurrent.atomic.AtomicInteger
+
+import cats.effect.concurrent.Deferred
 import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.ConcurrentEffectTests
 import cats.effect.laws.discipline.arbitrary._
@@ -26,9 +28,10 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
-import scala.concurrent.{Future, Promise}
-import scala.concurrent.duration._
+
+import scala.concurrent.{Future, Promise, TimeoutException}
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 
 class IOTests extends BaseTestsSuite {
@@ -632,6 +635,30 @@ class IOTests extends BaseTestsSuite {
     v shouldBe 84
     io.unsafeRunSync() shouldBe Right(42)
     v shouldBe 126
+  }
+
+  testAsync("IO.timeout can mirror the source") { implicit ec =>
+    check { (ioa: IO[Int]) =>
+      ioa.timeout(1.day) <-> ioa
+    }
+  }
+
+  testAsync("IO.timeout can end in timeout") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val task = for {
+      p <- Deferred[IO, Unit]
+      f <- IO.unit.bracket(_ => IO.sleep(1.day) *> IO(1))(_ => p.complete(())).timeout(1.second).start
+      _ <- p.get
+      _ <- f.join
+    } yield ()
+
+    val f = task.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe None
+
+    ec.tick(1.second)
+    f.value.get.failed.get shouldBe an [TimeoutException]
   }
 }
 

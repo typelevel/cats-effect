@@ -405,30 +405,39 @@ object Concurrent {
     }
 
   /**
-   * Returns an effect that either completes with the result of `fa` within the specified `FiniteDuration`
-   * or evaluates the `fallback`.
+   * Returns an effect that either completes with the result of the source within
+   * the specified time `duration` or otherwise evaluates the `fallback`.
    *
-   * The `fa` is cancelled in the event that it takes longer than the `FiniteDuration`
-   * to complete. Cancellation of an `fa` does not equate to immediate interruption of the `fa`.
-   * A completed cancel simply means that it has been asked to cancel.
+   * The source is cancelled in the event that it takes longer than
+   * the `FiniteDuration` to complete, the evaluation of the fallback
+   * happening immediately after that.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, the `fallback` gets evaluated
+   *
+   * @param fallback is the task evaluated after the duration has passed and
+   *        the source canceled
    */
-
-  def timeoutTo[F[_], A](fa: F[A], after: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
-    F.race(fa, timer.sleep(after)) flatMap {
+  def timeoutTo[F[_], A](fa: F[A], duration: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
+    F.race(fa, timer.sleep(duration)) flatMap {
       case Left(a) => F.pure(a)
       case Right(_) => fallback
     }
 
   /**
-   * Returns an effect that either completes with a result of `F[A]` or raises a `TimeoutException`.
+   * Returns an effect that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
-   * The `fa` is cancelled in the event that it takes longer than the `FiniteDuration`
-   * to complete. Cancellation of an `fa` does not equate to immediate interruption of the `fa`.
-   * A completed cancel simply means that it has been asked to cancel.
+   * The source is cancelled in the event that it takes longer than
+   * the specified time duration to complete.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
    */
-
-  def timeout[F[_], A](fa: F[A], after: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
-    timeoutTo(fa, after, F.raiseError(new TimeoutException(after.toString)))
+  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
+    timeoutTo(fa, duration, F.raiseError(new TimeoutException(duration.toString)))
 
   /**
    * [[Concurrent]] instance built for `cats.data.EitherT` values initialized

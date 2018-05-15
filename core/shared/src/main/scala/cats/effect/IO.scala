@@ -18,14 +18,14 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.effect.internals._
 import cats.effect.internals.Callback.Extensions
+import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Left, Right, Success}
 
 /**
@@ -400,26 +400,36 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     F.liftIO(this)
 
   /**
-   * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
-   * or evaluates the `fallback`.
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise evaluates the `fallback`.
    *
-   * The IO is cancelled in the event that it takes longer than the `FiniteDuration`
-   * to complete. Cancellation of an IO does not equate to immediate interruption of the IO.
-   * A completed cancel simply means that it has been asked to cancel.
+   * The source is cancelled in the event that it takes longer than
+   * the `FiniteDuration` to complete, the evaluation of the fallback
+   * happening immediately after that.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, the `fallback` gets evaluated
+   *
+   * @param fallback is the task evaluated after the duration has passed and
+   *        the source canceled
    */
-  final def timeoutTo[A2 >: A](after: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
-    Concurrent.timeoutTo(this, after, fallback)(ioConcurrentEffect, timer)
+  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
+    Concurrent.timeoutTo(this, duration, fallback)
 
   /**
-   * Returns this IO that either completes with the result of this IO within the specified `FiniteDuration`
-   * or raises a `TimeoutException`.
+   * Returns an IO that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
-   * The IO is cancelled in the event that it takes longer than the `FiniteDuration`
-   * to complete. Cancellation of an IO does not equate to immediate interruption of the IO.
-   * A completed cancel simply means that it has been asked to cancel.
+   * The source is cancelled in the event that it takes longer than
+   * the specified time duration to complete.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
    */
-  final def timeout(after: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
-    timeoutTo(after, IO.raiseError(new TimeoutException(after.toString)))(timer)
+  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
    * Returns an `IO` action that treats the source task as the
@@ -669,8 +679,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
   implicit val parApplicative: Applicative[IO.Par] = new Applicative[IO.Par] {
-    import IO.Par.unwrap
-    import IO.Par.{apply => par}
+    import IO.Par.{unwrap, apply => par}
 
     override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
