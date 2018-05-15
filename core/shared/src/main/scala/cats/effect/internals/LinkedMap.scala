@@ -30,6 +30,10 @@ private[effect] class LinkedMap[K, +V](
   private[this] val insertionOrder: LongMap[K],
   private[this] val nextId: Long) {
 
+  /** Returns `true` if this map is empty, or `false` otherwise. */
+  def isEmpty: Boolean =
+    entries.isEmpty
+
   /** Returns a new map with the supplied key/value added. */
   def updated[V2 >: V](k: K, v: V2): LinkedMap[K, V2] = {
     val insertionOrderOldRemoved = entries.get(k).fold(insertionOrder) { case (_, id) => insertionOrder - id }
@@ -51,10 +55,20 @@ private[effect] class LinkedMap[K, +V](
   /** The values in this map, in the order they were added. */
   def values: Iterable[V] = keys.flatMap(k => entries.get(k).toList.map(_._1))
 
-  override def toString = keys.zip(values).mkString("LinkedMap(", ", ", ")")
+  /** Pulls the first value from this `LinkedMap`, in FIFO order. */
+  def dequeue: (V, LinkedMap[K, V]) = {
+    val k = insertionOrder.head._2
+    (entries(k)._1, this - k)
+  }
+
+  override def toString: String =
+    keys.zip(values).mkString("LinkedMap(", ", ", ")")
 }
 
 private[effect] object LinkedMap {
   def empty[K, V]: LinkedMap[K, V] =
-    new LinkedMap[K, V](Map.empty, LongMap.empty, 0)
+    emptyRef.asInstanceOf[LinkedMap[K, V]]
+
+  private val emptyRef =
+    new LinkedMap[Nothing, Nothing](Map.empty, LongMap.empty, 0)
 }
