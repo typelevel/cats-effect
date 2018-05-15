@@ -19,7 +19,7 @@ package internals
 
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.concurrent.MVar
-import cats.effect.internals.Callback.{rightUnit, Type => Listener}
+import cats.effect.internals.Callback.rightUnit
 import scala.annotation.tailrec
 
 /**
@@ -59,62 +59,53 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     IO(loop())
   }
 
-  private def streamAll(value: Either[Throwable, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
+  private def streamAll(value: Either[Nothing, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
     val cursor = listeners.values.iterator
     while (cursor.hasNext)
       cursor.next().apply(value)
   }
 
-  private def unsafePut(a: A)(onPut: Listener[Unit]): IO[Unit] = {
-    @tailrec def loop(): IO[Unit] = {
-      val current: State[A] = stateRef.get
+  @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): IO[Unit] = {
+    val current: State[A] = stateRef.get
 
-      current match {
-        case WaitForTake(value, listeners) =>
-          val id = new Id
-          val newMap = listeners.updated(id, (a, onPut))
-          val update = WaitForTake(value, newMap)
+    current match {
+      case WaitForTake(value, listeners) =>
+        val id = new Id
+        val newMap = listeners.updated(id, (a, onPut))
+        val update = WaitForTake(value, newMap)
 
-          if (stateRef.compareAndSet(current, update)) {
-            unregisterPut(id)
-          } else {
-            // $COVERAGE-OFF$
-            loop() // retry
-            // $COVERAGE-ON$
+        if (stateRef.compareAndSet(current, update)) {
+          unregisterPut(id)
+        } else {
+          // $COVERAGE-OFF$
+          unsafePut(a)(onPut) // retry
+          // $COVERAGE-ON$
+        }
+
+      case current @ WaitForPut(reads, takes) =>
+        var first: Listener[A] = null
+        val update: State[A] =
+          if (takes.isEmpty) State(a) else {
+            val (x, rest) = takes.dequeue
+            first = x
+            if (rest.isEmpty) State.empty[A]
+            else WaitForPut(LinkedMap.empty, rest)
           }
 
-        case current @ WaitForPut(reads, takes) =>
-          var first: Listener[A] = null
-          val update: State[A] =
-            if (takes.isEmpty) State(a) else {
-              val (x, rest) = takes.dequeue
-              first = x
-              if (rest.isEmpty) State.empty[A]
-              else WaitForPut(LinkedMap.empty, rest)
-            }
-
-          if (stateRef.compareAndSet(current, update)) {
-            val value = Right(a)
-            // Satisfies all current `read` requests found
-            streamAll(value, reads)
-            // Satisfies the first `take` request found
-            if (first ne null) first(value)
-            // Signals completion of `put`
-            onPut(rightUnit)
-            IO.unit
-          } else {
-            // $COVERAGE-OFF$
-            unsafePut(a)(onPut) // retry
-            // $COVERAGE-ON$
-          }
-      }
-    }
-
-    if (a == null) {
-      onPut(Left(new NullPointerException("null not supported in MVar")))
-      IO.unit
-    } else {
-      loop()
+        if (stateRef.compareAndSet(current, update)) {
+          val value = Right(a)
+          // Satisfies all current `read` requests found
+          streamAll(value, reads)
+          // Satisfies the first `take` request found
+          if (first ne null) first(value)
+          // Signals completion of `put`
+          onPut(rightUnit)
+          IO.unit
+        } else {
+          // $COVERAGE-OFF$
+          unsafePut(a)(onPut) // retry
+          // $COVERAGE-ON$
+        }
     }
   }
 
@@ -224,6 +215,13 @@ private[effect] object MVarConcurrent {
   def empty[F[_], A](implicit F: Concurrent[F]): MVar[F, A] =
     new MVarConcurrent[F, A](State.empty)
 
+  /**
+   * Internal API — Matches the callack type in `cats.effect.Async`,
+   * but we don't care about about the error.
+   */
+  private type Listener[-A] = Either[Nothing, A] => Unit
+
+  /** Used with [[LinkedMap]] to identify callbacks that need to be cancelled. */
   private final class Id extends Serializable
 
   /** ADT modelling the internal state of `MVar`. */

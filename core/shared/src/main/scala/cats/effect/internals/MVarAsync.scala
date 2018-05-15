@@ -19,7 +19,7 @@ package internals
 
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.concurrent.MVar
-import cats.effect.internals.Callback.{Type => Listener, rightUnit}
+import cats.effect.internals.Callback.rightUnit
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
@@ -44,7 +44,7 @@ private[effect] final class MVarAsync[F[_], A] private (
   def read: F[A] =
     F.async(unsafeRead)
 
-  private def streamAll(value: Either[Throwable, A], listeners: Iterable[Listener[A]]): Unit = {
+  private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): Unit = {
     val cursor = listeners.iterator
     while (cursor.hasNext)
       cursor.next().apply(value)
@@ -52,11 +52,6 @@ private[effect] final class MVarAsync[F[_], A] private (
 
   @tailrec
   private def unsafePut(a: A)(onPut: Listener[Unit]): Unit = {
-    if (a == null) {
-      onPut(Left(new NullPointerException("null not supported in MVarAsync/MVar")))
-      return
-    }
-
     stateRef.get match {
       case current @ WaitForTake(value, puts) =>
         val update = WaitForTake(value, puts.enqueue(a -> onPut))
@@ -158,6 +153,12 @@ private[effect] object MVarAsync {
   /** Returns an empty [[MVarAsync]] instance. */
   def empty[F[_], A](implicit F: Async[F]): MVar[F, A] =
     new MVarAsync[F, A](State.empty)
+
+  /**
+   * Internal API — Matches the callack type in `cats.effect.Async`,
+   * but we don't care about about the error.
+   */
+  private type Listener[-A] = Either[Nothing, A] => Unit
 
   /** ADT modelling the internal state of `MVar`. */
   private sealed trait State[A]

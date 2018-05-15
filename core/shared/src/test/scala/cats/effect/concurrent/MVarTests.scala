@@ -204,11 +204,12 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("put(null) raises NullPointerException") {
-    val task = empty[String].flatMap(_.put(null)).attempt
-
-    for (Left(v) <- task.unsafeToFuture()) yield {
-      v shouldBe an[NullPointerException]
+  test("put(null) works") {
+    val task = empty[String].flatMap { mvar =>
+      mvar.put(null) *> mvar.read
+    }
+    for (v <- task.unsafeToFuture()) yield {
+      v shouldBe null
     }
   }
 
