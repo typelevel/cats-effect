@@ -38,7 +38,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("concurrent modifications") {
     val finalValue = 100
     val r = Ref.unsafe[IO](0)
-    val modifies = List.fill(finalValue)(IO.shift *> r.modify(_ + 1)).sequence
+    val modifies = List.fill(finalValue)(IO.shift *> r.update(_ + 1)).sequence
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
   }
 
