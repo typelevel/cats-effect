@@ -143,8 +143,8 @@ private[effect] object MVarAsync {
     new MVarAsync[F, A](State.empty)
 
   /**
-   * Internal API — Matches the callack type in `cats.effect.Async`,
-   * but we don't care about about the error.
+   * Internal API — Matches the callback type in `cats.effect.Async`,
+   * but we don't care about the error.
    */
   private type Listener[-A] = Either[Nothing, A] => Unit
 
