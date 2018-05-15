@@ -18,20 +18,20 @@ package cats
 package effect
 package concurrent
 
-/** Represents the exit code of an application.
-  * 
-  * `code` is constrained to a range of [0, 256).
-  */
-sealed abstract case class ExitCode private (val code: Int)
+import org.scalatest.{FunSuite, Matchers}
+import org.scalacheck.Prop
 
-object ExitCode {
-  /** Creates an `ExitCode`.
-    * 
-    * @param i the value whose 8 least significant bits are used
-    * to construct an exit code within the valid range.
-    */ 
-  def apply(i: Int): ExitCode = ExitCode(i & 0xff)
+class ExitCodeTests extends FunSuite with Matchers {
+  test("fromInt(i) == fromInt(i & 0xff)") {
+    Prop.forAll { i: Int =>
+      ExitCode(i) == ExitCode(i & 0xff)
+    }
+  }
 
-  val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode = ExitCode(1)
+  test("code is in range [0, 256)") {
+    Prop.forAll { i: Int =>
+      val ec = ExitCode(i)
+      ec.code >= 0 && ec.code < 256
+    }
+  }
 }

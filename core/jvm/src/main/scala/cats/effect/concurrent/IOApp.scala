@@ -79,7 +79,7 @@ trait IOApp {
         done.get.unsafeRunSync()
       })
       exitCode <- fiber.join
-    } yield exitCode.intValue
+    } yield exitCode.code
 
     sys.exit(program.unsafeRunSync())
   }

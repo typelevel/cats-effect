@@ -68,12 +68,12 @@ trait IOApp {
     IO.race(keepAlive, run(args.toList)).runAsync {
       case Left(t) =>
         IO(Logger.reportFailure(t)) *>
-        IO(sys.exit(ExitCode.Error.intValue))
+        IO(sys.exit(ExitCode.Error.code))
       case Right(Left(())) =>
         IO(System.err.println("IOApp keep alive failed unexpectedly.")) *>
-        IO(sys.exit(ExitCode.Error.intValue))
+        IO(sys.exit(ExitCode.Error.code))
       case Right(Right(exitCode)) =>
-        IO(sys.exit(exitCode.intValue))
+        IO(sys.exit(exitCode.code))
     }.unsafeRunSync()
   }
 }
