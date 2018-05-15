@@ -20,7 +20,7 @@ package concurrent
 
 /** Represents the exit code of an application.
   * 
-  * `code` is constrained to a range of [0, 256).
+  * `code` is constrained to a range from 0 to 255, inclusive.
   */
 sealed abstract case class ExitCode private (val code: Int)
 
