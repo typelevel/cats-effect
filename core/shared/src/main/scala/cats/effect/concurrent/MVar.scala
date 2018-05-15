@@ -107,7 +107,7 @@ object MVar {
    *   MVar[IO].init("hello") <-> MVar.init[IO, String]("hello")
    * }}}
    *
-   * @see [[init]], [[initF]] and [[empty]]
+   * @see [[of]], [[ofF]] and [[empty]]
    */
   def apply[F[_]](implicit F: Concurrent[F]): ApplyBuilders[F] =
     new ApplyBuilders[F](F)
@@ -115,7 +115,7 @@ object MVar {
   /**
    * Creates a cancelable `MVar` that starts as empty.
    *
-   * @see [[emptyAsync]] for non-cancelable MVars
+   * @see [[uncancelableEmpty]] for non-cancelable MVars
    *
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
@@ -130,14 +130,14 @@ object MVar {
    *
    * @see [[empty]] for creating cancelable MVars
    */
-  def emptyAsync[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
+  def uncancelableEmpty[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
     F.delay(MVarAsync.empty)
 
   /**
    * Creates a cancelable `MVar` that's initialized to an `initial`
    * value.
    *
-   * @see [[initAsync]] for non-cancelable MVars
+   * @see [[uncancelableOf]] for non-cancelable MVars
    *
    * @param initial is a value that will be immediately available
    *        for the first `read` or `take` operation
@@ -145,7 +145,7 @@ object MVar {
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def init[F[_], A](initial: A)(implicit F: Concurrent[F]): F[MVar[F, A]] =
+  def of[F[_], A](initial: A)(implicit F: Concurrent[F]): F[MVar[F, A]] =
     F.delay(MVarConcurrent(initial))
 
   /**
@@ -154,35 +154,37 @@ object MVar {
    *
    * The resulting `MVar` has non-cancelable operations.
    *
-   * @see [[init]] for creating cancelable MVars
+   * @see [[of]] for creating cancelable MVars
    */
-  def initAsync[F[_], A](initial: A)(implicit F: Async[F]): F[MVar[F, A]] =
+  def uncancelableOf[F[_], A](initial: A)(implicit F: Async[F]): F[MVar[F, A]] =
     F.delay(MVarAsync(initial))
 
   /**
    * Creates a cancelable `MVar` initialized with a value given
    * in the `F[A]` context, thus the initial value being lazily evaluated.
    *
-   * @see [[init]] for creating MVars initialized with strict values
-   * @see [[initAsyncF]] for building non-cancelable MVars
+   * @see [[of]] for creating MVars initialized with strict values
+   * @see [[uncancelableOfF]] for building non-cancelable MVars
+ *
    * @param fa is the value that's going to be used as this MVar's
    *        initial value, available then for the first `take` or `read`
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def initF[F[_], A](fa: F[A])(implicit F: Concurrent[F]): F[MVar[F, A]] =
+  def ofF[F[_], A](fa: F[A])(implicit F: Concurrent[F]): F[MVar[F, A]] =
     F.map(fa)(MVarConcurrent.apply(_))
 
   /**
    * Creates a non-cancelable `MVar` initialized with a value given
    * in the `F[A]` context, thus the initial value being lazily evaluated.
    *
-   * @see [[initAsync]] for creating MVars initialized with strict values
-   * @see [[initF]] for building cancelable MVars
+   * @see [[uncancelableOf]] for creating MVars initialized with strict values
+   * @see [[ofF]] for building cancelable MVars
+ *
    * @param fa is the value that's going to be used as this MVar's
    *        initial value, available then for the first `take` or `read`
    */
-  def initAsyncF[F[_], A](fa: F[A])(implicit F: Async[F]): F[MVar[F, A]] =
+  def uncancelableOfF[F[_], A](fa: F[A])(implicit F: Async[F]): F[MVar[F, A]] =
     F.map(fa)(MVarAsync.apply(_))
 
   /**
@@ -192,18 +194,18 @@ object MVar {
     /**
      * Builds an `MVar` with an initial value.
      *
-     * @see documentation for [[MVar.init]]
+     * @see documentation for [[MVar.of]]
      */
-    def init[A](a: A): F[MVar[F, A]] =
-      MVar.init(a)(F)
+    def of[A](a: A): F[MVar[F, A]] =
+      MVar.of(a)(F)
 
     /**
      * Builds an `MVar` with an initial value that's lazily evaluated.
      *
-     * @see documentation for [[MVar.initF]]
+     * @see documentation for [[MVar.ofF]]
      */
-    def initF[A](fa: F[A]): F[MVar[F, A]] =
-      MVar.initF(fa)(F)
+    def ofF[A](fa: F[A]): F[MVar[F, A]] =
+      MVar.ofF(fa)(F)
 
     /**
      * Builds an empty `MVar`. 
