@@ -661,29 +661,7 @@ class IOTests extends BaseTestsSuite {
     f.value.get.failed.get shouldBe an [TimeoutException]
   }
 
-  testAsync("onCancelRaiseError sanity (1)") { implicit ec =>
-    val dummy = new RuntimeException("dummy")
-    val p = Promise[Unit]()
-    val io = IO.cancelable[Int](_ => IO(p.success(()))).onCancelRaiseError(dummy)
-
-    val cancel = io.unsafeRunCancelable(_ => ())
-    cancel()
-
-    p.future.value shouldBe Some(Success(()))
-  }
-
-  testAsync("onCancelRaiseError sanity (2)") { implicit ec =>
-    val dummy = new RuntimeException("dummy")
-    val p = Deferred.unsafe[IO, Unit]
-    val io = IO.cancelable[Int](_ => p.complete(())).onCancelRaiseError(dummy)
-
-    val cancel = io.unsafeRunCancelable(_ => ())
-    cancel()
-
-    p.get.unsafeToFuture().value shouldBe Some(Success(()))
-  }
-
-  testAsync("onCancelRaiseError sanity (3)") { implicit ec =>
+  testAsync("onCancelRaiseError cancels forked sources") { implicit ec =>
     implicit val F = implicitly[ConcurrentEffect[IO]]
     val timer = ec.timer[IO]
     val dummy = new RuntimeException
