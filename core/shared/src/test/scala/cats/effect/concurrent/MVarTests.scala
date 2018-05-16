@@ -93,21 +93,41 @@ class MVarAsyncTests extends BaseMVarTests {
 abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext: ExecutionContext =
     ExecutionContext.Implicits.global
-  
+
   def init[A](a: A): IO[MVar[IO, A]]
   def empty[A]: IO[MVar[IO, A]]
 
   test("empty; put; take; put; take") {
     val task = for {
       av <- empty[Int]
+      isE1 <- av.isEmpty
       _  <- av.put(10)
+      isE2 <- av.isEmpty
       r1 <- av.take
       _  <- av.put(20)
       r2 <- av.take
-    } yield List(r1,r2)
+    } yield (isE1, isE2, r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(10, 20)
+      r shouldBe ((true, false, 10, 20))
+    }
+  }
+
+  test("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
+    val task = for {
+      av <- empty[Int]
+      isE1 <- av.isEmpty
+      p1 <- av.tryPut(10)
+      p2 <- av.tryPut(11)
+      isE2 <- av.isEmpty
+      r1 <- av.tryTake
+      r2 <- av.tryTake
+      _  <- av.put(20)
+      r3 <- av.take
+    } yield (isE1, p1, p2, isE2, r1, r2, r3)
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe ((true, true, false, false, Some(10), None, 20))
     }
   }
 
@@ -168,13 +188,14 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   test("initial; take; put; take") {
     val task = for {
       av <- init(10)
+      isE <- av.isEmpty
       r1 <- av.take
       _  <- av.put(20)
       r2 <- av.take
-    } yield List(r1,r2)
+    } yield (isE, r1, r2)
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe List(10, 20)
+      v shouldBe ((false, 10, 20))
     }
   }
 
