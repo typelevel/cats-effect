@@ -17,13 +17,13 @@
 package cats.effect.laws.util
 
 import cats.effect.internals.Cancelable.{Type => Cancelable}
-import cats.effect.internals.NonFatal
 import cats.effect.{IO, LiftIO, Timer}
-
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
 import scala.util.Random
+
+import cats.effect.misc.NonFatal
 
 /**
  * A `scala.concurrent.ExecutionContext` implementation and a provider

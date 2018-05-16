@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect.misc
 
 /**
  * Extractor of non-fatal `Throwable` instances.
@@ -22,11 +22,15 @@ package cats.effect.internals
  * Alternative to [[scala.util.control.NonFatal]] that only
  * considers `VirtualMachineError`s as fatal.
  *
- * Inspired by the FS2 implementation.
+ * Inspired by the FS2 implementation and adjustments to Monix implementation
+ * by Jakub Kozlowski (@kubukoz)
  */
-private[effect] object NonFatal {
+object NonFatal {
   def apply(t: Throwable): Boolean = t match {
     case _: VirtualMachineError => false
+    case _: InterruptedException =>
+      Thread.currentThread().interrupt()
+      true
     case _ => true
   }
 

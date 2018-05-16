@@ -18,8 +18,9 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, Delay, Map, Pure, RaiseError, Suspend}
-
 import scala.collection.mutable.ArrayStack
+
+import cats.effect.misc.NonFatal
 
 private[effect] object IORunLoop {
   private type Current = IO[Any]

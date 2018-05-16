@@ -16,6 +16,8 @@
 
 package cats.effect.internals
 
+import cats.effect.misc.NonFatal
+
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 /**

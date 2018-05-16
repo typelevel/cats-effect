@@ -22,11 +22,12 @@ import cats.effect.internals.Callback.Extensions
 import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
-
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Left, Right, Success}
+
+import cats.effect.misc.NonFatal
 
 /**
  * A pure abstraction representing the intention to perform a

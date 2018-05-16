@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect.misc
+
+import scala.util.control.ControlThrowable
 
 import org.scalatest.FunSuite
-import scala.util.control.ControlThrowable
 
 class NonFatalTests extends FunSuite {
   test("catches ThreadDeath") {
@@ -65,5 +66,16 @@ class NonFatalTests extends FunSuite {
           fail("Should not catch VirtualMachineError")
       }
     }
+  }
+
+  test("restores interrupted status on InterruptedException") {
+    try {
+       throw new InterruptedException
+     } catch {
+       case NonFatal(_) =>
+         assert(Thread.interrupted())
+       case _: Throwable =>
+         fail("Should catch InterruptedException")
+     }
   }
 }
