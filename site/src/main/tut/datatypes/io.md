@@ -28,7 +28,7 @@ computation.
    `flatMap` chains get short-circuited (`IO` implementing the algebra
    of `MonadError`)
 3. can be canceled, but note this capability relies on the
-   user to provide cancelation logic
+   user to provide cancellation logic
 
 Effects described via this abstraction are not evaluated until the
 "end of the world", which is to say, when one of the "unsafe" methods
@@ -245,9 +245,9 @@ def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = ???
 
 So it is similar with `IO.async`, but in that registration function
 the user is expected to provide an `IO[Unit]` that captures the
-required cancelation logic.
+required cancellation logic.
 
-N.B. cancelation is the ability to interrupt an `IO` task before
+N.B. cancellation is the ability to interrupt an `IO` task before
 completion, possibly releasing any acquired resources, useful in race
 conditions to prevent leaks.
 
@@ -266,7 +266,7 @@ def delayedTick(d: FiniteDuration)
     val r = new Runnable { def run() = cb(Right(())) }
     val f = sc.schedule(r, d.length, d.unit)
     
-    // Returning the cancelation token needed to cancel 
+    // Returning the cancellation token needed to cancel 
     // the scheduling and release resources early
     IO(f.cancel(false))
   }
@@ -276,7 +276,7 @@ def delayedTick(d: FiniteDuration)
 Note this delayed tick is already described by `IO.sleep` (via
 `Timer`), so you don't need to do it.
 
-More on dealing with ''cancelation'' below.
+More on dealing with ''cancellation'' below.
 
 #### IO.never
 
@@ -299,7 +299,7 @@ IO.race(IO.never, rh) <-> rh.map(Right(_))
 
 It's also useful when dealing with the `onCancelRaiseError` operation.
 Because cancelable `IO` values usually become non-terminating on
-cancelation, you might want to use `IO.never` as the continuation of
+cancellation, you might want to use `IO.never` as the continuation of
 an `onCancelRaiseError`.
 
 See the description of `onCancelRaiseError`.
@@ -356,7 +356,7 @@ def fib(n: Int, a: Long, b: Long)(implicit timer: Timer[IO]): IO[Long] =
 And now we have something more interesting than a `@tailrec` loop. As
 can be seen, `IO` allows very precise control over the evaluation.
 
-## Concurrency and Cancelation
+## Concurrency and Cancellation
 
 `IO` can describe interruptible asynchronous processes. As an
 implementation detail:
@@ -370,8 +370,8 @@ implementation detail:
 2. `IO` tasks that are cancelable, usually become non-terminating on
    `cancel`   
   - such tasks can be turned into tasks that trigger an error on
-    cancelation with `onCancelRaiseError`, which can be used for
-    materializing cancelation and thus trigger necessary logic, the
+    cancellation with `onCancelRaiseError`, which can be used for
+    materializing cancellation and thus trigger necessary logic, the
     `bracket` operation being described in terms of
     `onCancelRaiseError`
     
@@ -379,7 +379,7 @@ Also this might be a point of confusion for folks coming from Java and
 that expect the features of `Thread.interrupt` or of the old and
 deprecated `Thread.stop`:
 
-`IO` cancelation does NOT work like that, as thread interruption in
+`IO` cancellation does NOT work like that, as thread interruption in
 Java is inherently *unsafe, unreliable and not portable*!
 
 ### Building cancelable IO tasks
@@ -401,7 +401,7 @@ def sleep(d: FiniteDuration)
 }
 ```
 
-N.B. if you don't specify cancelation logic for a task, then the task
+N.B. if you don't specify cancellation logic for a task, then the task
 is NOT cancelable. So for example, using Java's blocking I/O still:
 
 ```tut:silent
@@ -486,7 +486,7 @@ def readFile(file: File)(implicit ec: ExecutionContext) =
   }
 ```
 
-#### Gotcha: Cancelation is a Concurrent Action!
+#### Gotcha: Cancellation is a Concurrent Action!
 
 This is not always obvious, not from the above examples, but you might
 be tempted to do something like this:
@@ -498,7 +498,7 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
       try Right(in.readLine()) 
       catch { case NonFatal(e) => Left(e) }))
       
-    // Cancelation logic is not thread-safe!
+    // Cancellation logic is not thread-safe!
     IO(in.close())
   }
 ```
@@ -524,11 +524,11 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
         try cb(Right(in.readLine()))
         catch { case NonFatal(e) => cb(Left(e)) }
       }
-      // Note there's no else; if cancelation was executed
+      // Note there's no else; if cancellation was executed
       // then we don't call the callback; task becoming 
       // non-terminating ;-)
     }
-    // Cancelation logic
+    // Cancellation logic
     IO {
       // Thread-safe gate
       if (isActive.getAndSet(false))
@@ -537,7 +537,7 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
   }
 ```
 
-In this example it is the cancelation logic itself that calls
+In this example it is the cancellation logic itself that calls
 `in.close()`, but the call is safe due to the thread-safe guard that
 we're creating by usage of an atomic `getAndSet`.
 
@@ -604,7 +604,7 @@ Implementation notes:
 ### runCancelable & unsafeRunCancelable
 
 The above is the pure `cancel`, accessible via `Fiber`. However the
-second way to access cancelation and thus interrupt tasks is via
+second way to access cancellation and thus interrupt tasks is via
 `runCancelable` (the pure version) and `unsafeRunCancelable` (the
 unsafe version).
 
@@ -664,8 +664,8 @@ This law is compliant with the laws of `Concurrent#uncancelable` (see
 problems in case you want to release resources.
 
 Just like `attempt` (from `MonadError`) can materialize thrown errors,
-we have `onCancelRaiseError` that can materialize cancelation.  This
-way we can detect cancelation and trigger specific logic in response.
+we have `onCancelRaiseError` that can materialize cancellation.  This
+way we can detect cancellation and trigger specific logic in response.
 
 As example, this is more or less how a `bracket` operation can get
 implemented for `IO`:
@@ -689,8 +689,8 @@ ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
 ### IO.cancelBoundary
 
 Returns a cancelable boundary — an `IO` task that checks for the
-cancelation status of the run-loop and does not allow for the bind
-continuation to keep executing in case cancelation happened.
+cancellation status of the run-loop and does not allow for the bind
+continuation to keep executing in case cancellation happened.
 
 This operation is very similar to `IO.shift`, as it can be dropped in
 `flatMap` chains in order to make such long loops cancelable:
@@ -804,8 +804,8 @@ raises an error on cancel. This operation also creates a race
 condition, cutting off the signaling to downstream, even if the source
 is not cancelable.
 
-`Throwable => Unit` allows the task's logic to know the cancelation
-reason, however cancelation is about cutting the connection to the
+`Throwable => Unit` allows the task's logic to know the cancellation
+reason, however cancellation is about cutting the connection to the
 producer, closing all resources as soon as possible, because you're no
 longer interested in the result, due to some race condition that
 happened.
@@ -813,7 +813,7 @@ happened.
 `Throwable => Unit` is also a little confusing, being too broad in
 scope. Users might be tricked into sending messages back to the
 producer via this channel, in order to steer it, to change its
-outcome - however cancelation is cancelation, we're doing it for the
+outcome - however cancellation is cancellation, we're doing it for the
 purpose of releasing resources and the implementation of race
 conditions will end up closing the connection, disallowing the
 canceled task to send anything downstream.
@@ -887,7 +887,7 @@ Notes:
    (via `System.err`)   
 
 Of special consideration is that `bracket` calls the `release` action
-on cancelation as well. Consider this sample:
+on cancellation as well. Consider this sample:
 
 ```tut:silent
 def readFile(file: File): IO[String] = {
@@ -917,8 +917,8 @@ def readFile(file: File): IO[String] = {
 ```
 
 That loop can be slow, we could be talking about a big file and
-as described in the "*Concurrency and Cancelation*" section,
-cancelation is a concurrent action with whatever goes on in `use`.
+as described in the "*Concurrency and Cancellation*" section,
+cancellation is a concurrent action with whatever goes on in `use`.
 
 And in this case, on top of the JVM that is capable of multi-threading, 
 calling `io.close()` concurrently with that loop
@@ -934,7 +934,7 @@ def readFile(file: File): IO[String] = {
   // Suspended execution because we are going to mutate 
   // a shared variable
   IO.suspend {
-    // Shared state meant to signal cancelation
+    // Shared state meant to signal cancellation
     var isCanceled = false
     
     acquire.bracket { in =>
@@ -973,7 +973,7 @@ an `ExitCase` in `release` in order to distinguish between:
 
 1. successful completion
 2. completion in error
-3. cancelation
+3. cancellation
 
 Usage sample:
 
@@ -993,7 +993,7 @@ def readLine(in: BufferedReader): IO[String] =
 ```
 
 In this example we are only closing the passed resource in case
-cancelation occurred. As to why we're doing this — consider that 
+cancellation occurred. As to why we're doing this — consider that 
 the `BufferedReader` reference was given to us and usually the 
 producer of such a resource should also be in charge of releasing 
 it. If this function would release the given `BufferedReader` on
@@ -1003,8 +1003,8 @@ Remember the age old C++ idiom of "_resource acquisition is
 initialization (RAII)_", which says that the lifetime of a resource
 should be tied to the lifetime of its parent.
 
-But in case we detect cancelation, we might want to close that 
-resource, because in the case of a cancelation event, we might
+But in case we detect cancellation, we might want to close that 
+resource, because in the case of a cancellation event, we might
 not have a "run-loop" active after this `IO` returns its result,
 so there might not be anybody available to release it.
 

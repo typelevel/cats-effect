@@ -40,9 +40,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       fiber <- F.start(bracketed)
       // Waits for the `use` action to execute
       waitStart <- startLatch.get
-      // Triggers cancelation
+      // Triggers cancellation
       _ <- fiber.cancel
-      // Observes cancelation via bracket's `release`
+      // Observes cancellation via bracket's `release`
       waitExit <- exitLatch.get
     } yield f(waitStart, waitExit)
 
@@ -114,7 +114,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.pure(a)
   }
 
-  def onCancelRaiseErrorResetsCancelationFlag[A](a: A, e: Throwable) = {
+  def onCancelRaiseErrorResetsCancellationFlag[A](a: A, e: Throwable) = {
     val task = F.onCancelRaiseError(F.never[A], e)
     val recovered = F.recoverWith(task) {
       case `e` => F.liftIO(IO.cancelBoundary *> IO(a))

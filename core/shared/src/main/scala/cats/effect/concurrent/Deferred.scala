@@ -88,7 +88,7 @@ object Deferred {
   def unsafe[F[_]: Concurrent, A]: Deferred[F, A] =
     new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
 
-  /** Creates an unset promise that only requires an `Async[F]` and does not support cancelation of `get`. **/
+  /** Creates an unset promise that only requires an `Async[F]` and does not support cancellation of `get`. **/
   def uncancelable[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
     F.delay(unsafeUncancelable[F, A])
 
