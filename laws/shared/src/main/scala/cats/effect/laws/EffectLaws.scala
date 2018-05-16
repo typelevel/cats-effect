@@ -74,12 +74,12 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
   def toIORunAsyncConsistency[A](fa: F[A]) =
     Effect.toIOFromRunAsync(fa) <-> F.toIO(fa)
 
-  def toIOStackSafety[A](iterations: Int)(a: A) = {
+  def toIOStackSafety[A](iterations: Int)(fa: F[A]) = {
     def loop(n: Int): IO[A] =
-      if (n > 0) F.toIO(F.delay(a)).flatMap(_ => loop(n - 1))
-      else IO.pure(a)
+      if (n > 0) F.toIO(fa).flatMap(_ => loop(n - 1))
+      else F.toIO(fa)
 
-    loop(iterations) <-> IO.pure(a)
+    loop(iterations) <-> F.toIO(fa)
   }
 }
 
