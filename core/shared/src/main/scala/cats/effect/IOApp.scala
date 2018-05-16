@@ -17,8 +17,7 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOAppPlatform, Logger}
-import cats.implicits._
+import cats.effect.internals.IOAppPlatform
 
 /**
  * `App` type that runs a [[cats.effect.IO]] and exits with the
@@ -58,14 +57,7 @@ trait IOApp {
    * the JVM with the resulting code on completion.
    */
   final def main(args: Array[String]): Unit =
-    IOAppPlatform.mainFiber(args)(run).flatMap(_.join).runAsync {
-      case Left(t) =>
-        IO(Logger.reportFailure(t)) *>
-        IO(sys.exit(ExitCode.Error.code))
-      case Right(code) =>
-        IO(sys.exit(code))
-    }.unsafeRunSync()
-
+    IOAppPlatform.main(args, timer)(run)
 
   /**
    * Provides an implicit timer instance for the app.

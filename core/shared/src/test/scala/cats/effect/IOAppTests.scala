@@ -24,14 +24,14 @@ import scala.util.Success
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
   test("exits with specified code") {
-    IOAppPlatform.mainFiber(Array.empty)(_ => IO.pure(ExitCode(42)))
+    IOAppPlatform.mainFiber(Array.empty, implicitly)(_ => IO.pure(ExitCode(42)))
       .flatMap(_.join)
       .unsafeToFuture
       .value shouldEqual (Some(Success(42)))
   }
 
   test("accepts arguments") {
-    IOAppPlatform.mainFiber(Array("1", "2", "3"))(args => IO.pure(ExitCode(args.mkString.toInt)))
+    IOAppPlatform.mainFiber(Array("1", "2", "3"), implicitly)(args => IO.pure(ExitCode(args.mkString.toInt)))
       .flatMap(_.join)
       .unsafeToFuture
       .value shouldEqual (Some(Success(123)))
@@ -39,7 +39,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
 
   test("raised error exits with 1") {
     silenceSystemErr {
-      IOAppPlatform.mainFiber(Array.empty)(_ => IO.raiseError(new Exception()))
+      IOAppPlatform.mainFiber(Array.empty, implicitly)(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture
         .value shouldEqual (Some(Success(1)))
@@ -50,7 +50,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
     assume(IOPlatform.isJVM, "test relevant only for the JVM")
     silenceSystemErr {
       (for {
-        fiber <- IOAppPlatform.mainFiber(Array.empty)(_ => IO.never)
+        fiber <- IOAppPlatform.mainFiber(Array.empty, implicitly)(_ => IO.never)
         _ <- fiber.cancel
         code <- fiber.join
       } yield code)
