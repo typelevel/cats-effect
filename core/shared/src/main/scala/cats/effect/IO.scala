@@ -734,6 +734,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       IO.cancelable(k)
     override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       fa.runCancelable(cb)
+    override def toIO[A](fa: IO[A]): IO[A] =
+      fa
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     // this will use stack proportional to the maximum number of joined async suspensions

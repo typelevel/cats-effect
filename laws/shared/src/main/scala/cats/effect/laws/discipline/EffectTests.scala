@@ -36,6 +36,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
+    ArgIOA: Arbitrary[IO[A]],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],
@@ -69,7 +70,10 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "runSyncStep async never produces left pure IO" -> Prop.lzy(laws.runSyncStepAsyncNeverProducesLeftPureIO[A]),
         "runSyncStep can be attempted synchronously" -> forAll(laws.runSyncStepCanBeAttemptedSynchronously[A] _),
         "runSyncStep runAsync consistency" -> forAll(laws.runSyncStepRunAsyncConsistency[A] _),
-        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _))
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
+        "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _),
+        "toIO is consistent with runAsync" -> forAll(laws.toIORunAsyncConsistency[A] _),
+        "toIO stack safety" -> forAll(laws.toIOStackSafety[A](params.stackSafeIterationsCount) _))
     }
   }
 }

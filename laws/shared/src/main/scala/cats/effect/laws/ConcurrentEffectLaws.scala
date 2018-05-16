@@ -54,6 +54,9 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
     }
     f1 <-> f2
   }
+
+  def toIORunCancelableConsistency[A](fa: F[A]) =
+    ConcurrentEffect.toIOFromRunCancelable(fa) <-> F.toIO(fa)
 }
 
 object ConcurrentEffectLaws {
