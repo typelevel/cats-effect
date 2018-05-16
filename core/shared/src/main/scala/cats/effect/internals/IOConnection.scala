@@ -107,8 +107,8 @@ private[effect] object IOConnection {
     def tryReactivate(): Boolean = true
   }
 
-  private final class Impl(initial: List[Cancelable] = Nil) extends IOConnection {
-    private[this] val state = new AtomicReference(initial)
+  private final class Impl extends IOConnection {
+    private[this] val state = new AtomicReference(List.empty[Cancelable])
 
     val cancel = () =>
       state.getAndSet(null) match {
