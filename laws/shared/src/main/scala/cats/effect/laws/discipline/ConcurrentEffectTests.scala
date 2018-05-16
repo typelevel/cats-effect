@@ -35,6 +35,7 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     ArbFAtoB: Arbitrary[F[A => B]],
     ArbFBtoC: Arbitrary[F[B => C]],
     ArbT: Arbitrary[Throwable],
+    ArbIOA: Arbitrary[IO[A]],
     CogenA: Cogen[A],
     CogenB: Cogen[B],
     CogenC: Cogen[C],
@@ -62,7 +63,8 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
       val props = Seq(
         "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
         "runCancelable is synchronous" -> forAll(laws.runCancelableIsSynchronous[A] _),
-        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _))
+        "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _),
+        "toIO is consistent with runCancelable" -> forAll(laws.toIORunCancelableConsistency[A] _))
     }
   }
 }
