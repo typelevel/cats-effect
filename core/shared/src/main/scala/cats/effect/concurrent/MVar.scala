@@ -23,7 +23,7 @@ import cats.effect.internals.{MVarAsync, MVarConcurrent}
  * A mutable location, that is either empty or contains
  * a value of type `A`.
  *
- * It has 6 fundamental atomic operations:
+ * It has the following fundamental atomic operations:
  *
  *  - [[put]] which fills the var if empty, or blocks
  *    (asynchronously) until the var is empty again
@@ -66,6 +66,11 @@ abstract class MVar[F[_], A] {
    */
   def put(a: A): F[Unit]
 
+  /**
+   * Fill the `MVar` if we can do it without blocking,
+   *
+   * @return whether or not the put succeeded
+   */
   def tryPut(a: A): F[Boolean]
 
   /**
@@ -79,6 +84,11 @@ abstract class MVar[F[_], A] {
    */
   def take: F[A]
 
+  /**
+   * empty the `MVar` if full
+   *
+   * @return an Option holding the current value, None means it was empty
+   */
   def tryTake: F[Option[A]]
   /**
    * Tries reading the current value, or blocks (asynchronously)
