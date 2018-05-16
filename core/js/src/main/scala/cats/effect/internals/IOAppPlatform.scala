@@ -32,17 +32,21 @@ private[effect] object IOAppPlatform {
     }.unsafeRunSync()
 
   def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
-    // 1. Registers a task
-    // 2. But not too slow, or it gets ignored
-    // 3. But not too fast, or we needlessly interrupt
-    def keepAlive: IO[Unit] = timer.value.sleep(1.hour) >> keepAlive
+    // An infinite heartbeat to keep main alive.  This is similar to
+    // `IO.never`, except `IO.never` doesn't schedule any tasks and is
+    // insufficient to keep main alive.  The tick is fast enough that
+    // it isn't silently discarded, as longer ticks are, but slow
+    // enough that we don't interrupt often.  1 hour was chosen
+    // empirically.
+    def keepAlive: IO[Nothing] = timer.value.sleep(1.hour) >> keepAlive
 
     val program = run(args.toList).handleErrorWith {
       t => IO(Logger.reportFailure(t)) *> IO.pure(ExitCode.Error)
     }
 
     IO.race(keepAlive, program).flatMap {
-      case Left(()) =>
+      case Left(absurd) =>
+        // This case is unreachable, but scalac won't let us omit it.
         IO.raiseError(new AssertionError("IOApp keep alive failed unexpectedly."))
       case Right(exitCode) =>
         IO.pure(exitCode.code)
