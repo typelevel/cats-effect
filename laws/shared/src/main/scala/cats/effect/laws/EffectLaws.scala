@@ -67,6 +67,12 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     }
     F.runSyncStep(fa).flatMap(_.fold(runToIO, IO.pure)) <-> runToIO(fa)
   }
+
+  def toIOinverseOfLiftIO[A](ioa: IO[A]) =
+    F.toIO(F.liftIO(ioa)) <-> ioa
+
+  def toIORunAsyncConsistency[A](fa: F[A]) =
+    Effect.toIOFromRunAsync(fa) <-> F.toIO(fa)
 }
 
 object EffectLaws {

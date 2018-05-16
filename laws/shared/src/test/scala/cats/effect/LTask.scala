@@ -75,6 +75,13 @@ object LTask {
       def runSyncStep[A](fa: LTask[A]): IO[Either[LTask[A], A]] =
         IO.pure(Left(fa))
 
+      override def toIO[A](fa: LTask[A]): IO[A] =
+        IO.async { cb =>
+          fa.run(ec).onComplete { r =>
+            cb(Conversions.toEither(r))
+          }
+        }
+
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =
         LTask { implicit ec =>
           Future.successful(()).flatMap { _ =>
