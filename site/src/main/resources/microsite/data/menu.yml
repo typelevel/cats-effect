@@ -12,13 +12,34 @@ options:
         url: datatypes/fiber.html
         menu_section: fiber
 
+      - title: Resource
+        url: datatypes/resource.html
+        menu_section: resource
+
       - title: Timer
         url: datatypes/timer.html
         menu_section: timer
 
+  - title: Concurrency
+    url: concurrency/
+    menu_section: concurrency
+
+    nested_options:
+      - title: Deferred
+        url: concurrency/deferred.html
+        menu_section: deferred
+
       - title: MVar
-        url: datatypes/mvar.html
+        url: concurrency/mvar.html
         menu_section: mvar
+
+      - title: Ref
+        url: concurrency/ref.html
+        menu_section: ref
+
+      - title: Semaphore
+        url: concurrency/semaphore.html
+        menu_section: semaphore
 
   - title: Type Classes
     url: typeclasses/
