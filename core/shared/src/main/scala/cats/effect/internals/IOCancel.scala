@@ -107,7 +107,7 @@ private[effect] object IOCancel {
 
     def run(): Unit = {
       conn2.cancel()
-      conn.reset()
+      conn.tryReactivate()
       cb(Left(e))
     }
 

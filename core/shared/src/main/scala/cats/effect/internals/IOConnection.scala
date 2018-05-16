@@ -62,12 +62,14 @@ private[effect] sealed abstract class IOConnection {
   def pop(): Cancelable
 
   /**
-   * Resets an `IOConnection` back to a pristine state.
+   * Tries to reset an `IOConnection`, from a cancelled state,
+   * back to a pristine state, but only if possible.
    *
-   * If it already has cancelable tokens registered, then it cancels them all.
-   * If it is canceled, then it resets it to a non-canceled state.
+   * Returns `true` on success, or `false` if there was a race
+   * condition (i.e. the connection wasn't cancelled) or if
+   * the type of the connection cannot be reactivated.
    */
-  def reset(): Unit
+  def tryReactivate(): Boolean
 }
 
 private[effect] object IOConnection {
@@ -79,7 +81,7 @@ private[effect] object IOConnection {
    * Reusable [[IOConnection]] reference that is already
    * canceled.
    */
-  def alreadyCanceled: IOConnection =
+  val alreadyCanceled: IOConnection =
     new AlreadyCanceled
 
   /**
@@ -94,7 +96,7 @@ private[effect] object IOConnection {
     def isCanceled: Boolean = true
     def pop(): Cancelable = dummy
     def push(cancelable: Cancelable): Unit = cancelable()
-    def reset(): Unit = ()
+    def tryReactivate(): Boolean = false
   }
 
   private final class Uncancelable extends IOConnection {
@@ -102,7 +104,7 @@ private[effect] object IOConnection {
     def isCanceled: Boolean = false
     def push(cancelable: Cancelable): Unit = ()
     def pop(): Cancelable = dummy
-    def reset(): Unit = ()
+    def tryReactivate(): Boolean = true
   }
 
   private final class Impl(initial: List[Cancelable] = Nil) extends IOConnection {
@@ -134,7 +136,7 @@ private[effect] object IOConnection {
           else x
       }
 
-    def reset(): Unit =
+    def tryReactivate(): Boolean =
       state.compareAndSet(null, Nil)
   }
 }
