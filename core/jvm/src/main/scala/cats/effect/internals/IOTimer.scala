@@ -58,7 +58,7 @@ private[internals] object IOTimer {
 
   /** Builder. */
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
-    new IOTimer(ec, scheduler)
+    new IOTimer(ec, sc)
 
   private lazy val scheduler: ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {
