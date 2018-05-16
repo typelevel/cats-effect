@@ -57,7 +57,7 @@ trait IOApp {
    * the JVM with the resulting code on completion.
    */
   final def main(args: Array[String]): Unit =
-    IOAppPlatform.main(args, timer)(run)
+    IOAppPlatform.main(args, Eval.later(timer))(run)
 
   /**
    * Provides an implicit timer instance for the app.

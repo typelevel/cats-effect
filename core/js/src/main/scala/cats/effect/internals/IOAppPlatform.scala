@@ -22,7 +22,7 @@ import cats.implicits._
 import scala.concurrent.duration._
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String], timer: Timer[IO])(run: List[String] => IO[ExitCode]): Unit =
+  def main(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit =
     mainFiber(args, timer)(run).flatMap(_.join).runAsync {
       case Left(t) =>
         IO(Logger.reportFailure(t)) *>
@@ -31,11 +31,11 @@ private[effect] object IOAppPlatform {
         IO(sys.exit(code))
     }.unsafeRunSync()
 
-  def mainFiber(args: Array[String], timer: Timer[IO])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
     // 1. Registers a task
     // 2. But not too slow, or it gets ignored
     // 3. But not too fast, or we needlessly interrupt
-    def keepAlive: IO[Unit] = timer.sleep(1.hour) >> keepAlive
+    def keepAlive: IO[Unit] = timer.value.sleep(1.hour) >> keepAlive
 
     val program = run(args.toList).handleErrorWith {
       t => IO(Logger.reportFailure(t)) *> IO.pure(ExitCode.Error)
