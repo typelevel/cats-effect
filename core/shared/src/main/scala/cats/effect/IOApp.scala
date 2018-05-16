@@ -16,20 +16,17 @@
 
 package cats
 package effect
-package concurrent
 
-import cats.effect.internals.Logger
+import cats.effect.internals.{IOAppPlatform, Logger}
 import cats.implicits._
-import scala.scalajs.js.annotation.JSExport
-import scala.concurrent.duration._
 
 /** `App` type that runs a [[cats.effect.IO]] and exits with the
   * returned code.  If the `IO` raises an error, then the stack trace
-  * is printed to standard error and the process exits with code 1.
+  * is printed to standard error and the JVM exits with code 1.  
   * 
-  * When a shutdown is requested via a signal, the process exits
-  * without requesting cancellation of the `IO`.  This is different
-  * from the JVM, which supports a shutdown hook.
+  * When a shutdown is requested via a signal, the `IO` is canceled
+  * and we wait for the `IO` to release any resources.  The JVM exits
+  * with the numeric value of the signal plus 128.
   * 
   * {{{
   * import cats.effect.IO
@@ -52,28 +49,14 @@ trait IOApp {
     * 
     * @return the [[ExitCode]] the JVM exits with
     */
-  @JSExport
   def run(args: List[String]): IO[ExitCode]
 
   /** The main method that runs the `IO` returned by [[run]]
     * and exits the JVM with the resulting code on completion.
     */
-  @JSExport
-  final def main(args: Array[String]): Unit = {
-    // 1. Registers a task
-    // 2. But not too slow, or it gets ignored
-    // 3. But not too fast, or we needlessly interrupt
-    def keepAlive: IO[Unit] = Timer[IO].sleep(1.hour) >> keepAlive
-
-    IO.race(keepAlive, run(args.toList)).runAsync {
-      case Left(t) =>
-        IO(Logger.reportFailure(t)) *>
-        IO(sys.exit(ExitCode.Error.code))
-      case Right(Left(())) =>
-        IO(System.err.println("IOApp keep alive failed unexpectedly.")) *>
-        IO(sys.exit(ExitCode.Error.code))
-      case Right(Right(exitCode)) =>
-        IO(sys.exit(exitCode.code))
+  final def main(args: Array[String]): Unit =
+    IOAppPlatform.mainFiber(args)(run).flatMap(_.join).runAsync {
+      case Left(t) => IO(Logger.reportFailure(t)) *> IO(sys.exit(ExitCode.Error.code))
+      case Right(code) => IO(sys.exit(code))
     }.unsafeRunSync()
-  }
 }

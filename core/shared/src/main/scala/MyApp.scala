@@ -14,24 +14,16 @@
  * limitations under the License.
  */
 
-package cats
-package effect
-package concurrent
+import cats.effect._
+import cats.implicits._
 
-/** Represents the exit code of an application.
-  * 
-  * `code` is constrained to a range from 0 to 255, inclusive.
-  */
-sealed abstract case class ExitCode private (val code: Int)
-
-object ExitCode {
-  /** Creates an `ExitCode`.
-    * 
-    * @param i the value whose 8 least significant bits are used
-    * to construct an exit code within the valid range.
-    */ 
-  def apply(i: Int): ExitCode = ExitCode(i & 0xff)
-
-  val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode = ExitCode(1)
+object MyApp extends IOApp {
+  def run(args: List[String]): IO[ExitCode] =
+    args.headOption match {
+      case Some(name) =>
+        IO(println(s"Hello, $name.")).as(ExitCode.Success)
+      case None =>
+        IO(ExitCode.Error)
+        // IO(System.err.println("Usage: MyApp name")).as(ExitCode(2))
+    }
 }
