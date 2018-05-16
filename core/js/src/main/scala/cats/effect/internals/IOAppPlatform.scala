@@ -39,4 +39,6 @@ private[effect] object IOAppPlatform {
         IO.pure(exitCode.code)
     }.start
   }
+
+  val defaultTimer: Timer[IO] = IOTimer.global
 }

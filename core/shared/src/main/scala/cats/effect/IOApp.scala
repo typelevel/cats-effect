@@ -65,4 +65,16 @@ trait IOApp {
       case Right(code) =>
         IO(sys.exit(code))
     }.unsafeRunSync()
+
+
+  /**
+   * Provides an implicit timer instance for the app.
+   * 
+   * On the JVM, the default lazily constructed from the global
+   * execution context.  Override to avoid instantiating this
+   * execution context.
+   * 
+   * On scala.js, the default is `Timer.global`.
+   */
+  protected implicit def timer: Timer[IO] = IOAppPlatform.defaultTimer
 }

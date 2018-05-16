@@ -47,4 +47,6 @@ private[effect] object IOAppPlatform {
       })
     } yield fiber
   }
+
+  def defaultTimer: Timer[IO] = IOTimerRef.defaultIOTimer
 }
