@@ -18,8 +18,11 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.internals.Callback.Extensions
+
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
+
+import cats.effect.misc.NonFatal
 
 private[effect] object IOParMap {
   import Callback.{Type => Callback}
