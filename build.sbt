@@ -183,6 +183,7 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
       //
       // Following are all internal implementation details:
       //
