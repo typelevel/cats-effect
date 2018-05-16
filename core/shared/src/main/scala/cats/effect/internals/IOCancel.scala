@@ -44,15 +44,20 @@ private[effect] object IOCancel {
   /** Implementation for `IO.cancel`. */
   def raise[A](fa: IO[A], e: Throwable): IO[A] =
     Async { (conn, cb) =>
-      val canCall = new AtomicBoolean(true)
-      // Registering a special cancelable that will trigger error on cancel.
-      // Note the pair `conn.pop` happens in `RaiseCallback`.
-      conn.push(new RaiseCancelable(canCall, cb, e))
-
       ec.execute(new Runnable {
         def run(): Unit = {
+          val canCall = new AtomicBoolean(true)
+          // We need a special connection because the main one will be reset on
+          // cancellation and this can interfere with the cancellation of `fa`
+          val connChild = IOConnection()
+          // Registering a special cancelable that will trigger error on cancel.
+          // Note the pair `conn.pop` happens in `RaiseCallback`.
+          conn.push(new RaiseCancelable(canCall, conn, connChild, cb, e))
+          // Registering a callback that races against the cancelable we
+          // registered above
           val cb2 = new RaiseCallback[A](canCall, conn, cb)
-          IORunLoop.startCancelable(fa, conn, cb2)
+          // Execution
+          IORunLoop.startCancelable(fa, connChild, cb2)
         }
       })
     }
@@ -75,28 +80,41 @@ private[effect] object IOCancel {
     active: AtomicBoolean,
     conn: IOConnection,
     cb: Callback[A])
-    extends Callback[A] {
+    extends Callback[A] with Runnable {
+
+    private[this] var value: Either[Throwable, A] = _
+
+    def run(): Unit = cb(value)
 
     def apply(value: Either[Throwable, A]): Unit =
       if (active.getAndSet(false)) {
         conn.pop()
-        ec.execute(new Runnable { def run() = cb(value) })
+        this.value = value
+        ec.execute(this)
       } else value match {
-        case Left(e) => throw e
+        case Left(e) => Logger.reportFailure(e)
         case _ => ()
       }
   }
 
   private final class RaiseCancelable[A](
     active: AtomicBoolean,
+    conn: IOConnection,
+    conn2: IOConnection,
     cb: Either[Throwable, A] => Unit,
     e: Throwable)
-    extends (() => Unit) {
+    extends (() => Unit) with Runnable {
 
-    def apply(): Unit =
-      if (active.getAndSet(false)) {
-        ec.execute(new Runnable { def run() = cb(Left(e)) })
-      }
+    def run(): Unit = {
+      conn2.cancel()
+      conn.tryReactivate()
+      cb(Left(e))
+    }
+
+    def apply(): Unit = {
+      if (active.getAndSet(false))
+        ec.execute(this)
+    }
   }
 
   /** Trampolined execution context. */

@@ -60,6 +60,16 @@ private[effect] sealed abstract class IOConnection {
    * @return the cancelable reference that was removed.
    */
   def pop(): Cancelable
+
+  /**
+   * Tries to reset an `IOConnection`, from a cancelled state,
+   * back to a pristine state, but only if possible.
+   *
+   * Returns `true` on success, or `false` if there was a race
+   * condition (i.e. the connection wasn't cancelled) or if
+   * the type of the connection cannot be reactivated.
+   */
+  def tryReactivate(): Boolean
 }
 
 private[effect] object IOConnection {
@@ -85,8 +95,8 @@ private[effect] object IOConnection {
     def cancel = dummy
     def isCanceled: Boolean = true
     def pop(): Cancelable = dummy
-    def push(cancelable: Cancelable): Unit =
-      cancelable()
+    def push(cancelable: Cancelable): Unit = cancelable()
+    def tryReactivate(): Boolean = false
   }
 
   private final class Uncancelable extends IOConnection {
@@ -94,6 +104,7 @@ private[effect] object IOConnection {
     def isCanceled: Boolean = false
     def push(cancelable: Cancelable): Unit = ()
     def pop(): Cancelable = dummy
+    def tryReactivate(): Boolean = true
   }
 
   private final class Impl extends IOConnection {
@@ -124,5 +135,8 @@ private[effect] object IOConnection {
           if (!state.compareAndSet(current, xs)) pop()
           else x
       }
+
+    def tryReactivate(): Boolean =
+      state.compareAndSet(null, Nil)
   }
 }

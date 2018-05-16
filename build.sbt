@@ -208,7 +208,10 @@ val mimaSettings = Seq(
       // Not a problem: Async.never implementation is just moved
       exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
       // Deleted
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler"),
+      // New stuff
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.tryReactivate"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this")
     )
   })
 
