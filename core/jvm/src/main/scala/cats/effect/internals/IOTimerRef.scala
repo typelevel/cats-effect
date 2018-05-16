@@ -61,6 +61,6 @@ private[effect] abstract class IOTimerRef {
 
 private[internals] object IOTimerRef {
   /** Default, reusable instance, using Scala's `global`. */
-  private final lazy val defaultIOTimer: Timer[IO] =
+  private[internals] final lazy val defaultIOTimer: Timer[IO] =
     IOTimer(ExecutionContext.Implicits.global)
 }
