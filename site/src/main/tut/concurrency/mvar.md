@@ -1,6 +1,6 @@
 ---
 layout: docsplus
-title:  "IO"
+title:  "MVar"
 number: 12
 source: "shared/src/main/scala/cats/effect/concurrent/MVar.scala"
 scaladoc: "#cats.effect.concurrent.MVar"
@@ -8,6 +8,14 @@ scaladoc: "#cats.effect.concurrent.MVar"
 
 An `MVar` is a mutable location that can be empty or contains a value,
 asynchronously blocking reads when empty and blocking writes when full.
+
+```tut:book:silent
+abstract class MVar[F[_], A] {
+  def put(a: A): F[Unit]
+  def take: F[A]
+  def read: F[A]
+}
+```
 
 ## Introduction
 
@@ -27,7 +35,7 @@ It has two fundamental (atomic) operations:
   to a `take` followed by a `put`
 - `read`: which reads the current value without modifying the `MVar`,
   assuming there is a value available, or otherwise it waits until a value
-  is made available via `put` 
+  is made available via `put`
 
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
@@ -60,7 +68,7 @@ import cats.effect._
 import cats.effect.concurrent._
 import cats.syntax.all._
 
-def sum(state: MVar[IO,Int], list: List[Int]): IO[Int] =
+def sum(state: MVar[IO, Int], list: List[Int]): IO[Int] =
   list match {
     case Nil => state.take
     case x :: xs =>
@@ -69,7 +77,7 @@ def sum(state: MVar[IO,Int], list: List[Int]): IO[Int] =
       }
   }
 
-MVar[IO].init(0).flatMap(sum(_, (0 until 100).toList))
+MVar.of[IO, Int](0).flatMap(sum(_, (0 until 100).toList))
 ```
 
 This sample isn't very useful, except to show how `MVar` can be used
