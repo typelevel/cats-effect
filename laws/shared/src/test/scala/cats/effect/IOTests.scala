@@ -660,6 +660,72 @@ class IOTests extends BaseTestsSuite {
     ec.tick(1.second)
     f.value.get.failed.get shouldBe an [TimeoutException]
   }
+
+  testAsync("onCancelRaiseError sanity (1)") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val p = Promise[Unit]()
+    val io = IO.cancelable[Int](_ => IO(p.success(()))).onCancelRaiseError(dummy)
+
+    val cancel = io.unsafeRunCancelable(_ => ())
+    cancel()
+
+    p.future.value shouldBe Some(Success(()))
+  }
+
+  testAsync("onCancelRaiseError sanity (2)") { implicit ec =>
+    val dummy = new RuntimeException("dummy")
+    val p = Deferred.unsafe[IO, Unit]
+    val io = IO.cancelable[Int](_ => p.complete(())).onCancelRaiseError(dummy)
+
+    val cancel = io.unsafeRunCancelable(_ => ())
+    cancel()
+
+    p.get.unsafeToFuture().value shouldBe Some(Success(()))
+  }
+
+  testAsync("onCancelRaiseError sanity (3)") { implicit ec =>
+    implicit val F = implicitly[ConcurrentEffect[IO]]
+    val timer = ec.timer[IO]
+    val dummy = new RuntimeException
+    val effect = Deferred.unsafeUncancelable[IO, Int]
+    val io = {
+      val async = F.cancelable[Unit](_ => effect.complete(10))
+      for {
+        fiber <- F.start(F.onCancelRaiseError(timer.shift.flatMap(_ => async), dummy))
+        _ <- fiber.cancel
+        r <- F.liftIO(effect.get)
+      } yield r
+    }
+
+    val f = io.unsafeToFuture()
+    ec.tick()
+
+    f.value shouldBe Some(Success(10))
+  }
+
+  testAsync("onCancelRaiseError resets the isCanceled flag") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val dummy = new RuntimeException("dummy")
+    val io = timer.sleep(2.second)
+      .onCancelRaiseError(dummy)
+      .recoverWith { case `dummy` =>
+        IO.cancelBoundary *> IO.sleep(1.seconds)
+      }
+
+    val task = for {
+      f <- io.start
+      _ <- f.cancel
+      _ <- f.join
+    } yield ()
+
+    val f = task.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe None
+
+    ec.tick(1.seconds)
+    f.value shouldBe Some(Success(()))
+  }
 }
 
 object IOTests {

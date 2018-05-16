@@ -60,6 +60,14 @@ private[effect] sealed abstract class IOConnection {
    * @return the cancelable reference that was removed.
    */
   def pop(): Cancelable
+
+  /**
+   * Resets an `IOConnection` back to a pristine state.
+   *
+   * If it already has cancelable tokens registered, then it cancels them all.
+   * If it is canceled, then it resets it to a non-canceled state.
+   */
+  def reset(): Unit
 }
 
 private[effect] object IOConnection {
@@ -71,7 +79,7 @@ private[effect] object IOConnection {
    * Reusable [[IOConnection]] reference that is already
    * canceled.
    */
-  val alreadyCanceled: IOConnection =
+  def alreadyCanceled: IOConnection =
     new AlreadyCanceled
 
   /**
@@ -85,8 +93,8 @@ private[effect] object IOConnection {
     def cancel = dummy
     def isCanceled: Boolean = true
     def pop(): Cancelable = dummy
-    def push(cancelable: Cancelable): Unit =
-      cancelable()
+    def push(cancelable: Cancelable): Unit = cancelable()
+    def reset(): Unit = ()
   }
 
   private final class Uncancelable extends IOConnection {
@@ -94,10 +102,11 @@ private[effect] object IOConnection {
     def isCanceled: Boolean = false
     def push(cancelable: Cancelable): Unit = ()
     def pop(): Cancelable = dummy
+    def reset(): Unit = ()
   }
 
-  private final class Impl extends IOConnection {
-    private[this] val state = new AtomicReference(List.empty[Cancelable])
+  private final class Impl(initial: List[Cancelable] = Nil) extends IOConnection {
+    private[this] val state = new AtomicReference(initial)
 
     val cancel = () =>
       state.getAndSet(null) match {
@@ -124,5 +133,8 @@ private[effect] object IOConnection {
           if (!state.compareAndSet(current, xs)) pop()
           else x
       }
+
+    def reset(): Unit =
+      state.compareAndSet(null, Nil)
   }
 }

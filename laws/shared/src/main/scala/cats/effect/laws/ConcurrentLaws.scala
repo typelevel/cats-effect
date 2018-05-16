@@ -114,6 +114,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.pure(a)
   }
 
+  def onCancelRaiseErrorResetsCancelationFlag[A](a: A, e: Throwable) = {
+    val task = F.onCancelRaiseError(F.never[A], e)
+    val recovered = F.recoverWith(task) {
+      case `e` => F.liftIO(IO.cancelBoundary *> IO(a))
+    }
+    F.flatMap(F.start(recovered))(f => f.cancel *> f.join) <->
+      F.liftIO(IO(a))
+  }
+
   def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
     F.race(fa, F.never[A]).map(_.left.getOrElse(default)) <-> fa
   }
