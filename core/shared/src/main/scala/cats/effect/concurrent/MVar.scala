@@ -23,16 +23,19 @@ import cats.effect.internals.{MVarAsync, MVarConcurrent}
  * A mutable location, that is either empty or contains
  * a value of type `A`.
  *
- * It has 3 fundamental atomic operations:
+ * It has 6 fundamental atomic operations:
  *
  *  - [[put]] which fills the var if empty, or blocks
  *    (asynchronously) until the var is empty again
+ *  - [[tryPut]] which fills the var if empty. returns true if successful
  *  - [[take]] which empties the var if full, returning the contained
  *    value, or blocks (asynchronously) otherwise until there is
  *    a value to pull
+ *  - [[tryTake]] empties if full, returns None if empty.
  *  - [[read]] which reads the current value without touching it,
  *    assuming there is one, or otherwise it waits until a value
  *    is made available via `put`
+ *  - [[isEmpty]] returns true if currently empty
  *
  * The `MVar` is appropriate for building synchronization
  * primitives and performing simple inter-thread communications.
@@ -48,7 +51,8 @@ import cats.effect.internals.{MVarAsync, MVarConcurrent}
  * by `scalaz.concurrent.MVar`.
  */
 abstract class MVar[F[_], A] {
-  /** 
+  def isEmpty: F[Boolean]
+  /**
    * Fills the `MVar` if it is empty, or blocks (asynchronously)
    * if the `MVar` is full, until the given value is next in
    * line to be consumed on [[take]].
@@ -62,7 +66,9 @@ abstract class MVar[F[_], A] {
    */
   def put(a: A): F[Unit]
 
-  /** 
+  def tryPut(a: A): F[Boolean]
+
+  /**
    * Empties the `MVar` if full, returning the contained value,
    * or blocks (asynchronously) until a value is available.
    *
@@ -73,6 +79,7 @@ abstract class MVar[F[_], A] {
    */
   def take: F[A]
 
+  def tryTake: F[Option[A]]
   /**
    * Tries reading the current value, or blocks (asynchronously)
    * until there is a value available.
@@ -172,7 +179,7 @@ object MVar {
       MVar.of(a)(F)
 
     /**
-     * Builds an empty `MVar`. 
+     * Builds an empty `MVar`.
      *
      * @see documentation for [[MVar.empty]]
      */

@@ -38,11 +38,54 @@ private[effect] final class MVarAsync[F[_], A] private (
   def put(a: A): F[Unit] =
     F.async(unsafePut(a))
 
+  def tryPut(a: A): F[Boolean] =
+    F.async(unsafePut1(a))
+
   def take: F[A] =
     F.async(unsafeTake)
 
+  def tryTake: F[Option[A]] =
+    F.async(unsafeTake1)
+
   def read: F[A] =
     F.async(unsafeRead)
+
+  def isEmpty: F[Boolean] =
+    F.delay {
+      stateRef.get match {
+        case WaitForPut(_, _) => true
+        case WaitForTake(_, _) => false
+      }
+    }
+
+  @tailrec
+  private def unsafePut1(a: A)(onPut: Listener[Boolean]): Unit = {
+    stateRef.get match {
+      case WaitForTake(_, _) => onPut(Right(false))
+
+      case current @ WaitForPut(reads, takes) =>
+        var first: Listener[A] = null
+        val update: State[A] =
+          if (takes.isEmpty) State(a) else {
+            val (x, rest) = takes.dequeue
+            first = x
+            if (rest.isEmpty) State.empty[A]
+            else WaitForPut(Queue.empty, rest)
+          }
+
+        if (!stateRef.compareAndSet(current, update)) {
+          unsafePut1(a)(onPut) // retry
+        } else {
+          val value = Right(a)
+          // Satisfies all current `read` requests found
+          streamAll(value, reads)
+          // Satisfies the first `take` request found
+          if (first ne null) first(value)
+          // Signals completion of `put`
+          onPut(Right(true))
+        }
+    }
+  }
 
   @tailrec
   private def unsafePut(a: A)(onPut: Listener[Unit]): Unit = {
@@ -74,6 +117,36 @@ private[effect] final class MVarAsync[F[_], A] private (
           // Signals completion of `put`
           onPut(rightUnit)
         }
+    }
+  }
+
+  @tailrec
+  private def unsafeTake1(onTake: Listener[Option[A]]): Unit = {
+    val current: State[A] = stateRef.get
+    current match {
+      case WaitForTake(value, queue) =>
+        if (queue.isEmpty) {
+          if (stateRef.compareAndSet(current, State.empty))
+            // Signals completion of `take`
+            onTake(Right(Some(value)))
+          else {
+            unsafeTake1(onTake) // retry
+          }
+        } else {
+          val ((ax, notify), xs) = queue.dequeue
+          val update = WaitForTake(ax, xs)
+          if (stateRef.compareAndSet(current, update)) {
+            // Signals completion of `take`
+            onTake(Right(Some(value)))
+            // Complete the `put` request waiting on a notification
+            notify(rightUnit)
+          } else {
+            unsafeTake1(onTake) // retry
+          }
+        }
+
+      case WaitForPut(_, _) =>
+        onTake(Right(None))
     }
   }
 
