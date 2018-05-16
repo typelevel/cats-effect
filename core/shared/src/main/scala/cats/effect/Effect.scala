@@ -83,11 +83,14 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 object Effect {
-
+  /**
+   * [[Effect.toIO]] default implementation, derived from [[Effect.runAsync]].
+   */
   def toIOFromRunAsync[F[_], A](f: F[A])(implicit F: Effect[F]): IO[A] =
     IO.async { cb =>
-      F.runAsync(f)(r => IO(cb(r))).unsafeRunSync
+      F.runAsync(f)(r => IO(cb(r))).unsafeRunSync()
     }
+
   /**
    * [[Effect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Effect`.

@@ -66,10 +66,15 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
 }
 
 object ConcurrentEffect {
+  /**
+   * [[ConcurrentEffect.toIO]] default implementation, derived from
+   * [[ConcurrentEffect.runCancelable]].
+   */
   def toIOFromRunCancelable[F[_], A](fa: F[A])(implicit F: ConcurrentEffect[F]): IO[A] =
     IO.cancelable { cb =>
-      F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync
+      F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync()
     }
+
   /**
    * [[ConcurrentEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `ConcurrentEffect`.
