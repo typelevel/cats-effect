@@ -20,43 +20,49 @@ package effect
 import cats.effect.internals.{IOAppPlatform, Logger}
 import cats.implicits._
 
-/** `App` type that runs a [[cats.effect.IO]] and exits with the
-  * returned code.  If the `IO` raises an error, then the stack trace
-  * is printed to standard error and the JVM exits with code 1.  
-  * 
-  * When a shutdown is requested via a signal, the `IO` is canceled
-  * and we wait for the `IO` to release any resources.  The JVM exits
-  * with the numeric value of the signal plus 128.
-  * 
-  * {{{
-  * import cats.effect.IO
-  * import cats.effect.concurrent.{ExitCode, IOApp}
-  * import cats.implicits._
-  * 
-  * object MyApp extends IOApp {
-  *   def run(args: List[String]): IO[ExitCode] =
-  *     args.headOption match {
-  *       case Some(name) =>
-  *         IO(println(s"Hello, $name.")).as(ExitCode.Success)
-  *       case None =>
-  *         IO(System.err.println("Usage: MyApp name")).as(ExitCode(2))
-  *     }
-  * }
-  * }}}
-  */
+/**
+ * `App` type that runs a [[cats.effect.IO]] and exits with the
+ * returned code.  If the `IO` raises an error, then the stack trace
+ * is printed to standard error and the JVM exits with code 1.
+ *
+ * When a shutdown is requested via a signal, the `IO` is canceled and
+ * we wait for the `IO` to release any resources.  The JVM exits with
+ * the numeric value of the signal plus 128.
+ *
+ * {{{
+ * import cats.effect.IO
+ * import cats.effect.concurrent.{ExitCode, IOApp}
+ * import cats.implicits._
+ *
+ * object MyApp extends IOApp {
+ *   def run(args: List[String]): IO[ExitCode] =
+ *     args.headOption match {
+ *       case Some(name) =>
+ *         IO(println(s"Hello, $name.")).as(ExitCode.Success)
+ *       case None =>
+ *         IO(System.err.println("Usage: MyApp name")).as(ExitCode(2))
+ *     }
+ * }
+ * }}}
+ */
 trait IOApp {
-  /** Produces the `IO` to be run as an app.
-    * 
-    * @return the [[ExitCode]] the JVM exits with
-    */
+  /**
+   * Produces the `IO` to be run as an app.
+   *
+   * @return the [[ExitCode]] the JVM exits with
+   */
   def run(args: List[String]): IO[ExitCode]
 
-  /** The main method that runs the `IO` returned by [[run]]
-    * and exits the JVM with the resulting code on completion.
-    */
+  /**
+   * The main method that runs the `IO` returned by [[run]] and exits
+   * the JVM with the resulting code on completion.
+   */
   final def main(args: Array[String]): Unit =
     IOAppPlatform.mainFiber(args)(run).flatMap(_.join).runAsync {
-      case Left(t) => IO(Logger.reportFailure(t)) *> IO(sys.exit(ExitCode.Error.code))
-      case Right(code) => IO(sys.exit(code))
+      case Left(t) =>
+        IO(Logger.reportFailure(t)) *>
+        IO(sys.exit(ExitCode.Error.code))
+      case Right(code) =>
+        IO(sys.exit(code))
     }.unsafeRunSync()
 }
