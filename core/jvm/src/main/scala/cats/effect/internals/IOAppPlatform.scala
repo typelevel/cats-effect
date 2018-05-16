@@ -22,15 +22,16 @@ import cats.implicits._
 import java.util.concurrent.CountDownLatch
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String])(run: List[String] => IO[ExitCode])(implicit timer: Timer[IO]): Unit = {
-    val _ = timer
-    val code = mainFiber(args)(run).flatMap(_.join)
+  def main(args: Array[String], timer: Timer[IO])(run: List[String] => IO[ExitCode]): Unit = {
+    val code = mainFiber(args, timer)(run).flatMap(_.join)
       .handleErrorWith(t => IO(Logger.reportFailure(t)) *> IO(ExitCode.Error.code))
       .unsafeRunSync()
     sys.exit(code)
   }
 
-  def mainFiber(args: Array[String])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], timer: Timer[IO])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+    val _ = timer
+
     object Canceled extends RuntimeException
     for {
       latch <- IO(new CountDownLatch(1))
