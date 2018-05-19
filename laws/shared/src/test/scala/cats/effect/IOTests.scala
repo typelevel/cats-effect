@@ -47,7 +47,7 @@ class IOTests extends BaseTestsSuite {
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
   })
 
-  test("IO.Par's applicative instance is different") {
+  testAsync("IO.Par's applicative instance is different") { implicit ec =>
     implicitly[Applicative[IO]] shouldNot be(implicitly[Applicative[IO.Par]])
   }
 
@@ -532,6 +532,7 @@ class IOTests extends BaseTestsSuite {
     val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
 
     val f = io.unsafeToFuture()
+    ec.tick(1.day)
     f.value shouldEqual Some(Success(count * (count - 1) / 2))
   }
 
@@ -733,8 +734,6 @@ object IOTests {
       fa.runCancelable(cb)
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
       IO.cancelable(k)
-    def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
-      fa.start
     def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =

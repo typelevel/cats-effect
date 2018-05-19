@@ -20,14 +20,13 @@ package effect
 import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils}
 import cats.implicits._
 import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
-import scala.util.Success
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
   test("exits with specified code") {
     IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.pure(ExitCode(42)))
       .flatMap(_.join)
       .unsafeToFuture
-      .value shouldEqual (Some(Success(42)))
+      .map(_ shouldEqual 42)
   }
 
   test("accepts arguments") {
@@ -35,30 +34,28 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
       IO.pure(ExitCode(args.mkString.toInt)))
       .flatMap(_.join)
       .unsafeToFuture
-      .value shouldEqual (Some(Success(123)))
+      .map(_ shouldEqual 123)
   }
 
   test("raised error exits with 1") {
-    silenceSystemErr {
+    silenceSystemErrF {
       IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture
-        .value shouldEqual (Some(Success(1)))
+        .map(_ shouldEqual 1)
     }
   }
 
   test("canceled IO exits unsuccessfully") {
     assume(IOPlatform.isJVM, "test relevant only for the JVM")
-    silenceSystemErr {
+    silenceSystemErrF {
       (for {
         fiber <- IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.never)
         _ <- fiber.cancel
         code <- fiber.join
       } yield code)
         .unsafeToFuture
-        .value
-        .getOrElse(Success(0))
-        .getOrElse(0) should be > 0
+        .map(_ should be > 0)
     }
   }
 }

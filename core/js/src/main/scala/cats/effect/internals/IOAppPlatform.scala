@@ -50,7 +50,7 @@ private[effect] object IOAppPlatform {
         IO.raiseError(new AssertionError("IOApp keep alive failed unexpectedly."))
       case Right(exitCode) =>
         IO.pure(exitCode.code)
-    }.start
+    }.start(timer.value)
   }
 
   val defaultTimer: Timer[IO] = IOTimer.global

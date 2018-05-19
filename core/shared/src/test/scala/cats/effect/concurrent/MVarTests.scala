@@ -140,10 +140,10 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       _  <- av.put(20)
       r1 <- f1.join
       r2 <- f2.join
-    } yield List(r1,r2)
+    } yield Set(r1,r2)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(10, 20)
+      r shouldBe Set(10, 20)
     }
   }
 
@@ -159,10 +159,10 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       _  <- f1.join
       _  <- f2.join
       _  <- f3.join
-    } yield List(r1, r2, r3)
+    } yield Set(r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(10, 20, 30)
+      r shouldBe Set(10, 20, 30)
     }
   }
 
@@ -178,10 +178,10 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       r1 <- f1.join
       r2 <- f2.join
       r3 <- f3.join
-    } yield List(r1, r2, r3)
+    } yield Set(r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(10, 20, 30)
+      r shouldBe Set(10, 20, 30)
     }
   }
 
