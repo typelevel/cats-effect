@@ -211,7 +211,10 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler"),
       // New stuff
       exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.tryReactivate"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this"),
+      // PR #235: switch to standard NonFatal
+      exclude[MissingClassProblem]("cats.effect.internals.NonFatal$"),
+      exclude[MissingClassProblem]("cats.effect.internals.NonFatal")
     )
   })
 
