@@ -19,6 +19,7 @@ package internals
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Promise
+import cats.syntax.apply._
 import cats.effect.internals.Callback.{Type => Callback}
 import cats.effect.internals.Callback.Extensions
 
@@ -28,7 +29,7 @@ private[effect] object IORace {
    * but this way it is more efficient, as we no longer have to keep
    * internal promises.
    */
-  def simple[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
+  def simple[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
     // Signals successful results
     def onSuccess[T, U](
       isActive: AtomicBoolean,
@@ -65,7 +66,7 @@ private[effect] object IORace {
       val connR = IOConnection()
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](lh, connL, {
+      IORunLoop.startCancelable[A](timer.shift *> lh, connL, {
         case Right(a) =>
           onSuccess(active, connR, cb, Left(a))
         case Left(err) =>
@@ -73,7 +74,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](rh, connR, {
+      IORunLoop.startCancelable[B](timer.shift *> rh, connR, {
         case Right(b) =>
           onSuccess(active, connL, cb, Right(b))
         case Left(err) =>
@@ -88,7 +89,7 @@ private[effect] object IORace {
   /**
    * Implementation for `IO.racePair`
    */
-  def pair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] = {
+  def pair[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] = {
     IO.cancelable { cb =>
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
@@ -99,7 +100,7 @@ private[effect] object IORace {
       val promiseR = Promise[Either[Throwable, B]]()
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](lh, connL, {
+      IORunLoop.startCancelable[A](timer.shift *> lh, connL, {
         case Right(a) =>
           if (active.getAndSet(false))
             cb.async(Right(Left((a, IOFiber.build[B](promiseR, connR)))))
@@ -116,7 +117,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](rh, connR, {
+      IORunLoop.startCancelable[B](timer.shift *> rh, connR, {
         case Right(b) =>
           if (active.getAndSet(false))
             cb.async(Right(Right((IOFiber.build[A](promiseL, connL), b))))

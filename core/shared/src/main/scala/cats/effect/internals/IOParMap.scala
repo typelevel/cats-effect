@@ -16,8 +16,10 @@
 
 package cats.effect.internals
 
-import cats.effect.IO
+import cats.syntax.apply._
+import cats.effect.{IO, Timer}
 import cats.effect.internals.Callback.Extensions
+
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext
 
@@ -25,7 +27,7 @@ private[effect] object IOParMap {
   import Callback.{Type => Callback}
 
   /** Implementation for `parMap2`. */
-  def apply[A, B, C](fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
+  def apply[A, B, C](timer: Timer[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
     IO.Async { (conn, cb) =>
       // For preventing stack-overflow errors; using a
       // trampolined execution context, so no thread forks
@@ -54,8 +56,8 @@ private[effect] object IOParMap {
           // NOTE: conn.pop() happens when cb gets called!
           conn.push(() => Cancelable.cancelAll(connA.cancel, connB.cancel))
 
-          IORunLoop.startCancelable(fa, connA, callbackA(connB))
-          IORunLoop.startCancelable(fb, connB, callbackB(connA))
+          IORunLoop.startCancelable(timer.shift *> fa, connA, callbackA(connB))
+          IORunLoop.startCancelable(timer.shift *> fb, connB, callbackB(connA))
         }
 
         /** Callback for the left task. */
@@ -98,7 +100,7 @@ private[effect] object IOParMap {
         }
 
         /** Called when an error is generated. */
-        def sendError(other: IOConnection, e: Throwable): Unit =
+        def sendError(other: IOConnection, e: Throwable): Unit = {
           state.getAndSet(e) match {
             case _: Throwable =>
               Logger.reportFailure(e)
@@ -107,6 +109,7 @@ private[effect] object IOParMap {
               try other.cancel() finally
                 cb.async(conn, Left(e))
           }
+        }
       })
     }
 }

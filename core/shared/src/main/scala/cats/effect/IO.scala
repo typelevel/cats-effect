@@ -708,9 +708,9 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
-    final override def liftIO[A](ioa: IO[A]): IO[A] =
+    override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
-    final override def toIO[A](fa: IO[A]): IO[A] =
+    override def toIO[A](fa: IO[A]): IO[A] =
       fa
     final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
@@ -727,7 +727,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
     final override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
     final override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
-      par(IOParMap(timer.shift *> unwrap(fa), timer.shift *> unwrap(fb))(f))
+      par(IOParMap(timer, unwrap(fa), unwrap(fb))(f))
     final override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
       map2(ff, fa)(_(_))
     final override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
@@ -756,6 +756,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
     final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       fa.runCancelable(cb)
 
+    final override def toIO[A](fa: IO[A]): IO[A] = fa
+    final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
   }
 
   implicit def ioParallel(implicit timer: Timer[IO]): Parallel[IO, IO.Par] =
@@ -763,7 +765,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       final override val applicative: Applicative[IO.Par] =
         parApplicative(timer)
       final override val monad: Monad[IO] =
-        ioConcurrentEffect
+        ioConcurrentEffect(timer)
+
       final override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
       final override val parallel: ~>[IO, IO.Par] =
@@ -1176,7 +1179,7 @@ object IO extends IOInstances {
    * the loser automatically on successful results.
    */
   def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
-    IORace.simple(timer.shift *> lh, timer.shift *> rh)
+    IORace.simple(timer, lh, rh)
 
   /**
    * Run two IO tasks concurrently, and returns a pair
@@ -1207,7 +1210,7 @@ object IO extends IOInstances {
    * immediately.
    */
   def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
-    IORace.pair(timer.shift *> lh, timer.shift *> rh)
+    IORace.pair(timer, lh, rh)
 
   private[effect] final case class Pure[+A](a: A)
     extends IO[A]

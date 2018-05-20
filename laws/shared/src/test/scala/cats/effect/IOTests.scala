@@ -493,38 +493,22 @@ class IOTests extends BaseTestsSuite {
     f2.value shouldEqual Some(Failure(dummy))
   }
 
-  testAsync("parMap2 can fail for both, with left failing first") { implicit ec =>
+  testAsync("parMap2 can fail for both, with non-deterministic failure") { implicit ec =>
     val error = catchSystemErr {
       val dummy1 = new RuntimeException("dummy1")
       val dummy2 = new RuntimeException("dummy2")
 
       val io1 = IO.raiseError[Int](dummy1)
-      val io2 = IO.shift *> IO.raiseError[Int](dummy2)
-      val io3 = (io1, io2).parMapN(_ + _)
-
-      val f1 = io3.unsafeToFuture()
-      ec.tick()
-      f1.value shouldBe Some(Failure(dummy1))
-    }
-
-    error should include("dummy2")
-  }
-
-  testAsync("parMap2 can fail for both, with right failing first") { implicit ec =>
-    val error = catchSystemErr {
-      val dummy1 = new RuntimeException("dummy1")
-      val dummy2 = new RuntimeException("dummy2")
-
-      val io1 = IO.shift *> IO.raiseError[Int](dummy1)
       val io2 = IO.raiseError[Int](dummy2)
       val io3 = (io1, io2).parMapN(_ + _)
 
       val f1 = io3.unsafeToFuture()
       ec.tick()
-      f1.value shouldBe Some(Failure(dummy2))
+      val exc = f1.value.get.failed.get
+      exc should (be (dummy1) or be (dummy2))
     }
 
-    error should include("dummy1")
+    error should include("dummy")
   }
 
   testAsync("parMap2 is stack safe") { implicit ec =>
