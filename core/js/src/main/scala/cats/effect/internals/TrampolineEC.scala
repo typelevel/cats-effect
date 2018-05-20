@@ -18,6 +18,7 @@ package cats.effect.internals
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 
 /** INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
   * that executes runnables immediately, on the current thread,
