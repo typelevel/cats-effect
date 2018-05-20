@@ -17,6 +17,8 @@
 package cats
 package effect
 
+import cats.data.Kleisli
+
 /**
  * An extension of `MonadError` exposing the `bracket` operation,
  * a generalized abstracted pattern of safe resource acquisition and
@@ -140,5 +142,49 @@ object ExitCase {
 }
 
 object Bracket {
+
   def apply[F[_], E](implicit ev: Bracket[F, E]): Bracket[F, E] = ev
+
+  /**
+   * [[Bracket]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Bracket`.
+   */
+  implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, ?], E] =
+    new KleisliBracket[F, R, E] { def F = ev }
+
+  private[effect] abstract class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, ?], E] {
+
+    protected implicit def F: Bracket[F, E]
+
+    // NB: preferably we'd inherit things from `cats.data.KleisliApplicativeError`,
+    // but we can't, because it's `private[data]`, so we have to delegate.
+    private[this] final val kleisliMonadError: MonadError[Kleisli[F, R, ?], E] =
+      Kleisli.catsDataMonadErrorForKleisli
+
+    def pure[A](x: A): Kleisli[F, R, A] =
+      kleisliMonadError.pure(x)
+
+    def handleErrorWith[A](fa: Kleisli[F, R, A])(f: E => Kleisli[F, R, A]): Kleisli[F, R, A] =
+      kleisliMonadError.handleErrorWith(fa)(f)
+
+    def raiseError[A](e: E): Kleisli[F, R, A] =
+      kleisliMonadError.raiseError(e)
+
+    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
+      kleisliMonadError.flatMap(fa)(f)
+
+    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
+      kleisliMonadError.tailRecM(a)(f)
+
+    def bracketCase[A, B](acquire: Kleisli[F, R, A])
+      (use: A => Kleisli[F, R, B])
+      (release: (A, ExitCase[E]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
+
+      Kleisli { r =>
+        F.bracketCase(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
+          release(a, br).run(r)
+        }
+      }
+    }
+  }
 }

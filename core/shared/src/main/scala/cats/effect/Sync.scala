@@ -228,36 +228,19 @@ object Sync {
       WriterT(F.suspend(thunk.run))
   }
 
-  private[effect] trait KleisliSync[F[_], R] extends Sync[Kleisli[F, R, ?]] {
-    protected implicit def F: Sync[F]
+  private[effect] abstract class KleisliSync[F[_], R]
+    extends Bracket.KleisliBracket[F, R, Throwable]
+    with Sync[Kleisli[F, R, ?]] {
 
-    def pure[A](x: A): Kleisli[F, R, A] =
-      Kleisli.pure(x)
+    protected implicit override def F: Sync[F]
 
-    def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
+    override def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r => F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r))) }
 
-    def raiseError[A](e: Throwable): Kleisli[F, R, A] =
-      Kleisli.liftF(F.raiseError(e))
-
-    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
+    override def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
       Kleisli { r => F.suspend(fa.run(r).flatMap(f.andThen(_.run(r)))) }
-
-    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
-      Kleisli.catsDataMonadForKleisli[F, R].tailRecM(a)(f)
 
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli(r => F.suspend(thunk.run(r)))
-
-    def bracketCase[A, B](acquire: Kleisli[F, R, A])
-      (use: A => Kleisli[F, R, B])
-      (release: (A, ExitCase[Throwable]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
-
-      Kleisli { r =>
-        F.bracketCase(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
-          release(a, br).run(r)
-        }
-      }
-    }
   }
 }

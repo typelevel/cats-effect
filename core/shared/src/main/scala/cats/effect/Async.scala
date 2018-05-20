@@ -270,8 +270,9 @@ object Async {
       WriterT.liftF(F.async(k))(L, FA)
   }
 
-  private[effect] trait KleisliAsync[F[_], R] extends Async[Kleisli[F, R, ?]]
-    with Sync.KleisliSync[F, R] {
+  private[effect] abstract class KleisliAsync[F[_], R]
+    extends Sync.KleisliSync[F, R]
+    with Async[Kleisli[F, R, ?]] {
 
     override protected implicit def F: Async[F]
 

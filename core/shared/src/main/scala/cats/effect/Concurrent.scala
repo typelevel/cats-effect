@@ -551,7 +551,7 @@ object Concurrent {
               F.pure(Some(Right((fiberT[A](fiberA), r))))
           }
       })
-      
+
     def uncancelable[A](fa: OptionT[F, A]): OptionT[F, A] =
       OptionT(F.uncancelable(fa.value))
 
@@ -634,8 +634,9 @@ object Concurrent {
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
   }
 
-  private[effect] trait KleisliConcurrent[F[_], R] extends Concurrent[Kleisli[F, R, ?]]
-    with Async.KleisliAsync[F, R] {
+  private[effect] abstract class KleisliConcurrent[F[_], R]
+    extends Async.KleisliAsync[F, R]
+    with Concurrent[Kleisli[F, R, ?]] {
 
     override protected implicit def F: Concurrent[F]
     // Needed to drive static checks, otherwise the
