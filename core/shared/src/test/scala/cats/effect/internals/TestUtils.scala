@@ -16,11 +16,7 @@
 
 package cats.effect.internals
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
-
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.util.concurrent.Semaphore
 
 /**
  * INTERNAL API — test utilities.
@@ -44,35 +40,6 @@ trait TestUtils {
     } catch {
       case NonFatal(e) =>
         System.setErr(oldErr)
-        // In case of errors, print whatever was caught
-        fakeErr.close()
-        val out = outStream.toString("utf-8")
-        if (out.nonEmpty) oldErr.println(out)
-        throw e
-    }
-  }
-
-  /**
-   * Silences `System.err`, only printing the output in case exceptions are
-   * thrown by the executed `thunk` or future it produces is failed.
-   */
-
-  private[this] val lock = new Semaphore(1)
-  def silenceSystemErrF[A](thunk: => Future[A])(implicit ec: ExecutionContext): Future[A] = {
-    lock.acquire()
-    // Silencing System.err
-    val oldErr = System.err
-    val outStream = new ByteArrayOutputStream()
-    val fakeErr = new PrintStream(outStream)
-    System.setErr(fakeErr)
-
-    Future.fromTry(Try(thunk)).flatten.andThen {
-      case Success(_) =>
-        System.setErr(oldErr)
-        lock.release()
-      case Failure(e) =>
-        System.setErr(oldErr)
-        lock.release()
         // In case of errors, print whatever was caught
         fakeErr.close()
         val out = outStream.toString("utf-8")

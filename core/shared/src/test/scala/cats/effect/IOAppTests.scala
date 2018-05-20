@@ -17,7 +17,9 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils}
+import scala.concurrent.ExecutionContext
+
+import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils, TrampolineEC}
 import cats.implicits._
 import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
 
@@ -38,7 +40,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
   }
 
   test("raised error exits with 1") {
-    silenceSystemErrF {
+    silenceSystemErr {
       IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture
@@ -48,7 +50,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
 
   test("canceled IO exits unsuccessfully") {
     assume(IOPlatform.isJVM, "test relevant only for the JVM")
-    silenceSystemErrF {
+    silenceSystemErr {
       (for {
         fiber <- IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.never)
         _ <- fiber.cancel
@@ -58,4 +60,6 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
         .map(_ should be > 0)
     }
   }
+
+  override implicit def executionContext: ExecutionContext = TrampolineEC.immediate
 }
