@@ -26,9 +26,20 @@ private[effect] object IOPlatform {
    * so all we can do is to throw an error.
    */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
-    throw new UnsupportedOperationException(
-      "cannot synchronously await result on JavaScript; " +
-      "use runAsync or unsafeRunAsync")
+    val cb = new IOResyncCallback[A]
+    val cancel = ioa.unsafeRunCancelable(cb)
+
+    cb.value match {
+      case Right(a) => Some(a)
+      case Left(e) => throw e
+      case null =>
+        // Triggering cancelation first
+        cb.isActive = false
+        cancel()
+        throw new UnsupportedOperationException(
+          "cannot synchronously await result on JavaScript; " +
+          "use runAsync or unsafeRunAsync")
+    }
   }
 
   /**
