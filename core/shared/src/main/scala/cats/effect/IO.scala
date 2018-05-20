@@ -675,46 +675,46 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
   implicit val ioEffect: Effect[IO] = new IOEffect
 
   private[effect] class IOEffect extends Effect[IO] with StackSafeMonad[IO] {
-    override def pure[A](a: A): IO[A] =
+    final override def pure[A](a: A): IO[A] =
       IO.pure(a)
-    override def unit: IO[Unit] =
+    final override def unit: IO[Unit] =
       IO.unit
 
-    override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
+    final override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
       fa.map(f)
-    override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
+    final override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
       ioa.flatMap(f)
 
-    override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] =
+    final override def attempt[A](ioa: IO[A]): IO[Either[Throwable, A]] =
       ioa.attempt
-    override def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
+    final override def handleErrorWith[A](ioa: IO[A])(f: Throwable => IO[A]): IO[A] =
       ioa.handleErrorWith(f)
-    override def raiseError[A](e: Throwable): IO[A] =
+    final override def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    override def bracket[A, B](acquire: IO[A])
+    final override def bracket[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: A => IO[Unit]): IO[B] =
       acquire.bracket(use)(release)
 
-    override def bracketCase[A, B](acquire: IO[A])
+    final override def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
-    override def delay[A](thunk: => A): IO[A] =
+    final override def delay[A](thunk: => A): IO[A] =
       IO(thunk)
-    override def suspend[A](thunk: => IO[A]): IO[A] =
+    final override def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
-    override def liftIO[A](ioa: IO[A]): IO[A] =
+    final override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
-    override def toIO[A](fa: IO[A]): IO[A] =
+    final override def toIO[A](fa: IO[A]): IO[A] =
       fa
-    override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
       ioa.runAsync(cb)
-    override def runSyncStep[A](ioa: IO[A]): IO[Either[IO[A], A]] =
+    final override def runSyncStep[A](ioa: IO[A]): IO[Either[IO[A], A]] =
       ioa.runSyncStep
   }
 }
@@ -724,59 +724,58 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit def parApplicative(implicit timer: Timer[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
     import IO.Par.{unwrap, apply => par}
 
-    override def pure[A](x: A): IO.Par[A] =
+    final override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
-    override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
+    final override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
       par(IOParMap(timer.shift *> unwrap(fa), timer.shift *> unwrap(fb))(f))
-    override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
+    final override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
       map2(ff, fa)(_(_))
-    override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
+    final override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
       map2(fa, fb)((_, _))
-    override def map[A, B](fa: IO.Par[A])(f: A => B): IO.Par[B] =
+    final override def map[A, B](fa: IO.Par[A])(f: A => B): IO.Par[B] =
       par(unwrap(fa).map(f))
-    override def unit: IO.Par[Unit] =
+    final override def unit: IO.Par[Unit] =
       par(IO.unit)
   }
 
   implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
-    override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+    final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
-    override def uncancelable[A](fa: IO[A]): IO[A] =
+    final override def uncancelable[A](fa: IO[A]): IO[A] =
       fa.uncancelable
-    override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
+    final override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
       fa.onCancelRaiseError(e)
 
-    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
+    final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
       IO.race(fa, fb)
-    override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+    final override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
       IO.racePair(fa, fb)
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
       IO.cancelable(k)
-    override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+    final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       fa.runCancelable(cb)
-
 
   }
 
   implicit def ioParallel(implicit timer: Timer[IO]): Parallel[IO, IO.Par] =
     new Parallel[IO, IO.Par] {
-      override val applicative: Applicative[IO.Par] =
+      final override val applicative: Applicative[IO.Par] =
         parApplicative(timer)
-      override val monad: Monad[IO] =
+      final override val monad: Monad[IO] =
         ioConcurrentEffect
-      override val sequential: ~>[IO.Par, IO] =
+      final override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
-      override val parallel: ~>[IO, IO.Par] =
+      final override val parallel: ~>[IO, IO.Par] =
         new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa) }
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
-    def empty = IO.pure(Monoid[A].empty)
+    final override def empty: IO[A] = IO.pure(Monoid[A].empty)
   }
 
   implicit val ioSemigroupK: SemigroupK[IO] = new SemigroupK[IO] {
-    def combineK[A](a: IO[A], b: IO[A]): IO[A] =
+    final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
       ApplicativeError[IO, Throwable].handleErrorWith(a)(_ => b)
   }
 }
