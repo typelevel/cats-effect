@@ -214,7 +214,11 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this"),
       // PR #235: switch to standard NonFatal
       exclude[MissingClassProblem]("cats.effect.internals.NonFatal$"),
-      exclude[MissingClassProblem]("cats.effect.internals.NonFatal")
+      exclude[MissingClassProblem]("cats.effect.internals.NonFatal"),
+      // Adding #236: adding Bracket instance for Kleisli
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync")
     )
   })
 
