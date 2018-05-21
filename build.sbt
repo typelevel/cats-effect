@@ -211,7 +211,10 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler"),
       // New stuff
       exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.tryReactivate"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync")
     )
   })
 
