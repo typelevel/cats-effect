@@ -704,6 +704,18 @@ class IOTests extends BaseTestsSuite {
     ec.tick(1.seconds)
     f.value shouldBe Some(Success(()))
   }
+
+  test("unsafeRunSync works for bracket") {
+    var effect = 0
+    val io = IO(1).bracket(x => IO(x + 1))(_ => IO { effect += 1 })
+    io.unsafeRunSync() shouldBe 2
+    effect shouldBe 1
+  }
+
+  test("unsafeRunSync works for IO.cancelBoundary") {
+    val io = IO.cancelBoundary *> IO(1)
+    io.unsafeRunSync() shouldBe 1
+  }
 }
 
 object IOTests {

@@ -26,9 +26,20 @@ private[effect] object IOPlatform {
    * so all we can do is to throw an error.
    */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
-    throw new UnsupportedOperationException(
-      "cannot synchronously await result on JavaScript; " +
-      "use runAsync or unsafeRunAsync")
+    val cb = new ResyncCallback[A]
+    val cancel = ioa.unsafeRunCancelable(cb)
+
+    cb.value match {
+      case Right(a) => Some(a)
+      case Left(e) => throw e
+      case null =>
+        // Triggering cancelation first
+        cb.isActive = false
+        cancel()
+        throw new UnsupportedOperationException(
+          "cannot synchronously await result on JavaScript; " +
+          "use runAsync or unsafeRunAsync")
+    }
   }
 
   /**
@@ -43,4 +54,24 @@ private[effect] object IOPlatform {
   /** Returns `true` if the underlying platform is the JVM,
     * `false` if it's JavaScript. */
   final val isJVM = false
+
+  /**
+   * Internal — used in the implementation of [[unsafeResync]].
+   */
+  private final class ResyncCallback[A]
+    extends (Either[Throwable, A] => Unit) {
+
+    var isActive = true
+    var value: Either[Throwable, A] = _
+
+    def apply(value: Either[Throwable, A]): Unit = {
+      if (isActive) {
+        isActive = false
+        this.value = value
+      } else value match {
+        case Left(e) => Logger.reportFailure(e)
+        case _ => ()
+      }
+    }
+  }
 }
