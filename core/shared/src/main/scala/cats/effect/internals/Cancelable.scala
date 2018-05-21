@@ -17,7 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.util.CompositeException
+
 import scala.collection.mutable.ListBuffer
+import scala.util.control.NonFatal
 
 /**
  * INTERNAL API - utilities for dealing with cancelable thunks.

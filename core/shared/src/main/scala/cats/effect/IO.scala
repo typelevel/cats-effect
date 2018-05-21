@@ -26,6 +26,7 @@ import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success}
 
 /**

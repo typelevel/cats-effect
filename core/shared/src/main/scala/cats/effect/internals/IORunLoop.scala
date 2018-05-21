@@ -20,6 +20,7 @@ import cats.effect.IO
 import cats.effect.IO.{Async, Bind, Delay, Map, Pure, RaiseError, Suspend}
 
 import scala.collection.mutable.ArrayStack
+import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
   private type Current = IO[Any]
