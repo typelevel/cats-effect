@@ -385,7 +385,7 @@ lazy val microsite = project.in(file("site"))
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "0.10"
+val BaseVersion = "1.0.0-RC2"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
