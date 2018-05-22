@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-import cats.effect.concurrent.Deferred
+import cats.effect.concurrent.{Deferred, Semaphore}
 import cats.laws._
 import cats.syntax.all._
 import scala.Predef.{identity => id}
@@ -94,11 +94,12 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def onCancelRaiseErrorTerminatesOnCancel[A](e: Throwable) = {
-    val never = F.onCancelRaiseError(F.never[A], e)
     val received =
       for {
+        s <- Semaphore[F](0L)
+        never = F.onCancelRaiseError(F.bracket(s.release)(_ => F.never[A])(_ => F.unit), e)
         fiber <- F.start(never)
-        _ <- fiber.cancel
+        _ <- s.acquire *> fiber.cancel
         r <- fiber.join
       } yield r
 
@@ -132,28 +133,31 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received = F.liftIO(Deferred[IO, B]).flatMap { effect =>
-      val winner = F.async[A](_(r))
-      val loser = F.cancelable[A](_ => effect.complete(b))
-      val race =
+    val received = for {
+      s <- Semaphore[F](0L)
+      effect <- Deferred[F, B]
+      winner = s.acquire *> F.async[A](_(r))
+      loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
+      race =
         if (leftWinner) F.race(winner, loser)
         else F.race(loser, winner)
 
-      F.attempt(race) *> F.liftIO(effect.get)
-    }
+      b <- F.attempt(race) *> effect.get
+    } yield b
     received <-> F.pure(b)
   }
 
   def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      pa <- F.liftIO(Deferred[IO, A])
-      loserA = F.cancelable[A](_ => pa.complete(a))
-      pb <- F.liftIO(Deferred[IO, B])
-      loserB = F.cancelable[B](_ => pb.complete(b))
+      s <- Semaphore[F](0L)
+      pa <- Deferred[F, A]
+      loserA = F.bracket(s.release)(_ => F.never[A])(_ => pa.complete(a))
+      pb <- Deferred[F, B]
+      loserB = F.bracket(s.release)(_ => F.never[B])(_ => pb.complete(b))
       race <- F.start(F.race(loserA, loserB))
-      _ <- race.cancel
-      a <- F.liftIO(pa.get)
-      b <- F.liftIO(pb.get)
+      _ <- s.acquireN(2L) *> race.cancel
+      a <- pa.get
+      b <- pb.get
     } yield f(a, b)
 
     fc <-> F.pure(f(a, b))
@@ -184,22 +188,24 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received: F[B] = F.liftIO(Deferred[IO, B]).flatMap { effect =>
-      val winner = F.async[A](_(r))
-      val loser = F.cancelable[A](_ => effect.complete(b))
-      val race =
+    val received: F[B] = for {
+      s <- Semaphore[F](0L)
+      effect <- Deferred[F, B]
+      winner = s.acquire *> F.async[A](_(r))
+      loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
+      race =
         if (leftWinner) F.racePair(winner, loser)
         else F.racePair(loser, winner)
 
-      F.attempt(race).flatMap {
+      b <- F.attempt(race).flatMap {
         case Right(Left((_, fiber))) =>
-          fiber.cancel *> F.liftIO(effect.get)
+          fiber.cancel *> effect.get
         case Right(Right((fiber, _))) =>
-          fiber.cancel *> F.liftIO(effect.get)
+          fiber.cancel *> effect.get
         case Left(_) =>
-          F.liftIO(effect.get)
+          effect.get
       }
-    }
+    } yield b
     received <-> F.pure(b)
   }
 
@@ -228,14 +234,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      pa <- F.liftIO(Deferred[IO, A])
-      loserA = F.cancelable[A](_ => pa.complete(a))
-      pb <- F.liftIO(Deferred[IO, B])
-      loserB = F.cancelable[B](_ => pb.complete(b))
+      s <- Semaphore[F](0L)
+      pa <- Deferred[F, A]
+      loserA = F.bracket(s.release)(_ => F.never[A])(_ => pa.complete(a))
+      pb <- Deferred[F, B]
+      loserB = F.bracket(s.release)(_ => F.never[B])(_ => pb.complete(b))
       race <- F.start(F.racePair(loserA, loserB))
-      _ <- race.cancel
-      a <- F.liftIO(pa.get)
-      b <- F.liftIO(pb.get)
+      _ <- s.acquireN(2L) *> race.cancel
+      a <- pa.get
+      b <- pb.get
     } yield f(a, b)
 
     fc <-> F.pure(f(a, b))
