@@ -18,7 +18,6 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.syntax.apply._
 import cats.effect.internals.Callback.Extensions
 import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
@@ -367,7 +366,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * which creates a potential memory leak.
    */
   final def start(implicit timer: Timer[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
-    IOStart(timer.shift *> this)
+    IOStart(timer, this)
 
   /**
    * Returns a new `IO` that mirrors the source task for normal termination,

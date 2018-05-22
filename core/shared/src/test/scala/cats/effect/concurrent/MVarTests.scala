@@ -36,14 +36,15 @@ class MVarConcurrentTests extends BaseMVarTests {
       _  <- mVar.put(1).start
       p2 <- mVar.put(2).start
       _  <- mVar.put(3).start
+      _  <- IO.sleep(10.millis) // Give put callbacks a chance to register
       _  <- p2.cancel
       _  <- mVar.take
       r1 <- mVar.take
       r3 <- mVar.take
-    } yield List(r1, r3)
+    } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(1, 3)
+      r shouldBe Set(1, 3)
     }
   }
 
@@ -53,15 +54,16 @@ class MVarConcurrentTests extends BaseMVarTests {
       t1 <- mVar.take.start
       t2 <- mVar.take.start
       t3 <- mVar.take.start
+      _  <- IO.sleep(10.millis) // Give take callbacks a chance to register
       _  <- t2.cancel
       _  <- mVar.put(1)
       _  <- mVar.put(3)
       r1 <- t1.join
       r3 <- t3.join
-    } yield List(r1, r3)
+    } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe List(1, 3)
+      r shouldBe Set(1, 3)
     }
   }
 
@@ -70,6 +72,7 @@ class MVarConcurrentTests extends BaseMVarTests {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
       fiber <- mVar.read.flatMap(finished.complete).start
+      _  <- IO.sleep(10.millis) // Give read callback a chance to register
       _ <- fiber.cancel
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> IO.pure(0)

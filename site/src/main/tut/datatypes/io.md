@@ -573,7 +573,7 @@ thread that can be either joined (via `join`) or interrupted (via
 Example:
 
 ```tut:silent
-// Needed in order to get a Timer[IO], for IO.shift below
+// Needed in order to get a Timer[IO], for IO.start to execute concurrently
 import scala.concurrent.ExecutionContext.Implicits.global
 
 val launchMissiles = IO.raiseError(new Exception("boom!"))
@@ -706,9 +706,8 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
   }
 ```
 
-Again mentioning this for posterity: with `IO` everything is explicit,
-the protocol being easy to follow and predictable in a WYSIWYG
-fashion.
+With `IO`, fairness needs to be managed explicitly, the protocol being
+easy to follow and predictable in a WYSIWYG fashion.
 
 ### Race Conditions — race & racePair
 
@@ -720,10 +719,10 @@ losers being usually canceled.
 
 ```scala
 // simple version
-def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]]
+def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]]
   
 // advanced version
-def racePair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
+def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
@@ -733,7 +732,7 @@ you decide what to do next.
 So `race` can be derived with `racePair` like so:
 
 ```tut:silent
-def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] =
+def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
   IO.racePair(lh, rh).flatMap {
     case Left((a, fiber)) => 
       fiber.cancel.map(_ => Left(a))
@@ -762,13 +761,7 @@ def timeout[A](fa: IO[A], after: FiniteDuration)
 }
 ```
 
-NOTE: like all things with `IO`, tasks are not forked automatically
-and `race` won't do automatic forking either. So if the given tasks
-are asynchronous, they could be executed in parallel, but if they
-are not asynchronous (and thus have immediate execution), then
-they won't run in parallel.
-
-Always remember that IO's policy is WYSIWYG.
+See *Parallelism* section above for how to obtain a `Timer[IO]`
 
 ### Comparison with Haskell's "async interruption"
 
@@ -1205,6 +1198,10 @@ def loop(n: Int): IO[Int] =
 
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
+Note: all parallel operations require an implicit `Timer[IO]` in scope.
+On JVM, `Timer[IO]` is available when there's an implicit `ExecutionContext` in scope. Alternatively, it can be created using `IO.timer` builder, taking an `ExecutionContext`, managing actual execution, and a `ScheduledExecutorService`, which manages scheduling (not actual execution, so no point in giving it more than one thread).
+On JS, `Timer[IO]` is always available.
+
 ### parMapN
 
 It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
@@ -1260,7 +1257,7 @@ There is also `cats.Traverse.sequence` which does this synchronously.
 
 ### parTraverse
 
-If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parSequence` to run the steps in parallel.
+If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel.
 
 ```tut:book
 val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
