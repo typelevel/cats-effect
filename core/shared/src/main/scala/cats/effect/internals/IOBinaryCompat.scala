@@ -46,15 +46,6 @@ private[effect] trait IOBinaryCompat[+A] { self: IO[A] =>
 
 private[effect] trait IOCompanionBinaryCompat {
   /**
-   * DEPRECATED — name and type changed in [[IO.ioConcurrentEffect]].
-   *
-   * This old variant is kept in order to keep binary compatibility
-   * until 1.0 — when it will be removed completely.
-   */
-  @deprecated("Renamed to ioConcurrentEffect", "0.10")
-  private[internals] def ioEffect: Effect[IO] = IO.ioConcurrentEffect
-
-  /**
    * DEPRECATED — the `ec` parameter is gone.
    *
    * This old variant is kept in order to keep binary compatibility

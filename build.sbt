@@ -184,6 +184,22 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
+
+
+      // Require Timer[IO] for auto-shifting now
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.start"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.race"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.racePair"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IOParallelNewtype.ioEffect"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.parApplicative"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.ioParallel"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.ioConcurrentEffect"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOParMap.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCompanionBinaryCompat.ioEffect"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.simple"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.pair"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOStart.apply"),
+
       //
       // Following are all internal implementation details:
       //

@@ -142,7 +142,7 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
   /**
    * Creates a cancelable `F[A]` instance that executes an

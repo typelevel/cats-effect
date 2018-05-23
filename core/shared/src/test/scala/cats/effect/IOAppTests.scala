@@ -17,17 +17,18 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils}
+import scala.concurrent.ExecutionContext
+
+import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils, TrampolineEC}
 import cats.implicits._
 import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
-import scala.util.Success
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
   test("exits with specified code") {
     IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.pure(ExitCode(42)))
       .flatMap(_.join)
       .unsafeToFuture
-      .value shouldEqual (Some(Success(42)))
+      .map(_ shouldEqual 42)
   }
 
   test("accepts arguments") {
@@ -35,7 +36,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
       IO.pure(ExitCode(args.mkString.toInt)))
       .flatMap(_.join)
       .unsafeToFuture
-      .value shouldEqual (Some(Success(123)))
+      .map(_ shouldEqual 123)
   }
 
   test("raised error exits with 1") {
@@ -43,7 +44,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
       IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture
-        .value shouldEqual (Some(Success(1)))
+        .map(_ shouldEqual 1)
     }
   }
 
@@ -56,9 +57,9 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
         code <- fiber.join
       } yield code)
         .unsafeToFuture
-        .value
-        .getOrElse(Success(0))
-        .getOrElse(0) should be > 0
+        .map(_ should be > 0)
     }
   }
+
+  override implicit def executionContext: ExecutionContext = TrampolineEC.immediate
 }

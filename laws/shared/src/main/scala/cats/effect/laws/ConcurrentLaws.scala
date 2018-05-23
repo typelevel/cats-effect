@@ -24,6 +24,7 @@ import scala.Predef.{identity => id}
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
+  implicit val ioTimer: Timer[IO]
 
   def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
     val received = for {
@@ -243,7 +244,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 }
 
 object ConcurrentLaws {
-  def apply[F[_]](implicit F0: Concurrent[F]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
+  def apply[F[_]](implicit F0: Concurrent[F], ioTimer0: Timer[IO]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
     val F = F0
+    val ioTimer = ioTimer0
   }
 }

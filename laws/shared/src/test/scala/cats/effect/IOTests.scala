@@ -47,7 +47,7 @@ class IOTests extends BaseTestsSuite {
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
   })
 
-  test("IO.Par's applicative instance is different") {
+  testAsync("IO.Par's applicative instance is different") { implicit ec =>
     implicitly[Applicative[IO]] shouldNot be(implicitly[Applicative[IO.Par]])
   }
 
@@ -493,38 +493,22 @@ class IOTests extends BaseTestsSuite {
     f2.value shouldEqual Some(Failure(dummy))
   }
 
-  testAsync("parMap2 can fail for both, with left failing first") { implicit ec =>
+  testAsync("parMap2 can fail for both, with non-deterministic failure") { implicit ec =>
     val error = catchSystemErr {
       val dummy1 = new RuntimeException("dummy1")
       val dummy2 = new RuntimeException("dummy2")
 
       val io1 = IO.raiseError[Int](dummy1)
-      val io2 = IO.shift *> IO.raiseError[Int](dummy2)
-      val io3 = (io1, io2).parMapN(_ + _)
-
-      val f1 = io3.unsafeToFuture()
-      ec.tick()
-      f1.value shouldBe Some(Failure(dummy1))
-    }
-
-    error should include("dummy2")
-  }
-
-  testAsync("parMap2 can fail for both, with right failing first") { implicit ec =>
-    val error = catchSystemErr {
-      val dummy1 = new RuntimeException("dummy1")
-      val dummy2 = new RuntimeException("dummy2")
-
-      val io1 = IO.shift *> IO.raiseError[Int](dummy1)
       val io2 = IO.raiseError[Int](dummy2)
       val io3 = (io1, io2).parMapN(_ + _)
 
       val f1 = io3.unsafeToFuture()
       ec.tick()
-      f1.value shouldBe Some(Failure(dummy2))
+      val exc = f1.value.get.failed.get
+      exc should (be (dummy1) or be (dummy2))
     }
 
-    error should include("dummy1")
+    error should include("dummy")
   }
 
   testAsync("parMap2 is stack safe") { implicit ec =>
@@ -532,6 +516,7 @@ class IOTests extends BaseTestsSuite {
     val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
 
     val f = io.unsafeToFuture()
+    ec.tick(1.day)
     f.value shouldEqual Some(Success(count * (count - 1) / 2))
   }
 
@@ -745,8 +730,6 @@ object IOTests {
       fa.runCancelable(cb)
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
       IO.cancelable(k)
-    def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
-      fa.start
     def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =

@@ -30,8 +30,6 @@ private[effect] object IOAppPlatform {
   }
 
   def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
-    val _ = timer // unused in this platform
-
     object Canceled extends RuntimeException
     for {
       latch <- IO(new CountDownLatch(1))
@@ -49,7 +47,7 @@ private[effect] object IOAppPlatform {
         }
         .productL(IO(latch.countDown()))
         .map(_.code)
-        .start
+        .start(timer.value)
       _ <- IO(sys.addShutdownHook {
         fiber.cancel.unsafeRunSync()
         latch.await()
