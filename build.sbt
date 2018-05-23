@@ -185,6 +185,8 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
 
+      // Uncancelable moved down to Bracket
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.uncancelable"),
 
       // Require Timer[IO] for auto-shifting now
       exclude[DirectMissingMethodProblem]("cats.effect.IO.start"),

@@ -63,6 +63,28 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
     (release: A => F[Unit]): F[B] =
       bracketCase(acquire)(use)((a, _) => release(a))
 
+  /**
+   * Operation meant for ensuring a given task continues execution even
+   * when interrupted.
+   *
+   * For example, this equivalence holds
+   *
+   * {{{
+   *   F.uncancelable { F.bracketCase(F.unit)(_ => fa) { case Cancelled(_) => action; case _ => action2 } } <-> F.ensuring(fa)(action2)
+   * }}}
+   */
+  def uncancelable[A](task: F[A]): F[A] =
+    bracket(task)(pure)(_ => unit)
+
+  /**
+   * Operation meant for specifying tasks with specific logic having guaranteed to
+   * execute whenever source task has completed, failed with an exception, or cancelled.
+   *
+   * A special case of [[bracket]], which is not meant for resource acquisition
+   */
+  def ensuring[A](task: F[A])(finalizer: F[Unit]): F[A] =
+    bracket(unit)(_ => task)(_ => finalizer)
+
 }
 
 /**
@@ -186,5 +208,8 @@ object Bracket {
         }
       }
     }
+
+    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.uncancelable(fa.run(r)) }
   }
 }

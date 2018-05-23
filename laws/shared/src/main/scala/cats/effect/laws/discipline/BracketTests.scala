@@ -61,7 +61,11 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "bracketCase with failure in use and release is use" -> forAll(laws.bracketCaseEmitsUseFailure[A] _),
         "bracketCase with failure in acquisition remains failure" -> forAll(laws.bracketCaseFailureInAcquisitionRemainsFailure[A, B] _),
         "bracketCase with pure unit on release is eqv to flatMap" -> forAll(laws.bracketCaseWithPureUnitIsEqvFlatMap[A, B] _),
-        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _)
+        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
+        "uncancelable is derived from bracket" -> forAll(laws.uncancelableIsDerivedFromBracket[A, B] _),
+        "uncancelable prevents Cancelled case" -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
+        "acquire and release of bracket are uncancelable" -> forAll(laws.acquireAndReleaseAreUncancelable[A, B] _),
+        "ensuring is derived from bracket" -> forAll(laws.ensuringIsDerivedFromBracket[A] _)
       )
     }
   }
