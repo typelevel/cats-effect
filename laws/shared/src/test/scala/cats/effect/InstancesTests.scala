@@ -25,11 +25,15 @@ import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
 
-  checkAllAsync("StateT[IO, S, ?]",
+  checkAllAsync("StateT[IO, Int, ?]",
     implicit ec => ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int])
+  checkAllAsync("StateT[IO, Int, ?]",
+    implicit ec => BracketTests[StateT[IO, Int, ?], Throwable].bracket[Int, Int, Int])
 
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int])
+  checkAllAsync("OptionT[IO, ?]",
+    implicit ec => BracketTests[OptionT[IO, ?], Throwable].bracket[Int, Int, Int])
 
   checkAllAsync("Kleisli[IO, ?]",
     implicit ec => ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int])

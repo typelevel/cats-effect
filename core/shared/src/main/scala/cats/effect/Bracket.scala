@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.data.Kleisli
+import cats.data._
 
 /**
  * An extension of `MonadError` exposing the `bracket` operation,
@@ -151,6 +151,92 @@ object Bracket {
    */
   implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, ?], E] =
     new KleisliBracket[F, R, E] { def F = ev }
+
+  /**
+    * [[Bracket]] instance built for `cats.data.StateT` values initialized
+    * with any `F` data type that also implements `Bracket`
+    */
+  implicit def catsStateTBracket[F[_], S, E](implicit ev: Bracket[F, E]): Bracket[StateT[F, S, ?], E] =
+    new StateTBracket[F, S, E] { def F = ev }
+
+  /**
+    * [[Bracket]] instance built for `cats.data.OptionT` values initialized
+    * with any `F` data type that also has a `Bracket` instance
+    */
+
+  implicit def catsOptionTBracket[F[_], E](implicit ev: Bracket[F, E]): Bracket[OptionT[F, ?], E] =
+    new OptionTBracket[F, E] { def F = ev}
+
+  private[effect] trait StateTBracket[F[_], S, E] extends Bracket[StateT[F, S, ?], E] {
+
+    protected implicit def F: Bracket[F, E]
+
+    private[this] final val stateTMonadError: MonadError[StateT[F, S, ?], E] =
+      IndexedStateT.catsDataMonadErrorForIndexedStateT
+
+    def pure[A](x: A): StateT[F, S, A] =
+      StateT.pure(x)
+
+    def raiseError[A](e: E): StateT[F, S, A] =
+      stateTMonadError.raiseError(e)
+
+    def handleErrorWith[A](fa: StateT[F, S, A])(f: E => StateT[F, S, A]): StateT[F, S, A] =
+      stateTMonadError.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
+      stateTMonadError.tailRecM(a)(f)
+
+    def bracketCase[A, B](acquire: StateT[F, S, A])(use:  A => StateT[F, S, B])
+                         (release: (A, ExitCase[E]) => StateT[F, S, Unit]): StateT[F, S, B] = {
+      StateT { startS =>
+        F.bracketCase(acquire.run(startS)) { case (s, a) =>
+          use(a).run(s)
+        } { case ((s, a), br) =>
+            F.void(release(a, br).run(s))
+        }
+      }
+    }
+  }
+
+  private[effect] trait OptionTBracket[F[_], E] extends Bracket[OptionT[F, ?], E]{
+
+    protected implicit def F: Bracket[F, E]
+
+    private[this] final val optionTMonadError: MonadError[OptionT[F, ?], E] =
+      OptionT.catsDataMonadErrorForOptionT
+
+    def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
+
+    def raiseError[A](e: E): OptionT[F, A] =
+      optionTMonadError.raiseError(e)
+
+    def handleErrorWith[A](fa: OptionT[F, A])(f: E => OptionT[F, A]): OptionT[F, A] =
+      optionTMonadError.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
+      optionTMonadError.tailRecM(a)(f)
+
+    def bracketCase[A, B](acquire: OptionT[F, A])(use: A => OptionT[F, B])
+                         (release: (A, ExitCase[E]) => OptionT[F, Unit]): OptionT[F, B] = {
+      OptionT {
+        F.bracketCase(acquire.value) {
+          case Some(a) => use(a).value
+          case _ => F.pure[Option[B]](None)
+        } {
+          case (Some(a), br) =>
+            F.void(release(a, br).value)
+          case _ =>
+            F.unit
+        }
+      }
+    }
+  }
 
   private[effect] abstract class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, ?], E] {
 

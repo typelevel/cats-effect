@@ -122,72 +122,17 @@ object Sync {
       EitherT(F.suspend(thunk.value))
   }
 
-  private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
+  private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]]
+    with Bracket.OptionTBracket[F, Throwable] {
     protected implicit def F: Sync[F]
-
-    def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
-
-    def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
-      OptionT.catsDataMonadErrorForOptionT[F, Throwable].handleErrorWith(fa)(f)
-
-    def raiseError[A](e: Throwable): OptionT[F, A] =
-      OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
-
-    def bracketCase[A, B](acquire: OptionT[F, A])
-      (use: A => OptionT[F, B])
-      (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
-
-      OptionT(F.bracketCase(acquire.value) {
-        case Some(a) => use(a).value
-        case None => F.pure[Option[B]](None)
-      } {
-        case (Some(a), br) =>
-          release(a, br).value.map(_ => ())
-        case _ =>
-          F.unit
-      })
-    }
-
-    def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
-      fa.flatMap(f)
-
-    def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
-      OptionT.catsDataMonadForOptionT[F].tailRecM(a)(f)
 
     def suspend[A](thunk: => OptionT[F, A]): OptionT[F, A] =
       OptionT(F.suspend(thunk.value))
   }
 
-  private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
+  private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]]
+    with Bracket.StateTBracket[F, S, Throwable] {
     protected implicit def F: Sync[F]
-
-    def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
-
-    def handleErrorWith[A](fa: StateT[F, S, A])(f: Throwable => StateT[F, S, A]): StateT[F, S, A] =
-      StateT(s => F.handleErrorWith(fa.run(s))(e => f(e).run(s)))
-
-    def raiseError[A](e: Throwable): StateT[F, S, A] =
-      StateT.liftF(F.raiseError(e))
-
-    def bracketCase[A, B](acquire: StateT[F, S, A])
-      (use: A => StateT[F, S, B])
-      (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
-
-      StateT { startS =>
-        F.bracketCase(acquire.run(startS)) { case (s, a) =>
-          use(a).run(s)
-        } { case ((s, a), br) =>
-          release(a, br).run(s).void
-        }
-      }
-    }
-
-    def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
-      fa.flatMap(f)
-
-    // overwriting the pre-existing one, since flatMap is guaranteed stack-safe
-    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
-      IndexedStateT.catsDataMonadForIndexedStateT[F, S].tailRecM(a)(f)
 
     def suspend[A](thunk: => StateT[F, S, A]): StateT[F, S, A] =
       StateT.applyF(F.suspend(thunk.runF))
