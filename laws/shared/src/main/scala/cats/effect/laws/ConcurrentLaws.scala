@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-import cats.effect.concurrent.Deferred
+import cats.effect.concurrent.{Deferred, MVar}
 import cats.laws._
 import cats.syntax.all._
 import scala.Predef.{identity => id}
@@ -88,6 +88,32 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     }
     // Non-terminating
     lh <-> F.async(_ => ())
+  }
+
+  def acquireIsNotCancelable[A, B](fa: F[A], b1: B, b2: B) = {
+    val lh =
+      for {
+        mVar <- F.liftIO(MVar[IO].of(b1))
+        task = F.bracket(F.liftIO(mVar.put(b2)))(_ => F.unit)(_ => F.unit)
+        fiber <- F.start(task)
+        _     <- F.liftIO(mVar.take)
+        out   <- F.liftIO(mVar.take)
+      } yield out
+
+    lh <-> F.pure(b2)
+  }
+
+  def releaseIsNotCancelable[A, B](fa: F[A], b1: B, b2: B) = {
+    val lh =
+      for {
+        mVar <- F.liftIO(MVar[IO].of(b1))
+        task = F.bracket(F.unit)(_ => F.unit)(_ => F.liftIO(mVar.put(b2)))
+        fiber <- F.start(task)
+        _     <- F.liftIO(mVar.take)
+        out   <- F.liftIO(mVar.take)
+      } yield out
+
+    lh <-> F.pure(b2)
   }
 
   def onCancelRaiseErrorMirrorsSource[A](fa: F[A], e: Throwable) = {

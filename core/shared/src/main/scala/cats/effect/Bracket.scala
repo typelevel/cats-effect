@@ -73,8 +73,8 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *   F.uncancelable { F.bracketCase(F.unit)(_ => fa) { case Cancelled(_) => action; case _ => action2 } } <-> F.ensuring(fa)(action2)
    * }}}
    */
-  def uncancelable[A](task: F[A]): F[A] =
-    bracket(task)(pure)(_ => unit)
+  def uncancelable[A](fa: F[A]): F[A] =
+    bracket(fa)(pure)(_ => unit)
 
   /**
    * Operation meant for specifying tasks with specific logic having guaranteed to
@@ -82,9 +82,8 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *
    * A special case of [[bracket]], which is not meant for resource acquisition
    */
-  def ensuring[A](task: F[A])(finalizer: F[Unit]): F[A] =
-    bracket(unit)(_ => task)(_ => finalizer)
-
+  def ensuring[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+    bracket(unit)(_ => fa)(_ => finalizer)
 }
 
 /**

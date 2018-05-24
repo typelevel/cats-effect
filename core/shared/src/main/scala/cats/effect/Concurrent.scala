@@ -169,9 +169,8 @@ import scala.util.Either
  *     fiber <- F.start(tick)
  *     _ <- fiber.cancel
  *     _ <- fiber.join
- *   } yield {
- *     println("Tick!")
- *   }
+ *     _ <- F.delay { println("Tick!") }
+ *   } yield ()
  * }}}
  *
  * When doing [[Bracket.bracket bracket]] or [[Bracket.bracketCase bracketCase]],
