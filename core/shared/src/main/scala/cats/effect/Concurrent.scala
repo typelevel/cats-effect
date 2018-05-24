@@ -147,7 +147,7 @@ import scala.util.Either
  * result of [[Fiber.join join]] and that the cancelable token returned by
  * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
  *
- * So `uncancelable` must undo the cancellation mechanism of [[Concurrent!cancelable cancelable]],
+ * So `uncancelable` must undo the cancellation mechanism of [[Concurrent!.cancelable cancelable]],
  * with this equivalence:
  *
  * {{{
