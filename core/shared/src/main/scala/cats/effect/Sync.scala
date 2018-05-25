@@ -218,7 +218,7 @@ object Sync {
       (use: A => WriterT[F, L, B])
       (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
 
-      acquire.flatMap { a =>
+      uncancelable(acquire).flatMap { a =>
         WriterT(
           F.bracketCase(F.pure(a))(use.andThen(_.run)){ (a, res) =>
             release(a, res).value

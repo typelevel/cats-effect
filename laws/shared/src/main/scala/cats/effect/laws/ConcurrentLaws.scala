@@ -90,32 +90,34 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.async(_ => ())
   }
 
-  def acquireIsNotCancelable[A, B](fa: F[A], b1: B, b2: B) = {
+  def acquireIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- F.liftIO(MVar[IO].of(b1))
-        task = F.bracket(F.liftIO(mVar.put(b2)))(_ => F.unit)(_ => F.unit)
+        mVar <- F.liftIO(MVar[IO].of(a1))
+        task = F.bracket(F.liftIO(mVar.put(a2)))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
         _     <- fiber.cancel
+        _     <- F.liftIO(ioTimer.shift)
         _     <- F.liftIO(mVar.take)
         out   <- F.liftIO(mVar.take)
       } yield out
 
-    lh <-> F.pure(b2)
+    lh <-> F.pure(a2)
   }
 
-  def releaseIsNotCancelable[A, B](fa: F[A], b1: B, b2: B) = {
+  def releaseIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- F.liftIO(MVar[IO].of(b1))
-        task = F.bracket(F.unit)(_ => F.never[B])(_ => F.liftIO(mVar.put(b2)))
+        mVar <- F.liftIO(MVar[IO].of(a1))
+        task = F.bracket(F.unit)(_ => F.never[A])(_ => F.liftIO(mVar.put(a2)))
         fiber <- F.start(task)
         _     <- fiber.cancel
+        _     <- F.liftIO(ioTimer.shift)
         _     <- F.liftIO(mVar.take)
         out   <- F.liftIO(mVar.take)
       } yield out
 
-    lh <-> F.pure(b2)
+    lh <-> F.pure(a2)
   }
 
   def onCancelRaiseErrorMirrorsSource[A](fa: F[A], e: Throwable) = {
