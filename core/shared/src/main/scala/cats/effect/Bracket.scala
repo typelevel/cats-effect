@@ -82,7 +82,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *
    * A special case of [[bracket]], which is not meant for resource acquisition
    */
-  def ensuring[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+  def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
     bracket(unit)(_ => fa)(_ => finalizer)
 }
 
