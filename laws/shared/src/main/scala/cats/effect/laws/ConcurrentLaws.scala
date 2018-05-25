@@ -108,7 +108,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     val lh =
       for {
         mVar <- F.liftIO(MVar[IO].of(b1))
-        task = F.bracket(F.unit)(_ => F.unit)(_ => F.liftIO(mVar.put(b2)))
+        task = F.bracket(F.unit)(_ => F.never[B])(_ => F.liftIO(mVar.put(b2)))
         fiber <- F.start(task)
         _     <- fiber.cancel
         _     <- F.liftIO(mVar.take)
