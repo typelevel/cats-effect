@@ -20,7 +20,7 @@ abstract class Semaphore[F[_]] {
 ### On Blocking
 
 - Blocking acquires are cancelable if the semaphore is created with `Semaphore.apply` (and hence, with a `Concurrent[F]` instance).
-- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
+- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.uncancelable` (and hence, with an `Async[F]` instance).
 
 ### Shared Resource
 
