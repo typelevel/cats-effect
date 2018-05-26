@@ -21,7 +21,9 @@ import cats.data._
 import cats.effect.laws.discipline._
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
+import cats.laws.discipline.ApplicativeTests
 import cats.laws.discipline.arbitrary._
+import org.scalacheck.{Arbitrary, Cogen}
 
 class InstancesTests extends BaseTestsSuite {
 
@@ -42,10 +44,18 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int])
 
+  checkAllAsync("Fiber[IO, ?]",
+    implicit ec => ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int])
+
   implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
     Eq.by(_.run(Monoid[R].empty))
 
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
 
+  implicit def genFiber[A: Arbitrary : Cogen]: Arbitrary[Fiber[IO, A]] =
+    Arbitrary(genIO[A].map(io => Fiber(io, IO.unit)))
+
+  implicit def fiberEq[F[_]: Applicative, A](implicit FA: Eq[F[A]]): Eq[Fiber[F, A]] =
+    Eq.by[Fiber[F, A], F[A]](_.join)
 }

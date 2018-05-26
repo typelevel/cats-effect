@@ -16,6 +16,9 @@
 
 package cats.effect
 
+import cats.Applicative
+import cats.syntax.apply._
+
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
  * being started concurrently and that can be either joined or canceled.
@@ -68,7 +71,7 @@ trait Fiber[F[_], A] {
   def join: F[A]
 }
 
-object Fiber {
+object Fiber extends FiberInstances {
   /**
    * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
    */
@@ -77,4 +80,22 @@ object Fiber {
 
   private final case class Tuple[F[_], A](join: F[A], cancel: F[Unit])
     extends Fiber[F, A]
+}
+
+private[effect] abstract class FiberInstances {
+
+  implicit def fiberApplicative[F[_]](implicit F: Applicative[F]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
+    override def pure[A](x: A): Fiber[F, A] =
+      Fiber(F.pure(x), F.unit)
+    override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
+      map2(ff, fa)(_(_))
+    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
+      Fiber(F.map2(fa.join, fb.join)(f), fa.cancel *> fb.cancel)
+    final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
+      map2(fa, fb)((_, _))
+    final override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] =
+      Fiber(F.map(fa.join)(f), fa.cancel)
+    final override def unit: Fiber[F, Unit] =
+      Fiber(F.unit, F.unit)
+  }
 }
