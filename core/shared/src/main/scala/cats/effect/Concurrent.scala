@@ -179,7 +179,18 @@ trait Concurrent[F[_]] extends Async[F] {
    *   }
    * }}}
    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A] =
+    suspend {
+      @volatile var interruptor = unit
+      bracketCase(unit) { _ =>
+        async[A] { callback =>
+          interruptor = liftIO(k(callback))
+        }
+      } {
+        case (_, ExitCase.Canceled(_)) => interruptor
+        case _ => unit
+      }
+    }
 
   /**
    * Returns a new `F` that mirrors the source, but that is uninterruptible.
@@ -314,7 +325,11 @@ trait Concurrent[F[_]] extends Async[F] {
    * the running computation, being similar in spirit (but not
    * in implementation) to starting a thread.
    */
-  def start[A](fa: F[A]): F[Fiber[F, A]]
+  def start[A](fa: F[A]): F[Fiber[F, A]] =
+    map(racePair(attempt(fa), unit)) {
+      case Right((fiber, _)) => Fiber(rethrow(fiber.join), fiber.cancel)
+      case Left((either, _)) => Fiber(rethrow(pure(either)), unit)
+    }
 
   /**
    * Run two tasks concurrently, creating a race between them and returns a
@@ -484,7 +499,7 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[EitherT[F, L, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k))(F)
 
     def uncancelable[A](fa: EitherT[F, L, A]): EitherT[F, L, A] =
@@ -493,7 +508,7 @@ object Concurrent {
     def onCancelRaiseError[A](fa: EitherT[F, L, A], e: Throwable): EitherT[F, L, A] =
       EitherT(F.onCancelRaiseError(fa.value, e))
 
-    def start[A](fa: EitherT[F, L, A]) =
+    override def start[A](fa: EitherT[F, L, A]) =
       EitherT.liftF(F.start(fa.value).map(fiberT))
 
     def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
@@ -528,10 +543,10 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[OptionT[F, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
       OptionT.liftF(F.cancelable(k))(F)
 
-    def start[A](fa: OptionT[F, A]) =
+    override def start[A](fa: OptionT[F, A]) =
       OptionT.liftF(F.start(fa.value).map(fiberT))
 
     def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
@@ -572,10 +587,10 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[StateT[F, S, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
       StateT.liftF(F.cancelable(k))(F)
 
-    def start[A](fa: StateT[F, S, A]): StateT[F, S, Fiber[A]] =
+    override def start[A](fa: StateT[F, S, A]): StateT[F, S, Fiber[A]] =
       StateT(s => F.start(fa.run(s)).map { fiber => (s, fiberT(fiber)) })
 
     def racePair[A, B](fa: StateT[F, S, A], fb: StateT[F, S, B]): StateT[F, S, Either[(A, Fiber[B]), (Fiber[A], B)]] =
@@ -608,7 +623,7 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[WriterT[F, L, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k))(L, F)
 
     def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
@@ -617,7 +632,7 @@ object Concurrent {
     def onCancelRaiseError[A](fa: WriterT[F, L, A], e: Throwable): WriterT[F, L, A] =
       WriterT(F.onCancelRaiseError(fa.run, e))
 
-    def start[A](fa: WriterT[F, L, A]) =
+    override def start[A](fa: WriterT[F, L, A]) =
       WriterT(F.start(fa.run).map { fiber =>
         (L.empty, fiberT[A](fiber))
       })
