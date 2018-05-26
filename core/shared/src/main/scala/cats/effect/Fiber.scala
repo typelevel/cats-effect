@@ -85,9 +85,9 @@ object Fiber extends FiberInstances {
 private[effect] abstract class FiberInstances {
 
   implicit def fiberApplicative[F[_]](implicit F: Applicative[F]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
-    override def pure[A](x: A): Fiber[F, A] =
+    final override def pure[A](x: A): Fiber[F, A] =
       Fiber(F.pure(x), F.unit)
-    override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
+    final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
       map2(ff, fa)(_(_))
     final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
       Fiber(F.map2(fa.join, fb.join)(f), fa.cancel *> fb.cancel)
