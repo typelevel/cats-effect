@@ -22,8 +22,9 @@ import cats.effect.laws.util.TestContext
 import org.scalacheck.{Arbitrary, Cogen}
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+
 import scala.concurrent.{ExecutionContext, ExecutionException, Future, Promise}
-import scala.util.{Left, Right}
+import scala.util.{Either, Left, Right}
 
 /**
  * Built for testing noncancelable effect data types.
@@ -64,6 +65,13 @@ object LTask {
         LTask { implicit ec =>
           val p = Promise[A]()
           k(r => p.tryComplete(Conversions.toTry(r)))
+          p.future
+        }
+
+      def asyncF[A](k: (Either[Throwable, A] => Unit) => LTask[Unit]): LTask[A] =
+        LTask { implicit ec =>
+          val p = Promise[A]()
+          k(r => p.tryComplete(Conversions.toTry(r))).run(ec)
           p.future
         }
 

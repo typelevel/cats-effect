@@ -21,6 +21,8 @@ package laws
 import cats.implicits._
 import cats.laws._
 
+import scala.util.Either
+
 trait AsyncLaws[F[_]] extends SyncLaws[F] {
   implicit def F: Async[F]
 
@@ -61,9 +63,11 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     fa <-> F.pure(Left(t))
   }
 
-  def neverIsDerivedFromAsync[A] = {
+  def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A]( _ => ())
-  }
+
+  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
+    F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 }
 
 object AsyncLaws {

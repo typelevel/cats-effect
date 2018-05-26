@@ -710,6 +710,8 @@ object IOTests {
 
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       ref.async(k)
+    def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
+      ref.asyncF(k)
     def raiseError[A](e: Throwable): IO[A] =
       ref.raiseError(e)
     def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =

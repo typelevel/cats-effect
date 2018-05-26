@@ -708,6 +708,8 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.async(cb => k(cb).unsafeRunAsync(Callback.report))
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def toIO[A](fa: IO[A]): IO[A] =

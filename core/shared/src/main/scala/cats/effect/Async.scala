@@ -98,17 +98,103 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
-   * Creates a simple, noncancelable `F[A]` instance that
+   * Creates a simple, non-cancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
    *
    * The given function is being injected with a side-effectful
    * callback for signaling the final result of an asynchronous
    * process.
    *
+   * This operation could be derived from [[asyncF]], because:
+   *
+   * {{{
+   *   F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
+   * }}}
+   *
+   * As an example of wrapping an impure async API, here's the
+   * implementation of [[Async.shift]]:
+   *
+   * {{{
+   *   def shift[F[_]](ec: ExecutionContext)(implicit F: Async[F]): F[Unit] =
+   *     F.async { cb =>
+   *       // Scheduling an async boundary (logical thread fork)
+   *       ec.execute(new Runnable {
+   *         def run(): Unit = {
+   *           // Signaling successful completion
+   *           cb(Right(()))
+   *         }
+   *       })
+   *     }
+   * }}}
+   *
+   * @see [[asyncF]] for the variant that can suspend side effects
+   *      in the provided registration function.
+   *
    * @param k is a function that should be called with a
    *       callback for signaling the result once it is ready
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
+
+  /**
+   * Creates a simple, non-cancelable `F[A]` instance that
+   * executes an asynchronous process on evaluation.
+   *
+   * The given function is being injected with a side-effectful
+   * callback for signaling the final result of an asynchronous
+   * process. And its returned result needs to be a pure `F[Unit]`
+   * that gets evaluated by the runtime.
+   *
+   * Note the simpler async variant [[async]] can be derived like this:
+   *
+   * {{{
+   *   F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
+   * }}}
+   *
+   * For wrapping impure APIs usually you can use the simpler [[async]],
+   * however `asyncF` is useful in cases where impure APIs are
+   * wrapped with the help of pure abstractions, such as
+   * [[cats.effect.concurrent.Ref Ref]].
+   *
+   * For example here's how a simple, "pure Promise" implementation
+   * could be implemented via `Ref`:
+   *
+   * {{{
+   *   import cats.effect.concurrent.Ref
+   *
+   *   type Callback[-A] = Either[Throwable, A] => Unit
+   *
+   *   class PurePromise[F[_], A](ref: Ref[F, Either[List[Callback[A]], A]])
+   *     (implicit F: Async[F]) {
+   *
+   *     def get: F[A] = F.asyncF { cb =>
+   *       ref.modify {
+   *         case current @ Right(result) =>
+   *           (current, F.delay(cb(Right(result))))
+   *         case Left(list) =>
+   *           (Left(cb :: list), F.unit)
+   *       }
+   *     }
+   *
+   *     def complete(value: A): F[Unit] =
+   *       F.flatten(ref.modify {
+   *         case Left(list) =>
+   *           (Right(value), F.delay(list.foreach(_(Right(value)))))
+   *         case right =>
+   *           (right, F.unit)
+   *       })
+   *   }
+   * }}}
+   *
+   * N.B. this sample is for didactic purposes, you don't need to
+   * define a pure promise, as one is already available, see
+   * [[cats.effect.concurrent.Deferred Deferred]].
+   *
+   * @see [[async]] for the simpler variant.
+   *
+   * @param k is a function that should be called with a
+   *       callback for signaling the result once it is ready
+   */
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => F[Unit]): F[A]
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
@@ -130,23 +216,6 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
     * with a result, being equivalent to `async(_ => ())`
     */
   def never[A]: F[A] = async(_ => ())
-
-  /**
-   * DEPRECATED — moved to [[Async$.shift]].
-   *
-   * The reason for the deprecation is that there's no potential
-   * for optimisations in implementing instances, so this operation
-   * can be a simple utility.
-   *
-   * It's also a lawless operation that might be better served
-   * with a concrete, non-polymorphic implementation.
-   */
-  @deprecated("Moved to Async$.shift, will be removed in 1.0", "0.10")
-  private[effect] def shift(ec: ExecutionContext): F[Unit] = {
-    // $COVERAGE-OFF$
-    Async.shift(ec)(this)
-    // $COVERAGE-ON$
-  }
 }
 
 object Async {
@@ -233,7 +302,10 @@ object Async {
     override implicit protected def F: Async[F]
     protected def FF = F
 
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => EitherT[F, L, Unit]): EitherT[F, L, A] =
+      EitherT.liftF(F.asyncF(cb => F.as(k(cb).value, ())))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftF(F.async(k))
   }
 
@@ -244,7 +316,10 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FF = F
 
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => OptionT[F, Unit]): OptionT[F, A] =
+      OptionT.liftF(F.asyncF(cb => F.as(k(cb).value, ())))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
       OptionT.liftF(F.async(k))
   }
 
@@ -255,7 +330,10 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FA = F
 
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => StateT[F, S, Unit]): StateT[F, S, A] =
+      StateT(s => F.map(F.asyncF[A](cb => k(cb).runA(s)))(a => (s, a)))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
       StateT.liftF(F.async(k))
   }
 
@@ -266,7 +344,10 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FA = F
 
-    def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => WriterT[F, L, Unit]): WriterT[F, L, A] =
+      WriterT.liftF(F.asyncF(cb => F.as(k(cb).run, ())))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
       WriterT.liftF(F.async(k))(L, FA)
   }
 
@@ -275,6 +356,9 @@ object Async {
     with Async[Kleisli[F, R, ?]] {
 
     override protected implicit def F: Async[F]
+
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+      Kleisli(a => F.asyncF(cb => k(cb).run(a)))
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
       Kleisli.liftF(F.async(k))
