@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect
+package implicits
 
-package object implicits extends AllSyntax
+trait AllSyntax
+  extends ConcurrentEffect.ToConcurrentEffectOps
+  with Effect.ToEffectOps
+  with Concurrent.ToConcurrentOps
+  with Async.ToAsyncOps
+  with LiftIO.ToLiftIOOps
 
