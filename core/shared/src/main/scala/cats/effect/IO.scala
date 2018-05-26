@@ -709,7 +709,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
     final override def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-      IO.async(cb => k(cb).unsafeRunAsync(Callback.report))
+      IO.asyncF(k)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def toIO[A](fa: IO[A]): IO[A] =
@@ -971,6 +971,8 @@ object IO extends IOInstances {
    * This function can be thought of as a safer, lexically-constrained
    * version of `Promise`, where `IO` is like a safer, lazy version of
    * `Future`.
+   *
+   * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     Async { (_, cb) =>
@@ -978,6 +980,21 @@ object IO extends IOInstances {
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
   }
+
+  /**
+   * Suspends an asynchronous side effect in `IO`, this being a variant
+   * of [[async]] that takes a pure registration function.
+   *
+   * Implements [[cats.effect.Async.asyncF Async.asyncF]].
+   *
+   * @see [[async]] and [[cancelable]]
+   */
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    Async { (conn, cb) =>
+      val cb2 = Callback.asyncIdempotent(null, cb)
+      val fa = try k(cb2) catch { case NonFatal(t) => IO(cb2(Left(t))) }
+      IORunLoop.startCancelable(fa, conn, Callback.report)
+    }
 
   /**
    * Builds a cancelable `IO`.

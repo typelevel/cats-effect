@@ -62,6 +62,20 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.pure(a)
   }
 
+  def asyncFRegisterCanBeCancelled[A](a: A) = {
+    val lh =  for {
+      promise <- Deferred[F, A]
+      task = F.asyncF[Unit] { _ =>
+        F.bracket(F.unit)(_ => F.never[Unit])(_ => promise.complete(a))
+      }
+      fiber <- F.start(task)
+      _ <- fiber.cancel
+      a <- promise.get
+    } yield a
+
+    lh <-> F.pure(a)
+  }
+
   def startJoinIsIdentity[A](fa: F[A]) =
     F.start(fa).flatMap(_.join) <-> fa
 
