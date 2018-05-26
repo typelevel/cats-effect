@@ -32,7 +32,7 @@ class FiberTests extends BaseTestsSuite {
   checkAllAsync("Fiber[IO, ?]",
     implicit ec => ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int])
 
-  testAsync("Applicative[Fiber[IO, ?].map2 triggers both cancelation tokens") { implicit ec =>
+  testAsync("Applicative[Fiber[IO, ?].map2 preserves both cancelation tokens") { implicit ec =>
     var canceled = 0
 
     val io1 = IO.cancelable[Int](_ => IO { canceled += 1 })
