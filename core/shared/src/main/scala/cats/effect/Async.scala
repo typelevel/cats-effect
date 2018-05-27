@@ -156,7 +156,9 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    * [[cats.effect.concurrent.Ref Ref]].
    *
    * For example here's how a simple, "pure Promise" implementation
-   * could be implemented via `Ref`:
+   * could be implemented via `Ref` (sample is for didactic purposes,
+   * as you have a far better
+   * [[cats.effect.concurrent.Deferred Deferred]] available):
    *
    * {{{
    *   import cats.effect.concurrent.Ref
@@ -185,9 +187,40 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
    *   }
    * }}}
    *
-   * N.B. this sample is for didactic purposes, you don't need to
-   * define a pure promise, as one is already available, see
-   * [[cats.effect.concurrent.Deferred Deferred]].
+   * N.B. if `F[_]` is a cancelable data type (i.e. implementing
+   * [[Concurrent]]), then the returned `F[Unit]` can be cancelable,
+   * its evaluation hooking into the underlying cancelation mechanism
+   * of `F[_]`, so something like this behaves like you'd expect:
+   *
+   * {{{
+   *   def delayed[F[_], A](thunk: => A)
+   *     (implicit F: Async[F], timer: Timer[F]): F[A] = {
+   *
+   *     timer.sleep(1.second) *> F.delay(cb(
+   *       try cb(Right(thunk))
+   *       catch { case NonFatal(e) => Left(cb(Left(e))) }
+   *     ))
+   *   }
+   * }}}
+   *
+   * The `asyncF` operation behaves like [[Sync.suspend]], except
+   * that the result has to be signaled via the provided callback.
+   *
+   * ==ERROR HANDLING==
+   *
+   * As a matter of contract the returned `F[Unit]` should not
+   * throw errors. If it does, then the behavior is undefined.
+   *
+   * This is because by contract the provided callback should
+   * only be called once. Calling it concurrently, multiple times,
+   * is a contract violation. And if the returned `F[Unit]` throws,
+   * then the implementation might have called it already, so it
+   * would be a contract violation to call it without expensive
+   * synchronization.
+   *
+   * In case errors are thrown the behavior is implementation specific.
+   * The error might get logged to stderr, or via other mechanisms
+   * that are implementations specific.
    *
    * @see [[async]] for the simpler variant.
    *

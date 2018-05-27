@@ -987,6 +987,22 @@ object IO extends IOInstances {
    *
    * Implements [[cats.effect.Async.asyncF Async.asyncF]].
    *
+   * The difference versus [[async]] is that this variant can suspend
+   * side-effects via the provided function parameter. It's more relevant
+   * in polymorphic code making use of the [[cats.effect.Async Async]]
+   * type class, as it alleviates the need for [[Effect]].
+   *
+   * Contract for the returned `IO[Unit]` in the provided function:
+   *
+   *  - can be asynchronous
+   *  - can be cancelable, in which case it hooks into IO's cancelation
+   *    mechanism such that the resulting task is cancelable
+   *  - it should not end in error, because the provided callback
+   *    is the only way to signal the final result and it can only
+   *    be called once, so invoking it twice would be a contract
+   *    violation; so on errors thrown in `IO`, the task can become
+   *    non-terminating, with the error being printed to stderr
+   *
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =

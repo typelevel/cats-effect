@@ -130,18 +130,19 @@ private[effect] object Callback {
   private final class AsyncIdempotentCallback[-A](
     conn: IOConnection,
     cb: Either[Throwable, A] => Unit)
-    extends (Either[Throwable, A] => Unit) {
+    extends (Either[Throwable, A] => Unit)
+    with Runnable {
 
     private[this] val canCall = new AtomicBoolean(true)
+    private[this] var value: Either[Throwable, A] = _
+
+    def run() = cb(value)
 
     def apply(value: Either[Throwable, A]): Unit = {
       if (canCall.getAndSet(false)) {
-        immediate.execute(new Runnable {
-          def run(): Unit = {
-            if (conn ne null) conn.pop()
-            cb(value)
-          }
-        })
+        if (conn ne null) conn.pop()
+        this.value = value
+        immediate.execute(this)
       } else value match {
         case Right(_) => ()
         case Left(e) =>
