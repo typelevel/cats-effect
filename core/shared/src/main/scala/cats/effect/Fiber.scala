@@ -16,8 +16,10 @@
 
 package cats.effect
 
-import cats.Applicative
-import cats.syntax.apply._
+import cats.syntax.all._
+import cats.{Applicative, ApplicativeError, Apply, Monoid, Semigroup}
+
+import scala.util.control.NonFatal
 
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
@@ -82,15 +84,15 @@ object Fiber extends FiberInstances {
     extends Fiber[F, A]
 }
 
-private[effect] abstract class FiberInstances {
+private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
 
-  implicit def fiberApplicative[F[_]](implicit F: Applicative[F]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
+  implicit def fiberApplicative[F[_]](implicit F: ApplicativeError[F, Throwable]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
     final override def pure[A](x: A): Fiber[F, A] =
       Fiber(F.pure(x), F.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
       map2(ff, fa)(_(_))
     final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
-      Fiber(F.map2(fa.join, fb.join)(f), fa.cancel *> fb.cancel)
+      Fiber(F.map2(fa.join.onError({case NonFatal(_) => fb.cancel}), fb.join.onError({case NonFatal(_) => fa.cancel}))(f), fa.cancel *> fb.cancel)
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
       map2(fa, fb)((_, _))
     final override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] =
@@ -98,4 +100,12 @@ private[effect] abstract class FiberInstances {
     final override def unit: Fiber[F, Unit] =
       Fiber(F.unit, F.unit)
   }
+
+  implicit def fiberMonoid[F[_], A: Monoid](implicit F: ApplicativeError[F, Throwable]): Monoid[Fiber[F, A]] =
+    Applicative.monoid[Fiber[F, ?], A]
+}
+
+private[effect] abstract class FiberLowPriorityInstances {
+  implicit def fiberSemigroup[F[_], A: Semigroup](implicit F: ApplicativeError[F, Throwable]): Semigroup[Fiber[F, A]] =
+    Apply.semigroup[Fiber[F, ?], A]
 }
