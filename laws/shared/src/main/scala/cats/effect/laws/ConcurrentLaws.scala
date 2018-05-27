@@ -24,7 +24,7 @@ import scala.Predef.{identity => id}
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
-  implicit val ioTimer: Timer[IO]
+  implicit val timer: Timer[F]
 
   def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
     val received = for {
@@ -55,7 +55,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def asyncCancelableReceivesCancelSignal[A](a: A) = {
-    val lh = F.liftIO(Deferred[IO, A]).flatMap { effect =>
+    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { effect =>
       val async = F.cancelable[Unit](_ => effect.complete(a))
       F.start(async).flatMap(_.cancel) *> F.liftIO(effect.get)
     }
@@ -82,7 +82,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def uncancelablePreventsCancelation[A](a: A) = {
-    val lh = F.liftIO(Deferred[IO, A]).flatMap { p =>
+    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { p =>
       val async = F.cancelable[Unit](_ => p.complete(a))
       F.start(F.uncancelable(async)).flatMap(_.cancel) *> F.liftIO(p.get)
     }
@@ -97,7 +97,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         task = F.bracket(mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
         _     <- fiber.cancel
-        _     <- F.liftIO(ioTimer.shift)
+        _     <- timer.shift
         _     <- mVar.take
         out   <- mVar.take
       } yield out
@@ -112,7 +112,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         task = F.bracket(F.unit)(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
         _     <- fiber.cancel
-        _     <- F.liftIO(ioTimer.shift)
+        _     <- timer.shift
         _     <- mVar.take
         out   <- mVar.take
       } yield out
@@ -137,7 +137,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def onCancelRaiseErrorCanCancelSource[A](a: A, e: Throwable) = {
-    val lh = F.liftIO(Deferred[IO, A]).flatMap { effect =>
+    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { effect =>
       val async = F.cancelable[Unit](_ => effect.complete(a))
       F.start(F.onCancelRaiseError(async, e))
         .flatMap(_.cancel) *> F.liftIO(effect.get)
@@ -163,7 +163,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received = F.liftIO(Deferred[IO, B]).flatMap { effect =>
+    val received = F.liftIO(Deferred.uncancelable[IO, B]).flatMap { effect =>
       val winner = F.async[A](_(r))
       val loser = F.cancelable[A](_ => effect.complete(b))
       val race =
@@ -177,9 +177,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      pa <- F.liftIO(Deferred[IO, A])
+      pa <- F.liftIO(Deferred.uncancelable[IO, A])
       loserA = F.cancelable[A](_ => pa.complete(a))
-      pb <- F.liftIO(Deferred[IO, B])
+      pb <- F.liftIO(Deferred.uncancelable[IO, B])
       loserB = F.cancelable[B](_ => pb.complete(b))
       race <- F.start(F.race(loserA, loserB))
       _ <- race.cancel
@@ -215,7 +215,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
-    val received: F[B] = F.liftIO(Deferred[IO, B]).flatMap { effect =>
+    val received: F[B] = F.liftIO(Deferred.uncancelable[IO, B]).flatMap { effect =>
       val winner = F.async[A](_(r))
       val loser = F.cancelable[A](_ => effect.complete(b))
       val race =
@@ -259,9 +259,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      pa <- F.liftIO(Deferred[IO, A])
+      pa <- F.liftIO(Deferred.uncancelable[IO, A])
       loserA = F.cancelable[A](_ => pa.complete(a))
-      pb <- F.liftIO(Deferred[IO, B])
+      pb <- F.liftIO(Deferred.uncancelable[IO, B])
       loserB = F.cancelable[B](_ => pb.complete(b))
       race <- F.start(F.racePair(loserA, loserB))
       _ <- race.cancel
@@ -274,8 +274,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 }
 
 object ConcurrentLaws {
-  def apply[F[_]](implicit F0: Concurrent[F], ioTimer0: Timer[IO]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
+  def apply[F[_]](implicit F0: Concurrent[F], timer0: Timer[F]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
     val F = F0
-    val ioTimer = ioTimer0
+    val timer = timer0
   }
 }
