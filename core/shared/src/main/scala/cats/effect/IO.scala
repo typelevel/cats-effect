@@ -1225,6 +1225,11 @@ object IO extends IOInstances {
   private[effect] final case class Async[+A](
     k: (IOConnection, Either[Throwable, A] => Unit) => Unit)
     extends IO[A]
+  private[effect] final case class ContextSwitch[A](
+    source: IO[A],
+    modify: IOConnection => IOConnection,
+    restore: (A, Throwable, IOConnection, IOConnection) => IOConnection)
+    extends IO[A]
 
   /** State for representing `map` ops that itself is a function in
    * order to avoid extraneous memory allocations when building the

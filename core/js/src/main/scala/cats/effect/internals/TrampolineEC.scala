@@ -16,9 +16,7 @@
 
 package cats.effect.internals
 
-import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
-import scala.util.control.NonFatal
 
 /** INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
   * that executes runnables immediately, on the current thread,
@@ -34,61 +32,12 @@ import scala.util.control.NonFatal
 private[effect] final class TrampolineEC private (underlying: ExecutionContext)
   extends ExecutionContext {
 
-  // Starts with `null`!
-  private[this] var localTasks: List[Runnable] = _
+  private[this] val trampoline = new Trampoline(underlying)
 
   override def execute(runnable: Runnable): Unit =
-    localTasks match {
-      case null =>
-        // If we aren't in local mode yet, start local loop
-        localTasks = Nil
-        localRunLoop(runnable)
-      case some =>
-        // If we are already in batching mode, add to stack
-        localTasks = runnable :: some
-    }
-
-
-  @tailrec private def localRunLoop(head: Runnable): Unit = {
-    try { head.run() } catch {
-      case NonFatal(ex) =>
-        // Sending everything else to the underlying context
-        forkTheRest(null)
-        reportFailure(ex)
-    }
-
-    localTasks match {
-      case null => ()
-      case Nil =>
-        localTasks = null
-      case h2 :: t2 =>
-        localTasks = t2
-        localRunLoop(h2)
-    }
-  }
-
-  private def forkTheRest(newLocalTasks: Nil.type): Unit = {
-    val rest = localTasks
-    localTasks = newLocalTasks
-
-    rest match {
-      case null | Nil => ()
-      case head :: tail =>
-        underlying.execute(new ResumeRun(head, tail))
-    }
-  }
-
+    trampoline.execute(runnable)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
-
-  private final class ResumeRun(head: Runnable, rest: List[Runnable])
-    extends Runnable {
-
-    def run(): Unit = {
-      localTasks = rest
-      localRunLoop(head)
-    }
-  }
 }
 
 private[effect] object TrampolineEC {
