@@ -93,13 +93,13 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def acquireIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- F.liftIO(MVar[IO].of(a1))
-        task = F.bracket(F.liftIO(mVar.put(a2)))(_ => F.never[A])(_ => F.unit)
+        mVar <- MVar[F].of(a1)
+        task = F.bracket(mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
         _     <- fiber.cancel
         _     <- F.liftIO(ioTimer.shift)
-        _     <- F.liftIO(mVar.take)
-        out   <- F.liftIO(mVar.take)
+        _     <- mVar.take
+        out   <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
@@ -108,13 +108,13 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def releaseIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- F.liftIO(MVar[IO].of(a1))
-        task = F.bracket(F.unit)(_ => F.never[A])(_ => F.liftIO(mVar.put(a2)))
+        mVar <- MVar[F].of(a1)
+        task = F.bracket(F.unit)(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
         _     <- fiber.cancel
         _     <- F.liftIO(ioTimer.shift)
-        _     <- F.liftIO(mVar.take)
-        out   <- F.liftIO(mVar.take)
+        _     <- mVar.take
+        out   <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
