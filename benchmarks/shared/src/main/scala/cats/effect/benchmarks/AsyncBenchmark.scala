@@ -21,7 +21,8 @@ import cats.implicits._
 import org.openjdk.jmh.annotations._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-/** To do comparative benchmarks between versions:
+/**
+ * To do comparative benchmarks between versions:
  *
  *     benchmarks/run-benchmark AsyncBenchmark
  *

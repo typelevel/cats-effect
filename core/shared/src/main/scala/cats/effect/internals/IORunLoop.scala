@@ -339,8 +339,11 @@ private[effect] object IORunLoop {
     }
 
     override def run(): Unit = {
-      signal(value)
+      // N.B. this has to be set to null *before* the signal
+      // otherwise a race condition can happen ;-)
+      val v = value
       value = null
+      signal(v)
     }
 
     def apply(either: Either[Throwable, Any]): Unit =
