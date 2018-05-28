@@ -121,8 +121,8 @@ private[effect] object IOParMap {
       // NOTE: conn.pop() happens when cb gets called!
       conn.pushPair(connA, connB)
 
-      IORunLoop.startCancelable(IOForkedStart(fa)(timer), connA, callbackA(connB))
-      IORunLoop.startCancelable(IOForkedStart(fb)(timer), connB, callbackB(connA))
+      IORunLoop.startCancelable(IOForkedStart(fa, timer), connA, callbackA(connB))
+      IORunLoop.startCancelable(IOForkedStart(fb, timer), connB, callbackB(connA))
     }
   }
 }

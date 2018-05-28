@@ -762,6 +762,23 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(1))
   }
 
+  testAsync("racePair avoids extraneous async boundaries") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.racePair(IO.shift *> IO(1), IO.shift *> IO(1))
+      .flatMap {
+        case Left((l, fiber)) => fiber.join.map(_ + l)
+        case Right((fiber, r)) => fiber.join.map(_ + r)
+      }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
   testAsync("race should be stack safe, take 1") { implicit ec =>
     implicit val timer = ec.timer[IO]
 
@@ -819,6 +836,38 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(1))
   }
 
+  testAsync("race forks execution") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.race(IO(1), IO(1))
+      .map { case Left(l) => l; case Right(r) => r }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+
+    ec.state.tasks.isEmpty shouldBe false
+    ec.tickOne()
+    ec.state.tasks.isEmpty shouldBe true
+  }
+
+  testAsync("race avoids extraneous async boundaries") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.race(IO.shift *> IO(1), IO.shift *> IO(1))
+      .map { case Left(l) => l; case Right(r) => r }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+
+    ec.state.tasks.isEmpty shouldBe false
+    ec.tickOne()
+    ec.state.tasks.isEmpty shouldBe true
+  }
+
   testAsync("parMap2 should be stack safe") { ec =>
     implicit val timer = ec.timer[IO]
 
@@ -850,8 +899,51 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe None
   }
 
-  testAsync("parMap2 avoids extraneous forks") { implicit ec =>
+  testAsync("parMap2 forks execution") { ec =>
+    implicit val timer = ec.timer[IO]
 
+    val f = (IO(1), IO(1)).parMapN(_ + _).unsafeToFuture()
+    f.value shouldBe None
+
+    // Should take 2 async boundaries to complete
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
+  testAsync("parMap2 avoids extraneous async boundaries") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = (IO.shift *> IO(1), IO.shift *> IO(1))
+      .parMapN(_ + _)
+      .unsafeToFuture()
+
+    f.value shouldBe None
+
+    // Should take 2 async boundaries to complete
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
+  testAsync("start forks automatically") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO(1).start.flatMap(_.join).unsafeToFuture()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("start avoids async boundaries") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = (IO.shift *> IO(1)).start.flatMap(_.join).unsafeToFuture()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
   }
 }
 

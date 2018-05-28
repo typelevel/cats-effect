@@ -17,8 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.{Fiber, IO, Timer}
-import cats.effect.internals.TrampolineEC.immediate
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.concurrent.Promise
 
 private[effect] object IOStart {
   /**
@@ -26,15 +25,13 @@ private[effect] object IOStart {
    */
   def apply[A](timer: Timer[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
     val start: Start[Fiber[IO, A]] = (_, cb) => {
-      implicit val ec: ExecutionContext = immediate
-
       // Memoization
       val p = Promise[Either[Throwable, A]]()
 
       // Starting the source `IO`, with a new connection, because its
       // cancellation is now decoupled from our current one
       val conn2 = IOConnection()
-      IORunLoop.startCancelable(IOForkedStart(fa), conn2, p.success)
+      IORunLoop.startCancelable(IOForkedStart(fa, timer), conn2, p.success)
 
       // Building a memoized IO - note we cannot use `IO.fromFuture`
       // because we need to link this `IO`'s cancellation with that

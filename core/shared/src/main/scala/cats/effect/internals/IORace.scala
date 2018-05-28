@@ -72,7 +72,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh)(timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
         case Right(a) =>
           onSuccess(active, conn, connR, cb, Left(a))
         case Left(err) =>
@@ -80,7 +80,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh)(timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
         case Right(b) =>
           onSuccess(active, conn, connL, cb, Right(b))
         case Left(err) =>
@@ -111,7 +111,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh)(timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
         case Right(a) =>
           if (active.getAndSet(false)) {
             conn.pop()
@@ -131,7 +131,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh)(timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
         case Right(b) =>
           if (active.getAndSet(false)) {
             conn.pop()
