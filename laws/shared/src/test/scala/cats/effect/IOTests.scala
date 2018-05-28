@@ -849,6 +849,10 @@ class IOTests extends BaseTestsSuite {
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
     f.value shouldBe None
   }
+
+  testAsync("parMap2 avoids extraneous forks") { implicit ec =>
+
+  }
 }
 
 object IOTests {
