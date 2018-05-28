@@ -1082,7 +1082,7 @@ object IO extends IOInstances {
    *        thread-pool used to trigger this async boundary
    */
   def shift(ec: ExecutionContext): IO[Unit] =
-    IO.timer(ec).shift
+    IOShift(ec)
 
   /**
    * Creates an asynchronous task that on evaluation sleeps for the

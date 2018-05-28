@@ -18,6 +18,10 @@ package cats.effect
 package internals
 
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
+
+import cats.effect.internals.Callback.T
+import cats.effect.internals.IOShift.Tick
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
 
@@ -42,20 +46,17 @@ private[internals] final class IOTimer private (
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit = {
+      def apply(conn: IOConnection, cb: T[Unit]): Unit = {
+        // Doing what IO.cancelable does
         val ref = ForwardCancelable()
         conn.push(ref)
-
-        val f = sc.schedule(new ShiftTick(cb, ec), timespan.length, timespan.unit)
+        val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
         ref := (() => f.cancel(false))
       }
     })
 
   override def shift: IO[Unit] =
-    IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
-        ec.execute(new Tick(cb))
-    })
+    IOShift(ec)
 }
 
 private[internals] object IOTimer {
@@ -78,20 +79,19 @@ private[internals] object IOTimer {
     })
 
   private final class ShiftTick(
-    cb: Either[Throwable, Unit] => Unit, ec: ExecutionContext)
+    conn: IOConnection,
+    cb: Either[Throwable, Unit] => Unit,
+    ec: ExecutionContext)
     extends Runnable {
+
     def run() = {
       // Shifts actual execution on our `ExecutionContext`, because
       // the scheduler is in charge only of ticks and the execution
       // needs to shift because the tick might continue with whatever
       // bind continuation is linked to it, keeping the current thread
       // occupied
+      conn.pop()
       ec.execute(new Tick(cb))
     }
-  }
-
-  private final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
-    def run() = cb(Callback.rightUnit)
   }
 }
