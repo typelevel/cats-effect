@@ -69,8 +69,12 @@ class AsyncBenchmark {
   @Benchmark
   def parMap2() = {
     def loop(i: Int): IO[Int] =
-      if (i < size) (IO(i + 1), IO(i)).parMapN((i, _) => i).flatMap(loop)
-      else IO.pure(i)
+      if (i < size)
+        (IO.shift *> IO(i + 1), IO.shift *> IO(i))
+          .parMapN((i, _) => i)
+          .flatMap(loop)
+      else
+        IO.pure(i)
 
     IO(0).flatMap(loop).unsafeRunSync()
   }
@@ -78,13 +82,42 @@ class AsyncBenchmark {
   @Benchmark
   def race() = {
     def loop(i: Int): IO[Int] =
-      if (i < size) IO.race(IO(i + 1), IO(i + 1)).flatMap {
-        case Left(i) => loop(i)
-        case Right(i) => loop(i)
-      }
+      if (i < size)
+        IO.race(IO.shift *> IO(i + 1), IO.shift *> IO(i + 1)).flatMap {
+          case Left(i) => loop(i)
+          case Right(i) => loop(i)
+        }
       else {
         IO.pure(i)
       }
+
+    IO(0).flatMap(loop).unsafeRunSync()
+  }
+
+  @Benchmark
+  def racePair() = {
+    def loop(i: Int): IO[Int] =
+      if (i < size)
+        IO.racePair(IO.shift *> IO(i + 1), IO.shift *> IO(i + 1)).flatMap {
+          case Left((i, fiber)) =>
+            fiber.cancel.flatMap(_ => loop(i))
+          case Right((fiber, i)) =>
+            fiber.cancel.flatMap(_ => loop(i))
+        }
+      else {
+        IO.pure(i)
+      }
+
+    IO(0).flatMap(loop).unsafeRunSync()
+  }
+
+  @Benchmark
+  def start() = {
+    def loop(i: Int): IO[Int] =
+      if (i < size)
+        (IO.shift *> IO(i)).start.flatMap(_.join).flatMap(loop)
+      else
+        IO.pure(i)
 
     IO(0).flatMap(loop).unsafeRunSync()
   }

@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext
 import scala.util.Left
 
 private[effect] object IOCancel {
-  import Callback.{rightUnit, Type => Callback}
+  import Callback.rightUnit
 
   /** Implementation for `IO.cancel`. */
   def signal[A](fa: IO[A]): IO[Unit] =
@@ -65,8 +65,8 @@ private[effect] object IOCancel {
   private final class RaiseCallback[A](
     active: AtomicBoolean,
     conn: IOConnection,
-    cb: Callback[A])
-    extends Callback[A] with Runnable {
+    cb: Callback.T[A])
+    extends Callback.T[A] with Runnable {
 
     private[this] var value: Either[Throwable, A] = _
 

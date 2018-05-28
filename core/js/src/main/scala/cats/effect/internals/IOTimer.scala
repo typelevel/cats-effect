@@ -40,13 +40,19 @@ private[internals] class IOTimer extends Timer[IO] {
     IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
-    IO.cancelable { cb =>
-      val task = setTimeout(timespan.toMillis, new Tick(cb))
-      IO(clearTimeout(task))
-    }
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Either[Throwable, Unit] => Unit): Unit = {
+        val task = setTimeout(timespan.toMillis, new Tick(conn, cb))
+        conn.push(() => clearTimeout(task))
+      }
+    })
 
   final def shift: IO[Unit] =
-    IO.async(cb => execute(new Tick(cb)))
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit = {
+        execute(new Tick(null, cb))
+      }
+    })
 
   protected def execute(r: Runnable): Unit = {
     setImmediateRef(() =>
@@ -74,11 +80,6 @@ private[internals] object IOTimer {
         ec.execute(r)
     }
 
-  private final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
-    def run() = cb(Callback.rightUnit)
-  }
-
   private def setTimeout(delayMillis: Long, r: Runnable): js.Dynamic = {
     val lambda: js.Function = () =>
       try { r.run() }
@@ -97,5 +98,16 @@ private[internals] object IOTimer {
       js.Dynamic.global.setImmediate
     else
       js.Dynamic.global.setTimeout
+  }
+
+  private final class Tick(
+    conn: IOConnection,
+    cb: Either[Throwable, Unit] => Unit)
+    extends Runnable {
+
+    def run() = {
+      if (conn ne null) conn.pop()
+      cb(Callback.rightUnit)
+    }
   }
 }

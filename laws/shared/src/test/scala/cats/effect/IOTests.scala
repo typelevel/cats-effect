@@ -703,6 +703,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair should be stack safe, take 1") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
     val init = IO.never : IO[Int]
@@ -718,6 +720,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair should be stack safe, take 2") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
     val init = IO.never : IO[Int]
@@ -733,6 +737,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val p = Promise[Int]()
 
@@ -757,6 +763,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race should be stack safe, take 1") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
     val init = IO.never : IO[Int]
@@ -772,6 +780,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race should be stack safe, take 2") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
     val init = IO.never : IO[Int]
@@ -787,6 +797,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val p = Promise[Int]()
 
@@ -807,9 +819,22 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(1))
   }
 
-  testAsync("parMap2 has a stack safe cancelable") { implicit ec =>
-    val count = if (IOPlatform.isJVM) 10000 else 1000
+  testAsync("parMap2 should be stack safe") { ec =>
+    implicit val timer = ec.timer[IO]
 
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO(1))
+
+    val sum = tasks.foldLeft(IO(0))((acc, t) => (acc, t).parMapN(_ + _))
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(count))
+  }
+
+  testAsync("parMap2 has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 10000 else 1000
     val tasks = (0 until count).map(_ => IO.never: IO[Int])
     val all = tasks.foldLeft(IO.pure(0))((acc, t) => (acc, t).parMapN(_ + _))
 

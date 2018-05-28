@@ -16,7 +16,6 @@
 
 package cats.effect.internals
 
-import cats.syntax.apply._
 import cats.effect.{Fiber, IO, Timer}
 import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.{ExecutionContext, Promise}
@@ -25,27 +24,25 @@ private[effect] object IOStart {
   /**
    * Implementation for `IO.start`.
    */
-  def apply[A](timer: Timer[IO], fa: IO[A]): IO[Fiber[IO, A]] =
-    IO.Async { (_, cb) =>
+  def apply[A](timer: Timer[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
+    val start: Start[Fiber[IO, A]] = (_, cb) => {
       implicit val ec: ExecutionContext = immediate
-      // Light async boundary
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          // Memoization
-          val p = Promise[Either[Throwable, A]]()
 
-          // Starting the source `IO`, with a new connection, because its
-          // cancellation is now decoupled from our current one
-          val conn2 = IOConnection()
-          IORunLoop.startCancelable(timer.shift *> fa, conn2, p.success)
+      // Memoization
+      val p = Promise[Either[Throwable, A]]()
 
-          // Building a memoized IO - note we cannot use `IO.fromFuture`
-          // because we need to link this `IO`'s cancellation with that
-          // of the executing task
-          val fiber = IOFiber.build(p, conn2)
-          // Signal the newly created fiber
-          cb(Right(fiber))
-        }
-      })
+      // Starting the source `IO`, with a new connection, because its
+      // cancellation is now decoupled from our current one
+      val conn2 = IOConnection()
+      IORunLoop.startCancelable(IOForkedStart(fa), conn2, p.success)
+
+      // Building a memoized IO - note we cannot use `IO.fromFuture`
+      // because we need to link this `IO`'s cancellation with that
+      // of the executing task
+      val fiber = IOFiber.build(p, conn2)
+      // Signal the newly created fiber
+      cb(Right(fiber))
     }
+    IO.Async(start, trampolineAfter = true)
+  }
 }

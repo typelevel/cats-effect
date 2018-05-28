@@ -138,20 +138,7 @@ val commonSettings = Seq(
 )
 
 val mimaSettings = Seq(
-  // Setting the previous artifact manually at 0.9
-  // as a temporary measure until we release 0.10
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "1.0.0-RC1"),
-  /*
-  mimaPreviousArtifacts := {
-    val TagBase = """^(\d+)\.(\d+).*"""r
-    val TagBase(major, minor) = BaseVersion
-
-    val tags = "git tag --list".!! split "\n" map { _.trim }
-    val versions =
-      tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
-
-    versions.map { v => organization.value %% name.value % v }.toSet
-  },*/
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
@@ -234,7 +221,17 @@ val mimaSettings = Seq(
       // Adding #236: adding Bracket instance for Kleisli
       exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync")
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync"),
+      // PR #250: optimisations
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.prepare"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension0"),
+      exclude[MissingClassProblem]("cats.effect.internals.TrampolineEC$ResumeRun"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async")
     )
   })
 

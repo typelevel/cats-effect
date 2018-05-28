@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import org.scalatest.{FunSuite, Matchers}
-import cats.effect.internals.Callback.{Type => Callback, Extensions}
+import cats.effect.internals.Callback.{T => Callback, Extensions}
 import cats.effect.internals.Cancelable.{Type => Cancelable}
 
 class CallbackTests extends FunSuite with Matchers with TestUtils {

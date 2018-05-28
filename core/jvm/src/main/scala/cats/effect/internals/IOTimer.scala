@@ -18,7 +18,6 @@ package cats.effect
 package internals
 
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
 
@@ -42,13 +41,21 @@ private[internals] final class IOTimer private (
     IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
-    IO.cancelable { cb =>
-      val f = sc.schedule(new ShiftTick(cb, ec), timespan.length, timespan.unit)
-      IO(f.cancel(false))
-    }
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit = {
+        val ref = ForwardCancelable()
+        conn.push(ref)
+
+        val f = sc.schedule(new ShiftTick(cb, ec), timespan.length, timespan.unit)
+        ref := (() => f.cancel(false))
+      }
+    })
 
   override def shift: IO[Unit] =
-    IO.async(cb => ec.execute(new Tick(cb)))
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+        ec.execute(new Tick(cb))
+    })
 }
 
 private[internals] object IOTimer {

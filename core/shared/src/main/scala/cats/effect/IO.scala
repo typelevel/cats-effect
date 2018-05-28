@@ -1081,13 +1081,8 @@ object IO extends IOInstances {
    * @param ec is the Scala `ExecutionContext` that's managing the
    *        thread-pool used to trigger this async boundary
    */
-  def shift(ec: ExecutionContext): IO[Unit] = {
-    IO.Async { (_, cb: Either[Throwable, Unit] => Unit) =>
-      ec.execute(new Runnable {
-        def run() = cb(Callback.rightUnit)
-      })
-    }
-  }
+  def shift(ec: ExecutionContext): IO[Unit] =
+    IO.timer(ec).shift
 
   /**
    * Creates an asynchronous task that on evaluation sleeps for the

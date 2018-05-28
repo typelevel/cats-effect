@@ -20,7 +20,6 @@ package internals
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Promise
 import cats.syntax.apply._
-import cats.effect.internals.Callback.{Type => Callback}
 
 private[effect] object IORace {
   /**
@@ -34,7 +33,7 @@ private[effect] object IORace {
       isActive: AtomicBoolean,
       main: IOConnection,
       other: IOConnection,
-      cb: Callback[Either[T, U]],
+      cb: Callback.T[Either[T, U]],
       r: Either[T, U]): Unit = {
 
       if (isActive.getAndSet(false)) {
@@ -48,7 +47,7 @@ private[effect] object IORace {
 
     def onError[T](
       active: AtomicBoolean,
-      cb: Callback.Type[T],
+      cb: Callback.T[T],
       main: IOConnection,
       other: IOConnection,
       err: Throwable): Unit = {
@@ -74,7 +73,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](timer.shift *> lh, connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh)(timer), connL, {
         case Right(a) =>
           onSuccess(active, conn, connR, cb, Left(a))
         case Left(err) =>
@@ -82,7 +81,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](timer.shift *> rh, connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh)(timer), connR, {
         case Right(b) =>
           onSuccess(active, conn, connL, cb, Right(b))
         case Left(err) =>

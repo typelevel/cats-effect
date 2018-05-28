@@ -17,7 +17,9 @@
 package cats.effect
 
 package object internals {
-  /** Alias for the registration functions of [[IO.Async]]. */
+  /**
+   * Handy alias for the registration functions of [[IO.Async]].
+   */
   private[effect] type Start[+A] =
-    (IOConnection, Either[Throwable, A]  => Unit) => Unit
+    (IOConnection, Callback.T[A]) => Unit
 }
