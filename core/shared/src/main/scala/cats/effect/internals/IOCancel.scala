@@ -69,7 +69,6 @@ private[effect] object IOCancel {
     extends Callback.T[A] with Runnable {
 
     private[this] var value: Either[Throwable, A] = _
-
     def run(): Unit = cb(value)
 
     def apply(value: Either[Throwable, A]): Unit =
