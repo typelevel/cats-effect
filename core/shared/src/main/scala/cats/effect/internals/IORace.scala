@@ -19,7 +19,6 @@ package internals
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Promise
-import cats.syntax.apply._
 
 private[effect] object IORace {
   /**
@@ -112,7 +111,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](timer.shift *> lh, connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh)(timer), connL, {
         case Right(a) =>
           if (active.getAndSet(false)) {
             conn.pop()
@@ -132,7 +131,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](timer.shift *> rh, connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh)(timer), connR, {
         case Right(b) =>
           if (active.getAndSet(false)) {
             conn.pop()
