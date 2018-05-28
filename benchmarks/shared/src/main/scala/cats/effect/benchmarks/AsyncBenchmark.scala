@@ -40,7 +40,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class AsyncBenchmark {
-  @Param(Array("10000"))
+  @Param(Array("100"))
   var size: Int = _
 
   def evalAsync(n: Int): IO[Int] =
@@ -69,47 +69,32 @@ class AsyncBenchmark {
 
   @Benchmark
   def parMap2() = {
-    def loop(i: Int): IO[Int] =
-      if (i < size)
-        (IO.shift *> IO(i + 1), IO.shift *> IO(i + 1))
-          .parMapN((i, _) => i)
-          .flatMap(loop)
-      else
-        IO.pure(i)
-
-    IO(0).flatMap(loop).unsafeRunSync()
+    val task = (0 until size).foldLeft(IO(0))((acc, i) =>
+      (acc, IO.shift *> IO(i)).parMapN(_ + _)
+    )
+    task.unsafeRunSync()
   }
 
   @Benchmark
   def race() = {
-    def loop(i: Int): IO[Int] =
-      if (i < size)
-        IO.race(IO.shift *> IO(i + 1), IO.shift *> IO(i + 1)).flatMap {
-          case Left(i) => loop(i)
-          case Right(i) => loop(i)
-        }
-      else {
-        IO.pure(i)
-      }
+    val task = (0 until size).foldLeft(IO.never:IO[Int])((acc, _) =>
+      IO.race(acc, IO.shift *> IO(1)).map {
+        case Left(i) => i
+        case Right(i) => i
+      })
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    task.unsafeRunSync()
   }
 
   @Benchmark
   def racePair() = {
-    def loop(i: Int): IO[Int] =
-      if (i < size)
-        IO.racePair(IO.shift *> IO(i + 1), IO.shift *> IO(i + 1)).flatMap {
-          case Left((i, fiber)) =>
-            fiber.cancel.flatMap(_ => loop(i))
-          case Right((fiber, i)) =>
-            fiber.cancel.flatMap(_ => loop(i))
-        }
-      else {
-        IO.pure(i)
-      }
+    val task = (0 until size).foldLeft(IO.never:IO[Int])((acc, _) =>
+      IO.racePair(acc, IO.shift *> IO(1)).flatMap {
+        case Left((i, fiber)) => fiber.cancel.map(_ => i)
+        case Right((fiber, i)) => fiber.cancel.map(_ => i)
+      })
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    task.unsafeRunSync()
   }
 
   @Benchmark
@@ -117,6 +102,39 @@ class AsyncBenchmark {
     def loop(i: Int): IO[Int] =
       if (i < size)
         (IO.shift *> IO(i + 1)).start.flatMap(_.join).flatMap(loop)
+      else
+        IO.pure(i)
+
+    IO(0).flatMap(loop).unsafeRunSync()
+  }
+
+  @Benchmark
+  def cancelBoundary() = {
+    def loop(i: Int): IO[Int] =
+      if (i < size)
+        (IO.cancelBoundary *> IO(i + 1)).flatMap(loop)
+      else
+        IO.pure(i)
+
+    IO(0).flatMap(loop).unsafeRunSync()
+  }
+
+  @Benchmark
+  def uncancelable() = {
+    def loop(i: Int): IO[Int] =
+      if (i < size)
+        IO(i + 1).uncancelable.flatMap(loop)
+      else
+        IO.pure(i)
+
+    IO(0).flatMap(loop).unsafeRunSync()
+  }
+
+  @Benchmark
+  def bracket() = {
+    def loop(i: Int): IO[Int] =
+      if (i < size)
+        IO(i).bracket(i => IO(i + 1))(_ => IO.unit).flatMap(loop)
       else
         IO.pure(i)
 

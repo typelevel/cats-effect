@@ -231,7 +231,9 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension0"),
       exclude[MissingClassProblem]("cats.effect.internals.TrampolineEC$ResumeRun"),
       exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick")
     )
   })
 

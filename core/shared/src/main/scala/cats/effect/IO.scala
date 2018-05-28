@@ -969,12 +969,11 @@ object IO extends IOInstances {
    * version of `Promise`, where `IO` is like a safer, lazy version of
    * `Future`.
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     Async { (_, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
-  }
 
   /**
    * Builds a cancelable `IO`.
