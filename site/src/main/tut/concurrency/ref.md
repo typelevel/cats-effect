@@ -72,9 +72,9 @@ val program: IO[Unit] =
     w2  = new Worker[IO](2, ref)
     w3  = new Worker[IO](3, ref)
     _   <- List(
-             IO.shift *> w1.start,
-             IO.shift *> w2.start,
-             IO.shift *> w3.start
+             w1.start,
+             w2.start,
+             w3.start
            ).parSequence.void
   } yield ()
 ```

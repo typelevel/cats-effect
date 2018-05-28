@@ -138,11 +138,48 @@ import scala.util.Either
  * without exposing and forcing the user to work with cancellation
  * tokens. An [[Async]] data type cannot expose for example a `start`
  * operation that is safe.
+ *
+ * == Resource-safety ==
+ * [[Concurrent]] data type is also required to cooperate with [[Bracket]]:
+ *
+ *
+ * For `uncancelable`, the [[Fiber.cancel cancel]] signal has no effect on the
+ * result of [[Fiber.join join]] and that the cancelable token returned by
+ * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
+ *
+ * So `uncancelable` must undo the cancellation mechanism of [[Concurrent!.cancelable cancelable]],
+ * with this equivalence:
+ *
+ * {{{
+ *   F.uncancelable(F.cancelable { cb => f(cb); io }) <-> F.async(f)
+ * }}}
+ *
+ * Sample:
+ *
+ * {{{
+ *   val F = Concurrent[IO]
+ *   val timer = Timer[IO]
+ *
+ *   // Normally Timer#sleep yields cancelable tasks
+ *   val tick = F.uncancelable(timer.sleep(10.seconds))
+ *
+ *   // This prints "Tick!" after 10 seconds, even if we are
+ *   // canceling the Fiber after start:
+ *   for {
+ *     fiber <- F.start(tick)
+ *     _ <- fiber.cancel
+ *     _ <- fiber.join
+ *     _ <- F.delay { println("Tick!") }
+ *   } yield ()
+ * }}}
+ *
+ * When doing [[Bracket.bracket bracket]] or [[Bracket.bracketCase bracketCase]],
+ * `acquire` and `release` operations are guaranteed to be uncancelable as well.
  */
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
   /**
    * Creates a cancelable `F[A]` instance that executes an
@@ -180,47 +217,6 @@ trait Concurrent[F[_]] extends Async[F] {
    * }}}
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
-
-  /**
-   * Returns a new `F` that mirrors the source, but that is uninterruptible.
-   *
-   * This means that the [[Fiber.cancel cancel]] signal has no effect on the
-   * result of [[Fiber.join join]] and that the cancelable token returned by
-   * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
-   *
-   * This operation is undoing the cancellation mechanism of [[cancelable]],
-   * with this equivalence:
-   *
-   * {{{
-   *   F.uncancelable(F.cancelable { cb => f(cb); io }) <-> F.async(f)
-   * }}}
-   *
-   * Sample:
-   *
-   * {{{
-   *   val F = Concurrent[IO]
-   *   val timer = Timer[IO]
-   *
-   *   // Normally Timer#sleep yields cancelable tasks
-   *   val tick = F.uncancelable(timer.sleep(10.seconds))
-   *
-   *   // This prints "Tick!" after 10 seconds, even if we are
-   *   // canceling the Fiber after start:
-   *   for {
-   *     fiber <- F.start(tick)
-   *     _ <- fiber.cancel
-   *     _ <- fiber.join
-   *   } yield {
-   *     println("Tick!")
-   *   }
-   * }}}
-   *
-   * Cancelable effects are great in race conditions, however sometimes
-   * this operation is necessary to ensure that the bind continuation
-   * of a task (the following `flatMap` operations) are also evaluated
-   * no matter what.
-   */
-  def uncancelable[A](fa: F[A]): F[A]
 
   /**
    * Returns a new `F` value that mirrors the source for normal
@@ -487,8 +483,6 @@ object Concurrent {
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k))(F)
 
-    def uncancelable[A](fa: EitherT[F, L, A]): EitherT[F, L, A] =
-      EitherT(F.uncancelable(fa.value))
 
     def onCancelRaiseError[A](fa: EitherT[F, L, A], e: Throwable): EitherT[F, L, A] =
       EitherT(F.onCancelRaiseError(fa.value, e))
@@ -552,9 +546,6 @@ object Concurrent {
           }
       })
 
-    def uncancelable[A](fa: OptionT[F, A]): OptionT[F, A] =
-      OptionT(F.uncancelable(fa.value))
-
     def onCancelRaiseError[A](fa: OptionT[F, A], e: Throwable): OptionT[F, A] =
       OptionT(F.onCancelRaiseError(fa.value, e))
 
@@ -588,8 +579,6 @@ object Concurrent {
         }
       }
 
-    def uncancelable[A](fa: StateT[F, S, A]): StateT[F, S, A] =
-      fa.transformF(F.uncancelable)
 
     def onCancelRaiseError[A](fa: StateT[F, S, A], e: Throwable): StateT[F, S, A] =
       fa.transformF(F.onCancelRaiseError(_, e))
@@ -610,9 +599,6 @@ object Concurrent {
 
     def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k))(L, F)
-
-    def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
-      WriterT(F.uncancelable(fa.run))
 
     def onCancelRaiseError[A](fa: WriterT[F, L, A], e: Throwable): WriterT[F, L, A] =
       WriterT(F.onCancelRaiseError(fa.run, e))
@@ -646,8 +632,6 @@ object Concurrent {
     override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Kleisli[F, R, A] =
       Kleisli.liftF(F.cancelable(k))
 
-    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
 
     override def onCancelRaiseError[A](fa: Kleisli[F, R, A], e: Throwable): ReaderT[F, R, A] =
       Kleisli { r => F.suspend(F.onCancelRaiseError(fa.run(r), e)) }

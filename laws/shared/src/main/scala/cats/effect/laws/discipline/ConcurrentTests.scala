@@ -66,6 +66,8 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
         "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _),
         "uncancelable mirrors source" -> forAll(laws.uncancelableMirrorsSource[A] _),
         "uncancelable prevents cancellation" -> forAll(laws.uncancelablePreventsCancelation[A] _),
+        "acquire of bracket is not cancelable" -> forAll(laws.acquireIsNotCancelable[A] _),
+        "release of bracket is not cancelable" -> forAll(laws.releaseIsNotCancelable[A] _),
         "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
         "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
         "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
@@ -85,7 +87,7 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
 }
 
 object ConcurrentTests {
-  def apply[F[_]: Concurrent]: ConcurrentTests[F] = new ConcurrentTests[F] {
+  def apply[F[_]: Concurrent](implicit timer: Timer[F]): ConcurrentTests[F] = new ConcurrentTests[F] {
     def laws = ConcurrentLaws[F]
   }
 }

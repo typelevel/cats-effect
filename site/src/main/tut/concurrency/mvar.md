@@ -149,8 +149,8 @@ def consumer(ch: Channel[Int], sum: Long): IO[Long] =
 for {
   channel <- MVar[IO].empty[Option[Int]]
   count = 100000
-  producerTask = IO.shift *> producer(channel, (0 until count).toList)
-  consumerTask = IO.shift *> consumer(channel, 0L)
+  producerTask = producer(channel, (0 until count).toList)
+  consumerTask = consumer(channel, 0L)
 
   fp  <- producerTask.start
   fc  <- consumerTask.start

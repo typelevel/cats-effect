@@ -25,7 +25,7 @@ import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-val io = IO.shift *> IO(println("Hello!"))
+val io = IO(println("Hello!"))
 val fiber: IO[Fiber[IO, Unit]] = io.start
 ```
 
@@ -36,7 +36,7 @@ val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
 
 for {
-  fiber <- IO.shift *> launchMissiles.start
+  fiber <- launchMissiles.start
   _ <- runToBunker.handleErrorWith { error =>
          // Retreat failed, cancel launch (maybe we should
          // have retreated to our bunker before the launch?)

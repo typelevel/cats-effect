@@ -573,14 +573,14 @@ thread that can be either joined (via `join`) or interrupted (via
 Example:
 
 ```tut:silent
-// Needed in order to get a Timer[IO], for IO.shift below
+// Needed in order to get a Timer[IO], for IO.start to execute concurrently
 import scala.concurrent.ExecutionContext.Implicits.global
 
 val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
 
 for {
-  fiber <- IO.shift *> launchMissiles.start
+  fiber <- launchMissiles.start
   _ <- runToBunker.handleErrorWith { error =>
     // Retreat failed, cancel launch (maybe we should
     // have retreated to our bunker before the launch?)
@@ -594,10 +594,6 @@ for {
 
 Implementation notes:
 
-- `start` does NOT fork automatically, only asynchronous `IO` values
-  will actually execute concurrently via `start`, so in order to
-  ensure parallel execution for synchronous actions, then you can use
-  `IO.shift` (remember, with `IO` such behavior is always explicit!)
 - the `*>` operator is defined in Cats and you can treat it as an
   alias for `lh.flatMap(_ => rh)`
   
@@ -710,9 +706,8 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
   }
 ```
 
-Again mentioning this for posterity: with `IO` everything is explicit,
-the protocol being easy to follow and predictable in a WYSIWYG
-fashion.
+With `IO`, fairness needs to be managed explicitly, the protocol being
+easy to follow and predictable in a WYSIWYG fashion.
 
 ### Race Conditions — race & racePair
 
@@ -724,10 +719,10 @@ losers being usually canceled.
 
 ```scala
 // simple version
-def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]]
+def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]]
   
 // advanced version
-def racePair[A, B](lh: IO[A], rh: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
+def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
@@ -737,7 +732,7 @@ you decide what to do next.
 So `race` can be derived with `racePair` like so:
 
 ```tut:silent
-def race[A, B](lh: IO[A], rh: IO[B]): IO[Either[A, B]] =
+def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
   IO.racePair(lh, rh).flatMap {
     case Left((a, fiber)) => 
       fiber.cancel.map(_ => Left(a))
@@ -766,13 +761,7 @@ def timeout[A](fa: IO[A], after: FiniteDuration)
 }
 ```
 
-NOTE: like all things with `IO`, tasks are not forked automatically
-and `race` won't do automatic forking either. So if the given tasks
-are asynchronous, they could be executed in parallel, but if they
-are not asynchronous (and thus have immediate execution), then
-they won't run in parallel.
-
-Always remember that IO's policy is WYSIWYG.
+See *Parallelism* section above for how to obtain a `Timer[IO]`
 
 ### Comparison with Haskell's "async interruption"
 
@@ -1209,16 +1198,20 @@ def loop(n: Int): IO[Int] =
 
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
+Note: all parallel operations require an implicit `Timer[IO]` in scope.
+On JVM, `Timer[IO]` is available when there's an implicit `ExecutionContext` in scope. Alternatively, it can be created using `IO.timer` builder, taking an `ExecutionContext`, managing actual execution, and a `ScheduledExecutorService`, which manages scheduling (not actual execution, so no point in giving it more than one thread).
+On JS, `Timer[IO]` is always available.
+
 ### parMapN
 
-It has the potential to run an arbitrary number of `IO`s in parallel, as long as the `IO` values have asynchronous execution, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
+It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
 ```tut:book
 import cats.syntax.all._
 
-val ioA = IO.shift *> IO(println("Running ioA"))
-val ioB = IO.shift *> IO(println("Running ioB"))
-val ioC = IO.shift *> IO(println("Running ioC"))
+val ioA = IO(println("Running ioA"))
+val ioB = IO(println("Running ioB"))
+val ioC = IO(println("Running ioC"))
 
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
@@ -1228,8 +1221,8 @@ program.unsafeRunSync()
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed but not until all the `IO`s are completed. Example:
 
 ```tut:nofail
-val a = IO.shift *> (IO.raiseError[Unit](new Exception("boom")) <* IO(println("Running ioA")))
-val b = IO.shift *> IO(println("Running ioB"))
+val a = IO.raiseError[Unit](new Exception("boom")) <* IO(println("Running ioA"))
+val b = IO(println("Running ioB"))
 
 val parFailure = (a, b).parMapN { (_, _) => () }
 
@@ -1240,35 +1233,22 @@ If one of the tasks fails immediately, then the other gets canceled and the comp
 
 ```tut:silent
 val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
-val ioB = IO.shift *> IO.raiseError[Unit](new Exception("dummy"))
+val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
 (ioA, ioB).parMapN((_, _) => ())
 ```
 
-Note that the following example **will not run in parallel** because it's missing the asynchronous execution:
-
-```tut:book
-val c = IO(println("Hey C!"))
-val d = IO(println("Hey D!"))
-
-val nonParallel = (c, d).parMapN { (_, _) => () }
-
-nonParallel.unsafeRunSync()
-```
-
-With `IO` thread forking or call-stack shifting has to be explicit. This goes for `parMapN` and for `start` as well. If scheduling fairness is a concern, then asynchronous boundaries have to be explicit.
-
 ### parSequence
 
-If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel. The IO tasks must be asynchronous, which if they are not you can use [shift](#shift).
+If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel.
 
 ```tut:book
 import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
 
-val asyncIO = IO.shift *> IO(1)
+val anIO = IO(1)
 
 val aLotOfIOs = 
-  NonEmptyList.of(asyncIO, asyncIO)
+  NonEmptyList.of(anIO, anIO)
 
 val ioOfList = aLotOfIOs.parSequence
 ```
@@ -1277,11 +1257,11 @@ There is also `cats.Traverse.sequence` which does this synchronously.
 
 ### parTraverse
 
-If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel. The IO tasks must be asynchronous, which if they are not you can use shift.
+If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel.
 
 ```tut:book
 val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
-  IO.shift *> IO(i)
+  IO(i)
 }
 ```
 

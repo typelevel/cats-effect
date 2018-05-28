@@ -20,7 +20,7 @@ abstract class Semaphore[F[_]] {
 ### On Blocking
 
 - Blocking acquires are cancelable if the semaphore is created with `Semaphore.apply` (and hence, with a `Concurrent[F]` instance).
-- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
+- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.uncancelable` (and hence, with an `Async[F]` instance).
 
 ### Shared Resource
 
@@ -83,6 +83,6 @@ val program: IO[Unit] =
     r1 = new PreciousResource[IO]("R1", s)
     r2 = new PreciousResource[IO]("R2", s)
     r3 = new PreciousResource[IO]("R3", s)
-    _  <- List(IO.shift *> r1.use, IO.shift *> r2.use, IO.shift *> r3.use).parSequence.void
+    _  <- List(r1.use, r2.use, r3.use).parSequence.void
   } yield ()
 ```
