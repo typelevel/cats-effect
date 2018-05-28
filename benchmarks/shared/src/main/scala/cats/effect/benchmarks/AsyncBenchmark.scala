@@ -70,7 +70,7 @@ class AsyncBenchmark {
   def parMap2() = {
     def loop(i: Int): IO[Int] =
       if (i < size)
-        (IO.shift *> IO(i + 1), IO.shift *> IO(i))
+        (IO.shift *> IO(i + 1), IO.shift *> IO(i + 1))
           .parMapN((i, _) => i)
           .flatMap(loop)
       else
@@ -115,7 +115,7 @@ class AsyncBenchmark {
   def start() = {
     def loop(i: Int): IO[Int] =
       if (i < size)
-        (IO.shift *> IO(i)).start.flatMap(_.join).flatMap(loop)
+        (IO.shift *> IO(i + 1)).start.flatMap(_.join).flatMap(loop)
       else
         IO.pure(i)
 

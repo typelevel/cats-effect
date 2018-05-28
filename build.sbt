@@ -313,13 +313,15 @@ lazy val lawsJS = laws.js
 lazy val benchmarksPrev = project.in(file("benchmarks/vPrev"))
   .configure(profile)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "0.5")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC")
+  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
   .enablePlugins(JmhPlugin)
 
 lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .configure(profile)
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
   .enablePlugins(JmhPlugin)
 
 lazy val docsMappingsAPIDir =
