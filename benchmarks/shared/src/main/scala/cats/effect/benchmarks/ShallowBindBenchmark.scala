@@ -18,7 +18,6 @@ package cats.effect.benchmarks
 import java.util.concurrent.TimeUnit
 import cats.effect.IO
 import org.openjdk.jmh.annotations._
-import cats.syntax.all._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /** To do comparative benchmarks between versions:
@@ -64,8 +63,8 @@ class ShallowBindBenchmark {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): IO[Int] =
-      if (i < size) IO.pure(i + 1).forEffect(IO.shift).flatMap(loop)
-      else IO.pure(i).forEffect(IO.shift)
+      if (i < size) IO.shift.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
+      else IO.shift.flatMap(_ => IO.pure(i))
 
     IO(0).flatMap(loop).unsafeRunSync()
   }

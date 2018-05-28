@@ -91,20 +91,8 @@ private[effect] object Callback {
      * boundary, meant to protect against stack overflows.
      */
     def async(value: Either[Throwable, A]): Unit =
-      async(null, value)
-
-    /**
-     * Executes the source callback with a light (trampolined) async
-     * boundary, meant to protect against stack overflows.
-     *
-     * Also pops the given `Connection` before calling the callback.
-     */
-    def async(conn: IOConnection, value: Either[Throwable, A]): Unit =
       immediate.execute(new Runnable {
-        def run(): Unit = {
-          if (conn ne null) conn.pop()
-          self(value)
-        }
+        def run(): Unit = self(value)
       })
 
     /**

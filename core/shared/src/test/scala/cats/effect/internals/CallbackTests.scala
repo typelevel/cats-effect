@@ -118,17 +118,4 @@ class CallbackTests extends FunSuite with Matchers with TestUtils {
     cb.async(Right(100))
     result shouldBe Some(Right(100))
   }
-
-  test("Callback.Extensions.async(conn, cb)") {
-    val conn = IOConnection()
-    val ref: Cancelable = new Cancelable.Dummy
-    conn.push(ref)
-
-    var result = Option.empty[Either[Throwable, Int]]
-    val cb = (r: Either[Throwable, Int]) => { result = Some(r) }
-
-    cb.async(conn, Right(100))
-    result shouldBe Some(Right(100))
-    conn.pop() shouldNot be(ref)
-  }
 }

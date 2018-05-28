@@ -140,7 +140,7 @@ val commonSettings = Seq(
 val mimaSettings = Seq(
   // Setting the previous artifact manually at 0.9
   // as a temporary measure until we release 0.10
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "1.0.0-RC1"),
   /*
   mimaPreviousArtifacts := {
     val TagBase = """^(\d+)\.(\d+).*"""r

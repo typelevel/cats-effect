@@ -55,6 +55,16 @@ private[effect] sealed abstract class IOConnection {
   def push(cancelable: Cancelable): Unit
 
   /**
+   * Pushes a pair of `IOConnection` on the stack, which on
+   * cancelation will get trampolined.
+   *
+   * This is useful in `IO.race` for example, because combining
+   * a whole collection of `IO` tasks, two by two, can lead to
+   * building a cancelable that's stack unsafe.
+   */
+  def pushPair(lh: IOConnection, rh: IOConnection): Unit
+
+  /**
    * Removes a cancelable reference from the stack in FIFO order.
    *
    * @return the cancelable reference that was removed.
@@ -97,14 +107,18 @@ private[effect] object IOConnection {
     def pop(): Cancelable = dummy
     def push(cancelable: Cancelable): Unit = cancelable()
     def tryReactivate(): Boolean = false
+    def pushPair(lh: IOConnection, rh: IOConnection): Unit =
+      try lh.cancel() finally rh.cancel()
   }
 
   private final class Uncancelable extends IOConnection {
     def cancel = dummy
     def isCanceled: Boolean = false
     def push(cancelable: Cancelable): Unit = ()
+    def pushCollection(cancelables: Cancelable*): Unit = ()
     def pop(): Cancelable = dummy
     def tryReactivate(): Boolean = true
+    def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
   }
 
   private final class Impl extends IOConnection {
@@ -128,6 +142,9 @@ private[effect] object IOConnection {
           if (!state.compareAndSet(list, update)) push(cancelable)
       }
 
+    def pushPair(lh: IOConnection, rh: IOConnection): Unit =
+      push(new TrampolinedPair(lh, rh))
+
     @tailrec def pop(): Cancelable =
       state.get() match {
         case null | Nil => dummy
@@ -138,5 +155,18 @@ private[effect] object IOConnection {
 
     def tryReactivate(): Boolean =
       state.compareAndSet(null, Nil)
+  }
+
+  private final class TrampolinedPair(lh: IOConnection, rh: IOConnection)
+    extends Cancelable.Type with Runnable {
+
+    override def run(): Unit =
+      try lh.cancel()
+      finally rh.cancel()
+
+    def apply(): Unit = {
+      // Needs to be trampolined, otherwise it can cause StackOverflows
+      TrampolineEC.immediate.execute(this)
+    }
   }
 }

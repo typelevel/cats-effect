@@ -112,11 +112,10 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Async(register) =>
+        case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          rcb.prepare(bFirst, bRest)
-          register(conn, rcb)
+          rcb.start(async, bFirst, bRest)
           return
 
         case ContextSwitch(next, modify, restore) =>
@@ -303,32 +302,55 @@ private[effect] object IORunLoop {
    * For internal use only, here be dragons!
    */
   private final class RestartCallback(connInit: IOConnection, cb: Callback)
-    extends Callback {
+    extends Callback with Runnable {
+
+    import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch
     private[this] var conn: IOConnection = connInit
     private[this] var canCall = false
+    private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
+
+    // Used in combination with trampolineAfter = true
+    private[this] var value: Either[Throwable, Any] = _
 
     def contextSwitch(conn: IOConnection): Unit = {
       this.conn = conn
     }
 
-    def prepare(bFirst: Bind, bRest: CallStack): Unit = {
+    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
+      this.trampolineAfter = task.trampolineAfter
+      // Go, go, go
+      task.k(conn, this)
+    }
+
+    private[this] def signal(either: Either[Throwable, Any]): Unit = {
+      either match {
+        case Right(success) =>
+          loop(Pure(success), conn, cb, this, bFirst, bRest)
+        case Left(e) =>
+          loop(RaiseError(e), conn, cb, this, bFirst, bRest)
+      }
+    }
+
+    override def run(): Unit = {
+      signal(value)
+      value = null
     }
 
     def apply(either: Either[Throwable, Any]): Unit =
       if (canCall) {
         canCall = false
-        either match {
-          case Right(value) =>
-            loop(Pure(value), conn, cb, this, bFirst, bRest)
-          case Left(e) =>
-            loop(RaiseError(e), conn, cb, this, bFirst, bRest)
+        if (trampolineAfter) {
+          this.value = either
+          ec.execute(this)
+        } else {
+          signal(either)
         }
       }
   }

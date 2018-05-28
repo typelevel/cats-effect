@@ -18,7 +18,6 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.effect.internals.Callback.Extensions
 import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
@@ -318,7 +317,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.step(this) match {
       case Pure(a) => Some(a)
       case RaiseError(e) => throw e
-      case self @ Async(_) =>
+      case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
         // $COVERAGE-OFF$
@@ -1157,10 +1156,10 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    IO.Async { (conn, cb) =>
-      if (!conn.isCanceled)
-        cb.async(Callback.rightUnit)
+    val start: Start[Unit] = (conn, cb) => {
+      if (!conn.isCanceled) cb(Callback.rightUnit)
     }
+    Async(start, trampolineAfter = true)
   }
 
   /**
@@ -1212,35 +1211,70 @@ object IO extends IOInstances {
   def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
     IORace.pair(timer, lh, rh)
 
+  /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+  /* IO's internal encoding: */
+
+  /** Corresponds to [[IO.pure]]. */
   private[effect] final case class Pure[+A](a: A)
     extends IO[A]
+
+  /** Corresponds to [[IO.apply]]. */
   private[effect] final case class Delay[+A](thunk: () => A)
     extends IO[A]
+
+  /** Corresponds to [[IO.raiseError]]. */
   private[effect] final case class RaiseError(e: Throwable)
     extends IO[Nothing]
+
+  /** Corresponds to [[IO.suspend]]. */
   private[effect] final case class Suspend[+A](thunk: () => IO[A])
     extends IO[A]
+
+  /** Corresponds to [[IO.flatMap]]. */
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
     extends IO[A]
+
+  /** Corresponds to [[IO.map]]. */
+  private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
+    extends IO[A] with (E => IO[A]) {
+
+    override def apply(value: E): IO[A] =
+      new Pure(f(value))
+  }
+
+  /**
+   * Corresponds to [[IO.async]] and other async definitions
+   * (e.g. [[IO.race]], [[IO.shift]], etc)
+   *
+   * @param k is the "registration" function that starts the
+   *        async process — receives an [[internals.IOConnection]]
+   *        that keeps cancelation tokens.
+   *
+   * @param trampolineAfter is `true` if the
+   *        [[cats.effect.internals.IORunLoop.RestartCallback]]
+   *        should introduce a trampolined async boundary
+   *        on calling the callback for transmitting the
+   *        signal downstream
+   */
   private[effect] final case class Async[+A](
-    k: (IOConnection, Either[Throwable, A] => Unit) => Unit)
+    k: (IOConnection, Either[Throwable, A]  => Unit) => Unit,
+    trampolineAfter: Boolean = false)
     extends IO[A]
+
+  /**
+   * An internal state for that optimizes changes to
+   * [[internals.IOConnection]].
+   *
+   * [[IO.uncancelable]] is optimized via `ContextSwitch`
+   * and we could express `bracket` in terms of it as well.
+   */
   private[effect] final case class ContextSwitch[A](
     source: IO[A],
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection)
     extends IO[A]
 
-  /** State for representing `map` ops that itself is a function in
-   * order to avoid extraneous memory allocations when building the
-   * internal call-stack.
-   */
-  private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
-    extends IO[A] with (E => IO[A]) {
-
-    override def apply(value: E): IO[A] =
-      IO.pure(f(value))
-  }
+  /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
    * in order to avoid extraneous memory allocations.

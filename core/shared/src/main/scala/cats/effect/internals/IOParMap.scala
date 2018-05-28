@@ -18,10 +18,7 @@ package cats.effect.internals
 
 import cats.syntax.apply._
 import cats.effect.{IO, Timer}
-import cats.effect.internals.Callback.Extensions
-
 import java.util.concurrent.atomic.AtomicReference
-
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
@@ -29,8 +26,8 @@ private[effect] object IOParMap {
   import Callback.{Type => Callback}
 
   /** Implementation for `parMap2`. */
-  def apply[A, B, C](timer: Timer[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
-    IO.Async { (conn, cb) =>
+  def apply[A, B, C](timer: Timer[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] = {
+    val start: Start[C] = (conn, cb) => {
       // For preventing stack-overflow errors; using a
       // trampolined execution context, so no thread forks
       implicit val ec: ExecutionContext = TrampolineEC.immediate
@@ -56,7 +53,7 @@ private[effect] object IOParMap {
 
           // Composite cancelable that cancels both.
           // NOTE: conn.pop() happens when cb gets called!
-          conn.push(() => Cancelable.cancelAll(connA.cancel, connB.cancel))
+          conn.pushPair(connA, connB)
 
           IORunLoop.startCancelable(timer.shift *> fa, connA, callbackA(connB))
           IORunLoop.startCancelable(timer.shift *> fb, connB, callbackB(connA))
@@ -75,7 +72,7 @@ private[effect] object IOParMap {
               case left =>
                 // $COVERAGE-OFF$
                 throw new IllegalStateException(s"parMap: $left")
-                // $COVERAGE-ON$
+              // $COVERAGE-ON$
             }
         }
 
@@ -92,13 +89,14 @@ private[effect] object IOParMap {
               case right =>
                 // $COVERAGE-OFF$
                 throw new IllegalStateException(s"parMap: $right")
-                // $COVERAGE-ON$
+              // $COVERAGE-ON$
             }
         }
 
         /** Called when both results are ready. */
         def complete(a: A, b: B): Unit = {
-          cb.async(conn, try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
+          conn.pop()
+          cb(try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
         }
 
         /** Called when an error is generated. */
@@ -108,10 +106,15 @@ private[effect] object IOParMap {
               Logger.reportFailure(e)
             case null | Left(_) | Right(_) =>
               // Cancels the other before signaling the error
-              try other.cancel() finally
-                cb.async(conn, Left(e))
+              try other.cancel() finally {
+                conn.pop()
+                cb(Left(e))
+              }
           }
         }
       })
     }
+
+    IO.Async(start, trampolineAfter = true)
+  }
 }

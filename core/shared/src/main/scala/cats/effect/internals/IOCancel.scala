@@ -18,9 +18,7 @@ package cats.effect
 package internals
 
 import java.util.concurrent.atomic.AtomicBoolean
-
 import cats.effect.IO.{Async, ContextSwitch}
-
 import scala.concurrent.ExecutionContext
 import scala.util.Left
 
