@@ -51,7 +51,7 @@ private[effect] object IOParMap {
      *
      *  - null: none of the 2 tasks have finished yet
      *  - Left(a): the left task is waiting for the right one
-     *  - Right(a): the right task is waiting for the left one
+     *  - Right(b): the right task is waiting for the left one
      *  - Throwable: an error was triggered
      *
      * Note - `getAndSet` is used for modifying this atomic, so the

@@ -17,8 +17,12 @@
 package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
+
 import cats.effect.internals.Cancelable.{dummy, Type => Cancelable}
+import cats.effect.util.CompositeException
+
 import scala.annotation.tailrec
+import scala.util.control.NonFatal
 
 /**
  * INTERNAL API — Represents a composite of functions
@@ -161,8 +165,7 @@ private[effect] object IOConnection {
     extends Cancelable.Type with Runnable {
 
     override def run(): Unit =
-      try lh.cancel()
-      finally rh.cancel()
+      Cancelable.cancelAll(lh.cancel, rh.cancel)
 
     def apply(): Unit = {
       // Needs to be trampolined, otherwise it can cause StackOverflows
