@@ -45,7 +45,7 @@ private[effect] object IOAppPlatform {
     }
 
     IO.race(keepAlive, program).flatMap {
-      case Left(absurd) =>
+      case Left(_) =>
         // This case is unreachable, but scalac won't let us omit it.
         IO.raiseError(new AssertionError("IOApp keep alive failed unexpectedly."))
       case Right(exitCode) =>
