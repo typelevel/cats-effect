@@ -70,7 +70,7 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
 }
 
 object ConcurrentEffectTests {
-  def apply[F[_]: ConcurrentEffect](implicit ioTimer: Timer[IO]): ConcurrentEffectTests[F] = new ConcurrentEffectTests[F] {
+  def apply[F[_]: ConcurrentEffect](implicit timer: Timer[F]): ConcurrentEffectTests[F] = new ConcurrentEffectTests[F] {
     def laws = ConcurrentEffectLaws[F]
   }
 }

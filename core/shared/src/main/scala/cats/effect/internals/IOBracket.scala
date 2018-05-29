@@ -30,7 +30,7 @@ private[effect] object IOBracket {
     (use: A => IO[B])
     (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
 
-    acquire.flatMap { a =>
+    acquire.uncancelable.flatMap { a =>
       IO.Bind(
         use(a).onCancelRaiseError(cancelException),
         new ReleaseFrame[A, B](a, release))
@@ -51,7 +51,7 @@ private[effect] object IOBracket {
     }
 
     def apply(b: B): IO[B] =
-      release(a, ExitCase.complete)
+      release(a, ExitCase.complete).uncancelable
         .map(_ => b)
   }
 

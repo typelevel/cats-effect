@@ -42,12 +42,12 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 
   def runCancelableStartCancelCoherence[A](a: A) = {
     // Cancellation via runCancelable
-    val f1 = Deferred[IO, A].flatMap { effect1 =>
+    val f1 = Deferred.uncancelable[IO, A].flatMap { effect1 =>
       val never = F.cancelable[A](_ => effect1.complete(a))
       F.runCancelable(never)(_ => IO.unit).flatten *> effect1.get
     }
     // Cancellation via start.flatMap(_.cancel)
-    val f2 = Deferred[IO, A].flatMap { effect2 =>
+    val f2 = Deferred.uncancelable[IO, A].flatMap { effect2 =>
       val never = F.cancelable[A](_ => effect2.complete(a))
       val task = F.start(never).flatMap(_.cancel)
       F.runAsync(task)(_ => IO.unit) *> effect2.get
@@ -60,8 +60,8 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 }
 
 object ConcurrentEffectLaws {
-  def apply[F[_]](implicit F0: ConcurrentEffect[F], ioTimer0: Timer[IO]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
+  def apply[F[_]](implicit F0: ConcurrentEffect[F], timer0: Timer[F]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
     val F = F0
-    val ioTimer = ioTimer0
+    val timer = timer0
   }
 }
