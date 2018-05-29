@@ -33,7 +33,7 @@ private[effect] object IOPlatform {
       case Right(a) => Some(a)
       case Left(e) => throw e
       case null =>
-        // Triggering cancelation first
+        // Triggering cancellation first
         cb.isActive = false
         cancel()
         throw new UnsupportedOperationException(

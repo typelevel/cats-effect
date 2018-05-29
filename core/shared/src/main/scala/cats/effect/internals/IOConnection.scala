@@ -56,7 +56,7 @@ private[effect] sealed abstract class IOConnection {
 
   /**
    * Pushes a pair of `IOConnection` on the stack, which on
-   * cancelation will get trampolined.
+   * cancellation will get trampolined.
    *
    * This is useful in `IO.race` for example, because combining
    * a whole collection of `IO` tasks, two by two, can lead to

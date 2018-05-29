@@ -67,7 +67,7 @@ private[effect] object IORace {
       val connL = IOConnection()
       // Cancelable connection for the right value
       val connR = IOConnection()
-      // Registers both for cancelation — gets popped right
+      // Registers both for cancellation — gets popped right
       // before callback is invoked in onSuccess / onError
       conn.pushPair(connL, connR)
 
@@ -106,7 +106,7 @@ private[effect] object IORace {
       val connR = IOConnection()
       val promiseR = Promise[Either[Throwable, B]]()
 
-      // Registers both for cancelation — gets popped right
+      // Registers both for cancellation — gets popped right
       // before callback is invoked in onSuccess / onError
       conn.pushPair(connL, connR)
 

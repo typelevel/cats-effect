@@ -1244,7 +1244,7 @@ object IO extends IOInstances {
    *
    * @param k is the "registration" function that starts the
    *        async process — receives an [[internals.IOConnection]]
-   *        that keeps cancelation tokens.
+   *        that keeps cancellation tokens.
    *
    * @param trampolineAfter is `true` if the
    *        [[cats.effect.internals.IORunLoop.RestartCallback]]
