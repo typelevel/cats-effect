@@ -22,6 +22,7 @@ package discipline
 import cats.data._
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
+import cats.effect.laws.discipline.arbitrary.catsEffectLawsCogenForExitCase
 import org.scalacheck._
 import Prop.forAll
 
@@ -64,7 +65,8 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
         "uncancelable prevents Cancelled case" -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
         "acquire and release of bracket are uncancelable" -> forAll(laws.acquireAndReleaseAreUncancelable[A, B] _),
-        "guarantee is derived from bracket" -> forAll(laws.guaranteeIsDerivedFromBracket[A] _)
+        "guarantee is derived from bracket" -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
+        "guaranteeCase is derived from bracketCase" -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _)
       )
     }
   }

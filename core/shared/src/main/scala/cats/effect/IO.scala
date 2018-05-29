@@ -567,6 +567,65 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOBracket(this)(use)(release)
 
   /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled.
+   *
+   * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+   * regardless of how the source gets terminated:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guarantee(f) <-> IO.unit.bracket(_ => io)(_ => f)
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracket]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guaranteeCase]] for the version that can discriminate
+   *      between termination conditions
+   *
+   * @see [[bracket]] for the more general operation
+   */
+  def guarantee(finalizer: IO[Unit]): IO[A] =
+    guaranteeCase(_ => finalizer)
+
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled, allowing
+   * for differentiating between exit conditions.
+   *
+   * This variant of [[guarantee]] injects an [[ExitCase]] in
+   * the provided function, allowing one to make a difference
+   * between:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guaranteeCase(f) <-> IO.unit.bracketCase(_ => io)((_, e) => f(e))
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracketCase]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guarantee]] for the simpler version
+   *
+   * @see [[bracketCase]] for the more general operation
+   */
+  def guaranteeCase(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
+    IOBracket.guaranteeCase(this, finalizer)
+
+  /**
    * Handle any error, potentially recovering from it, by mapping it to another
    * `IO` value.
    *
@@ -746,9 +805,6 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
     final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
-
-    final override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
-      fa.onCancelRaiseError(e)
 
     final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
       IO.race(fa, fb)

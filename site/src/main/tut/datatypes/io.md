@@ -976,7 +976,7 @@ def readLine(in: BufferedReader): IO[String] =
     case (_, Completed | Error(_)) =>
       // Do nothing
       IO.unit
-    case (in, Canceled(_)) =>
+    case (in, Canceled) =>
       IO(in.close())
   }
 ```
