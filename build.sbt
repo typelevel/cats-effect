@@ -259,6 +259,15 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.implicits.package.IOSyntax"),
       exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax$"),
 
+      // Issue #251: breakage — Bracket changes
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guaranteeCase"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#WriterTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#EitherTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#OptionTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#StateTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.onCancelRaiseError"),
+
       //
       // Following are all internal implementation details:
       //

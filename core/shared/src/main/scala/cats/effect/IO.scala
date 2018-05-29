@@ -764,6 +764,11 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
+    final override def guarantee[A](fa: IO[A])(finalizer: IO[Unit]): IO[A] =
+      fa.guarantee(finalizer)
+    final override def guaranteeCase[A](fa: IO[A])(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
+      fa.guaranteeCase(finalizer)
+
     final override def delay[A](thunk: => A): IO[A] =
       IO(thunk)
     final override def suspend[A](thunk: => IO[A]): IO[A] =
