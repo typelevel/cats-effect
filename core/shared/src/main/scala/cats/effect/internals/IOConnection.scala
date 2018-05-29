@@ -17,12 +17,8 @@
 package cats.effect.internals
 
 import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.internals.Cancelable.{dummy, Type => Cancelable}
-import cats.effect.util.CompositeException
-
 import scala.annotation.tailrec
-import scala.util.control.NonFatal
 
 /**
  * INTERNAL API — Represents a composite of functions
