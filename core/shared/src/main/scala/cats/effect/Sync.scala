@@ -120,6 +120,9 @@ object Sync {
 
     def suspend[A](thunk: => EitherT[F, L, A]): EitherT[F, L, A] =
       EitherT(F.suspend(thunk.value))
+
+    override def uncancelable[A](fa: EitherT[F, L, A]): EitherT[F, L, A] =
+      EitherT(F.uncancelable(fa.value))
   }
 
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
@@ -156,6 +159,9 @@ object Sync {
 
     def suspend[A](thunk: => OptionT[F, A]): OptionT[F, A] =
       OptionT(F.suspend(thunk.value))
+
+    override def uncancelable[A](fa: OptionT[F, A]): OptionT[F, A] =
+      OptionT(F.uncancelable(fa.value))
   }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
@@ -181,6 +187,9 @@ object Sync {
         }
       }
     }
+
+    override def uncancelable[A](fa: StateT[F, S, A]): StateT[F, S, A] =
+      fa.transformF(F.uncancelable)
 
     def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
       fa.flatMap(f)
@@ -209,7 +218,7 @@ object Sync {
       (use: A => WriterT[F, L, B])
       (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
 
-      acquire.flatMap { a =>
+      uncancelable(acquire).flatMap { a =>
         WriterT(
           F.bracketCase(F.pure(a))(use.andThen(_.run)){ (a, res) =>
             release(a, res).value
@@ -217,6 +226,9 @@ object Sync {
         )
       }
     }
+
+    override def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT(F.uncancelable(fa.run))
 
     def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
       fa.flatMap(f)
@@ -242,5 +254,8 @@ object Sync {
 
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli(r => F.suspend(thunk.run(r)))
+
+    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
   }
 }

@@ -696,6 +696,9 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       (release: A => IO[Unit]): IO[B] =
       acquire.bracket(use)(release)
 
+    final override def uncancelable[A](task: IO[A]): IO[A] =
+      task.uncancelable
+
     final override def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
@@ -740,8 +743,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
     final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
-    final override def uncancelable[A](fa: IO[A]): IO[A] =
-      fa.uncancelable
+
     final override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
       fa.onCancelRaiseError(e)
 
