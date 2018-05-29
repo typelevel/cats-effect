@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.syntax
 
-import cats.effect.syntax.AllCatsEffectSyntax
+import cats.effect.{IO, LiftIO}
 
 
-package object implicits
-  extends AllCatsEffectSyntax
+trait LiftIOSyntax {
+  implicit def catsEffectSyntaxIOLift[A](ioa: IO[A]): IOLiftOps[A] =
+    new IOLiftOps[A](ioa)
+}
+
+final class IOLiftOps[A](val self: IO[A]) extends AnyVal {
+  def liftIO[F[_]](implicit F: LiftIO[F]): F[A] = F.liftIO(self)
+}

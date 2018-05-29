@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.syntax
 
-import cats.effect.syntax.AllCatsEffectSyntax
+import cats.effect.ConcurrentEffect
 
 
-package object implicits
-  extends AllCatsEffectSyntax
+trait ConcurrentEffectSyntax extends ConcurrentEffect.ToConcurrentEffectOps

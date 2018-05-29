@@ -490,9 +490,12 @@ scalacOptions in ThisBuild ++= Seq(
 )
 
 scalacOptions in ThisBuild ++= Seq(
-  "-Ywarn-unused-import",
   "-Ywarn-numeric-widen",
-  "-Xlint:-missing-interpolator,_"
+  "-Ywarn-unused:imports",
+  "-Ywarn-unused:locals",
+  "-Ywarn-unused:patvars",
+  "-Ywarn-unused:privates",
+  "-Xlint:-missing-interpolator,-unused,_"
 )
 
 scalacOptions in Test += "-Yrangepos"
