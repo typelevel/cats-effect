@@ -17,5 +17,10 @@
 package cats
 package effect
 
-package object implicits extends AllSyntax
-
+package object implicits
+  extends ConcurrentEffect.ToConcurrentEffectOps
+  with Effect.ToEffectOps
+  with Concurrent.ToConcurrentOps
+  with Async.ToAsyncOps
+  with Sync.ToSyncOps
+  with LiftIO.ToLiftIOOps
