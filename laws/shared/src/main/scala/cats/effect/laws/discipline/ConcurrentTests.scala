@@ -60,6 +60,7 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
       val props = Seq(
         "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
         "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
+        "asyncF registration can be cancelled" -> forAll(laws.asyncFRegisterCanBeCancelled[A] _),
         "bracket release is called on cancel" -> forAll(laws.cancelOnBracketReleases[A, B] _),
         "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
         "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),

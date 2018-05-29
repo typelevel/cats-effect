@@ -17,10 +17,10 @@
 package cats
 package effect
 
-package object implicits extends Effect.ToEffectOps {
-
-  // this has to be implicitly enriched to get around variance questions
-  final implicit class IOSyntax[A](val self: IO[A]) extends AnyVal {
-    final def liftIO[F[_]: LiftIO]: F[A] = LiftIO[F].liftIO(self)
-  }
-}
+package object implicits
+  extends ConcurrentEffect.ToConcurrentEffectOps
+  with Effect.ToEffectOps
+  with Concurrent.ToConcurrentOps
+  with Async.ToAsyncOps
+  with Sync.ToSyncOps
+  with LiftIO.ToLiftIOOps

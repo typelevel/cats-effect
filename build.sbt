@@ -234,6 +234,18 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.pair"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOStart.apply"),
 
+      // Issue #123: introducing Async.asyncF
+      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#OptionTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#WriterTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#EitherTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#StateTAsync.asyncF"),
+      // Issue #123: Fixed cats.effect.implicits to include all syntax
+      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax"),
+      exclude[DirectMissingMethodProblem]("cats.effect.implicits.package.IOSyntax"),
+      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax$"),
+
       //
       // Following are all internal implementation details:
       //
@@ -362,7 +374,7 @@ lazy val lawsJS = laws.js
 lazy val benchmarksPrev = project.in(file("benchmarks/vPrev"))
   .configure(profile)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC2-8ed6e71")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC")
   .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
   .enablePlugins(JmhPlugin)
 

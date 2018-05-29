@@ -710,6 +710,8 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.asyncF(k)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def toIO[A](fa: IO[A]): IO[A] =
@@ -970,11 +972,44 @@ object IO extends IOInstances {
    * This function can be thought of as a safer, lexically-constrained
    * version of `Promise`, where `IO` is like a safer, lazy version of
    * `Future`.
+   *
+   * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     Async { (_, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
+    }
+
+  /**
+   * Suspends an asynchronous side effect in `IO`, this being a variant
+   * of [[async]] that takes a pure registration function.
+   *
+   * Implements [[cats.effect.Async.asyncF Async.asyncF]].
+   *
+   * The difference versus [[async]] is that this variant can suspend
+   * side-effects via the provided function parameter. It's more relevant
+   * in polymorphic code making use of the [[cats.effect.Async Async]]
+   * type class, as it alleviates the need for [[Effect]].
+   *
+   * Contract for the returned `IO[Unit]` in the provided function:
+   *
+   *  - can be asynchronous
+   *  - can be cancelable, in which case it hooks into IO's cancelation
+   *    mechanism such that the resulting task is cancelable
+   *  - it should not end in error, because the provided callback
+   *    is the only way to signal the final result and it can only
+   *    be called once, so invoking it twice would be a contract
+   *    violation; so on errors thrown in `IO`, the task can become
+   *    non-terminating, with the error being printed to stderr
+   *
+   * @see [[async]] and [[cancelable]]
+   */
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    Async { (conn, cb) =>
+      val cb2 = Callback.asyncIdempotent(null, cb)
+      val fa = try k(cb2) catch { case NonFatal(t) => IO(cb2(Left(t))) }
+      IORunLoop.startCancelable(fa, conn, Callback.report)
     }
 
   /**
