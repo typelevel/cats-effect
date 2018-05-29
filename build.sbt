@@ -489,14 +489,19 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-dead-code"
 )
 
-scalacOptions in ThisBuild ++= Seq(
-  "-Ywarn-numeric-widen",
-  "-Ywarn-unused:imports",
-  "-Ywarn-unused:locals",
-  "-Ywarn-unused:patvars",
-  "-Ywarn-unused:privates",
-  "-Xlint:-missing-interpolator,-unused,_"
-)
+scalacOptions in ThisBuild ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq(
+      "-Ywarn-numeric-widen",
+      "-Ywarn-unused:imports",
+      "-Ywarn-unused:locals",
+      "-Ywarn-unused:patvars",
+      "-Ywarn-unused:privates",
+      "-Xlint:-missing-interpolator,-unused,_"
+    )
+    case _ => Seq("-Xlint:-missing-interpolator,_")
+  }
+}
 
 scalacOptions in Test += "-Yrangepos"
 

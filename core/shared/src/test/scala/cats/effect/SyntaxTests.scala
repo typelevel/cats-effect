@@ -36,11 +36,6 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[A]](acquire.guarantee(finalizer))
   }
 
-  def liftIOSyntax[F[_]: LiftIO, A] = {
-    val a = mock[A]
-    typed[F[A]](IO(a).liftIO[F])
-  }
-
   def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
     val fa  = mock[F[A]]
     val fa2 = mock[F[A]]
