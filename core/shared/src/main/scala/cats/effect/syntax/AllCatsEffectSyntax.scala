@@ -18,7 +18,6 @@ package cats.effect.syntax
 
 trait AllCatsEffectSyntax
   extends BracketSyntax
-  with LiftIOSyntax
   with ConcurrentSyntax
   with EffectSyntax
   with ConcurrentEffectSyntax

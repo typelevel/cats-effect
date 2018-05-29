@@ -21,6 +21,5 @@ package object syntax {
   object bracket extends BracketSyntax
   object concurrent extends ConcurrentSyntax
   object concurrentEffect extends ConcurrentEffectSyntax
-  object liftIO extends LiftIOSyntax
   object effect extends EffectSyntax
 }
