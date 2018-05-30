@@ -156,7 +156,7 @@ object Deferred {
       @tailrec
       def loop(): Unit =
         ref.get match {
-          case s @ State.Set(_) => throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
+          case State.Set(_) => throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
           case s @ State.Unset(_) =>
             if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
             else loop()

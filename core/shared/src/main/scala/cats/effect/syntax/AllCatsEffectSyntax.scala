@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package cats
-package effect
+package cats.effect.syntax
 
-import cats.effect.syntax.AllCatsEffectSyntax
-
-
-package object implicits
-  extends AllCatsEffectSyntax
+trait AllCatsEffectSyntax
+  extends BracketSyntax
+  with ConcurrentSyntax
+  with EffectSyntax
+  with ConcurrentEffectSyntax
