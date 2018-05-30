@@ -58,12 +58,12 @@ private[internals] final class ArrayStack[A] private (
     while (cursor.hasNext) push(cursor.next())
   }
 
-  /** Pushes an entire sequence on the stack. */
+  /** Pushes an entire iterable on the stack. */
   def pushAll(seq: Iterable[A]): Unit = {
     pushAll(seq.iterator)
   }
 
-  /** Pushes an entire sequence on the stack. */
+  /** Pushes the contents of another stack on this stack. */
   def pushAll(stack: ArrayStack[A]): Unit = {
     pushAll(stack.iteratorReversed)
   }
