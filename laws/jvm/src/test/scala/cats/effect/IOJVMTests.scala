@@ -92,20 +92,20 @@ class IOJVMTests extends FunSuite with Matchers {
     val io2 = IO.shift *> IO(2)
 
     for (_ <- 0 until 1000) {
-      val r = (io1, io2).parMapN(_ + _).unsafeRunSync
+      val r = (io1, io2).parMapN(_ + _).unsafeRunSync()
       r shouldEqual 3
     }
   }
 
-  // this is expected behavior
-  // ...also it appears to fell the mighty Travis, so it's disabled for now
-  /*test("fail to provide stack safety with repeated async suspensions") {
-    val result = (0 until 10000).foldLeft(IO(0)) { (acc, i) =>
-      acc.flatMap(n => IO.async[Int](_(Right(n + 1))))
-    }
+  test("bracket signals errors from both use and release via Throwable#addSupressed") {
+    val e1 = new RuntimeException("e1")
+    val e2 = new RuntimeException("e2")
 
-    intercept[StackOverflowError] {
-      result.unsafeRunAsync(_ => ())
-    }
-  }*/
+    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
+      .attempt
+      .unsafeRunSync()
+
+    r shouldEqual Left(e1)
+    r.left.get.getSuppressed.toList shouldBe List(e2)
+  }
 }

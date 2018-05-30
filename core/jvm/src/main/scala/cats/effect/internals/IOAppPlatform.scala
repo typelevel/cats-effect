@@ -26,7 +26,14 @@ private[effect] object IOAppPlatform {
     val code = mainFiber(args, timer)(run).flatMap(_.join)
       .handleErrorWith(t => IO(Logger.reportFailure(t)) *> IO(ExitCode.Error.code))
       .unsafeRunSync()
-    sys.exit(code)
+
+    if (code === 0) {
+      // Return naturally from main. This allows any non-daemon
+      // threads to gracefully complete their work, and managed
+      // environments to execute their own shutdown hooks.
+      ()
+    }
+    else sys.exit(code)
   }
 
   def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {

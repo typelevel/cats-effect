@@ -27,6 +27,8 @@ private[effect] object IOAppPlatform {
       case Left(t) =>
         IO(Logger.reportFailure(t)) *>
         IO(sys.exit(ExitCode.Error.code))
+      case Right(0) =>
+        IO.unit
       case Right(code) =>
         IO(sys.exit(code))
     }.unsafeRunSync()

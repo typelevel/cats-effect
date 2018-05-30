@@ -260,8 +260,8 @@ class IOTests extends BaseTestsSuite {
   testAsync("attempt flatMap loop") { implicit ec =>
     def loop[A](source: IO[A], n: Int): IO[A] =
       source.attempt.flatMap {
-        case Right(a) =>
-          if (n <= 0) IO.pure(a)
+        case Right(l) =>
+          if (n <= 0) IO.pure(l)
           else loop(source, n - 1)
         case Left(e) =>
           IO.raiseError(e)
@@ -646,26 +646,6 @@ class IOTests extends BaseTestsSuite {
     f.value.get.failed.get shouldBe an [TimeoutException]
   }
 
-  testAsync("onCancelRaiseError cancels forked sources") { implicit ec =>
-    implicit val F = implicitly[ConcurrentEffect[IO]]
-    val timer = ec.timer[IO]
-    val dummy = new RuntimeException
-    val effect = Deferred.unsafeUncancelable[IO, Int]
-    val io = {
-      val async = F.cancelable[Unit](_ => effect.complete(10))
-      for {
-        fiber <- F.start(F.onCancelRaiseError(timer.shift.flatMap(_ => async), dummy))
-        _ <- fiber.cancel
-        r <- F.liftIO(effect.get)
-      } yield r
-    }
-
-    val f = io.unsafeToFuture()
-    ec.tick()
-
-    f.value shouldBe Some(Success(10))
-  }
-
   testAsync("onCancelRaiseError resets the isCanceled flag") { implicit ec =>
     implicit val timer = ec.timer[IO]
 
@@ -700,6 +680,250 @@ class IOTests extends BaseTestsSuite {
   test("unsafeRunSync works for IO.cancelBoundary") {
     val io = IO.cancelBoundary *> IO(1)
     io.unsafeRunSync() shouldBe 1
+  }
+
+  testAsync("racePair should be stack safe, take 1") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO.shift *> IO(1))
+    val init = IO.never : IO[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => IO.racePair(acc,t).map {
+      case Left((l, _)) => l
+      case Right((_, r)) => r
+    })
+
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("racePair should be stack safe, take 2") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO(1))
+    val init = IO.never : IO[Int]
+
+    val sum = tasks.foldLeft(init)((acc, t) => IO.racePair(acc,t).map {
+      case Left((l, _)) => l
+      case Right((_, r)) => r
+    })
+
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("racePair has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 10000 else 1000
+    val p = Promise[Int]()
+
+    val tasks = (0 until count).map(_ => IO.never : IO[Int])
+    val all = tasks.foldLeft(IO.never : IO[Int])((acc, t) => IO.racePair(acc,t).flatMap {
+      case Left((l, fr)) => fr.cancel.map(_ => l)
+      case Right((fl, r)) => fl.cancel.map(_ => r)
+    })
+
+    val f = IO.racePair(IO.fromFuture(IO.pure(p.future)), all)
+      .flatMap {
+        case Left((l, fr)) => fr.cancel.map(_ => l)
+        case Right((fl, r)) => fl.cancel.map(_ => r)
+      }
+      .unsafeToFuture()
+
+    ec.tick()
+    p.success(1)
+    ec.tick()
+
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("racePair avoids extraneous async boundaries") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.racePair(IO.shift *> IO(1), IO.shift *> IO(1))
+      .flatMap {
+        case Left((l, fiber)) => fiber.join.map(_ + l)
+        case Right((fiber, r)) => fiber.join.map(_ + r)
+      }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
+  testAsync("race should be stack safe, take 1") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO.shift *> IO(1))
+    val init = IO.never : IO[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => IO.race(acc,t).map {
+      case Left(l) => l
+      case Right(r) => r
+    })
+
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("race should be stack safe, take 2") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO(1))
+    val init = IO.never : IO[Int]
+
+    val sum = tasks.foldLeft(init)((acc,t) => IO.race(acc,t).map {
+      case Left(l) => l
+      case Right(r) => r
+    })
+
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("race has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 10000 else 1000
+    val p = Promise[Int]()
+
+    val tasks = (0 until count).map(_ => IO.never : IO[Int])
+    val all = tasks.foldLeft(IO.never : IO[Int])((acc,t) => IO.race(acc,t).map {
+      case Left(l) => l
+      case Right(r) => r
+    })
+
+    val f = IO.race(IO.fromFuture(IO.pure(p.future)), all)
+      .map { case Left(l) => l; case Right(r) => r }
+      .unsafeToFuture()
+
+    ec.tick()
+    p.success(1)
+    ec.tick()
+
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("race forks execution") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.race(IO(1), IO(1))
+      .map { case Left(l) => l; case Right(r) => r }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+
+    ec.state.tasks.isEmpty shouldBe false
+    ec.tickOne()
+    ec.state.tasks.isEmpty shouldBe true
+  }
+
+  testAsync("race avoids extraneous async boundaries") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO.race(IO.shift *> IO(1), IO.shift *> IO(1))
+      .map { case Left(l) => l; case Right(r) => r }
+      .unsafeToFuture()
+
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+
+    ec.state.tasks.isEmpty shouldBe false
+    ec.tickOne()
+    ec.state.tasks.isEmpty shouldBe true
+  }
+
+  testAsync("parMap2 should be stack safe") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 100000 else 1000
+    val tasks = (0 until count).map(_ => IO(1))
+
+    val sum = tasks.foldLeft(IO(0))((acc, t) => (acc, t).parMapN(_ + _))
+    val f = sum.unsafeToFuture()
+    ec.tick()
+    f.value shouldBe Some(Success(count))
+  }
+
+  testAsync("parMap2 has a stack safe cancelable") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+
+    val count = if (IOPlatform.isJVM) 10000 else 1000
+    val tasks = (0 until count).map(_ => IO.never: IO[Int])
+    val all = tasks.foldLeft(IO.pure(0))((acc, t) => (acc, t).parMapN(_ + _))
+
+    val p = Promise[Int]()
+    val cancel = all.unsafeRunCancelable(Callback.promise(p))
+    val f = p.future
+
+    ec.tick()
+    cancel()
+    ec.tick()
+
+    assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
+    f.value shouldBe None
+  }
+
+  testAsync("parMap2 forks execution") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = (IO(1), IO(1)).parMapN(_ + _).unsafeToFuture()
+    f.value shouldBe None
+
+    // Should take 2 async boundaries to complete
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
+  testAsync("parMap2 avoids extraneous async boundaries") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = (IO.shift *> IO(1), IO.shift *> IO(1))
+      .parMapN(_ + _)
+      .unsafeToFuture()
+
+    f.value shouldBe None
+
+    // Should take 2 async boundaries to complete
+    ec.tickOne()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(2))
+  }
+
+  testAsync("start forks automatically") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = IO(1).start.flatMap(_.join).unsafeToFuture()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
+  }
+
+  testAsync("start avoids async boundaries") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val f = (IO.shift *> IO(1)).start.flatMap(_.join).unsafeToFuture()
+    f.value shouldBe None
+    ec.tickOne()
+    f.value shouldBe Some(Success(1))
   }
 }
 

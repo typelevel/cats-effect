@@ -17,6 +17,7 @@
 package cats.effect
 package internals
 
+import cats.effect.internals.IOShift.Tick
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
 import scala.scalajs.js
@@ -31,7 +32,7 @@ import scala.scalajs.js
  * introduces latency even when the specified delay is zero).
  */
 private[internals] class IOTimer extends Timer[IO] {
-  import IOTimer.{Tick, setTimeout, clearTimeout, setImmediateRef}
+  import IOTimer.{ScheduledTick, setTimeout, clearTimeout, setImmediateRef}
 
   final def clockRealTime(unit: TimeUnit): IO[Long] =
     IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
@@ -40,13 +41,21 @@ private[internals] class IOTimer extends Timer[IO] {
     IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
-    IO.cancelable { cb =>
-      val task = setTimeout(timespan.toMillis, new Tick(cb))
-      IO(clearTimeout(task))
-    }
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Either[Throwable, Unit] => Unit): Unit = {
+        val task = setTimeout(timespan.toMillis, new ScheduledTick(conn, cb))
+        // On the JVM this would need a ForwardCancelable,
+        // but not on top of JS as we don't have concurrency
+        conn.push(() => clearTimeout(task))
+      }
+    })
 
   final def shift: IO[Unit] =
-    IO.async(cb => execute(new Tick(cb)))
+    IO.Async(new IOForkedStart[Unit] {
+      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit = {
+        execute(new Tick(cb))
+      }
+    })
 
   protected def execute(r: Runnable): Unit = {
     setImmediateRef(() =>
@@ -74,11 +83,6 @@ private[internals] object IOTimer {
         ec.execute(r)
     }
 
-  private final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
-    def run() = cb(Callback.rightUnit)
-  }
-
   private def setTimeout(delayMillis: Long, r: Runnable): js.Dynamic = {
     val lambda: js.Function = () =>
       try { r.run() }
@@ -97,5 +101,16 @@ private[internals] object IOTimer {
       js.Dynamic.global.setImmediate
     else
       js.Dynamic.global.setTimeout
+  }
+
+  private final class ScheduledTick(
+    conn: IOConnection,
+    cb: Either[Throwable, Unit] => Unit)
+    extends Runnable {
+
+    def run() = {
+      conn.pop()
+      cb(Callback.rightUnit)
+    }
   }
 }

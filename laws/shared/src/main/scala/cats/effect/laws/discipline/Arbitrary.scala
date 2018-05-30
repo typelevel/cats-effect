@@ -98,6 +98,15 @@ object arbitrary {
       }
     }
 
+  implicit def catsEffectLawsCogenForExitCase[E](implicit cge: Cogen[E]): Cogen[ExitCase[E]] =
+    Cogen { (seed, e) =>
+      e match {
+        case ExitCase.Completed => seed
+        case ExitCase.Error(err) => cge.perturb(seed, err)
+        case ExitCase.Canceled => seed.next
+      }
+    }
+
   implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Functor[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
