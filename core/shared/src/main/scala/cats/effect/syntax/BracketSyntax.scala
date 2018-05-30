@@ -35,6 +35,9 @@ final class BracketOps[F[_], E, A](val self: F[A]) extends AnyVal {
   def guarantee(finalizer: F[Unit])(implicit F: Bracket[F, E]): F[A] =
     F.guarantee(self)(finalizer)
 
+  def guaranteeCase(finalizer: ExitCase[E] => F[Unit])(implicit F: Bracket[F, E]): F[A] =
+    F.guaranteeCase(self)(finalizer)
+
   def uncancelable(implicit F: Bracket[F, E]): F[A] =
     F.uncancelable(self)
 }

@@ -29,21 +29,21 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val releaseCase = mock[(A, ExitCase[Throwable]) => F[Unit]]
     val release     = mock[A => F[Unit]]
     val finalizer   = mock[F[Unit]]
+    val finalCase   = mock[ExitCase[Throwable] => F[Unit]]
 
     typed[F[A]](acquire.uncancelable)
     typed[F[B]](acquire.bracket(use)(release))
     typed[F[B]](acquire.bracketCase(use)(releaseCase))
     typed[F[A]](acquire.guarantee(finalizer))
+    typed[F[A]](acquire.guaranteeCase(finalCase))
   }
 
   def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
     val fa  = mock[F[A]]
     val fa2 = mock[F[A]]
     val fb  = mock[F[B]]
-    val err = mock[Throwable]
 
     typed[F[Fiber[F, A]]](fa.start)
-    typed[F[A]](fa.onCancelRaiseError(err))
     typed[F[Either[A, B]]](fa.race(fb))
     typed[F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]](fa.racePair(fb))
     typed[F[A]](fa.timeout(1.second))
