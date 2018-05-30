@@ -16,7 +16,9 @@
 
 package cats.effect.laws.util
 
+import cats.effect.internals.Callback.T
 import cats.effect.internals.Cancelable.{Type => Cancelable}
+import cats.effect.internals.{IOConnection, IOForkedStart}
 import cats.effect.{IO, LiftIO, Timer}
 
 import scala.collection.immutable.SortedSet
@@ -147,7 +149,10 @@ final class TestContext private () extends ExecutionContext { self =>
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
       override def shift: F[Unit] =
-        F.liftIO(IO.async { cb => self.execute(tick(cb))})
+        F.liftIO(IO.Async(new IOForkedStart[Unit] {
+          def apply(conn: IOConnection, cb: T[Unit]): Unit =
+            self.execute(tick(cb))
+        }))
       override def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(IO.cancelable { cb =>
           val cancel = self.schedule(timespan, tick(cb))

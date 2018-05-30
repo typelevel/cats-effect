@@ -18,12 +18,12 @@ package cats.effect
 package internals
 
 import java.util.concurrent.atomic.AtomicBoolean
-import cats.effect.IO.Async
+import cats.effect.IO.{Async, ContextSwitch}
 import scala.concurrent.ExecutionContext
 import scala.util.Left
 
 private[effect] object IOCancel {
-  import Callback.{rightUnit, Type => Callback}
+  import Callback.rightUnit
 
   /** Implementation for `IO.cancel`. */
   def signal[A](fa: IO[A]): IO[Unit] =
@@ -44,46 +44,31 @@ private[effect] object IOCancel {
   /** Implementation for `IO.cancel`. */
   def raise[A](fa: IO[A], e: Throwable): IO[A] =
     Async { (conn, cb) =>
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          val canCall = new AtomicBoolean(true)
-          // We need a special connection because the main one will be reset on
-          // cancellation and this can interfere with the cancellation of `fa`
-          val connChild = IOConnection()
-          // Registering a special cancelable that will trigger error on cancel.
-          // Note the pair `conn.pop` happens in `RaiseCallback`.
-          conn.push(new RaiseCancelable(canCall, conn, connChild, cb, e))
-          // Registering a callback that races against the cancelable we
-          // registered above
-          val cb2 = new RaiseCallback[A](canCall, conn, cb)
-          // Execution
-          IORunLoop.startCancelable(fa, connChild, cb2)
-        }
-      })
+      val canCall = new AtomicBoolean(true)
+      // We need a special connection because the main one will be reset on
+      // cancellation and this can interfere with the cancellation of `fa`
+      val connChild = IOConnection()
+      // Registering a special cancelable that will trigger error on cancel.
+      // Note the pair `conn.pop` happens in `RaiseCallback`.
+      conn.push(new RaiseCancelable(canCall, conn, connChild, cb, e))
+      // Registering a callback that races against the cancelable we
+      // registered above
+      val cb2 = new RaiseCallback[A](canCall, conn, cb)
+      // Execution
+      IORunLoop.startCancelable(fa, connChild, cb2)
     }
 
   /** Implementation for `IO.uncancelable`. */
   def uncancelable[A](fa: IO[A]): IO[A] =
-    Async { (_, cb) =>
-      // First async (trampolined) boundary
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          // Second async (trampolined) boundary
-          val cb2 = Callback.async(cb)
-          // By not passing the `Connection`, execution becomes uncancelable
-          IORunLoop.start(fa, cb2)
-        }
-      })
-    }
+    ContextSwitch(fa, makeUncancelable, disableUncancelable)
 
   private final class RaiseCallback[A](
     active: AtomicBoolean,
     conn: IOConnection,
-    cb: Callback[A])
-    extends Callback[A] with Runnable {
+    cb: Callback.T[A])
+    extends Callback.T[A] with Runnable {
 
     private[this] var value: Either[Throwable, A] = _
-
     def run(): Unit = cb(value)
 
     def apply(value: Either[Throwable, A]): Unit =
@@ -119,4 +104,10 @@ private[effect] object IOCancel {
 
   /** Trampolined execution context. */
   private[this] val ec: ExecutionContext = TrampolineEC.immediate
+
+  /** Internal reusable reference. */
+  private[this] val makeUncancelable: IOConnection => IOConnection =
+    _ => IOConnection.uncancelable
+  private[this] val disableUncancelable: (Any, Throwable, IOConnection, IOConnection) => IOConnection =
+    (_, _, old, _) => old
 }

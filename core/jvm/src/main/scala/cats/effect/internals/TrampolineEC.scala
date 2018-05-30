@@ -16,109 +16,82 @@
 
 package cats.effect.internals
 
-import scala.annotation.tailrec
+import cats.effect.internals.TrampolineEC.JVMTrampoline
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
-import scala.util.control.NonFatal
 
-/** INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
-  * that executes runnables immediately, on the current thread,
-  * by means of a trampoline implementation.
-  *
-  * Can be used in some cases to keep the asynchronous execution
-  * on the current thread, as an optimization, but be warned,
-  * you have to know what you're doing.
-  *
-  * This is the JVM-specific implementation, for which we
-  * need a `ThreadLocal` and Scala's `BlockingContext`.
-  */
+/**
+ * INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
+ * that executes runnables immediately, on the current thread,
+ * by means of a trampoline implementation.
+ *
+ * Can be used in some cases to keep the asynchronous execution
+ * on the current thread, as an optimization, but be warned,
+ * you have to know what you're doing.
+ *
+ * This is the JVM-specific implementation, for which we
+ * need a `ThreadLocal` and Scala's `BlockingContext`.
+ */
 private[effect] final class TrampolineEC private (underlying: ExecutionContext)
   extends ExecutionContext {
 
-  private[this] val localTasks = new ThreadLocal[List[Runnable]]()
-
-  private[this] val trampolineContext: BlockContext =
-    new BlockContext {
-      def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
-        // In case of blocking, execute all scheduled local tasks on
-        // a separate thread, otherwise we could end up with a dead-lock
-        forkTheRest(Nil)
-        thunk
-      }
+  private[this] val trampoline =
+    new ThreadLocal[Trampoline]() {
+      override def initialValue(): Trampoline =
+        new JVMTrampoline(underlying)
     }
 
   override def execute(runnable: Runnable): Unit =
-    localTasks.get match {
-      case null =>
-        // If we aren't in local mode yet, start local loop
-        localTasks.set(Nil)
-        BlockContext.withBlockContext(trampolineContext) {
-          localRunLoop(runnable)
-        }
-      case some =>
-        // If we are already in batching mode, add to stack
-        localTasks.set(runnable :: some)
-    }
-
-  @tailrec private def localRunLoop(head: Runnable): Unit = {
-    try { head.run() } catch {
-      case NonFatal(ex) =>
-        // Sending everything else to the underlying context
-        forkTheRest(null)
-        reportFailure(ex)
-    }
-
-    localTasks.get() match {
-      case null => ()
-      case Nil =>
-        localTasks.set(null)
-      case h2 :: t2 =>
-        localTasks.set(t2)
-        localRunLoop(h2)
-    }
-  }
-
-  private def forkTheRest(newLocalTasks: Nil.type): Unit = {
-    val rest = localTasks.get()
-    localTasks.set(newLocalTasks)
-
-    rest match {
-      case null | Nil => ()
-      case head :: tail =>
-        underlying.execute(new ResumeRun(head, tail))
-    }
-  }
-
+    trampoline.get().execute(runnable)
   override def reportFailure(t: Throwable): Unit =
     underlying.reportFailure(t)
-
-  private final class ResumeRun(head: Runnable, rest: List[Runnable])
-    extends Runnable {
-
-    def run(): Unit = {
-      localTasks.set(rest)
-      localRunLoop(head)
-    }
-  }
 }
 
 private[effect] object TrampolineEC {
-  /** [[TrampolineEC]] instance that executes everything
-    * immediately, on the current thread.
-    *
-    * Implementation notes:
-    *
-    *  - if too many `blocking` operations are chained, at some point
-    *    the implementation will trigger a stack overflow error
-    *  - `reportError` re-throws the exception in the hope that it
-    *    will get caught and reported by the underlying thread-pool,
-    *    because there's nowhere it could report that error safely
-    *    (i.e. `System.err` might be routed to `/dev/null` and we'd
-    *    have no way to override it)
-    */
+  /**
+   * [[TrampolineEC]] instance that executes everything
+   * immediately, on the current thread.
+   *
+   * Implementation notes:
+   *
+   *  - if too many `blocking` operations are chained, at some point
+   *    the implementation will trigger a stack overflow error
+   *  - `reportError` re-throws the exception in the hope that it
+   *    will get caught and reported by the underlying thread-pool,
+   *    because there's nowhere it could report that error safely
+   *    (i.e. `System.err` might be routed to `/dev/null` and we'd
+   *    have no way to override it)
+   *
+   * INTERNAL API.
+   */
   val immediate: TrampolineEC =
     new TrampolineEC(new ExecutionContext {
       def execute(r: Runnable): Unit = r.run()
       def reportFailure(e: Throwable): Unit =
         Logger.reportFailure(e)
     })
+
+  /**
+   * Overrides [[Trampoline]] to be `BlockContext`-aware.
+   *
+   * INTERNAL API.
+   */
+  private final class JVMTrampoline(underlying: ExecutionContext)
+    extends Trampoline(underlying) {
+
+    private[this] val trampolineContext: BlockContext =
+      new BlockContext {
+        def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
+          // In case of blocking, execute all scheduled local tasks on
+          // a separate thread, otherwise we could end up with a dead-lock
+          forkTheRest()
+          thunk
+        }
+      }
+
+    override def startLoop(runnable: Runnable): Unit = {
+      BlockContext.withBlockContext(trampolineContext) {
+        super.startLoop(runnable)
+      }
+    }
+  }
 }

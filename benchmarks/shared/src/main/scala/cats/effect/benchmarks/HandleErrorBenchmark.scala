@@ -17,8 +17,8 @@ package cats.effect.benchmarks
 
 import java.util.concurrent.TimeUnit
 import cats.effect.IO
-import org.openjdk.jmh.annotations._
 import cats.syntax.all._
+import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between versions:
   *
