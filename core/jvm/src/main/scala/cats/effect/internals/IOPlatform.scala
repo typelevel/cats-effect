@@ -23,7 +23,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Either, Try}
 
 private[effect] object IOPlatform {
-  /** 
+  /**
    * JVM-specific function that blocks for the result of an IO task.
    *
    * Uses the [[scala.concurrent.BlockContext]], instructing the
@@ -74,7 +74,7 @@ private[effect] object IOPlatform {
   /**
    * Establishes the maximum stack depth for `IO#map` operations.
    *
-   * The default is `128`, from which we substract one as an 
+   * The default is `128`, from which we substract one as an
    * optimization. This default has been reached like this:
    *
    *  - according to official docs, the default stack size on 32-bits
@@ -102,7 +102,23 @@ private[effect] object IOPlatform {
       .map(_ - 1)
       .getOrElse(127)
 
-  /** Returns `true` if the underlying platform is the JVM,
-    * `false` if it's JavaScript. */
+  /**
+   * Returns `true` if the underlying platform is the JVM,
+   * `false` if it's JavaScript.
+   */
   final val isJVM = true
+
+  /**
+   * Composes multiple errors together, meant for those cases in which
+   * error suppression, due to a second error being triggered, is not
+   * acceptable.
+   *
+   * On top of the JVM this function uses `Throwable#addSuppressed`,
+   * available since Java 7. On top of JavaScript the function would return
+   * a `CompositeException`.
+   */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    for (e <- rest) first.addSuppressed(e)
+    first
+  }
 }
