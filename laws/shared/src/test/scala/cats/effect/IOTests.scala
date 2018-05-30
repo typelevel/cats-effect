@@ -43,8 +43,8 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
 
   checkAllAsync("IO(defaults)", implicit ec => {
-    implicit val ioEffect = IOTests.ioEffectDefaults
-    ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
+    val ioEffect = IOTests.ioEffectDefaults
+    ConcurrentEffectTests[IO](ioEffect, implicitly).concurrentEffect[Int, Int, Int]
   })
 
   testAsync("IO.Par's applicative instance is different") { implicit ec =>
@@ -949,8 +949,8 @@ class IOTests extends BaseTestsSuite {
 
 object IOTests {
   /** Implementation for testing default methods. */
-  val ioEffectDefaults = new Effect[IO] {
-    private val ref = implicitly[Effect[IO]]
+  def ioEffectDefaults(implicit timer: Timer[IO]) = new ConcurrentEffect[IO] {
+    private val ref = implicitly[ConcurrentEffect[IO]]
 
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       ref.async(k)
@@ -974,8 +974,12 @@ object IOTests {
       ref.suspend(thunk)
     def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       fa.runCancelable(cb)
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-      IO.cancelable(k)
+    def uncancelable[A](fa: IO[A]): IO[A] =
+      ref.uncancelable(fa)
+    def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
+      ref.onCancelRaiseError(fa, e)
+    def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+      ref.racePair(fa, fb)
     def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
