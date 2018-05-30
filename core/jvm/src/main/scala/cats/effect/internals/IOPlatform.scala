@@ -117,14 +117,8 @@ private[effect] object IOPlatform {
    * available since Java 7. On top of JavaScript the function would return
    * a `CompositeException`.
    */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    if (rest.isEmpty) first else {
-      val cursor = rest.iterator
-      while (cursor.hasNext) {
-        val next = cursor.next()
-        if (first ne next)
-          first.addSuppressed(next)
-      }
-      first
-    }
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    for (e <- rest) first.addSuppressed(e)
+    first
+  }
 }
