@@ -18,9 +18,8 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.Canceled
+import cats.effect.ExitCase
 import cats.implicits._
-
 import scala.collection.immutable.Queue
 
 /**
@@ -241,12 +240,14 @@ object Semaphore {
   private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] =
-      F.onCancelRaiseError(entry._2.get, Canceled).recoverWith {
-        case Canceled =>
+      F.guaranteeCase(entry._2.get) {
+        case ExitCase.Canceled =>
           state.update {
             case Left(waiting) => Left(waiting.filter(_ != entry))
             case Right(m)      => Right(m)
-          } *> F.async[Unit](cb => ())
+          }
+        case _ =>
+          F.unit
       }
   }
 

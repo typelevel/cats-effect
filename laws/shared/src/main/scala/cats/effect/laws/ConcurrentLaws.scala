@@ -34,7 +34,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       exitLatch <- Deferred[F, A]
       // What we're actually testing
       bracketed = F.bracketCase(F.pure(a))(a => startLatch.complete(a) *> F.never[A]) {
-        case (r, ExitCase.Canceled(_)) => exitLatch.complete(r)
+        case (r, ExitCase.Canceled) => exitLatch.complete(r)
         case (_, _) => F.unit
       }
       // Forked execution, allowing us to cancel it later
@@ -132,41 +132,6 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       } yield out
 
     lh <-> F.pure(a2)
-  }
-
-  def onCancelRaiseErrorMirrorsSource[A](fa: F[A], e: Throwable) = {
-    F.onCancelRaiseError(fa, e) <-> fa
-  }
-
-  def onCancelRaiseErrorTerminatesOnCancel[A](e: Throwable) = {
-    val received =
-      for {
-        s <- Semaphore[F](0L)
-        never = F.onCancelRaiseError(F.bracket(s.release)(_ => F.never[A])(_ => F.unit), e)
-        fiber <- F.start(never)
-        _ <- s.acquire *> fiber.cancel
-        r <- fiber.join
-      } yield r
-
-    received <-> F.raiseError(e)
-  }
-
-  def onCancelRaiseErrorCanCancelSource[A](a: A, e: Throwable) = {
-    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { effect =>
-      val async = F.cancelable[Unit](_ => effect.complete(a))
-      F.start(F.onCancelRaiseError(async, e))
-        .flatMap(_.cancel) *> F.liftIO(effect.get)
-    }
-    lh <-> F.pure(a)
-  }
-
-  def onCancelRaiseErrorResetsCancellationFlag[A](a: A, e: Throwable) = {
-    val task = F.onCancelRaiseError(F.never[A], e)
-    val recovered = F.recoverWith(task) {
-      case `e` => F.liftIO(IO.cancelBoundary *> IO(a))
-    }
-    F.flatMap(F.start(recovered))(f => f.cancel *> f.join) <->
-      F.liftIO(IO(a))
   }
 
   def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {

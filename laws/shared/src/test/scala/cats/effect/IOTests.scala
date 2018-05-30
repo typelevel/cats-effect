@@ -646,26 +646,6 @@ class IOTests extends BaseTestsSuite {
     f.value.get.failed.get shouldBe an [TimeoutException]
   }
 
-  testAsync("onCancelRaiseError cancels forked sources") { implicit ec =>
-    implicit val F = implicitly[ConcurrentEffect[IO]]
-    val timer = ec.timer[IO]
-    val dummy = new RuntimeException
-    val effect = Deferred.unsafeUncancelable[IO, Int]
-    val io = {
-      val async = F.cancelable[Unit](_ => effect.complete(10))
-      for {
-        fiber <- F.start(F.onCancelRaiseError(timer.shift.flatMap(_ => async), dummy))
-        _ <- fiber.cancel
-        r <- F.liftIO(effect.get)
-      } yield r
-    }
-
-    val f = io.unsafeToFuture()
-    ec.tick()
-
-    f.value shouldBe Some(Success(10))
-  }
-
   testAsync("onCancelRaiseError resets the isCanceled flag") { implicit ec =>
     implicit val timer = ec.timer[IO]
 

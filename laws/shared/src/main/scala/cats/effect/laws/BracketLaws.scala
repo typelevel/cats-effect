@@ -41,7 +41,7 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def uncancelablePreventsCanceledCase[A](fa: F[A], onCancel: F[Unit], onFinish: F[Unit]) =
     F.uncancelable(F.bracketCase(F.unit)(_ => fa) {
-      case (_, ExitCase.Canceled(_)) => onCancel
+      case (_, ExitCase.Canceled) => onCancel
       case _ => onFinish
     }) <-> F.uncancelable(F.guarantee(fa)(onFinish))
 
@@ -50,6 +50,9 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def guaranteeIsDerivedFromBracket[A](fa: F[A], finalizer: F[Unit]) =
     F.guarantee(fa)(finalizer) <-> F.bracket(F.unit)(_ => fa)(_ => finalizer)
+
+  def guaranteeCaseIsDerivedFromBracketCase[A](fa: F[A], finalizer: ExitCase[E] => F[Unit]) =
+    F.guaranteeCase(fa)(finalizer) <-> F.bracketCase(F.unit)(_ => fa)((_, e) => finalizer(e))
 }
 
 object BracketLaws {
