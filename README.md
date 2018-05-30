@@ -17,7 +17,7 @@ Versions of Cats Effect:
 
 - Old `0.x` series: `0.10.1`
 - Current: `1.0.0-RC`
-- Experimental: `1.0.0-RC2-68b7bd9`
+- Experimental: `1.0.0-RC2-d7181dc`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
