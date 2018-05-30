@@ -59,6 +59,11 @@ class IOJSTests extends AsyncFunSuite with Matchers {
       .attempt
       .unsafeRunSync()
 
-    r shouldEqual Left(CompositeException(e1, e2))
+    r.isLeft shouldBe true
+    r.left.get shouldBe a[CompositeException]
+
+    val err = r.left.get.asInstanceOf[CompositeException]
+    err.head shouldBe e1
+    err.tail.toList shouldBe List(e2)
   }
 }
