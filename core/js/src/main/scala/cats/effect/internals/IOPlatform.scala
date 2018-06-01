@@ -87,7 +87,11 @@ private[effect] object IOPlatform {
    * available since Java 7. On top of JavaScript the function would return
    * a `CompositeException`.
    */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable =
-    if (rest.isEmpty) first
-    else new CompositeException(first, NonEmptyList.fromListUnsafe(rest.toList))
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    rest.filter(_ != first).toList match {
+      case Nil => first
+      case nonEmpty =>
+        new CompositeException(first, NonEmptyList.fromListUnsafe(nonEmpty))
+    }
+  }
 }

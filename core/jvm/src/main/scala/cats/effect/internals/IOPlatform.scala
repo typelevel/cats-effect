@@ -118,7 +118,7 @@ private[effect] object IOPlatform {
    * a `CompositeException`.
    */
   def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
-    for (e <- rest) first.addSuppressed(e)
+    for (e <- rest; if e != first) first.addSuppressed(e)
     first
   }
 }
