@@ -21,8 +21,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.concurrent.Deferred
 import cats.effect.internals.{Callback, IOPlatform}
-import cats.effect.laws.discipline.ConcurrentEffectTests
+import cats.effect.laws.discipline.{ConcurrentEffectTests, ContinualTests}
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -38,6 +39,7 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int])
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
+  checkAllAsync("IO", implicit ec => ContinualTests[IO].concurrent[Int])
 
   checkAllAsync("IO.Par", implicit ec => ApplicativeTests[IO.Par].applicative[Int, Int, Int])
   checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
@@ -45,6 +47,11 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO(defaults)", implicit ec => {
     implicit val ioEffect = IOTests.ioEffectDefaults
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
+  })
+
+  checkAllAsync("IO(defaults)", implicit ec => {
+    implicit val ioEffect = IOTests.ioEffectDefaults
+    ContinualTests[IO].concurrent[Int]
   })
 
   testAsync("IO.Par's applicative instance is different") { implicit ec =>
@@ -929,36 +936,45 @@ class IOTests extends BaseTestsSuite {
 
 object IOTests {
   /** Implementation for testing default methods. */
-  val ioEffectDefaults = new Effect[IO] {
-    private val ref = implicitly[Effect[IO]]
+  def ioEffectDefaults(implicit ec: TestContext) =
+    new ConcurrentEffect[IO] with Continual[IO] {
+      private val ref = implicitly[Effect[IO]]
+      private implicit val timer = ec.timer[IO]
+      implicit val sync: Sync[IO] = this
 
-    def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
-      ref.async(k)
-    def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
-      ref.asyncF(k)
-    def raiseError[A](e: Throwable): IO[A] =
-      ref.raiseError(e)
-    def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
-      ref.handleErrorWith(fa)(f)
-    def pure[A](x: A): IO[A] =
-      ref.pure(x)
-    def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
-      ref.flatMap(fa)(f)
-    def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
-      ref.tailRecM(a)(f)
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
-      ref.runAsync(fa)(cb)
-    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
-      ref.runSyncStep(fa)
-    def suspend[A](thunk: =>IO[A]): IO[A] =
-      ref.suspend(thunk)
-    def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-      fa.runCancelable(cb)
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-      IO.cancelable(k)
-    def bracketCase[A, B](acquire: IO[A])
-      (use: A => IO[B])
-      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-      ref.bracketCase(acquire)(use)(release)
-  }
+      def continual[A](fa: IO[A]): IO[A] =
+        fa
+      def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
+        ref.async(k)
+      def asyncF[A](k: ((Either[Throwable, A]) => Unit) => IO[Unit]): IO[A] =
+        ref.asyncF(k)
+      def raiseError[A](e: Throwable): IO[A] =
+        ref.raiseError(e)
+      def handleErrorWith[A](fa: IO[A])(f: (Throwable) => IO[A]): IO[A] =
+        ref.handleErrorWith(fa)(f)
+      def pure[A](x: A): IO[A] =
+        ref.pure(x)
+      def flatMap[A, B](fa: IO[A])(f: (A) => IO[B]): IO[B] =
+        ref.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
+        ref.tailRecM(a)(f)
+      def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+        ref.runAsync(fa)(cb)
+      def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+        ref.runSyncStep(fa)
+      def suspend[A](thunk: =>IO[A]): IO[A] =
+        ref.suspend(thunk)
+      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+        fa.runCancelable(cb)
+      def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+        IO.cancelable(k)
+      def bracketCase[A, B](acquire: IO[A])
+        (use: A => IO[B])
+        (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+        ref.bracketCase(acquire)(use)(release)
+      def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+        fa.start
+      def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+        IO.racePair(fa, fb)
+    }
 }

@@ -785,6 +785,24 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
     final override def runSyncStep[A](ioa: IO[A]): IO[Either[IO[A], A]] =
       ioa.runSyncStep
   }
+
+  /** [[Continual]] instance for [[IO]].
+    *
+    * NOTE the implementation of `cats.effect.IO` is already following
+    * this evaluation model in its implementation, therefore
+    * [[Continual.continual]] is equivalent to the identity function.
+    */
+  implicit val continual: Continual[IO] =
+    new Continual[IO] {
+      implicit val sync: Sync[IO] =
+        ioEffect
+      override def continual[A](fa: IO[A]): IO[A] =
+        fa
+      override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
+        fa.onCancelRaiseError(e)
+      override def cancelBoundary(implicit ev: Concurrent[IO]): IO[Unit] =
+        IO.cancelBoundary
+    }
 }
 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
