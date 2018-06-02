@@ -41,18 +41,6 @@ object Parameters {
     Parameters(
       allowNonTerminationLaws = true,
       stackSafeIterationsCount = {
-        if (IOPlatform.isJVM) {
-          val isCISystem =
-            System.getenv("TRAVIS") == "true" ||
-            System.getenv("CI") == "true"
-
-          // Continuous integration services like Travis are CPU-restrained
-          // and struggle with CPU intensive tasks, so being gentle with it
-          if (isCISystem) 10000 else 100000
-        } else {
-          // JavaScript tests are costly, plus it's the same logic
-          // as the JVM, so no need for more than a couple of rounds
-          100
-        }
+        if (IOPlatform.isJVM) 10000 else 100
       })
 }
