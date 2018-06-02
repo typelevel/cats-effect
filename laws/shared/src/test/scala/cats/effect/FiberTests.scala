@@ -34,7 +34,7 @@ class FiberTests extends BaseTestsSuite {
     implicit ec => ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int])
 
   checkAllAsync("Fiber[IO, ?]",
-    implicit ec => SemigroupTests[Fiber[IO, Int]](Fiber.fiberSemigroup).semigroup)
+    implicit ec => SemigroupTests[Fiber[IO, Int]](Fiber.fiberSemigroup[IO, IO.Par, Int]).semigroup)
 
   checkAllAsync("Fiber[IO, ?]",
     implicit ec => MonoidTests[Fiber[IO, Int]].monoid)
@@ -144,7 +144,7 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        io <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
+        io <- Fiber.fiberSemigroup[IO, IO.Par, Int].combine(fiber1, fiber2).join
       } yield io
 
     f.unsafeToFuture()
@@ -163,7 +163,7 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        io <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
+        io <- Fiber.fiberSemigroup[IO, IO.Par, Int].combine(fiber1, fiber2).join
       } yield io
 
     f.unsafeToFuture()
