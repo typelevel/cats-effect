@@ -53,10 +53,6 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
     F.runSyncStep(F.async[A](k)) <-> IO.pure(Left(F.async[A](k)))
   }
 
-  def runSyncStepAsyncNeverProducesLeftPureIO[A] = {
-    F.runSyncStep(F.never[A]) <-> IO.pure(Left(F.never[A]))
-  }
-
   def runSyncStepCanBeAttemptedSynchronously[A](fa: F[A]) = {
     Either.catchNonFatal(F.runSyncStep(fa).attempt.unsafeRunSync()).isRight
   }
