@@ -1068,13 +1068,54 @@ object IO extends IOInstances {
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
     Async { (conn, cb) =>
-      val cb2 = Callback.asyncIdempotent(null, cb)
+      // Must create new connection, otherwise we can have a race
+      // condition b/t the bind continuation and `startCancelable` below
+      val conn2 = IOConnection()
+      conn.push(conn2.cancel)
+      // The callback handles "conn.pop()"
+      val cb2 = Callback.asyncIdempotent(conn, cb)
       val fa = try k(cb2) catch { case NonFatal(t) => IO(cb2(Left(t))) }
-      IORunLoop.startCancelable(fa, conn, Callback.report)
+      IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
   /**
    * Builds a cancelable `IO`.
+   *
+   * Implements [[Concurrent.cancelable]].
+   *
+   * The provided function takes a side effectful callback that's
+   * supposed to be registered in async apis for signaling a final
+   * result.
+   *
+   * The provided function also returns an `IO[Unit]` that represents
+   * the cancelation token, the logic needed for canceling the
+   * running computations.
+   *
+   * Example:
+   *
+   * {{{
+   *   import java.util.concurrent.ScheduledExecutorService
+   *   import scala.concurrent.duration._
+   *
+   *   def sleep(d: FiniteDuration)(implicit ec: ScheduledExecutorService): IO[Unit] =
+   *     IO.cancelable { cb =>
+   *       // Schedules task to run after delay
+   *       val run = new Runnable { def run() = cb(Right(())) }
+   *       val future = ec.schedule(run, d.length, d.unit)
+   *
+   *       // Cancellation logic, suspended in IO
+   *       IO(future.cancel(true))
+   *     }
+   * }}}
+   *
+   * This example is for didactic purposes, you don't need to describe
+   * this function, as it's already available in [[IO.sleep]].
+   *
+   * @see [[async]] for a simpler variant that builds non-cancelable,
+   *      async tasks
+   *
+   * @see [[asyncF]] for a more potent version that does hook into
+   *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
     Async { (conn, cb) =>
