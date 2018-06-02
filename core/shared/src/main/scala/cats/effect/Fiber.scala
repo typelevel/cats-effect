@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.syntax.apply._
 import cats.syntax.parallel._
-import cats.{Applicative, Apply, MonadError, Monoid, Parallel, Semigroup}
+import cats.{Applicative, ApplicativeError, Apply, MonadError, Monoid, Parallel, Semigroup}
 
 import scala.util.control.NonFatal
 
@@ -87,7 +87,7 @@ object Fiber extends FiberInstances {
 
 private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
 
-  implicit def fiberApplicative[F[_], M[_]](implicit F: Parallel[F, M], G: MonadError[F, Throwable]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
+  implicit def fiberApplicative[F[_], M[_]](implicit F: Parallel[F, M], G: ApplicativeError[F, Throwable]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
     final override def pure[A](x: A): Fiber[F, A] =
       Fiber(F.monad.pure(x), F.monad.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
@@ -95,8 +95,8 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
     final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
       Fiber(
         (
-          F.sequential(F.applicativeError.onError(F.parallel(fa.join))({case NonFatal(_) => F.parallel(fb.cancel)})),
-          F.sequential(F.applicativeError.onError(F.parallel(fb.join))({case NonFatal(_) => F.parallel(fa.cancel)}))
+          G.onError(fa.join)({case NonFatal(_) => fb.cancel}),
+          G.onError(fb.join)({case NonFatal(_) => fa.cancel})
         ).parMapN(f),
         fa.cancel *> fb.cancel)
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
