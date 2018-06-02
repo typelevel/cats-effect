@@ -204,10 +204,8 @@ trait Concurrent[F[_]] extends Async[F] {
    *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[Unit] = {
    *
    *     F.cancelable { cb =>
-   *       // Note the callback is pure, so we need to trigger evaluation
-   *       val run = new Runnable { def run() = cb(Right(())) }
-   *
    *       // Schedules task to run after delay
+   *       val run = new Runnable { def run() = cb(Right(())) }
    *       val future = ec.schedule(run, d.length, d.unit)
    *
    *       // Cancellation logic, suspended in IO
