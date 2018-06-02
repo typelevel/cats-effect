@@ -58,7 +58,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
       val bases = Nil
       val parents = Seq(sync[A, B, C])
       val props = {
-        val safeTests = Seq(
+        val default = Seq(
           "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
           "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
           "repeated async evaluation not memoized" -> forAll(laws.repeatedAsyncEvaluationNotMemoized[A] _),
@@ -68,11 +68,11 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
         // Activating the tests that detect non-termination only if allowed by Params,
         // because such tests might not be reasonable depending on evaluation model
         if (params.allowNonTerminationLaws)
-          safeTests ++ Seq(
+          default ++ Seq(
             "never is derived from async" -> Prop.lzy(laws.neverIsDerivedFromAsync[A])
           )
         else
-          safeTests
+          default
       }
     }
   }

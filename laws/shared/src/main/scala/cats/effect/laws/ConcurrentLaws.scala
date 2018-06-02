@@ -101,7 +101,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       F.start(F.uncancelable(async)).flatMap(_.cancel) *> F.liftIO(p.get)
     }
     // Non-terminating
-    lh <-> F.async(_ => ())
+    lh <-> F.never
   }
 
   def acquireIsNotCancelable[A](a1: A, a2: A) = {
