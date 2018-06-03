@@ -37,8 +37,7 @@ import cats.effect.internals.IOAppPlatform
  * with the numeric value of the signal plus 128.
  *
  * {{{
- * import cats.effect.IO
- * import cats.effect.concurrent.{ExitCode, IOApp}
+ * import cats.effect._
  * import cats.implicits._
  *
  * object MyApp extends IOApp {
