@@ -102,10 +102,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats">cats</a></dd></dl></div>
-    </li><li name="cats.effect.implicits" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="implicits"></a><a id="implicits:implicits"></a>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#implicits" title="Permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -114,7 +114,23 @@
         <span class="kind">package</span>
       </span>
       <span class="symbol">
-        <a title="" href="implicits/index.html"><span class="name">implicits</span></a>
+        <a title="" href="concurrent/index.html"><span class="name">concurrent</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="syntax/index.html"><span class="name">syntax</span></a>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
@@ -159,6 +175,10 @@
                         <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
                         <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCode$.html" title=""></a>
+                        <a class="class" href="ExitCode.html" title="Represents the exit code of an application."></a>
+                        <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
                         <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
@@ -167,9 +187,17 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
+                        <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="LiftIO$.html" title=""></a>
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="Resource$.html" title=""></a>
+                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
+                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -208,7 +236,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC/core/shared/src/main/scala/cats/effect/Bracket.scala" target="_blank">Bracket.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/32869dc00216f6ed683afbc36ce5f8452b500131/core/shared/src/main/scala/cats/effect/Bracket.scala" target="_blank">Bracket.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -260,27 +288,7 @@
 
         <div id="types" class="types members">
               <h3>Type Members</h3>
-              <ol><li name="cats.effect.ExitCase.Canceled" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="Canceled[+E]extendsExitCase[E]withProductwithSerializable"></a><a id="Canceled[+E]:Canceled[E]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/ExitCase$.html#Canceled[+E]extendsExitCase[E]withProductwithSerializable" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">final </span>
-        <span class="kind">case class</span>
-      </span>
-      <span class="symbol">
-        <a title="An ExitCase signaling that the action was aborted." href="ExitCase$$Canceled.html"><span class="name">Canceled</span></a><span class="tparams">[<span name="E">+E</span>]</span><span class="params">(<span name="e">e: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="cats.effect.ExitCase.Canceled.E">E</span>]</span>)</span><span class="result"> extends <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="cats.effect.ExitCase.Canceled.E">E</span>] with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
-      </span>
-      
-      <p class="shortcomment cmt">An <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> signaling that the action was aborted.</p><div class="fullcomment"><div class="comment cmt"><p>An <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> signaling that the action was aborted.</p><p>As an example this can happen when we have a cancelable data type,
-like <a href="IO.html" class="extype" name="cats.effect.IO">IO</a> and the task yielded by <code>bracket</code> gets canceled
-when it's at its <code>use</code> phase.</p><p>Thus <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a> allows you to observe interruption conditions
-and act on them.
-</p></div></div>
-    </li><li name="cats.effect.ExitCase.Error" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+              <ol><li name="cats.effect.ExitCase.Error" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Error[+E]extendsExitCase[E]withProductwithSerializable"></a><a id="Error[+E]:Error[E]"></a>
       <span class="permalink">
       <a href="../../cats/effect/ExitCase$.html#Error[+E]extendsExitCase[E]withProductwithSerializable" title="Permalink">
@@ -400,23 +408,7 @@ and act on them.
         <span class="name">canceled</span><span class="tparams">[<span name="E">E</span>]</span><span class="result">: <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="cats.effect.ExitCase.canceled.E">E</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Alias for <code>Canceled(None)</code>.</p>
-    </li><li name="cats.effect.ExitCase#canceledWith" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="canceledWith[E](e:E):cats.effect.ExitCase[E]"></a><a id="canceledWith[E](E):ExitCase[E]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/ExitCase$.html#canceledWith[E](e:E):cats.effect.ExitCase[E]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">canceledWith</span><span class="tparams">[<span name="E">E</span>]</span><span class="params">(<span name="e">e: <span class="extype" name="cats.effect.ExitCase.canceledWith.E">E</span></span>)</span><span class="result">: <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="cats.effect.ExitCase.canceledWith.E">E</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Alias for <code>Canceled(Some(e))</code>.</p>
+      <p class="shortcomment cmt">Alias for <code>Canceled</code>.</p>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">
@@ -735,6 +727,26 @@ and act on them.
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.ExitCase.Canceled" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="Canceled"></a><a id="Canceled:Canceled"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/ExitCase$.html#Canceled" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="An ExitCase signaling that the action was aborted." href="ExitCase$$Canceled$.html"><span class="name">Canceled</span></a><span class="result"> extends <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="scala.Nothing">Nothing</span>] with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">An <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> signaling that the action was aborted.</p><div class="fullcomment"><div class="comment cmt"><p>An <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> signaling that the action was aborted.</p><p>As an example this can happen when we have a cancelable data type,
+like <a href="IO.html" class="extype" name="cats.effect.IO">IO</a> and the task yielded by <code>bracket</code> gets canceled
+when it's at its <code>use</code> phase.</p><p>Thus <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a> allows you to observe interruption conditions
+and act on them.
+</p></div></div>
     </li><li name="cats.effect.ExitCase.Completed" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="Completed"></a><a id="Completed:Completed"></a>
       <span class="permalink">

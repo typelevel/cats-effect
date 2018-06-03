@@ -102,10 +102,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats">cats</a></dd></dl></div>
-    </li><li name="cats.effect.implicits" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="implicits"></a><a id="implicits:implicits"></a>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#implicits" title="Permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -114,7 +114,23 @@
         <span class="kind">package</span>
       </span>
       <span class="symbol">
-        <a title="" href="implicits/index.html"><span class="name">implicits</span></a>
+        <a title="" href="concurrent/index.html"><span class="name">concurrent</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="syntax/index.html"><span class="name">syntax</span></a>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
@@ -159,6 +175,10 @@
                         <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
                         <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCode$.html" title=""></a>
+                        <a class="class" href="ExitCode.html" title="Represents the exit code of an application."></a>
+                        <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
                         <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
@@ -167,9 +187,17 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
+                        <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="LiftIO$.html" title=""></a>
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="Resource$.html" title=""></a>
+                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
+                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -208,7 +236,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/32869dc00216f6ed683afbc36ce5f8452b500131/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -704,6 +732,52 @@ interruptibility of the given <code>IO</code> value.</p><p>This is the default <
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li name="cats.effect.Concurrent#timeout" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="timeout[F[_],A](fa:F[A],duration:scala.concurrent.duration.FiniteDuration)(implicitF:cats.effect.Concurrent[F],implicittimer:cats.effect.Timer[F]):F[A]"></a><a id="timeout[F[_],A](F[A],FiniteDuration)(Concurrent[F],Timer[F]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#timeout[F[_],A](fa:F[A],duration:scala.concurrent.duration.FiniteDuration)(implicitF:cats.effect.Concurrent[F],implicittimer:cats.effect.Timer[F]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">timeout</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.timeout.F">F</span>[<span class="extype" name="cats.effect.Concurrent.timeout.A">A</span>]</span>, <span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.timeout.F">F</span>]</span>, <span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<span class="extype" name="cats.effect.Concurrent.timeout.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.timeout.F">F</span>[<span class="extype" name="cats.effect.Concurrent.timeout.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an effect that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise raises a <code>TimeoutException</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an effect that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise raises a <code>TimeoutException</code>.</p><p>The source is cancelled in the event that it takes longer than
+the specified time duration to complete.
+</p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
+       complete; in the event that the specified time has passed without
+       the source completing, a <code>TimeoutException</code> is raised</p></dd></dl></div>
+    </li><li name="cats.effect.Concurrent#timeoutTo" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="timeoutTo[F[_],A](fa:F[A],duration:scala.concurrent.duration.FiniteDuration,fallback:F[A])(implicitF:cats.effect.Concurrent[F],implicittimer:cats.effect.Timer[F]):F[A]"></a><a id="timeoutTo[F[_],A](F[A],FiniteDuration,F[A])(Concurrent[F],Timer[F]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#timeoutTo[F[_],A](fa:F[A],duration:scala.concurrent.duration.FiniteDuration,fallback:F[A])(implicitF:cats.effect.Concurrent[F],implicittimer:cats.effect.Timer[F]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">timeoutTo</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.timeoutTo.F">F</span>[<span class="extype" name="cats.effect.Concurrent.timeoutTo.A">A</span>]</span>, <span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="fallback">fallback: <span class="extype" name="cats.effect.Concurrent.timeoutTo.F">F</span>[<span class="extype" name="cats.effect.Concurrent.timeoutTo.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.timeoutTo.F">F</span>]</span>, <span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<span class="extype" name="cats.effect.Concurrent.timeoutTo.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.timeoutTo.F">F</span>[<span class="extype" name="cats.effect.Concurrent.timeoutTo.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an effect that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise evaluates the <code>fallback</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an effect that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise evaluates the <code>fallback</code>.</p><p>The source is cancelled in the event that it takes longer than
+the <code>FiniteDuration</code> to complete, the evaluation of the fallback
+happening immediately after that.
+</p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
+       complete; in the event that the specified time has passed without
+       the source completing, the <code>fallback</code> gets evaluated</p></dd><dt class="param">fallback</dt><dd class="cmt"><p>is the task evaluated after the duration has passed and
+       the source canceled</p></dd></dl></div>
     </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="toString():String"></a>
       <span class="permalink">

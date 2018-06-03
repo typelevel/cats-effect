@@ -102,10 +102,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats">cats</a></dd></dl></div>
-    </li><li name="cats.effect.implicits" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="implicits"></a><a id="implicits:implicits"></a>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#implicits" title="Permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -114,7 +114,23 @@
         <span class="kind">package</span>
       </span>
       <span class="symbol">
-        <a title="" href="implicits/index.html"><span class="name">implicits</span></a>
+        <a title="" href="concurrent/index.html"><span class="name">concurrent</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="syntax/index.html"><span class="name">syntax</span></a>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
@@ -159,6 +175,10 @@
                         <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
                         <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCode$.html" title=""></a>
+                        <a class="class" href="ExitCode.html" title="Represents the exit code of an application."></a>
+                        <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
                         <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
@@ -167,9 +187,17 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
+                        <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="LiftIO$.html" title=""></a>
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="Resource$.html" title=""></a>
+                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
+                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -210,7 +238,7 @@
       
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>A monad that can suspend the execution of side effects
 in the <code>F[_]</code> context.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/32869dc00216f6ed683afbc36ce5f8452b500131/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -1365,6 +1393,54 @@ in <code>F</code>.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Bracket#guarantee" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]"></a><a id="guarantee[A](F[A])(F[Unit]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Sync.html#guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">guarantee</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.guarantee.A">A</span>]</span>)</span><span class="params">(<span name="finalizer">finalizer: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.guarantee.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled.</p><div class="fullcomment"><div class="comment cmt"><p>Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled.</p><p>This variant of <a href="Bracket.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guaranteeCase">guaranteeCase</a> evaluates the given <code>finalizer</code>
+regardless of how the source gets terminated:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>F.guarantee(fa)(f) <span class="kw">&lt;-</span>&gt; F.bracket(F.unit)(_ <span class="kw">=&gt;</span> fa)(_ <span class="kw">=&gt;</span> f)</pre><p>As best practice, it's not a good idea to release resources
+via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a>
+for the acquisition and release of resources.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> for the more general operation</p></span><span class="cmt"><p><a href="Bracket.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guaranteeCase">guaranteeCase</a> for the version that can discriminate
+     between termination conditions</p></span></dd></dl></div>
+    </li><li name="cats.effect.Bracket#guaranteeCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]"></a><a id="guaranteeCase[A](F[A])((ExitCase[Throwable])⇒F[Unit]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Sync.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">guaranteeCase</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.guaranteeCase.A">A</span>]</span>)</span><span class="params">(<span name="finalizer">finalizer: (<a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="scala.Throwable">Throwable</span>]) ⇒ <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.guaranteeCase.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled, allowing
+for differentiating between exit conditions.</p><div class="fullcomment"><div class="comment cmt"><p>Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled, allowing
+for differentiating between exit conditions.</p><p>This variant of <a href="Bracket.html#guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guarantee">guarantee</a> injects an <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> in
+the provided function, allowing one to make a difference
+between:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>F.guaranteeCase(fa)(f) <span class="kw">&lt;-</span>&gt; F.bracketCase(F.unit)(_ <span class="kw">=&gt;</span> fa)((_, e) <span class="kw">=&gt;</span> f(e))</pre><p>As best practice, it's not a good idea to release resources
+via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a>
+for the acquisition and release of resources.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a> for the more general operation</p></span><span class="cmt"><p><a href="Bracket.html#guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guarantee">guarantee</a> for the simpler version</p></span></dd></dl></div>
     </li><li name="cats.ApplicativeError#handleError" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="handleError[A](fa:F[A])(f:E=&gt;A):F[A]"></a><a id="handleError[A](F[A])((Throwable)⇒A):F[A]"></a>
       <span class="permalink">
@@ -2542,6 +2618,25 @@ in <code>F</code>.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Functor</dd></dl></div>
+    </li><li name="cats.effect.Bracket#uncancelable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="uncancelable[A](fa:F[A]):F[A]"></a><a id="uncancelable[A](F[A]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Sync.html#uncancelable[A](fa:F[A]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">uncancelable</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.uncancelable.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.uncancelable.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Operation meant for ensuring a given task continues execution even
+when interrupted.</p><div class="fullcomment"><div class="comment cmt"><p>Operation meant for ensuring a given task continues execution even
+when interrupted.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd></dl></div>
     </li><li name="cats.Applicative#unit" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unit:F[Unit]"></a>
       <span class="permalink">

@@ -102,10 +102,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats">cats</a></dd></dl></div>
-    </li><li name="cats.effect.implicits" visbl="pub" class="indented3 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="implicits"></a><a id="implicits:implicits"></a>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#implicits" title="Permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -114,7 +114,23 @@
         <span class="kind">package</span>
       </span>
       <span class="symbol">
-        <a title="" href="implicits/index.html"><span class="name">implicits</span></a>
+        <a title="" href="concurrent/index.html"><span class="name">concurrent</span></a>
+      </span>
+      
+      
+    </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="syntax/index.html"><span class="name">syntax</span></a>
       </span>
       
       
@@ -159,6 +175,10 @@
                         <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
                         <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCode$.html" title=""></a>
+                        <a class="class" href="ExitCode.html" title="Represents the exit code of an application."></a>
+                        <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
                         <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
@@ -167,9 +187,17 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
+                        <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="LiftIO$.html" title=""></a>
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="Resource$.html" title=""></a>
+                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
+                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -318,14 +346,14 @@ release in the face of errors or interruption.</p>
       
       <p class="shortcomment cmt">Type class for <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data types that are cancelable and
 can be started concurrently.</p><div class="fullcomment"><div class="comment cmt"><p>Type class for <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data types that are cancelable and
-can be started concurrently.</p><p>Thus this type class allows abstracting over data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra, with all its restrictions</li><li>can provide logic for cancelation, to be used in race
+can be started concurrently.</p><p>Thus this type class allows abstracting over data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra, with all its restrictions</li><li>can provide logic for cancellation, to be used in race
     conditions in order to release resources early
     (in its <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a> builder)</li></ol><p>Due to these restrictions, this type class also affords to describe
 a <a href="Concurrent.html#start[A](fa:F[A]):F[cats.effect.Fiber[F,A]]" class="extmbr" name="cats.effect.Concurrent#start">start</a> operation that can start async
 processing, suspended in the context of <code>F[_]</code> and that can be
-cancelled or joined.</p><p>Without cancelation being baked in, we couldn't afford to do it.
+canceled or joined.</p><p>Without cancellation being baked in, we couldn't afford to do it.
 See below.</p><h4>Cancelable builder</h4><p>The signature exposed by the <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>
-builder is this:</p><pre>(Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> F[<span class="std">Unit</span>]</pre><p><code>F[Unit]</code> is used to represent a cancelation action which will
+builder is this:</p><pre>(Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> IO[<span class="std">Unit</span>]</pre><p><code>IO[Unit]</code> is used to represent a cancellation action which will
 send a signal to the producer, that may observe it and cancel the
 asynchronous process.</p><h4>On Cancellation</h4><p>Simple asynchronous processes, like Scala's <code>Future</code>, can be
 described with this very basic and side-effectful type and you
@@ -335,44 +363,61 @@ handling):</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span
 tasks can also provide a way to cancel such processes, to be used
 in race conditions in order to cleanup resources early, so a very
 basic and side-effectful definition of asynchronous processes that
-can be cancelled would be:</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> Cancelable</pre><p>This is approximately the signature of JavaScript's <code>setTimeout</code>,
+can be canceled would be:</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> Cancelable</pre><p>This is approximately the signature of JavaScript's <code>setTimeout</code>,
 which will return a &quot;task ID&quot; that can be used to cancel it. Or of
 Java's <code>ScheduledExecutorService#schedule</code>, which will return a
 Java <code>ScheduledFuture</code> that has a <code>.cancel()</code> operation on it.</p><p>Similarly, for <code>Concurrent</code> data types, we can provide
-cancelation logic, that can be triggered in race conditions to
+cancellation logic, that can be triggered in race conditions to
 cancel the on-going processing, only that <code>Concurrent</code>'s
 cancelable token is an action suspended in an <code>IO[Unit]</code>. See
 <a href="IO$.html#cancelable[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#cancelable">IO.cancelable</a>.</p><p>Suppose you want to describe a &quot;sleep&quot; operation, like that described
 by <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> to mirror Java's <code>ScheduledExecutorService.schedule</code>
 or JavaScript's <code>setTimeout</code>:</p><pre><span class="kw">def</span> sleep(d: FiniteDuration): F[<span class="std">Unit</span>]</pre><p>This signature is in fact incomplete for data types that are not
 cancelable, because such equivalent operations always return some
-cancelation token that can be used to trigger a forceful
+cancellation token that can be used to trigger a forceful
 interruption of the timer. This is not a normal &quot;dispose&quot; or
 &quot;finally&quot; clause in a try/catch block, because &quot;cancel&quot; in the
 context of an asynchronous process is <i>concurrent</i> with the
 task's own run-loop.</p><p>To understand what this means, consider that in the case of our
-<code>sleep</code> as described above, on cancelation we'd need a way to
+<code>sleep</code> as described above, on cancellation we'd need a way to
 signal to the underlying <code>ScheduledExecutorService</code> to forcefully
 remove the scheduled <code>Runnable</code> from its internal queue of
 scheduled tasks, <i>before</i> its execution. Therefore, without a
 cancelable data type, a safe signature needs to return a
-cancelation token, so it would look like this:</p><pre><span class="kw">def</span> sleep(d: FiniteDuration): F[(F[<span class="std">Unit</span>], F[<span class="std">Unit</span>])]</pre><p>This function is returning a tuple, with one <code>F[Unit]</code> to wait for
+cancellation token, so it would look like this:</p><pre><span class="kw">def</span> sleep(d: FiniteDuration): F[(F[<span class="std">Unit</span>], F[<span class="std">Unit</span>])]</pre><p>This function is returning a tuple, with one <code>F[Unit]</code> to wait for
 the completion of our sleep and a second <code>F[Unit]</code> to cancel the
 scheduled computation in case we need it. This is in fact the shape
 of <a href="Fiber.html" class="extype" name="cats.effect.Fiber">Fiber</a>'s API. And this is exactly what the
 <a href="Concurrent.html#start[A](fa:F[A]):F[cats.effect.Fiber[F,A]]" class="extmbr" name="cats.effect.Concurrent#start">start</a> operation returns.</p><p>The difference between a <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data type and one that
 is only <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> is that you can go from any <code>F[A]</code> to a
 <code>F[Fiber[F, A]]</code>, to participate in race conditions and that can be
-cancelled should the need arise, in order to trigger an early
+canceled should the need arise, in order to trigger an early
 release of allocated resources.</p><p>Thus a <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data type can safely participate in race
 conditions, whereas a data type that is only <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> cannot do it
-without exposing and forcing the user to work with cancelation
+without exposing and forcing the user to work with cancellation
 tokens. An <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type cannot expose for example a <code>start</code>
-operation that is safe.
+operation that is safe.</p><h4> Resource-safety </h4><p><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data type is also required to cooperate with <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><p>For <code>uncancelable</code>, the <a href="Fiber.html#cancel:F[Unit]" class="extmbr" name="cats.effect.Fiber#cancel">cancel</a> signal has no effect on the
+result of <a href="Fiber.html#join:F[A]" class="extmbr" name="cats.effect.Fiber#join">join</a> and that the cancelable token returned by
+<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">ConcurrentEffect.runCancelable</a> on evaluation will have no effect.</p><p>So <code>uncancelable</code> must undo the cancellation mechanism of <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>,
+with this equivalence:</p><pre>F.uncancelable(F.cancelable { cb <span class="kw">=&gt;</span> f(cb); io }) <span class="kw">&lt;-</span>&gt; F.async(f)</pre><p>Sample:</p><pre><span class="kw">val</span> F = Concurrent[IO]
+<span class="kw">val</span> timer = Timer[IO]
+
+<span class="cmt">// Normally Timer#sleep yields cancelable tasks</span>
+<span class="kw">val</span> tick = F.uncancelable(timer.sleep(<span class="num">10.</span>seconds))
+
+<span class="cmt">// This prints "Tick!" after 10 seconds, even if we are</span>
+<span class="cmt">// canceling the Fiber after start:</span>
+<span class="kw">for</span> {
+  fiber <span class="kw">&lt;-</span> F.start(tick)
+  _ <span class="kw">&lt;-</span> fiber.cancel
+  _ <span class="kw">&lt;-</span> fiber.join
+  _ <span class="kw">&lt;-</span> F.delay { println(<span class="lit">"Tick!"</span>) }
+} <span class="kw">yield</span> ()</pre><p>When doing <a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> or <a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a>,
+<code>acquire</code> and <code>release</code> operations are guaranteed to be uncancelable as well.
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -395,12 +440,12 @@ operation that is safe.
 <a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a>, instances must also implement a
 <a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">runCancelable</a> operation that
 triggers the evaluation, suspended in the <code>IO</code> context, but that
-also returns a token that can be used for cancelling the running
+also returns a token that can be used for canceling the running
 computation.</p><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">IO.unsafeRunCancelable</a>.
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for ConcurrentEffect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for ConcurrentEffect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -422,7 +467,8 @@ computation.</p><p>Note this is the safe and generic version of <a href="IO.html
       <p class="shortcomment cmt">A monad that can suspend side effects into the <code>F</code> context and
 that supports lazy and potentially asynchronous evaluation.</p><div class="fullcomment"><div class="comment cmt"><p>A monad that can suspend side effects into the <code>F</code> context and
 that supports lazy and potentially asynchronous evaluation.</p><p>This type class is describing data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra</li><li>implement a lawful <a href="Effect.html#runAsync[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.Effect#runAsync">runAsync</a> operation
-    that triggers the evaluation (in the context of <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)</li></ol><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit" class="extmbr" name="cats.effect.IO#unsafeRunAsync">IO.unsafeRunAsync</a>
+    that triggers the evaluation (in the context of <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)</li><li>implement a lawful <a href="Effect.html#runSyncStep[A](fa:F[A]):cats.effect.IO[scala.util.Either[F[A],A]]" class="extmbr" name="cats.effect.Effect#runSyncStep">runSyncStep</a> operation
+    which triggers evaluation up to the first asynchronous boundary</li></ol><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit" class="extmbr" name="cats.effect.IO#unsafeRunAsync">IO.unsafeRunAsync</a>
 (aka Haskell's <code>unsafePerformIO</code>).
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
@@ -452,8 +498,25 @@ get canceled.</p><div class="fullcomment"><div class="comment cmt"><p>Type for s
 computation, that may either succeed, fail with an error or
 get canceled.</p><p>The types of exit signals are:</p><ul><li><a href="ExitCase$$Completed$.html" class="extype" name="cats.effect.ExitCase.Completed">Completed</a>: for successful
    completion (from the type of view of this <code>MonadError</code>)</li><li><a href="ExitCase$$Error.html" class="extype" name="cats.effect.ExitCase.Error">Error</a>: for termination in failure
-   (via <code>MonadError[F, E]</code>)</li><li><a href="ExitCase$$Canceled.html" class="extype" name="cats.effect.ExitCase.Canceled">Canceled</a>: for abortion
+   (via <code>MonadError[F, E]</code>)</li><li><a href="ExitCase$$Canceled$.html" class="extype" name="cats.effect.ExitCase.Canceled">Canceled</a>: for abortion
 </li></ul></div></div>
+    </li><li name="cats.effect.ExitCode" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="ExitCodeextendsProductwithSerializable"></a><a id="ExitCode:ExitCode"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ExitCodeextendsProductwithSerializable" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">sealed abstract </span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a title="Represents the exit code of an application." href="ExitCode.html"><span class="name">ExitCode</span></a><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">Represents the exit code of an application.</p><div class="fullcomment"><div class="comment cmt"><p>Represents the exit code of an application.</p><p><code>code</code> is constrained to a range from 0 to 255, inclusive.
+</p></div></div>
     </li><li name="cats.effect.Fiber" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Fiber[F[_],A]extendsAnyRef"></a><a id="Fiber[F[_],A]:Fiber[F,A]"></a>
       <span class="permalink">
@@ -470,8 +533,8 @@ get canceled.</p><p>The types of exit signals are:</p><ul><li><a href="ExitCase$
       </span>
       
       <p class="shortcomment cmt"><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g.</p><div class="fullcomment"><div class="comment cmt"><p><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)
-being started concurrently and that can be either joined or cancelled.</p><p>You can think of fibers as being lightweight threads, a fiber being a
-concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start:cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
+being started concurrently and that can be either joined or canceled.</p><p>You can think of fibers as being lightweight threads, a fiber being a
+concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
 
 <span class="kw">val</span> fiber: IO[Fiber[IO, <span class="std">Unit</span>]] = io.start</pre><p>Usage example:</p><pre><span class="kw">for</span> {
   fiber <span class="kw">&lt;-</span> IO.shift *&gt; launchMissiles.start
@@ -509,7 +572,7 @@ An <code>IO</code> is a data structure that represents just a description
 of a side effectful computation.</p><p><code>IO</code> can describe synchronous or asynchronous computations that:</p><ol class="decimal"><li>on evaluation yield exactly one result</li><li>can end in either success or failure and in case of failure
     <code>flatMap</code> chains get short-circuited (<code>IO</code> implementing
     the algebra of <code>MonadError</code>)</li><li>can be canceled, but note this capability relies on the
-    user to provide cancelation logic</li></ol><p>Effects described via this abstraction are not evaluated until
+    user to provide cancellation logic</li></ol><p>Effects described via this abstraction are not evaluated until
 the &quot;end of the world&quot;, which is to say, when one of the &quot;unsafe&quot;
 methods are used. Effectful results are not memoized, meaning that
 memory overhead is minimal (and no leaks), and also that a single
@@ -531,6 +594,40 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
     <span class="kw">else</span>
       IO.pure(b2)
   }</pre></div></div>
+    </li><li name="cats.effect.IOApp" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="IOAppextendsAnyRef"></a><a id="IOApp:IOApp"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#IOAppextendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="App type that runs a cats.effect.IO." href="IOApp.html"><span class="name">IOApp</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt"><code>App</code> type that runs a <a href="IO.html" class="extype" name="cats.effect.IO">cats.effect.IO</a>.</p><div class="fullcomment"><div class="comment cmt"><p><code>App</code> type that runs a <a href="IO.html" class="extype" name="cats.effect.IO">cats.effect.IO</a>.  Shutdown occurs after
+the <code>IO</code> completes, as follows:</p><p>- If completed with <code>ExitCode.Success</code>, the main method exits and
+  shutdown is handled by the platform.</p><p>- If completed with any other <a href="ExitCode.html" class="extype" name="cats.effect.ExitCode">ExitCode</a>, <code>sys.exit</code> is called
+  with the specified code.</p><p>- If the <code>IO</code> raises an error, the stack trace is printed to
+  standard error and <code>sys.exit(1)</code> is called.</p><p>When a shutdown is requested via a signal, the <code>IO</code> is canceled and
+we wait for the <code>IO</code> to release any resources.  The process exits
+with the numeric value of the signal plus 128.</p><pre><span class="kw">import</span> cats.effect.IO
+<span class="kw">import</span> cats.effect.concurrent.{ExitCode, IOApp}
+<span class="kw">import</span> cats.implicits._
+
+<span class="kw">object</span> MyApp <span class="kw">extends</span> IOApp {
+  <span class="kw">def</span> run(args: <span class="std">List</span>[<span class="std">String</span>]): IO[ExitCode] =
+    args.headOption <span class="kw">match</span> {
+      <span class="kw">case</span> <span class="std">Some</span>(name) <span class="kw">=&gt;</span>
+        IO(println(s<span class="lit">"Hello, ${name}."</span>)).as(ExitCode.Success)
+      <span class="kw">case</span> <span class="std">None</span> <span class="kw">=&gt;</span>
+        IO(System.err.println(<span class="lit">"Usage: MyApp name"</span>)).as(ExitCode(<span class="num">2</span>))
+    }
+}</pre></div></div>
     </li><li name="cats.effect.LiftIO" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="LiftIO[F[_]]extendsAnywithSerializable"></a><a id="LiftIO[F[_]]:LiftIO[F]"></a>
       <span class="permalink">
@@ -553,6 +650,39 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Resource" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="Resource[F[_],A]extendsAnyRef"></a><a id="Resource[F[_],A]:Resource[F,A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Resource[F[_],A]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">sealed abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="Effectfully allocates and releases a resource." href="Resource.html"><span class="name">Resource</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">Effectfully allocates and releases a resource.</p><div class="fullcomment"><div class="comment cmt"><p>Effectfully allocates and releases a resource.  Forms a
+<code>MonadError</code> on the resource type when the effect type has a
+<a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a> instance.  Nested resources are released in reverse
+order of acquisition.  Outer resources are released even if an
+inner use or release fails.</p><pre><span class="kw">def</span> mkResource(s: <span class="std">String</span>) = {
+  <span class="kw">val</span> acquire = IO(println(s<span class="lit">"Acquiring $$s"</span>)) *&gt; IO.pure(s)
+  <span class="kw">def</span> release(s: <span class="std">String</span>) = IO(println(s<span class="lit">"Releasing $$s"</span>))
+  Resource.make(acquire)(release)
+}
+<span class="kw">val</span> r = <span class="kw">for</span> {
+  outer <span class="kw">&lt;-</span> mkResource(<span class="lit">"outer"</span>)
+  inner <span class="kw">&lt;-</span> mkResource(<span class="lit">"inner"</span>)
+} <span class="kw">yield</span> (outer, inner)
+r.use { <span class="kw">case</span> (a, b) <span class="kw">=&gt;</span> IO(println(s<span class="lit">"Using $$a and $$b"</span>)) }.unsafeRunSync</pre><p>The above prints:</p><pre>Acquiring outer
+Acquiring inner
+Using outer and inner
+Releasing inner
+Releasing outer</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
     </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="Sync[F[_]]extendsBracket[F,Throwable]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
       <span class="permalink">
@@ -701,6 +831,22 @@ requirement.
       </span>
       
       
+    </li><li name="cats.effect.ExitCode" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ExitCode"></a><a id="ExitCode:ExitCode"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ExitCode" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ExitCode$.html"><span class="name">ExitCode</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
     </li><li name="cats.effect.Fiber" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Fiber"></a><a id="Fiber:Fiber"></a>
       <span class="permalink">
@@ -746,6 +892,22 @@ requirement.
       </span>
       <span class="symbol">
         <a title="" href="LiftIO$.html"><span class="name">LiftIO</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="cats.effect.Resource" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Resource"></a><a id="Resource:Resource"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Resource" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Resource$.html"><span class="name">Resource</span></a><span class="result"> extends <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span></span>
       </span>
       
       

@@ -102,10 +102,10 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats">cats</a></dd></dl></div>
-    </li><li name="cats.effect.implicits" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="implicits"></a><a id="implicits:implicits"></a>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#implicits" title="Permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -114,7 +114,23 @@
         <span class="kind">package</span>
       </span>
       <span class="symbol">
-        <a title="" href="implicits/index.html"><span class="name">implicits</span></a>
+        <a title="" href="concurrent/index.html"><span class="name">concurrent</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="syntax/index.html"><span class="name">syntax</span></a>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
@@ -159,6 +175,10 @@
                         <a class="class" href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled."></a>
                         <a href="ExitCase.html" title="Type for signaling the exit condition of an effectful computation, that may either succeed, fail with an error or get canceled.">ExitCase</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="ExitCode$.html" title=""></a>
+                        <a class="class" href="ExitCode.html" title="Represents the exit code of an application."></a>
+                        <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
                         <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
                         <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
@@ -167,9 +187,17 @@
                         <a class="class" href="" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
+                        <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="LiftIO$.html" title=""></a>
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="Resource$.html" title=""></a>
+                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
+                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -216,7 +244,7 @@ An <code>IO</code> is a data structure that represents just a description
 of a side effectful computation.</p><p><code>IO</code> can describe synchronous or asynchronous computations that:</p><ol class="decimal"><li>on evaluation yield exactly one result</li><li>can end in either success or failure and in case of failure
     <code>flatMap</code> chains get short-circuited (<code>IO</code> implementing
     the algebra of <code>MonadError</code>)</li><li>can be canceled, but note this capability relies on the
-    user to provide cancelation logic</li></ol><p>Effects described via this abstraction are not evaluated until
+    user to provide cancellation logic</li></ol><p>Effects described via this abstraction are not evaluated until
 the &quot;end of the world&quot;, which is to say, when one of the &quot;unsafe&quot;
 methods are used. Effectful results are not memoized, meaning that
 memory overhead is minimal (and no leaks), and also that a single
@@ -237,7 +265,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/32869dc00216f6ed683afbc36ce5f8452b500131/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -399,9 +427,9 @@ acquisition of a resource, which is then exploited by the <code>use</code>
 function and then <code>released</code>.</p><p>The <code>bracket</code> operation is the equivalent of the
 <code>try {} catch {} finally {}</code> statements from mainstream languages.</p><p>The <code>bracket</code> operation installs the necessary exception handler
 to release the resource in the event of an exception being raised
-during the computation, or in case of cancelation.</p><p>If an exception is raised, then <code>bracket</code> will re-raise the
+during the computation, or in case of cancellation.</p><p>If an exception is raised, then <code>bracket</code> will re-raise the
 exception <i>after</i> performing the <code>release</code>. If the resulting
-task gets cancelled, then <code>bracket</code> will still perform the
+task gets canceled, then <code>bracket</code> will still perform the
 <code>release</code>, but the yielded task will be non-terminating
 (equivalent with <a href="IO$.html#never:cats.effect.IO[Nothing]" class="extmbr" name="cats.effect.IO#never">IO.never</a>).</p><p>Example:</p><pre><span class="kw">import</span> java.io._
 
@@ -428,19 +456,19 @@ task gets cancelled, then <code>bracket</code> will still perform the
     <span class="cmt">// The release part</span>
     IO(in.close())
   }
-}</pre><p>Note that in case of cancelation the underlying implementation
+}</pre><p>Note that in case of cancellation the underlying implementation
 cannot guarantee that the computation described by <code>use</code> doesn't
 end up executed concurrently with the computation from
 <code>release</code>. In the example above that ugly Java loop might end up
 reading from a <code>BufferedReader</code> that is already closed due to the
-task being cancelled, thus triggering an error in the background
+task being canceled, thus triggering an error in the background
 with nowhere to get signaled.</p><p>In this particular example, given that we are just reading from a
 file, it doesn't matter. But in other cases it might matter, as
 concurrency on top of the JVM when dealing with I/O might lead to
 corrupted data.</p><p>For those cases you might want to do synchronization (e.g. usage
 of locks and semaphores) and you might want to use <a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a>,
 the version that allows you to differentiate between normal
-termination and cancelation.</p><p><b>NOTE on error handling</b>: one big difference versus
+termination and cancellation.</p><p><b>NOTE on error handling</b>: one big difference versus
 <code>try/finally</code> statements is that, in case both the <code>release</code>
 function and the <code>use</code> function throws, the error raised by <code>use</code>
 gets signaled.</p><p>For example:</p><pre>IO(<span class="lit">"resource"</span>).bracket { _ <span class="kw">=&gt;</span>
@@ -457,7 +485,7 @@ from Scala, Java or JavaScript.
        the source, yielding a result that will get generated by
        the task returned by this <code>bracket</code> function</p></dd><dt class="param">release</dt><dd class="cmt"><p>is a function that gets called after <code>use</code>
        terminates, either normally or in error, or if it gets
-       cancelled, receiving as input the resource that needs to
+       canceled, receiving as input the resource that needs to
        be released</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a></p></span></dd></dl></div>
     </li><li name="cats.effect.IO#bracketCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]"></a><a id="bracketCase[B]((A)⇒IO[B])((A,ExitCase[Throwable])⇒IO[Unit]):IO[B]"></a>
@@ -477,18 +505,18 @@ from Scala, Java or JavaScript.
       <p class="shortcomment cmt">Returns a new <code>IO</code> task that treats the source task as the
 acquisition of a resource, which is then exploited by the <code>use</code>
 function and then <code>released</code>, with the possibility of
-distinguishing between normal termination and cancelation, such
+distinguishing between normal termination and cancellation, such
 that an appropriate release of resources can be executed.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> task that treats the source task as the
 acquisition of a resource, which is then exploited by the <code>use</code>
 function and then <code>released</code>, with the possibility of
-distinguishing between normal termination and cancelation, such
+distinguishing between normal termination and cancellation, such
 that an appropriate release of resources can be executed.</p><p>The <code>bracketCase</code> operation is the equivalent of
 <code>try {} catch {} finally {}</code> statements from mainstream languages
 when used for the acquisition and release of resources.</p><p>The <code>bracketCase</code> operation installs the necessary exception handler
 to release the resource in the event of an exception being raised
-during the computation, or in case of cancelation.</p><p>In comparison with the simpler <a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> version, this one
+during the computation, or in case of cancellation.</p><p>In comparison with the simpler <a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> version, this one
 allows the caller to differentiate between normal termination,
-termination in error and cancelation via an <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>
+termination in error and cancellation via an <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>
 parameter.
 </p></div><dl class="paramcmts block"><dt class="param">use</dt><dd class="cmt"><p>is a function that evaluates the resource yielded by
        the source, yielding a result that will get generated by
@@ -496,7 +524,7 @@ parameter.
        terminates, either normally or in error, or if it gets
        canceled, receiving as input the resource that needs that
        needs release, along with the result of <code>use</code>
-       (cancelation, error or successful result)</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a></p></span></dd></dl></div>
+       (cancellation, error or successful result)</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a></p></span></dd></dl></div>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">
@@ -621,6 +649,73 @@ never terminate on evaluation.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.IO#guarantee" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]"></a><a id="guarantee(IO[Unit]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">guarantee</span><span class="params">(<span name="finalizer">finalizer: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled.</p><div class="fullcomment"><div class="comment cmt"><p>Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled.</p><p>This variant of <a href="#guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guaranteeCase">guaranteeCase</a> evaluates the given <code>finalizer</code>
+regardless of how the source gets terminated:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>io.guarantee(f) <span class="kw">&lt;-</span>&gt; IO.unit.bracket(_ <span class="kw">=&gt;</span> io)(_ <span class="kw">=&gt;</span> f)</pre><p>As best practice, it's not a good idea to release resources
+via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a>
+for the acquisition and release of resources.
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> for the more general operation</p></span><span class="cmt"><p><a href="#guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guaranteeCase">guaranteeCase</a> for the version that can discriminate
+     between termination conditions</p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#guaranteeCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]"></a><a id="guaranteeCase((ExitCase[Throwable])⇒IO[Unit]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">guaranteeCase</span><span class="params">(<span name="finalizer">finalizer: (<a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a>[<span class="extype" name="scala.Throwable">Throwable</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled, allowing
+for differentiating between exit conditions.</p><div class="fullcomment"><div class="comment cmt"><p>Executes the given <code>finalizer</code> when the source is finished,
+either in success or in error, or if canceled, allowing
+for differentiating between exit conditions.</p><p>This variant of <a href="#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guarantee">guarantee</a> injects an <a href="ExitCase.html" class="extype" name="cats.effect.ExitCase">ExitCase</a> in
+the provided function, allowing one to make a difference
+between:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>io.guaranteeCase(f) <span class="kw">&lt;-</span>&gt; IO.unit.bracketCase(_ <span class="kw">=&gt;</span> io)((_, e) <span class="kw">=&gt;</span> f(e))</pre><p>As best practice, it's not a good idea to release resources
+via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a>
+for the acquisition and release of resources.
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a> for the more general operation</p></span><span class="cmt"><p><a href="#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guarantee">guarantee</a> for the simpler version</p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#handleErrorWith" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="handleErrorWith[AA&gt;:A](f:Throwable=&gt;cats.effect.IO[AA]):cats.effect.IO[AA]"></a><a id="handleErrorWith[AA&gt;:A]((Throwable)⇒IO[AA]):IO[AA]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#handleErrorWith[AA&gt;:A](f:Throwable=&gt;cats.effect.IO[AA]):cats.effect.IO[AA]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">handleErrorWith</span><span class="tparams">[<span name="AA">AA &gt;: <span class="extype" name="cats.effect.IO.A">A</span></span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="scala.Throwable">Throwable</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.handleErrorWith.AA">AA</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.handleErrorWith.AA">AA</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Handle any error, potentially recovering from it, by mapping it to another
+<code>IO</code> value.</p><div class="fullcomment"><div class="comment cmt"><p>Handle any error, potentially recovering from it, by mapping it to another
+<code>IO</code> value.</p><p>Implements <code>ApplicativeError.handleErrorWith</code>.
+</p></div></div>
     </li><li name="scala.AnyRef#hashCode" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="hashCode():Int"></a>
       <span class="permalink">
@@ -748,11 +843,57 @@ never terminate on evaluation.
       </span>
       
       <p class="shortcomment cmt">Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancelation.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancelation.</p><p>Normally tasks that are cancelled become non-terminating.</p><p>This <code>onCancelRaiseError</code> operator transforms a task that is
-non-terminating on cancelation into one that yields an error,
+but that triggers the given error on cancellation.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> that mirrors the source task for normal termination,
+but that triggers the given error on cancellation.</p><p>Normally tasks that are canceled become non-terminating.</p><p>This <code>onCancelRaiseError</code> operator transforms a task that is
+non-terminating on cancellation into one that yields an error,
 thus equivalent with <a href="IO$.html#raiseError[A](e:Throwable):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#raiseError">IO.raiseError</a>.
 </p></div></div>
+    </li><li name="cats.effect.IO#redeem" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="redeem[B](recover:Throwable=&gt;B,map:A=&gt;B):cats.effect.IO[B]"></a><a id="redeem[B]((Throwable)⇒B,(A)⇒B):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#redeem[B](recover:Throwable=&gt;B,map:A=&gt;B):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">redeem</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="recover">recover: (<span class="extype" name="scala.Throwable">Throwable</span>) ⇒ <span class="extype" name="cats.effect.IO.redeem.B">B</span></span>, <span name="map">map: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <span class="extype" name="cats.effect.IO.redeem.B">B</span></span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.redeem.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns a new value that transforms the result of the source,
+given the <code>recover</code> or <code>map</code> functions, which get executed depending
+on whether the result is successful or if it ends in error.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
+given the <code>recover</code> or <code>map</code> functions, which get executed depending
+on whether the result is successful or if it ends in error.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.IO[Either[Throwable,A]]" class="extmbr" name="cats.effect.IO#attempt">attempt</a> and <a href="#map[B](f:A=&gt;B):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#map">map</a>,
+this equivalence being true:</p><pre>io.redeem(recover, map) <span class="kw">&lt;-</span>&gt; io.attempt.map(_.fold(recover, map))</pre><p>Usage of <code>redeem</code> subsumes <code>handleError</code> because:</p><pre>io.redeem(fe, id) <span class="kw">&lt;-</span>&gt; io.handleError(fe)</pre></div><dl class="paramcmts block"><dt class="param">recover</dt><dd class="cmt"><p>is a function used for error recover in case the
+       source ends in error</p></dd><dt class="param">map</dt><dd class="cmt"><p>is a function used for mapping the result of the source
+       in case it ends in success</p></dd></dl></div>
+    </li><li name="cats.effect.IO#redeemWith" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="redeemWith[B](recover:Throwable=&gt;cats.effect.IO[B],bind:A=&gt;cats.effect.IO[B]):cats.effect.IO[B]"></a><a id="redeemWith[B]((Throwable)⇒IO[B],(A)⇒IO[B]):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#redeemWith[B](recover:Throwable=&gt;cats.effect.IO[B],bind:A=&gt;cats.effect.IO[B]):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">redeemWith</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="recover">recover: (<span class="extype" name="scala.Throwable">Throwable</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.redeemWith.B">B</span>]</span>, <span name="bind">bind: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.redeemWith.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.redeemWith.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns a new value that transforms the result of the source,
+given the <code>recover</code> or <code>bind</code> functions, which get executed depending
+on whether the result is successful or if it ends in error.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
+given the <code>recover</code> or <code>bind</code> functions, which get executed depending
+on whether the result is successful or if it ends in error.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.IO[Either[Throwable,A]]" class="extmbr" name="cats.effect.IO#attempt">attempt</a> and <a href="#flatMap[B](f:A=&gt;cats.effect.IO[B]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#flatMap">flatMap</a>,
+this equivalence being available:</p><pre>io.redeemWith(recover, bind) <span class="kw">&lt;-</span>&gt; io.attempt.flatMap(_.fold(recover, bind))</pre><p>Usage of <code>redeemWith</code> subsumes <code>handleErrorWith</code> because:</p><pre>io.redeemWith(fe, F.pure) <span class="kw">&lt;-</span>&gt; io.handleErrorWith(fe)</pre><p>Usage of <code>redeemWith</code> also subsumes <a href="#flatMap[B](f:A=&gt;cats.effect.IO[B]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#flatMap">flatMap</a> because:</p><pre>io.redeemWith(F.raiseError, fs) <span class="kw">&lt;-</span>&gt; io.flatMap(fs)</pre></div><dl class="paramcmts block"><dt class="param">recover</dt><dd class="cmt"><p>is the function that gets called to recover the source
+       in case of error</p></dd><dt class="param">bind</dt><dd class="cmt"><p>is the function that gets to transform the source
+       in case of success</p></dd></dl></div>
     </li><li name="cats.effect.IO#runAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]"></a><a id="runAsync((Either[Throwable,A])⇒IO[Unit]):IO[Unit]"></a>
       <span class="permalink">
@@ -812,7 +953,7 @@ without waiting for its result and return a cancelable token, being the
 safe analogue to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>.</p><p>This operation is isomorphic to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>. Just like
 <a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a>, this operation avoids the usage of impure callbacks or
 eager evaluation.</p><p>The returned <code>IO</code> boxes an <code>IO[Unit]</code> that can be used to cancel the
-running asynchronous computation (if the source can be cancelled).</p><p>The returned <code>IO</code> is guaranteed to execute immediately,
+running asynchronous computation (if the source can be canceled).</p><p>The returned <code>IO</code> is guaranteed to execute immediately,
 and does not wait on any async action to complete, thus this
 is safe to do, even on top of runtimes that cannot block threads
 (e.g. JavaScript):</p><pre><span class="kw">val</span> source: IO[<span class="std">Int</span>] = ???
@@ -822,15 +963,15 @@ is safe to do, even on top of runtimes that cannot block threads
 <span class="cmt">// Safe, because it does not block for the source to finish</span>
 <span class="kw">val</span> cancel: IO[<span class="std">Unit</span>] = start.unsafeRunSync
 
-<span class="cmt">// Safe, because cancelation only sends a signal,</span>
+<span class="cmt">// Safe, because cancellation only sends a signal,</span>
 <span class="cmt">// but doesn't back-pressure on anything</span>
 cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an <code>IO</code> value that upon evaluation will execute the source,
-        but will not wait for its completion, yielding a cancelation
+        but will not wait for its completion, yielding a cancellation
         token that can be used to cancel the async process</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a> for the simple, uninterruptible version</p></span></dd></dl></div>
-    </li><li name="cats.effect.IO#start" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="start:cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="start:IO[Fiber[IO,A]]"></a>
+    </li><li name="cats.effect.IO#runSyncStep" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="runSyncStep:cats.effect.IO[Either[cats.effect.IO[A],A]]"></a><a id="runSyncStep:IO[Either[IO[A],A]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#start:cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" title="Permalink">
+      <a href="../../cats/effect/IO.html#runSyncStep:cats.effect.IO[Either[cats.effect.IO[A],A]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -839,24 +980,38 @@ cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd 
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">start</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<a href="Fiber.html" class="extype" name="cats.effect.Fiber">Fiber</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>, <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
+        <span class="name">runSyncStep</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Either">Either</span>[<a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>], <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
+      </span>
+      
+      
+    </li><li name="cats.effect.IO#start" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="start(Timer[IO]):IO[Fiber[IO,A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">start</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<a href="Fiber.html" class="extype" name="cats.effect.Fiber">Fiber</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>, <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Start execution of the source suspended in the <code>IO</code> context.</p><div class="fullcomment"><div class="comment cmt"><p>Start execution of the source suspended in the <code>IO</code> context.</p><p>This can be used for non-deterministic / concurrent execution.
 The following code is more or less equivalent with <code>parMap2</code>
-(minus the behavior on error handling and cancelation):</p><pre><span class="kw">def</span> par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
+(minus the behavior on error handling and cancellation):</p><pre><span class="kw">def</span> par2[A, B](ioa: IO[A], iob: IO[B]): IO[(A, B)] =
   <span class="kw">for</span> {
     fa <span class="kw">&lt;-</span> ioa.start
     fb <span class="kw">&lt;-</span> iob.start
      a <span class="kw">&lt;-</span> fa.join
      b <span class="kw">&lt;-</span> fb.join
   } <span class="kw">yield</span> (a, b)</pre><p>Note in such a case usage of <code>parMapN</code> (via <code>cats.Parallel</code>) is
-still recommended because of behavior on error and cancelation —
+still recommended because of behavior on error and cancellation —
 consider in the example above what would happen if the first task
-finishes in error. In that case the second task doesn't get cancelled,
-which creates a potential memory leak.</p><p>IMPORTANT — this operation does not start with an asynchronous boundary.
-But you can use <a href="IO$.html#shift(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">IO.shift</a> to force an async
-boundary just before start.
+finishes in error. In that case the second task doesn't get canceled,
+which creates a potential memory leak.
 </p></div></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
@@ -874,6 +1029,52 @@ boundary just before start.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
+    </li><li name="cats.effect.IO#timeout" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]"></a><a id="timeout(FiniteDuration)(Timer[IO]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">timeout</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an IO that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise raises a <code>TimeoutException</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an IO that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise raises a <code>TimeoutException</code>.</p><p>The source is cancelled in the event that it takes longer than
+the specified time duration to complete.
+</p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
+       complete; in the event that the specified time has passed without
+       the source completing, a <code>TimeoutException</code> is raised</p></dd></dl></div>
+    </li><li name="cats.effect.IO#timeoutTo" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A2]"></a><a id="timeoutTo[A2&gt;:A](FiniteDuration,IO[A2])(Timer[IO]):IO[A2]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A2]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">timeoutTo</span><span class="tparams">[<span name="A2">A2 &gt;: <span class="extype" name="cats.effect.IO.A">A</span></span>]</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="fallback">fallback: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an IO that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise evaluates the <code>fallback</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Returns an IO that either completes with the result of the source within
+the specified time <code>duration</code> or otherwise evaluates the <code>fallback</code>.</p><p>The source is cancelled in the event that it takes longer than
+the <code>FiniteDuration</code> to complete, the evaluation of the fallback
+happening immediately after that.
+</p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
+       complete; in the event that the specified time has passed without
+       the source completing, the <code>fallback</code> gets evaluated</p></dd><dt class="param">fallback</dt><dd class="cmt"><p>is the task evaluated after the duration has passed and
+       the source canceled</p></dd></dl></div>
     </li><li name="cats.effect.IO#to" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="to[F[_]](implicitF:cats.effect.LiftIO[F]):F[A@scala.annotation.unchecked.uncheckedVariance]"></a><a id="to[F[_]](LiftIO[F]):F[A]"></a>
       <span class="permalink">
@@ -903,7 +1104,7 @@ the <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a> ty
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">toString</span><span class="params">()</span><span class="result">: <span class="extype" name="java.lang.String">String</span></span>
+        <span class="name">toString</span><span class="params">()</span><span class="result">: <span class="extype" name="scala.Predef.String">String</span></span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="" class="extype" name="cats.effect.IO">IO</a> → AnyRef → Any</dd></dl></div>
@@ -971,7 +1172,7 @@ effects to the given callback.</p><p>As the name says, this is an UNSAFE functio
 performs side effects.  You should ideally only call this
 function <i>once</i>, at the very end of your program.
 </p></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an side-effectful function that, when executed, sends a
-        cancelation reference to <code>IO</code>'s run-loop implementation,
+        cancellation reference to <code>IO</code>'s run-loop implementation,
         having the potential to interrupt it.</p></dd></dl></div>
     </li><li name="cats.effect.IO#unsafeRunSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeRunSync():A"></a>
@@ -1034,7 +1235,7 @@ absolutely not an appropriate function to use if you want to
 implement timeouts, or anything similar. If you need that sort
 of functionality, you should be using a streaming library (like
 fs2 or Monix).
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#timeout">timeout</a> for pure and safe version</p></span><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span></dd></dl></div>
     </li><li name="cats.effect.IO#unsafeToFuture" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeToFuture():scala.concurrent.Future[A]"></a><a id="unsafeToFuture():Future[A]"></a>
       <span class="permalink">

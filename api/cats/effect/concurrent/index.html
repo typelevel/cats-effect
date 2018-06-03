@@ -1,0 +1,434 @@
+<!DOCTYPE html >
+<html>
+        <head>
+          <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+          <title>cats-effect  - cats.effect.concurrent</title>
+          <meta name="description" content="cats - effect - cats.effect.concurrent" />
+          <meta name="keywords" content="cats effect cats.effect.concurrent" />
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link href="../../../lib/index.css" media="screen" type="text/css" rel="stylesheet" />
+      <link href="../../../lib/template.css" media="screen" type="text/css" rel="stylesheet" />
+      <link href="../../../lib/diagrams.css" media="screen" type="text/css" rel="stylesheet" id="diagrams-css" />
+      <script type="text/javascript" src="../../../lib/jquery.js"></script>
+      <script type="text/javascript" src="../../../lib/jquery.panzoom.min.js"></script>
+      <script type="text/javascript" src="../../../lib/jquery.mousewheel.min.js"></script>
+      <script type="text/javascript" src="../../../lib/index.js"></script>
+      <script type="text/javascript" src="../../../index.js"></script>
+      <script type="text/javascript" src="../../../lib/scheduler.js"></script>
+      <script type="text/javascript" src="../../../lib/template.js"></script>
+      <script type="text/javascript" src="../../../lib/tools.tooltip.js"></script>
+      
+      <script type="text/javascript">
+        /* this variable can be used by the JS to determine the path to the root document */
+        var toRoot = '../../../';
+      </script>
+    
+        </head>
+        <body>
+      <div id="search">
+        <span id="doc-title">cats-effect<span id="doc-version"></span></span>
+        <span class="close-results"><span class="left">&lt;</span> Back</span>
+        <div id="textfilter">
+          <span class="input">
+            <input autocapitalize="none" placeholder="Search" id="index-input" type="text" accesskey="/" />
+            <i class="clear material-icons"></i>
+            <i id="search-icon" class="material-icons"></i>
+          </span>
+        </div>
+    </div>
+      <div id="search-results">
+        <div id="search-progress">
+          <div id="progress-fill"></div>
+        </div>
+        <div id="results-content">
+          <div id="entity-results"></div>
+          <div id="member-results"></div>
+        </div>
+      </div>
+      <div id="content-scroll-container" style="-webkit-overflow-scrolling: touch;">
+        <div id="content-container" style="-webkit-overflow-scrolling: touch;">
+          <div id="subpackage-spacer">
+            <div id="packages">
+              <h1>Packages</h1>
+              <ul>
+                <li name="_root_.root" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="_root_"></a><a id="root:_root_"></a>
+      <span class="permalink">
+      <a href="index.html#_root_" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="../../../index.html"><span class="name">root</span></a>
+      </span>
+      
+      <p class="shortcomment cmt"><img src="https://typelevel.org/cats-effect/img/cats-logo.png" align="right"  /></p><div class="fullcomment"><div class="comment cmt"><p><img src="https://typelevel.org/cats-effect/img/cats-logo.png" align="right"  /></p><p>This is the API documentation for the
+<a href="https://typelevel.org/cats-effect/" target="_blank">cats-effect</a> library.</p><p>See the <a href="../index.html" class="extype" name="cats.effect">cats.effect</a> package for a quick overview.</p><h4>Links</h4><p>Canonical documentation links:</p><ol class="decimal"><li><a href="https://typelevel.org/cats-effect/" target="_blank">Website</a></li><li><a href="https://typelevel.org/cats-effect/api/" target="_blank">ScalaDoc</a></li></ol><p>Related Cats links (the core):</p><ol class="decimal"><li><a href="https://typelevel.org/cats/" target="_blank">Website</a></li><li><a href="https://typelevel.org/cats/api/" target="_blank">ScalaDoc</a></li></ol></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../../../index.html" class="extype" name="_root_">root</a></dd></dl></div>
+    </li><li name="_root_.cats" visbl="pub" class="indented1 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="cats"></a><a id="cats:cats"></a>
+      <span class="permalink">
+      <a href="index.html#cats" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="../../index.html"><span class="name">cats</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../../../index.html" class="extype" name="_root_">root</a></dd></dl></div>
+    </li><li name="cats.effect" visbl="pub" class="indented2 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="effect"></a><a id="effect:effect"></a>
+      <span class="permalink">
+      <a href="../cats/index.html#effect" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="../index.html"><span class="name">effect</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../../index.html" class="extype" name="cats">cats</a></dd></dl></div>
+    </li><li name="cats.effect.concurrent" visbl="pub" class="indented3 current" data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="concurrent"></a><a id="concurrent:concurrent"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#concurrent" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">concurrent</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li class="current-entities indented3">
+                        <a class="object" href="Deferred$.html" title=""></a>
+                        <a class="class" href="Deferred.html" title="A purely functional synchronization primitive which represents a single value which may not yet be available."></a>
+                        <a href="Deferred.html" title="A purely functional synchronization primitive which represents a single value which may not yet be available.">Deferred</a>
+                      </li><li class="current-entities indented3">
+                        <a class="object" href="MVar$.html" title="Builders for MVar."></a>
+                        <a class="class" href="MVar.html" title="A mutable location, that is either empty or contains a value of type A."></a>
+                        <a href="MVar.html" title="A mutable location, that is either empty or contains a value of type A.">MVar</a>
+                      </li><li class="current-entities indented3">
+                        <a class="object" href="Ref$.html" title=""></a>
+                        <a class="class" href="Ref.html" title="An asynchronous, concurrent mutable reference."></a>
+                        <a href="Ref.html" title="An asynchronous, concurrent mutable reference.">Ref</a>
+                      </li><li class="current-entities indented3">
+                        <a class="object" href="Semaphore$.html" title=""></a>
+                        <a class="class" href="Semaphore.html" title="A purely functional semaphore."></a>
+                        <a href="Semaphore.html" title="A purely functional semaphore.">Semaphore</a>
+                      </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syntax"></a><a id="syntax:syntax"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#syntax" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="../syntax/index.html"><span class="name">syntax</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.util" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="util"></a><a id="util:util"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#util" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="../util/index.html"><span class="name">util</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="../index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li>
+              </ul>
+            </div>
+          </div>
+          <div id="content">
+            <body class="package value">
+      <div id="definition">
+        <div class="big-circle package">p</div>
+        <p id="owner"><a href="../../index.html" class="extype" name="cats">cats</a>.<a href="../index.html" class="extype" name="cats.effect">effect</a></p>
+        <h1>concurrent<span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span></h1>
+        
+      </div>
+
+      <h4 id="signature" class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">concurrent</span>
+      </span>
+      </h4>
+
+      
+          <div id="comment" class="fullcommenttop"></div>
+        
+
+      <div id="mbrsel">
+        <div class="toggle"></div>
+        <div id="memberfilter">
+          <i class="material-icons arrow"></i>
+          <span class="input">
+            <input id="mbrsel-input" placeholder="Filter all members" type="text" accesskey="/" />
+          </span>
+          <i class="clear material-icons"></i>
+        </div>
+        <div id="filterby">
+          <div id="order">
+            <span class="filtertype">Ordering</span>
+            <ol>
+              
+              <li class="alpha in"><span>Alphabetic</span></li>
+              
+            </ol>
+          </div>
+          
+          <div id="visbl">
+              <span class="filtertype">Visibility</span>
+              <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+            </div>
+        </div>
+      </div>
+
+      <div id="template">
+        <div id="allMembers">
+        
+
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="cats.effect.concurrent.Deferred" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="Deferred[F[_],A]extendsAnyRef"></a><a id="Deferred[F[_],A]:Deferred[F,A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Deferred[F[_],A]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="A purely functional synchronization primitive which represents a single value which may not yet be available." href="Deferred.html"><span class="name">Deferred</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A purely functional synchronization primitive which represents a single value
+which may not yet be available.</p><div class="fullcomment"><div class="comment cmt"><p>A purely functional synchronization primitive which represents a single value
+which may not yet be available.</p><p>When created, a <code>Deferred</code> is empty. It can then be completed exactly once,
+and never be made empty again.</p><p><code>get</code> on an empty <code>Deferred</code> will block until the <code>Deferred</code> is completed.
+<code>get</code> on a completed <code>Deferred</code> will always immediately return its content.</p><p><code>complete(a)</code> on an empty <code>Deferred</code> will set it to <code>a</code>, and notify any and
+all readers currently blocked on a call to <code>get</code>.
+<code>complete(a)</code> on a <code>Deferred</code> that has already been completed will not modify
+its content, and result in a failed <code>F</code>.</p><p>Albeit simple, <code>Deferred</code> can be used in conjunction with <a href="Ref.html" class="extype" name="cats.effect.concurrent.Ref">Ref</a> to build
+complex concurrent behaviour and data structures like queues and semaphores.</p><p>Finally, the blocking mentioned above is semantic only, no actual threads are
+blocked by the implementation.
+</p></div></div>
+    </li><li name="cats.effect.concurrent.MVar" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="MVar[F[_],A]extendsAnyRef"></a><a id="MVar[F[_],A]:MVar[F,A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#MVar[F[_],A]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="A mutable location, that is either empty or contains a value of type A." href="MVar.html"><span class="name">MVar</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A mutable location, that is either empty or contains
+a value of type <code>A</code>.</p><div class="fullcomment"><div class="comment cmt"><p>A mutable location, that is either empty or contains
+a value of type <code>A</code>.</p><p>It has the following fundamental atomic operations:</p><ul><li><a href="MVar.html#put(a:A):F[Unit]" class="extmbr" name="cats.effect.concurrent.MVar#put">put</a> which fills the var if empty, or blocks
+   (asynchronously) until the var is empty again</li><li><a href="MVar.html#tryPut(a:A):F[Boolean]" class="extmbr" name="cats.effect.concurrent.MVar#tryPut">tryPut</a> which fills the var if empty. returns true if successful</li><li><a href="MVar.html#take:F[A]" class="extmbr" name="cats.effect.concurrent.MVar#take">take</a> which empties the var if full, returning the contained
+   value, or blocks (asynchronously) otherwise until there is
+   a value to pull</li><li><a href="MVar.html#tryTake:F[Option[A]]" class="extmbr" name="cats.effect.concurrent.MVar#tryTake">tryTake</a> empties if full, returns None if empty.</li><li><a href="MVar.html#read:F[A]" class="extmbr" name="cats.effect.concurrent.MVar#read">read</a> which reads the current value without touching it,
+   assuming there is one, or otherwise it waits until a value
+   is made available via <code>put</code></li><li><a href="MVar.html#isEmpty:F[Boolean]" class="extmbr" name="cats.effect.concurrent.MVar#isEmpty">isEmpty</a> returns true if currently empty</li></ul><p>The <code>MVar</code> is appropriate for building synchronization
+primitives and performing simple inter-thread communications.
+If it helps, it's similar with a <code>BlockingQueue(capacity = 1)</code>,
+except that it doesn't block any threads, all waiting being
+done asynchronously (via <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a> or <a href="../Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data types,
+such as <a href="../IO.html" class="extype" name="cats.effect.IO">IO</a>).</p><p>Given its asynchronous, non-blocking nature, it can be used on
+top of Javascript as well.</p><p>Inspired by <code>Control.Concurrent.MVar</code> from Haskell and
+by <code>scalaz.concurrent.MVar</code>.
+</p></div></div>
+    </li><li name="cats.effect.concurrent.Ref" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="Ref[F[_],A]extendsAnyRef"></a><a id="Ref[F[_],A]:Ref[F,A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Ref[F[_],A]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="An asynchronous, concurrent mutable reference." href="Ref.html"><span class="name">Ref</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">An asynchronous, concurrent mutable reference.</p><div class="fullcomment"><div class="comment cmt"><p>An asynchronous, concurrent mutable reference.</p><p>Provides safe concurrent access and modification of its content, but no
+functionality for synchronisation, which is instead handled by <a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>.
+For this reason, a <code>Ref</code> is always initialised to a value.</p><p>The default implementation is nonblocking and lightweight, consisting essentially
+of a purely functional wrapper over an <code>AtomicReference</code>.
+</p></div></div>
+    </li><li name="cats.effect.concurrent.Semaphore" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="Semaphore[F[_]]extendsAnyRef"></a><a id="Semaphore[F[_]]:Semaphore[F]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Semaphore[F[_]]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">abstract </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="A purely functional semaphore." href="Semaphore.html"><span class="name">Semaphore</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A purely functional semaphore.</p><div class="fullcomment"><div class="comment cmt"><p>A purely functional semaphore.</p><p>A semaphore has a non-negative number of permits available. Acquiring a permit
+decrements the current number of permits and releasing a permit increases
+the current number of permits. An acquire that occurs when there are no
+permits available results in semantic blocking until a permit becomes available.</p><p>Blocking acquires are cancelable if the semaphore is created with <code>Semaphore.apply</code>
+(and hence, with a <code>Concurrent[F]</code> instance). Blocking acquires are non-cancelable
+if the semaphore is created with <code>Semaphore.async</code> (and hence, with an <code>Async[F]</code> instance).
+</p></div></div>
+    </li></ol>
+            </div>
+
+        
+
+        <div class="values members">
+              <h3>Value Members</h3>
+              <ol>
+                <li name="cats.effect.concurrent.Deferred" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Deferred"></a><a id="Deferred:Deferred"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Deferred" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Deferred$.html"><span class="name">Deferred</span></a>
+      </span>
+      
+      
+    </li><li name="cats.effect.concurrent.MVar" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="MVar"></a><a id="MVar:MVar"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#MVar" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="Builders for MVar." href="MVar$.html"><span class="name">MVar</span></a>
+      </span>
+      
+      <p class="shortcomment cmt">Builders for <a href="MVar.html" class="extype" name="cats.effect.concurrent.MVar">MVar</a>.</p>
+    </li><li name="cats.effect.concurrent.Ref" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Ref"></a><a id="Ref:Ref"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Ref" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Ref$.html"><span class="name">Ref</span></a>
+      </span>
+      
+      
+    </li><li name="cats.effect.concurrent.Semaphore" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Semaphore"></a><a id="Semaphore:Semaphore"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/index.html#Semaphore" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Semaphore$.html"><span class="name">Semaphore</span></a>
+      </span>
+      
+      
+    </li>
+              </ol>
+            </div>
+
+        
+
+        
+        </div>
+
+        <div id="inheritedMembers">
+        
+        
+        </div>
+
+        <div id="groupedMembers">
+        <div class="group" name="Ungrouped">
+              <h3>Ungrouped</h3>
+              
+            </div>
+        </div>
+
+      </div>
+
+      <div id="tooltip"></div>
+
+      <div id="footer">  </div>
+    </body>
+          </div>
+        </div>
+      </div>
+    </body>
+      </html>
