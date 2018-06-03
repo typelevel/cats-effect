@@ -118,6 +118,52 @@ safely release any resources.</p>
 
 <p>Therefore <code class="highlighter-rouge">IOApp</code> automatically installs an interruption handler for you.</p>
 
+<h2 id="why-is-it-specialized-for-io">Why Is It Specialized for IO?</h2>
+
+<p><code class="highlighter-rouge">IOApp</code> doesn’t have an <code class="highlighter-rouge">F[_]</code> parameter, unlike the other data types 
+exposed by Cats-Effect. This is because different <code class="highlighter-rouge">F[_]</code> data types have 
+different requirements for evaluation at the end of the world.</p>
+
+<p>For example <code class="highlighter-rouge">cats.effect.IO</code> now needs a <code class="highlighter-rouge">Timer[IO]</code> in scope for working with
+<code class="highlighter-rouge">Concurrent</code> and thus for getting the <code class="highlighter-rouge">ConcurrentEffect</code> necessary to evaluate 
+an <code class="highlighter-rouge">IO</code>, <a href="../datatypes/timer.html">Timer</a> being provided by the environment and 
+in this case the environment is the <code class="highlighter-rouge">IOApp</code>.</p>
+
+<p>Monix’s <a href="https://monix.io/docs/3x/eval/task.html">Task</a> however has a global
+<code class="highlighter-rouge">Timer[Task]</code> always in scope and doesn’t need it, but it does need a
+<a href="https://monix.io/docs/3x/execution/scheduler.html">Scheduler</a> to be
+available for the necessary <a href="effect.html">Effect</a> instance.</p>
+
+<p>And both Cats-Effect’s <code class="highlighter-rouge">IO</code> and Monix’s <code class="highlighter-rouge">Task</code> are cancelable, in which
+case it is desirable for the <code class="highlighter-rouge">IOApp</code> / <code class="highlighter-rouge">TaskApp</code> to install shutdown
+handlers to execute in case of interruption, however our type classes
+can also work with non-cancelable data types, in which case handling
+interruption is no longer necessary.</p>
+
+<p>Long story short, it’s better for <code class="highlighter-rouge">IOApp</code> to be specialized and
+each <code class="highlighter-rouge">F[_]</code> can come with its own app data type that is better suited
+for its needs. For example Monix’s <code class="highlighter-rouge">Task</code> comes with its own <code class="highlighter-rouge">TaskApp</code>.</p>
+
+<p>That said <code class="highlighter-rouge">IOApp</code> can be used for any <code class="highlighter-rouge">F[_]</code>, because any <code class="highlighter-rouge">Effect</code>
+or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <code class="highlighter-rouge">IO</code>. Example:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.data.EitherT</span>
+
+<span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
+  <span class="k">type</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
+
+  <span class="k">implicit</span> <span class="k">val</span> <span class="n">timerF</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Timer</span><span class="o">.</span><span class="n">derive</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+  <span class="k">val</span> <span class="n">F</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ConcurrentEffect</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+
+  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> 
+    <span class="n">F</span><span class="o">.</span><span class="n">toIO</span> <span class="o">{</span>
+      <span class="nc">EitherT</span><span class="o">.</span><span class="n">right</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello from EitherT"</span><span class="o">)))</span>
+        <span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
 <h2 id="final-words">Final Words</h2>
 
 <p><code class="highlighter-rouge">IOApp</code> is awesome for describing pure FP programs and gives you functionality 

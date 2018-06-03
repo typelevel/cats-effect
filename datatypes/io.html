@@ -1294,7 +1294,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!
-// res83: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$6500/1227221416@f0fee65
+// res83: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$7297/210756575@7edb1f00
 </span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>
