@@ -10,6 +10,8 @@ scaladoc: "#cats.effect.IOApp"
 which executes a [cats.effect.IO](./io.html), as an entry point to 
 a pure FP program.
 
+<nav role="navigation" id="toc"></nav>
+
 ## Status Quo
 
 Currently in order to specify an entry point to a Java application,
