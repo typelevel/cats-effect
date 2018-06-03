@@ -126,20 +126,19 @@ safely release any resources.</p>
 exposed by Cats-Effect. This is because different <code class="highlighter-rouge">F[_]</code> data types have 
 different requirements for evaluation at the end of the world.</p>
 
-<p>For example <code class="highlighter-rouge">cats.effect.IO</code> now needs a <code class="highlighter-rouge">Timer[IO]</code> in scope for working with
-<code class="highlighter-rouge">Concurrent</code> and thus for getting the <code class="highlighter-rouge">ConcurrentEffect</code> necessary to evaluate 
-an <code class="highlighter-rouge">IO</code>, <a href="../datatypes/timer.html">Timer</a> being provided by the environment and 
-in this case the environment is the <code class="highlighter-rouge">IOApp</code>.</p>
-
-<p>Monix’s <a href="https://monix.io/docs/3x/eval/task.html">Task</a> however has a global
-<code class="highlighter-rouge">Timer[Task]</code> always in scope and doesn’t need it, but it does need a
+<p>For example <code class="highlighter-rouge">cats.effect.IO</code> now needs a <code class="highlighter-rouge">Timer[IO]</code> in scope for
+working with <code class="highlighter-rouge">Concurrent</code> and thus for getting the <code class="highlighter-rouge">ConcurrentEffect</code>
+necessary to evaluate an <code class="highlighter-rouge">IO</code>, <a href="../datatypes/timer.html">Timer</a> being
+provided by the environment and in this case the environment is the
+<code class="highlighter-rouge">IOApp</code>. Monix’s <a href="https://monix.io/docs/3x/eval/task.html">Task</a>
+however has a global <code class="highlighter-rouge">Timer[Task]</code> always in scope and doesn’t need
+it, but it does need a
 <a href="https://monix.io/docs/3x/execution/scheduler.html">Scheduler</a> to be
-available for the necessary <a href="effect.html">Effect</a> instance.</p>
-
-<p>And both Cats-Effect’s <code class="highlighter-rouge">IO</code> and Monix’s <code class="highlighter-rouge">Task</code> are cancelable, in which
-case it is desirable for the <code class="highlighter-rouge">IOApp</code> / <code class="highlighter-rouge">TaskApp</code> to install shutdown
-handlers to execute in case of interruption, however our type classes
-can also work with non-cancelable data types, in which case handling
+available for the necessary <a href="effect.html">Effect</a> instance. And both
+Cats-Effect’s <code class="highlighter-rouge">IO</code> and Monix’s <code class="highlighter-rouge">Task</code> are cancelable, in which case it
+is desirable for the <code class="highlighter-rouge">IOApp</code> / <code class="highlighter-rouge">TaskApp</code> to install shutdown handlers
+to execute in case of interruption, however our type classes can also
+work with non-cancelable data types, in which case handling
 interruption is no longer necessary.</p>
 
 <p>Long story short, it’s better for <code class="highlighter-rouge">IOApp</code> to be specialized and
