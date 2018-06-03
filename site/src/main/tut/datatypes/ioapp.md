@@ -121,6 +121,53 @@ If you run this sample, you can get two outcomes:
   
 Therefore `IOApp` automatically installs an interruption handler for you.
 
+## Why Is It Specialized for IO?
+
+`IOApp` doesn't have an `F[_]` parameter, unlike the other data types 
+exposed by Cats-Effect. This is because different `F[_]` data types have 
+different requirements for evaluation at the end of the world.
+
+For example `cats.effect.IO` now needs a `Timer[IO]` in scope for working with
+`Concurrent` and thus for getting the `ConcurrentEffect` necessary to evaluate 
+an `IO`, [Timer](../datatypes/timer.html) being provided by the environment and 
+in this case the environment is the `IOApp`.
+
+Monix's [Task](https://monix.io/docs/3x/eval/task.html) however has a global
+`Timer[Task]` always in scope and doesn't need it, but it does need a
+[Scheduler](https://monix.io/docs/3x/execution/scheduler.html) to be
+available for the necessary [Effect](effect.html) instance.
+
+And both Cats-Effect's `IO` and Monix's `Task` are cancelable, in which
+case it is desirable for the `IOApp` / `TaskApp` to install shutdown
+handlers to execute in case of interruption, however our type classes
+can also work with non-cancelable data types, in which case handling
+interruption is no longer necessary.
+
+Long story short, it's better for `IOApp` to be specialized and
+each `F[_]` can come with its own app data type that is better suited
+for its needs. For example Monix's `Task` comes with its own `TaskApp`.
+
+That said `IOApp` can be used for any `F[_]`, because any `Effect`
+or `ConcurrentEffect` can be converted to `IO`. Example:
+
+```tut:silent
+import cats.effect._
+import cats.data.EitherT
+
+object Main extends IOApp {
+  type F[A] = EitherT[IO, Throwable, A]
+
+  implicit val timerF: Timer[F] = Timer.derive[F]
+  val F = implicitly[ConcurrentEffect[F]]
+
+  def run(args: List[String]) = 
+    F.toIO {
+      EitherT.right(IO(println("Hello from EitherT")))
+        .map(_ => ExitCode.Success)
+    }
+}
+```
+
 ## Final Words
 
 `IOApp` is awesome for describing pure FP programs and gives you functionality 
