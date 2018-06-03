@@ -37,89 +37,14 @@
 <p>Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the <code class="highlighter-rouge">IO.race</code> mechanism, that’s why we call attempt on the evaluation.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.Parallel</span>
-<span class="c1">// &lt;console&gt;:12: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// import cats.Parallel
-</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                                        ^
-// import cats.effect.{Concurrent, IO}
-</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Deferred</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                                        ^
-// &lt;console&gt;:14: warning: Unused import
-//        import cats.effect.concurrent.Deferred
-//                                      ^
-// import cats.effect.concurrent.Deferred
-</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                                        ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.concurrent.Deferred
-//                                      ^
-// &lt;console&gt;:15: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// import cats.implicits._
-</span>
+
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                                        ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.concurrent.Deferred
-//                                      ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:18: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// import scala.concurrent.ExecutionContext.Implicits.global
-</span>
+
 <span class="k">implicit</span> <span class="k">val</span> <span class="n">par</span><span class="k">:</span> <span class="kt">Parallel</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Parallel</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">IO.Par</span><span class="o">].</span><span class="n">asInstanceOf</span><span class="o">[</span><span class="kt">Parallel</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">IO</span><span class="o">]]</span>
-<span class="c1">// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.concurrent.Deferred
-//                                      ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// par: cats.Parallel[cats.effect.IO,cats.effect.IO] = cats.effect.IOInstances$$anon$4@4d12b561
-</span>
+
 <span class="k">def</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">attemptCompletion</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="n">d</span><span class="o">.</span><span class="n">complete</span><span class="o">(</span><span class="n">n</span><span class="o">).</span><span class="n">attempt</span><span class="o">.</span><span class="n">void</span>
 
@@ -128,33 +53,13 @@
     <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Result: $n"</span><span class="o">))</span> <span class="o">}</span>
   <span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
 <span class="o">}</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// start: (d: cats.effect.concurrent.Deferred[cats.effect.IO,Int])cats.effect.IO[Unit]
-</span>
+
 <span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">d</span> <span class="k">&lt;-</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.Parallel
-//                    ^
-// &lt;console&gt;:10: warning: Unused import
-//        import cats.effect.{Concurrent, IO}
-//                            ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:16: warning: Unused import
-//        import par
-//                                            ^
-// program: cats.effect.IO[Unit] = IO$807377035
-</span></code></pre></div></div>
+</code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

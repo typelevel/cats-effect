@@ -46,7 +46,7 @@
 // &lt;console&gt;:12: warning: Unused import
 //        import cats.laws._
 //                         ^
-// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOLowPriorityInstances$IOEffect@105563a
+// F: cats.effect.Sync[cats.effect.IO] = cats.effect.IOLowPriorityInstances$IOEffect@5e9ba385
 </span>
 <span class="k">lazy</span> <span class="k">val</span> <span class="n">stackSafetyOnRepeatedRightBinds</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">result</span> <span class="k">=</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">10000</span><span class="o">).</span><span class="n">foldRight</span><span class="o">(</span><span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(()))</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="n">acc</span><span class="o">)</span> <span class="k">=&gt;</span>
@@ -76,7 +76,7 @@
 // &lt;console&gt;:12: warning: Unused import
 //        import cats.laws._
 //                         ^
-// ioa: cats.effect.IO[Unit] = IO$843805306
+// ioa: cats.effect.IO[Unit] = IO$850752093
 </span>
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
