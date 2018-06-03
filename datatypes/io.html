@@ -1040,9 +1040,11 @@ so there might not be anybody available to release it.</p>
 <p>Constructs an <code class="highlighter-rouge">IO</code> which sequences the specified exception.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">boom</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span>
+<span class="c1">// boom: cats.effect.IO[Nothing] = IO(throw java.lang.Exception: boom)
+</span>
 <span class="n">boom</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-<span class="c1">//=&gt; java.lang.Exception: boom
-//=&gt;   ... 43 elided
+<span class="c1">// java.lang.Exception: boom
+//   ... 43 elided
 </span></code></pre></div></div>
 
 <h3 id="attempt">attempt</h3>
@@ -1050,7 +1052,7 @@ so there might not be anybody available to release it.</p>
 <p>Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the <code class="highlighter-rouge">catch</code> clause in <code class="highlighter-rouge">try</code>/<code class="highlighter-rouge">catch</code>, being the inverse of <code class="highlighter-rouge">IO.raiseError</code>. Example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">boom</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-<span class="c1">//=&gt; Left(Exception("book"))
+<span class="c1">// res45: Either[Throwable,Nothing] = Left(java.lang.Exception: boom)
 </span></code></pre></div></div>
 
 <p>Look at the <a href="https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala">MonadError</a> typeclass for more.</p>
@@ -1273,7 +1275,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 <p>Any exceptions raised within the effect will be re-thrown during evaluation.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Sync!"</span><span class="o">)).</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-<span class="c1">//=&gt; Sync!
+<span class="c1">// Sync!
 </span></code></pre></div></div>
 
 <h3 id="unsaferunasync">unsafeRunAsync</h3>
@@ -1283,14 +1285,17 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 <p>Any exceptions raised within the effect will be passed to the callback in the <code class="highlighter-rouge">Either</code>. The callback will be invoked at most <em>once</em>. Note that it is very possible to construct an <code class="highlighter-rouge">IO</code> which never returns while still never blocking a thread, and attempting to evaluate that <code class="highlighter-rouge">IO</code> with this method will result in a situation where the callback is <em>never</em> invoked.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Async!"</span><span class="o">)).</span><span class="n">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
-</code></pre></div></div>
+<span class="c1">// Async!
+</span></code></pre></div></div>
 
 <h3 id="unsaferuncancelable">unsafeRunCancelable</h3>
 
 <p>Evaluates the source <code class="highlighter-rouge">IO</code>, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
-</code></pre></div></div>
+<span class="c1">// Potentially cancelable!
+// res83: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$6500/1227221416@f0fee65
+</span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>
 
