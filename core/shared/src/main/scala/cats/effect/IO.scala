@@ -800,8 +800,6 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
         fa
       override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
         fa.onCancelRaiseError(e)
-      override def cancelBoundary(implicit ev: Concurrent[IO]): IO[Unit] =
-        IO.cancelBoundary
     }
 }
 

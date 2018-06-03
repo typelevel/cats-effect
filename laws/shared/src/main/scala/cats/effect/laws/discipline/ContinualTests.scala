@@ -55,24 +55,15 @@ trait ContinualTests[F[_]] extends Laws {
       val name = "continual.concurrent"
       val bases = Nil
       val parents = Seq(sync[A])
-      val props = {
-        val default = Seq(
-          "continual cancelation model" -> forAll(laws.continualCancelationModel[A] _),
-          "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
-          "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
-          "onCancelRaiseError resets cancelation flag" -> forAll(laws.onCancelRaiseErrorResetsCancellationFlag[A] _),
-          "guaranteeCase terminates on cancel" -> forAll(laws.guaranteeCaseTerminatesOnCancel[A] _),
-          "guaranteeCase can cancel source" -> forAll(laws.guaranteeCaseCanCancelSource[A] _),
-          "guaranteeCase resets cancelation flag" -> forAll(laws.guaranteeCaseResetsCancellationFlag[A] _)
-        )
-
-        if (params.allowNonTerminationLaws)
-          default ++ Seq(
-            "cancelBoundary interrupts" -> forAll(laws.cancelBoundaryInterrupts[A] _)
-          )
-        else
-          default
-      }
+      val props = Seq(
+        "continual cancelation model" -> forAll(laws.continualCancelationModel[A] _),
+        "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
+        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
+        "onCancelRaiseError resets cancelation flag" -> forAll(laws.onCancelRaiseErrorResetsCancellationFlag[A] _),
+        "guaranteeCase terminates on cancel" -> forAll(laws.guaranteeCaseTerminatesOnCancel[A] _),
+        "guaranteeCase can cancel source" -> forAll(laws.guaranteeCaseCanCancelSource[A] _),
+        "guaranteeCase resets cancelation flag" -> forAll(laws.guaranteeCaseResetsCancellationFlag[A] _)
+      )
     }
   }
 }

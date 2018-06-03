@@ -86,17 +86,6 @@ trait ContinualLaws[F[_]] {
     F.continual(lh) <-> C.liftIO(IO(a))
   }
 
-  def cancelBoundaryInterrupts[A](a: A)
-    (implicit C: Concurrent[F]) = {
-
-    val lh = Deferred[F, Unit].flatMap { latch =>
-      val task = latch.get >> F.cancelBoundary >> C.pure(a)
-      C.start(task).flatMap(f => f.cancel >> latch.complete(()) >> f.join)
-    }
-    // We want to guarantee this only in the continual model
-    F.continual(lh) <-> C.never[A]
-  }
-
   def guaranteeCaseTerminatesOnCancel[A](e: Throwable)
     (implicit C: Concurrent[F]) = {
 
