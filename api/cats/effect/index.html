@@ -615,8 +615,7 @@ the <code>IO</code> completes, as follows:</p><p>- If completed with <code>ExitC
   with the specified code.</p><p>- If the <code>IO</code> raises an error, the stack trace is printed to
   standard error and <code>sys.exit(1)</code> is called.</p><p>When a shutdown is requested via a signal, the <code>IO</code> is canceled and
 we wait for the <code>IO</code> to release any resources.  The process exits
-with the numeric value of the signal plus 128.</p><pre><span class="kw">import</span> cats.effect.IO
-<span class="kw">import</span> cats.effect.concurrent.{ExitCode, IOApp}
+with the numeric value of the signal plus 128.</p><pre><span class="kw">import</span> cats.effect._
 <span class="kw">import</span> cats.implicits._
 
 <span class="kw">object</span> MyApp <span class="kw">extends</span> IOApp {

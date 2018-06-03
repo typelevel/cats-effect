@@ -67,7 +67,7 @@
 // &lt;console&gt;:10: warning: Unused import
 //        import cats.effect.{IO, Resource}
 //                                ^
-// r: cats.effect.Resource[cats.effect.IO,(String, String)] = cats.effect.Resource$$anon$5@1b1bc4ff
+// r: cats.effect.Resource[cats.effect.IO,(String, String)] = cats.effect.Resource$$anon$5@59a1c05f
 </span>
 <span class="n">r</span><span class="o">.</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Using $a and $b"</span><span class="o">))</span> <span class="o">}.</span><span class="n">unsafeRunSync</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
