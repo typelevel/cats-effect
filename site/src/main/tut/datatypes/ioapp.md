@@ -1,6 +1,6 @@
 ---
 layout: docsplus
-title:  "Resource"
+title:  "IOApp"
 number: 15
 source: "core/shared/src/main/scala/cats/effect/IOApp.scala"
 scaladoc: "#cats.effect.IOApp"
