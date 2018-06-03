@@ -1049,9 +1049,11 @@ Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effe
 
 Constructs an `IO` which sequences the specified exception.
 
-```tut:nofail
+```tut:silent:nofail
 val boom = IO.raiseError(new Exception("boom"))
 boom.unsafeRunSync()
+//=> java.lang.Exception: boom
+//=>   ... 43 elided
 ```
 
 ### attempt
@@ -1224,15 +1226,22 @@ program.unsafeRunSync()
 //=> Running ioA
 ```
 
-If any of the `IO`s completes with a failure then the result of the whole computation will be failed but not until all the `IO`s are completed. Example:
+If any of the `IO`s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:
 
-```tut:nofail
+```tut:silent:nofail
 val a = IO.raiseError[Unit](new Exception("boom")) <* IO(println("Running ioA"))
-val b = IO(println("Running ioB"))
+val b = (IO.sleep(1.second) *> IO(println("Running ioB")))
+  .guaranteeCase {
+    case Canceled => IO(println("ioB was canceled!"))
+    case _ => IO.unit
+  }
 
 val parFailure = (a, b).parMapN { (_, _) => () }
 
 parFailure.unsafeRunSync()
+//=> ioB was canceled!
+//=> java.lang.Exception: boom
+//=>  ... 43 elided
 ```
 
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
