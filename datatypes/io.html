@@ -40,14 +40,14 @@ example:</p>
 // import cats.effect.IO
 </span>
 <span class="k">val</span> <span class="n">ioa</span> <span class="k">=</span> <span class="nc">IO</span> <span class="o">{</span> <span class="n">println</span><span class="o">(</span><span class="s">"hey!"</span><span class="o">)</span> <span class="o">}</span>
-<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1840659051
+<span class="c1">// ioa: cats.effect.IO[Unit] = IO$1796729252
 </span>
 <span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">ioa</span>
      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">ioa</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-<span class="c1">// program: cats.effect.IO[Unit] = IO$1470112312
+<span class="c1">// program: cats.effect.IO[Unit] = IO$507428668
 </span>
 <span class="n">program</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -161,7 +161,7 @@ with another <code class="highlighter-rouge">IO</code> that wraps a side a effec
 nothing is going to be executed:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="mi">25</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Number is: $n"</span><span class="o">)))</span>
-<span class="c1">// res1: cats.effect.IO[Unit] = IO$74081034
+<span class="c1">// res1: cats.effect.IO[Unit] = IO$577514081
 </span></code></pre></div></div>
 
 <p>It should be obvious that <code class="highlighter-rouge">IO.pure</code> cannot suspend side effects, because
@@ -1262,7 +1262,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:33: warning: Unused import
 //        import cats.effect.ExitCase.{Completed, Error, Canceled}
 //                                                       ^
-// res34: cats.effect.IO[Unit] = IO$1707514251
+// res34: cats.effect.IO[Unit] = IO$1129337521
 </span></code></pre></div></div>
 
 <p>Eager evaluation:</p>
@@ -1391,7 +1391,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:35: warning: Unused import
 //        import scala.concurrent.ExecutionContext.Implicits.global
 //                                                           ^
-// res35: cats.effect.IO[String] = IO$746584949
+// res35: cats.effect.IO[String] = IO$890268836
 </span></code></pre></div></div>
 
 <h3 id="fromeither">fromEither</h3>
@@ -1919,7 +1919,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:43: warning: Unused import
 //        import scala.concurrent.duration._
 //                                         ^
-// ioTimer: cats.effect.Timer[cats.effect.IO] = cats.effect.internals.IOTimer@7a15aeac
+// ioTimer: cats.effect.Timer[cats.effect.IO] = cats.effect.internals.IOTimer@18a7555f
 </span></code></pre></div></div>
 
 <p>We can introduce an asynchronous boundary in the <code class="highlighter-rouge">flatMap</code> chain before a certain task:</p>
@@ -1994,7 +1994,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:45: warning: Unused import
 //        import cats.effect.Timer
 //                           ^
-// task: cats.effect.IO[Unit] = IO$561094349
+// task: cats.effect.IO[Unit] = IO$961832635
 </span>
 <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span><span class="o">(</span><span class="n">ioTimer</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">task</span><span class="o">)</span>
 <span class="c1">// &lt;console&gt;:10: warning: Unused import
@@ -2066,7 +2066,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:45: warning: Unused import
 //        import cats.effect.Timer
 //                           ^
-// res39: cats.effect.IO[Unit] = IO$1558085220
+// res39: cats.effect.IO[Unit] = IO$793204425
 </span></code></pre></div></div>
 
 <p>Or using <code class="highlighter-rouge">Cats</code> syntax:</p>
@@ -2364,7 +2364,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:49: warning: Unused import
 //        import cats.syntax.apply._
 //                                 ^
-// res43: cats.effect.IO[Unit] = IO$1671899622
+// res43: cats.effect.IO[Unit] = IO$454496210
 </span></code></pre></div></div>
 
 <p>Or using <code class="highlighter-rouge">Cats</code> syntax:</p>
@@ -2761,7 +2761,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:50: warning: Unused import
 //        import scala.concurrent.ExecutionContext
 //                                ^
-// cachedThreadPool: java.util.concurrent.ExecutorService = java.util.concurrent.ThreadPoolExecutor@329ca45f[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0]
+// cachedThreadPool: java.util.concurrent.ExecutorService = java.util.concurrent.ThreadPoolExecutor@6dc317e[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0]
 </span>
 <span class="k">val</span> <span class="nc">BlockingFileIO</span>   <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="n">cachedThreadPool</span><span class="o">)</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -2845,7 +2845,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:49: warning: Unused import
 //        import java.util.concurrent.Executors
 //                                    ^
-// BlockingFileIO: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@2aa42523
+// BlockingFileIO: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@26610bb1
 </span>
 <span class="k">implicit</span> <span class="k">val</span> <span class="nc">Main</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -2929,7 +2929,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:49: warning: Unused import
 //        import java.util.concurrent.Executors
 //                                    ^
-// Main: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@3ad729d5
+// Main: scala.concurrent.ExecutionContextExecutor = scala.concurrent.impl.ExecutionContextImpl@2d2c05ad
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
@@ -3018,7 +3018,7 @@ so there might not be anybody available to release it.</p>
 // &lt;console&gt;:50: warning: Unused import
 //        import scala.concurrent.ExecutionContext
 //                                ^
-// ioa: cats.effect.IO[Unit] = IO$260859038
+// ioa: cats.effect.IO[Unit] = IO$1378053859
 </span></code></pre></div></div>
 
 <p>We start by asking the user to enter its name and next we thread-shift to the <code class="highlighter-rouge">BlockingFileIO</code> execution context because we expect the following action to block on the thread for a long time and we don’t want that to happen in the main thread of execution. After the <code class="highlighter-rouge">expensive IO operation</code> (readLine) gets back with a response we thread-shift back to the main execution context defined as an implicit value, and finally the program ends by showing a message in the console and shutting down a thread pool, all actions run in the main execution context.</p>
@@ -3569,7 +3569,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:53: warning: Unused import
 //        import cats.syntax.all._
 //                               ^
-// ioA: cats.effect.IO[Unit] = IO$1626479697
+// ioA: cats.effect.IO[Unit] = IO$77217139
 </span>
 <span class="k">val</span> <span class="n">ioB</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioB"</span><span class="o">))</span>
 <span class="c1">// &lt;console&gt;:10: warning: Unused import
@@ -3656,7 +3656,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:53: warning: Unused import
 //        import cats.syntax.all._
 //                               ^
-// ioB: cats.effect.IO[Unit] = IO$641496163
+// ioB: cats.effect.IO[Unit] = IO$1514135405
 </span>
 <span class="k">val</span> <span class="n">ioC</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioC"</span><span class="o">))</span>
 <span class="c1">// &lt;console&gt;:10: warning: Unused import
@@ -3743,7 +3743,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:53: warning: Unused import
 //        import cats.syntax.all._
 //                               ^
-// ioC: cats.effect.IO[Unit] = IO$474664273
+// ioC: cats.effect.IO[Unit] = IO$1783669608
 </span>
 <span class="k">val</span> <span class="n">program</span> <span class="k">=</span> <span class="o">(</span><span class="n">ioA</span><span class="o">,</span> <span class="n">ioB</span><span class="o">,</span> <span class="n">ioC</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -4093,7 +4093,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 <span class="o">&lt;</span><span class="n">console</span><span class="k">&gt;:</span><span class="mi">53</span><span class="k">:</span> <span class="kt">warning:</span> <span class="kt">Unused</span> <span class="kt">import</span>
        <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
                               <span class="o">^</span>
-<span class="n">b</span><span class="k">:</span> <span class="kt">cats.effect.IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO$2069026952</span>
+<span class="n">b</span><span class="k">:</span> <span class="kt">cats.effect.IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO$372150864</span>
 
 <span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="n">parFailure</span> <span class="k">=</span> <span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 <span class="o">&lt;</span><span class="n">console</span><span class="k">&gt;:</span><span class="mi">9</span><span class="k">:</span> <span class="kt">warning:</span> <span class="kt">Unused</span> <span class="kt">import</span>
@@ -4587,7 +4587,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:62: warning: Unused import
 //        import cats.syntax.all._
 //                               ^
-// anIO: cats.effect.IO[Int] = IO$828038211
+// anIO: cats.effect.IO[Int] = IO$804129308
 </span>
 <span class="k">val</span> <span class="n">aLotOfIOs</span> <span class="k">=</span> 
   <span class="nc">NonEmptyList</span><span class="o">.</span><span class="n">of</span><span class="o">(</span><span class="n">anIO</span><span class="o">,</span> <span class="n">anIO</span><span class="o">)</span>
@@ -4690,7 +4690,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:64: warning: Unused import
 //        import cats.effect.IO
 //                           ^
-// aLotOfIOs: cats.data.NonEmptyList[cats.effect.IO[Int]] = NonEmptyList(IO$828038211, IO$828038211)
+// aLotOfIOs: cats.data.NonEmptyList[cats.effect.IO[Int]] = NonEmptyList(IO$804129308, IO$804129308)
 </span>
 <span class="k">val</span> <span class="n">ioOfList</span> <span class="k">=</span> <span class="n">aLotOfIOs</span><span class="o">.</span><span class="n">parSequence</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -4789,7 +4789,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:64: warning: Unused import
 //        import cats.effect.IO
 //                           ^
-// ioOfList: cats.effect.IO[cats.data.NonEmptyList[Int]] = IO$151695466
+// ioOfList: cats.effect.IO[cats.data.NonEmptyList[Int]] = IO$502580715
 </span></code></pre></div></div>
 
 <p>There is also <code class="highlighter-rouge">cats.Traverse.sequence</code> which does this synchronously.</p>
@@ -4891,7 +4891,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 // &lt;console&gt;:56: warning: Unused import
 //        import cats._
 //                    ^
-// results: cats.effect.IO[cats.data.NonEmptyList[Int]] = IO$1284219965
+// results: cats.effect.IO[cats.data.NonEmptyList[Int]] = IO$352226443
 </span></code></pre></div></div>
 
 <p>There is also <code class="highlighter-rouge">cats.Traverse.traverse</code> which will run each step synchronously.</p>
@@ -5225,7 +5225,7 @@ On JS, <code class="highlighter-rouge">Timer[IO]</code> is always available.</p>
 //        import cats.syntax.all._
 //                               ^
 // Potentially cancelable!
-// res53: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$5898/1526893836@6688b4fe
+// res53: () =&gt; Unit = cats.effect.internals.IOConnection$Impl$$Lambda$5902/1098435877@62fd59be
 </span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>
@@ -5814,7 +5814,7 @@ So this should be avoided:</p>
 // &lt;console&gt;:66: warning: Unused import
 //        import scala.concurrent.duration._
 //                                         ^
-// res57: cats.effect.IO[Unit] = IO$417178358
+// res57: cats.effect.IO[Unit] = IO$622519436
 </span></code></pre></div></div>
 
 <p>The correct approach would be this:</p>
@@ -5925,7 +5925,7 @@ So this should be avoided:</p>
 // &lt;console&gt;:66: warning: Unused import
 //        import scala.concurrent.duration._
 //                                         ^
-// res58: cats.effect.IO[Unit] = IO$1178932451
+// res58: cats.effect.IO[Unit] = IO$1541077605
 </span></code></pre></div></div>
 
 <p>Note that as far as the actual behavior of <code class="highlighter-rouge">IO</code> is concerned, something like <code class="highlighter-rouge">IO.pure(x).map(f)</code> is equivalent with <code class="highlighter-rouge">IO(f(x))</code> and <code class="highlighter-rouge">IO.pure(x).flatMap(f)</code> is equivalent with <code class="highlighter-rouge">IO.suspend(f(x))</code>.</p>

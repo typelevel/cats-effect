@@ -80,7 +80,7 @@
 // &lt;console&gt;:13: warning: Unused import
 //        import myEffectLiftIO
 //                                        ^
-// ioa: cats.effect.IO[String] = IO$1814193880
+// ioa: cats.effect.IO[String] = IO$2123832432
 </span>
 <span class="k">val</span> <span class="n">effect</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">].</span><span class="n">liftIO</span><span class="o">(</span><span class="n">ioa</span><span class="o">)</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import
@@ -188,7 +188,7 @@
 // &lt;console&gt;:19: warning: Unused import
 //        import scala.concurrent.ExecutionContext.Implicits.global
 //                                                           ^
-// L: cats.effect.LiftIO[MyEffect] = $anon$1@38afaa78
+// L: cats.effect.LiftIO[MyEffect] = $anon$1@5075393c
 </span>
 <span class="k">val</span> <span class="n">service1</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">22</span><span class="o">))</span>
 <span class="c1">// &lt;console&gt;:9: warning: Unused import

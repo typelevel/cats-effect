@@ -118,7 +118,7 @@
 // &lt;console&gt;:13: warning: Unused import
 //        import cats.implicits._
 //                              ^
-// par: cats.Parallel[cats.effect.IO,cats.effect.IO] = cats.effect.IOInstances$$anon$4@6ea8b1ee
+// par: cats.Parallel[cats.effect.IO,cats.effect.IO] = cats.effect.IOInstances$$anon$4@4d12b561
 </span>
 <span class="k">def</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">attemptCompletion</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="n">d</span><span class="o">.</span><span class="n">complete</span><span class="o">(</span><span class="n">n</span><span class="o">).</span><span class="n">attempt</span><span class="o">.</span><span class="n">void</span>
@@ -153,7 +153,7 @@
 // &lt;console&gt;:16: warning: Unused import
 //        import par
 //                                            ^
-// program: cats.effect.IO[Unit] = IO$1595825548
+// program: cats.effect.IO[Unit] = IO$807377035
 </span></code></pre></div></div>
 
 
