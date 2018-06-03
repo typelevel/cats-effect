@@ -1049,20 +1049,17 @@ Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effe
 
 Constructs an `IO` which sequences the specified exception.
 
-```tut:silent:nofail
+```tut:book:nofail
 val boom = IO.raiseError(new Exception("boom"))
 boom.unsafeRunSync()
-//=> java.lang.Exception: boom
-//=>   ... 43 elided
 ```
 
 ### attempt
 
 Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the `catch` clause in `try`/`catch`, being the inverse of `IO.raiseError`. Example:
 
-```tut:silent
+```tut:book
 boom.attempt.unsafeRunSync()
-//=> Left(Exception("book"))
 ```
 
 Look at the [MonadError](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala) typeclass for more.
@@ -1294,9 +1291,8 @@ If any component of the computation is asynchronous, the current thread will blo
 
 Any exceptions raised within the effect will be re-thrown during evaluation.
 
-```tut:silent
+```tut:book
 IO(println("Sync!")).unsafeRunSync()
-//=> Sync!
 ```
 
 ### unsafeRunAsync
@@ -1305,7 +1301,7 @@ Passes the result of the encapsulated effects to the given callback by running t
 
 Any exceptions raised within the effect will be passed to the callback in the `Either`. The callback will be invoked at most *once*. Note that it is very possible to construct an `IO` which never returns while still never blocking a thread, and attempting to evaluate that `IO` with this method will result in a situation where the callback is *never* invoked.
 
-```tut:silent
+```tut:book
 IO(println("Async!")).unsafeRunAsync(_ => ())
 ```
 
@@ -1313,7 +1309,7 @@ IO(println("Async!")).unsafeRunAsync(_ => ())
 
 Evaluates the source `IO`, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.
 
-```tut:silent
+```tut:book
 IO(println("Potentially cancelable!")).unsafeRunCancelable(_ => ())
 ```
 

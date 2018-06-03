@@ -425,13 +425,18 @@ lazy val siteSettings = Seq(
     )
   ),
   fork in tut := true,
-  scalacOptions in Tut --= Seq(
+
+  scalacOptions in Tut ~= (_ filterNot Set(
     "-Xfatal-warnings",
-    "-Ywarn-unused-import",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-unused:imports",
+    "-Ywarn-unused:locals",
+    "-Ywarn-unused:patvars",
+    "-Ywarn-unused:privates",    
     "-Ywarn-numeric-widen",
     "-Ywarn-dead-code",
-    "-Xlint:-missing-interpolator,_",
-  ),
+    "-Xlint:-missing-interpolator,_").contains),
+
   docsMappingsAPIDir := "api",
   addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
@@ -507,7 +512,8 @@ scalacOptions in ThisBuild ++= {
       "-Ywarn-unused:privates",
       "-Xlint:-missing-interpolator,-unused,_"
     )
-    case _ => Seq("-Xlint:-missing-interpolator,_")
+    case _ => 
+      Seq("-Xlint:-missing-interpolator,_")
   }
 }
 
