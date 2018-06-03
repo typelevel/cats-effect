@@ -1,4 +1,4 @@
-<html><head><title>Cats Effect: LiftIO</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: LiftIO" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: LiftIO" /><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/style.css" /><link rel="stylesheet" href="/cats-effect/css/palette.css" /><link rel="stylesheet" href="/cats-effect/css/codemirror.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"><span>Cats Effect</span></div></a></li> <li><a href="/cats-effect/datatypes/" class="">Data Types</a> <ul class="sub_section"> <li><a href="/cats-effect/datatypes/io.html" class="">IO</a></li> <li><a href="/cats-effect/datatypes/fiber.html" class="">Fiber</a></li> <li><a href="/cats-effect/datatypes/resource.html" class="">Resource</a></li> <li><a href="/cats-effect/datatypes/timer.html" class="">Timer</a></li></ul></li> <li><a href="/cats-effect/concurrency/" class="">Concurrency</a> <ul class="sub_section"> <li><a href="/cats-effect/concurrency/deferred.html" class="">Deferred</a></li> <li><a href="/cats-effect/concurrency/mvar.html" class="">MVar</a></li> <li><a href="/cats-effect/concurrency/ref.html" class="">Ref</a></li> <li><a href="/cats-effect/concurrency/semaphore.html" class="">Semaphore</a></li></ul></li> <li><a href="/cats-effect/typeclasses/" class="">Type Classes</a> <ul class="sub_section"> <li><a href="/cats-effect/typeclasses/bracket.html" class="">Bracket</a></li> <li><a href="/cats-effect/typeclasses/sync.html" class="">Sync</a></li> <li><a href="/cats-effect/typeclasses/liftio.html" class=" active ">LiftIO</a></li> <li><a href="/cats-effect/typeclasses/async.html" class="">Async</a></li> <li><a href="/cats-effect/typeclasses/concurrent.html" class="">Concurrent</a></li> <li><a href="/cats-effect/typeclasses/effect.html" class="">Effect</a></li> <li><a href="/cats-effect/typeclasses/concurrent-effect.html" class="">ConcurrentEffect</a></li></ul></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Cats Effect The IO Monad for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Cats Effect The IO Monad for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>LiftIO</h1>
+<html><head><title>Cats Effect: LiftIO</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: LiftIO" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: LiftIO" /><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/style.css" /><link rel="stylesheet" href="/cats-effect/css/palette.css" /><link rel="stylesheet" href="/cats-effect/css/codemirror.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"><span>Cats Effect</span></div></a></li> <li><a href="/cats-effect/datatypes/" class="">Data Types</a> <ul class="sub_section"> <li><a href="/cats-effect/datatypes/io.html" class="">IO</a></li> <li><a href="/cats-effect/datatypes/fiber.html" class="">Fiber</a></li> <li><a href="/cats-effect/datatypes/resource.html" class="">Resource</a></li> <li><a href="/cats-effect/datatypes/timer.html" class="">Timer</a></li> <li><a href="/cats-effect/datatypes/ioapp.html" class="">IOApp</a></li></ul></li> <li><a href="/cats-effect/concurrency/" class="">Concurrency</a> <ul class="sub_section"> <li><a href="/cats-effect/concurrency/deferred.html" class="">Deferred</a></li> <li><a href="/cats-effect/concurrency/mvar.html" class="">MVar</a></li> <li><a href="/cats-effect/concurrency/ref.html" class="">Ref</a></li> <li><a href="/cats-effect/concurrency/semaphore.html" class="">Semaphore</a></li></ul></li> <li><a href="/cats-effect/typeclasses/" class="">Type Classes</a> <ul class="sub_section"> <li><a href="/cats-effect/typeclasses/bracket.html" class="">Bracket</a></li> <li><a href="/cats-effect/typeclasses/sync.html" class="">Sync</a></li> <li><a href="/cats-effect/typeclasses/liftio.html" class=" active ">LiftIO</a></li> <li><a href="/cats-effect/typeclasses/async.html" class="">Async</a></li> <li><a href="/cats-effect/typeclasses/concurrent.html" class="">Concurrent</a></li> <li><a href="/cats-effect/typeclasses/effect.html" class="">Effect</a></li> <li><a href="/cats-effect/typeclasses/concurrent-effect.html" class="">ConcurrentEffect</a></li></ul></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Cats Effect The IO Monad for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Cats Effect The IO Monad for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>LiftIO</h1>
 
 <p>A <code class="highlighter-rouge">Monad</code> that can convert any given <code class="highlighter-rouge">IO[A]</code> into a <code class="highlighter-rouge">F[A]</code>, useful for defining parametric signatures and composing monad transformer stacks.</p>
 
@@ -12,276 +12,44 @@
 <p>Let’s say your effect stack in your app is the following:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">LiftIO</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:13: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// import cats.effect.{LiftIO, IO}
-</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:15: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// import scala.concurrent.Future
-</span>
+
 <span class="k">type</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">[</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]]</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// defined type alias MyEffect
-</span>
+
 <span class="k">implicit</span> <span class="k">def</span> <span class="n">myEffectLiftIO</span><span class="k">:</span> <span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">new</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]</span> <span class="o">{</span>
     <span class="k">override</span> <span class="k">def</span> <span class="n">liftIO</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
       <span class="n">ioa</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeToFuture</span><span class="o">()</span>
     <span class="o">}</span>
   <span class="o">}</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// myEffectLiftIO: cats.effect.LiftIO[MyEffect]
-</span></code></pre></div></div>
+</code></pre></div></div>
 
 <p>Having an implicit instance of <code class="highlighter-rouge">LiftIO</code> in scope you can, at any time, <code class="highlighter-rouge">lift</code> any given <code class="highlighter-rouge">IO[A]</code> into <code class="highlighter-rouge">MyEffect[A]</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:13: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// ioa: cats.effect.IO[String] = IO$126186183
-</span>
 <span class="k">val</span> <span class="n">effect</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">].</span><span class="n">liftIO</span><span class="o">(</span><span class="n">ioa</span><span class="o">)</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// effect: MyEffect[String] = Future(Success(Right(Hello World!)))
-</span></code></pre></div></div>
+</code></pre></div></div>
 
 <p>A more interesting example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data.EitherT</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:13: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:17: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// import cats.data.EitherT
-</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:13: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:14: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:18: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// import cats.implicits._
-</span>
+
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:13: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:14: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:16: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:21: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// import scala.concurrent.ExecutionContext.Implicits.global
-</span>
+
 <span class="k">val</span> <span class="n">L</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]]</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:15: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:17: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:19: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// L: cats.effect.LiftIO[MyEffect] = $anon$1@1a16c2d5
-</span>
+
 <span class="k">val</span> <span class="n">service1</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">22</span><span class="o">))</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:14: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:15: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:17: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:19: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// service1: MyEffect[Int] = Future(Success(Right(22)))
-</span>
 <span class="k">val</span> <span class="n">service2</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="kc">true</span><span class="o">))</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:14: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:15: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:17: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:19: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// service2: MyEffect[Boolean] = Future(Success(Right(true)))
-</span>
 <span class="k">val</span> <span class="n">service3</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">)))</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                                    ^
-// &lt;console&gt;:14: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// &lt;console&gt;:15: warning: Unused import
-//        import cats.data.EitherT
-//                         ^
-// &lt;console&gt;:17: warning: Unused import
-//        import cats.implicits._
-//                              ^
-// &lt;console&gt;:19: warning: Unused import
-//        import scala.concurrent.ExecutionContext.Implicits.global
-//                                                           ^
-// service3: MyEffect[String] = Future(Success(Left(java.lang.Exception: boom!)))
-</span>
+
 <span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
   <span class="o">(</span><span class="k">for</span> <span class="o">{</span>
     <span class="n">n</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">service1</span><span class="o">)</span>
     <span class="n">x</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">service2</span><span class="o">)</span>
     <span class="n">y</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="k">if</span> <span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="n">L</span><span class="o">.</span><span class="n">liftIO</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="s">"from io"</span><span class="o">))</span> <span class="k">else</span> <span class="n">service3</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">y</span><span class="o">).</span><span class="n">value</span>
-<span class="c1">// &lt;console&gt;:9: warning: Unused import
-//        import cats.effect.IO
-//                           ^
-// &lt;console&gt;:11: warning: Unused import
-//        import cats.effect.{LiftIO, IO}
-//                            ^
-// &lt;console&gt;:12: warning: Unused import
-//        import scala.concurrent.Future
-//                                ^
-// &lt;console&gt;:14: warning: Unused import
-//        import myEffectLiftIO
-//                                        ^
-// program: MyEffect[String] = Future(&lt;not completed&gt;)
-</span></code></pre></div></div>
+</code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
