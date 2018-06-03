@@ -17,7 +17,7 @@ Due to these restrictions, this type class also affords to describe a `Concurren
 
 Without cancellation being baked in, we couldn't afford to do it.
 
-```tut:book:silent
+```tut:silent
 import cats.effect.{Async, Fiber, IO}
 
 trait Concurrent[F[_]] extends Async[F] {

@@ -8,7 +8,7 @@ scaladoc: "#cats.effect.concurrent.Ref"
 
 An asynchronous, concurrent mutable reference.
 
-```tut:book:silent
+```tut:silent
 import cats.data.State
 
 abstract class Ref[F[_], A] {
@@ -40,7 +40,7 @@ The workers will concurrently run and modify the value of the Ref so this is one
 #3 >> 3
 ```
 
-```tut:book
+```tut:silent
 import cats.Parallel
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref

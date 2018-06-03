@@ -9,7 +9,7 @@ scaladoc: "#cats.effect.concurrent.MVar"
 An `MVar` is a mutable location that can be empty or contains a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
-```tut:book:silent
+```tut:silent
 abstract class MVar[F[_], A] {
   def put(a: A): F[Unit]
   def take: F[A]
