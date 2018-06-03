@@ -37,7 +37,7 @@ overhead is minimal (and no leaks), and also that a single effect may
 be run multiple times in a referentially-transparent manner. For
 example:
 
-```tut:book
+```tut:silent
 import cats.effect.IO
 
 val ioa = IO { println("hey!") }
@@ -49,6 +49,8 @@ val program: IO[Unit] =
   } yield ()
 
 program.unsafeRunSync()
+//=> hey!
+//=> hey!
 ```
 
 The above example prints "hey!" twice, as the effect re-runs each time
@@ -122,7 +124,7 @@ You can lift pure values into `IO`, yielding `IO` values that are
 "already evaluated", the following function being defined on IO's 
 companion:
 
-```tut:book
+```tut:silent
 def pure[A](a: A): IO[A] = ???
 ```
 
@@ -132,7 +134,7 @@ For example we can lift a number (pure value) into `IO` and compose it
 with another `IO` that wraps a side a effect in a safe manner, as
 nothing is going to be executed:
 
-```tut:book
+```tut:silent
 IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
@@ -140,7 +142,7 @@ It should be obvious that `IO.pure` cannot suspend side effects, because
 `IO.pure` is eagerly evaluated, with the given parameter being passed
 by value, so don't do this:
 
-```tut:book
+```tut:silent
 IO.pure(println("THIS IS WRONG!"))
 ```
 
@@ -1005,7 +1007,7 @@ There are two useful operations defined in the `IO` companion object to lift bot
 
 Constructs an `IO` which evaluates the given `Future` and produces either a result or a failure. It is defined as follow:
 
-```tut:book
+```tut:silent
 import scala.concurrent.Future
 
 def fromFuture[A](iof: IO[Future[A]]): IO[A] = ???
@@ -1015,7 +1017,7 @@ Because `Future` eagerly evaluates, as well as because it memoizes, this functio
 
 Lazy evaluation, equivalent with by-name parameters:
 
-```tut:book
+```tut:silent
 import scala.concurrent.ExecutionContext.Implicits.global
 
 IO.fromFuture(IO {
@@ -1025,7 +1027,7 @@ IO.fromFuture(IO {
 
 Eager evaluation:
 
-```tut:book
+```tut:silent
 val f = Future.successful("I come from the Future!")
 
 IO.fromFuture(IO.pure(f))
@@ -1035,7 +1037,7 @@ IO.fromFuture(IO.pure(f))
 
 Lifts an `Either[Throwable, A]` into the `IO[A]` context raising the throwable if it exists.
 
-```tut:book
+```tut:silent
 def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
 ```
 
@@ -1056,8 +1058,9 @@ boom.unsafeRunSync()
 
 Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the `catch` clause in `try`/`catch`, being the inverse of `IO.raiseError`. Example:
 
-```tut:book
+```tut:silent
 boom.attempt.unsafeRunSync()
+//=> Left(Exception("book"))
 ```
 
 Look at the [MonadError](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala) typeclass for more.
@@ -1101,7 +1104,7 @@ Examples:
 
 By default, `Cats Effect` provides an instance of `Timer[IO]` that manages thread-pools. Eg.:
 
-```tut:book
+```tut:silent
 import cats.effect.Timer
 
 val ioTimer = Timer[IO]
@@ -1109,7 +1112,7 @@ val ioTimer = Timer[IO]
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
 
-```tut:book
+```tut:silent
 val task = IO(println("task"))
 
 IO.shift(ioTimer).flatMap(_ => task)
@@ -1117,7 +1120,7 @@ IO.shift(ioTimer).flatMap(_ => task)
 
 Or using `Cats` syntax:
 
-```tut:book
+```tut:silent
 import cats.syntax.apply._
 
 IO.shift(ioTimer) *> task
@@ -1127,13 +1130,13 @@ Timer[IO].shift *> task
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
 
-```tut:book
+```tut:silent
 task.flatMap(a => IO.shift(ioTimer).map(_ => a))
 ```
 
 Or using `Cats` syntax:
 
-```tut:book
+```tut:silent
 task <* IO.shift(ioTimer)
 // equivalent to
 task <* Timer[IO].shift
@@ -1141,7 +1144,7 @@ task <* Timer[IO].shift
 
 Example of where this might be useful:
 
-```tut:book
+```tut:silent
 import java.util.concurrent.Executors
 
 import scala.concurrent.ExecutionContext
@@ -1165,7 +1168,7 @@ We start by asking the user to enter its name and next we thread-shift to the `B
 
 Another somewhat less common application of `shift` is to reset the thread stack and yield control back to the underlying pool. For example:
 
-```tut:book
+```tut:silent
 lazy val doStuff = IO(println("stuff"))
 
 lazy val repeat: IO[Unit] =
@@ -1185,7 +1188,7 @@ Thus, this function has four important use cases:
 
 `IO` is trampolined for all `synchronous` and `asynchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:
 
-```tut:book
+```tut:silent
 def signal[A](a: A): IO[A] = IO.async(_(Right(a)))
 
 def loop(n: Int): IO[Int] =
@@ -1206,7 +1209,7 @@ On JS, `Timer[IO]` is always available.
 
 It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
-```tut:book
+```tut:silent
 import cats.syntax.all._
 
 val ioA = IO(println("Running ioA"))
@@ -1216,6 +1219,9 @@ val ioC = IO(println("Running ioC"))
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()
+//=> Running ioB
+//=> Running ioC
+//=> Running ioA
 ```
 
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed but not until all the `IO`s are completed. Example:
@@ -1242,7 +1248,7 @@ val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
 If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel.
 
-```tut:book
+```tut:silent
 import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
 
 val anIO = IO(1)
@@ -1259,7 +1265,7 @@ There is also `cats.Traverse.sequence` which does this synchronously.
 
 If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel.
 
-```tut:book
+```tut:silent
 val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
   IO(i)
 }
@@ -1279,8 +1285,9 @@ If any component of the computation is asynchronous, the current thread will blo
 
 Any exceptions raised within the effect will be re-thrown during evaluation.
 
-```tut:book
+```tut:silent
 IO(println("Sync!")).unsafeRunSync()
+//=> Sync!
 ```
 
 ### unsafeRunAsync
@@ -1289,7 +1296,7 @@ Passes the result of the encapsulated effects to the given callback by running t
 
 Any exceptions raised within the effect will be passed to the callback in the `Either`. The callback will be invoked at most *once*. Note that it is very possible to construct an `IO` which never returns while still never blocking a thread, and attempting to evaluate that `IO` with this method will result in a situation where the callback is *never* invoked.
 
-```tut:book
+```tut:silent
 IO(println("Async!")).unsafeRunAsync(_ => ())
 ```
 
@@ -1297,7 +1304,7 @@ IO(println("Async!")).unsafeRunAsync(_ => ())
 
 Evaluates the source `IO`, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.
 
-```tut:book
+```tut:silent
 IO(println("Potentially cancelable!")).unsafeRunCancelable(_ => ())
 ```
 
@@ -1313,7 +1320,7 @@ As soon as an async blocking limit is hit, evaluation "immediately" aborts and `
 
 Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://github.com/functional-streams-for-scala/fs2) or [Monix](https://monix.io/)).
 
-```tut:book
+```tut:silent
 import scala.concurrent.duration._
 
 IO(println("Timed!")).unsafeRunTimed(5.seconds)
@@ -1325,7 +1332,7 @@ Evaluates the effect and produces the result in a `Future`.
 
 This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effect in a non-blocking fashion, but uses a `Future` rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.
 
-```tut:book
+```tut:silent
 IO("Gimme a Future!").unsafeToFuture()
 ```
 
@@ -1367,13 +1374,13 @@ which is compositional with other programs. `IO` values compose.
 When using `map` or `flatMap` it is not recommended to pass a side effectful function, as mapping functions should also be pure.
 So this should be avoided:
 
-```tut:book
+```tut:silent
 IO.pure(123).map(n => println(s"NOT RECOMMENDED! $n"))
 ```
 
 This too should be avoided, because the side effect is not suspended in the returned `IO` value:
 
-```tut:book
+```tut:silent
 IO.pure(123).flatMap { n =>
   println(s"NOT RECOMMENDED! $n")
   IO.unit
@@ -1382,7 +1389,7 @@ IO.pure(123).flatMap { n =>
 
 The correct approach would be this:
 
-```tut:book
+```tut:silent
 IO.pure(123).flatMap { n =>
   // Properly suspending the side effect
   IO(println(s"RECOMMENDED! $n"))
