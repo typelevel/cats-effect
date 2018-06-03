@@ -15,7 +15,7 @@ abstract class Ref[F[_], A] {
   def get: F[A]
   def set(a: A): F[Unit]
   def modify[B](f: A => (A, B)): F[B]
-  // ... and much more
+  // ... and more
 }
 ```
 

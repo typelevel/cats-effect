@@ -13,16 +13,21 @@ abstract class Semaphore[F[_]] {
   def available: F[Long]
   def acquire: F[Unit]
   def release: F[Unit]
-  // ... and much more
+  // ... and more
 }
 ```
 
-### On Blocking
+## Semantic Blocking and Cancellation
+
+Semaphore does what we call "semantic" blocking, meaning that no actual threads are 
+being blocked while waiting to acquire a permit.
+
+Behavior on cancellation:
 
 - Blocking acquires are cancelable if the semaphore is created with `Semaphore.apply` (and hence, with a `Concurrent[F]` instance).
 - Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.uncancelable` (and hence, with an `Async[F]` instance).
 
-### Shared Resource
+## Shared Resource
 
 When multiple processes try to access a precious resource you might want to constraint the number of accesses. Here is where `Semaphore[F]` is useful.
 
