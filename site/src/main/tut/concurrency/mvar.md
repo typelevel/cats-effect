@@ -47,7 +47,8 @@ It has these fundamental (atomic) operations:
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
-when the operation has finished (notifications exposed by means of [Task](./task.html))
+when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or 
+[Concurrent](../typeclasses/concurrent.html) data types such as [IO](../datatypes/io.html))
 and it thus works on top of Javascript as well.
 </p>
 
@@ -61,7 +62,7 @@ to error, but now merely blocks).
 
 Appropriate for building synchronization primitives and  performing simple
 interthread communication, it's the equivalent of a `BlockingQueue(capacity = 1)`,
-except that there's no actual thread blocking involved and it is powered by `Task`.
+except that there's no actual thread blocking involved and it is powered by data types such as `IO`.
 
 ## Use-case: Synchronized Mutable Variables
 
