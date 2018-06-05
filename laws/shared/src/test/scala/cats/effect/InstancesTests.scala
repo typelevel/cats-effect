@@ -25,11 +25,20 @@ import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
 
+  // StateT -----------------------
+
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => {
       implicit val timer: Timer[StateT[IO, Int, ?]] = Timer.derive
       ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
     })
+
+  checkAllAsync("StateT[IO, S, ?]",
+    implicit ec => {
+      ContinualTests[StateT[IO, Int, ?]].concurrent[Int]
+    })
+
+  // OptionT -----------------------
 
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => {
@@ -37,13 +46,28 @@ class InstancesTests extends BaseTestsSuite {
       ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int]
     })
 
+  checkAllAsync("OptionT[IO, ?]",
+    implicit ec => {
+      ContinualTests[OptionT[IO, ?]].concurrent[Int]
+    })
+
+  // Kleisli -----------------------
+
   checkAllAsync("Kleisli[IO, ?]",
     implicit ec => {
       implicit val timer: Timer[Kleisli[IO, Int, ?]] = Timer.derive
       ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int]
     })
+
   checkAllAsync("Kleisli[IO, ?]",
     implicit ec => BracketTests[Kleisli[IO, Int, ?], Throwable].bracket[Int, Int, Int])
+
+  checkAllAsync("Kleisli[IO, ?]",
+    implicit ec => {
+      ContinualTests[Kleisli[IO, Int, ?]].concurrent[Int]
+    })
+
+  // EitherT -----------------------
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => {
@@ -51,10 +75,22 @@ class InstancesTests extends BaseTestsSuite {
       ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int]
     })
 
+  checkAllAsync("EitherT[IO, Throwable, ?]",
+    implicit ec => {
+      ContinualTests[EitherT[IO, Throwable, ?]].concurrent[Int]
+    })
+
+  // WriterT -----------------------
+
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => {
       implicit val timer: Timer[WriterT[IO, Int, ?]] = Timer.derive
       ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
+    })
+
+  checkAllAsync("WriterT[IO, Int, ?]",
+    implicit ec => {
+      ContinualTests[WriterT[IO, Int, ?]].concurrent[Int]
     })
 
   implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
@@ -62,5 +98,4 @@ class InstancesTests extends BaseTestsSuite {
 
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
-
 }
