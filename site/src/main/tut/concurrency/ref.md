@@ -56,7 +56,7 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
     for {
       c1 <- ref.get
       _  <- putStrLn("#$number >> $c1")
-      _  <- ref.modify(x => (x, x + 1))
+      _  <- ref.modify(x => (x + 1, x))
       c2 <- ref.get
       _  <- putStrLn("#$number >> $c2")
     } yield ()
