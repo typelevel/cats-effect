@@ -16,9 +16,7 @@
 
 package cats.effect
 
-
 import cats.effect.syntax.AllCatsEffectSyntax
-
 import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
