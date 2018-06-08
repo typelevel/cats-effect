@@ -41,10 +41,15 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
  * This is NOT a type class, as it does not have the coherence
  * requirement.
  */
-@implicitNotFound("""Cannot find implicit value for Timer[${F}].
-Note that ${F} needs to be a cats.effect.Async data type. You might also
-need a scala.concurrent.ExecutionContext in scope, or equivalent, try to
-import scala.concurrent.ExecutionContext.Implicits.global
+@implicitNotFound("""Cannot find an implicit value for Timer[${F}]. 
+Either:
+* import Timer[${F}] from your effects library
+* use Timer.derive to create the necessary instance
+Timer.derive requires an implicit Timer[IO], which can be available from:
+* your platform (e.g. Scala JS)
+* implicitly in cats.effect.IOApp
+* cats.effect.IO.timer, if there's an implicit 
+scala.concurrent.ExecutionContext in scope
 """)
 trait Timer[F[_]] {
   /**
