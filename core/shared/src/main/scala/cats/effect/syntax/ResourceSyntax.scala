@@ -16,7 +16,7 @@
 
 package cats.effect.syntax
 
-import cats.effect.{Effect, Resource}
+import cats.effect.{Effect, Resource, Sync}
 
 trait ResourceSyntax {
   implicit def closeableResource[C <: AutoCloseable, F[_]](closeable: F[C]): ResourceOps.AutoCloseableResource[C, F] =
@@ -25,7 +25,7 @@ trait ResourceSyntax {
 
 object ResourceOps {
   implicit final class AutoCloseableResource[C <: AutoCloseable, F[_]](val acquired: F[C]) extends AnyVal {
-      def toAutocloseableResource(implicit F: Effect[F]): Resource[F, C] = {
+      def toAutocloseableResource(implicit F: Sync[F]): Resource[F, C] = {
         Resource.make(acquired)(closeable => F.delay(closeable.close()))
       }
   }
