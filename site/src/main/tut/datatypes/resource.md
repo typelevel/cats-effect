@@ -48,12 +48,12 @@ If using an AutoCloseable create a resource without the need of dealing with clo
 ### Example
 
 ```tut:silent
-    import cats.effect.Resource
+import cats.effect.Resource
 
-    val acquire = IO {
-      scala.io.Source.fromString("Hello world")
-    }
+val acquire = IO {
+  scala.io.Source.fromString("Hello world")
+}
 
-    Resource.fromAutoCloseable(acquire).use(source => IO.pure(println(source.mkString("")))).unsafeRunSync()
+Resource.fromAutoCloseable(acquire).use(source => IO.pure(println(source.mkString("")))).unsafeRunSync()
 ```
 

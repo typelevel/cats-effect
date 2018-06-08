@@ -112,7 +112,7 @@ object Resource extends ResourceInstances {
 
   /**
     * Creates a resource that will automatically close (e.g. no need to do inputStream.close at the end).
-    * @param acquire The acquired resource. E.g. IO[InputStream]
+    * @param acquire The effect with the resource to acquire.
     * @param F the effect type in which the resource was acquired and will be released
     * @tparam F the type of the effect
     * @tparam A the type of the autocloseable resource
