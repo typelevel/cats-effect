@@ -54,6 +54,6 @@ If using an AutoCloseable create a resource without the need of dealing with clo
       scala.io.Source.fromString("Hello world")
     }
 
-    Resource.fromAutoClosable(acquire).use(source => IO.pure(println(source.mkString("")))).unsafeRunSync()
+    Resource.fromAutoCloseable(acquire).use(source => IO.pure(println(source.mkString("")))).unsafeRunSync()
 ```
 

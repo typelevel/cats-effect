@@ -118,7 +118,7 @@ object Resource extends ResourceInstances {
     * @tparam A the type of the autocloseable resource
     * @return a Resource that will automatically close after use
     */
-  def fromAutoClosable[F[_], A <: AutoCloseable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
+  def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
 }
 

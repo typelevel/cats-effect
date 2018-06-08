@@ -77,7 +77,7 @@ class ResourceTests extends BaseTestsSuite {
       override def close(): Unit = closed = true
     }
 
-    val result = Resource.fromAutoClosable(IO(autoCloseable))
+    val result = Resource.fromAutoCloseable(IO(autoCloseable))
       .use(source => IO.pure("Hello world")).unsafeRunSync()
 
     result shouldBe "Hello world"
