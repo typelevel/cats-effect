@@ -21,4 +21,3 @@ trait AllCatsEffectSyntax
   with ConcurrentSyntax
   with EffectSyntax
   with ConcurrentEffectSyntax
-  with ResourceSyntax

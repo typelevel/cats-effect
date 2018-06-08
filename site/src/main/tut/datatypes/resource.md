@@ -42,3 +42,18 @@ val r = for {
 
 r.use { case (a, b) => IO(println(s"Using $a and $b")) }.unsafeRunSync
 ```
+
+If using an AutoCloseable create a resource without the need of dealing with close
+
+### Example
+
+```tut:silent
+    import cats.effect.Resource
+
+    val acquire = IO {
+      scala.io.Source.fromString("Hello world")
+    }
+
+    Resource.fromAutoClosable(acquire).use(source => IO.pure(println(source.mkString("")))).unsafeRunSync()
+```
+

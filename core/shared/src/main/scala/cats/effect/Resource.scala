@@ -73,11 +73,6 @@ sealed abstract class Resource[F[_], A] {
 }
 
 object Resource extends ResourceInstances {
-  def withAutoClosable[F[_], A, C <: AutoCloseable](acquire:F[C])
-             (implicit evidence: Sync[F]): Resource[F, C] =
-  {
-    Resource.make(acquire)(c => evidence.delay(c.close()))
-  }
 
   /** Creates a resource from an allocating effect.
     *
@@ -114,6 +109,17 @@ object Resource extends ResourceInstances {
     */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
     make(fa)(_ => F.unit)
+
+  /**
+    * Creates a resource that will automatically close (e.g. no need to do inputStream.close at the end).
+    * @param acquire The acquired resource. E.g. IO[InputStream]
+    * @param F the effect type in which the resource was acquired and will be released
+    * @tparam F the type of the effect
+    * @tparam A the type of the autocloseable resource
+    * @return a Resource that will automatically close after use
+    */
+  def fromAutoClosable[F[_], A <: AutoCloseable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
+    Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {

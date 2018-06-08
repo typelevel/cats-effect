@@ -67,12 +67,4 @@ object SyntaxTests extends AllCatsEffectSyntax {
 
     typed[IO[IO[Unit]]](fa.runCancelable(cb))
   }
-
-  def resourcesSyntax(): Unit = {
-    def consume[A <: AutoCloseable](a: A) = IO.pure(println("consuming autocloseable"))
-
-    Resource.withAutoClosable(IO(mock[AutoCloseable])).use(consume).unsafeRunSync()
-
-    IO(mock[AutoCloseable]).toAutocloseableResource.use(consume)
-  }
 }
