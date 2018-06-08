@@ -73,6 +73,12 @@ sealed abstract class Resource[F[_], A] {
 }
 
 object Resource extends ResourceInstances {
+  def withAutoClosable[F[_], A, C <: AutoCloseable](acquire:F[C])
+             (implicit evidence: Sync[F]): Resource[F, C] =
+  {
+    Resource.make(acquire)(c => evidence.delay(c.close()))
+  }
+
   /** Creates a resource from an allocating effect.
     *
     * @tparam F the effect type in which the resource is acquired and released

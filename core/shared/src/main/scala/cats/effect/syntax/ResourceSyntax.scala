@@ -16,9 +16,17 @@
 
 package cats.effect.syntax
 
-trait AllCatsEffectSyntax
-  extends BracketSyntax
-  with ConcurrentSyntax
-  with EffectSyntax
-  with ConcurrentEffectSyntax
-  with ResourceSyntax
+import cats.effect.{Effect, Resource}
+
+trait ResourceSyntax {
+  implicit def closeableResource[C <: AutoCloseable, F[_]](closeable: F[C]): ResourceOps.AutoCloseableResource[C, F] =
+    new ResourceOps.AutoCloseableResource[C, F](closeable)
+}
+
+object ResourceOps {
+  implicit final class AutoCloseableResource[C <: AutoCloseable, F[_]](val acquired: F[C]) extends AnyVal {
+      def toAutocloseableResource(implicit F: Effect[F]): Resource[F, C] = {
+        Resource.make(acquired)(closeable => F.delay(closeable.close()))
+      }
+  }
+}

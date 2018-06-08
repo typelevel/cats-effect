@@ -16,7 +16,9 @@
 
 package cats.effect
 
+
 import cats.effect.syntax.AllCatsEffectSyntax
+
 import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
@@ -64,5 +66,13 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val cb = mock[Either[Throwable, A] => IO[Unit]]
 
     typed[IO[IO[Unit]]](fa.runCancelable(cb))
+  }
+
+  def resourcesSyntax(): Unit = {
+    def consume[A <: AutoCloseable](a: A) = IO.pure(println("consuming autocloseable"))
+
+    Resource.withAutoClosable(IO(mock[AutoCloseable])).use(consume).unsafeRunSync()
+
+    IO(mock[AutoCloseable]).toAutocloseableResource.use(consume)
   }
 }
