@@ -33,7 +33,7 @@ trait Console[F[_]] {
   /**
    * Prints a message to the standard console followed by a new line.
    */
-  def putStrLn(str: String): F[Unit] = putStrLn[String](str)
+  final def putStrLn(str: String): F[Unit] = putStrLn[String](str)
 
   /**
    * Prints a message of type A to the standard console if an instance `Show[A]` is found.
@@ -43,7 +43,7 @@ trait Console[F[_]] {
   /**
    * Prints a message to the standard console.
    */
-  def putStr(str: String): F[Unit] = putStr[String](str)
+  final def putStr(str: String): F[Unit] = putStr[String](str)
 
   /**
    * Prints a message of type A to the standard error output stream if an instance `Show[A]` is found.
@@ -53,7 +53,7 @@ trait Console[F[_]] {
   /**
    * Prints a message to the standard error output stream.
    */
-  def error(str: String): F[Unit] = error[String](str)
+  final def error(str: String): F[Unit] = error[String](str)
 
   /**
    * Reads line from the standard console.
