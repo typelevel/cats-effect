@@ -43,7 +43,7 @@ val r = for {
 r.use { case (a, b) => IO(println(s"Using $a and $b")) }.unsafeRunSync
 ```
 
-If using an AutoCloseable create a resource without the need of dealing with close
+If using an AutoCloseable create a resource without the need to specify how to close.
 
 ### Example
 

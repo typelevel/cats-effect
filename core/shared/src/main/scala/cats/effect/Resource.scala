@@ -111,7 +111,7 @@ object Resource extends ResourceInstances {
     make(fa)(_ => F.unit)
 
   /**
-    * Creates a resource that will automatically close (e.g. no need to do inputStream.close at the end).
+    * Creates a resource that is released by calling .close() on the allocated resource after use
     * @param acquire The effect with the resource to acquire.
     * @param F the effect type in which the resource was acquired and will be released
     * @tparam F the type of the effect
