@@ -22,7 +22,11 @@ options:
 
       - title: IOApp
         url: datatypes/ioapp.html
-        menu_section: ioapp    
+        menu_section: ioapp
+
+      - title: Console
+        url: datatypes/console.html
+        menu_section: console
 
   - title: Concurrency
     url: concurrency/
