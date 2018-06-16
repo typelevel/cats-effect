@@ -57,6 +57,21 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  test("attempts to release all resources even when releases fail") {
+    check { as: List[(String, Either[Throwable, Unit])] =>
+      val expectedReleases = as.collect { case (a, Right(_)) => a }
+      var releases: List[String] = Nil
+
+      val r = as.traverse { case (a, maybeEx) =>
+        Resource.make(IO.pure(a))(a => IO.fromEither(maybeEx) *> IO(releases ::= a))
+      }
+
+      r.use(IO.pure).attempt.unsafeRunSync()
+
+      releases <-> expectedReleases
+    }
+  }
+
   test("releases both resources on combine") {
     check { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
       var acquired: Set[String] = Set.empty
