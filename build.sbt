@@ -36,7 +36,7 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  crossScalaVersions := Seq("2.11.12", "2.12.6"),
 
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
