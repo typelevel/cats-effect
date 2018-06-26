@@ -143,12 +143,17 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Re
   def pure[A](a: A): Resource[F, A] =
     Resource(F.pure(a -> F.unit))
 
-  def flatMap[A, B](fa: Resource[F,A])(f: A => Resource[F, B]): Resource[F, B] =
-    Resource(fa.allocate.flatMap { case (a, disposeA) =>
-      f(a).allocate.map { case (b, disposeB) =>
-        b -> F.bracket(disposeB)(F.pure)(_ => disposeA)
+  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] = {
+    Resource {
+      fa.allocate.flatMap { case (a, disposeA) =>
+        f(a).allocate.attempt.flatMap {
+          case Left(e) => F.guarantee(F.raiseError(e))(disposeA)
+          case Right((b, disposeB)) =>
+            F.pure(b -> F.guarantee(disposeB)(disposeA))
+        }
       }
-    })
+    }
+  }
 
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
     def step(adis: (A, F[Unit])): F[Either[(A, F[Unit]), (B, F[Unit])]] = {

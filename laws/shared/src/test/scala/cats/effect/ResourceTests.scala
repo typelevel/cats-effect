@@ -23,7 +23,6 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
-import org.scalacheck._
 
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
@@ -31,48 +30,81 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => SemigroupKTests[Resource[IO, ?]].semigroupK[Int])
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
-    Prop.forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
+    check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
       acquire.bracket(f)(release) <-> Resource.make(acquire)(release).use(f)
     }
   }
 
+  testAsync("Bracket on allocate is equivalent to use") { implicit ec =>
+    check { r: Resource[IO, String] =>
+      r.allocate.bracket(_._1.pure[IO])(_._2) <-> r.use(_.pure[IO])
+    }
+  }
+
   test("releases resources in reverse order of acquisition") {
-    Prop.forAll { as: List[(String, Either[Throwable, Unit])] =>
+    check { as: List[Either[Throwable, String]] =>
+      var acquired: List[String] = Nil
       var released: List[String] = Nil
-      val r = as.traverse { case (a, e) =>
-        Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+
+      val r = as.traverse { ea =>
+        Resource.make(IO.fromEither(ea).flatMap(a => IO { acquired ::= a; a }))(
+          a => IO { released ::= a })
       }
-      r.use(IO.pure).unsafeRunSync()
-      released <-> as.map(_._1)
+
+      r.attempt.use(IO.pure).unsafeRunSync()
+
+      released.reverse <-> acquired
+    }
+  }
+
+  test("attempts to release all resources even when releases fail") {
+    check { as: List[(String, Either[Throwable, Unit])] =>
+      val expectedReleases = as.collect { case (a, Right(_)) => a }
+      var releases: List[String] = Nil
+
+      val r = as.traverse { case (a, maybeEx) =>
+        Resource.make(IO.pure(a))(a => IO.fromEither(maybeEx) *> IO(releases ::= a))
+      }
+
+      r.use(IO.pure).attempt.unsafeRunSync()
+
+      releases <-> expectedReleases
     }
   }
 
   test("releases both resources on combine") {
-    Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
+    check { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
       var acquired: Set[String] = Set.empty
       var released: Set[String] = Set.empty
+
       def observe(r: Resource[IO, String]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
+        Resource.make(IO { acquired += a; a })(
+          a => IO { released += a })
       }
-      (observe(rx) combine observe(ry)).use(_ => IO.unit).unsafeRunSync()
+
+      (observe(rx) combine observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+
       released <-> acquired
     }
   }
 
   test("releases both resources on combineK") {
-    Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
+    check { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
       var acquired: Set[String] = Set.empty
       var released: Set[String] = Set.empty
+
       def observe(r: Resource[IO, String]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
+        Resource.make(IO { acquired += a; a })(a => IO { released += a })
       }
-      (observe(rx) combineK observe(ry)).use(_ => IO.unit).unsafeRunSync()
+
+      (observe(rx) combineK observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+
       released <-> acquired
     }
   }
 
   testAsync("liftF") { implicit ec =>
-    Prop.forAll { fa: IO[String] =>
+    check { fa: IO[String] =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
