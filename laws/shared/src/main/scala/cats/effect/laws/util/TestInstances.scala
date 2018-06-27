@@ -16,8 +16,9 @@
 
 package cats.effect.laws.util
 
+
 import cats.Functor
-import cats.effect.{IO, Resource}
+import cats.effect.{Exec, IO, Resource}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -90,6 +91,10 @@ trait TestInstances {
       }
     }
 
+
+  implicit def eqExec[A: Eq]: Eq[Exec[A]] =
+    Eq.by(_.unsafeRun)
+
   /**
    * Defines equality for a `Resource`.  Two resources are deemed
    * equivalent if they allocate an equivalent resource.  Cleanup,
@@ -100,6 +105,7 @@ trait TestInstances {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(F.map(x.allocate)(_._1), F.map(y.allocate)(_._1))
     }
+
 }
 
 object TestInstances extends TestInstances

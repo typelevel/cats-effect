@@ -24,10 +24,14 @@ import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
 import org.scalacheck._
 import scala.util.Either
+import cats.laws.discipline.arbitrary._
 
 object arbitrary {
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
+
+  implicit def catsEffectLawsArbitraryForExec[A: Arbitrary]: Arbitrary[Exec[A]] =
+    Arbitrary(catsLawsArbitraryForEval[A].arbitrary.map(e => Exec.create(e)))
 
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
