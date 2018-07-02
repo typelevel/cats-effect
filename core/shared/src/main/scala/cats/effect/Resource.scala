@@ -161,10 +161,10 @@ object Resource extends ResourceInstances {
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
    * @param allocate an effect that returns a tuple of a resource and
-   * an effect to release it
+   *        an effectful function to release it
    */
-  def applyCase[F[_], A](resource: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
-    Allocate(resource)
+  def applyCase[F[_], A](allocate: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
+    Allocate(allocate)
 
   /**
    * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
