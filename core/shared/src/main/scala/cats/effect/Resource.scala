@@ -17,6 +17,8 @@
 package cats.effect
 
 import cats._
+import cats.data.AndThen
+import cats.effect.ExitCase.Completed
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -54,7 +56,7 @@ import scala.annotation.tailrec
  * @tparam A the type of resource
  */
 sealed abstract class Resource[F[_], A] {
-  import Resource.{Allocate, Bind}
+  import Resource.{Allocate, Bind, Suspend}
 
   /**
    * Allocates a resource and supplies it to the given function.  The
@@ -83,10 +85,41 @@ sealed abstract class Resource[F[_], A] {
           }
         case Bind(source, f0) =>
           loop(source, f0.asInstanceOf[Any => Resource[F, Any]] :: stack)
+        case Suspend(resource) =>
+          resource.flatMap(continue(_, stack))
       }
     }
     loop(this.asInstanceOf[Resource[F, Any]], Nil).asInstanceOf[F[B]]
   }
+
+  /**
+   * Implementation for the `flatMap` operation, as described via
+   * the `cats.Monad` type class.
+   */
+  def flatMap[B](f: A => Resource[F, B]): Resource[F, B] =
+    Bind(this, f)
+
+  /**
+   * Implementation for the `attempt` operation, as described via
+   * the `cats.MonadError` type class.
+   */
+  def attempt[E](implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
+    this match {
+      case Allocate(fa) =>
+        Allocate[F, Either[E, A]](F.attempt(fa).map {
+          case Left(error) => (Left(error), (_: ExitCase[_]) => F.unit)
+          case Right((a, release)) => (Right(a), release)
+        })
+      case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
+        Suspend(F.pure(source).map { source =>
+          Bind(source.attempt, (r: Either[E, Any]) => r match {
+            case Left(error) => Resource.pure(Left(error))
+            case Right(s) => fs(s).attempt
+          })
+        })
+      case Suspend(resource) =>
+        Suspend(resource.map(_.attempt))
+    }
 }
 
 object Resource extends ResourceInstances {
@@ -133,7 +166,7 @@ object Resource extends ResourceInstances {
    *
    * @param a the value to lift into a resource
    */
-  def pure[F[_], A](a: A)(implicit F: Applicative[F]) =
+  def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
     Allocate(F.pure((a, (_: ExitCase[_]) => F.unit)))
 
   /**
@@ -144,68 +177,130 @@ object Resource extends ResourceInstances {
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
     make(fa)(_ => F.unit)
 
+  /**
+   * Implementation for the `tailRecM` operation, as described via
+   * the `cats.Monad` type class.
+   */
+  def tailRecM[F[_], A, B](a: A)(f: A => Resource[F, Either[A, B]])
+    (implicit F: Monad[F]): Resource[F, B] = {
+
+    def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
+      r match {
+        case Allocate(fea) =>
+          Suspend(fea.flatMap {
+            case (Left(a), release) =>
+              release(Completed).map(_ => tailRecM(a)(f))
+            case (Right(b), release) =>
+              F.pure(Allocate[F, B](F.pure((b, release))))
+          })
+        case Suspend(fr) =>
+          Suspend(fr.map(continue))
+        case Bind(source, fs) =>
+          Bind(source, AndThen(fs).andThen(continue))
+      }
+
+    continue(f(a))
+  }
+
+  /**
+   * `Resource` data constructor that wraps an effect allocating a resource,
+   * along with its finalizers.
+   */
   final case class Allocate[F[_], A](
     resource: F[(A, ExitCase[_] => F[Unit])])
     extends Resource[F, A]
 
+  /**
+   * `Resource` data constructor that encodes the `flatMap` operation.
+   */
   final case class Bind[F[_], S, A](
     source: Resource[F, S],
     fs: S => Resource[F, A])
     extends Resource[F, A]
+
+  /**
+   * `Resource` data constructor that suspends the evaluation of another
+   * resource value.
+   */
+  final case class Suspend[F[_], A](
+    resource: F[Resource[F, A]])
+    extends Resource[F, A]
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {
-  implicit def catsEffectMonadForResource[F[_]](implicit F0: Applicative[F]): Monad[Resource[F, ?]] =
-    new ResourceMonad[F] {
+  implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, ?], E] =
+    new ResourceMonadError[F, E] {
       def F = F0
     }
 
-  implicit def catsEffectMonoidForResource[F[_], A, E](implicit F0: Bracket[F, E], A0: Monoid[A]): Monoid[Resource[F, A]] =
-    new ResourceMonoid[F, A, E] {
+  implicit def catsEffectMonoidForResource[F[_], A](implicit F0: Monad[F], A0: Monoid[A]): Monoid[Resource[F, A]] =
+    new ResourceMonoid[F, A] {
       def A = A0
       def F = F0
     }
 }
 
 private[effect] abstract class ResourceInstances0 {
-  implicit def catsEffectSemigroupForResource[F[_], A, E](implicit F0: Bracket[F, E], A0: Semigroup[A]) =
-    new ResourceSemigroup[F, A, E] {
+  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, ?]] =
+    new ResourceMonad[F] {
+      def F = F0
+    }
+
+  implicit def catsEffectSemigroupForResource[F[_], A](implicit F0: Monad[F], A0: Semigroup[A]) =
+    new ResourceSemigroup[F, A] {
       def A = A0
       def F = F0
     }
 
-  implicit def catsEffectSemigroupKForResource[F[_], A, E](implicit F0: Bracket[F, E], K0: SemigroupK[F]) =
-    new ResourceSemigroupK[F, E] {
+  implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F], K0: SemigroupK[F]) =
+    new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
     }
 }
 
-private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
-  protected implicit def F: Applicative[F]
+private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad[F]
+  with MonadError[Resource[F, ?], E] {
 
-  final def pure[A](a: A): Resource[F, A] =
-    Resource(F.pure(a -> F.unit))
+  protected implicit def F: MonadError[F, E]
 
-  final def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-    Resource.Bind(fa, f)
+  override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
+    fa.attempt
 
-  final def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
-    flatMap(f(a)) {
-      case Left(a2) => tailRecM(a2)(f)
-      case Right(b) => Resource.pure(b)
+  def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
+    flatMap(attempt(fa)) {
+      case Right(a) => Resource.pure(a)
+      case Left(e) => f(e)
     }
+
+  def raiseError[A](e: E): Resource[F, A] =
+    Resource(F.raiseError(e))
 }
 
-private[effect] abstract class ResourceMonoid[F[_], A, E] extends ResourceSemigroup[F, A, E]
-    with Monoid[Resource[F, A]] {
+
+private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
+  protected implicit def F: Monad[F]
+
+  def pure[A](a: A): Resource[F, A] =
+    Resource(F.pure(a -> F.unit))
+
+  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
+    fa.flatMap(f)
+
+  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
+    Resource.tailRecM(a)(f)
+}
+
+private[effect] abstract class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A]
+  with Monoid[Resource[F, A]] {
+
   protected implicit def A: Monoid[A]
 
   def empty: Resource[F, A] = Resource.pure(A.empty)
 }
 
-private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[Resource[F, A]] {
-  protected implicit def F: Bracket[F, E]
+private[effect] abstract class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
+  protected implicit def F: Monad[F]
   protected implicit def A: Semigroup[A]
 
   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
@@ -215,8 +310,8 @@ private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[R
     } yield A.combine(x, y)
 }
 
-private[effect] abstract class ResourceSemigroupK[F[_], E] extends SemigroupK[Resource[F, ?]] {
-  protected implicit def F: Bracket[F, E]
+private[effect] abstract class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, ?]] {
+  protected implicit def F: Monad[F]
   protected implicit def K: SemigroupK[F]
 
   def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
