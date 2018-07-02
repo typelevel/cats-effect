@@ -25,12 +25,12 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.1.0"
-val SimulacrumVersion = "0.11.0"
+val CatsVersion = "1.1.1-SNAPSHOT"
+val SimulacrumVersion = "0.12.0"
 
-val ScalaTestVersion = "3.0.5"
+val ScalaTestVersion = "3.0.5-M1"
 val ScalaCheckVersion = "1.13.5"
-val DisciplineVersion = "0.8"
+val DisciplineVersion = "0.9.0"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -38,7 +38,7 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.6",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.6"),
+  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M3"),
 
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
@@ -136,7 +136,7 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.5" cross CrossVersion.binary)
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.6" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
