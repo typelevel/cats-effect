@@ -20,17 +20,24 @@ package effect
 import cats.effect.internals.IOAppPlatform
 
 /**
- * `App` type that runs a [[cats.effect.IO]] and exits with the
- * returned code.  If the `IO` raises an error, then the stack trace
- * is printed to standard error and the JVM exits with code 1.
+ * `App` type that runs a [[cats.effect.IO]].  Shutdown occurs after
+ * the `IO` completes, as follows:
+ *
+ * - If completed with `ExitCode.Success`, the main method exits and
+ *   shutdown is handled by the platform.
+ *
+ * - If completed with any other [[ExitCode]], `sys.exit` is called
+ *   with the specified code.
+ *
+ * - If the `IO` raises an error, the stack trace is printed to
+ *   standard error and `sys.exit(1)` is called.
  *
  * When a shutdown is requested via a signal, the `IO` is canceled and
- * we wait for the `IO` to release any resources.  The JVM exits with
- * the numeric value of the signal plus 128.
+ * we wait for the `IO` to release any resources.  The process exits
+ * with the numeric value of the signal plus 128.
  *
  * {{{
- * import cats.effect.IO
- * import cats.effect.concurrent.{ExitCode, IOApp}
+ * import cats.effect._
  * import cats.implicits._
  *
  * object MyApp extends IOApp {

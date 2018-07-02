@@ -8,21 +8,26 @@ scaladoc: "#cats.effect.concurrent.Semaphore"
 
 A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.
 
-```tut:book:silent
+```tut:silent
 abstract class Semaphore[F[_]] {
   def available: F[Long]
   def acquire: F[Unit]
   def release: F[Unit]
-  // ... and much more
+  // ... and more
 }
 ```
 
-### On Blocking
+## Semantic Blocking and Cancellation
+
+Semaphore does what we call "semantic" blocking, meaning that no actual threads are 
+being blocked while waiting to acquire a permit.
+
+Behavior on cancellation:
 
 - Blocking acquires are cancelable if the semaphore is created with `Semaphore.apply` (and hence, with a `Concurrent[F]` instance).
-- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
+- Blocking acquires are non-cancelable if the semaphore is created with `Semaphore.uncancelable` (and hence, with an `Async[F]` instance).
 
-### Shared Resource
+## Shared Resource
 
 When multiple processes try to access a precious resource you might want to constraint the number of accesses. Here is where `Semaphore[F]` is useful.
 
@@ -49,7 +54,7 @@ This means when `R1` and `R2` requested the availability it was one and `R2` was
 
 Once `R2` was done `R1` started processing immediately showing no availability. Once `R1` was done `R3` started processing immediately showing no availability. Finally, `R3` was done showing an availability of one once again.
 
-```tut:book
+```tut:silent
 import cats.Parallel
 import cats.effect.{Concurrent, IO, Timer}
 import cats.effect.concurrent.Semaphore

@@ -8,14 +8,14 @@ scaladoc: "#cats.effect.concurrent.Ref"
 
 An asynchronous, concurrent mutable reference.
 
-```tut:book:silent
+```tut:silent
 import cats.data.State
 
 abstract class Ref[F[_], A] {
   def get: F[A]
   def set(a: A): F[Unit]
   def modify[B](f: A => (A, B)): F[B]
-  // ... and much more
+  // ... and more
 }
 ```
 
@@ -40,7 +40,7 @@ The workers will concurrently run and modify the value of the Ref so this is one
 #3 >> 3
 ```
 
-```tut:book
+```tut:silent
 import cats.Parallel
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref
@@ -56,8 +56,7 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
     for {
       c1 <- ref.get
       _  <- putStrLn("#$number >> $c1")
-      _  <- ref.modify(x => (x, x + 1))
-      c2 <- ref.get
+      c2 <- ref.modify(x => (x + 1, x))
       _  <- putStrLn("#$number >> $c2")
     } yield ()
 

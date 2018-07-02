@@ -21,7 +21,7 @@ It does all of that in an `F[_]` monadic context that can suspend side effects a
 
 This is NOT a typeclass, as it does not have the coherence requirement.
 
-```tut:book:silent
+```tut:silent
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 trait Timer[F[_]] {
@@ -34,7 +34,7 @@ trait Timer[F[_]] {
 
 As mentioned in the `IO` documentation, there's a default instance of `Timer[IO]` available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:
 
-```tut:book
+```tut:silent
 import java.util.concurrent.ScheduledExecutorService
 
 import cats.effect.{IO, Timer}

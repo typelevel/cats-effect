@@ -19,7 +19,7 @@ trait Fiber[F[_], A] {
 
 For example a `Fiber` value is the result of evaluating `IO.start`:
 
-```tut:book
+```tut:silent
 import cats.effect.{Fiber, IO}
 import cats.implicits._
 
@@ -31,7 +31,7 @@ val fiber: IO[Fiber[IO, Unit]] = io.start
 
 Usage example:
 
-```tut:book
+```tut:silent
 val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
 

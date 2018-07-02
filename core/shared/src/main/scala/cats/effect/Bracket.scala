@@ -63,6 +63,71 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
     (release: A => F[Unit]): F[B] =
       bracketCase(acquire)(use)((a, _) => release(a))
 
+  /**
+   * Operation meant for ensuring a given task continues execution even
+   * when interrupted.
+   */
+  def uncancelable[A](fa: F[A]): F[A] =
+    bracket(fa)(pure)(_ => unit)
+
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled.
+   *
+   * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+   * regardless of how the source gets terminated:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   F.guarantee(fa)(f) <-> F.bracket(F.unit)(_ => fa)(_ => f)
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracket]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guaranteeCase]] for the version that can discriminate
+   *      between termination conditions
+   *
+   * @see [[bracket]] for the more general operation
+   */
+  def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+    bracket(unit)(_ => fa)(_ => finalizer)
+
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled, allowing
+   * for differentiating between exit conditions.
+   *
+   * This variant of [[guarantee]] injects an [[ExitCase]] in
+   * the provided function, allowing one to make a difference
+   * between:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   F.guaranteeCase(fa)(f) <-> F.bracketCase(F.unit)(_ => fa)((_, e) => f(e))
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracketCase]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guarantee]] for the simpler version
+   *
+   * @see [[bracketCase]] for the more general operation
+   */
+  def guaranteeCase[A](fa: F[A])(finalizer: ExitCase[E] => F[Unit]): F[A] =
+    bracketCase(unit)(_ => fa)((_, e) => finalizer(e))
 }
 
 /**
@@ -108,7 +173,7 @@ object ExitCase {
    * Thus [[Bracket]] allows you to observe interruption conditions
    * and act on them.
    */
-  final case class Canceled[+E](e: Option[E]) extends ExitCase[E]
+  final case object Canceled extends ExitCase[Nothing]
 
   /**
    * Parametrized alias for the [[Completed]] data constructor.
@@ -121,14 +186,9 @@ object ExitCase {
   def error[E](e: E): ExitCase[E] = Error[E](e)
 
   /**
-   * Alias for `Canceled(None)`.
+   * Alias for `Canceled`.
    */
-  def canceled[E]: ExitCase[E] = Canceled(None)
-
-  /**
-   * Alias for `Canceled(Some(e))`.
-   */
-  def canceledWith[E](e: E): ExitCase[E] = Canceled(Some(e))
+  def canceled[E]: ExitCase[E] = Canceled
 
   /**
    * Converts from Scala's `Either`, which is often the result of
@@ -186,5 +246,8 @@ object Bracket {
         }
       }
     }
+
+    override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli { r => F.uncancelable(fa.run(r)) }
   }
 }

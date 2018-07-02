@@ -9,11 +9,15 @@ scaladoc: "#cats.effect.concurrent.MVar"
 An `MVar` is a mutable location that can be empty or contains a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
-```tut:book:silent
+```tut:silent
 abstract class MVar[F[_], A] {
   def put(a: A): F[Unit]
   def take: F[A]
   def read: F[A]
+
+  def tryPut(a: A): F[Boolean]
+  def tryTake: F[Option[A]]
+  def tryRead: F[Option[A]]
 }
 ```
 
@@ -25,7 +29,7 @@ Use-cases:
 2. As channels, with `take` and `put` acting as "receive" and "send"
 3. As a binary semaphore, with `take` and `put` acting as "acquire" and "release"
 
-It has two fundamental (atomic) operations:
+It has these fundamental (atomic) operations:
 
 - `put`: fills the `MVar` if it is empty, or blocks (asynchronously)
   if the `MVar` is full, until the given value is next in line to be
@@ -36,11 +40,15 @@ It has two fundamental (atomic) operations:
 - `read`: which reads the current value without modifying the `MVar`,
   assuming there is a value available, or otherwise it waits until a value
   is made available via `put`
+- `tryPut`, `tryTake` and `tryRead` variants of the above, that try
+  those operation once and fail in case (semantic) blocking would
+  be involved
 
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
-when the operation has finished (notifications exposed by means of [Task](./task.html))
+when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or 
+[Concurrent](../typeclasses/concurrent.html) data types such as [IO](../datatypes/io.html))
 and it thus works on top of Javascript as well.
 </p>
 
@@ -54,7 +62,7 @@ to error, but now merely blocks).
 
 Appropriate for building synchronization primitives and  performing simple
 interthread communication, it's the equivalent of a `BlockingQueue(capacity = 1)`,
-except that there's no actual thread blocking involved and it is powered by `Task`.
+except that there's no actual thread blocking involved and it is powered by data types such as `IO`.
 
 ## Use-case: Synchronized Mutable Variables
 

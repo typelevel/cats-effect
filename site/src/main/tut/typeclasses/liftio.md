@@ -8,7 +8,7 @@ scaladoc: "#cats.effect.LiftIO"
 
 A `Monad` that can convert any given `IO[A]` into a `F[A]`, useful for defining parametric signatures and composing monad transformer stacks.
 
-```tut:book:silent
+```tut:silent
 import cats.effect.IO
 
 trait LiftIO[F[_]] {
@@ -18,7 +18,7 @@ trait LiftIO[F[_]] {
 
 Let's say your effect stack in your app is the following:
 
-```tut:book
+```tut:silent
 import cats.effect.{LiftIO, IO}
 import scala.concurrent.Future
 
@@ -34,14 +34,14 @@ implicit def myEffectLiftIO: LiftIO[MyEffect] =
 
 Having an implicit instance of `LiftIO` in scope you can, at any time, `lift` any given `IO[A]` into `MyEffect[A]`:
 
-```tut:book
+```tut:silent
 val ioa: IO[String] = IO("Hello World!")
 val effect: MyEffect[String] = LiftIO[MyEffect].liftIO(ioa)
 ```
 
 A more interesting example:
 
-```tut:book
+```tut:silent
 import cats.data.EitherT
 import cats.implicits._
 

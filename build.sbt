@@ -28,7 +28,7 @@ val CompileTime = config("CompileTime").hide
 val CatsVersion = "1.1.0"
 val SimulacrumVersion = "0.11.0"
 
-val ScalaTestVersion = "3.0.4"
+val ScalaTestVersion = "3.0.5"
 val ScalaCheckVersion = "1.13.5"
 val DisciplineVersion = "0.8"
 
@@ -36,7 +36,9 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  scalaVersion := "2.12.6",
+
+  crossScalaVersions := Seq("2.11.12", "2.12.6"),
 
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
@@ -138,20 +140,7 @@ val commonSettings = Seq(
 )
 
 val mimaSettings = Seq(
-  // Setting the previous artifact manually at 0.9
-  // as a temporary measure until we release 0.10
   mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
-  /*
-  mimaPreviousArtifacts := {
-    val TagBase = """^(\d+)\.(\d+).*"""r
-    val TagBase(major, minor) = BaseVersion
-
-    val tags = "git tag --list".!! split "\n" map { _.trim }
-    val versions =
-      tags filter { _ startsWith s"v$major.$minor" } map { _ substring 1 }
-
-    versions.map { v => organization.value %% name.value % v }.toSet
-  },*/
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
@@ -185,6 +174,53 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
 
+      // Uncancelable moved down to Bracket
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#WriterTConcurrent.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#OptionTSync.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#WriterTSync.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#EitherTConcurrent.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#OptionTConcurrent.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#StateTSync.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#EitherTSync.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
+      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#StateTConcurrent.uncancelable"),
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
 
       // Require Timer[IO] for auto-shifting now
       exclude[DirectMissingMethodProblem]("cats.effect.IO.start"),
@@ -199,6 +235,27 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.simple"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.pair"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOStart.apply"),
+
+      // Issue #123: introducing Async.asyncF
+      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#OptionTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#WriterTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#EitherTAsync.asyncF"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Async#StateTAsync.asyncF"),
+      // Issue #123: Fixed cats.effect.implicits to include all syntax
+      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax"),
+      exclude[DirectMissingMethodProblem]("cats.effect.implicits.package.IOSyntax"),
+      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax$"),
+
+      // Issue #251: breakage — Bracket changes
+      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guaranteeCase"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#WriterTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#EitherTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#OptionTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#StateTConcurrent.onCancelRaiseError"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.onCancelRaiseError"),
 
       //
       // Following are all internal implementation details:
@@ -234,7 +291,19 @@ val mimaSettings = Seq(
       // Adding #236: adding Bracket instance for Kleisli
       exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync")
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync"),
+      // PR #250: optimisations
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.prepare"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension0"),
+      exclude[MissingClassProblem]("cats.effect.internals.TrampolineEC$ResumeRun"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick")
     )
   })
 
@@ -316,13 +385,15 @@ lazy val lawsJS = laws.js
 lazy val benchmarksPrev = project.in(file("benchmarks/vPrev"))
   .configure(profile)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "0.5")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC")
+  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
   .enablePlugins(JmhPlugin)
 
 lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
   .configure(profile)
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
   .enablePlugins(JmhPlugin)
 
 lazy val docsMappingsAPIDir =
@@ -356,13 +427,18 @@ lazy val siteSettings = Seq(
     )
   ),
   fork in tut := true,
-  scalacOptions in Tut --= Seq(
+
+  scalacOptions in Tut ~= (_ filterNot Set(
     "-Xfatal-warnings",
-    "-Ywarn-unused-import",
+    "-Ywarn-numeric-widen",
+    "-Ywarn-unused:imports",
+    "-Ywarn-unused:locals",
+    "-Ywarn-unused:patvars",
+    "-Ywarn-unused:privates",    
     "-Ywarn-numeric-widen",
     "-Ywarn-dead-code",
-    "-Xlint:-missing-interpolator,_",
-  ),
+    "-Xlint:-missing-interpolator,_").contains),
+
   docsMappingsAPIDir := "api",
   addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
@@ -428,11 +504,20 @@ scalacOptions in ThisBuild ++= Seq(
   "-Ywarn-dead-code"
 )
 
-scalacOptions in ThisBuild ++= Seq(
-  "-Ywarn-unused-import",
-  "-Ywarn-numeric-widen",
-  "-Xlint:-missing-interpolator,_"
-)
+scalacOptions in ThisBuild ++= {
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 12)) => Seq(
+      "-Ywarn-numeric-widen",
+      "-Ywarn-unused:imports",
+      "-Ywarn-unused:locals",
+      "-Ywarn-unused:patvars",
+      "-Ywarn-unused:privates",
+      "-Xlint:-missing-interpolator,-unused,_"
+    )
+    case _ => 
+      Seq("-Xlint:-missing-interpolator,_")
+  }
+}
 
 scalacOptions in Test += "-Yrangepos"
 

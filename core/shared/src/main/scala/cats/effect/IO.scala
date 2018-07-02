@@ -18,7 +18,6 @@ package cats
 package effect
 
 import cats.arrow.FunctionK
-import cats.effect.internals.Callback.Extensions
 import cats.effect.internals._
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
@@ -318,7 +317,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.step(this) match {
       case Pure(a) => Some(a)
       case RaiseError(e) => throw e
-      case self @ Async(_) =>
+      case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
         // $COVERAGE-OFF$
@@ -567,6 +566,65 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOBracket(this)(use)(release)
 
   /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled.
+   *
+   * This variant of [[guaranteeCase]] evaluates the given `finalizer`
+   * regardless of how the source gets terminated:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guarantee(f) <-> IO.unit.bracket(_ => io)(_ => f)
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracket]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guaranteeCase]] for the version that can discriminate
+   *      between termination conditions
+   *
+   * @see [[bracket]] for the more general operation
+   */
+  def guarantee(finalizer: IO[Unit]): IO[A] =
+    guaranteeCase(_ => finalizer)
+
+  /**
+   * Executes the given `finalizer` when the source is finished,
+   * either in success or in error, or if canceled, allowing
+   * for differentiating between exit conditions.
+   *
+   * This variant of [[guarantee]] injects an [[ExitCase]] in
+   * the provided function, allowing one to make a difference
+   * between:
+   *
+   *  - normal completion
+   *  - completion in error
+   *  - cancelation
+   *
+   * This equivalence always holds:
+   *
+   * {{{
+   *   io.guaranteeCase(f) <-> IO.unit.bracketCase(_ => io)((_, e) => f(e))
+   * }}}
+   *
+   * As best practice, it's not a good idea to release resources
+   * via `guaranteeCase` in polymorphic code. Prefer [[bracketCase]]
+   * for the acquisition and release of resources.
+   *
+   * @see [[guarantee]] for the simpler version
+   *
+   * @see [[bracketCase]] for the more general operation
+   */
+  def guaranteeCase(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
+    IOBracket.guaranteeCase(this, finalizer)
+
+  /**
    * Handle any error, potentially recovering from it, by mapping it to another
    * `IO` value.
    *
@@ -697,10 +755,18 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       (release: A => IO[Unit]): IO[B] =
       acquire.bracket(use)(release)
 
+    final override def uncancelable[A](task: IO[A]): IO[A] =
+      task.uncancelable
+
     final override def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
+
+    final override def guarantee[A](fa: IO[A])(finalizer: IO[Unit]): IO[A] =
+      fa.guarantee(finalizer)
+    final override def guaranteeCase[A](fa: IO[A])(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
+      fa.guaranteeCase(finalizer)
 
     final override def delay[A](thunk: => A): IO[A] =
       IO(thunk)
@@ -708,6 +774,8 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
       IO.async(k)
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+      IO.asyncF(k)
     override def liftIO[A](ioa: IO[A]): IO[A] =
       ioa
     override def toIO[A](fa: IO[A]): IO[A] =
@@ -741,10 +809,6 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
     final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
-    final override def uncancelable[A](fa: IO[A]): IO[A] =
-      fa.uncancelable
-    final override def onCancelRaiseError[A](fa: IO[A], e: Throwable): IO[A] =
-      fa.onCancelRaiseError(e)
 
     final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
       IO.race(fa, fb)
@@ -969,16 +1033,89 @@ object IO extends IOInstances {
    * This function can be thought of as a safer, lexically-constrained
    * version of `Promise`, where `IO` is like a safer, lazy version of
    * `Future`.
+   *
+   * @see [[asyncF]] and [[cancelable]]
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     Async { (_, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
     }
-  }
+
+  /**
+   * Suspends an asynchronous side effect in `IO`, this being a variant
+   * of [[async]] that takes a pure registration function.
+   *
+   * Implements [[cats.effect.Async.asyncF Async.asyncF]].
+   *
+   * The difference versus [[async]] is that this variant can suspend
+   * side-effects via the provided function parameter. It's more relevant
+   * in polymorphic code making use of the [[cats.effect.Async Async]]
+   * type class, as it alleviates the need for [[Effect]].
+   *
+   * Contract for the returned `IO[Unit]` in the provided function:
+   *
+   *  - can be asynchronous
+   *  - can be cancelable, in which case it hooks into IO's cancelation
+   *    mechanism such that the resulting task is cancelable
+   *  - it should not end in error, because the provided callback
+   *    is the only way to signal the final result and it can only
+   *    be called once, so invoking it twice would be a contract
+   *    violation; so on errors thrown in `IO`, the task can become
+   *    non-terminating, with the error being printed to stderr
+   *
+   * @see [[async]] and [[cancelable]]
+   */
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    Async { (conn, cb) =>
+      // Must create new connection, otherwise we can have a race
+      // condition b/t the bind continuation and `startCancelable` below
+      val conn2 = IOConnection()
+      conn.push(conn2.cancel)
+      // The callback handles "conn.pop()"
+      val cb2 = Callback.asyncIdempotent(conn, cb)
+      val fa = try k(cb2) catch { case NonFatal(t) => IO(cb2(Left(t))) }
+      IORunLoop.startCancelable(fa, conn2, Callback.report)
+    }
 
   /**
    * Builds a cancelable `IO`.
+   *
+   * Implements [[Concurrent.cancelable]].
+   *
+   * The provided function takes a side effectful callback that's
+   * supposed to be registered in async apis for signaling a final
+   * result.
+   *
+   * The provided function also returns an `IO[Unit]` that represents
+   * the cancelation token, the logic needed for canceling the
+   * running computations.
+   *
+   * Example:
+   *
+   * {{{
+   *   import java.util.concurrent.ScheduledExecutorService
+   *   import scala.concurrent.duration._
+   *
+   *   def sleep(d: FiniteDuration)(implicit ec: ScheduledExecutorService): IO[Unit] =
+   *     IO.cancelable { cb =>
+   *       // Schedules task to run after delay
+   *       val run = new Runnable { def run() = cb(Right(())) }
+   *       val future = ec.schedule(run, d.length, d.unit)
+   *
+   *       // Cancellation logic, suspended in IO
+   *       IO(future.cancel(true))
+   *     }
+   * }}}
+   *
+   * This example is for didactic purposes, you don't need to describe
+   * this function, as it's already available in [[IO.sleep]].
+   *
+   * @see [[async]] for a simpler variant that builds non-cancelable,
+   *      async tasks
+   *
+   * @see [[asyncF]] for a more potent version that does hook into
+   *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
     Async { (conn, cb) =>
@@ -1082,13 +1219,8 @@ object IO extends IOInstances {
    * @param ec is the Scala `ExecutionContext` that's managing the
    *        thread-pool used to trigger this async boundary
    */
-  def shift(ec: ExecutionContext): IO[Unit] = {
-    IO.Async { (_, cb: Either[Throwable, Unit] => Unit) =>
-      ec.execute(new Runnable {
-        def run() = cb(Callback.rightUnit)
-      })
-    }
-  }
+  def shift(ec: ExecutionContext): IO[Unit] =
+    IOShift(ec)
 
   /**
    * Creates an asynchronous task that on evaluation sleeps for the
@@ -1157,10 +1289,10 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    IO.Async { (conn, cb) =>
-      if (!conn.isCanceled)
-        cb.async(Callback.rightUnit)
+    val start: Start[Unit] = (conn, cb) => {
+      if (!conn.isCanceled) cb(Callback.rightUnit)
     }
+    Async(start, trampolineAfter = true)
   }
 
   /**
@@ -1212,30 +1344,70 @@ object IO extends IOInstances {
   def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
     IORace.pair(timer, lh, rh)
 
+  /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+  /* IO's internal encoding: */
+
+  /** Corresponds to [[IO.pure]]. */
   private[effect] final case class Pure[+A](a: A)
     extends IO[A]
+
+  /** Corresponds to [[IO.apply]]. */
   private[effect] final case class Delay[+A](thunk: () => A)
     extends IO[A]
+
+  /** Corresponds to [[IO.raiseError]]. */
   private[effect] final case class RaiseError(e: Throwable)
     extends IO[Nothing]
+
+  /** Corresponds to [[IO.suspend]]. */
   private[effect] final case class Suspend[+A](thunk: () => IO[A])
     extends IO[A]
+
+  /** Corresponds to [[IO.flatMap]]. */
   private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
     extends IO[A]
-  private[effect] final case class Async[+A](
-    k: (IOConnection, Either[Throwable, A] => Unit) => Unit)
-    extends IO[A]
 
-  /** State for representing `map` ops that itself is a function in
-   * order to avoid extraneous memory allocations when building the
-   * internal call-stack.
-   */
+  /** Corresponds to [[IO.map]]. */
   private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
     extends IO[A] with (E => IO[A]) {
 
     override def apply(value: E): IO[A] =
-      IO.pure(f(value))
+      new Pure(f(value))
   }
+
+  /**
+   * Corresponds to [[IO.async]] and other async definitions
+   * (e.g. [[IO.race]], [[IO.shift]], etc)
+   *
+   * @param k is the "registration" function that starts the
+   *        async process — receives an [[internals.IOConnection]]
+   *        that keeps cancellation tokens.
+   *
+   * @param trampolineAfter is `true` if the
+   *        [[cats.effect.internals.IORunLoop.RestartCallback]]
+   *        should introduce a trampolined async boundary
+   *        on calling the callback for transmitting the
+   *        signal downstream
+   */
+  private[effect] final case class Async[+A](
+    k: (IOConnection, Either[Throwable, A]  => Unit) => Unit,
+    trampolineAfter: Boolean = false)
+    extends IO[A]
+
+  /**
+   * An internal state for that optimizes changes to
+   * [[internals.IOConnection]].
+   *
+   * [[IO.uncancelable]] is optimized via `ContextSwitch`
+   * and we could express `bracket` in terms of it as well.
+   */
+  private[effect] final case class ContextSwitch[A](
+    source: IO[A],
+    modify: IOConnection => IOConnection,
+    restore: (A, Throwable, IOConnection, IOConnection) => IOConnection)
+    extends IO[A]
+
+  /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
   /** Internal reference, used as an optimization for [[IO.attempt]]
    * in order to avoid extraneous memory allocations.

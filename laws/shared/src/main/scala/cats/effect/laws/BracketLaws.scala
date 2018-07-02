@@ -27,8 +27,8 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketCaseWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
     F.bracketCase(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
 
-  def bracketCaseWithPureUnitIsEqvFlatMap[A, B](fa: F[A], f: A => F[B]) =
-    F.bracketCase(fa)(f)((_, _) => F.unit) <-> F.flatMap(fa)(f)
+  def bracketCaseWithPureUnitIsUncancelable[A, B](fa: F[A], f: A => F[B]) =
+    F.bracketCase(fa)(f)((_, _) => F.unit) <-> F.uncancelable(fa).flatMap(f)
 
   def bracketCaseFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
@@ -38,6 +38,21 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def bracketIsDerivedFromBracketCase[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
     F.bracket(fa)(use)(release) <-> F.bracketCase(fa)(use)((a, _) => release(a))
+
+  def uncancelablePreventsCanceledCase[A](fa: F[A], onCancel: F[Unit], onFinish: F[Unit]) =
+    F.uncancelable(F.bracketCase(F.unit)(_ => fa) {
+      case (_, ExitCase.Canceled) => onCancel
+      case _ => onFinish
+    }) <-> F.uncancelable(F.guarantee(fa)(onFinish))
+
+  def acquireAndReleaseAreUncancelable[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
+    F.bracket(F.uncancelable(fa))(use)(a => F.uncancelable(release(a))) <-> F.bracket(fa)(use)(release)
+
+  def guaranteeIsDerivedFromBracket[A](fa: F[A], finalizer: F[Unit]) =
+    F.guarantee(fa)(finalizer) <-> F.bracket(F.unit)(_ => fa)(_ => finalizer)
+
+  def guaranteeCaseIsDerivedFromBracketCase[A](fa: F[A], finalizer: ExitCase[E] => F[Unit]) =
+    F.guaranteeCase(fa)(finalizer) <-> F.bracketCase(F.unit)(_ => fa)((_, e) => finalizer(e))
 }
 
 object BracketLaws {

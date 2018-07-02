@@ -16,7 +16,10 @@
 
 package cats.effect.internals
 
+import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.effect.util.CompositeException
+
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
@@ -33,7 +36,7 @@ private[effect] object IOPlatform {
       case Right(a) => Some(a)
       case Left(e) => throw e
       case null =>
-        // Triggering cancelation first
+        // Triggering cancellation first
         cb.isActive = false
         cancel()
         throw new UnsupportedOperationException(
@@ -44,7 +47,7 @@ private[effect] object IOPlatform {
 
   /**
    * Establishes the maximum stack depth for `IO#map` operations
-   * for JavaScript. 
+   * for JavaScript.
    *
    * The default for JavaScript is 32, from which we substract 1
    * as an optimization.
@@ -72,6 +75,23 @@ private[effect] object IOPlatform {
         case Left(e) => Logger.reportFailure(e)
         case _ => ()
       }
+    }
+  }
+
+  /**
+   * Composes multiple errors together, meant for those cases in which
+   * error suppression, due to a second error being triggered, is not
+   * acceptable.
+   *
+   * On top of the JVM this function uses `Throwable#addSuppressed`,
+   * available since Java 7. On top of JavaScript the function would return
+   * a `CompositeException`.
+   */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    rest.filter(_ != first).toList match {
+      case Nil => first
+      case nonEmpty =>
+        new CompositeException(first, NonEmptyList.fromListUnsafe(nonEmpty))
     }
   }
 }

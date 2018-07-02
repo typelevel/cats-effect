@@ -12,7 +12,7 @@ In addition to the algebras of `Concurrent` and `Effect`, instances must also im
 
 *Note this is the safe and generic version of `IO.unsafeRunCancelable`*.
 
-```tut:book:silent
+```tut:silent
 import cats.effect.{Concurrent, Effect, IO}
 
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {

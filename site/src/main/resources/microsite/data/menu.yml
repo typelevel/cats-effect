@@ -20,6 +20,10 @@ options:
         url: datatypes/timer.html
         menu_section: timer
 
+      - title: IOApp
+        url: datatypes/ioapp.html
+        menu_section: ioapp    
+
   - title: Concurrency
     url: concurrency/
     menu_section: concurrency

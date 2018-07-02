@@ -8,11 +8,12 @@ scaladoc: "#cats.effect.Resource"
 
 Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance.
 
-```tut:book:silent
+```tut:silent
 import cats.effect.Bracket
 
 abstract class Resource[F[_], A] {
   def allocate: F[(A, F[Unit])]
+  
   def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] =
     F.bracket(allocate)(a => f(a._1))(_._2)
 }
@@ -22,7 +23,7 @@ Nested resources are released in reverse order of acquisition. Outer resources a
 
 ### Example
 
-```tut:book
+```tut:silent
 import cats.effect.{IO, Resource}
 import cats.implicits._
 

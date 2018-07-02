@@ -27,6 +27,8 @@ private[effect] object IOAppPlatform {
       case Left(t) =>
         IO(Logger.reportFailure(t)) *>
         IO(sys.exit(ExitCode.Error.code))
+      case Right(0) =>
+        IO.unit
       case Right(code) =>
         IO(sys.exit(code))
     }.unsafeRunSync()
@@ -45,7 +47,7 @@ private[effect] object IOAppPlatform {
     }
 
     IO.race(keepAlive, program).flatMap {
-      case Left(absurd) =>
+      case Left(_) =>
         // This case is unreachable, but scalac won't let us omit it.
         IO.raiseError(new AssertionError("IOApp keep alive failed unexpectedly."))
       case Right(exitCode) =>

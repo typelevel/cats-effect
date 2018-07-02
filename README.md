@@ -15,14 +15,13 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 
 Versions of Cats Effect:
 
-- Old `0.x` series: `0.10.1`
-- Current: `1.0.0-RC`
-- Experimental: `1.0.0-RC2-8ed6e71`
+- Stable: `0.10.1`
+- Current: `1.0.0-RC2`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC2"
 ```
 
 If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
@@ -38,7 +37,7 @@ Please see [this document](https://github.com/typelevel/cats-effect/blob/master/
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "1.0.0-RC" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "1.0.0-RC2" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.

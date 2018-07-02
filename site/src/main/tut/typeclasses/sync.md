@@ -8,7 +8,7 @@ scaladoc: "#cats.effect.Sync"
 
 A `Monad` that can suspend the execution of side effects in the `F[_]` context.
 
-```tut:book:silent
+```tut:silent
 import cats.MonadError
 
 trait Sync[F[_]] extends MonadError[F, Throwable] {
@@ -19,7 +19,7 @@ trait Sync[F[_]] extends MonadError[F, Throwable] {
 
 This is the most basic interface that represents the suspension of synchronous side effects. On the other hand, its implementation of `flatMap` is stack safe, meaning that you can describe `tailRecM` in terms of it as demonstrated in the laws module.
 
-```tut:book
+```tut:silent
 import cats.effect.{IO, Sync}
 import cats.laws._
 
@@ -36,8 +36,9 @@ lazy val stackSafetyOnRepeatedRightBinds = {
 
 Example of use:
 
-```tut:book
+```tut:silent
 val ioa = Sync[IO].delay(println("Hello world!"))
+
 ioa.unsafeRunSync()
 ```
 

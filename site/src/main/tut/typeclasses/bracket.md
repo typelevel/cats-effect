@@ -10,7 +10,7 @@ scaladoc: "#cats.effect.Bracket"
 operation, a generalized abstracted pattern of safe resource
 acquisition and release in the face of errors or interruption.
 
-```tut:book:silent
+```tut:silent
 import cats.MonadError
 
 sealed abstract class ExitCase[+E]

@@ -17,14 +17,16 @@ Due to these restrictions, this type class also affords to describe a `Concurren
 
 Without cancellation being baked in, we couldn't afford to do it.
 
-```tut:book:silent
+```tut:silent
 import cats.effect.{Async, Fiber, IO}
 
 trait Concurrent[F[_]] extends Async[F] {
   def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
   def uncancelable[A](fa: F[A]): F[A]
-  def onCancelRaiseError[A](fa: F[A], e: Throwable): F[A]
   def start[A](fa: F[A]): F[Fiber[F, A]]
+  
+  def race[A, B](lh: F[A], rh: F[B]): F[Either[A, B]]
+  def raceWith[A, B](lh: F[A], rh: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
 }
 ```
 ### Cancelable Builder

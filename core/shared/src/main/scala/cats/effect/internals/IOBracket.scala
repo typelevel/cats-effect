@@ -20,9 +20,6 @@ import cats.effect.{ExitCase, IO}
 import scala.concurrent.CancellationException
 
 private[effect] object IOBracket {
-
-  private final val cancelException = new CancellationException("cancel in bracket")
-
   /**
     * Implementation for `IO.bracket`.
     */
@@ -30,11 +27,20 @@ private[effect] object IOBracket {
     (use: A => IO[B])
     (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
 
-    acquire.flatMap { a =>
+    acquire.uncancelable.flatMap { a =>
       IO.Bind(
         use(a).onCancelRaiseError(cancelException),
         new ReleaseFrame[A, B](a, release))
     }
+  }
+
+  /**
+   * Implementation for `IO.ensureCase`.
+   */
+  def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] = {
+    IO.Bind(
+      source.onCancelRaiseError(cancelException),
+      new ReleaseFrame[Unit, A]((), (_, e) => release(e)))
   }
 
   private final class ReleaseFrame[A, B](a: A,
@@ -44,28 +50,29 @@ private[effect] object IOBracket {
     def recover(e: Throwable): IO[B] = {
       if (e ne cancelException)
         release(a, ExitCase.error(e))
+          .uncancelable
           .flatMap(new ReleaseRecover(e))
       else
         release(a, ExitCase.canceled)
+          .uncancelable
           .flatMap(Function.const(IO.never))
     }
 
     def apply(b: B): IO[B] =
       release(a, ExitCase.complete)
+        .uncancelable
         .map(_ => b)
   }
 
   private final class ReleaseRecover(e: Throwable)
     extends IOFrame[Unit, IO[Nothing]] {
 
-    def recover(e2: Throwable): IO[Nothing] = {
-      // Logging the error somewhere, because exceptions
-      // should never be silent
-      Logger.reportFailure(e2)
-      IO.raiseError(e)
-    }
+    def recover(e2: Throwable): IO[Nothing] =
+      IO.raiseError(IOPlatform.composeErrors(e, e2))
 
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)
   }
+
+  private[this] val cancelException = new CancellationException("bracket")
 }

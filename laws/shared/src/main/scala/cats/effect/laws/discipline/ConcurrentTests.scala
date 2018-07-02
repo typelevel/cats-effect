@@ -57,35 +57,44 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
       val name = "concurrent"
       val bases = Nil
       val parents = Seq(async[A, B, C])
-      val props = Seq(
-        "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
-        "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
-        "bracket release is called on cancel" -> forAll(laws.cancelOnBracketReleases[A, B] _),
-        "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
-        "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
-        "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _),
-        "uncancelable mirrors source" -> forAll(laws.uncancelableMirrorsSource[A] _),
-        "uncancelable prevents cancellation" -> forAll(laws.uncancelablePreventsCancelation[A] _),
-        "onCancelRaiseError mirrors source" -> forAll(laws.onCancelRaiseErrorMirrorsSource[A] _),
-        "onCancelRaiseError terminates on cancel" -> forAll(laws.onCancelRaiseErrorTerminatesOnCancel[A] _),
-        "onCancelRaiseError can cancel source" -> forAll(laws.onCancelRaiseErrorCanCancelSource[A] _),
-        "onCancelRaiseError resets the cancellation flag" -> forAll(laws.onCancelRaiseErrorResetsCancellationFlag[A] _),
-        "race mirrors left winner" -> forAll(laws.raceMirrorsLeftWinner[A] _),
-        "race mirrors right winner" -> forAll(laws.raceMirrorsRightWinner[A] _),
-        "race cancels loser" -> forAll(laws.raceCancelsLoser[A, B] _),
-        "race cancels both" -> forAll(laws.raceCancelsBoth[A, B, C] _),
-        "racePair mirrors left winner" -> forAll(laws.racePairMirrorsLeftWinner[A] _),
-        "racePair mirrors right winner" -> forAll(laws.racePairMirrorsRightWinner[B] _),
-        "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
-        "racePair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _),
-        "racePair can join left" -> forAll(laws.racePairCanJoinLeft[A] _),
-        "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _))
+      val props = {
+        val default = Seq(
+          "async cancelable coherence" -> forAll(laws.asyncCancelableCoherence[A] _),
+          "async cancelable receives cancel signal" -> forAll(laws.asyncCancelableReceivesCancelSignal[A] _),
+          "asyncF registration can be cancelled" -> forAll(laws.asyncFRegisterCanBeCancelled[A] _),
+          "bracket release is called on cancel" -> forAll(laws.cancelOnBracketReleases[A, B] _),
+          "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
+          "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
+          "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _),
+          "uncancelable mirrors source" -> forAll(laws.uncancelableMirrorsSource[A] _),
+          "acquire of bracket is not cancelable" -> forAll(laws.acquireIsNotCancelable[A] _),
+          "release of bracket is not cancelable" -> forAll(laws.releaseIsNotCancelable[A] _),
+          "race mirrors left winner" -> forAll(laws.raceMirrorsLeftWinner[A] _),
+          "race mirrors right winner" -> forAll(laws.raceMirrorsRightWinner[A] _),
+          "race cancels loser" -> forAll(laws.raceCancelsLoser[A, B] _),
+          "race cancels both" -> forAll(laws.raceCancelsBoth[A, B, C] _),
+          "racePair mirrors left winner" -> forAll(laws.racePairMirrorsLeftWinner[A] _),
+          "racePair mirrors right winner" -> forAll(laws.racePairMirrorsRightWinner[B] _),
+          "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
+          "racePair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _),
+          "racePair can join left" -> forAll(laws.racePairCanJoinLeft[A] _),
+          "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _))
+
+        // Activating the tests that detect non-termination only if allowed by Params,
+        // because such tests might not be reasonable depending on evaluation model
+        if (params.allowNonTerminationLaws)
+            default ++ Seq(
+              "uncancelable prevents cancellation" -> forAll(laws.uncancelablePreventsCancelation[A] _)
+            )
+        else
+          default
+      }
     }
   }
 }
 
 object ConcurrentTests {
-  def apply[F[_]: Concurrent](implicit ioTimer: Timer[IO]): ConcurrentTests[F] = new ConcurrentTests[F] {
+  def apply[F[_]: Concurrent](implicit timer: Timer[F]): ConcurrentTests[F] = new ConcurrentTests[F] {
     def laws = ConcurrentLaws[F]
   }
 }
