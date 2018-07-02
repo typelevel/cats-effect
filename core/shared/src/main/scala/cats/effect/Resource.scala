@@ -24,33 +24,71 @@ import cats.implicits._
 import scala.annotation.tailrec
 
 /**
- * Effectfully allocates and releases a resource.  Forms a
- * `MonadError` on the resource type when the effect type has a
- * [[Bracket]] instance.  Nested resources are released in reverse
- * order of acquisition.  Outer resources are released even if an
- * inner use or release fails.
+ * The `Resource` is a data structure that captures the effectful
+ * allocation of a resource, along with its finalizer.
+ *
+ * This can be used to wrap expensive resources. Example:
  *
  * {{{
- * def mkResource(s: String) = {
- *   val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
- *   def release(s: String) = IO(println(s"Releasing $$s"))
- *   Resource.make(acquire)(release)
- * }
- * val r = for {
- *   outer <- mkResource("outer")
- *   inner <- mkResource("inner")
- * } yield (outer, inner)
- * r.use { case (a, b) => IO(println(s"Using $$a and $$b")) }.unsafeRunSync
+ *   def open(file: File): Resource[IO, BufferedReader] =
+ *     Resource(IO {
+ *       val in = new BufferedReader(new FileReader(file))
+ *       (in, IO(in.close()))
+ *     })
  * }}}
  *
- * The above prints:
+ * Usage is done via [[Resource!.use use]] and note that resource usage nests,
+ * because its implementation is specified in terms of [[Bracket]]:
+ *
  * {{{
- * Acquiring outer
- * Acquiring inner
- * Using outer and inner
- * Releasing inner
- * Releasing outer
+ *   open(file1).use { in1 =>
+ *     open(file2).use { in2 =>
+ *       readFiles(in1, in2)
+ *     }
+ *   }
  * }}}
+ *
+ * `Resource` forms a `MonadError` on the resource type when the
+ * effect type has a `cats.MonadError` instance. Nested resources are
+ * released in reverse order of acquisition. Outer resources are
+ * released even if an inner use or release fails.
+ *
+ * {{{
+ *   def mkResource(s: String) = {
+ *     val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
+ *     def release(s: String) = IO(println(s"Releasing $$s"))
+ *     Resource.make(acquire)(release)
+ *   }
+ *
+ *   val r = for {
+ *     outer <- mkResource("outer")
+ *     inner <- mkResource("inner")
+ *   } yield (outer, inner)
+ *
+ *   r.use { case (a, b) =>
+ *     IO(println(s"Using $$a and $$b"))
+ *   }
+ * }}}
+ *
+ * On evaluation the above prints:
+ * {{{
+ *   Acquiring outer
+ *   Acquiring inner
+ *   Using outer and inner
+ *   Releasing inner
+ *   Releasing outer
+ * }}}
+ *
+ * A `Resource` is nothing more than a data structure, an ADT, described by
+ * the following node types and that can be interpretted if needed:
+ *
+ *  - [[cats.effect.Resource.Allocate Allocate]]
+ *  - [[cats.effect.Resource.Suspend Suspend]]
+ *  - [[cats.effect.Resource.Bind Bind]]
+ *
+ * Normally users don't need to care about these node types, unless conversions
+ * from `Resource` into something else is needed (e.g. conversion from `Resource`
+ * into a streaming data type).
  *
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
@@ -93,33 +131,11 @@ sealed abstract class Resource[F[_], A] {
   }
 
   /**
-   * Implementation for the `flatMap` operation, as described via
-   * the `cats.Monad` type class.
+   * Implementation for the `flatMap` operation, as described via the
+   * `cats.Monad` type class.
    */
   def flatMap[B](f: A => Resource[F, B]): Resource[F, B] =
     Bind(this, f)
-
-  /**
-   * Implementation for the `attempt` operation, as described via
-   * the `cats.MonadError` type class.
-   */
-  def attempt[E](implicit F: MonadError[F, E]): Resource[F, Either[E, A]] =
-    this match {
-      case Allocate(fa) =>
-        Allocate[F, Either[E, A]](F.attempt(fa).map {
-          case Left(error) => (Left(error), (_: ExitCase[_]) => F.unit)
-          case Right((a, release)) => (Right(a), release)
-        })
-      case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
-        Suspend(F.pure(source).map { source =>
-          Bind(source.attempt, (r: Either[E, Any]) => r match {
-            case Left(error) => Resource.pure(Left(error))
-            case Right(s) => fs(s).attempt
-          })
-        })
-      case Suspend(resource) =>
-        Suspend(resource.map(_.attempt))
-    }
 }
 
 object Resource extends ResourceInstances {
@@ -139,6 +155,24 @@ object Resource extends ResourceInstances {
     }
 
   /**
+   * Creates a resource from an allocating effect, with a finalizer
+   * that is able to distinguish between [[ExitCase exit cases]].
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param allocate an effect that returns a tuple of a resource and
+   * an effect to release it
+   */
+  def applyCase[F[_], A](resource: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
+    Allocate(resource)
+
+  /**
+   * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
+   */
+  def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
+    Resource.Suspend(fr)
+
+  /**
    * Creates a resource from an acquiring effect and a release function.
    *
    * @tparam F the effect type in which the resource is acquired and released
@@ -147,7 +181,7 @@ object Resource extends ResourceInstances {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    Resource[F, A](acquire.map(a => a -> release(a)))
+    apply[F, A](acquire.map(a => a -> release(a)))
 
   /**
    * Creates a resource from an acquiring effect and a release function that can
@@ -159,7 +193,7 @@ object Resource extends ResourceInstances {
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[_]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    Allocate[F, A](acquire.map(a => (a, (e: ExitCase[_]) => release(a, e))))
+    applyCase[F, A](acquire.map(a => (a, (e: ExitCase[_]) => release(a, e))))
 
   /**
    * Lifts a pure value into a resource.  The resouce has a no-op release.
@@ -262,10 +296,27 @@ private[effect] abstract class ResourceInstances0 {
 private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad[F]
   with MonadError[Resource[F, ?], E] {
 
+  import Resource.{Allocate, Bind, Suspend}
+
   protected implicit def F: MonadError[F, E]
 
   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-    fa.attempt
+    fa match {
+      case Allocate(fa) =>
+        Allocate[F, Either[E, A]](F.attempt(fa).map {
+          case Left(error) => (Left(error), (_: ExitCase[_]) => F.unit)
+          case Right((a, release)) => (Right(a), release)
+        })
+      case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
+        Suspend(F.pure(source).map { source =>
+          Bind(attempt(source), (r: Either[E, Any]) => r match {
+            case Left(error) => Resource.pure(Left(error))
+            case Right(s) => attempt(fs(s))
+          })
+        })
+      case Suspend(resource) =>
+        Suspend(resource.map(_.attempt))
+    }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
     flatMap(attempt(fa)) {
@@ -274,7 +325,7 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
     }
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource(F.raiseError(e))
+    Resource.applyCase(F.raiseError(e))
 }
 
 
@@ -282,7 +333,7 @@ private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]]
   protected implicit def F: Monad[F]
 
   def pure[A](a: A): Resource[F, A] =
-    Resource(F.pure(a -> F.unit))
+    Resource.applyCase(F.pure((a, _ => F.unit)))
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
     fa.flatMap(f)

@@ -23,7 +23,6 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
-//import org.scalacheck._
 
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
