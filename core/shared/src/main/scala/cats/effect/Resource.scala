@@ -19,100 +19,144 @@ package cats.effect
 import cats._
 import cats.implicits._
 
+import scala.annotation.tailrec
+
 /**
-  * Effectfully allocates and releases a resource.  Forms a
-  * `MonadError` on the resource type when the effect type has a
-  * [[Bracket]] instance.  Nested resources are released in reverse
-  * order of acquisition.  Outer resources are released even if an
-  * inner use or release fails.
-  *
-  * {{{
-  * def mkResource(s: String) = {
-  *   val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
-  *   def release(s: String) = IO(println(s"Releasing $$s"))
-  *   Resource.make(acquire)(release)
-  * }
-  * val r = for {
-  *   outer <- mkResource("outer")
-  *   inner <- mkResource("inner")
-  * } yield (outer, inner)
-  * r.use { case (a, b) => IO(println(s"Using $$a and $$b")) }.unsafeRunSync
-  * }}}
-  *
-  * The above prints:
-  * {{{
-  * Acquiring outer
-  * Acquiring inner
-  * Using outer and inner
-  * Releasing inner
-  * Releasing outer
-  * }}}
-  *
-  * @tparam F the effect type in which the resource is allocated and released
-  * @tparam A the type of resource
-  */
+ * Effectfully allocates and releases a resource.  Forms a
+ * `MonadError` on the resource type when the effect type has a
+ * [[Bracket]] instance.  Nested resources are released in reverse
+ * order of acquisition.  Outer resources are released even if an
+ * inner use or release fails.
+ *
+ * {{{
+ * def mkResource(s: String) = {
+ *   val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
+ *   def release(s: String) = IO(println(s"Releasing $$s"))
+ *   Resource.make(acquire)(release)
+ * }
+ * val r = for {
+ *   outer <- mkResource("outer")
+ *   inner <- mkResource("inner")
+ * } yield (outer, inner)
+ * r.use { case (a, b) => IO(println(s"Using $$a and $$b")) }.unsafeRunSync
+ * }}}
+ *
+ * The above prints:
+ * {{{
+ * Acquiring outer
+ * Acquiring inner
+ * Using outer and inner
+ * Releasing inner
+ * Releasing outer
+ * }}}
+ *
+ * @tparam F the effect type in which the resource is allocated and released
+ * @tparam A the type of resource
+ */
 sealed abstract class Resource[F[_], A] {
-  /** An effect that returns a tuple of a resource and an effect to
-    * release it.
-    *
-    * Streaming types might implement a bracket operation that keeps
-    * the resource open through multiple outputs of a stream.
-    */
-  def allocate: F[(A, F[Unit])]
+  import Resource.{Allocate, Bind}
 
   /**
-    * Allocates a resource and supplies it to the given function.  The
-    * resource is released as soon as the resulting `F[B]` is
-    * completed, whether normally or as a raised error.
-    *
-    * @param f the function to apply to the allocated resource
-    * @return the result of applying [F] to
-    */
-  def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] =
-    F.bracket(allocate)(a => f(a._1))(_._2)
+   * Allocates a resource and supplies it to the given function.  The
+   * resource is released as soon as the resulting `F[B]` is
+   * completed, whether normally or as a raised error.
+   *
+   * @param f the function to apply to the allocated resource
+   * @return the result of applying [F] to
+   */
+  def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] = {
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] =
+      loop(current, stack)
+
+    @tailrec
+    def loop(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] = {
+      current match {
+        case Allocate(resource) =>
+          F.bracketCase(resource) { case (a, _) =>
+            stack match {
+              case Nil => f.asInstanceOf[Any => F[Any]](a)
+              case f0 :: xs => continue(f0(a), xs)
+            }
+          } { case ((_, release), ec) =>
+            release(ec)
+          }
+        case Bind(source, f0) =>
+          loop(source, f0.asInstanceOf[Any => Resource[F, Any]] :: stack)
+      }
+    }
+    loop(this.asInstanceOf[Resource[F, Any]], Nil).asInstanceOf[F[B]]
+  }
 }
 
 object Resource extends ResourceInstances {
-  /** Creates a resource from an allocating effect.
-    *
-    * @tparam F the effect type in which the resource is acquired and released
-    * @tparam A the type of the resource
-    * @param allocate an effect that returns a tuple of a resource and
-    * an effect to release it
-    */
-  def apply[F[_], A](allocate: F[(A, F[Unit])]): Resource[F, A] = {
-    val a = allocate
-    new Resource[F, A] { def allocate = a }
-  }
+  /**
+   * Creates a resource from an allocating effect.
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param allocate an effect that returns a tuple of a resource and
+   * an effect to release it
+   */
+  def apply[F[_], A](allocate: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
+    Allocate[F, A] {
+      allocate.map { case (a, release) =>
+        (a, (_: ExitCase[_]) => release)
+      }
+    }
 
-  /** Creates a resource from an acquiring effect and a release function.
-    *
-    * @tparam F the effect type in which the resource is acquired and released
-    * @tparam A the type of the resource
-    * @param acquire a function to effectfully acquire a resource
-    * @param release a function to effectfully release the resource returned by `acquire`
-    */
+  /**
+   * Creates a resource from an acquiring effect and a release function.
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param acquire a function to effectfully acquire a resource
+   * @param release a function to effectfully release the resource returned by `acquire`
+   */
   def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    Resource(acquire.map(a => (a -> release(a))))
+    Resource[F, A](acquire.map(a => a -> release(a)))
 
-  /** Lifts a pure value into a resource.  The resouce has a no-op release.
-    *
-    * @param a the value to lift into a resource
-    */
+  /**
+   * Creates a resource from an acquiring effect and a release function that can
+   * discriminate between different [[ExitCase exit cases]].
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param acquire a function to effectfully acquire a resource
+   * @param release a function to effectfully release the resource returned by `acquire`
+   */
+  def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[_]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    Allocate[F, A](acquire.map(a => (a, (e: ExitCase[_]) => release(a, e))))
+
+  /**
+   * Lifts a pure value into a resource.  The resouce has a no-op release.
+   *
+   * @param a the value to lift into a resource
+   */
   def pure[F[_], A](a: A)(implicit F: Applicative[F]) =
-    Resource(F.pure(a -> F.unit))
+    Allocate(F.pure((a, (_: ExitCase[_]) => F.unit)))
 
-  /** Lifts an applicative into a resource.  The resource has a no-op release.
-    *
-    * @param fa the value to lift into a resource
-    */
+  /**
+   * Lifts an applicative into a resource.  The resource has a no-op release.
+   *
+   * @param fa the value to lift into a resource
+   */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
     make(fa)(_ => F.unit)
+
+  final case class Allocate[F[_], A](
+    resource: F[(A, ExitCase[_] => F[Unit])])
+    extends Resource[F, A]
+
+  final case class Bind[F[_], S, A](
+    source: Resource[F, S],
+    fs: S => Resource[F, A])
+    extends Resource[F, A]
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {
-  implicit def catsEffectBracketForResource[F[_], E](implicit F0: Bracket[F, E]): MonadError[Resource[F, ?], E] =
-    new ResourceMonadError[F, E] {
+  implicit def catsEffectMonadForResource[F[_]](implicit F0: Applicative[F]): Monad[Resource[F, ?]] =
+    new ResourceMonad[F] {
       def F = F0
     }
 
@@ -137,41 +181,20 @@ private[effect] abstract class ResourceInstances0 {
     }
 }
 
-private[effect] abstract class ResourceMonadError[F[_], E] extends MonadError[Resource[F, ?], E] {
-  protected implicit def F: Bracket[F, E]
+private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
+  protected implicit def F: Applicative[F]
 
-  def pure[A](a: A): Resource[F, A] =
+  final def pure[A](a: A): Resource[F, A] =
     Resource(F.pure(a -> F.unit))
 
-  def flatMap[A, B](fa: Resource[F,A])(f: A => Resource[F, B]): Resource[F, B] =
-    Resource(fa.allocate.flatMap { case (a, disposeA) =>
-      f(a).allocate.map { case (b, disposeB) =>
-        b -> F.bracket(disposeB)(F.pure)(_ => disposeA)
-      }
-    })
+  final def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
+    Resource.Bind(fa, f)
 
-  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
-    def step(adis: (A, F[Unit])): F[Either[(A, F[Unit]), (B, F[Unit])]] = {
-      val (a, dispose) = adis
-      val next: F[(Either[A, B], F[Unit])] = f(a).allocate
-      // n.b. F.bracket might not be stack safe, though the laws pass
-      // when tested on a stack-unsafe bracket.
-      def compDisp(d: F[Unit]): F[Unit] =
-        F.bracket(d)(F.pure)(_ => dispose)
-      next.map {
-        case (Left(a), nextDispose) => Left((a, compDisp(nextDispose)))
-        case (Right(b), nextDispose) => Right((b, compDisp(nextDispose)))
-      }
+  final def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
+    flatMap(f(a)) {
+      case Left(a2) => tailRecM(a2)(f)
+      case Right(b) => Resource.pure(b)
     }
-
-    Resource(F.tailRecM((a, F.unit))(step))
-  }
-
-  def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-    Resource(fa.allocate.handleErrorWith(e => f(e).allocate))
-
-  def raiseError[A](e: E): Resource[F, A] =
-    Resource(F.raiseError(e))
 }
 
 private[effect] abstract class ResourceMonoid[F[_], A, E] extends ResourceSemigroup[F, A, E]
@@ -193,7 +216,7 @@ private[effect] abstract class ResourceSemigroup[F[_], A, E] extends Semigroup[R
 }
 
 private[effect] abstract class ResourceSemigroupK[F[_], E] extends SemigroupK[Resource[F, ?]] {
-  protected implicit def F: Bracket[F, E]  
+  protected implicit def F: Bracket[F, E]
   protected implicit def K: SemigroupK[F]
 
   def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
