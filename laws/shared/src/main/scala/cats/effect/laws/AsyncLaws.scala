@@ -18,6 +18,8 @@ package cats
 package effect
 package laws
 
+import cats.effect.ExitCase.{Completed, Error}
+import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cats.laws._
 
@@ -68,6 +70,20 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
 
   def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
+
+  def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {
+    val lh = Deferred.uncancelable[F, B].flatMap { promise =>
+      val br = F.bracketCase(F.delay(promise)) { _ =>
+        fa
+      } {
+        case (r, Completed | Error(_)) => r.complete(b)
+        case _ => F.unit
+      }
+      // Start and forget
+      F.asyncF[Unit](cb => F.delay(cb(Right(()))) *> br.as(())) *> promise.get
+    }
+    lh <-> F.pure(b)
+  }
 }
 
 object AsyncLaws {
