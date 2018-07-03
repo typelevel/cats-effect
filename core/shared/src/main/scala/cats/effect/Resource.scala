@@ -109,8 +109,9 @@ sealed abstract class Resource[F[_], A] {
     def continue(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] =
       loop(current, stack)
 
-    @tailrec
-    def loop(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] = {
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] = {
       current match {
         case Allocate(resource) =>
           F.bracketCase(resource) { case (a, _) =>
@@ -142,14 +143,17 @@ object Resource extends ResourceInstances {
   /**
    * Creates a resource from an allocating effect.
    *
+   * @see [[make]] for a version that separates the needed resource
+   *      with its finalizer tuple in two parameters
+   *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
-   * @param allocate an effect that returns a tuple of a resource and
-   * an effect to release it
+   * @param resource an effect that returns a tuple of a resource and
+   *        an effect to release it
    */
-  def apply[F[_], A](allocate: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
+  def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
     Allocate[F, A] {
-      allocate.map { case (a, release) =>
+      resource.map { case (a, release) =>
         (a, (_: ExitCase[_]) => release)
       }
     }
@@ -158,13 +162,16 @@ object Resource extends ResourceInstances {
    * Creates a resource from an allocating effect, with a finalizer
    * that is able to distinguish between [[ExitCase exit cases]].
    *
+   * @see [[makeCase]] for a version that separates the needed resource
+   *      with its finalizer tuple in two parameters
+   *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
-   * @param allocate an effect that returns a tuple of a resource and
+   * @param resource an effect that returns a tuple of a resource and
    *        an effectful function to release it
    */
-  def applyCase[F[_], A](allocate: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
-    Allocate(allocate)
+  def applyCase[F[_], A](resource: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
+    Allocate(resource)
 
   /**
    * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
@@ -174,6 +181,8 @@ object Resource extends ResourceInstances {
 
   /**
    * Creates a resource from an acquiring effect and a release function.
+   *
+   * This builder mirrors the signature of [[Bracket.bracket]].
    *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
@@ -187,12 +196,15 @@ object Resource extends ResourceInstances {
    * Creates a resource from an acquiring effect and a release function that can
    * discriminate between different [[ExitCase exit cases]].
    *
+   * This builder mirrors the signature of [[Bracket.bracketCase]].
+   *
    * @tparam F the effect type in which the resource is acquired and released
    * @tparam A the type of the resource
    * @param acquire a function to effectfully acquire a resource
    * @param release a function to effectfully release the resource returned by `acquire`
    */
-  def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[_]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+  def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[_]) => F[Unit])
+    (implicit F: Functor[F]): Resource[F, A] =
     applyCase[F, A](acquire.map(a => (a, (e: ExitCase[_]) => release(a, e))))
 
   /**
@@ -208,7 +220,7 @@ object Resource extends ResourceInstances {
    *
    * @param fa the value to lift into a resource
    */
-  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]) =
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
     make(fa)(_ => F.unit)
 
   /**
