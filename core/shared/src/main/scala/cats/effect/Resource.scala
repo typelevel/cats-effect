@@ -104,7 +104,7 @@ sealed abstract class Resource[F[_], A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] = {
+  def use[B](f: A => F[B])(implicit F: Bracket[F, Throwable]): F[B] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[F, Any], stack: List[Any => Resource[F, Any]]): F[Any] =
       loop(current, stack)
@@ -154,7 +154,7 @@ object Resource extends ResourceInstances {
   def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
     Allocate[F, A] {
       resource.map { case (a, release) =>
-        (a, (_: ExitCase[_]) => release)
+        (a, (_: ExitCase[Throwable]) => release)
       }
     }
 
@@ -170,7 +170,7 @@ object Resource extends ResourceInstances {
    * @param resource an effect that returns a tuple of a resource and
    *        an effectful function to release it
    */
-  def applyCase[F[_], A](resource: F[(A, ExitCase[_] => F[Unit])]): Resource[F, A] =
+  def applyCase[F[_], A](resource: F[(A, ExitCase[Throwable] => F[Unit])]): Resource[F, A] =
     Allocate(resource)
 
   /**
@@ -203,9 +203,9 @@ object Resource extends ResourceInstances {
    * @param acquire a function to effectfully acquire a resource
    * @param release a function to effectfully release the resource returned by `acquire`
    */
-  def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[_]) => F[Unit])
+  def makeCase[F[_], A](acquire: F[A])(release: (A, ExitCase[Throwable]) => F[Unit])
     (implicit F: Functor[F]): Resource[F, A] =
-    applyCase[F, A](acquire.map(a => (a, (e: ExitCase[_]) => release(a, e))))
+    applyCase[F, A](acquire.map(a => (a, (e: ExitCase[Throwable]) => release(a, e))))
 
   /**
    * Lifts a pure value into a resource.  The resouce has a no-op release.
@@ -213,7 +213,7 @@ object Resource extends ResourceInstances {
    * @param a the value to lift into a resource
    */
   def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
-    Allocate(F.pure((a, (_: ExitCase[_]) => F.unit)))
+    Allocate(F.pure((a, (_: ExitCase[Throwable]) => F.unit)))
 
   /**
    * Lifts an applicative into a resource.  The resource has a no-op release.
@@ -253,7 +253,7 @@ object Resource extends ResourceInstances {
    * along with its finalizers.
    */
   final case class Allocate[F[_], A](
-    resource: F[(A, ExitCase[_] => F[Unit])])
+    resource: F[(A, ExitCase[Throwable] => F[Unit])])
     extends Resource[F, A]
 
   /**
@@ -316,7 +316,7 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
     fa match {
       case Allocate(fa) =>
         Allocate[F, Either[E, A]](F.attempt(fa).map {
-          case Left(error) => (Left(error), (_: ExitCase[_]) => F.unit)
+          case Left(error) => (Left(error), (_: ExitCase[Throwable]) => F.unit)
           case Right((a, release)) => (Right(a), release)
         })
       case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
