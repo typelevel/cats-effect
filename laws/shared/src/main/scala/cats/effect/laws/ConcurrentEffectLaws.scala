@@ -50,10 +50,11 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
     val f2 = for {
       effect2 <- Deferred.uncancelable[IO, A]
       // Using a latch to ensure that the task started
-      await   <- Deferred.uncancelable[IO, A]
-      awaitF   = F.liftIO(await.complete(a))
-      never   =  F.bracket(awaitF)(_ => F.never[Unit])(_ => F.liftIO(effect2.complete(a)))
-      _       <- F.runAsync(F.start(never).flatMap(_.cancel))(_ => IO.unit)
+      latch   <- Deferred.uncancelable[F, Unit]
+      never   =  F.bracket(latch.complete(()))(_ => F.never[Unit])(_ => F.liftIO(effect2.complete(a)))
+      fiber   <- F.start(never)
+      _       <- latch.get
+      _       <- fiber.cancel
       result  <- effect2.get
     } yield result
 
