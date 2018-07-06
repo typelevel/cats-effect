@@ -47,11 +47,16 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
       F.runCancelable(never)(_ => IO.unit).flatten *> effect1.get
     }
     // Cancellation via start.flatMap(_.cancel)
-    val f2 = Deferred.uncancelable[IO, A].flatMap { effect2 =>
-      val never = F.cancelable[A](_ => effect2.complete(a))
-      val task = F.start(never).flatMap(_.cancel)
-      F.runAsync(task)(_ => IO.unit) *> effect2.get
-    }
+    val f2 = for {
+      effect2 <- Deferred.uncancelable[IO, A]
+      // Using a latch to ensure that the task started
+      await   <- Deferred.uncancelable[IO, A]
+      awaitF   = F.liftIO(await.complete(a))
+      never   =  F.bracket(awaitF)(_ => F.never[Unit])(_ => F.liftIO(effect2.complete(a)))
+      _       <- F.runAsync(F.start(never).flatMap(_.cancel))(_ => IO.unit)
+      result  <- effect2.get
+    } yield result
+
     f1 <-> f2
   }
 

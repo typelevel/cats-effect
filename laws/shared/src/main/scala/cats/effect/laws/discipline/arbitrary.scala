@@ -26,22 +26,26 @@ import org.scalacheck._
 import scala.util.Either
 
 object arbitrary {
-  implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
+  implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]
+    (implicit t: Timer[IO]): Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
-  implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
+  implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]
+    (implicit t: Timer[IO]): Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
 
-  def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
+  def genIO[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] = {
     Gen.frequency(
-      5 -> genPure[A],
-      5 -> genApply[A],
+      1 -> genPure[A],
+      1 -> genApply[A],
       1 -> genFail[A],
-      5 -> genAsync[A],
-      5 -> genNestedAsync[A],
-      5 -> getMapOne[A],
-      5 -> getMapTwo[A],
-      10 -> genFlatMap[A])
+      1 -> genAsync[A],
+      1 -> genAsyncF[A],
+      1 -> genNestedAsync[A],
+      1 -> genCancelable[A],
+      1 -> getMapOne[A],
+      1 -> getMapTwo[A],
+      2 -> genFlatMap[A])
   }
 
   def genSyncIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
@@ -64,26 +68,34 @@ object arbitrary {
   def genAsync[A: Arbitrary]: Gen[IO[A]] =
     getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)
 
-  def genNestedAsync[A: Arbitrary: Cogen]: Gen[IO[A]] =
+  def genAsyncF[A: Arbitrary](implicit t: Timer[IO]): Gen[IO[A]] =
+    getArbitrary[(Either[Throwable, A] => Unit) => Unit].map { k =>
+      IO.asyncF(cb => t.shift.flatMap(_ => IO(k(cb))))
+    }
+
+  def genCancelable[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] =
+    getArbitrary[IO[A]].map(io => IO.shift.flatMap(_ => IO.cancelBoundary).flatMap(_ => io))
+
+  def genNestedAsync[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] =
     getArbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]
       .map(k => IO.async(k).flatMap(x => x))
 
   def genBindSuspend[A: Arbitrary: Cogen]: Gen[IO[A]] =
     getArbitrary[A].map(IO.apply(_).flatMap(IO.pure))
 
-  def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] =
+  def genFlatMap[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
       f <- getArbitrary[A => IO[A]]
     } yield ioa.flatMap(f)
 
-  def getMapOne[A: Arbitrary: Cogen]: Gen[IO[A]] =
+  def getMapOne[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
       f <- getArbitrary[A => A]
     } yield ioa.map(f)
 
-  def getMapTwo[A: Arbitrary: Cogen]: Gen[IO[A]] =
+  def getMapTwo[A: Arbitrary: Cogen](implicit t: Timer[IO]): Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
       f1 <- getArbitrary[A => A]

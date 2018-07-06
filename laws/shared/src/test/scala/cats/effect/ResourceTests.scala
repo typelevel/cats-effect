@@ -47,7 +47,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("releases both resources on combine") {
+  testAsync("releases both resources on combine") { implicit ec =>
     Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
       var acquired: Set[String] = Set.empty
       var released: Set[String] = Set.empty
@@ -59,7 +59,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("releases both resources on combineK") {
+  testAsync("releases both resources on combineK") { implicit ec =>
     Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
       var acquired: Set[String] = Set.empty
       var released: Set[String] = Set.empty
