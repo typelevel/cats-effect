@@ -9,8 +9,6 @@ scaladoc: "#cats.effect.concurrent.Ref"
 An asynchronous, concurrent mutable reference.
 
 ```tut:silent
-import cats.data.State
-
 abstract class Ref[F[_], A] {
   def get: F[A]
   def set(a: A): F[Unit]
