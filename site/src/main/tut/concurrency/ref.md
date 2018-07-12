@@ -39,7 +39,6 @@ The workers will concurrently run and modify the value of the Ref so this is one
 ```
 
 ```tut:silent
-import cats.Parallel
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref
 import cats.implicits._
@@ -53,14 +52,12 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
   def start: F[Unit] =
     for {
       c1 <- ref.get
-      _  <- putStrLn("#$number >> $c1")
+      _  <- putStrLn(s"#$number >> $c1")
       c2 <- ref.modify(x => (x + 1, x))
-      _  <- putStrLn("#$number >> $c2")
+      _  <- putStrLn(s"#$number >> $c2")
     } yield ()
 
 }
-
-implicit val par: Parallel[IO, IO] = Parallel[IO, IO.Par].asInstanceOf[Parallel[IO, IO]]
 
 val program: IO[Unit] =
   for {
