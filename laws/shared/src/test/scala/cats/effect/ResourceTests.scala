@@ -23,7 +23,6 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
-import org.scalacheck._
 
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
@@ -31,48 +30,48 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => SemigroupKTests[Resource[IO, ?]].semigroupK[Int])
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
-    Prop.forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
+    check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
       acquire.bracket(f)(release) <-> Resource.make(acquire)(release).use(f)
     }
   }
 
   test("releases resources in reverse order of acquisition") {
-    Prop.forAll { as: List[(String, Either[Throwable, Unit])] =>
-      var released: List[String] = Nil
+    check { as: List[(Int, Either[Throwable, Unit])] =>
+      var released: List[Int] = Nil
       val r = as.traverse { case (a, e) =>
         Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
       }
-      r.use(IO.pure).unsafeRunSync()
+      r.use(IO.pure).attempt.unsafeRunSync()
       released <-> as.map(_._1)
     }
   }
 
   test("releases both resources on combine") {
-    Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
-      var acquired: Set[String] = Set.empty
-      var released: Set[String] = Set.empty
-      def observe(r: Resource[IO, String]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
+    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+      var acquired: Set[Int] = Set.empty
+      var released: Set[Int] = Set.empty
+      def observe(r: Resource[IO, Int]) = r.flatMap { a =>
+        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
       }
-      (observe(rx) combine observe(ry)).use(_ => IO.unit).unsafeRunSync()
+      (observe(rx) combine observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
     }
   }
 
   test("releases both resources on combineK") {
-    Prop.forAll { (rx: Resource[IO, String], ry: Resource[IO, String]) =>
-      var acquired: Set[String] = Set.empty
-      var released: Set[String] = Set.empty
-      def observe(r: Resource[IO, String]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).map(Set(_))
+    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+      var acquired: Set[Int] = Set.empty
+      var released: Set[Int] = Set.empty
+      def observe(r: Resource[IO, Int]) = r.flatMap { a =>
+        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
       }
-      (observe(rx) combineK observe(ry)).use(_ => IO.unit).unsafeRunSync()
+      (observe(rx) combineK observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
     }
   }
 
   testAsync("liftF") { implicit ec =>
-    Prop.forAll { fa: IO[String] =>
+    check { fa: IO[String] =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
