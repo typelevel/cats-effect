@@ -196,8 +196,8 @@
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
-                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
-                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
+                        <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
+                        <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -247,7 +247,7 @@ that supports lazy and potentially asynchronous evaluation.</p><p>This type clas
       <span class="defval" name="&quot;Cannot find implicit value for Effect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
     </span>)</span>
               
-        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/7c1a6e3b5cf07304afcac6397b382d3ac820d819/core/shared/src/main/scala/cats/effect/Effect.scala" target="_blank">Effect.scala</a></dd></dl><div class="toggleContainer block">
+        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/Effect.scala" target="_blank">Effect.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -1571,8 +1571,8 @@ either in success or in error, or if canceled.</p><p>This variant of <a href="Br
 regardless of how the source gets terminated:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>F.guarantee(fa)(f) <span class="kw">&lt;-</span>&gt; F.bracket(F.unit)(_ <span class="kw">=&gt;</span> fa)(_ <span class="kw">=&gt;</span> f)</pre><p>As best practice, it's not a good idea to release resources
 via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a>
 for the acquisition and release of resources.
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> for the more general operation</p></span><span class="cmt"><p><a href="Bracket.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guaranteeCase">guaranteeCase</a> for the version that can discriminate
-     between termination conditions</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guaranteeCase">guaranteeCase</a> for the version that can discriminate
+     between termination conditions</p></span><span class="cmt"><p><a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> for the more general operation</p></span></dd></dl></div>
     </li><li name="cats.effect.Bracket#guaranteeCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]"></a><a id="guaranteeCase[A](F[A])((ExitCase[Throwable])⇒F[Unit]):F[A]"></a>
       <span class="permalink">
@@ -1597,7 +1597,7 @@ the provided function, allowing one to make a difference
 between:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>F.guaranteeCase(fa)(f) <span class="kw">&lt;-</span>&gt; F.bracketCase(F.unit)(_ <span class="kw">=&gt;</span> fa)((_, e) <span class="kw">=&gt;</span> f(e))</pre><p>As best practice, it's not a good idea to release resources
 via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a>
 for the acquisition and release of resources.
-</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a> for the more general operation</p></span><span class="cmt"><p><a href="Bracket.html#guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guarantee">guarantee</a> for the simpler version</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#guarantee[A](fa:F[A])(finalizer:F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guarantee">guarantee</a> for the simpler version</p></span><span class="cmt"><p><a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a> for the more general operation</p></span></dd></dl></div>
     </li><li name="cats.ApplicativeError#handleError" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="handleError[A](fa:F[A])(f:E=&gt;A):F[A]"></a><a id="handleError[A](F[A])((Throwable)⇒A):F[A]"></a>
       <span class="permalink">

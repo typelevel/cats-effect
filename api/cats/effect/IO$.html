@@ -196,8 +196,8 @@
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
-                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
-                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
+                        <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
+                        <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -236,7 +236,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/7c1a6e3b5cf07304afcac6397b382d3ac820d819/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -531,9 +531,9 @@ running computations.</p><p>Example:</p><pre><span class="kw">import</span> java
     IO(future.cancel(<span class="kw">true</span>))
   }</pre><p>This example is for didactic purposes, you don't need to describe
 this function, as it's already available in <a href="#sleep(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#sleep">IO.sleep</a>.
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#asyncF[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#asyncF">asyncF</a> for a more potent version that does hook into
-     the underlying cancelation model</p></span><span class="cmt"><p><a href="#async[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;Unit):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#async">async</a> for a simpler variant that builds non-cancelable,
-     async tasks</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#async[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;Unit):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#async">async</a> for a simpler variant that builds non-cancelable,
+     async tasks</p></span><span class="cmt"><p><a href="#asyncF[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#asyncF">asyncF</a> for a more potent version that does hook into
+     the underlying cancelation model</p></span></dd></dl></div>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
       <span class="permalink">

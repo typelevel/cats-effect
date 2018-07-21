@@ -196,8 +196,8 @@
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
-                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
-                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
+                        <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
+                        <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -265,7 +265,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/7c1a6e3b5cf07304afcac6397b382d3ac820d819/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -670,8 +670,8 @@ either in success or in error, or if canceled.</p><p>This variant of <a href="#g
 regardless of how the source gets terminated:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>io.guarantee(f) <span class="kw">&lt;-</span>&gt; IO.unit.bracket(_ <span class="kw">=&gt;</span> io)(_ <span class="kw">=&gt;</span> f)</pre><p>As best practice, it's not a good idea to release resources
 via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a>
 for the acquisition and release of resources.
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> for the more general operation</p></span><span class="cmt"><p><a href="#guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guaranteeCase">guaranteeCase</a> for the version that can discriminate
-     between termination conditions</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guaranteeCase">guaranteeCase</a> for the version that can discriminate
+     between termination conditions</p></span><span class="cmt"><p><a href="#bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracket">bracket</a> for the more general operation</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#guaranteeCase" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="guaranteeCase(finalizer:cats.effect.ExitCase[Throwable]=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]"></a><a id="guaranteeCase((ExitCase[Throwable])⇒IO[Unit]):IO[A]"></a>
       <span class="permalink">
@@ -696,7 +696,7 @@ the provided function, allowing one to make a difference
 between:</p><ul><li>normal completion</li><li>completion in error</li><li>cancelation</li></ul><p>This equivalence always holds:</p><pre>io.guaranteeCase(f) <span class="kw">&lt;-</span>&gt; IO.unit.bracketCase(_ <span class="kw">=&gt;</span> io)((_, e) <span class="kw">=&gt;</span> f(e))</pre><p>As best practice, it's not a good idea to release resources
 via <code>guaranteeCase</code> in polymorphic code. Prefer <a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a>
 for the acquisition and release of resources.
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a> for the more general operation</p></span><span class="cmt"><p><a href="#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guarantee">guarantee</a> for the simpler version</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guarantee">guarantee</a> for the simpler version</p></span><span class="cmt"><p><a href="#bracketCase[B](use:A=&gt;cats.effect.IO[B])(release:(A,cats.effect.ExitCase[Throwable])=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#bracketCase">bracketCase</a> for the more general operation</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#handleErrorWith" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="handleErrorWith[AA&gt;:A](f:Throwable=&gt;cats.effect.IO[AA]):cats.effect.IO[AA]"></a><a id="handleErrorWith[AA&gt;:A]((Throwable)⇒IO[AA]):IO[AA]"></a>
       <span class="permalink">
@@ -1235,7 +1235,7 @@ absolutely not an appropriate function to use if you want to
 implement timeouts, or anything similar. If you need that sort
 of functionality, you should be using a streaming library (like
 fs2 or Monix).
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#timeout">timeout</a> for pure and safe version</p></span><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span><span class="cmt"><p><a href="#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#timeout">timeout</a> for pure and safe version</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#unsafeToFuture" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeToFuture():scala.concurrent.Future[A]"></a><a id="unsafeToFuture():Future[A]"></a>
       <span class="permalink">

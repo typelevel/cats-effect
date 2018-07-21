@@ -196,8 +196,8 @@
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
-                        <a class="class" href="Resource.html" title="Effectfully allocates and releases a resource."></a>
-                        <a href="Resource.html" title="Effectfully allocates and releases a resource.">Resource</a>
+                        <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
+                        <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -661,27 +661,45 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <a title="Effectfully allocates and releases a resource." href="Resource.html"><span class="name">Resource</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+        <a title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer." href="Resource.html"><span class="name">Resource</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
       </span>
       
-      <p class="shortcomment cmt">Effectfully allocates and releases a resource.</p><div class="fullcomment"><div class="comment cmt"><p>Effectfully allocates and releases a resource.  Forms a
-<code>MonadError</code> on the resource type when the effect type has a
-<a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a> instance.  Nested resources are released in reverse
-order of acquisition.  Outer resources are released even if an
-inner use or release fails.</p><pre><span class="kw">def</span> mkResource(s: <span class="std">String</span>) = {
+      <p class="shortcomment cmt">The <code>Resource</code> is a data structure that captures the effectful
+allocation of a resource, along with its finalizer.</p><div class="fullcomment"><div class="comment cmt"><p>The <code>Resource</code> is a data structure that captures the effectful
+allocation of a resource, along with its finalizer.</p><p>This can be used to wrap expensive resources. Example:</p><pre><span class="kw">def</span> open(file: File): Resource[IO, BufferedReader] =
+  Resource(IO {
+    <span class="kw">val</span> in = <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
+    (in, IO(in.close()))
+  })</pre><p>Usage is done via <a href="Resource.html#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
+because its implementation is specified in terms of <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><pre>open(file1).use { in1 <span class="kw">=&gt;</span>
+  open(file2).use { in2 <span class="kw">=&gt;</span>
+    readFiles(in1, in2)
+  }
+}</pre><p><code>Resource</code> forms a <code>MonadError</code> on the resource type when the
+effect type has a <code>cats.MonadError</code> instance. Nested resources are
+released in reverse order of acquisition. Outer resources are
+released even if an inner use or release fails.</p><pre><span class="kw">def</span> mkResource(s: <span class="std">String</span>) = {
   <span class="kw">val</span> acquire = IO(println(s<span class="lit">"Acquiring $$s"</span>)) *&gt; IO.pure(s)
   <span class="kw">def</span> release(s: <span class="std">String</span>) = IO(println(s<span class="lit">"Releasing $$s"</span>))
   Resource.make(acquire)(release)
 }
+
 <span class="kw">val</span> r = <span class="kw">for</span> {
   outer <span class="kw">&lt;-</span> mkResource(<span class="lit">"outer"</span>)
   inner <span class="kw">&lt;-</span> mkResource(<span class="lit">"inner"</span>)
 } <span class="kw">yield</span> (outer, inner)
-r.use { <span class="kw">case</span> (a, b) <span class="kw">=&gt;</span> IO(println(s<span class="lit">"Using $$a and $$b"</span>)) }.unsafeRunSync</pre><p>The above prints:</p><pre>Acquiring outer
+
+r.use { <span class="kw">case</span> (a, b) <span class="kw">=&gt;</span>
+  IO(println(s<span class="lit">"Using $$a and $$b"</span>))
+}</pre><p>On evaluation the above prints:</p><pre>Acquiring outer
 Acquiring inner
 Using outer and inner
 Releasing inner
-Releasing outer</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
+Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data structure, an ADT, described by
+the following node types and that can be interpretted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
+from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
+into a streaming data type).
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
     </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="Sync[F[_]]extendsBracket[F,Throwable]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
       <span class="permalink">
@@ -722,7 +740,7 @@ requirement.
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;&quot;&quot;Cannot find implicit value for Timer[${F}].<br/>Note that ${F} needs to be a cats.effect.Async data type. You might also<br/>need a scala.concurrent.ExecutionContext in scope, or equivalent, try to<br/>import scala.concurrent.ExecutionContext.Implicits.global<br/>&quot;&quot;&quot;">...</span>
+      <span class="defval" name="&quot;&quot;&quot;Cannot find an implicit value for Timer[${F}]. <br/>Either:<br/>* import Timer[${F}] from your effects library<br/>* use Timer.derive to create the necessary instance<br/>Timer.derive requires an implicit Timer[IO], which can be available from:<br/>* your platform (e.g. Scala JS)<br/>* implicitly in cats.effect.IOApp<br/>* cats.effect.IO.timer, if there's an implicit <br/>scala.concurrent.ExecutionContext in scope<br/>&quot;&quot;&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>

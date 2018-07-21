@@ -47,8 +47,7 @@
     <span class="k">for</span> <span class="o">{</span>
       <span class="n">c1</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span>
       <span class="k">_</span>  <span class="k">&lt;-</span> <span class="n">putStrLn</span><span class="o">(</span><span class="s">"#$number &gt;&gt; $c1"</span><span class="o">)</span>
-      <span class="k">_</span>  <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">x</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">))</span>
-      <span class="n">c2</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span>
+      <span class="n">c2</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">x</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
       <span class="k">_</span>  <span class="k">&lt;-</span> <span class="n">putStrLn</span><span class="o">(</span><span class="s">"#$number &gt;&gt; $c2"</span><span class="o">)</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 

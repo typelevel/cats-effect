@@ -196,8 +196,8 @@
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
-                        <a class="class" href="" title="Effectfully allocates and releases a resource."></a>
-                        <a href="" title="Effectfully allocates and releases a resource.">Resource</a>
+                        <a class="class" href="" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
+                        <a href="" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
@@ -236,29 +236,51 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Effectfully allocates and releases a resource.  Forms a
-<code>MonadError</code> on the resource type when the effect type has a
-<a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a> instance.  Nested resources are released in reverse
-order of acquisition.  Outer resources are released even if an
-inner use or release fails.</p><pre><span class="kw">def</span> mkResource(s: <span class="std">String</span>) = {
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>The <code>Resource</code> is a data structure that captures the effectful
+allocation of a resource, along with its finalizer.</p><p>This can be used to wrap expensive resources. Example:</p><pre><span class="kw">def</span> open(file: File): Resource[IO, BufferedReader] =
+  Resource(IO {
+    <span class="kw">val</span> in = <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
+    (in, IO(in.close()))
+  })</pre><p>Usage is done via <a href="#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
+because its implementation is specified in terms of <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><pre>open(file1).use { in1 <span class="kw">=&gt;</span>
+  open(file2).use { in2 <span class="kw">=&gt;</span>
+    readFiles(in1, in2)
+  }
+}</pre><p><code>Resource</code> forms a <code>MonadError</code> on the resource type when the
+effect type has a <code>cats.MonadError</code> instance. Nested resources are
+released in reverse order of acquisition. Outer resources are
+released even if an inner use or release fails.</p><pre><span class="kw">def</span> mkResource(s: <span class="std">String</span>) = {
   <span class="kw">val</span> acquire = IO(println(s<span class="lit">"Acquiring $$s"</span>)) *&gt; IO.pure(s)
   <span class="kw">def</span> release(s: <span class="std">String</span>) = IO(println(s<span class="lit">"Releasing $$s"</span>))
   Resource.make(acquire)(release)
 }
+
 <span class="kw">val</span> r = <span class="kw">for</span> {
   outer <span class="kw">&lt;-</span> mkResource(<span class="lit">"outer"</span>)
   inner <span class="kw">&lt;-</span> mkResource(<span class="lit">"inner"</span>)
 } <span class="kw">yield</span> (outer, inner)
-r.use { <span class="kw">case</span> (a, b) <span class="kw">=&gt;</span> IO(println(s<span class="lit">"Using $$a and $$b"</span>)) }.unsafeRunSync</pre><p>The above prints:</p><pre>Acquiring outer
+
+r.use { <span class="kw">case</span> (a, b) <span class="kw">=&gt;</span>
+  IO(println(s<span class="lit">"Using $$a and $$b"</span>))
+}</pre><p>On evaluation the above prints:</p><pre>Acquiring outer
 Acquiring inner
 Using outer and inner
 Releasing inner
-Releasing outer</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/7c1a6e3b5cf07304afcac6397b382d3ac820d819/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data structure, an ADT, described by
+the following node types and that can be interpretted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
+from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
+into a streaming data type).
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
           <div class="superTypes hiddenContent"><span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
-        </div></div>
+        </div><div class="toggleContainer block">
+            <span class="toggle">
+              Known Subclasses
+            </span>
+            <div class="subClasses hiddenContent"><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a>, <a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a>, <a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></div>
+          </div></div>
         
 
       <div id="mbrsel">
@@ -305,33 +327,10 @@ Releasing outer</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt>
 
         
 
-        <div class="values members">
-              <h3>Abstract Value Members</h3>
-              <ol><li name="cats.effect.Resource#allocate" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="allocate:F[(A,F[Unit])]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Resource.html#allocate:F[(A,F[Unit])]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">abstract </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">allocate</span><span class="result">: <span class="extype" name="cats.effect.Resource.F">F</span>[(<span class="extype" name="cats.effect.Resource.A">A</span>, <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>])]</span>
-      </span>
-      
-      <p class="shortcomment cmt">An effect that returns a tuple of a resource and an effect to
-release it.</p><div class="fullcomment"><div class="comment cmt"><p>An effect that returns a tuple of a resource and an effect to
-release it.</p><p>Streaming types might implement a bracket operation that keeps
-the resource open through multiple outputs of a stream.
-</p></div></div>
-    </li></ol>
-            </div>
+        
 
         <div class="values members">
-              <h3>Concrete Value Members</h3>
+              <h3>Value Members</h3>
               <ol>
                 <li name="scala.AnyRef#!=" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="!=(x$1:Any):Boolean"></a><a id="!=(Any):Boolean"></a>
@@ -475,6 +474,23 @@ the resource open through multiple outputs of a stream.
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Resource#flatMap" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="flatMap[B](f:A=&gt;cats.effect.Resource[F,B]):cats.effect.Resource[F,B]"></a><a id="flatMap[B]((A)⇒Resource[F,B]):Resource[F,B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource.html#flatMap[B](f:A=&gt;cats.effect.Resource[F,B]):cats.effect.Resource[F,B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">flatMap</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Implementation for the <code>flatMap</code> operation, as described via the
+<code>cats.Monad</code> type class.</p>
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
@@ -616,9 +632,9 @@ the resource open through multiple outputs of a stream.
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="cats.effect.Resource#use" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="use[B,E](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,E]):F[B]"></a><a id="use[B,E]((A)⇒F[B])(Bracket[F,E]):F[B]"></a>
+      <a id="use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]"></a><a id="use[B]((A)⇒F[B])(Bracket[F,Throwable]):F[B]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#use[B,E](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,E]):F[B]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -627,7 +643,7 @@ the resource open through multiple outputs of a stream.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">use</span><span class="tparams">[<span name="B">B</span>, <span name="E">E</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.use.E">E</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
+        <span class="name">use</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.  The

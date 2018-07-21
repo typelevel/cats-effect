@@ -44,7 +44,8 @@ be involved</li>
 <p class="extra">
 In this context “<i>asynchronous blocking</i>” means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
-when the operation has finished (notifications exposed by means of <a href="./task.html">Task</a>)
+when the operation has finished (notifications exposed by means of <a href="../typeclasses/async.html">Async</a> or 
+<a href="../typeclasses/concurrent.html">Concurrent</a> data types such as <a href="../datatypes/io.html">IO</a>)
 and it thus works on top of Javascript as well.
 </p>
 
@@ -58,7 +59,7 @@ to error, but now merely blocks).</p>
 
 <p>Appropriate for building synchronization primitives and  performing simple
 interthread communication, it’s the equivalent of a <code class="highlighter-rouge">BlockingQueue(capacity = 1)</code>,
-except that there’s no actual thread blocking involved and it is powered by <code class="highlighter-rouge">Task</code>.</p>
+except that there’s no actual thread blocking involved and it is powered by data types such as <code class="highlighter-rouge">IO</code>.</p>
 
 <h2 id="use-case-synchronized-mutable-variables">Use-case: Synchronized Mutable Variables</h2>
 
