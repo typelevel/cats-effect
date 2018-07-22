@@ -52,9 +52,9 @@ class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
   def start: F[Unit] =
     for {
       c1 <- ref.get
-      _  <- putStrLn(s"#$number >> $c1")
+      _  <- putStrLn(show"#$number >> $c1")
       c2 <- ref.modify(x => (x + 1, x))
-      _  <- putStrLn(s"#$number >> $c2")
+      _  <- putStrLn(show"#$number >> $c2")
     } yield ()
 
 }
