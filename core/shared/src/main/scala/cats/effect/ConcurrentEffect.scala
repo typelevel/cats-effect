@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, StateT, WriterT}
+import cats.data.{EitherT, StateT, WriterT, Kleisli}
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -96,6 +96,13 @@ object ConcurrentEffect {
   implicit def catsWriterTConcurrentEffect[F[_]: ConcurrentEffect, L: Monoid]: ConcurrentEffect[WriterT[F, L, ?]] =
     new WriterTConcurrentEffect[F, L] { def F = ConcurrentEffect[F]; def L = Monoid[L] }
 
+  /**
+   * [[ConcurrentEffect]] instance built for `cats.data.WriterT` values initialized
+   * with any `F` data type that also implements `ConcurrentEffect`.
+   */
+  implicit def catsKleisliConcurrentEffect[F[_]: ConcurrentEffect, C: Monoid]: ConcurrentEffect[Kleisli[F, C, ?]] =
+    new KleisliConcurrentEffect[F, C] { def F = ConcurrentEffect[F]; def C = Monoid[C] }
+
   private[effect] trait EitherTConcurrentEffect[F[_]]
     extends ConcurrentEffect[EitherT[F, Throwable, ?]]
     with Concurrent.EitherTConcurrent[F, Throwable]
@@ -132,5 +139,18 @@ object ConcurrentEffect {
     def runCancelable[A](fa: WriterT[F, L, A])
       (cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       F.runCancelable(fa.run)(cb.compose(_.right.map(_._2)))
+  }
+
+  private[effect] trait KleisliConcurrentEffect[F[_], C]
+    extends Concurrent.KleisliConcurrent[F, C]
+    with ConcurrentEffect[Kleisli[F, C, ?]]
+    with Effect.KleisliEffect[F, C] {
+
+    protected def F: ConcurrentEffect[F]
+    protected def C: Monoid[C]
+
+    def runCancelable[A](fa: Kleisli[F, C, A])
+      (cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
+      F.runCancelable(fa.run(C.empty))(cb)
   }
 }

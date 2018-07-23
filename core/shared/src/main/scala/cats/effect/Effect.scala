@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, StateT, WriterT}
+import cats.data.{EitherT, StateT, WriterT, Kleisli}
 import cats.implicits._
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -112,6 +112,13 @@ object Effect {
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
     new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 
+  /**
+   * [[Effect]] instance built for `cats.data.Kleisli` values initialized
+   * with any `F` data type that also implements `Effect`.
+   */
+  implicit def catsKleisliEffect[F[_]: Effect, C: Monoid]: Effect[Kleisli[F, C, ?]] =
+    new KleisliEffect[F, C] { def F = Effect[F]; def C = Monoid[C] }
+
   private[effect] trait EitherTEffect[F[_]] extends Effect[EitherT[F, Throwable, ?]]
     with Async.EitherTAsync[F, Throwable] {
 
@@ -145,6 +152,22 @@ object Effect {
 
     override def toIO[A](fa: StateT[F, S, A]): IO[A] =
       F.toIO(fa.runA(S.empty)(F))
+  }
+
+  private[effect] trait KleisliEffect[F[_], C] extends Async.KleisliAsync[F, C]
+    with Effect[Kleisli[F, C, ?]] {
+
+    protected def F: Effect[F]
+    protected def C: Monoid[C]
+
+    def runAsync[A](fa: Kleisli[F, C, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+      F.runAsync(fa.run(C.empty))(cb)
+
+    def runSyncStep[A](fa: Kleisli[F, C, A]): IO[Either[Kleisli[F, C, A], A]] =
+      F.runSyncStep(fa.run(C.empty)).map(_.leftMap(fa => Kleisli.liftF[F, C, A](fa)))
+
+    override def toIO[A](fa: Kleisli[F, C, A]): IO[A] =
+      F.toIO(fa.run(C.empty))
   }
 
   private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
