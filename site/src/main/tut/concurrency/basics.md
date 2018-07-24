@@ -68,7 +68,7 @@ doing a lot of work in parallel, taking precious (native) threads.
 
 Creating a **Thread** has a price to it. The overhead depends on specific JVM and OS but it involves 
 several activities from both of them so making too many threads for short-lived tasks is very inefficient 
-because it may turn out that process of creating thread and possible context switches has higher costs than task itself.
+because it may turn out that process of creating thread and possible context switches has higher costs than the task itself.
 Furthermore, having too many created threads means that we can eventually run out of memory and that they are 
 competing for CPU, slowing down application.
 
@@ -76,7 +76,7 @@ It is advised to use **thread pools** which by means of `Executor` (`ExecutionCo
 managing execution of threads.
 
 Thread pool consists of work queue and a connection to running threads. Every task (`Runnable`) to execute is 
-placed in the work queue and the threads that are governed by given thread pool take it from there to do their work. 
+placed in the work queue and the threads that are governed by given pool take it from there to do their work. 
 In Scala, we avoid explicitly working with `Runnable` and use abstractions that do that under the hood 
 (`Future` and `IO` implementations). Thread pools can reuse and cache threads to prevent some of the problems 
 mentioned earlier.
@@ -98,7 +98,7 @@ too many threads so it’s important to use cached pool (allowing to reuse exist
 
 Despite those dangers it is still very useful for blocking tasks. In limited thread pool if we block 
 too many threads which are waiting for callback from other (blocked) thread for a long time we risk 
-getting deadlock that prevents any new tasks to start their work.
+getting deadlock that prevents any new tasks from starting their work.
 
 #### Fork Join Pool
 
@@ -127,22 +127,22 @@ in [Thread Shifting section in `IO` documentation](./../datatypes/io.html#thread
 This function allows to shift computation to different thread pool or simply send it to current `ExecutionContext` 
 to schedule it again. This is often called introducing **asynchronous boundary**.
 
-While the first use case is probably easy to imagine, the second one might be confusing. 
+While the first use case is probably easy to imagine, the second one might be more confusing. 
 It is helpful to actually understand what is happening behind the scenes during `shift`.
 
 Essential term is **thread scheduling**. Since we can’t run all our threads in parallel all the time they 
 each get their own slice of time to execute, e.g. interleaving with the rest of them so every thread has a chance to run. 
 If there is a time for change the currently running thread is **preempted** - it saves its state and context switch happen.
 
-This is a bit different when using thread pools (`ExecutionContext`) because they are in charge of 
+This is a bit different when using thread pools (`ExecutionContexts`) because they are in charge of 
 scheduling threads from their own pool. If there is one thread running it won’t change until it terminates or 
 higher priority thread is ready to start doing work. Note that `IO` without any shifts is considered one task 
 so if it’s infinite `IO` it could hog the thread forever and if we use single threaded thread pool - nothing else 
 will ever run on it! 
 
 In other words - `IO` is executing synchronously until we call `IO.shift` or use function like `parSequence` which 
-does it for ourselves. In terms of each thread pool we can actually treat `IO` a bit like **green threads** with 
-cooperative multitasking - so instead of forcefully preempting thread we can decide when we yield CPU to other threads 
+does it for ourselves. In terms of individual thread pools we can actually treat `IO` a bit like **green thread** with 
+cooperative multitasking - instead of forcefully preempting thread we can decide when we yield CPU to other threads 
 from the same pool by calling `shift`.
 
 Calling `IO.shift` sends it to schedule again so if there are other `IO` waiting to execute they can have their chance. 
@@ -170,19 +170,19 @@ Note `repeat.start` and return type of `IO[Fiber[IO, Unit]]` which means that we
 Now if we try this:
 
 ```scala
-  val prog =
-    for {
-      _ <- infiniteIO(1)(ecOne)
-      _ <- infiniteIO(11)(ecOne)
-    } yield ()
+val prog =
+  for {
+    _ <- infiniteIO(1)(ecOne)
+    _ <- infiniteIO(11)(ecOne)
+  } yield ()
 
-  prog.unsafeRunSync()
+prog.unsafeRunSync()
 ```
 It will never print `11` despite using `.start`! 
 Why? `ExecutionContext` `ecOne` executes its `IO` on the only thread it has but it needs to wait for its 
 completion before it can schedule the other one.
 
-What about two thread pools?
+How about two thread pools?
 
 ```scala
 val prog =
@@ -233,7 +233,7 @@ running tasks keep fairness in mind.
 
 Scala’s `Future` is optimized for fairness, doing `shift` equivalent after each `map` or `flatMap` 
 so we wouldn't have the problem described above but doing it too much results in putting a lot of pressure on 
-scheduler causing low throughput. In typical, purely functional programs we have many `.flatMaps` because our 
+scheduler causing low throughput. In typical, purely functional programs we have many `flatMaps` because our 
 entire application is just one big `IO` composed of many smaller ones so constant shifting is not feasible 
 but there's always the option to do it if our application has strict latency requirements.
 
