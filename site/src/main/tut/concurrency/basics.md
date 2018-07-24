@@ -14,14 +14,18 @@ in context of using Scala with libraries around Cats-Effect.
 
 ### Parallelism 
 Using multiplicity of computational resources (like more processor cores) to perform a computation faster, 
-usually executing at the same time. 
-Example: summing a list of Integers by dividing it in half and calculating both halves in parallel. 
+usually executing at the same time.
+
+Example: summing a list of Integers by dividing it in half and calculating both halves in parallel.
+
 Main concern: efficiency.
 
 ### Concurrency
 Multiple threads of control, the user sees their effects interleaved. It doesn't have to be multithreaded - we can 
-write concurrent applications on single processor using methods such as event loops. 
+write concurrent applications on single processor using methods such as event loops.
+
 Example: Communicating with external services through HTTP.
+
 Main concern: interaction with multiple, independent and external agents.
 
 ### CPU-bound task 
@@ -100,9 +104,7 @@ getting deadlock that prevents any new tasks to start their work.
 
 // TODO
 
-
 For a bit more in-depth guidelines [read Daniel Spiewak's gist.](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
-
 
 ### Blocking Threads
 
@@ -244,7 +246,6 @@ Sometimes we use term **semantic blocking** or **asynchronous blocking** which i
 It means that we "suspend" our IO/Task waiting for some action to happen (e.g. `Deferred.get` waits until the 
 result is available) but it doesn't block threads - other `IO` is free to execute on the thread in the meantime.
 This is further explained [in Fabio Labella's comment.](https://github.com/typelevel/cats-effect/issues/243#issuecomment-392002124)
-
 
 It is important to recognize that not all I/O operations are blocking and need to execute on dedicated thread pool. 
 For instance we can have HTTP requests using non-blocking client such as http4s with Blaze which is 
