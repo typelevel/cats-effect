@@ -28,7 +28,7 @@ val CompileTime = config("CompileTime").hide
 val CatsVersion = "1.1.0"
 val SimulacrumVersion = "0.11.0"
 
-val ScalaTestVersion = "3.0.4"
+val ScalaTestVersion = "3.0.5"
 val ScalaCheckVersion = "1.13.5"
 val DisciplineVersion = "0.8"
 
@@ -36,7 +36,9 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  crossScalaVersions := Seq("2.11.12", "2.12.4"),
+  scalaVersion := "2.12.6",
+
+  crossScalaVersions := Seq("2.11.12", "2.12.6"),
 
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
@@ -432,7 +434,7 @@ lazy val siteSettings = Seq(
     "-Ywarn-unused:imports",
     "-Ywarn-unused:locals",
     "-Ywarn-unused:patvars",
-    "-Ywarn-unused:privates",    
+    "-Ywarn-unused:privates",
     "-Ywarn-numeric-widen",
     "-Ywarn-dead-code",
     "-Xlint:-missing-interpolator,_").contains),
@@ -499,7 +501,8 @@ scalacOptions in ThisBuild ++= Seq(
   "-unchecked",
   "-Xfatal-warnings",
   "-Yno-adapted-args",
-  "-Ywarn-dead-code"
+  "-Ywarn-dead-code",
+  "-Ypartial-unification"
 )
 
 scalacOptions in ThisBuild ++= {
@@ -512,7 +515,7 @@ scalacOptions in ThisBuild ++= {
       "-Ywarn-unused:privates",
       "-Xlint:-missing-interpolator,-unused,_"
     )
-    case _ => 
+    case _ =>
       Seq("-Xlint:-missing-interpolator,_")
   }
 }

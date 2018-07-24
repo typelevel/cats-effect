@@ -107,12 +107,25 @@ object arbitrary {
       }
     }
 
-  implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Functor[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+  implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Applicative[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
-  def genResource[F[_], A](implicit F: Functor[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] =
-    for {
+  def genResource[F[_], A](implicit F: Applicative[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+    def genAllocate: Gen[Resource[F, A]] = for {
       alloc <- getArbitrary[F[A]]
       dispose <- getArbitrary[F[Unit]]
     } yield Resource(F.map(alloc)(a => a -> dispose))
+
+    def genBind: Gen[Resource[F, A]] =
+      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
+
+    def genSuspend: Gen[Resource[F, A]] =
+      genAllocate.map(r => Resource.suspend(F.pure(r)))
+
+    Gen.frequency(
+      5 -> genAllocate,
+      1 -> genBind,
+      1 -> genSuspend
+    )
+  }
 }
