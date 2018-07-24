@@ -70,6 +70,19 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  test("resource from AutoCloseable is auto closed") {
+    val autoCloseable = new AutoCloseable {
+      var closed = false
+      override def close(): Unit = closed = true
+    }
+
+    val result = Resource.fromAutoCloseable(IO(autoCloseable))
+      .use(source => IO.pure("Hello world")).unsafeRunSync()
+
+    result shouldBe "Hello world"
+    autoCloseable.closed shouldBe true
+  }
+
   testAsync("liftF") { implicit ec =>
     check { fa: IO[String] =>
       Resource.liftF(fa).use(IO.pure) <-> fa
