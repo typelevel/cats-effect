@@ -434,7 +434,7 @@ lazy val siteSettings = Seq(
     "-Ywarn-unused:imports",
     "-Ywarn-unused:locals",
     "-Ywarn-unused:patvars",
-    "-Ywarn-unused:privates",    
+    "-Ywarn-unused:privates",
     "-Ywarn-numeric-widen",
     "-Ywarn-dead-code",
     "-Xlint:-missing-interpolator,_").contains),
@@ -501,7 +501,8 @@ scalacOptions in ThisBuild ++= Seq(
   "-unchecked",
   "-Xfatal-warnings",
   "-Yno-adapted-args",
-  "-Ywarn-dead-code"
+  "-Ywarn-dead-code",
+  "-Ypartial-unification"
 )
 
 scalacOptions in ThisBuild ++= {
@@ -514,7 +515,7 @@ scalacOptions in ThisBuild ++= {
       "-Ywarn-unused:privates",
       "-Xlint:-missing-interpolator,-unused,_"
     )
-    case _ => 
+    case _ =>
       Seq("-Xlint:-missing-interpolator,_")
   }
 }

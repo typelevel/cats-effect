@@ -42,3 +42,71 @@ val r = for {
 
 r.use { case (a, b) => IO(println(s"Using $a and $b")) }.unsafeRunSync
 ```
+
+If using an AutoCloseable create a resource without the need to specify how to close.
+
+### Examples
+
+#### With `scala.io.Source`
+
+```tut:silent
+import cats.effect._
+
+val acquire = IO {
+  scala.io.Source.fromString("Hello world")
+}
+
+Resource.fromAutoCloseable(acquire).use(source => IO(println(source.mkString))).unsafeRunSync()
+```
+
+#### With `java.io` using IO
+
+```tut:silent
+import java.io._
+import collection.JavaConverters._
+import cats.effect._
+
+def readAllLines(bufferedReader: BufferedReader): IO[List[String]] = IO {
+  bufferedReader.lines().iterator().asScala.toList
+}
+
+def reader(file: File): Resource[IO, BufferedReader] =
+  Resource.fromAutoCloseable(IO {
+        new BufferedReader(new FileReader(file))
+      }
+  )
+  
+def readLinesFromFile(file: File): IO[List[String]] = {
+    reader(file).use(readAllLines)
+}
+```
+
+#### A `java.io` example agnostic of the effect type
+
+```tut:silent
+import java.io._
+import cats.effect._
+
+def reader[F[_]](file: File)(implicit F: Sync[F]): Resource[F, BufferedReader] =
+  Resource.fromAutoCloseable(F.delay {
+    new BufferedReader(new FileReader(file))
+  })
+
+def dumpResource[F[_]](res: Resource[F, BufferedReader])(implicit F: Sync[F]): F[Unit] = {
+  def loop(in: BufferedReader): F[Unit] =
+    F.suspend {
+      val line = in.readLine()
+      if (line != null) {
+        System.out.println(line)
+        loop(in)
+      } else {
+        F.unit
+      }
+    }
+  res.use(loop)
+}
+
+def dumpFile[F[_]](file: File)(implicit F: Sync[F]): F[Unit] =
+  dumpResource(reader(file))
+  
+```
