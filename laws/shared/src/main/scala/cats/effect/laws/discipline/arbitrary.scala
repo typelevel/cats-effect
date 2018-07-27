@@ -19,6 +19,7 @@ package effect
 package laws
 package discipline
 
+import cats.syntax.all._
 import cats.effect.IO.Par
 import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
@@ -34,14 +35,16 @@ object arbitrary {
 
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
     Gen.frequency(
-      5 -> genPure[A],
-      5 -> genApply[A],
+      1 -> genPure[A],
+      1 -> genApply[A],
       1 -> genFail[A],
-      5 -> genAsync[A],
-      5 -> genNestedAsync[A],
-      5 -> getMapOne[A],
-      5 -> getMapTwo[A],
-      10 -> genFlatMap[A])
+      1 -> genAsync[A],
+      1 -> genAsyncF[A],
+      1 -> genNestedAsync[A],
+      1 -> genCancelable[A],
+      1 -> getMapOne[A],
+      1 -> getMapTwo[A],
+      2 -> genFlatMap[A])
   }
 
   def genSyncIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
@@ -63,6 +66,14 @@ object arbitrary {
 
   def genAsync[A: Arbitrary]: Gen[IO[A]] =
     getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)
+
+  def genAsyncF[A: Arbitrary]: Gen[IO[A]] =
+    getArbitrary[(Either[Throwable, A] => Unit) => Unit].map { k =>
+      IO.asyncF(cb => IO(k(cb)))
+    }
+
+  def genCancelable[A: Arbitrary: Cogen]: Gen[IO[A]] =
+    getArbitrary[IO[A]].map(io => IO.cancelBoundary *> io <* IO.cancelBoundary)
 
   def genNestedAsync[A: Arbitrary: Cogen]: Gen[IO[A]] =
     getArbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]

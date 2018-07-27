@@ -57,7 +57,6 @@ class ResourceTests extends BaseTestsSuite {
       released <-> acquired
     }
   }
-
   test("releases both resources on combineK") {
     check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty

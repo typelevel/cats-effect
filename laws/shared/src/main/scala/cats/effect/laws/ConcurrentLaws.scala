@@ -20,7 +20,9 @@ package laws
 import cats.effect.concurrent.{Deferred, MVar, Semaphore}
 import cats.laws._
 import cats.syntax.all._
+
 import scala.Predef.{identity => id}
+import scala.concurrent.Promise
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
@@ -55,22 +57,30 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def asyncCancelableReceivesCancelSignal[A](a: A) = {
-    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { effect =>
-      val async = F.cancelable[Unit](_ => effect.complete(a))
-      F.start(async).flatMap(_.cancel) *> F.liftIO(effect.get)
-    }
+    val lh = for {
+      release <- F.liftIO(Deferred.uncancelable[IO, A])
+      latch    = Promise[Unit]()
+      async    = F.cancelable[Unit] { _ => latch.success(()); release.complete(a) }
+      fiber   <- F.start(async)
+      _       <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
+      _       <- fiber.cancel
+      result  <- F.liftIO(release.get)
+    } yield result
+
     lh <-> F.pure(a)
   }
 
   def asyncFRegisterCanBeCancelled[A](a: A) = {
     val lh =  for {
-      promise <- Deferred[F, A]
+      release <- Deferred[F, A]
+      acquire <- Deferred[F, Unit]
       task = F.asyncF[Unit] { _ =>
-        F.bracket(F.unit)(_ => F.never[Unit])(_ => promise.complete(a))
+        F.bracket(acquire.complete(()))(_ => F.never[Unit])(_ => release.complete(a))
       }
       fiber <- F.start(task)
+      _ <- acquire.get
       _ <- fiber.cancel
-      a <- promise.get
+      a <- release.get
     } yield a
 
     lh <-> F.pure(a)
@@ -107,9 +117,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def acquireIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- MVar[F].of(a1)
-        task = F.bracket(mVar.put(a2))(_ => F.never[A])(_ => F.unit)
+        mVar  <- MVar[F].of(a1)
+        latch <- Deferred.uncancelable[F, Unit]
+        task   = F.bracket(latch.complete(()) *> mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
+        _     <- latch.get
         _     <- fiber.cancel
         _     <- timer.shift
         _     <- mVar.take
@@ -122,9 +134,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def releaseIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar <- MVar[F].of(a1)
-        task = F.bracket(F.unit)(_ => F.never[A])(_ => mVar.put(a2))
+        mVar  <- MVar[F].of(a1)
+        latch <- Deferred.uncancelable[F, Unit]
+        task   = F.bracket(latch.complete(()))(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
+        _     <- latch.get
         _     <- fiber.cancel
         _     <- timer.shift
         _     <- mVar.take

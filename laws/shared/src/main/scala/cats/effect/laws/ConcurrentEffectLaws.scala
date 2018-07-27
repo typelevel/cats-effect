@@ -22,6 +22,8 @@ import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cats.laws._
 
+import scala.concurrent.Promise
+
 trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
   implicit def F: ConcurrentEffect[F]
 
@@ -42,16 +44,30 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 
   def runCancelableStartCancelCoherence[A](a: A) = {
     // Cancellation via runCancelable
-    val f1 = Deferred.uncancelable[IO, A].flatMap { effect1 =>
-      val never = F.cancelable[A](_ => effect1.complete(a))
-      F.runCancelable(never)(_ => IO.unit).flatten *> effect1.get
-    }
+    val f1: F[A] = for {
+      effect1 <- Deferred.uncancelable[F, A]
+      latch    = Promise[Unit]()
+      never    = F.cancelable[A] { _ => latch.success(()); F.toIO(effect1.complete(a)) }
+      cancel  <- F.liftIO(F.runCancelable(never)(_ => IO.unit))
+      // Waiting for the task to start before cancelling it
+      _       <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
+      _       <- F.liftIO(cancel)
+      result  <- effect1.get
+    } yield result
+
     // Cancellation via start.flatMap(_.cancel)
-    val f2 = Deferred.uncancelable[IO, A].flatMap { effect2 =>
-      val never = F.cancelable[A](_ => effect2.complete(a))
-      val task = F.start(never).flatMap(_.cancel)
-      F.runAsync(task)(_ => IO.unit) *> effect2.get
-    }
+    val f2: F[A] = for {
+      effect2 <- Deferred.uncancelable[F, A]
+      // Using a latch to ensure that the task started
+      latch   <- Deferred.uncancelable[F, Unit]
+      never   =  F.bracket(latch.complete(()))(_ => F.never[Unit])(_ => effect2.complete(a))
+      fiber   <- F.start(never)
+      // Waiting for the task to start before cancelling it
+      _       <- latch.get
+      _       <- fiber.cancel
+      result  <- effect2.get
+    } yield result
+
     f1 <-> f2
   }
 

@@ -60,10 +60,7 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
       val bases = Nil
       val parents = Seq(bracket[A, B, C])
 
-
       val props = Seq(
-        "bracket release is called for success" -> forAll(laws.bracketReleaseCalledForSuccess[A, B, C] _),
-        "bracket release is called for error" -> forAll(laws.bracketReleaseCalledForError[A] _),
         "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
         "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
         "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
