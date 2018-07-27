@@ -218,7 +218,7 @@ prog.unsafeRunSync()
 ```
 
 Notice `IO.shift *> repeat` call - `*>` means that we execute first operation, ignore its result and then call `repeat`. 
-Now everything is fair, we can see each of those numbers printed on the screen! 
+Now everything is fair, we can see each of those numbers printed on the screen. 
 Calling `IO.shift` fixed the problem because when currently running `IO` was sent to schedule again it gave opportunity 
 to actually execute the other one.
 
@@ -233,13 +233,13 @@ running tasks keep fairness in mind.
 
 Scala’s `Future` is optimized for fairness, doing `shift` equivalent after each `map` or `flatMap` 
 so we wouldn't have the problem described above but doing it too much results in putting a lot of pressure on 
-scheduler causing low throughput. In typical, purely functional programs we have many `flatMaps` because our 
+scheduler causing low throughput. In typical purely functional programs we have many `flatMaps` because our 
 entire application is just one big `IO` composed of many smaller ones so constant shifting is not feasible 
 but there's always the option to do it if our application has strict latency requirements.
 
 If you are looking for less manual work - `monix.eval.Task` is great middleground which by default shifts tasks 
-automatically in batches preserving both great throughput and decent latency off the shelf and very rich configuration 
-options if you have more advanced use case.
+automatically in batches preserving both great throughput and decent latency off the shelf and exposes 
+very rich configuration options if you have more advanced use case.
 
 ## Asynchronous / Semantic blocking
 Sometimes we use term **semantic blocking** or **asynchronous blocking** which is different than blocking thread. 
