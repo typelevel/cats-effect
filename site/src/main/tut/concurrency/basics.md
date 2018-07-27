@@ -7,8 +7,9 @@ position: 2
 ## Introduction
 
 Concurrency is not an easy topic, there are a lot of concepts involved and the vocabulary might be hard to google. 
-This post is intended to gather and explain some of the most important ideas and serve as a reference 
-in context of using Scala with libraries around Cats-Effect.
+This post intends to gather and explain some of the most important ideas and serve as a reference point for
+understanding the basics of concurrency. 
+It is focused on using Scala with libraries in Cats-Effect ecosystem.
 
 ## Dictionary
 
@@ -234,7 +235,7 @@ running tasks keep fairness in mind.
 Scala’s `Future` is optimized for fairness, doing `shift` equivalent after each `map` or `flatMap` 
 so we wouldn't have the problem described above but doing it too much results in putting a lot of pressure on 
 scheduler causing low throughput. In typical purely functional programs we have many `flatMaps` because our 
-entire application is just one big `IO` composed of many smaller ones so constant shifting is not feasible 
+entire application is just one big `IO` composed of many smaller ones. Constant shifting is not feasible 
 but there's always the option to do it if our application has strict latency requirements.
 
 If you are looking for less manual work - `monix.eval.Task` is great middleground which by default shifts tasks 
