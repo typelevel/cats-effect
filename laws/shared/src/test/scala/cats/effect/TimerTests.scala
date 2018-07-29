@@ -27,11 +27,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
   type EitherIO[A] = EitherT[IO, Throwable, A]
 
-  test("Timer[IO].shift") {
-    for (_ <- Timer[IO].shift.unsafeToFuture()) yield {
-      assert(1 == 1)
-    }
-  }
+
 
   test("Timer[IO].clockRealTime") {
     val time = System.currentTimeMillis()
@@ -73,12 +69,6 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
     for (r <- io.unsafeToFuture()) yield {
       r shouldBe 10
-    }
-  }
-
-  test("Timer[EitherT].shift") {
-    for (r <- Timer.derive[EitherIO].shift.value.unsafeToFuture()) yield {
-      r shouldBe Right(())
     }
   }
 

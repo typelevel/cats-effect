@@ -14,14 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect
-package internals
+package cats.effect.internals
 
+import cats.effect.{ContextShift, IO}
 
-class IOTimerTests extends BaseTestsSuite {
-  test("Timer[IO] default instance") {
-    val ref1 = Timer[IO]
-    ref1 shouldBe Timer[IO]
-  }
+private[effect] trait IOContextShiftRef {
 
+  implicit val contextShift: ContextShift[IO] = IOContextShift.global
 }

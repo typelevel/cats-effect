@@ -28,6 +28,12 @@ private[effect] object IOShift {
         ec.execute(new Tick(cb))
     })
 
+  def shiftOn[A](shiftContext: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] = {
+     IOShift(shiftContext).flatMap { _ =>
+       io.attempt.flatMap { r => IOShift(targetEc).flatMap { _ => IO.fromEither(r) } }
+     }
+  }
+
   private[internals] final class Tick(cb: Either[Throwable, Unit] => Unit)
     extends Runnable {
     def run() = cb(Callback.rightUnit)

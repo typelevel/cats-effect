@@ -25,14 +25,14 @@ import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
   test("exits with specified code") {
-    IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.pure(ExitCode(42)))
+    IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ => IO.pure(ExitCode(42)))
       .flatMap(_.join)
       .unsafeToFuture
       .map(_ shouldEqual 42)
   }
 
   test("accepts arguments") {
-    IOAppPlatform.mainFiber(Array("1", "2", "3"), Eval.now(implicitly))(args =>
+    IOAppPlatform.mainFiber(Array("1", "2", "3"), Eval.now(implicitly), Eval.now(implicitly))(args =>
       IO.pure(ExitCode(args.mkString.toInt)))
       .flatMap(_.join)
       .unsafeToFuture
@@ -41,7 +41,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
 
   test("raised error exits with 1") {
     silenceSystemErr {
-      IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
+      IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture
         .map(_ shouldEqual 1)
@@ -52,7 +52,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
     assume(IOPlatform.isJVM, "test relevant only for the JVM")
     silenceSystemErr {
       (for {
-        fiber <- IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly))(_ => IO.never)
+        fiber <- IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.never)
         _ <- fiber.cancel
         code <- fiber.join
       } yield code)

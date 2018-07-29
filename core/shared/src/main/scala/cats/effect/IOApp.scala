@@ -64,13 +64,24 @@ trait IOApp {
    * the JVM with the resulting code on completion.
    */
   final def main(args: Array[String]): Unit =
-    IOAppPlatform.main(args, Eval.later(timer))(run)
+    IOAppPlatform.main(args, Eval.later(contextShift), Eval.later(timer))(run)
 
   /**
-   * Provides an implicit timer instance for the app.
+    * Provides an implicit [[ContextShift]] instance for the app.
+    *
+    * On the JVM, the default lazily constructed from the global
+    * execution context. Override to avoid instantiating this
+    * execution context.
+    *
+    * On scala.js, the default is `Timer.global`.
+    */
+  protected implicit def contextShift: ContextShift[IO] = IOAppPlatform.defaultContextShift
+
+  /**
+   * Provides an implicit [[Timer]] instance for the app.
    * 
    * On the JVM, the default lazily constructed from the global
-   * execution context.  Override to avoid instantiating this
+   * execution context. Override to avoid instantiating this
    * execution context.
    * 
    * On scala.js, the default is `Timer.global`.

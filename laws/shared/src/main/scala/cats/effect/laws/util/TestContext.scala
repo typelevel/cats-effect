@@ -16,10 +16,11 @@
 
 package cats.effect.laws.util
 
+import cats.MonadError
 import cats.effect.internals.Callback.T
 import cats.effect.internals.Cancelable.{Type => Cancelable}
-import cats.effect.internals.{IOConnection, IOForkedStart}
-import cats.effect.{IO, LiftIO, Timer}
+import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
+import cats.effect.{ContextShift, IO, LiftIO, Timer}
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -148,11 +149,7 @@ final class TestContext private () extends ExecutionContext { self =>
     new Timer[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
-      override def shift: F[Unit] =
-        F.liftIO(IO.Async(new IOForkedStart[Unit] {
-          def apply(conn: IOConnection, cb: T[Unit]): Unit =
-            self.execute(tick(cb))
-        }))
+
       override def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(IO.cancelable { cb =>
           val cancel = self.schedule(timespan, tick(cb))
@@ -166,6 +163,34 @@ final class TestContext private () extends ExecutionContext { self =>
       override def clockMonotonic(unit: TimeUnit): F[Long] =
         clockRealTime(unit)
     }
+
+  /**
+    * Derives a `cats.effect.ContextShift` from this `TestContext`, for any data
+    * type that has a `LiftIO` and `MonadError` instance.
+    *
+    * Example:
+    *
+    * $timerExample
+    */
+  def contextShift[F[_]](implicit F: LiftIO[F], M: MonadError[F, Throwable]): ContextShift[F] =
+    new ContextShift[F] {
+      def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
+        new Runnable { def run() = cb(Right(())) }
+
+      override def shift: F[Unit] =
+        F.liftIO(IO.Async(new IOForkedStart[Unit] {
+          def apply(conn: IOConnection, cb: T[Unit]): Unit =
+            self.execute(tick(cb))
+        }))
+
+      override def shiftOn[A](context: ExecutionContext)(f: F[A]): F[A] = {
+        M.flatMap(F.liftIO(IOShift(context))) { _ =>
+        M.flatMap(M.attempt(f)) { r =>
+          M.flatMap(shift) { _ => M.rethrow(M.pure(r)) }
+        }}
+      }
+    }
+
 
   /**
    * Inherited from `ExecutionContext`, schedules a runnable

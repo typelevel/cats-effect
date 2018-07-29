@@ -41,9 +41,9 @@ private[effect] object IOForkedStart {
    * task is known to fork already, then this introduces
    * a light async boundary instead.
    */
-  def apply[A](task: IO[A], timer: Timer[IO]): IO[A] =
+  def apply[A](task: IO[A], contextShift: ContextShift[IO]): IO[A] =
     if (detect(task)) task
-    else timer.shift.flatMap(_ => task)
+    else contextShift.shift.flatMap(_ => task)
 
   /**
    * Returns `true` if the given task is known to fork execution,

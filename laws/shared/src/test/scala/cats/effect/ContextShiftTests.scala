@@ -15,13 +15,29 @@
  */
 
 package cats.effect
-package internals
+
+import cats.data.EitherT
+import org.scalatest.{AsyncFunSuite, Matchers}
+
+import scala.concurrent.ExecutionContext
+
+class ContextShiftTests extends AsyncFunSuite with Matchers {
+  implicit override def executionContext =
+    ExecutionContext.global
+
+  type EitherIO[A] = EitherT[IO, Throwable, A]
 
 
-class IOTimerTests extends BaseTestsSuite {
-  test("Timer[IO] default instance") {
-    val ref1 = Timer[IO]
-    ref1 shouldBe Timer[IO]
+  test("ContextShift[IO].shift") {
+    for (_ <- ContextShift[IO].shift.unsafeToFuture()) yield {
+      assert(1 == 1)
+    }
+  }
+
+  test("Timer[EitherT].shift") {
+    for (r <- ContextShift.derive[EitherIO].shift.value.unsafeToFuture()) yield {
+      r shouldBe Right(())
+    }
   }
 
 }

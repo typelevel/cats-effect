@@ -17,8 +17,6 @@
 package cats.effect
 package internals
 
-import scala.concurrent.ExecutionContext
-
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
@@ -26,16 +24,6 @@ private[effect] abstract class IOTimerRef {
   /**
    * Returns a [[Timer]] instance for [[IO]].
    *
-   * @param ec is a Scala `ExecutionContext` that's used for
-   *        the `shift` operation. Without one the implementation
-   *        would fallback to `setImmediate` (if available) or
-   *        to `setTimeout`
    */
-  implicit def timer(implicit ec: ExecutionContext = ExecutionContext.Implicits.global): Timer[IO] =
-    ec match {
-      case ExecutionContext.Implicits.global =>
-        IOTimer.global
-      case _ =>
-        IOTimer.deferred(ec)
-    }
+  implicit val timer: Timer[IO] = IOTimer.global
 }
