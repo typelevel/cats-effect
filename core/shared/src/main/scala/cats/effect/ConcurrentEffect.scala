@@ -59,7 +59,7 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
    *   cancel.unsafeRunSync
    * }}}
    */
-  def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]]
+  def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]]
 
   override def toIO[A](fa: F[A]): IO[A] =
     ConcurrentEffect.toIOFromRunCancelable(fa)(this)

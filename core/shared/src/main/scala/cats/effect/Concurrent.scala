@@ -182,41 +182,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
   /**
-   * Creates a cancelable `F[A]` instance that executes an
-   * asynchronous process on evaluation.
-   *
-   * This builder accepts a registration function that is
-   * being injected with a side-effectful callback, to be called
-   * when the asynchronous process is complete with a final result.
-   *
-   * The registration function is also supposed to return
-   * an `IO[Unit]` that captures the logic necessary for
-   * canceling the asynchronous process, for as long as it
-   * is still active.
-   *
-   * Example:
-   *
-   * {{{
-   *   import java.util.concurrent.ScheduledExecutorService
-   *   import scala.concurrent.duration._
-   *
-   *   def sleep[F[_]](d: FiniteDuration)
-   *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[Unit] = {
-   *
-   *     F.cancelable { cb =>
-   *       // Schedules task to run after delay
-   *       val run = new Runnable { def run() = cb(Right(())) }
-   *       val future = ec.schedule(run, d.length, d.unit)
-   *
-   *       // Cancellation logic, suspended in IO
-   *       IO(future.cancel(true))
-   *     }
-   *   }
-   * }}}
-   */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
-
-  /**
    * Start concurrent execution of the source suspended in
    * the `F` context.
    *
@@ -271,6 +236,42 @@ trait Concurrent[F[_]] extends Async[F] {
       case Left((a, fiberB)) => map(fiberB.cancel)(_ => Left(a))
       case Right((fiberA, b)) => map(fiberA.cancel)(_ => Right(b))
     }
+
+  /**
+   * Creates a cancelable `F[A]` instance that executes an
+   * asynchronous process on evaluation.
+   *
+   * This builder accepts a registration function that is
+   * being injected with a side-effectful callback, to be called
+   * when the asynchronous process is complete with a final result.
+   *
+   * The registration function is also supposed to return
+   * an `IO[Unit]` that captures the logic necessary for
+   * canceling the asynchronous process, for as long as it
+   * is still active.
+   *
+   * Example:
+   *
+   * {{{
+   *   import java.util.concurrent.ScheduledExecutorService
+   *   import scala.concurrent.duration._
+   *
+   *   def sleep[F[_]](d: FiniteDuration)
+   *     (implicit F: Concurrent[F], ec: ScheduledExecutorService): F[Unit] = {
+   *
+   *     F.cancelable { cb =>
+   *       // Schedules task to run after delay
+   *       val run = new Runnable { def run() = cb(Right(())) }
+   *       val future = ec.schedule(run, d.length, d.unit)
+   *
+   *       // Cancellation logic, suspended in IO
+   *       IO(future.cancel(true))
+   *     }
+   *   }
+   * }}}
+   */
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): F[A] =
+    Async.cancelable(k)(this)
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
@@ -394,13 +395,13 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[EitherT[F, L, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): EitherT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k))(F)
 
-    def start[A](fa: EitherT[F, L, A]) =
+    override def start[A](fa: EitherT[F, L, A]) =
       EitherT.liftF(F.start(fa.value).map(fiberT))
 
-    def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       EitherT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -432,13 +433,13 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[OptionT[F, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): OptionT[F, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): OptionT[F, A] =
       OptionT.liftF(F.cancelable(k))(F)
 
-    def start[A](fa: OptionT[F, A]) =
+    override def start[A](fa: OptionT[F, A]) =
       OptionT.liftF(F.start(fa.value).map(fiberT))
 
-    def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       OptionT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -470,13 +471,13 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[StateT[F, S, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): StateT[F, S, A] =
       StateT.liftF(F.cancelable(k))(F)
 
-    def start[A](fa: StateT[F, S, A]): StateT[F, S, Fiber[A]] =
+    override def start[A](fa: StateT[F, S, A]): StateT[F, S, Fiber[A]] =
       StateT(s => F.start(fa.run(s)).map { fiber => (s, fiberT(fiber)) })
 
-    def racePair[A, B](fa: StateT[F, S, A], fb: StateT[F, S, B]): StateT[F, S, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: StateT[F, S, A], fb: StateT[F, S, B]): StateT[F, S, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       StateT { startS =>
         F.racePair(fa.run(startS), fb.run(startS)).map {
           case Left(((s, value), fiber)) =>
@@ -500,15 +501,15 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[WriterT[F, L, ?], A]
 
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): WriterT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k))(L, F)
 
-    def start[A](fa: WriterT[F, L, A]) =
+    override def start[A](fa: WriterT[F, L, A]) =
       WriterT(F.start(fa.run).map { fiber =>
         (L.empty, fiberT[A](fiber))
       })
 
-    def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       WriterT(F.racePair(fa.run, fb.run).map {
         case Left(((l, value), fiber)) =>
           (l, Left((value, fiberT(fiber))))
@@ -529,7 +530,7 @@ object Concurrent {
     // compiler can choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): Kleisli[F, R, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): Kleisli[F, R, A] =
       Kleisli.liftF(F.cancelable(k))
 
     override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =

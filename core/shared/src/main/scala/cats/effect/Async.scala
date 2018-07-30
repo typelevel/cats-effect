@@ -19,11 +19,14 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.ExitCase.Canceled
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.{Callback, IORunLoop}
+import cats.effect.internals.TrampolineEC.immediate
+import cats.effect.internals.Callback.{rightUnit, successUnit}
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.Either
 
 /**
@@ -292,6 +295,39 @@ object Async {
           }
         }
     }
+
+  /**
+   * Cancelable builder derived from [[Async.asyncF asyncF]] and
+   * [[Bracket.bracketCase bracketCase]].
+   *
+   * Note that this builder is at this point not lawful, because
+   * the cancellation ability of values built via `bracketCase`
+   * isn't established until [[Concurrent]].
+   *
+   * When using [[Concurrent]], prefer to use [[Concurrent.cancelable]]
+   * instead, because it can have `F[_]` specific optimizations.
+   */
+  def cancelable[F[_], A](k: (Either[Throwable, A] => Unit) => CancelToken[IO])
+    (implicit F: Async[F]): F[A] = {
+
+    F.asyncF[A] { cb =>
+      // For back-pressuring bracketCase until the callback gets called.
+      // Need to work with `Promise` due to the callback being side-effecting.
+      val latch = Promise[Unit]()
+      val latchF = F.async[Unit](cb => latch.future.onComplete(_ => cb(rightUnit))(immediate))
+      // Side-effecting call; unfreezes latch in order to allow bracket to finish
+      val token = k { result =>
+        latch.complete(successUnit)
+        cb(result)
+      }
+      F.bracketCase(F.pure(token))(_ => latchF) {
+        case (ref, Canceled) =>
+          F.liftIO(ref)
+        case _ =>
+          F.unit
+      }
+    }
+  }
 
   /**
    * [[Async]] instance built for `cats.data.EitherT` values initialized
