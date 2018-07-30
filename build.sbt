@@ -257,6 +257,9 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#StateTConcurrent.onCancelRaiseError"),
       exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.onCancelRaiseError"),
 
+      // Issue #290: Concurrent/ConcurrentEffect changes
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.unsafeRunCancelable"),
+
       //
       // Following are all internal implementation details:
       //
