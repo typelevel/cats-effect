@@ -307,7 +307,7 @@ object Async {
    * When using [[Concurrent]], prefer to use [[Concurrent.cancelable]]
    * instead, because it can have `F[_]` specific optimizations.
    */
-  def cancelable[F[_], A](k: (Either[Throwable, A] => Unit) => CancelToken[IO])
+  def cancelable[F[_], A](k: (Either[Throwable, A] => Unit) => CancelToken[F])
     (implicit F: Async[F]): F[A] = {
 
     F.asyncF[A] { cb =>
@@ -321,10 +321,8 @@ object Async {
         cb(result)
       }
       F.bracketCase(F.pure(token))(_ => latchF) {
-        case (ref, Canceled) =>
-          F.liftIO(ref)
-        case _ =>
-          F.unit
+        case (cancel, Canceled) => cancel
+        case _ => F.unit
       }
     }
   }
