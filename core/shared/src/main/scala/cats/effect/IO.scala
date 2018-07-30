@@ -223,10 +223,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * @see [[runAsync]] for the simple, uninterruptible version
    */
-  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] = IO {
-    val cancel = unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ())))
-    IO.Delay(cancel)
-  }
+  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] =
+    IO(unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ()))))
 
   /**
    * Produces the result by running the encapsulated effects as impure
@@ -280,10 +278,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *         cancellation reference to `IO`'s run-loop implementation,
    *         having the potential to interrupt it.
    */
-  final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): () => Unit = {
+  final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): CancelToken[IO] = {
     val conn = IOConnection()
     IORunLoop.startCancelable(this, conn, cb)
-    conn.cancel
+    IO.Delay(conn.cancel)
   }
 
   /**

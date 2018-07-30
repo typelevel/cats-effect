@@ -125,7 +125,7 @@ object Deferred {
                   if (ref.compareAndSet(s, updated)) ()
                   else unregister()
               }
-            IO(unregister())
+            F.delay(unregister())
           }
       }
 
@@ -142,8 +142,7 @@ object Deferred {
             else register()
         }
 
-      register.foreach(a => cb(Right(a)))
-
+      register().foreach(a => cb(Right(a)))
       id
     }
 
