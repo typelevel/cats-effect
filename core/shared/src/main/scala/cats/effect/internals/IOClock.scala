@@ -20,19 +20,16 @@ import cats.effect.{Clock, IO}
 
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 
-private[internals] final class IOClock extends Clock[IO] {
+ /**
+  * Internal API, implementation of [[Clock]]
+  *
+  */
+private[internals]  class IOClock extends Clock[IO] {
 
-  override def clockRealTime(unit: TimeUnit): IO[Long] =
+  final def clockRealTime(unit: TimeUnit): IO[Long] =
     IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-  override def clockMonotonic(unit: TimeUnit): IO[Long] =
+  final def clockMonotonic(unit: TimeUnit): IO[Long] =
     IO(unit.convert(System.nanoTime(), NANOSECONDS))
-
-}
-
-
-object IOClock {
-
-  val global: Clock[IO] = new IOClock
 
 }

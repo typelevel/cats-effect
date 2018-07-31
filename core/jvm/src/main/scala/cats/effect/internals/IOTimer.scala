@@ -38,11 +38,13 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
+  val clock : Clock[IO] = Clock.syncInstance[IO]
+
   override def clockRealTime(unit: TimeUnit): IO[Long] =
-    IOClock.global.clockRealTime(unit)
+    clock.clockRealTime(unit)
 
   override def clockMonotonic(unit: TimeUnit): IO[Long] =
-    IOClock.global.clockMonotonic(unit)
+    clock.clockMonotonic(unit)
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {

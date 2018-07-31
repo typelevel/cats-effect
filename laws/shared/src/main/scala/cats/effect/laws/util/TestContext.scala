@@ -16,11 +16,10 @@
 
 package cats.effect.laws.util
 
-import cats.MonadError
 import cats.effect.internals.Callback.T
 import cats.effect.internals.Cancelable.{Type => Cancelable}
 import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
-import cats.effect.{ContextShift, IO, LiftIO, Timer}
+import cats.effect.{Bracket, ContextShift, IO, LiftIO, Timer}
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -172,7 +171,7 @@ final class TestContext private () extends ExecutionContext { self =>
     *
     * $timerExample
     */
-  def contextShift[F[_]](implicit F: LiftIO[F], M: MonadError[F, Throwable]): ContextShift[F] =
+  def contextShift[F[_]](implicit F: LiftIO[F], B: Bracket[F, Throwable]): ContextShift[F] =
     new ContextShift[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
@@ -183,12 +182,8 @@ final class TestContext private () extends ExecutionContext { self =>
             self.execute(tick(cb))
         }))
 
-      override def shiftOn[A](context: ExecutionContext)(f: F[A]): F[A] = {
-        M.flatMap(F.liftIO(IOShift(context))) { _ =>
-        M.flatMap(M.attempt(f)) { r =>
-          M.flatMap(shift) { _ => M.rethrow(M.pure(r)) }
-        }}
-      }
+      override def shiftOn[A](context: ExecutionContext)(f: F[A]): F[A] =
+        B.bracket(F.liftIO(IOShift(context)))(_ => f)(_ => shift)
     }
 
 

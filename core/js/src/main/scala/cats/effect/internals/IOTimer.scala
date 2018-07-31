@@ -29,12 +29,13 @@ import scala.scalajs.js
  */
 private[internals] class IOTimer extends Timer[IO] {
   import IOTimer.{ScheduledTick, setTimeout, clearTimeout}
+  val clock : Clock[IO] = Clock.syncInstance[IO]
 
   final def clockRealTime(unit: TimeUnit): IO[Long] =
-    IOClock.global.clockRealTime(unit)
+    clock.clockRealTime(unit)
 
   final def clockMonotonic(unit: TimeUnit): IO[Long] =
-    IOClock.global.clockMonotonic(unit)
+    clock.clockMonotonic(unit)
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -67,7 +68,6 @@ private[internals] object IOTimer {
   private def clearTimeout(task: js.Dynamic): Unit = {
     js.Dynamic.global.clearTimeout(task)
   }
-
 
   private final class ScheduledTick(
     conn: IOConnection,

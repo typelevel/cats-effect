@@ -16,9 +16,9 @@
 
 package cats.effect
 
-import scala.concurrent.duration.TimeUnit
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 
-/**
+ /**
   * Clock provides access to platform's time information
   *
   * It does all of that in an `F` monadic context that can suspend
@@ -33,7 +33,7 @@ import scala.concurrent.duration.TimeUnit
   */
 trait Clock[F[_]] {
 
-  /**
+   /**
     * Returns the current time, as a Unix timestamp (number of time units
     * since the Unix epoch), suspended in `F[_]`.
     *
@@ -117,23 +117,24 @@ trait Clock[F[_]] {
 
 object Clock  {
 
-  /**
+   /**
     * For a given `F` data type fetches the implicit [[Clock]]
     * instance available implicitly in the local scope.
     */
   def apply[F[_]](implicit clock: Clock[F]): Clock[F] = clock
 
-
-  /**
-    * Derives a [[Clock]] for any type that has a [[LiftIO]] instance,
-    * from the implicitly available `Clock[IO]` that should be in scope.
+   /**
+    * Provides `F` instance for any `F` that has `Sync` defined
     */
-  def derive[F[_]](implicit F: LiftIO[F], clock: Clock[IO]): Clock[F] =
+  implicit def syncInstance[F[_]](implicit F: Sync[F]): Clock[F] =
     new Clock[F] {
-      def clockRealTime(unit: TimeUnit): F[Long] =
-        F.liftIO(clock.clockRealTime(unit))
-      def clockMonotonic(unit: TimeUnit): F[Long] =
-        F.liftIO(clock.clockMonotonic(unit))
+
+      override def clockRealTime(unit: TimeUnit): F[Long] =
+        F.delay(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+
+      override def clockMonotonic(unit: TimeUnit): F[Long] =
+        F.delay(unit.convert(System.nanoTime(), NANOSECONDS))
+
     }
 
 }

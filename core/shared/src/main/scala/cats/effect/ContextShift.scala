@@ -18,7 +18,7 @@ package cats.effect
 
 import scala.concurrent.ExecutionContext
 
-/**
+ /**
   * ContextShift provides access to asynchronous execution.
   *
   * It allows to shift execution to asynchronous boundary,
@@ -30,7 +30,7 @@ import scala.concurrent.ExecutionContext
 trait ContextShift[F[_]] {
 
 
-  /**
+   /**
     * Asynchronous boundary described as an effectful `F[_]` that
     * can be used in `flatMap` chains to "shift" the continuation
     * of the run-loop to another thread or call stack.
@@ -38,16 +38,10 @@ trait ContextShift[F[_]] {
     * This is the [[Async.shift]] operation, without the need for an
     * `ExecutionContext` taken as a parameter.
     *
-    * This `shift` operation can usually be derived from `sleep`:
-    *
-    * {{{
-    *   timer.shift <-> timer.sleep(Duration.Zero)
-    * }}}
     */
   def shift: F[Unit]
 
-
-  /**
+   /**
     * Shifts execution of `f` to supplied execution context and back to default
     * context.
     *
@@ -68,13 +62,13 @@ trait ContextShift[F[_]] {
 
 object ContextShift {
 
-  /**
+   /**
     * For a given `F` data type fetches the implicit [[ContextShift]]
     * instance available implicitly in the local scope.
     */
   def apply[F[_]](implicit contextShift: ContextShift[F]): ContextShift[F] = contextShift
 
-  /**
+   /**
     * Derives a [[ContextShift]] for any type that has a [[Effect]] instance,
     * from the implicitly available `ContextShift[IO]` that should be in scope.
     */
