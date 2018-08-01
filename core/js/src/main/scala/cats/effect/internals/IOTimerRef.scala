@@ -25,5 +25,5 @@ private[effect] abstract class IOTimerRef {
    * Returns a [[Timer]] instance for [[IO]].
    *
    */
-  implicit val timer: Timer[IO] = IOTimer.global
+  implicit def timer: Timer[IO] = IOTimer.global
 }
