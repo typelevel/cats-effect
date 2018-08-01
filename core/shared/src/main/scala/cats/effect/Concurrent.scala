@@ -19,12 +19,15 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.ExitCase.Canceled
 import cats.effect.IO.{Delay, Pure, RaiseError}
+import cats.effect.internals.Callback.{rightUnit, successUnit}
 import cats.effect.internals.IORunLoop
+import cats.effect.internals.TrampolineEC.immediate
 import cats.syntax.all._
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.TimeoutException
+import scala.concurrent.{Promise, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Either
 
@@ -41,7 +44,7 @@ import scala.util.Either
  *
  * Due to these restrictions, this type class also affords to describe
  * a [[Concurrent!.start start]] operation that can start async
- * processing, suspended in the context of `F[_]` and that can be
+ * processes, suspended in the context of `F[_]` and that can be
  * canceled or joined.
  *
  * Without cancellation being baked in, we couldn't afford to do it.
@@ -53,12 +56,13 @@ import scala.util.Either
  * builder is this:
  *
  * {{{
- *   (Either[Throwable, A] => Unit) => IO[Unit]
+ *   (Either[Throwable, A] => Unit) => CancelToken[F]
  * }}}
  *
- * `IO[Unit]` is used to represent a cancellation action which will
- * send a signal to the producer, that may observe it and cancel the
- * asynchronous process.
+ * [[CancelToken CancelToken[F]]] is just an alias for `F[Unit]` and
+ * used to represent a cancellation action which will send a signal
+ * to the producer, that may observe it and cancel the asynchronous
+ * process.
  *
  * ==On Cancellation==
  *
@@ -79,7 +83,7 @@ import scala.util.Either
  * can be canceled would be:
  *
  * {{{
- *   (A => Unit) => Cancelable
+ *   (A => Unit) => CancelToken
  * }}}
  *
  * This is approximately the signature of JavaScript's `setTimeout`,
@@ -88,10 +92,9 @@ import scala.util.Either
  * Java `ScheduledFuture` that has a `.cancel()` operation on it.
  *
  * Similarly, for `Concurrent` data types, we can provide
- * cancellation logic, that can be triggered in race conditions to
+ * cancellation logic that can be triggered in race conditions to
  * cancel the on-going processing, only that `Concurrent`'s
- * cancelable token is an action suspended in an `IO[Unit]`. See
- * [[IO.cancelable]].
+ * cancelation token is an action suspended in an `F[Unit]`.
  *
  * Suppose you want to describe a "sleep" operation, like that described
  * by [[Timer]] to mirror Java's `ScheduledExecutorService.schedule`
@@ -140,18 +143,28 @@ import scala.util.Either
  * operation that is safe.
  *
  * == Resource-safety ==
- * [[Concurrent]] data type is also required to cooperate with [[Bracket]]:
  *
+ * [[Concurrent]] data types are required to cooperate with [[Bracket]].
+ * `Concurrent` being cancelable by law, what this means for the
+ * corresponding `Bracket` is that cancelation can be observed and
+ * that in the case of [[Bracket.bracketCase bracketCase]] the
+ * [[ExitCase.Canceled]] branch will get executed on cancelation.
  *
- * For `uncancelable`, the [[Fiber.cancel cancel]] signal has no effect on the
- * result of [[Fiber.join join]] and that the cancelable token returned by
- * [[ConcurrentEffect.runCancelable]] on evaluation will have no effect.
+ * By default the `cancelable` builder is derived from `bracketCase`
+ * and from [[Async.asyncF asyncF]], so what this means is that
+ * whatever you can express with `cancelable`, you can also express
+ * with `bracketCase`.
  *
- * So `uncancelable` must undo the cancellation mechanism of [[Concurrent!.cancelable cancelable]],
- * with this equivalence:
+ * For [[Bracket.uncancelable uncancelable]], the [[Fiber.cancel cancel]]
+ * signal has no effect on the result of [[Fiber.join join]] and
+ * the cancelable token returned by [[ConcurrentEffect.runCancelable]]
+ * on evaluation will have no effect if evaluated.
+ *
+ * So `uncancelable` must undo the cancellation mechanism of
+ * [[Concurrent!.cancelable cancelable]], with this equivalence:
  *
  * {{{
- *   F.uncancelable(F.cancelable { cb => f(cb); io }) <-> F.async(f)
+ *   F.uncancelable(F.cancelable { cb => f(cb); token }) <-> F.async(f)
  * }}}
  *
  * Sample:
@@ -271,7 +284,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * }}}
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[F]): F[A] =
-    Async.cancelable(k)(this)
+    Concurrent.defaultCancelable(k)(this)
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
@@ -546,5 +559,29 @@ object Concurrent {
 
     protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
+  }
+
+  /**
+   * Internal API — Cancelable builder derived from
+   * [[Async.asyncF]] and [[Bracket.bracketCase]].
+   */
+  private def defaultCancelable[F[_], A](k: (Either[Throwable, A] => Unit) => CancelToken[F])
+    (implicit F: Async[F]): F[A] = {
+
+    F.asyncF[A] { cb =>
+      // For back-pressuring bracketCase until the callback gets called.
+      // Need to work with `Promise` due to the callback being side-effecting.
+      val latch = Promise[Unit]()
+      val latchF = F.async[Unit](cb => latch.future.onComplete(_ => cb(rightUnit))(immediate))
+      // Side-effecting call; unfreezes latch in order to allow bracket to finish
+      val token = k { result =>
+        latch.complete(successUnit)
+        cb(result)
+      }
+      F.bracketCase(F.pure(token))(_ => latchF) {
+        case (cancel, Canceled) => cancel
+        case _ => F.unit
+      }
+    }
   }
 }
