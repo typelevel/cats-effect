@@ -18,7 +18,25 @@ package cats.effect.internals
 
 import cats.effect.{ContextShift, IO}
 
+import scala.concurrent.ExecutionContext
+
 private[effect] trait IOContextShiftRef {
 
-  implicit val contextShift: ContextShift[IO] = IOContextShift.global
+  /**
+    * Returns a [[ContextShift]] instance for [[IO]].
+    *
+    * Note that even when JS does not require ExecutionContext,
+    * it is is here required to provide default instance of test EC for testing purposes.
+    *
+    */
+  implicit def contextShift(implicit ec: ExecutionContext = ExecutionContext.Implicits.global ): ContextShift[IO] =  {
+    ec match {
+      case ExecutionContext.Implicits.global =>
+        IOContextShift.global
+      case _ =>
+        IOContextShift.deferred(ec)
+    }
+  }
+
+
 }
