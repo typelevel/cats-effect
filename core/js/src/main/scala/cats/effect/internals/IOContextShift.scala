@@ -42,7 +42,7 @@ private[internals] class IOContextShift extends ContextShift[IO] {
       }
     })
 
-  final def shiftOn[A](context: ExecutionContext)(f: IO[A]): IO[A] = {
+  final def evalOn[A](context: ExecutionContext)(f: IO[A]): IO[A] = {
     // this consults context and then fallbacks to specialized `shift` of JS platform
     IO.async[Unit] { cb => context.execute(new Tick(cb)) }.flatMap { _ =>
       f.attempt.flatMap { r => shift.flatMap { _ => IO.fromEither(r) } }

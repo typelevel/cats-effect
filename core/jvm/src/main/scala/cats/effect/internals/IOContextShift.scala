@@ -33,7 +33,7 @@ private[internals] final class IOContextShift private (ec: ExecutionContext)
   override def shift: IO[Unit] =
     IOShift(ec)
 
-  override def shiftOn[A](context: ExecutionContext)(f: IO[A]): IO[A] =
+  override def evalOn[A](context: ExecutionContext)(f: IO[A]): IO[A] =
     IOShift.shiftOn(context, ec, f)
 
 }

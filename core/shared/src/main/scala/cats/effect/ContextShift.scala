@@ -42,10 +42,10 @@ trait ContextShift[F[_]] {
   def shift: F[Unit]
 
    /**
-    * Shifts execution of `f` to supplied execution context and back to default
+    * Evaluates execution of `f` by shifting it to supplied execution context and back to default
     * context.
     *
-    * This is useful in scenarios where some context has to be executed on different
+    * This is useful in scenarios where supplied `f` has to be executed on different
     * Thread pool and once supplied `f` finishes its execution (including a failure)
     * this will return back to original execution context.
     *
@@ -55,7 +55,7 @@ trait ContextShift[F[_]] {
     * @param context  Execution content where the `f` has to be scheduled
     * @param f        Computation to rin on `context`
     */
-  def shiftOn[A](context: ExecutionContext)(f: F[A]): F[A]
+  def evalOn[A](context: ExecutionContext)(f: F[A]): F[A]
 
 }
 
@@ -77,8 +77,8 @@ object ContextShift {
       def shift: F[Unit] =
         F.liftIO(contextShift.shift)
 
-      def shiftOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        F.liftIO(contextShift.shiftOn(context)(F.toIO(f)))
+      def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
+        F.liftIO(contextShift.evalOn(context)(F.toIO(f)))
     }
 
 
