@@ -271,6 +271,12 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
     fc <-> F.pure(f(a, b))
   }
+
+  def sameEffectWithStartIsDeterministic[A](fa: F[A]) = (for {
+    f <- F.start(fa)
+    _ <- fa
+    a <- f.join
+  } yield a) <-> fa *> fa
 }
 
 object ConcurrentLaws {

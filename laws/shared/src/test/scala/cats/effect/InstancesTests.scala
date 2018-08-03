@@ -27,8 +27,7 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => {
-      implicit val timer: Timer[StateT[IO, Int, ?]] = Timer.derive
-      ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
+      EffectTests[StateT[IO, Int, ?]].effect[Int, Int, Int]
     })
 
   checkAllAsync("OptionT[IO, ?]",

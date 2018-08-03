@@ -364,13 +364,6 @@ object Concurrent {
     new OptionTConcurrent[F] { def F = Concurrent[F] }
 
   /**
-   * [[Concurrent]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `Concurrent`.
-   */
-  implicit def catsStateTConcurrent[F[_]: Concurrent, S]: Concurrent[StateT[F, S, ?]] =
-    new StateTConcurrent[F, S] { def F = Concurrent[F] }
-
-  /**
    * [[Concurrent]] instance built for `cats.data.Kleisli` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
@@ -458,36 +451,6 @@ object Concurrent {
 
     protected def fiberT[A](fiber: effect.Fiber[F, Option[A]]): Fiber[A] =
       Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
-  }
-
-  private[effect] trait StateTConcurrent[F[_], S] extends Async.StateTAsync[F, S]
-    with Concurrent[StateT[F, S, ?]] {
-
-    override protected implicit def F: Concurrent[F]
-    override protected def FA = F
-
-    // Needed to drive static checks, otherwise the
-    // compiler will choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[StateT[F, S, ?], A]
-
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): StateT[F, S, A] =
-      StateT.liftF(F.cancelable(k))(F)
-
-    def start[A](fa: StateT[F, S, A]): StateT[F, S, Fiber[A]] =
-      StateT(s => F.start(fa.run(s)).map { fiber => (s, fiberT(fiber)) })
-
-    def racePair[A, B](fa: StateT[F, S, A], fb: StateT[F, S, B]): StateT[F, S, Either[(A, Fiber[B]), (Fiber[A], B)]] =
-      StateT { startS =>
-        F.racePair(fa.run(startS), fb.run(startS)).map {
-          case Left(((s, value), fiber)) =>
-            (s, Left((value, fiberT(fiber))))
-          case Right((fiber, (s, value))) =>
-            (s, Right((fiberT(fiber), value)))
-        }
-      }
-
-    protected def fiberT[A](fiber: effect.Fiber[F, (S, A)]): Fiber[A] =
-      Fiber(StateT(_ => fiber.join), StateT.liftF(fiber.cancel))
   }
 
   private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L]

@@ -18,7 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, StateT, WriterT}
+import cats.data.{EitherT, WriterT}
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -83,13 +83,6 @@ object ConcurrentEffect {
     new EitherTConcurrentEffect[F] { def F = ConcurrentEffect[F] }
 
   /**
-   * [[ConcurrentEffect]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `ConcurrentEffect`.
-   */
-  implicit def catsStateTConcurrentEffect[F[_]: ConcurrentEffect, S: Monoid]: ConcurrentEffect[StateT[F, S, ?]] =
-    new StateTConcurrentEffect[F, S] { def F = ConcurrentEffect[F]; def S = Monoid[S] }
-
-  /**
    * [[ConcurrentEffect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `ConcurrentEffect`.
    */
@@ -106,19 +99,6 @@ object ConcurrentEffect {
     def runCancelable[A](fa: EitherT[F, Throwable, A])
       (cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
       F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x)))
-  }
-
-  private[effect] trait StateTConcurrentEffect[F[_], S]
-    extends ConcurrentEffect[StateT[F, S, ?]]
-    with Concurrent.StateTConcurrent[F, S]
-    with Effect.StateTEffect[F, S] {
-
-    protected def F: ConcurrentEffect[F]
-    protected def S: Monoid[S]
-
-    def runCancelable[A](fa: StateT[F, S, A])
-      (cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-      F.runCancelable(fa.runA(S.empty)(F))(cb)
   }
 
   private[effect] trait WriterTConcurrentEffect[F[_], L]
