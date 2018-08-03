@@ -6,7 +6,7 @@ source: "shared/src/main/scala/cats/effect/concurrent/MVar.scala"
 scaladoc: "#cats.effect.concurrent.MVar"
 ---
 
-An `MVar` is a mutable location that can be empty or contains a value,
+An `MVar` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
 ```tut:silent
