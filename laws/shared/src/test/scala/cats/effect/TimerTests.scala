@@ -29,9 +29,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
 
 
-  test("Timer[IO].clockRealTime") {
+  test("Timer[IO].clock.realTime") {
     val time = System.currentTimeMillis()
-    val io = Timer[IO].clockRealTime(MILLISECONDS)
+    val io = Timer[IO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
       time should be > 0L
@@ -39,9 +39,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("Timer[IO].clockMonotonic") {
+  test("Timer[IO].clock.monotonic") {
     val time = System.nanoTime()
-    val io = Timer[IO].clockMonotonic(NANOSECONDS)
+    val io = Timer[IO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
       time should be > 0L
@@ -52,9 +52,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
   test("Timer[IO].sleep(10.ms)") {
     implicit val timer = Timer[IO]
     val io = for {
-      start <- timer.clockMonotonic(MILLISECONDS)
+      start <- timer.clock.monotonic(MILLISECONDS)
       _ <- timer.sleep(10.millis)
-      end <- timer.clockMonotonic(MILLISECONDS)
+      end <- timer.clock.monotonic(MILLISECONDS)
     } yield {
       end - start
     }
@@ -73,9 +73,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
 
-  test("Timer[EitherT].clockRealTime") {
+  test("Timer[EitherT].clock.realTime") {
     val time = System.currentTimeMillis()
-    val io = Timer.derive[EitherIO].clockRealTime(MILLISECONDS)
+    val io = Timer.derive[EitherIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -83,9 +83,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("Timer[EitherT].clockMonotonic") {
+  test("Timer[EitherT].clock.monotonic") {
     val time = System.nanoTime()
-    val io = Timer.derive[EitherIO].clockMonotonic(NANOSECONDS)
+    val io = Timer.derive[EitherIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -96,9 +96,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
   test("Timer[EitherT].sleep(10.ms)") {
     implicit val timer = Timer.derive[EitherIO]
     val io = for {
-      start <- timer.clockMonotonic(MILLISECONDS)
+      start <- timer.clock.monotonic(MILLISECONDS)
       _ <- timer.sleep(10.millis)
-      end <- timer.clockMonotonic(MILLISECONDS)
+      end <- timer.clock.monotonic(MILLISECONDS)
     } yield {
       end - start
     }

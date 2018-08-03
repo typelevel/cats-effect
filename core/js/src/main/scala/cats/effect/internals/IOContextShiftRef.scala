@@ -29,14 +29,9 @@ private[effect] trait IOContextShiftRef {
     * it is is here required to provide default instance of test EC for testing purposes.
     *
     */
-  implicit def contextShift(implicit ec: ExecutionContext = ExecutionContext.Implicits.global ): ContextShift[IO] =  {
-    ec match {
-      case ExecutionContext.Implicits.global =>
-        IOContextShift.global
-      case _ =>
-        IOContextShift.deferred(ec)
-    }
-  }
+  implicit def contextShift(implicit ec: ExecutionContext = ExecutionContext.Implicits.global ): ContextShift[IO] =
+    IOContextShift.deferred(ec)
+
 
 
 }

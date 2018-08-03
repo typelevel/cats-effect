@@ -81,6 +81,4 @@ object ContextShift {
         F.liftIO(contextShift.evalOn(context)(F.toIO(f)))
     }
 
-
-
 }

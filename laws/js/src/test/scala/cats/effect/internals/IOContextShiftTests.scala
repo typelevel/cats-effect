@@ -21,11 +21,7 @@ import cats.effect.{BaseTestsSuite, ContextShift, IO}
 import scala.util.Success
 
 class IOContextShiftTests extends BaseTestsSuite {
-  test("ContextShift[IO] default instance") {
-    val ref1 = ContextShift[IO]
-    ref1 shouldBe ContextShift[IO]
-  }
-
+ 
   testAsync("ContextShift[IO] instance based on implicit ExecutionContext") { implicit ec =>
     val contextShift = ContextShift[IO]
 

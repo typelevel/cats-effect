@@ -26,10 +26,10 @@ import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
   */
 private[internals]  class IOClock extends Clock[IO] {
 
-  final def clockRealTime(unit: TimeUnit): IO[Long] =
+  final def realTime(unit: TimeUnit): IO[Long] =
     IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-  final def clockMonotonic(unit: TimeUnit): IO[Long] =
+  final def monotonic(unit: TimeUnit): IO[Long] =
     IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
 }

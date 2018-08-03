@@ -48,7 +48,7 @@ trait Clock[F[_]] {
     * {{{
     *   import scala.concurrent.duration.MILLISECONDS
     *
-    *   timer.clockRealTime(MILLISECONDS)
+    *   clock.realTime(MILLISECONDS)
     * }}}
     *
     * N.B. the resolution is limited by the underlying implementation
@@ -58,10 +58,10 @@ trait Clock[F[_]] {
     * runtime (e.g. Node.js) it might return multiples of 10
     * milliseconds or more.
     *
-    * See [[clockMonotonic]], for fetching a monotonic value that
+    * See [[monotonic]], for fetching a monotonic value that
     * may be better suited for doing time measurements.
     */
-  def clockRealTime(unit: TimeUnit): F[Long]
+  def realTime(unit: TimeUnit): F[Long]
 
   /**
     * Returns a monotonic clock measurement, if supported by the
@@ -71,7 +71,7 @@ trait Clock[F[_]] {
     * or of `CLOCK_MONOTONIC` from Linux's `clock_gettime()`.
     *
     * {{{
-    *   timer.clockMonotonic(NANOSECONDS)
+    *   clock.monotonic(NANOSECONDS)
     * }}}
     *
     * The returned value can have nanoseconds resolution and represents
@@ -108,9 +108,9 @@ trait Clock[F[_]] {
     * The recommendation is to use this monotonic clock when doing
     * measurements of execution time, or if you value monotonically
     * increasing values more than a correspondence to wall-time, or
-    * otherwise prefer [[clockRealTime]].
+    * otherwise prefer [[realTime]].
     */
-  def clockMonotonic(unit: TimeUnit): F[Long]
+  def monotonic(unit: TimeUnit): F[Long]
 
 }
 
@@ -124,15 +124,15 @@ object Clock  {
   def apply[F[_]](implicit clock: Clock[F]): Clock[F] = clock
 
    /**
-    * Provides `F` instance for any `F` that has `Sync` defined
+    * Provides Clock instance for any `F` that has `Sync` defined
     */
-  implicit def syncInstance[F[_]](implicit F: Sync[F]): Clock[F] =
+  def instance[F[_]](implicit F: Sync[F]): Clock[F] =
     new Clock[F] {
 
-      override def clockRealTime(unit: TimeUnit): F[Long] =
+      override def realTime(unit: TimeUnit): F[Long] =
         F.delay(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-      override def clockMonotonic(unit: TimeUnit): F[Long] =
+      override def monotonic(unit: TimeUnit): F[Long] =
         F.delay(unit.convert(System.nanoTime(), NANOSECONDS))
 
     }

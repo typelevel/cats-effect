@@ -50,8 +50,12 @@ Timer.derive requires an implicit Timer[IO], which can be available from:
 * cats.effect.IO.timer, if there's an implicit 
 scala.concurrent.ExecutionContext in scope
 """)
-trait Timer[F[_]] extends Clock[F] {
+trait Timer[F[_]]  {
 
+  /**
+    * Provides instance of clock backing this timer
+    */
+  def clock: Clock[F]
 
   /**
    * Creates a new task that will sleep for the given duration,
@@ -92,9 +96,14 @@ object Timer {
     new Timer[F] {
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(timer.sleep(timespan))
-      def clockRealTime(unit: TimeUnit): F[Long] =
-        F.liftIO(timer.clockRealTime(unit))
-      def clockMonotonic(unit: TimeUnit): F[Long] =
-        F.liftIO(timer.clockMonotonic(unit))
+
+      val clock: Clock[F] = new Clock[F] {
+        override def realTime(unit: TimeUnit): F[Long] =
+          F.liftIO(timer.clock.realTime(unit))
+
+        override def monotonic(unit: TimeUnit): F[Long] =
+          F.liftIO(timer.clock.monotonic(unit))
+      }
+
     }
 }

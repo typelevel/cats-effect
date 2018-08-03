@@ -17,7 +17,7 @@
 package cats.effect
 package internals
 
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.js
 
 /**
@@ -29,13 +29,8 @@ import scala.scalajs.js
  */
 private[internals] class IOTimer extends Timer[IO] {
   import IOTimer.{ScheduledTick, setTimeout, clearTimeout}
-  val clock : Clock[IO] = Clock.syncInstance[IO]
 
-  final def clockRealTime(unit: TimeUnit): IO[Long] =
-    clock.clockRealTime(unit)
-
-  final def clockMonotonic(unit: TimeUnit): IO[Long] =
-    clock.clockMonotonic(unit)
+  val clock : Clock[IO] = Clock.instance[IO]
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {

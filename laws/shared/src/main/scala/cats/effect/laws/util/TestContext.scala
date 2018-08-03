@@ -19,7 +19,7 @@ package cats.effect.laws.util
 import cats.effect.internals.Callback.T
 import cats.effect.internals.Cancelable.{Type => Cancelable}
 import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
-import cats.effect.{Bracket, ContextShift, IO, LiftIO, Timer}
+import cats.effect.{Bracket, Clock, ContextShift, IO, LiftIO, Timer}
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -154,13 +154,19 @@ final class TestContext private () extends ExecutionContext { self =>
           val cancel = self.schedule(timespan, tick(cb))
           IO(cancel())
         })
-      override def clockRealTime(unit: TimeUnit): F[Long] =
-        F.liftIO(IO {
-          val d = self.state.clock
-          unit.convert(d.length, d.unit)
-        })
-      override def clockMonotonic(unit: TimeUnit): F[Long] =
-        clockRealTime(unit)
+
+      val clock: Clock[F] = new Clock[F] {
+        def realTime(unit: TimeUnit): F[Long] =
+          F.liftIO(IO {
+            val d = self.state.clock
+            unit.convert(d.length, d.unit)
+          })
+
+        def monotonic(unit: TimeUnit): F[Long] =
+          realTime(unit)
+      }
+
+
     }
 
   /**

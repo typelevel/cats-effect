@@ -105,33 +105,33 @@ class TestContextTests extends BaseTestsSuite {
     assert(f.value === Some(Success(2)))
   }
 
-  testAsync("timer.clockRealTime") { ec =>
+  testAsync("timer.clock.realTime") { ec =>
     val timer = ec.timer[IO]
 
-    val t1 = timer.clockRealTime(MILLISECONDS).unsafeRunSync()
+    val t1 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
     assert(t1 === 0)
 
     ec.tick(5.seconds)
-    val t2 = timer.clockRealTime(MILLISECONDS).unsafeRunSync()
+    val t2 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
     assert(t2 === 5000)
 
     ec.tick(10.seconds)
-    val t3 = timer.clockRealTime(MILLISECONDS).unsafeRunSync()
+    val t3 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
     assert(t3 === 15000)
   }
 
-  testAsync("timer.clockMonotonic") { ec =>
+  testAsync("timer.clock.monotonic") { ec =>
     val timer = ec.timer[IO]
 
-    val t1 = timer.clockMonotonic(MILLISECONDS).unsafeRunSync()
+    val t1 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
     assert(t1 === 0)
 
     ec.tick(5.seconds)
-    val t2 = timer.clockMonotonic(MILLISECONDS).unsafeRunSync()
+    val t2 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
     assert(t2 === 5000)
 
     ec.tick(10.seconds)
-    val t3 = timer.clockMonotonic(MILLISECONDS).unsafeRunSync()
+    val t3 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
     assert(t3 === 15000)
   }
 

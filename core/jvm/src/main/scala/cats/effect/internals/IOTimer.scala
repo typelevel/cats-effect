@@ -23,7 +23,7 @@ import cats.effect.internals.Callback.T
 import cats.effect.internals.IOShift.Tick
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Internal API — JVM specific implementation of a `Timer[IO]`.
@@ -38,13 +38,7 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
-  val clock : Clock[IO] = Clock.syncInstance[IO]
-
-  override def clockRealTime(unit: TimeUnit): IO[Long] =
-    clock.clockRealTime(unit)
-
-  override def clockMonotonic(unit: TimeUnit): IO[Long] =
-    clock.clockMonotonic(unit)
+  val clock : Clock[IO] = Clock.instance[IO]
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
