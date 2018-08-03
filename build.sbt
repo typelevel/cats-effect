@@ -304,11 +304,13 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
       exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick"),
-      // Removing Concurrent[StateT]
+      // Removing ConcurrentEffect[StateT]
       exclude[MissingClassProblem]("cats.effect.ConcurrentEffect$StateTConcurrentEffect"),
       exclude[MissingClassProblem]("cats.effect.Concurrent$StateTConcurrent"),
+      exclude[MissingClassProblem]("cats.effect.Effect$StateTEffect"),
       exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect.catsStateTConcurrentEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.catsStateTConcurrent")
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.catsStateTConcurrent"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect.catsStateTEffect")
     )
   })
 

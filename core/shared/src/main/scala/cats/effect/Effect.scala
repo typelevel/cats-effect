@@ -18,8 +18,7 @@ package cats
 package effect
 
 import simulacrum._
-import cats.data.{EitherT, StateT, WriterT}
-import cats.implicits._
+import cats.data.{EitherT, WriterT}
 import scala.annotation.implicitNotFound
 import scala.util.Either
 
@@ -99,13 +98,6 @@ object Effect {
     new EitherTEffect[F] { def F = Effect[F] }
 
   /**
-   * [[Effect]] instance built for `cats.data.StateT` values initialized
-   * with any `F` data type that also implements `Effect`.
-   */
-  implicit def catsStateTEffect[F[_]: Effect, S: Monoid]: Effect[StateT[F, S, ?]] =
-    new StateTEffect[F, S] { def F = Effect[F]; def S = Monoid[S] }
-
-  /**
    * [[Effect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Effect`.
    */
@@ -129,22 +121,6 @@ object Effect {
 
     override def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
       F.toIO(F.rethrow(fa.value))
-  }
-
-  private[effect] trait StateTEffect[F[_], S] extends Effect[StateT[F, S, ?]]
-    with Async.StateTAsync[F, S] {
-
-    protected def F: Effect[F]
-    protected def S: Monoid[S]
-
-    def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
-      F.runAsync(fa.runA(S.empty)(F))(cb)
-
-    def runSyncStep[A](fa: StateT[F, S, A]): IO[Either[StateT[F, S, A], A]] =
-      F.runSyncStep(fa.runA(S.empty)(F)).map(_.leftMap(fa => StateT.liftF(fa)(F)))
-
-    override def toIO[A](fa: StateT[F, S, A]): IO[A] =
-      F.toIO(fa.runA(S.empty)(F))
   }
 
   private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
