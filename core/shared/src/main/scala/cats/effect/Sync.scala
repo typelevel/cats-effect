@@ -155,7 +155,7 @@ object Sync {
       fa.flatMap(f)
 
     def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
-      OptionT.catsDataMonadForOptionT[F].tailRecM(a)(f)
+      OptionT.catsDataMonadErrorForOptionT[F, Throwable].tailRecM(a)(f)
 
     def suspend[A](thunk: => OptionT[F, A]): OptionT[F, A] =
       OptionT(F.suspend(thunk.value))
