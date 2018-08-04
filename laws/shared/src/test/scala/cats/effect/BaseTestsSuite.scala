@@ -35,7 +35,7 @@ class BaseTestsSuite extends FunSuite with Matchers with Checkers with Disciplin
     test(name, tags:_*)(silenceSystemErr(f(TestContext())))(pos)
   }
 
-  def checkAllAsync(name: String, f: TestContext => Laws#RuleSet) {
+  def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
     val ruleSet = f(context)
 
