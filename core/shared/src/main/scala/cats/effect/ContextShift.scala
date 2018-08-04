@@ -72,13 +72,13 @@ object ContextShift {
     * Derives a [[ContextShift]] for any type that has a [[Effect]] instance,
     * from the implicitly available `ContextShift[IO]` that should be in scope.
     */
-  def derive[F[_]](implicit F: Effect[F], contextShift: ContextShift[IO]): ContextShift[F] =
+  def deriveIO[F[_]](implicit F: Async[F], contextShift: ContextShift[IO]): ContextShift[F] =
     new ContextShift[F] {
       def shift: F[Unit] =
         F.liftIO(contextShift.shift)
 
       def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        F.liftIO(contextShift.evalOn(context)(F.toIO(f)))
+        Sync[F].bracket(Async.shift(context))(_ => f)(_ => shift)
     }
 
 }

@@ -35,7 +35,7 @@ class ContextShiftTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[EitherT].shift") {
-    for (r <- ContextShift.derive[EitherIO].shift.value.unsafeToFuture()) yield {
+    for (r <- ContextShift.deriveIO[EitherIO].shift.value.unsafeToFuture()) yield {
       r shouldBe Right(())
     }
   }
