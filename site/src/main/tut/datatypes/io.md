@@ -613,12 +613,12 @@ this kind of code is impure and should be used with care:
 // Delayed println
 val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
 
-val cancel: () => Unit = 
+val cancel: IO[Unit] = 
   io.unsafeRunCancelable(r => println(s"Done: $r"))
 
 // ... if a race condition happens, we can cancel it,
 // thus canceling the scheduling of `IO.sleep`
-cancel()
+cancel.unsafeRunSync()
 ```
 
 The `runCancelable` alternative is the operation that's compliant with
