@@ -53,18 +53,18 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
-    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); IO.unit }
+    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); F.unit }
   }
 
   def asyncCancelableReceivesCancelSignal[A](a: A) = {
     val lh = for {
-      release <- F.liftIO(Deferred.uncancelable[IO, A])
+      release <- Deferred.uncancelable[F, A]
       latch    = Promise[Unit]()
       async    = F.cancelable[Unit] { _ => latch.success(()); release.complete(a) }
       fiber   <- F.start(async)
       _       <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
       _       <- fiber.cancel
-      result  <- F.liftIO(release.get)
+      result  <- release.get
     } yield result
 
     lh <-> F.pure(a)
@@ -106,9 +106,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def uncancelablePreventsCancelation[A](a: A) = {
-    val lh = F.liftIO(Deferred.uncancelable[IO, A]).flatMap { p =>
+    val lh = Deferred.uncancelable[F, A].flatMap { p =>
       val async = F.cancelable[Unit](_ => p.complete(a))
-      F.start(F.uncancelable(async)).flatMap(_.cancel) *> F.liftIO(p.get)
+      F.start(F.uncancelable(async)).flatMap(_.cancel) *> p.get
     }
     // Non-terminating
     lh <-> F.never

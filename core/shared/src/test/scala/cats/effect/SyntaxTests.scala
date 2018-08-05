@@ -63,6 +63,6 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val fa = mock[F[A]]
     val cb = mock[Either[Throwable, A] => IO[Unit]]
 
-    typed[IO[IO[Unit]]](fa.runCancelable(cb))
+    typed[IO[F[Unit]]](fa.runCancelable(cb))
   }
 }

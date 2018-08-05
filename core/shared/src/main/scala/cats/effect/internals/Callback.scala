@@ -42,6 +42,8 @@ private[effect] object Callback {
 
   /** Reusable `Right(())` reference. */
   val rightUnit = Right(())
+  /** Reusable `Success(())` reference. */
+  val successUnit = Success(())
 
   /** Reusable no-op, side-effectful `Function1` reference. */
   val dummy1: Any => Unit = _ => ()

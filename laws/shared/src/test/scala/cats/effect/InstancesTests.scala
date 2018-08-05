@@ -62,5 +62,4 @@ class InstancesTests extends BaseTestsSuite {
 
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
-
 }
