@@ -30,7 +30,7 @@ import scala.concurrent.ExecutionContext
 private[internals] final class IOContextShift private (ec: ExecutionContext)
   extends ContextShift[IO] {
 
-  override def shift: IO[Unit] =
+  val shift: IO[Unit] =
     IOShift(ec)
 
   override def evalOn[A](context: ExecutionContext)(f: IO[A]): IO[A] =

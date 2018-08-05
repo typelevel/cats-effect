@@ -35,7 +35,7 @@ import scala.scalajs.js
 private[internals] class IOContextShift extends ContextShift[IO] {
   import IOContextShift.setImmediateRef
 
-  final def shift: IO[Unit] =
+  final val shift: IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
       def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit = {
         execute(new Tick(cb))
