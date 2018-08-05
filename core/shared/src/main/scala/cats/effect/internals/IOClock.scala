@@ -14,14 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect
-package internals
+package cats.effect.internals
 
+import cats.effect.{Clock, IO}
 
-class IOTimerTests extends BaseTestsSuite {
-  test("Timer[IO] default instance") {
-    val ref1 = Timer[IO]
-    ref1 shouldBe Timer[IO]
-  }
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
+
+ /**
+  * Internal API, implementation of [[Clock]]
+  *
+  */
+private[internals]  class IOClock extends Clock[IO] {
+
+  final def realTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+
+  final def monotonic(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.nanoTime(), NANOSECONDS))
 
 }

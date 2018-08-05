@@ -16,24 +16,37 @@
 
 package cats.effect.internals
 
-import cats.effect.IO
+
+import cats.effect.{ContextShift, IO}
 
 import scala.concurrent.ExecutionContext
 
-private[effect] object IOShift {
-  /** Implementation for `IO.shift`. */
-  def apply(ec: ExecutionContext): IO[Unit] =
-    IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
-        ec.execute(new Tick(cb))
-    })
+/**
+  * Internal API — JVM specific implementation of a `ContextShift[IO]`.
+  *
+  * Depends on having a Scala `ExecutionContext` for the actual
+  * execution of tasks (i.e. bind continuations)
+  */
+private[internals] final class IOContextShift private (ec: ExecutionContext)
+  extends ContextShift[IO] {
 
-  def shiftOn[A](shiftContext: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-     IOBracket[Unit, A](IOShift(shiftContext))(_ => io)((_, _) => IOShift(targetEc))
+  val shift: IO[Unit] =
+    IOShift(ec)
+
+  override def evalOn[A](context: ExecutionContext)(f: IO[A]): IO[A] =
+    IOShift.shiftOn(context, ec, f)
+
+}
 
 
-  private[internals] final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
-    def run() = cb(Callback.rightUnit)
-  }
+object IOContextShift {
+
+  val global: ContextShift[IO] =
+    IOContextShift(ExecutionContext.Implicits.global)
+
+  /** Builder. */
+  def apply(ec: ExecutionContext): ContextShift[IO] =
+    new IOContextShift(ec)
+
+
 }

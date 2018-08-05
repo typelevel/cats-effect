@@ -363,8 +363,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
    */
-  final def start(implicit timer: Timer[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
-    IOStart(timer, this)
+  final def start(implicit contextShift: ContextShift[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
+    IOStart(contextShift, this)
 
   /**
    * Returns a new `IO` that mirrors the source task for normal termination,
@@ -408,7 +408,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @param fallback is the task evaluated after the duration has passed and
    *        the source canceled
    */
-  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
+  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO], contextShift: ContextShift[IO]): IO[A2] =
     Concurrent.timeoutTo(this, duration, fallback)
 
   /**
@@ -422,7 +422,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO], contextShift: ContextShift[IO]): IO[A] =
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
@@ -697,7 +697,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 }
 
 private[effect] abstract class IOParallelNewtype
-  extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
+  extends internals.IOTimerRef
+     with internals.IOContextShiftRef
+     with internals.IOCompanionBinaryCompat {
 
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
@@ -787,13 +789,13 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
-  implicit def parApplicative(implicit timer: Timer[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
+  implicit def parApplicative(implicit contextShift: ContextShift[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
     import IO.Par.{unwrap, apply => par}
 
     final override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
     final override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
-      par(IOParMap(timer, unwrap(fa), unwrap(fb))(f))
+      par(IOParMap(contextShift, unwrap(fa), unwrap(fb))(f))
     final override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
       map2(ff, fa)(_(_))
     final override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
@@ -804,7 +806,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
+  implicit def ioConcurrentEffect(implicit contextShift: ContextShift[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
     final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
       fa.start
 
@@ -822,12 +824,12 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
     final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
   }
 
-  implicit def ioParallel(implicit timer: Timer[IO]): Parallel[IO, IO.Par] =
+  implicit def ioParallel(implicit contextShift: ContextShift[IO]): Parallel[IO, IO.Par] =
     new Parallel[IO, IO.Par] {
       final override val applicative: Applicative[IO.Par] =
-        parApplicative(timer)
+        parApplicative(contextShift)
       final override val monad: Monad[IO] =
-        ioConcurrentEffect(timer)
+        ioConcurrentEffect(contextShift)
 
       final override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
@@ -1192,18 +1194,18 @@ object IO extends IOInstances {
 
   /**
    * Asynchronous boundary described as an effectful `IO`, managed
-   * by the provided [[Timer]].
+   * by the provided [[ContextShift]].
    *
    * This operation can be used in `flatMap` chains to "shift" the
    * continuation of the run-loop to another thread or call stack.
    *
    * $shiftDesc
    *
-   * @param timer is the [[Timer]] that's managing the thread-pool
+   * @param contextShift is the [[ContextShift]] that's managing the thread-pool
    *        used to trigger this async boundary
    */
-  def shift(implicit timer: Timer[IO]): IO[Unit] =
-    timer.shift
+  def shift(implicit contextShift: ContextShift[IO]): IO[Unit] =
+    contextShift.shift
 
   /**
    * Asynchronous boundary described as an effectful `IO`, managed
@@ -1308,8 +1310,8 @@ object IO extends IOInstances {
    * Also see [[racePair]] for a version that does not cancel
    * the loser automatically on successful results.
    */
-  def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
-    IORace.simple(timer, lh, rh)
+  def race[A, B](lh: IO[A], rh: IO[B])(implicit contextShift: ContextShift[IO]): IO[Either[A, B]] =
+    IORace.simple(contextShift, lh, rh)
 
   /**
    * Run two IO tasks concurrently, and returns a pair
@@ -1339,8 +1341,8 @@ object IO extends IOInstances {
    * See [[race]] for a simpler version that cancels the loser
    * immediately.
    */
-  def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
-    IORace.pair(timer, lh, rh)
+  def racePair[A, B](lh: IO[A], rh: IO[B])(implicit contextShift: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+    IORace.pair(contextShift, lh, rh)
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */

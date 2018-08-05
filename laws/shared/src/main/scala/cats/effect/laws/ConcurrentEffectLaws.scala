@@ -78,8 +78,8 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 }
 
 object ConcurrentEffectLaws {
-  def apply[F[_]](implicit F0: ConcurrentEffect[F], timer0: Timer[F]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
+  def apply[F[_]](implicit F0: ConcurrentEffect[F], contextShift0: ContextShift[F]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
     val F = F0
-    val timer = timer0
+    val contextShift = contextShift0
   }
 }

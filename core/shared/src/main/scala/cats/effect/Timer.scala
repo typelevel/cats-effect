@@ -32,7 +32,6 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
  * It provides:
  *
  *  1. the ability to get the current time
- *  1. thread / call-stack shifting
  *  1. ability to delay the execution of a task with a specified time duration
  *
  * It does all of that in an `F` monadic context that can suspend
@@ -51,85 +50,12 @@ Timer.derive requires an implicit Timer[IO], which can be available from:
 * cats.effect.IO.timer, if there's an implicit 
 scala.concurrent.ExecutionContext in scope
 """)
-trait Timer[F[_]] {
-  /**
-   * Returns the current time, as a Unix timestamp (number of time units
-   * since the Unix epoch), suspended in `F[_]`.
-   *
-   * This is the pure equivalent of Java's `System.currentTimeMillis`,
-   * or of `CLOCK_REALTIME` from Linux's `clock_gettime()`.
-   *
-   * The provided `TimeUnit` determines the time unit of the output,
-   * its precision, but not necessarily its resolution, which is
-   * implementation dependent. For example this will return the number
-   * of milliseconds since the epoch:
-   *
-   * {{{
-   *   import scala.concurrent.duration.MILLISECONDS
-   *
-   *   timer.clockRealTime(MILLISECONDS)
-   * }}}
-   *
-   * N.B. the resolution is limited by the underlying implementation
-   * and by the underlying CPU and OS. If the implementation uses
-   * `System.currentTimeMillis`, then it can't have a better
-   * resolution than 1 millisecond, plus depending on underlying
-   * runtime (e.g. Node.js) it might return multiples of 10
-   * milliseconds or more.
-   *
-   * See [[clockMonotonic]], for fetching a monotonic value that
-   * may be better suited for doing time measurements.
-   */
-  def clockRealTime(unit: TimeUnit): F[Long]
+trait Timer[F[_]]  {
 
   /**
-   * Returns a monotonic clock measurement, if supported by the
-   * underlying platform.
-   *
-   * This is the pure equivalent of Java's `System.nanoTime`,
-   * or of `CLOCK_MONOTONIC` from Linux's `clock_gettime()`.
-   *
-   * {{{
-   *   timer.clockMonotonic(NANOSECONDS)
-   * }}}
-   *
-   * The returned value can have nanoseconds resolution and represents
-   * the number of time units elapsed since some fixed but arbitrary
-   * origin time. Usually this is the Unix epoch, but that's not
-   * a guarantee, as due to the limits of `Long` this will overflow in
-   * the future (2^63^ is about 292 years in nanoseconds) and the
-   * implementation reserves the right to change the origin.
-   *
-   * The return value should not be considered related to wall-clock
-   * time, the primary use-case being to take time measurements and
-   * compute differences between such values, for example in order to
-   * measure the time it took to execute a task.
-   *
-   * As a matter of implementation detail, the default `Timer[IO]`
-   * implementation uses `System.nanoTime` and the JVM will use
-   * `CLOCK_MONOTONIC` when available, instead of `CLOCK_REALTIME`
-   * (see `clock_gettime()` on Linux) and it is up to the underlying
-   * platform to implement it correctly.
-   *
-   * And be warned, there are platforms that don't have a correct
-   * implementation of `CLOCK_MONOTONIC`. For example at the moment of
-   * writing there is no standard way for such a clock on top of
-   * JavaScript and the situation isn't so clear cut for the JVM
-   * either, see:
-   *
-   *  - [[https://bugs.java.com/bugdatabase/view_bug.do?bug_id=6458294 bug report]]
-   *  - [[http://cs.oswego.edu/pipermail/concurrency-interest/2012-January/008793.html concurrency-interest]]
-   *    discussion on the X86 tsc register
-   *
-   * The JVM tries to do the right thing and at worst the resolution
-   * and behavior will be that of `System.currentTimeMillis`.
-   *
-   * The recommendation is to use this monotonic clock when doing
-   * measurements of execution time, or if you value monotonically
-   * increasing values more than a correspondence to wall-time, or
-   * otherwise prefer [[clockRealTime]].
-   */
-  def clockMonotonic(unit: TimeUnit): F[Long]
+    * Provides instance of clock backing this timer
+    */
+  def clock: Clock[F]
 
   /**
    * Creates a new task that will sleep for the given duration,
@@ -153,21 +79,6 @@ trait Timer[F[_]] {
    */
   def sleep(duration: FiniteDuration): F[Unit]
 
-  /**
-   * Asynchronous boundary described as an effectful `F[_]` that
-   * can be used in `flatMap` chains to "shift" the continuation
-   * of the run-loop to another thread or call stack.
-   *
-   * This is the [[Async.shift]] operation, without the need for an
-   * `ExecutionContext` taken as a parameter.
-   *
-   * This `shift` operation can usually be derived from `sleep`:
-   *
-   * {{{
-   *   timer.shift <-> timer.sleep(Duration.Zero)
-   * }}}
-   */
-  def shift: F[Unit]
 }
 
 object Timer {
@@ -183,13 +94,16 @@ object Timer {
    */
   def derive[F[_]](implicit F: LiftIO[F], timer: Timer[IO]): Timer[F] =
     new Timer[F] {
-      def shift: F[Unit] =
-        F.liftIO(timer.shift)
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(timer.sleep(timespan))
-      def clockRealTime(unit: TimeUnit): F[Long] =
-        F.liftIO(timer.clockRealTime(unit))
-      def clockMonotonic(unit: TimeUnit): F[Long] =
-        F.liftIO(timer.clockMonotonic(unit))
+
+      val clock: Clock[F] = new Clock[F] {
+        override def realTime(unit: TimeUnit): F[Long] =
+          F.liftIO(timer.clock.realTime(unit))
+
+        override def monotonic(unit: TimeUnit): F[Long] =
+          F.liftIO(timer.clock.monotonic(unit))
+      }
+
     }
 }

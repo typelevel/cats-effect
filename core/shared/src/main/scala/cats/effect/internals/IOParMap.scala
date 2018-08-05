@@ -24,21 +24,21 @@ private[effect] object IOParMap {
   /**
    * Implementation for `parMap2`.
    */
-  def apply[A, B, C](timer: Timer[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] = {
+  def apply[A, B, C](contextShift: ContextShift[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] = {
     IO.Async(
       new IOForkedStart[C] {
         def apply(conn: IOConnection, cb: Callback.T[C]) = {
           // For preventing stack-overflow errors; using a
           // trampolined execution context, so no thread forks
           TrampolineEC.immediate.execute(
-            new ParMapRunnable(timer, fa, fb, f, conn, cb))
+            new ParMapRunnable(contextShift, fa, fb, f, conn, cb))
         }
       },
       trampolineAfter = true)
   }
 
   private final class ParMapRunnable[A, B, C](
-    timer: Timer[IO],
+    contextShift: ContextShift[IO],
     fa: IO[A],
     fb: IO[B],
     f: (A, B) => C,
@@ -121,8 +121,8 @@ private[effect] object IOParMap {
       // NOTE: conn.pop() happens when cb gets called!
       conn.pushPair(connA, connB)
 
-      IORunLoop.startCancelable(IOForkedStart(fa, timer), connA, callbackA(connB))
-      IORunLoop.startCancelable(IOForkedStart(fb, timer), connB, callbackB(connA))
+      IORunLoop.startCancelable(IOForkedStart(fa, contextShift), connA, callbackA(connB))
+      IORunLoop.startCancelable(IOForkedStart(fb, contextShift), connB, callbackB(connA))
     }
   }
 }

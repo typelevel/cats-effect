@@ -14,14 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect
-package internals
+package cats.effect.internals
+
+import cats.effect.{ContextShift, IO}
+
+import scala.concurrent.ExecutionContext
+
+private[effect] trait IOContextShiftRef {
+
+  /**
+    * Returns a [[ContextShift]] instance for [[IO]].
+    *
+    * Note that even when JS does not require ExecutionContext,
+    * it is is here required to provide default instance of test EC for testing purposes.
+    *
+    */
+  implicit def contextShift(implicit ec: ExecutionContext = ExecutionContext.Implicits.global ): ContextShift[IO] =
+    IOContextShift.deferred(ec)
 
 
-class IOTimerTests extends BaseTestsSuite {
-  test("Timer[IO] default instance") {
-    val ref1 = Timer[IO]
-    ref1 shouldBe Timer[IO]
-  }
 
 }
