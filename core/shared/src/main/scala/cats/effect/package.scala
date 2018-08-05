@@ -25,7 +25,7 @@ package object effect {
    * For example seeing `CancelToken[IO]` instead of `IO[Unit]`
    * can be more readable.
    *
-   * Cancellation tokens usually have these properties:
+   * Cancelation tokens usually have these properties:
    *
    *  1. they suspend over side effectful actions on shared state
    *  1. they need to be idempotent

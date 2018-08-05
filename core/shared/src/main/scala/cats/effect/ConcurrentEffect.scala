@@ -42,22 +42,20 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.
    *
-   * The returned `IO[IO[Unit]]` is a suspended cancelable action that
-   * can be used to cancel the running computation.
+   * The returned `IO[CancelToken[F]]` is a suspended cancelable
+   * action that can be used to cancel the running computation.
    *
-   * Note that evaluating the returned `IO` value, along with
-   * the boxed cancelable action are guaranteed to have immediate
-   * (synchronous) execution so you can safely do this, even
-   * on top of JavaScript (which has no ability to block threads):
+   * [[CancelToken]] is nothing more than an alias for `F[Unit]`
+   * and needs to be evaluated in order for cancelation of the
+   * active process to occur.
    *
-   * {{{
-   *   val io = F.runCancelable(fa)(cb)
+   * Contract:
    *
-   *   // For triggering asynchronous execution
-   *   val cancel = io.unsafeRunSync
-   *   // For cancellation
-   *   cancel.unsafeRunSync
-   * }}}
+   *  - the evaluation of the returned `IO` value is guaranteed
+   *    to have synchronous execution, therefore it can be
+   *    evaluated via [[IO.unsafeRunSync]]
+   *  - the evaluation of the suspended [[CancelToken]] however
+   *    must be asynchronous
    */
   def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[F]]
 
