@@ -259,8 +259,9 @@ trait Concurrent[F[_]] extends Async[F] {
    * when the asynchronous process is complete with a final result.
    *
    * The registration function is also supposed to return
-   * an `IO[Unit]` that captures the logic necessary for
-   * canceling the asynchronous process, for as long as it
+   * a [[CancelToken]], which is nothing more than an
+   * alias for `F[Unit]`, capturing the logic necessary for
+   * canceling the asynchronous process for as long as it
    * is still active.
    *
    * Example:
@@ -277,8 +278,8 @@ trait Concurrent[F[_]] extends Async[F] {
    *       val run = new Runnable { def run() = cb(Right(())) }
    *       val future = ec.schedule(run, d.length, d.unit)
    *
-   *       // Cancellation logic, suspended in IO
-   *       IO(future.cancel(true))
+   *       // Cancellation logic, suspended in F
+   *       F.delay(future.cancel(true))
    *     }
    *   }
    * }}}
