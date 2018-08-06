@@ -18,6 +18,7 @@ import microsites.ExtraMdFileConfig
 import scala.sys.process._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
+import sbtcrossproject.crossProject
 
 organization in ThisBuild := "org.typelevel"
 organizationName in ThisBuild := "Typelevel"
@@ -26,11 +27,32 @@ startYear in ThisBuild := Some(2017)
 val CompileTime = config("CompileTime").hide
 
 val CatsVersion = "1.2.0"
-val SimulacrumVersion = "0.11.0"
+val SimulacrumVersion = "0.13.0"
 
-val ScalaTestVersion = "3.0.5"
-val ScalaCheckVersion = "1.13.5"
-val DisciplineVersion = "0.8"
+val ScalaTestVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "3.0.5"
+    case _ =>
+      "3.0.6-SNAP1"
+  }
+}
+val ScalaCheckVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13.5"
+    case _ =>
+      "1.14.0"
+  }
+}
+val DisciplineVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "0.9.0"
+    case _ =>
+      "0.10.0"
+  }
+}
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -38,7 +60,24 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.6",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.6"),
+  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M4"),
+
+  //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
+  sources in (Compile, doc) := (
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, v)) if v <= 12 =>
+        (sources in (Compile, doc)).value
+      case _ =>
+        Nil
+    }
+  ),
+
+  scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+    case Some((2, n)) if n >= 13 =>
+      Seq(
+        "-Ymacro-annotations"
+      )
+  }.toList.flatten,
 
   scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
 
@@ -136,11 +175,18 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.5" cross CrossVersion.binary)
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.7" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
-  mimaPreviousArtifacts := Set(organization.value %% name.value % "0.10"),
+  mimaPreviousArtifacts := {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, v)) if v <= 12 =>
+        Set(organization.value %% name.value % "0.10")
+      case _ =>
+        Set.empty
+    }
+  },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
@@ -340,7 +386,7 @@ lazy val root = project.in(file("."))
   .configure(profile)
   .settings(skipOnPublishSettings)
 
-lazy val core = crossProject.in(file("core"))
+lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "cats-effect",
@@ -349,12 +395,23 @@ lazy val core = crossProject.in(file("core"))
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
       "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
 
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion       % "test",
-      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion  % "test",
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % "test",
-      "org.typelevel"  %%% "discipline" % DisciplineVersion % "test"),
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion             % "test",
+      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value  % "test",
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value % "test",
+      "org.typelevel"  %%% "discipline" % DisciplineVersion.value % "test"),
 
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, v)) if v <= 12 =>
+          Seq(
+            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+          )
+        case _ =>
+          // if scala 2.13.0-M4 or later, macro annotations merged into scala-reflect
+          // https://github.com/scala/scala/pull/6606
+          Nil
+      }
+    })
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
@@ -364,7 +421,7 @@ lazy val core = crossProject.in(file("core"))
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
 
-lazy val laws = crossProject
+lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .in(file("laws"))
   .dependsOn(core % "compile->compile;test->test")
   .settings(commonSettings: _*)
@@ -373,10 +430,10 @@ lazy val laws = crossProject
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline" % DisciplineVersion,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value,
+      "org.typelevel"  %%% "discipline" % DisciplineVersion.value,
 
-      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion % "test"))
+      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
@@ -502,10 +559,19 @@ scalacOptions in ThisBuild ++= Seq(
   "-encoding", "UTF-8", // yes, this is 2 args
   "-feature",
   "-unchecked",
-  "-Xfatal-warnings",
-  "-Yno-adapted-args",
-  "-Ywarn-dead-code",
-  "-Ypartial-unification"
+  "-Ywarn-dead-code"
+)
+
+scalacOptions in ThisBuild ++= (
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 => Seq(
+      "-Xfatal-warnings",
+      "-Yno-adapted-args",
+      "-Ypartial-unification"
+    )
+    case _ =>
+      Nil
+  }
 )
 
 scalacOptions in ThisBuild ++= {
