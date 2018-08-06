@@ -306,6 +306,9 @@ val mimaSettings = Seq(
       // Issue #290: Concurrent/ConcurrentEffect changes
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO.unsafeRunCancelable"),
 
+      // Issue #286: Sync extending Defer
+      exclude[InheritedNewAbstractMethodProblem]("cats.Defer.defer"),
+
       //
       // Following are all internal implementation details:
       //
