@@ -308,6 +308,7 @@ val mimaSettings = Seq(
 
       // Issue #286: Sync extending Defer
       exclude[InheritedNewAbstractMethodProblem]("cats.Defer.defer"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync.defer"),
 
       //
       // Following are all internal implementation details:
