@@ -25,7 +25,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.1.0"
+val CatsVersion = "1.2.0"
 val SimulacrumVersion = "0.11.0"
 
 val ScalaTestVersion = "3.0.5"
