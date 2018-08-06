@@ -18,26 +18,32 @@ Due to these restrictions, this type class also affords to describe a `Concurren
 Without cancellation being baked in, we couldn't afford to do it.
 
 ```tut:silent
-import cats.effect.{Async, Fiber, IO}
+import cats.effect.{Async, Fiber, IO, CancelToken}
 
 trait Concurrent[F[_]] extends Async[F] {
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): F[A]
-  def uncancelable[A](fa: F[A]): F[A]
   def start[A](fa: F[A]): F[Fiber[F, A]]
   
   def race[A, B](lh: F[A], rh: F[B]): F[Either[A, B]]
   def raceWith[A, B](lh: F[A], rh: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[F]): F[A]
 }
 ```
+
+Notes: 
+
+- this type class is defined by `start` and by `raceWith`
+- `race` is derived from `raceWith`
+- `cancelable` is derived from `asyncF` and from `bracketCase`, however it is expected to be overridden in instances for optimization purposes
+
 ### Cancelable Builder
 
 The signature exposed by the `Concurrent.cancelable` builder is this:
 
 ```scala
-(Either[Throwable, A] => Unit) => IO[Unit]
+(Either[Throwable, A] => Unit) => CancelToken[F]
 ```
 
-`F[Unit]` is used to represent a cancellation action which will send a signal to the producer, that may observe it and cancel the asynchronous process.
+`CancelToken[F]` is simply an alias for `F[Unit]` and is used to represent a cancellation action which will send a signal to the producer, that may observe it and cancel the asynchronous process.
 
 ### On Cancellation
 
@@ -55,7 +61,7 @@ But many times the abstractions built to deal with asynchronous tasks can also p
 
 This is approximately the signature of JavaScript's `setTimeout`, which will return a "task ID" that can be used to cancel it. Or of Java's `ScheduledExecutorService.schedule`, which will return a Java `ScheduledFuture` that has a `.cancel()` operation on it.
 
-Similarly, for `Concurrent` data types, we can provide cancellation logic, that can be triggered in race conditions to cancel the on-going processing, only that `Concurrent`'s cancelable token is an action suspended in an `IO[Unit]`. See `IO.cancelable`.
+Similarly, for `Concurrent` data types, we can provide cancellation logic, that can be triggered in race conditions to cancel the on-going processing, only that `Concurrent`'s cancelable token is an action suspended in a `CancelToken[F]`, which is nothing more than an `F[Unit]`. See `IO.cancelable`.
 
 Suppose you want to describe a "sleep" operation, like that described by `Timer` to mirror Java's `ScheduledExecutorService.schedule` or JavaScript's `setTimeout`:
 

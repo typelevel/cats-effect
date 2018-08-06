@@ -58,7 +58,7 @@ trait Fiber[F[_], A] {
    * of the underlying fiber is already complete, then there's nothing
    * to cancel.
    */
-  def cancel: F[Unit]
+  def cancel: CancelToken[F]
 
   /**
    * Returns a new task that will await for the completion of the
