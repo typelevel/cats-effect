@@ -17,12 +17,48 @@
 package cats
 package effect
 
+import scala.annotation.unchecked.uncheckedVariance
+
 final class SyncIO[+A] private (val toIO: IO[A]) {
   def unsafeRunSync(): A = toIO.unsafeRunSync
 
-  def attempt: SyncIO[Either[Throwable, A]] = new SyncIO(toIO.attempt)
   def map[B](f: A => B): SyncIO[B] = new SyncIO(toIO.map(f))
   def flatMap[B](f: A => SyncIO[B]): SyncIO[B] = new SyncIO(toIO.flatMap(a => f(a).toIO))
+  def attempt: SyncIO[Either[Throwable, A]] = new SyncIO(toIO.attempt)
+
+  /**
+   * Converts the source `IO` into any `F` type that implements
+   * the [[LiftIO]] type class.
+   */
+  final def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
+    F.liftIO(toIO)
+
+  final def bracket[B](use: A => SyncIO[B])(release: A => SyncIO[Unit]): SyncIO[B] =
+    bracketCase(use)((a, _) => release(a))
+
+  def bracketCase[B](use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
+    new SyncIO(toIO.bracketCase(a => use(a).toIO)((a, ec) => release(a, ec).toIO))
+
+  def guarantee(finalizer: SyncIO[Unit]): SyncIO[A] =
+    guaranteeCase(_ => finalizer)
+
+  def guaranteeCase(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
+    new SyncIO(toIO.guaranteeCase(ec => finalizer(ec).toIO))
+
+  def handleErrorWith[AA >: A](f: Throwable => SyncIO[AA]): SyncIO[AA] =
+    new SyncIO(toIO.handleErrorWith(t => f(t).toIO))
+
+  def redeem[B](recover: Throwable => B, map: A => B): SyncIO[B] =
+    new SyncIO(toIO.redeem(recover, map))
+
+  def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+    new SyncIO(toIO.redeemWith(t => recover(t).toIO, a => bind(a).toIO))
+
+  override def toString: String = toIO match {
+    case IO.Pure(a) => s"SyncIO($a)"
+    case IO.RaiseError(e) => s"SyncIO(throw $e)"
+    case _ => "SyncIO$" + System.identityHashCode(this)
+  }
 }
 
 object SyncIO {
