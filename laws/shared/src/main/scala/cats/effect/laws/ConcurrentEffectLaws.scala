@@ -50,7 +50,7 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
       effect1 <- Deferred.uncancelable[F, A]
       latch    = Promise[Unit]()
       never    = F.cancelable[A] { _ => latch.success(()); effect1.complete(a) }
-      cancel  <- F.liftIO(F.runCancelable(never)(_ => IO.unit))
+      cancel  <- F.liftIO(F.runCancelable(never)(_ => IO.unit).toIO)
       // Waiting for the task to start before cancelling it
       _       <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
       _       <- cancel

@@ -940,7 +940,7 @@ object IOTests {
     new IODefaults with ConcurrentEffect[IO] {
       override protected val ref = implicitly[ConcurrentEffect[IO]]
 
-      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] =
+      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
         fa.runCancelable(cb)
       def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
         fa.start
