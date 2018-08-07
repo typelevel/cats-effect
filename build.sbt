@@ -219,14 +219,6 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
       exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#StateTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#Ops.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
 
       // Uncancelable moved down to Bracket
       exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.uncancelable"),
@@ -337,6 +329,14 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
       exclude[IncompatibleResultTypeProblem]("cats.effect.Effect.runAsync"),
       exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
 
       //
       // Following are all internal implementation details:
