@@ -17,10 +17,9 @@
 package cats.effect
 
 import cats.syntax.apply._
-import cats.syntax.parallel._
-import cats.{Applicative, ApplicativeError, Apply, Monoid, Parallel, Semigroup}
-
-import scala.util.control.NonFatal
+import cats.syntax.applicative._
+import cats.syntax.flatMap._
+import cats.{Applicative, Apply, Monoid, Semigroup}
 
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
@@ -87,17 +86,17 @@ object Fiber extends FiberInstances {
 
 private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
 
-  implicit def fiberApplicative[F[_], M[_]](implicit P: Parallel[F, M], F: ApplicativeError[F, Throwable]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
+  implicit def fiberApplicative[F[_]](implicit F: Concurrent[F]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
     final override def pure[A](x: A): Fiber[F, A] =
       Fiber(F.pure(x), F.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
       map2(ff, fa)(_(_))
     final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
       Fiber(
-        (
-          F.onError(fa.join)({case NonFatal(_) => fb.cancel}),
-          F.onError(fb.join)({case NonFatal(_) => fa.cancel})
-        ).parMapN(f),
+        F.racePair(fa.join, fb.join).flatMap {
+          case Left((a, fiberB)) => (a.pure[F], fiberB.join).mapN(f)
+          case Right((fiberA, b)) => (fiberA.join, b.pure[F]).mapN(f)
+        },
         fa.cancel *> fb.cancel)
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
       map2(fa, fb)((_, _))
@@ -107,11 +106,11 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
       Fiber(F.unit, F.unit)
   }
 
-  implicit def fiberMonoid[F[_], M[_], A: Monoid](implicit P: Parallel[F, M], F: ApplicativeError[F, Throwable]): Monoid[Fiber[F, A]] =
+  implicit def fiberMonoid[F[_]: Concurrent, M[_], A: Monoid]: Monoid[Fiber[F, A]] =
     Applicative.monoid[Fiber[F, ?], A]
 }
 
 private[effect] abstract class FiberLowPriorityInstances {
-  implicit def fiberSemigroup[F[_], M[_], A: Semigroup](implicit P: Parallel[F, M], F: ApplicativeError[F, Throwable]): Semigroup[Fiber[F, A]] =
+  implicit def fiberSemigroup[F[_]: Concurrent, A: Semigroup]: Semigroup[Fiber[F, A]] =
     Apply.semigroup[Fiber[F, ?], A]
 }
