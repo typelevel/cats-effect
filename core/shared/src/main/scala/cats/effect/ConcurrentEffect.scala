@@ -57,7 +57,7 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
    *  - the evaluation of the suspended [[CancelToken]] however
    *    must be asynchronous
    */
-  def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[F]]
+  def runCancelable[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[F]]
 
   override def toIO[A](fa: F[A]): IO[A] =
     ConcurrentEffect.toIOFromRunCancelable(fa)(this)
@@ -102,7 +102,7 @@ object ConcurrentEffect {
     protected def F: ConcurrentEffect[F]
 
     override def runCancelable[A](fa: EitherT[F, Throwable, A])
-      (cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[EitherT[F, Throwable, ?]]] =
+      (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[EitherT[F, Throwable, ?]]] =
       F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x))).map(EitherT.liftF(_)(F))
   }
 
@@ -115,7 +115,7 @@ object ConcurrentEffect {
     protected def S: Monoid[S]
 
     override def runCancelable[A](fa: StateT[F, S, A])
-      (cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[StateT[F, S, ?]]] =
+      (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[StateT[F, S, ?]]] =
       F.runCancelable(fa.runA(S.empty)(F))(cb).map(StateT.liftF(_)(F))
   }
 
@@ -128,7 +128,7 @@ object ConcurrentEffect {
     protected def L: Monoid[L]
 
     override def runCancelable[A](fa: WriterT[F, L, A])
-      (cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[WriterT[F, L, ?]]] =
+      (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[WriterT[F, L, ?]]] =
       F.runCancelable(fa.run)(cb.compose(_.right.map(_._2))).map(WriterT.liftF(_)(L, F))
   }
 }

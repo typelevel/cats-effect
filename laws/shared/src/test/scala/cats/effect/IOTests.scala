@@ -965,9 +965,9 @@ object IOTests {
       ref.flatMap(fa)(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
       ref.tailRecM(a)(f)
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
-    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+    def runSyncStep[A](fa: IO[A]): SyncIO[Either[IO[A], A]] =
       ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)

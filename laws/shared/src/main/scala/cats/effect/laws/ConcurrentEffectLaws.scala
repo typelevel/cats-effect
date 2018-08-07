@@ -39,7 +39,7 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
       val ff = F.cancelable[A](_ => latch.complete(()))
       // Execute, then cancel
       val token = F.suspend(F.runCancelable(ff)(_ => IO.unit).unsafeRunSync())
-      F.liftIO(F.runAsync(token)(_ => IO.unit)) *> latch.get
+      F.liftIO(F.runAsync(token)(_ => IO.unit).toIO) *> latch.get
     }
     lh <-> F.unit
   }
