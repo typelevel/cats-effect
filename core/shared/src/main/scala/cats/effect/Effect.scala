@@ -58,7 +58,7 @@ trait Effect[F[_]] extends Async[F] {
    *   io.unsafeRunSync
    * }}}
    */
-  def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit]
+  def runAsync[A](fa: F[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit]
 
   /**
    * Returns an `IO` which runs `fa` until it reaches an asynchronous
@@ -71,7 +71,7 @@ trait Effect[F[_]] extends Async[F] {
    * Note that evaluating the returned `IO` is guaranteed
    * to execute immediately.
    */
-  def runSyncStep[A](fa: F[A]): IO[Either[F[A], A]]
+  def runSyncStep[A](fa: F[A]): SyncIO[Either[F[A], A]]
 
   /**
    * Convert to an IO[A].
@@ -117,13 +117,13 @@ object Effect {
 
     protected def F: Effect[F]
 
-    def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
 
-    def runSyncStep[A](fa: EitherT[F, Throwable, A]): IO[Either[EitherT[F, Throwable, A], A]] = {
+    def runSyncStep[A](fa: EitherT[F, Throwable, A]): SyncIO[Either[EitherT[F, Throwable, A], A]] = {
       F.runSyncStep(fa.value).flatMap {
-        case Left(feta) => IO.pure(Left(EitherT(feta)))
-        case Right(eta) => IO.fromEither(eta).map(Right(_))
+        case Left(feta) => SyncIO.pure(Left(EitherT(feta)))
+        case Right(eta) => SyncIO.fromEither(eta).map(Right(_))
       }
     }
 
@@ -137,10 +137,10 @@ object Effect {
     protected def F: Effect[F]
     protected def S: Monoid[S]
 
-    def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: StateT[F, S, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       F.runAsync(fa.runA(S.empty)(F))(cb)
 
-    def runSyncStep[A](fa: StateT[F, S, A]): IO[Either[StateT[F, S, A], A]] =
+    def runSyncStep[A](fa: StateT[F, S, A]): SyncIO[Either[StateT[F, S, A], A]] =
       F.runSyncStep(fa.runA(S.empty)(F)).map(_.leftMap(fa => StateT.liftF(fa)(F)))
 
     override def toIO[A](fa: StateT[F, S, A]): IO[A] =
@@ -153,10 +153,10 @@ object Effect {
     protected def F: Effect[F]
     protected def L: Monoid[L]
 
-    def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
 
-    def runSyncStep[A](fa: WriterT[F, L, A]): IO[Either[WriterT[F, L, A], A]] = {
+    def runSyncStep[A](fa: WriterT[F, L, A]): SyncIO[Either[WriterT[F, L, A], A]] = {
       F.runSyncStep(fa.run).map {
         case Left(fla) => Left(WriterT(fla))
         case Right(la) => Right(la._2)
