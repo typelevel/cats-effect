@@ -16,7 +16,7 @@
 
 package cats.effect.laws.util
 
-import cats.effect.{Bracket, IO, Resource}
+import cats.effect.{Bracket, IO, Resource, SyncIO}
 import cats.kernel.Eq
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
@@ -98,6 +98,15 @@ trait TestInstances {
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))
+    }
+
+  /** Defines equality for `SyncIO` references. */
+  implicit def eqSyncIO[A](implicit A: Eq[A]): Eq[SyncIO[A]] =
+    new Eq[SyncIO[A]] {
+      def eqv(x: SyncIO[A], y: SyncIO[A]): Boolean = {
+        val eqETA = cats.kernel.instances.either.catsStdEqForEither(eqThrowable, A)
+        eqETA.eqv(x.attempt.unsafeRunSync(), y.attempt.unsafeRunSync())
+      }
     }
 }
 

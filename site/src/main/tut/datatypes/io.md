@@ -623,16 +623,18 @@ cancel.unsafeRunSync()
 
 The `runCancelable` alternative is the operation that's compliant with
 the laws of [ConcurrentEffect](../typeclasses/concurrent-effect.html).
-Same idea, only the actual execution is suspended in `IO`:
+Same idea, only the actual execution is suspended in `SyncIO`:
 
 ```tut:silent
-val pureResult: IO[IO[Unit]] = io.runCancelable { r => 
+import cats.effect.SyncIO
+
+val pureResult: SyncIO[IO[Unit]] = io.runCancelable { r => 
   IO(println(s"Done: $r"))
 }
 
 // On evaluation, this will first execute the source, then it 
 // will cancel it, because it makes perfect sense :-)
-val cancel = pureResult.flatten
+val cancel = pureResult.toIO.flatten
 ```
 
 ### uncancelable marker
