@@ -40,7 +40,7 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
     * Alias for `suspend` that suspends the evaluation of
     * an `F` reference and implements `cats.Defer` typeclass.
     */
-  override def defer[A](fa: => F[A]): F[A] = suspend(fa)
+  override final def defer[A](fa: => F[A]): F[A] = suspend(fa)
 
   /**
    * Lifts any by-name parameter into the `F` context.
