@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import cats.effect.internals.IOContextShift
-
 import scala.concurrent.ExecutionContext
 
 /**

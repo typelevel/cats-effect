@@ -340,15 +340,15 @@ asynchronous boundaries:
 
 ```tut:silent
 import cats.implicits._
-import cats.effect.Timer
+import cats.effect.ContextShift
 
-def fib(n: Int, a: Long, b: Long)(implicit timer: Timer[IO]): IO[Long] =
+def fib(n: Int, a: Long, b: Long)(implicit cs: ContextShift[IO]): IO[Long] =
   IO.suspend {
     if (n == 0) IO.pure(a) else {
       val next = fib(n - 1, b, a + b)
       // Every 100 cycles, introduce a logical thread fork
       if (n % 100 == 0)
-        timer.shift *> next
+        cs.shift *> next
       else
         next
     }
@@ -721,10 +721,12 @@ losers being usually canceled.
 
 ```scala
 // simple version
-def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]]
+def race[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[A, B]]
   
 // advanced version
-def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
+def racePair[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
@@ -734,20 +736,25 @@ you decide what to do next.
 So `race` can be derived with `racePair` like so:
 
 ```tut:silent
-def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
+import cats.effect._
+
+def race[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[A, B]] = {
+  
   IO.racePair(lh, rh).flatMap {
     case Left((a, fiber)) => 
       fiber.cancel.map(_ => Left(a))
     case Right((fiber, b)) => 
       fiber.cancel.map(_ => Right(b))
   }
+}
 ```
 
 Using `race` we could implement a "timeout" operation:
 
 ```tut:silent
 def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
-  (implicit timer: Timer[IO]): IO[A] = {
+  (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
 
   IO.race(fa, timer.sleep(after)).flatMap {
     case Left(a) => IO.pure(a)
@@ -756,7 +763,7 @@ def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
 }
 
 def timeout[A](fa: IO[A], after: FiniteDuration)
-  (implicit timer: Timer[IO]): IO[A] = {
+  (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
 
   val error = new CancellationException(after.toString)
   timeoutTo(fa, after, IO.raiseError(error))
@@ -1094,19 +1101,20 @@ def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: In
 ### shift
 
 Note there are 2 overloads of the `IO.shift` function:
-- One that takes an `Timer` that manages the thread-pool used to trigger async boundaries.
+
+- One that takes a [ContextShift](./contextshift.html) that manages the thread-pool used to trigger async boundaries.
 - Another that takes a Scala `ExecutionContext` as the thread-pool.
 
-***Please use the former by default and use the latter only for fine-grained control over the thread pool in use.***
+Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
-Examples:
-
-By default, `Cats Effect` provides an instance of `Timer[IO]` that manages thread-pools. Eg.:
+By default, `Cats Effect` can provide instance of `ContextShift[IO]` that manages thread-pools,
+but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.html) is used:
 
 ```tut:silent
-import cats.effect.Timer
+import cats.effect.{IO, ContextShift}
+import scala.concurrent.ExecutionContext.Implicits.global
 
-val ioTimer = Timer[IO]
+val contextShift = ContextShift[IO]
 ```
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
@@ -1114,7 +1122,13 @@ We can introduce an asynchronous boundary in the `flatMap` chain before a certai
 ```tut:silent
 val task = IO(println("task"))
 
-IO.shift(ioTimer).flatMap(_ => task)
+IO.shift(contextShift).flatMap(_ => task)
+```
+
+Note that the `ContextShift` value is taken implicitly from the context so you can just do this:
+
+```tut:silent
+IO.shift.flatMap(_ => task)
 ```
 
 Or using `Cats` syntax:
@@ -1122,23 +1136,23 @@ Or using `Cats` syntax:
 ```tut:silent
 import cats.syntax.apply._
 
-IO.shift(ioTimer) *> task
+IO.shift *> task
 // equivalent to
-Timer[IO].shift *> task
+ContextShift[IO].shift *> task
 ```
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
 
 ```tut:silent
-task.flatMap(a => IO.shift(ioTimer).map(_ => a))
+task.flatMap(a => IO.shift.map(_ => a))
 ```
 
 Or using `Cats` syntax:
 
 ```tut:silent
-task <* IO.shift(ioTimer)
+task <* IO.shift
 // equivalent to
-task <* Timer[IO].shift
+task <* ContextShift[IO].shift
 ```
 
 Example of where this might be useful:
@@ -1200,9 +1214,12 @@ def loop(n: Int): IO[Int] =
 
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
-Note: all parallel operations require an implicit `Timer[IO]` in scope.
-On JVM, `Timer[IO]` is available when there's an implicit `ExecutionContext` in scope. Alternatively, it can be created using `IO.timer` builder, taking an `ExecutionContext`, managing actual execution, and a `ScheduledExecutorService`, which manages scheduling (not actual execution, so no point in giving it more than one thread).
-On JS, `Timer[IO]` is always available.
+Note: all parallel operations require an implicit `ContextShift[IO]` in scope
+(see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
+
+1. there's an implicit `ExecutionContext` in scope
+2. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
+3. the user provides a custom `ContextShift`
 
 ### parMapN
 

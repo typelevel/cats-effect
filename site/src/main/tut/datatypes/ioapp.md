@@ -158,7 +158,7 @@ import cats.data.EitherT
 object Main extends IOApp {
   type F[A] = EitherT[IO, Throwable, A]
 
-  implicit val timerF: Timer[F] = Timer.derive[F]
+  implicit val timerF: Timer[F] = Timer.deriveIO[F]
   val F = implicitly[ConcurrentEffect[F]]
 
   def run(args: List[String]) = 

@@ -14,7 +14,6 @@ It is a scheduler of tasks. You can think of it as the purely functional equival
 It provides:
 
 - The ability to get the current time.
-- Thread / call-stack shifting.
 - Ability to delay the execution of a task with a specified time duration.
 
 It does all of that in an `F[_]` monadic context that can suspend side effects and is capable of asynchronous execution (e.g. `IO`).
@@ -22,33 +21,33 @@ It does all of that in an `F[_]` monadic context that can suspend side effects a
 This is NOT a typeclass, as it does not have the coherence requirement.
 
 ```tut:silent
+import cats.effect.Clock
 import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 
 trait Timer[F[_]] {
-  def clockRealTime(unit: TimeUnit): F[Long]
-  def clockMonotonic(unit: TimeUnit): F[Long]
+  def clock: Clock[F]
   def sleep(duration: FiniteDuration): F[Unit]
-  def shift: F[Unit]
 }
 ```
 
 As mentioned in the `IO` documentation, there's a default instance of `Timer[IO]` available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:
 
-```tut:silent
+```tut:reset:silent
 import java.util.concurrent.ScheduledExecutorService
 
-import cats.effect.{IO, Timer}
-
+import cats.effect.{IO, Timer, Clock}
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 final class MyTimer(ec: ExecutionContext, sc: ScheduledExecutorService) extends Timer[IO] {
+  override val clock: Clock[IO] =
+    new Clock[IO] {
+      override def realTime(unit: TimeUnit): IO[Long] =
+        IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-  override def clockRealTime(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
-
-  override def clockMonotonic(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.nanoTime(), NANOSECONDS))
+      override def monotonic(unit: TimeUnit): IO[Long] =
+        IO(unit.convert(System.nanoTime(), NANOSECONDS))
+    }
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.cancelable { cb =>
@@ -60,11 +59,10 @@ final class MyTimer(ec: ExecutionContext, sc: ScheduledExecutorService) extends 
       val f = sc.schedule(tick, timespan.length, timespan.unit)
       IO(f.cancel(false))
     }
-
-  override def shift: IO[Unit] =
-    IO.async(cb => ec.execute(new Runnable {
-      def run() = cb(Right(()))
-    }))
-
 }
 ```
+
+Also see these related data types:
+
+- [Clock](./clock.html): for time measurements and getting the current clock
+- [ContextShift](./contextshift.html): the pure equivalent of an `ExecutionContext`
