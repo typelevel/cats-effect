@@ -16,69 +16,65 @@
 
 package cats.effect
 
+import cats.effect.internals.IOContextShift
+
 import scala.concurrent.ExecutionContext
 
- /**
-  * ContextShift provides access to asynchronous execution.
-  *
-  * It allows to shift execution to asynchronous boundary,
-  * and is capable of temporarily execute supplied computation on another ExecutionContext.
-  *
-  * This is NOT a type class, as it does not have the coherence
-  * requirement.
-  */
+/**
+ * ContextShift provides access to asynchronous execution.
+ *
+ * It allows to shift execution to asynchronous boundary,
+ * and is capable of temporarily execute supplied computation on another ExecutionContext.
+ *
+ * This is NOT a type class, as it does not have the coherence
+ * requirement.
+ */
 trait ContextShift[F[_]] {
-
-
-   /**
-    * Asynchronous boundary described as an effectful `F[_]` that
-    * can be used in `flatMap` chains to "shift" the continuation
-    * of the run-loop to another thread or call stack.
-    *
-    * This is the [[Async.shift]] operation, without the need for an
-    * `ExecutionContext` taken as a parameter.
-    *
-    */
+  /**
+   * Asynchronous boundary described as an effectful `F[_]` that
+   * can be used in `flatMap` chains to "shift" the continuation
+   * of the run-loop to another thread or call stack.
+   *
+   * This is the [[Async.shift]] operation, without the need for an
+   * `ExecutionContext` taken as a parameter.
+   *
+   */
   def shift: F[Unit]
 
-   /**
-    * Evaluates execution of `f` by shifting it to supplied execution context and back to default
-    * context.
-    *
-    * This is useful in scenarios where supplied `f` has to be executed on different
-    * Thread pool and once supplied `f` finishes its execution (including a failure)
-    * this will return back to original execution context.
-    *
-    * It is useful, when `f` contains some blocking operations that need to run
-    * out of constant Thread pool that usually back the `ContextShift` implementation.
-    *
-    * @param context  Execution content where the `f` has to be scheduled
-    * @param f        Computation to rin on `context`
-    */
+  /**
+   * Evaluates execution of `f` by shifting it to supplied execution context and back to default
+   * context.
+   *
+   * This is useful in scenarios where supplied `f` has to be executed on different
+   * Thread pool and once supplied `f` finishes its execution (including a failure)
+   * this will return back to original execution context.
+   *
+   * It is useful, when `f` contains some blocking operations that need to run
+   * out of constant Thread pool that usually back the `ContextShift` implementation.
+   *
+   * @param context  Execution content where the `f` has to be scheduled
+   * @param f        Computation to rin on `context`
+   */
   def evalOn[A](context: ExecutionContext)(f: F[A]): F[A]
-
 }
 
-
 object ContextShift {
-
    /**
     * For a given `F` data type fetches the implicit [[ContextShift]]
     * instance available implicitly in the local scope.
     */
-  def apply[F[_]](implicit contextShift: ContextShift[F]): ContextShift[F] = contextShift
+  def apply[F[_]](implicit cs: ContextShift[F]): ContextShift[F] = cs
 
    /**
     * Derives a [[ContextShift]] for any type that has a [[Effect]] instance,
     * from the implicitly available `ContextShift[IO]` that should be in scope.
     */
-  def deriveIO[F[_]](implicit F: Async[F], contextShift: ContextShift[IO]): ContextShift[F] =
+  def deriveIO[F[_]](implicit F: Async[F], cs: ContextShift[IO]): ContextShift[F] =
     new ContextShift[F] {
       def shift: F[Unit] =
-        F.liftIO(contextShift.shift)
+        F.liftIO(cs.shift)
 
       def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        Sync[F].bracket(Async.shift(context))(_ => f)(_ => shift)
+        F.bracket(Async.shift(context))(_ => f)(_ => shift)
     }
-
 }

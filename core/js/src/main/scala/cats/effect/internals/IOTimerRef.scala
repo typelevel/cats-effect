@@ -20,7 +20,7 @@ package internals
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
-private[effect] abstract class IOTimerRef {
+private[effect] trait IOTimerRef {
   /**
    * Returns a [[Timer]] instance for [[IO]].
    *

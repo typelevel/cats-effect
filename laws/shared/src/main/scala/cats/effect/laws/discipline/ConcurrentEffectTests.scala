@@ -70,7 +70,8 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
 }
 
 object ConcurrentEffectTests {
-  def apply[F[_]: ConcurrentEffect](implicit contextShift: ContextShift[F]): ConcurrentEffectTests[F] = new ConcurrentEffectTests[F] {
-    def laws = ConcurrentEffectLaws[F]
-  }
+  def apply[F[_]: ConcurrentEffect](implicit cs: ContextShift[F]): ConcurrentEffectTests[F] =
+    new ConcurrentEffectTests[F] {
+      def laws = ConcurrentEffectLaws[F]
+    }
 }

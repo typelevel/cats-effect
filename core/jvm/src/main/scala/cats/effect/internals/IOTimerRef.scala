@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
-private[effect] abstract class IOTimerRef {
+private[effect] trait IOTimerRef {
   /**
    * Returns a [[Timer]] instance for [[IO]], built from a
    * Scala `ExecutionContext`.
@@ -35,12 +35,7 @@ private[effect] abstract class IOTimerRef {
    *        tasks (e.g. bind continuations)
    */
   implicit def timer(implicit ec: ExecutionContext): Timer[IO] =
-    ec match {
-      case ExecutionContext.Implicits.global =>
-        IOTimerRef.defaultIOTimer
-      case _ =>
-        IOTimer(ec)
-    }
+    IOTimer(ec)
 
   /**
    * Returns a [[Timer]] instance for [[IO]], built from a
@@ -57,10 +52,4 @@ private[effect] abstract class IOTimerRef {
    */
   def timer(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     IOTimer(ec, sc)
-}
-
-private[internals] object IOTimerRef {
-  /** Default, reusable instance, using Scala's `global`. */
-  private[internals] final lazy val defaultIOTimer: Timer[IO] =
-    IOTimer(ExecutionContext.Implicits.global)
 }

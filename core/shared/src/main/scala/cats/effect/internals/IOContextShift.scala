@@ -16,17 +16,16 @@
 
 package cats.effect.internals
 
-
 import cats.effect.{ContextShift, IO}
 
 import scala.concurrent.ExecutionContext
 
 /**
-  * Internal API — JVM specific implementation of a `ContextShift[IO]`.
-  *
-  * Depends on having a Scala `ExecutionContext` for the actual
-  * execution of tasks (i.e. bind continuations)
-  */
+ * Internal API — `ContextShift[IO]` implementation.
+ *
+ * Depends on having a Scala `ExecutionContext` for the actual
+ * execution of tasks (i.e. bind continuations)
+ */
 private[internals] final class IOContextShift private (ec: ExecutionContext)
   extends ContextShift[IO] {
 
@@ -35,18 +34,14 @@ private[internals] final class IOContextShift private (ec: ExecutionContext)
 
   override def evalOn[A](context: ExecutionContext)(f: IO[A]): IO[A] =
     IOShift.shiftOn(context, ec, f)
-
 }
 
-
 object IOContextShift {
-
-  val global: ContextShift[IO] =
-    IOContextShift(ExecutionContext.Implicits.global)
-
-  /** Builder. */
+  /** `ContextShift` builder. */
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)
 
-
+  /** Global instance, used in `IOApp`. */
+  lazy val global: ContextShift[IO] =
+    apply(ExecutionContext.Implicits.global)
 }

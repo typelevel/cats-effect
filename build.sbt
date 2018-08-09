@@ -260,6 +260,23 @@ val mimaSettings = Seq(
       // Issue #290: Concurrent/ConcurrentEffect changes
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO.unsafeRunCancelable"),
 
+      // PR 289: Introduce Clock & ContextShift
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO.shift"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Timer.clockRealTime"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Timer.shift"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Timer.clockMonotonic"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Timer.clock"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer.clockRealTime"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer.shift"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer.clockMonotonic"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Timer.derive"),
+      exclude[MissingTypesProblem]("cats.effect.IOLowPriorityInstances"),
+      exclude[MissingTypesProblem]("cats.effect.IO$"),
+      exclude[MissingTypesProblem]("cats.effect.IOParallelNewtype"),
+      exclude[MissingTypesProblem]("cats.effect.IOInstances"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.internals.IOTimerRef"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOTimerRef$"),
+
       //
       // Following are all internal implementation details:
       //

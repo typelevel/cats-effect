@@ -51,10 +51,9 @@ Timer.derive requires an implicit Timer[IO], which can be available from:
 scala.concurrent.ExecutionContext in scope
 """)
 trait Timer[F[_]]  {
-
   /**
-    * Provides instance of clock backing this timer
-    */
+   * Provides instance of clock backing this timer
+   */
   def clock: Clock[F]
 
   /**
@@ -92,7 +91,7 @@ object Timer {
    * Derives a [[Timer]] for any type that has a [[LiftIO]] instance,
    * from the implicitly available `Timer[IO]` that should be in scope.
    */
-  def derive[F[_]](implicit F: LiftIO[F], timer: Timer[IO]): Timer[F] =
+  def deriveIO[F[_]](implicit F: LiftIO[F], timer: Timer[IO]): Timer[F] =
     new Timer[F] {
       def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(timer.sleep(timespan))
@@ -104,6 +103,5 @@ object Timer {
         override def monotonic(unit: TimeUnit): F[Long] =
           F.liftIO(timer.clock.monotonic(unit))
       }
-
     }
 }

@@ -18,10 +18,8 @@ package cats.effect
 package internals
 
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
-
 import cats.effect.internals.Callback.T
 import cats.effect.internals.IOShift.Tick
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -38,7 +36,7 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
-  val clock : Clock[IO] = Clock.instance[IO]
+  val clock : Clock[IO] = Clock.create[IO]
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -50,7 +48,6 @@ private[internals] final class IOTimer private (
         ref := (() => f.cancel(false))
       }
     })
-
 }
 
 private[internals] object IOTimer {
@@ -61,6 +58,10 @@ private[internals] object IOTimer {
   /** Builder. */
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     new IOTimer(ec, sc)
+
+  /** Global instance, used by `IOApp`. */
+  lazy val global: Timer[IO] =
+    apply(ExecutionContext.Implicits.global)
 
   private lazy val scheduler: ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {

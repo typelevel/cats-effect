@@ -24,13 +24,12 @@ import scala.scalajs.js
  * Internal API — JavaScript specific implementation for a [[Timer]]
  * powered by `IO`.
  *
- * Deferring to JavaScript's own `setTimeout` for
- * `sleep`.
+ * Deferring to JavaScript's own `setTimeout` for `sleep`.
  */
 private[internals] class IOTimer extends Timer[IO] {
   import IOTimer.{ScheduledTick, setTimeout, clearTimeout}
 
-  val clock : Clock[IO] = Clock.instance[IO]
+  val clock : Clock[IO] = Clock.create[IO]
 
   final def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -69,7 +68,7 @@ private[internals] object IOTimer {
     cb: Either[Throwable, Unit] => Unit)
     extends Runnable {
 
-    def run() = {
+    def run(): Unit = {
       conn.pop()
       cb(Callback.rightUnit)
     }

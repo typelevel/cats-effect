@@ -66,6 +66,6 @@ private[effect] object IOAppPlatform {
 
   // both lazily initiated on JVM platform to prevent
   // warm-up of underlying default EC's for code that does not require concurrency
-  def defaultTimer: Timer[IO] = IOTimerRef.defaultIOTimer
+  def defaultTimer: Timer[IO] = IOTimer.global
   def defaultContextShift: ContextShift[IO] = IOContextShift.global
 }

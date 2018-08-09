@@ -75,7 +75,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
   test("Timer[EitherT].clock.realTime") {
     val time = System.currentTimeMillis()
-    val io = Timer.derive[EitherIO].clock.realTime(MILLISECONDS)
+    val io = Timer.deriveIO[EitherIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -85,7 +85,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
   test("Timer[EitherT].clock.monotonic") {
     val time = System.nanoTime()
-    val io = Timer.derive[EitherIO].clock.monotonic(NANOSECONDS)
+    val io = Timer.deriveIO[EitherIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -94,7 +94,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[EitherT].sleep(10.ms)") {
-    implicit val timer = Timer.derive[EitherIO]
+    implicit val timer = Timer.deriveIO[EitherIO]
     val io = for {
       start <- timer.clock.monotonic(MILLISECONDS)
       _ <- timer.sleep(10.millis)
@@ -109,7 +109,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[EitherT].sleep(negative)") {
-    val io = Timer.derive[EitherIO].sleep(-10.seconds).map(_ => 10)
+    val io = Timer.deriveIO[EitherIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
       r.right.getOrElse(0) shouldBe 10
