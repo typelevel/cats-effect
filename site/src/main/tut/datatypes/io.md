@@ -1184,6 +1184,7 @@ Thus, this function has four important use cases:
 - Shifting blocking actions off of the main compute pool.
 - Defensively re-shifting asynchronous continuations back to the main compute pool.
 - Yielding control to some underlying pool for fairness reasons.
+- Preventing an overflow of the call stack in the case of improperly constructed `async` actions.
 
 `IO` is trampolined for all `synchronous` and `asynchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:
 
