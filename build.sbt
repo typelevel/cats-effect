@@ -306,6 +306,38 @@ val mimaSettings = Seq(
       // Issue #290: Concurrent/ConcurrentEffect changes
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO.unsafeRunCancelable"),
 
+      // Issue #298: SyncIO changes
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+
       //
       // Following are all internal implementation details:
       //
