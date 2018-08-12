@@ -18,8 +18,9 @@ package cats.effect
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.effect.internals.{Callback, CancelUtils, Conversions}
+import cats.effect.internals.{Callback, CancelUtils, Conversions, IOPlatform}
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
@@ -157,7 +158,7 @@ class IOCancelableTests extends BaseTestsSuite {
     implicit val timer = ec.timer[IO]
 
     val p1 = Promise[Unit]()
-    val io = IO.unit.bracket(_ => IO.never : IO[Unit]) { _ =>
+    val io = IO.unit.bracket(_ => IO.never: IO[Unit]) { _ =>
       IO.sleep(3.seconds) *> IO(p1.success(()))
     }
 
@@ -213,7 +214,7 @@ class IOCancelableTests extends BaseTestsSuite {
     val io =
       IO(1).bracket { _ =>
         IO(2).bracket { _ =>
-          IO(3).bracket(_ => IO.never : IO[Unit]) { x3 =>
+          IO(3).bracket(_ => IO.never: IO[Unit]) { x3 =>
             IO.sleep(3.seconds) *> IO {
               atom.compareAndSet(0, x3) shouldBe true
             }
@@ -251,5 +252,35 @@ class IOCancelableTests extends BaseTestsSuite {
     ec.tick(1.seconds)
     f.value shouldBe Some(Success(()))
     atom.get() shouldBe 1
+  }
+
+  testAsync("errors of nested brackets get aggregated") { _ =>
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
+    val dummy3 = new RuntimeException("dummy3")
+
+    val io =
+      IO(1).bracket { _ =>
+        IO(2).bracket { _ =>
+          IO(3).bracket(_ => IO.never: IO[Unit]) { _ => IO.raiseError(dummy3) }
+        } { _ =>
+          IO.raiseError(dummy2)
+        }
+      } { _ =>
+        IO.raiseError(dummy1)
+      }
+
+    val p = Promise[Unit]()
+    val token = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r)))
+    val f = token.unsafeToFuture()
+
+    p.future.value shouldBe None
+
+    if (IOPlatform.isJVM) {
+      f.value shouldBe Some(Failure(dummy3))
+      dummy3.getSuppressed.toList shouldBe List(dummy2, dummy1)
+    } else {
+      f.value shouldBe Some(Failure(CompositeException(dummy3, dummy2, List(dummy1))))
+    }
   }
 }
