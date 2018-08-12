@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.Eq
-import cats.effect.internals.{Callback, Conversions}
+import cats.effect.internals.Conversions
 import cats.effect.laws.util.TestContext
 import org.scalacheck.{Arbitrary, Cogen}
 import cats.syntax.flatMap._

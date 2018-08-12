@@ -17,9 +17,8 @@
 package cats.effect.laws.util
 
 import cats.effect.internals.Callback.T
-import cats.effect.internals.CancelUtils.{Type => Cancelable}
 import cats.effect.internals.{IOConnection, IOForkedStart}
-import cats.effect.{IO, LiftIO, Timer}
+import cats.effect.{CancelToken, IO, LiftIO, Timer}
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -154,10 +153,7 @@ final class TestContext private () extends ExecutionContext { self =>
             self.execute(tick(cb))
         }))
       override def sleep(timespan: FiniteDuration): F[Unit] =
-        F.liftIO(IO.cancelable { cb =>
-          val cancel = self.schedule(timespan, tick(cb))
-          IO(cancel())
-        })
+        F.liftIO(IO.cancelable { cb => self.schedule(timespan, tick(cb)) })
       override def clockRealTime(unit: TimeUnit): F[Long] =
         F.liftIO(IO {
           val d = self.state.clock
@@ -307,7 +303,7 @@ final class TestContext private () extends ExecutionContext { self =>
     stateRef = stateRef.copy(tasks = stateRef.tasks - t)
   }
 
-  private def schedule(delay: FiniteDuration, r: Runnable): Cancelable =
+  private def schedule(delay: FiniteDuration, r: Runnable): CancelToken[IO] =
     synchronized {
       val current: State = stateRef
       val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
@@ -350,12 +346,12 @@ object TestContext {
      * Returns a new state with a scheduled task included.
      */
     private[TestContext]
-    def scheduleOnce(delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (Cancelable, State) = {
+    def scheduleOnce(delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (CancelToken[IO], State) = {
       val d = if (delay >= Duration.Zero) delay else Duration.Zero
       val newID = lastID + 1
 
       val task = Task(newID, r, this.clock + d)
-      val cancelable = () => cancelTask(task)
+      val cancelable = IO(cancelTask(task))
 
       (cancelable, copy(
         lastID = newID,
