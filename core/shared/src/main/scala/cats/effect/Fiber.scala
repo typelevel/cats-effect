@@ -77,10 +77,10 @@ object Fiber extends FiberInstances {
   /**
    * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
    */
-  def apply[F[_], A](join: F[A], cancel: F[Unit]): Fiber[F, A] =
-    Tuple(join, cancel)
+  def apply[F[_], A](join: F[A], cancel: CancelToken[F]): Fiber[F, A] =
+    Tuple[F, A](join, cancel)
 
-  private final case class Tuple[F[_], A](join: F[A], cancel: F[Unit])
+  private final case class Tuple[F[_], A](join: F[A], cancel: CancelToken[F])
     extends Fiber[F, A]
 }
 

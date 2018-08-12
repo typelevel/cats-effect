@@ -17,7 +17,7 @@
 package cats.effect.laws.util
 
 import cats.effect.internals.Callback.T
-import cats.effect.internals.Cancelable.{Type => Cancelable}
+import cats.effect.internals.CancelUtils.{Type => Cancelable}
 import cats.effect.internals.{IOConnection, IOForkedStart}
 import cats.effect.{IO, LiftIO, Timer}
 

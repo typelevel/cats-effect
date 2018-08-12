@@ -16,23 +16,20 @@
 
 package cats.effect.internals
 
+import cats.effect.IO
 import cats.effect.util.CompositeException
 import org.scalatest.{FunSuite, Matchers}
 
-class CancelableTests extends FunSuite with Matchers {
-  test("dummy is a no-op") {
-    Cancelable.dummy.apply()
-    Cancelable.dummy.apply()
-    Cancelable.dummy.apply()
-  }
+import scala.util.control.NonFatal
 
+class CancelUtilsTests extends FunSuite with Matchers {
   test("cancelAll works for zero references") {
-    Cancelable.cancelAll()
+    CancelUtils.cancelAll().unsafeRunSync()
   }
 
   test("cancelAll works for one reference") {
     var wasCanceled = false
-    Cancelable.cancelAll(() => { wasCanceled = true })
+    CancelUtils.cancelAll(IO { wasCanceled = true }).unsafeRunSync()
     wasCanceled shouldBe true
   }
 
@@ -41,12 +38,14 @@ class CancelableTests extends FunSuite with Matchers {
     var wasCanceled1 = false
     var wasCanceled2 = false
 
+    val io = CancelUtils.cancelAll(
+      IO { wasCanceled1 = true },
+      IO { throw dummy },
+      IO { wasCanceled2 = true }
+    )
+
     try {
-      Cancelable.cancelAll(
-        () => { wasCanceled1 = true },
-        () => { throw dummy },
-        () => { wasCanceled2 = true }
-      )
+      io.unsafeRunSync()
       fail("should have throw exception")
     } catch {
       case `dummy` =>
@@ -61,18 +60,26 @@ class CancelableTests extends FunSuite with Matchers {
     var wasCanceled1 = false
     var wasCanceled2 = false
 
+    val io = CancelUtils.cancelAll(
+      IO { wasCanceled1 = true },
+      IO { throw dummy1 },
+      IO { throw dummy2 },
+      IO { wasCanceled2 = true }
+    )
+
     try {
-      Cancelable.cancelAll(
-        () => { wasCanceled1 = true },
-        () => { throw dummy1 },
-        () => { throw dummy2 },
-        () => { wasCanceled2 = true }
-      )
+      io.unsafeRunSync()
       fail("should have throw exception")
     } catch {
-      case CompositeException(`dummy1`, `dummy2`) =>
-        wasCanceled1 shouldBe true
-        wasCanceled2 shouldBe true
+      case NonFatal(error) =>
+        if (IOPlatform.isJVM) {
+          error shouldBe dummy1
+          error.getSuppressed.toList shouldBe List(dummy2)
+        } else {
+          error shouldBe CompositeException(dummy1, dummy2)
+          wasCanceled1 shouldBe true
+          wasCanceled2 shouldBe true
+        }
     }
   }
 }

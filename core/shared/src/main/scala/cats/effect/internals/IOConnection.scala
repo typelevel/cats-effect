@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import java.util.concurrent.atomic.AtomicReference
-import cats.effect.internals.Cancelable.{dummy, Type => Cancelable}
 import scala.annotation.tailrec
 
 /**
@@ -40,7 +40,7 @@ private[effect] sealed abstract class IOConnection {
    * same side-effect as calling it only once. Implementations
    * of this method should also be thread-safe.
    */
-  def cancel: Cancelable
+  def cancel: CancelToken[IO]
 
   /**
    * @return true in case this cancelable hasn't been canceled,
@@ -52,7 +52,7 @@ private[effect] sealed abstract class IOConnection {
    * Pushes a cancelable reference on the stack, to be
    * popped or canceled later in FIFO order.
    */
-  def push(cancelable: Cancelable): Unit
+  def push(token: CancelToken[IO]): Unit
 
   /**
    * Pushes a pair of `IOConnection` on the stack, which on
@@ -69,7 +69,7 @@ private[effect] sealed abstract class IOConnection {
    *
    * @return the cancelable reference that was removed.
    */
-  def pop(): Cancelable
+  def pop(): CancelToken[IO]
 
   /**
    * Tries to reset an `IOConnection`, from a cancelled state,
@@ -88,66 +88,51 @@ private[effect] object IOConnection {
     new Impl
 
   /**
-   * Reusable [[IOConnection]] reference that is already
-   * canceled.
-   */
-  val alreadyCanceled: IOConnection =
-    new AlreadyCanceled
-
-  /**
    * Reusable [[IOConnection]] reference that cannot
    * be canceled.
    */
   val uncancelable: IOConnection =
     new Uncancelable
 
-  private final class AlreadyCanceled extends IOConnection {
-    def cancel = dummy
-    def isCanceled: Boolean = true
-    def pop(): Cancelable = dummy
-    def push(cancelable: Cancelable): Unit = cancelable()
-    def tryReactivate(): Boolean = false
-    def pushPair(lh: IOConnection, rh: IOConnection): Unit =
-      try lh.cancel() finally rh.cancel()
-  }
-
   private final class Uncancelable extends IOConnection {
-    def cancel = dummy
+    def cancel = IO.unit
     def isCanceled: Boolean = false
-    def push(cancelable: Cancelable): Unit = ()
-    def pushCollection(cancelables: Cancelable*): Unit = ()
-    def pop(): Cancelable = dummy
+    def push(token: CancelToken[IO]): Unit = ()
+    def pop(): CancelToken[IO] = IO.unit
     def tryReactivate(): Boolean = true
     def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
   }
 
   private final class Impl extends IOConnection {
-    private[this] val state = new AtomicReference(List.empty[Cancelable])
+    private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
 
-    val cancel = () =>
+    val cancel = IO.suspend {
       state.getAndSet(null) match {
-        case null | Nil => ()
+        case null | Nil =>
+          IO.unit
         case list =>
-          Cancelable.cancelAll(list:_*)
+          CancelUtils.cancelAll(list:_*)
       }
+    }
 
     def isCanceled: Boolean =
       state.get eq null
 
-    @tailrec def push(cancelable: Cancelable): Unit =
+    @tailrec def push(cancelable: CancelToken[IO]): Unit =
       state.get() match {
-        case null => cancelable()
+        case null =>
+          cancelable.unsafeRunAsyncAndForget()
         case list =>
           val update = cancelable :: list
           if (!state.compareAndSet(list, update)) push(cancelable)
       }
 
     def pushPair(lh: IOConnection, rh: IOConnection): Unit =
-      push(new TrampolinedPair(lh, rh))
+      push(CancelUtils.cancelAll(lh.cancel, rh.cancel))
 
-    @tailrec def pop(): Cancelable =
+    @tailrec def pop(): CancelToken[IO] =
       state.get() match {
-        case null | Nil => dummy
+        case null | Nil => IO.unit
         case current @ (x :: xs) =>
           if (!state.compareAndSet(current, xs)) pop()
           else x
@@ -155,17 +140,5 @@ private[effect] object IOConnection {
 
     def tryReactivate(): Boolean =
       state.compareAndSet(null, Nil)
-  }
-
-  private final class TrampolinedPair(lh: IOConnection, rh: IOConnection)
-    extends Cancelable.Type with Runnable {
-
-    override def run(): Unit =
-      Cancelable.cancelAll(lh.cancel, rh.cancel)
-
-    def apply(): Unit = {
-      // Needs to be trampolined, otherwise it can cause StackOverflows
-      TrampolineEC.immediate.execute(this)
-    }
   }
 }

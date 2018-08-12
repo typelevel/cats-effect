@@ -77,7 +77,7 @@ object LTask {
 
       def runAsync[A](fa: LTask[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
         SyncIO(fa.run(ec).onComplete { r =>
-          cb(Conversions.toEither(r)).unsafeRunAsync(Callback.report)
+          cb(Conversions.toEither(r)).unsafeRunAsyncAndForget()
         })
 
       def runSyncStep[A](fa: LTask[A]): SyncIO[Either[LTask[A], A]] =
