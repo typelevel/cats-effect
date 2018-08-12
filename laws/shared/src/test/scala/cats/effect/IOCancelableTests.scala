@@ -280,7 +280,10 @@ class IOCancelableTests extends BaseTestsSuite {
       f.value shouldBe Some(Failure(dummy3))
       dummy3.getSuppressed.toList shouldBe List(dummy2, dummy1)
     } else {
-      f.value shouldBe Some(Failure(CompositeException(dummy3, dummy2, List(dummy1))))
+      f.value match {
+        case Some(Failure(CompositeException(`dummy3`, `dummy2`, `dummy1`))) => ()
+        case _ => fail(s"Unexpected result: ${f.value}")
+      }
     }
   }
 }
