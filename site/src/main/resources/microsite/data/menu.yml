@@ -8,6 +8,10 @@ options:
         url: datatypes/io.html
         menu_section: io
 
+      - title: SyncIO
+        url: datatypes/syncio.html
+        menu_section: syncio
+
       - title: Fiber
         url: datatypes/fiber.html
         menu_section: fiber
@@ -22,7 +26,7 @@ options:
 
       - title: IOApp
         url: datatypes/ioapp.html
-        menu_section: ioapp    
+        menu_section: ioapp
 
   - title: Concurrency
     url: concurrency/
