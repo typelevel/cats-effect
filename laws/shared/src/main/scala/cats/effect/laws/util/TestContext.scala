@@ -147,18 +147,24 @@ final class TestContext private () extends ExecutionContext { self =>
     new Timer[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
+
       override def shift: F[Unit] =
         F.liftIO(IO.Async(new IOForkedStart[Unit] {
           def apply(conn: IOConnection, cb: T[Unit]): Unit =
             self.execute(tick(cb))
         }))
+
       override def sleep(timespan: FiniteDuration): F[Unit] =
-        F.liftIO(IO.cancelable { cb => self.schedule(timespan, tick(cb)) })
+        F.liftIO(IO.cancelable { cb =>
+          self.schedule(timespan, tick(cb))
+        })
+
       override def clockRealTime(unit: TimeUnit): F[Long] =
         F.liftIO(IO {
           val d = self.state.clock
           unit.convert(d.length, d.unit)
         })
+
       override def clockMonotonic(unit: TimeUnit): F[Long] =
         clockRealTime(unit)
     }
@@ -255,14 +261,13 @@ final class TestContext private () extends ExecutionContext { self =>
    *
    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
+    val targetTime = this.stateRef.clock + time
     var hasTasks = true
-    var timeLeft = time
 
     while (hasTasks) synchronized {
       val current = this.stateRef
-      val currentClock = current.clock + time
 
-      extractOneTask(current, currentClock) match {
+      extractOneTask(current, targetTime) match {
         case Some((head, rest)) =>
           stateRef = current.copy(clock = head.runsAt, tasks = rest)
           // execute task
@@ -271,12 +276,8 @@ final class TestContext private () extends ExecutionContext { self =>
               reportFailure(ex)
           }
 
-          // have to retry execution, as those pending tasks
-          // may have registered new tasks for immediate execution
-          timeLeft = currentClock - head.runsAt
-
         case None =>
-          stateRef = current.copy(clock = currentClock)
+          stateRef = current.copy(clock = targetTime)
           hasTasks = false
       }
     }

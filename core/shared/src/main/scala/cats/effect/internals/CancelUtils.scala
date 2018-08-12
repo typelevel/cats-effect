@@ -18,7 +18,6 @@ package cats.effect
 package internals
 
 import scala.collection.mutable.ListBuffer
-import scala.util.control.NonFatal
 
 /**
  * INTERNAL API - utilities for dealing with cancelable thunks.
@@ -32,34 +31,43 @@ private[effect] object CancelUtils {
     if (cancelables.isEmpty) {
       IO.unit
     } else IO.suspend {
-      val errors = ListBuffer.empty[Throwable]
-      val cursor = cancelables.iterator
-      var acc = IO.unit
+      cancelAll(cancelables.iterator)
+    }
+  }
 
-      while (cursor.hasNext) {
-        val next = cursor.next()
-        acc = acc.flatMap { _ =>
-          try {
-            next.handleErrorWith { e =>
-              errors += e
-              IO.unit
-            }
-          } catch {
-            case e if NonFatal(e) =>
-              errors += e
-              IO.unit
-          }
-        }
-      }
+  def cancelAll(cursor: Iterator[CancelToken[IO]]): CancelToken[IO] =
+    if (cursor.isEmpty) {
+      IO.unit
+    } else IO.suspend {
+      val frame = new CancelAllFrame(cursor)
+      frame.loop()
+    }
 
-      acc.flatMap { _ =>
+  // Optimization for `cancelAll`
+  private final class CancelAllFrame(cursor: Iterator[CancelToken[IO]])
+    extends IOFrame[Unit, IO[Unit]] {
+
+    private[this] val errors = ListBuffer.empty[Throwable]
+
+    def loop(): CancelToken[IO] = {
+      if (cursor.hasNext) {
+        cursor.next().flatMap(this)
+      } else {
         errors.toList match {
           case Nil =>
             IO.unit
           case first :: rest =>
-            IO.raiseError(IOPlatform.composeErrors(first, rest:_*))
+            IO.raiseError(IOPlatform.composeErrors(first, rest: _*))
         }
       }
+    }
+
+    def apply(a: Unit): IO[Unit] =
+      loop()
+
+    def recover(e: Throwable): IO[Unit] = {
+      errors += e
+      loop()
     }
   }
 }

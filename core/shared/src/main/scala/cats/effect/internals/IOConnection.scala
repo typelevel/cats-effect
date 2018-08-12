@@ -111,7 +111,7 @@ private[effect] object IOConnection {
         case null | Nil =>
           IO.unit
         case list =>
-          CancelUtils.cancelAll(list:_*)
+          CancelUtils.cancelAll(list.iterator)
       }
     }
 

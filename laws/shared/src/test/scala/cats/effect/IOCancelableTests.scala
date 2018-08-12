@@ -16,7 +16,9 @@
 
 package cats.effect
 
-import cats.effect.internals.Callback
+import java.util.concurrent.atomic.AtomicInteger
+
+import cats.effect.internals.{Callback, CancelUtils, Conversions}
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.laws._
@@ -24,7 +26,8 @@ import cats.laws.discipline._
 import org.scalacheck.Prop
 
 import scala.concurrent.Promise
-import scala.util.Success
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 class IOCancelableTests extends BaseTestsSuite {
   testAsync("IO.cancelBoundary <-> IO.unit") { implicit ec =>
@@ -107,5 +110,146 @@ class IOCancelableTests extends BaseTestsSuite {
     sc.tick()
     sc.state.tasks.isEmpty shouldBe true
     p.future.value shouldBe None
+  }
+
+  testAsync("onCancelRaiseError back-pressures on the finalizer") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val p1 = Promise[Unit]()
+    val io = IO.cancelable[Unit] { _ =>
+      IO.sleep(3.seconds) *> IO(p1.success(()))
+    }
+
+    val dummy = new RuntimeException("dummy")
+    val p2 = Promise[Unit]()
+    val token = io.onCancelRaiseError(dummy).unsafeRunCancelable(r => p2.complete(Conversions.toTry(r)))
+
+    ec.tick()
+    p1.future.value shouldBe None
+    p2.future.value shouldBe None
+
+    val cancel = token.unsafeToFuture()
+    ec.tick(2.seconds)
+    cancel.value shouldBe None
+    p1.future.value shouldBe None
+    p2.future.value shouldBe None
+
+    ec.tick(1.second)
+    cancel.value shouldBe Some(Success(()))
+    p1.future.value shouldBe Some(Success(()))
+    p2.future.value shouldBe Some(Failure(dummy))
+  }
+
+  testAsync("onCancelRaiseError deals with the error of the finalizer") { ec =>
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
+
+    val io = IO.cancelable[Unit](_ => IO.raiseError(dummy2)).onCancelRaiseError(dummy1)
+    val p = Promise[Unit]()
+    val cancel = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r))).unsafeToFuture()
+
+    ec.tick()
+    cancel.value shouldBe Some(Failure(dummy2))
+    p.future.value shouldBe Some(Failure(dummy1))
+  }
+
+  testAsync("bracket back-pressures on the finalizer") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val p1 = Promise[Unit]()
+    val io = IO.unit.bracket(_ => IO.never : IO[Unit]) { _ =>
+      IO.sleep(3.seconds) *> IO(p1.success(()))
+    }
+
+    val p2 = Promise[Unit]()
+    val token = io.unsafeRunCancelable(r => p2.complete(Conversions.toTry(r)))
+
+    ec.tick()
+    p1.future.value shouldBe None
+    p2.future.value shouldBe None
+
+    val cancel = token.unsafeToFuture()
+    ec.tick(2.seconds)
+    cancel.value shouldBe None
+    p1.future.value shouldBe None
+    p2.future.value shouldBe None
+
+    ec.tick(1.second)
+    cancel.value shouldBe Some(Success(()))
+    p1.future.value shouldBe Some(Success(()))
+    p2.future.value shouldBe None
+  }
+
+  testAsync("CancelUtils.cancelAll") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val token1 = IO.sleep(1.seconds)
+    val token2 = IO.sleep(2.seconds)
+    val token3 = IO.sleep(3.seconds)
+
+    val f1 = CancelUtils.cancelAll(token1, token2, token3).unsafeToFuture()
+
+    ec.tick()
+    f1.value shouldBe None
+    ec.tick(3.seconds)
+    f1.value shouldBe None
+    ec.tick(3.seconds)
+    f1.value shouldBe Some(Success(()))
+
+    val f2 = CancelUtils.cancelAll(token3, token2, token1).unsafeToFuture()
+
+    ec.tick()
+    f2.value shouldBe None
+    ec.tick(3.seconds)
+    f2.value shouldBe None
+    ec.tick(3.seconds)
+    f2.value shouldBe Some(Success(()))
+  }
+
+  testAsync("nested brackets are sequenced") { ec =>
+    implicit val timer = ec.timer[IO]
+    val atom = new AtomicInteger(0)
+
+    val io =
+      IO(1).bracket { _ =>
+        IO(2).bracket { _ =>
+          IO(3).bracket(_ => IO.never : IO[Unit]) { x3 =>
+            IO.sleep(3.seconds) *> IO {
+              atom.compareAndSet(0, x3) shouldBe true
+            }
+          }
+        } { x2 =>
+          IO.sleep(2.second) *> IO {
+            atom.compareAndSet(3, x2) shouldBe true
+          }
+        }
+      } { x1 =>
+        IO.sleep(1.second) *> IO {
+          atom.compareAndSet(2, x1) shouldBe true
+        }
+      }
+
+    val p = Promise[Unit]()
+    val token = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r)))
+    val f = token.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldBe None
+    atom.get() shouldBe 0
+
+    ec.tick(1.second)
+    atom.get() shouldBe 0
+
+    ec.tick(2.seconds)
+    f.value shouldBe None
+    atom.get() shouldBe 3
+
+    ec.tick(2.seconds)
+    f.value shouldBe None
+    atom.get() shouldBe 2
+
+    ec.tick(1.seconds)
+    f.value shouldBe Some(Success(()))
+    atom.get() shouldBe 1
   }
 }
