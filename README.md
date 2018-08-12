@@ -1,4 +1,4 @@
-# cats-effect 
+# cats-effect
 
 [![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=master)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect) [![Coverage Status](https://codecov.io/gh/typelevel/cats-effect/coverage.svg?branch=master)](https://codecov.io/gh/typelevel/cats-effect?branch=master)
 
@@ -69,6 +69,18 @@ These are some well known libraries that depend on `cats-effect`:
 | [Pure Config](https://pureconfig.github.io/) | A boilerplate-free library for loading configuration files |
 | [Scala Cache](https://cb372.github.io/scalacache/) | A facade for the most popular cache implementations for Scala |
 | [Sttp](http://sttp.readthedocs.io/en/latest/) | The Scala HTTP client you always wanted |
+
+## Related Projects
+
+These are some of the projects that provide high-level functions on top of `cats-effect`:
+
+| Project | Description |
+| ------- | ----------- |
+| [Cats Retry](https://github.com/cb372/cats-retry) | A library for retrying actions that can fail |
+| [Console4cats](https://gvolpe.github.io/console4cats/) | Console I/O for Cats Effect |
+| [Fuuid](https://christopherdavenport.github.io/fuuid/) | Functional UUID's |
+| [Linebacker](https://christopherdavenport.github.io/linebacker/) | Thread Pool Management for Scala: Enabling functional blocking where needed |
+| [Log4cats](https://christopherdavenport.github.io/log4cats/) | Functional Logging |
 
 ## Development
 
