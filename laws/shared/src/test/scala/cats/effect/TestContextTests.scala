@@ -175,7 +175,7 @@ class TestContextTests extends BaseTestsSuite {
     assert(p2.future.value === None)
     assert(p3.future.value === None)
 
-    cancel()
+    cancel.unsafeRunSync()
     ec.tick()
     assert(p2.future.value === None)
 

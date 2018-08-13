@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.concurrent.Deferred
 import cats.effect.internals.{Callback, IOPlatform}
-import cats.effect.laws.discipline.ConcurrentEffectTests
+import cats.effect.laws.discipline.{ConcurrentEffectTests, EffectTests}
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
@@ -29,7 +29,7 @@ import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
 
-import scala.concurrent.{Future, Promise, TimeoutException}
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
@@ -42,8 +42,13 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO.Par", implicit ec => ApplicativeTests[IO.Par].applicative[Int, Int, Int])
   checkAllAsync("IO", implicit ec => ParallelTests[IO, IO.Par].parallel[Int, Int])
 
-  checkAllAsync("IO(defaults)", implicit ec => {
+  checkAllAsync("IO(Effect defaults)", implicit ec => {
     implicit val ioEffect = IOTests.ioEffectDefaults
+    EffectTests[IO].effect[Int, Int, Int]
+  })
+
+  checkAllAsync("IO(ConcurrentEffect defaults)", implicit ec => {
+    implicit val ioConcurrent = IOTests.ioConcurrentEffectDefaults(ec)
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
   })
 
@@ -136,7 +141,6 @@ class IOTests extends BaseTestsSuite {
     ec.tick()
     expected.value shouldEqual Some(Success(1))
   }
-
 
   testAsync("shift works for failure (via Timer)") { implicit ec =>
     val dummy = new RuntimeException("dummy")
@@ -388,7 +392,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("sync.to[IO] is stack-safe") { implicit ec =>
     // Override default generator to only generate
     // synchronous instances that are stack-safe
-    implicit val arbIO = Arbitrary(genSyncIO[Int])
+    implicit val arbIO = Arbitrary(genSyncIO[Int].map(_.toIO))
 
     check { (io: IO[Int]) =>
       repeatedTransformLoop(10000, io) <-> io
@@ -555,7 +559,7 @@ class IOTests extends BaseTestsSuite {
     val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCanceled = true })
     val cancel = io1.unsafeRunCancelable(Callback.promise(p))
 
-    cancel()
+    cancel.unsafeRunSync()
     // Signal not observed yet due to IO.shift
     wasCanceled shouldBe false
 
@@ -872,7 +876,7 @@ class IOTests extends BaseTestsSuite {
     val f = p.future
 
     ec.tick()
-    cancel()
+    cancel.unsafeRunSync()
     ec.tick()
 
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
@@ -929,8 +933,23 @@ class IOTests extends BaseTestsSuite {
 
 object IOTests {
   /** Implementation for testing default methods. */
-  val ioEffectDefaults = new Effect[IO] {
-    private val ref = implicitly[Effect[IO]]
+  val ioEffectDefaults = new IODefaults
+
+  /** Implementation for testing default methods. */
+  def ioConcurrentEffectDefaults(implicit ec: ExecutionContext) =
+    new IODefaults with ConcurrentEffect[IO] {
+      override protected val ref = implicitly[ConcurrentEffect[IO]]
+
+      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
+        fa.runCancelable(cb)
+      def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+        fa.start
+      def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+        IO.racePair(fa, fb)
+    }
+
+  class IODefaults extends Effect[IO] {
+    protected val ref = implicitly[Effect[IO]]
 
     def async[A](k: ((Either[Throwable, A]) => Unit) => Unit): IO[A] =
       ref.async(k)
@@ -946,16 +965,12 @@ object IOTests {
       ref.flatMap(fa)(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
       ref.tailRecM(a)(f)
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
-    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+    def runSyncStep[A](fa: IO[A]): SyncIO[Either[IO[A], A]] =
       ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
-    def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[IO[Unit]] =
-      fa.runCancelable(cb)
-    def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-      IO.cancelable(k)
     def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
       (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =

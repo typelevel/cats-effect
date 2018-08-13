@@ -103,7 +103,7 @@ class IOCancelableTests extends BaseTestsSuite {
     val cancel = task.unsafeRunCancelable(Callback.promise(p))
     sc.state.tasks.isEmpty shouldBe false
 
-    cancel()
+    cancel.unsafeRunSync()
     sc.tick()
     sc.state.tasks.isEmpty shouldBe true
     p.future.value shouldBe None

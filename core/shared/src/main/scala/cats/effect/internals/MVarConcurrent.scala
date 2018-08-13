@@ -87,7 +87,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     }
   }
 
-  @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): IO[Unit] = {
+  @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): F[Unit] = {
     stateRef.get match {
       case current @ WaitForTake(value, listeners) =>
         val id = new Id
@@ -95,7 +95,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val update = WaitForTake(value, newMap)
 
         if (stateRef.compareAndSet(current, update)) {
-          IO(unsafeCancelPut(id))
+          F.delay(unsafeCancelPut(id))
         } else {
           unsafePut(a)(onPut) // retry
         }
@@ -118,7 +118,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           if (first ne null) first(value)
           // Signals completion of `put`
           onPut(rightUnit)
-          IO.unit
+          F.unit
         } else {
           unsafePut(a)(onPut) // retry
         }
@@ -168,13 +168,13 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   }
 
   @tailrec
-  private def unsafeTake(onTake: Listener[A]): IO[Unit] = {
+  private def unsafeTake(onTake: Listener[A]): F[Unit] = {
     stateRef.get match {
       case current @ WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty)) {
             onTake(Right(value))
-            IO.unit
+            F.unit
           } else {
             unsafeTake(onTake) // retry
           }
@@ -183,7 +183,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           if (stateRef.compareAndSet(current, WaitForTake(ax, xs))) {
             onTake(Right(value))
             notify(rightUnit)
-            IO.unit
+            F.unit
           } else {
             unsafeTake(onTake) // retry
           }
@@ -193,7 +193,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
         val id = new Id
         val newQueue = takes.updated(id, onTake)
         if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
-          IO(unsafeCancelTake(id))
+          F.delay(unsafeCancelTake(id))
         else {
           unsafeTake(onTake) // retry
         }
@@ -213,21 +213,21 @@ private[effect] final class MVarConcurrent[F[_], A] private (
 
 
   @tailrec
-  private def unsafeRead(onRead: Listener[A]): IO[Unit] = {
+  private def unsafeRead(onRead: Listener[A]): F[Unit] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, _) =>
         // A value is available, so complete `read` immediately without
         // changing the sate
         onRead(Right(value))
-        IO.unit
+        F.unit
 
       case WaitForPut(reads, takes) =>
         // No value available, enqueue the callback
         val id = new Id
         val newQueue = reads.updated(id, onRead)
         if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
-          IO(unsafeCancelRead(id))
+          F.delay(unsafeCancelRead(id))
         else {
           unsafeRead(onRead) // retry
         }

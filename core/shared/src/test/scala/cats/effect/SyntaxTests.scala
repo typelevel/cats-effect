@@ -55,14 +55,14 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val cb = mock[Either[Throwable, A] => IO[Unit]]
 
     typed[IO[A]](fa.toIO)
-    typed[IO[Unit]](fa.runAsync(cb))
-    typed[IO[Either[F[A], A]]](fa.runSyncStep)
+    typed[SyncIO[Unit]](fa.runAsync(cb))
+    typed[SyncIO[Either[F[A], A]]](fa.runSyncStep)
   }
 
   def concurrentEffectSyntax[F[_]: ConcurrentEffect, A] = {
     val fa = mock[F[A]]
     val cb = mock[Either[Throwable, A] => IO[Unit]]
 
-    typed[IO[IO[Unit]]](fa.runCancelable(cb))
+    typed[SyncIO[F[Unit]]](fa.runCancelable(cb))
   }
 }

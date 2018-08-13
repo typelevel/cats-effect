@@ -38,7 +38,7 @@ private[effect] object IOPlatform {
       case null =>
         // Triggering cancellation first
         cb.isActive = false
-        cancel()
+        cancel.unsafeRunAsync(Callback.report)
         throw new UnsupportedOperationException(
           "cannot synchronously await result on JavaScript; " +
           "use runAsync or unsafeRunAsync")
