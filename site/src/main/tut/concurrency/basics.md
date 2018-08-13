@@ -133,7 +133,7 @@ It is helpful to actually understand what is happening behind the scenes during 
 
 Essential term is **thread scheduling**. Since we can’t run all our threads in parallel all the time they 
 each get their own slice of time to execute, e.g. interleaving with the rest of them so every thread has a chance to run. 
-If there is a time for change the currently running thread is **preempted** - it saves its state and context switch happen.
+If it is time to change threads, the currently running thread is **preempted** - it saves its state and the context switch happens.
 
 This is a bit different when using thread pools (`ExecutionContexts`) because they are in charge of 
 scheduling threads from their own pool. If there is one thread running it won’t change until it terminates or 
