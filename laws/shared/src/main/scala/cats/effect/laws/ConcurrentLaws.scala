@@ -272,11 +272,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     fc <-> F.pure(f(a, b))
   }
 
-  def sameEffectWithStartIsDeterministic[A](fa: F[A]) = (for {
-    f <- F.start(fa)
-    _ <- fa
-    a <- f.join
-  } yield a) <-> fa *> fa
+  def actionConcurrentWithPureValueIsJustAction[A](fa: F[A], a: A) = (for {
+    fiber <- F.start(a.pure)
+    x <- fa
+    _ <- fiber.join
+  } yield x) <-> fa
 }
 
 object ConcurrentLaws {
