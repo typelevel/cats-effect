@@ -22,10 +22,13 @@ import cats.data._
 import scala.concurrent.ExecutionContext
 
 /**
- * ContextShift provides access to asynchronous execution.
+ * ContextShift provides support for shifting execution.
  *
- * It allows to shift execution to asynchronous boundary,
- * and is capable of temporarily execute supplied computation on another ExecutionContext.
+ * The `shift` method inserts an asynchronous boundary, which moves execution
+ * from the calling thread to the default execution environment of `F`.
+ *
+ * The `evalOn` method provides a way to evaluate a task on a specific execution
+ * context, shifting back to the default execution context after the task completes.
  *
  * This is NOT a type class, as it does not have the coherence
  * requirement.
@@ -43,15 +46,12 @@ trait ContextShift[F[_]] {
   def shift: F[Unit]
 
   /**
-   * Evaluates execution of `f` by shifting it to supplied execution context and back to default
-   * context.
+   * Evaluates `f` on the supplied execution context and shifts evaluation
+   * back to the default execution environment of `F` at the completion of `f`,
+   * regardless of success or failure.
    *
-   * This is useful in scenarios where supplied `f` has to be executed on different
-   * Thread pool and once supplied `f` finishes its execution (including a failure)
-   * this will return back to original execution context.
-   *
-   * It is useful, when `f` contains some blocking operations that need to run
-   * out of constant Thread pool that usually back the `ContextShift` implementation.
+   * The primary use case for this method is executing blocking code on a
+   * dedicated execution context.
    *
    * @param context  Execution content where the `f` has to be scheduled
    * @param f        Computation to rin on `context`

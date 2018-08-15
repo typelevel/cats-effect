@@ -171,7 +171,7 @@ class FiberTests extends BaseTestsSuite {
 
   testAsync("Semigroup[Fiber[IO, ?].combine cancels second, when first terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
