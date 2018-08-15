@@ -408,7 +408,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("sync.to[IO] is stack-safe") { implicit ec =>
     // Override default generator to only generate
     // synchronous instances that are stack-safe
-    implicit val arbIO = Arbitrary(genSyncIO[Int])
+    implicit val arbIO = Arbitrary(genSyncIO[Int].map(_.toIO))
 
     check { (io: IO[Int]) =>
       repeatedTransformLoop(10000, io) <-> io
@@ -976,7 +976,7 @@ object IOTests {
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
       override protected val ref = implicitly[ConcurrentEffect[IO]]
 
-      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] =
+      def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
         fa.runCancelable(cb)
       def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
         fa.start
@@ -1001,9 +1001,9 @@ object IOTests {
       ref.flatMap(fa)(f)
     def tailRecM[A, B](a: A)(f: (A) => IO[Either[A, B]]): IO[B] =
       ref.tailRecM(a)(f)
-    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): IO[Unit] =
+    def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
-    def runSyncStep[A](fa: IO[A]): IO[Either[IO[A], A]] =
+    def runSyncStep[A](fa: IO[A]): SyncIO[Either[IO[A], A]] =
       ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)

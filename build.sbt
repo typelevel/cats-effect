@@ -324,6 +324,42 @@ val mimaSettings = Seq(
       exclude[MissingClassProblem]("cats.effect.internals.IOTimerRef$"),
       exclude[DirectMissingMethodProblem]("cats.effect.Timer.apply"),
 
+      // Issue #286: Sync extending Defer
+      exclude[InheritedNewAbstractMethodProblem]("cats.Defer.defer"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Sync.defer"),
+
+      // Issue #298: SyncIO changes
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect.runAsync"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#StateTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#Ops.runAsync"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
+
       //
       // Following are all internal implementation details:
       //
@@ -370,7 +406,38 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
-      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick")
+      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick"),
+
+      // Internals — https://github.com/typelevel/cats-effect/pull/305
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsEmptyCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOConnection$AlreadyCanceled"),
+      exclude[MissingTypesProblem]("cats.effect.internals.ForwardCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.apply"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.:="),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.this"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.plusOne"),
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable$Dummy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Impl.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection#Impl.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Impl.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsEmpty$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOFiber$"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection.pop"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.cancel"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.push"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOCancel$RaiseCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel.signal"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOFiber"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOConnection.alreadyCanceled"),
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable")
     )
   })
 

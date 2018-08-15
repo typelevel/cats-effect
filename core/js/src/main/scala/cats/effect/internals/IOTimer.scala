@@ -39,7 +39,7 @@ private[internals] final class IOTimer(ec: ExecutionContext)
         val task = setTimeout(timespan.toMillis, ec, new ScheduledTick(conn, cb))
         // On the JVM this would need a ForwardCancelable,
         // but not on top of JS as we don't have concurrency
-        conn.push(() => clearTimeout(task))
+        conn.push(IO(clearTimeout(task)))
       }
     })
 }

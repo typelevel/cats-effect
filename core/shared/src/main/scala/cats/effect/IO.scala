@@ -19,14 +19,13 @@ package effect
 
 import cats.arrow.FunctionK
 import cats.effect.internals._
-import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Left, Right, Success}
+import scala.util.{Left, Right}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -86,7 +85,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
 
   /**
-   * Functor map on `IO`. Given a mapping functions, it transforms the
+   * Functor map on `IO`. Given a mapping function, it transforms the
    * value produced by the source, while keeping the `IO` context.
    *
    * Any exceptions thrown within the function will be caught and
@@ -175,15 +174,15 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[runCancelable]] for the version that gives you a cancelable
    *      token that can be used to send a cancel signal
    */
-  final def runAsync(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] = IO {
-    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(Callback.report)))
+  final def runAsync(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] = SyncIO {
+    unsafeRunAsync(cb.andThen(_.unsafeRunAsyncAndForget()))
   }
 
-  final def runSyncStep: IO[Either[IO[A], A]] = IO.suspend {
+  final def runSyncStep: SyncIO[Either[IO[A], A]] = SyncIO.suspend {
     IORunLoop.step(this) match {
-      case Pure(a) => Pure(Right(a))
-      case r @ RaiseError(_) => r
-      case async => Pure(Left(async))
+      case Pure(a) => SyncIO.pure(Right(a))
+      case RaiseError(e) => SyncIO.raiseError(e)
+      case async => SyncIO.pure(Left(async))
     }
   }
 
@@ -223,8 +222,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * @see [[runAsync]] for the simple, uninterruptible version
    */
-  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] =
-    IO(unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ()))))
+  final def runCancelable(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
+    SyncIO(unsafeRunCancelable(cb.andThen(_.unsafeRunAsync(_ => ()))))
 
   /**
    * Produces the result by running the encapsulated effects as impure
@@ -267,6 +266,21 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.start(this, cb)
 
   /**
+   * Triggers the evaluation of the source and any suspended side
+   * effects therein, but ignores the result.
+   *
+   * This operation is similar to [[unsafeRunAsync]], in that the
+   * evaluation can happen asynchronously (depending on the source),
+   * however no callback is required, therefore the result gets
+   * ignored.
+   *
+   * Note that errors still get logged (via IO's internal logger),
+   * because errors being thrown should never be totally silent.
+   */
+  final def unsafeRunAsyncAndForget(): Unit =
+    unsafeRunAsync(Callback.report)
+
+  /**
    * Evaluates the source `IO`, passing the result of the encapsulated
    * effects to the given callback.
    *
@@ -281,7 +295,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): CancelToken[IO] = {
     val conn = IOConnection()
     IORunLoop.startCancelable(this, conn, cb)
-    IO.Delay(conn.cancel)
+    conn.cancel
   }
 
   /**
@@ -797,9 +811,9 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       ioa
     override def toIO[A](fa: IO[A]): IO[A] =
       fa
-    final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[Unit] =
+    final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       ioa.runAsync(cb)
-    final override def runSyncStep[A](ioa: IO[A]): IO[Either[IO[A], A]] =
+    final override def runSyncStep[A](ioa: IO[A]): SyncIO[Either[IO[A], A]] =
       ioa.runSyncStep
   }
 }
@@ -833,7 +847,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
         IO.racePair(fa, fb)
       final override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
         IO.cancelable(k)
-      final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): IO[CancelToken[IO]] =
+      final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
         fa.runCancelable(cb)
 
       final override def toIO[A](fa: IO[A]): IO[A] = fa
@@ -1137,7 +1151,7 @@ object IO extends IOInstances {
     Async { (conn, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
-      conn.push(ref)
+      conn.push(ref.cancel)
 
       ref := (
         try k(cb2) catch { case NonFatal(t) =>
@@ -1189,18 +1203,11 @@ object IO extends IOInstances {
    * @see [[IO#unsafeToFuture]]
    */
   def fromFuture[A](iof: IO[Future[A]]): IO[A] =
-    iof.flatMap { f =>
-      IO.async { cb =>
-        f.onComplete(r => cb(r match {
-          case Success(a) => Right(a)
-          case Failure(e) => Left(e)
-        }))(immediate)
-      }
-    }
+    iof.flatMap(IOFromFuture.apply)
 
   /**
-   * Lifts an Either[Throwable, A] into the IO[A] context raising the throwable
-   * if it exists.
+   * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising
+   * the throwable if it exists.
    */
   def fromEither[A](e: Either[Throwable, A]): IO[A] =
     e match {

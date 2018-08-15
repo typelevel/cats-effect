@@ -30,14 +30,17 @@ object arbitrary {
   implicit def catsEffectLawsArbitraryForIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] =
     Arbitrary(Gen.delay(genIO[A]))
 
+  implicit def catsEffectLawsArbitraryForSyncIO[A: Arbitrary: Cogen]: Arbitrary[SyncIO[A]] =
+    Arbitrary(Gen.delay(genSyncIO[A]))
+
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
 
   def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
     Gen.frequency(
-      1 -> genPure[A],
-      1 -> genApply[A],
-      1 -> genFail[A],
+      1 -> genPure[A].map(_.toIO),
+      1 -> genApply[A].map(_.toIO),
+      1 -> genFail[A].map(_.toIO),
       1 -> genAsync[A],
       1 -> genAsyncF[A],
       1 -> genNestedAsync[A],
@@ -47,7 +50,7 @@ object arbitrary {
       2 -> genFlatMap[A])
   }
 
-  def genSyncIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
+  def genSyncIO[A: Arbitrary: Cogen]: Gen[SyncIO[A]] = {
     Gen.frequency(
       5 -> genPure[A],
       5 -> genApply[A],
@@ -55,14 +58,14 @@ object arbitrary {
       5 -> genBindSuspend[A])
   }
 
-  def genPure[A: Arbitrary]: Gen[IO[A]] =
-    getArbitrary[A].map(IO.pure)
+  def genPure[A: Arbitrary]: Gen[SyncIO[A]] =
+    getArbitrary[A].map(SyncIO.pure)
 
-  def genApply[A: Arbitrary]: Gen[IO[A]] =
-    getArbitrary[A].map(IO.apply(_))
+  def genApply[A: Arbitrary]: Gen[SyncIO[A]] =
+    getArbitrary[A].map(SyncIO.apply(_))
 
-  def genFail[A]: Gen[IO[A]] =
-    getArbitrary[Throwable].map(IO.raiseError)
+  def genFail[A]: Gen[SyncIO[A]] =
+    getArbitrary[Throwable].map(SyncIO.raiseError)
 
   def genAsync[A: Arbitrary]: Gen[IO[A]] =
     getArbitrary[(Either[Throwable, A] => Unit) => Unit].map(IO.async)
@@ -79,8 +82,8 @@ object arbitrary {
     getArbitrary[(Either[Throwable, IO[A]] => Unit) => Unit]
       .map(k => IO.async(k).flatMap(x => x))
 
-  def genBindSuspend[A: Arbitrary: Cogen]: Gen[IO[A]] =
-    getArbitrary[A].map(IO.apply(_).flatMap(IO.pure))
+  def genBindSuspend[A: Arbitrary: Cogen]: Gen[SyncIO[A]] =
+    getArbitrary[A].map(SyncIO.apply(_).flatMap(SyncIO.pure))
 
   def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {

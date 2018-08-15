@@ -46,7 +46,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
       case Left(e) => IO(effect.failure(e))
     }
 
-    for (_ <- io.unsafeToFuture(); v <- attempt.future) yield {
+    for (_ <- io.toIO.unsafeToFuture(); v <- attempt.future) yield {
       v shouldEqual expected
     }
   }

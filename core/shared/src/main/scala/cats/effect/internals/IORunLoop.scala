@@ -18,7 +18,6 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
-
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {

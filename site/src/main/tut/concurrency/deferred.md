@@ -42,21 +42,18 @@ Whenever you are in a scenario when many processes can modify the same value but
 Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the `IO.race` mechanism, that’s why we call attempt on the evaluation.
 
 ```tut:silent
-import cats.Parallel
-import cats.effect.{Concurrent, IO}
+import cats.effect.IO
 import cats.effect.concurrent.Deferred
 import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
-implicit val par: Parallel[IO, IO] = Parallel[IO, IO.Par].asInstanceOf[Parallel[IO, IO]]
 
 def start(d: Deferred[IO, Int]): IO[Unit] = {
   val attemptCompletion: Int => IO[Unit] = n => d.complete(n).attempt.void
 
   List(
     IO.race(attemptCompletion(1), attemptCompletion(2)),
-    d.get.flatMap { n => IO(println(s"Result: $n")) }
+    d.get.flatMap { n => IO(println(show"Result: $n")) }
   ).parSequence.void
 }
 
