@@ -21,7 +21,7 @@ package laws
 import cats.implicits._
 import cats.laws._
 
-trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] {
+trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   implicit def F: Sync[F]
 
   def delayConstantIsPure[A](a: A) =
