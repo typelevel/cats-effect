@@ -20,18 +20,23 @@ package internals
 
 import cats.implicits._
 import scala.concurrent.duration._
+import scala.scalajs.js
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit =
-    mainFiber(args, timer)(run).flatMap(_.join).runAsync {
+  def main(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
+    val io = mainFiber(args, timer)(run).flatMap { fiber =>
+      installHandler(fiber) *> fiber.join
+    }
+    io.unsafeRunAsync {
       case Left(t) =>
-        IO(Logger.reportFailure(t)) *>
-        IO(sys.exit(ExitCode.Error.code))
+        Logger.reportFailure(t)
+        sys.exit(ExitCode.Error.code)
       case Right(0) =>
-        IO.unit
+        ()
       case Right(code) =>
-        IO(sys.exit(code))
-    }.unsafeRunSync()
+        sys.exit(code)
+    }
+  }
 
   def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
     // An infinite heartbeat to keep main alive.  This is similar to
@@ -56,4 +61,21 @@ private[effect] object IOAppPlatform {
   }
 
   val defaultTimer: Timer[IO] = IOTimer.global
+
+  private def installHandler(fiber: Fiber[IO, Int]): IO[Unit] = {
+    def handler(code: Int) = () =>
+      fiber.cancel.unsafeRunAsync { result =>
+        result.swap.foreach(Logger.reportFailure)
+        IO(sys.exit(code + 128))
+      }
+
+    IO {
+      if (!js.isUndefined(js.Dynamic.global.process)) {
+        val process = js.Dynamic.global.process
+        process.on("SIGHUP", handler(1))
+        process.on("SIGINT", handler(2))
+        process.on("SIGTERM", handler(15))
+      }
+    }
+  }
 }
