@@ -33,6 +33,8 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("IO.cancelBoundary can be canceled") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val f = (IO.shift *> IO.cancelBoundary).unsafeToFuture()
     f.value shouldBe None
     ec.tick()
@@ -46,6 +48,8 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("(fa *> IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
@@ -65,6 +69,8 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("(fa *> IO.cancelBoundary).onCancelRaiseError(e).cancel <-> IO.raiseError(e)") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     Prop.forAll { (fa: IO[Int], e: Throwable) =>
       val received =
         for {
@@ -78,6 +84,8 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("uncancelable") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
@@ -90,22 +98,26 @@ class IOCancelableTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("task.start.flatMap(id) <-> task") { implicit sc =>
+  testAsync("task.start.flatMap(id) <-> task") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     Prop.forAll { (task: IO[Int]) =>
       task.start.flatMap(_.join) <-> task
     }
   }
 
-  testAsync("task.start is cancelable") { implicit sc =>
+  testAsync("task.start is cancelable") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val task = (IO.shift *> IO.cancelBoundary *> IO(1)).start.flatMap(_.join)
 
     val p = Promise[Int]()
     val cancel = task.unsafeRunCancelable(Callback.promise(p))
-    sc.state.tasks.isEmpty shouldBe false
+    ec.state.tasks.isEmpty shouldBe false
 
     cancel.unsafeRunSync()
-    sc.tick()
-    sc.state.tasks.isEmpty shouldBe true
+    ec.tick()
+    ec.state.tasks.isEmpty shouldBe true
     p.future.value shouldBe None
   }
 }

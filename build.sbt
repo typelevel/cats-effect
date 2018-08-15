@@ -322,6 +322,7 @@ val mimaSettings = Seq(
       exclude[MissingTypesProblem]("cats.effect.IOInstances"),
       exclude[IncompatibleTemplateDefProblem]("cats.effect.internals.IOTimerRef"),
       exclude[MissingClassProblem]("cats.effect.internals.IOTimerRef$"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Timer.apply"),
 
       //
       // Following are all internal implementation details:

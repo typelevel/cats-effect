@@ -17,13 +17,22 @@
 package cats.effect
 package internals
 
+import scala.concurrent.ExecutionContext
+
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
 private[effect] trait IOTimerRef {
   /**
+   * Returns a reusable [[Timer]] instance for [[IO]].
+   */
+  def timer: Timer[IO] = IOTimer.global
+
+  /**
    * Returns a [[Timer]] instance for [[IO]].
    *
+   * @param ec is an execution context that gets used for
+   *        evaluating the `sleep` tick
    */
-  implicit def timer: Timer[IO] = IOTimer.global
+  def timer(ec: ExecutionContext): Timer[IO] = new IOTimer(ec)
 }

@@ -16,10 +16,10 @@
 
 package cats.effect.laws.util
 
-import cats.effect.internals.Callback.T
 import cats.effect.internals.Cancelable.{Type => Cancelable}
 import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
-import cats.effect.{Bracket, Clock, ContextShift, IO, LiftIO, Timer}
+import cats.effect._
+import cats.effect.internals.Callback.T
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -165,8 +165,6 @@ final class TestContext private () extends ExecutionContext { self =>
         def monotonic(unit: TimeUnit): F[Long] =
           realTime(unit)
       }
-
-
     }
 
   /**
@@ -177,7 +175,7 @@ final class TestContext private () extends ExecutionContext { self =>
     *
     * $timerExample
     */
-  def contextShift[F[_]](implicit F: LiftIO[F], B: Bracket[F, Throwable]): ContextShift[F] =
+  def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
     new ContextShift[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
@@ -189,9 +187,8 @@ final class TestContext private () extends ExecutionContext { self =>
         }))
 
       override def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        B.bracket(F.liftIO(IOShift(context)))(_ => f)(_ => shift)
+        F.bracket(F.liftIO(IOShift(context)))(_ => f)(_ => shift)
     }
-
 
   /**
    * Inherited from `ExecutionContext`, schedules a runnable

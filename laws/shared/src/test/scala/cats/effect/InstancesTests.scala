@@ -27,19 +27,19 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("StateT[IO, S, ?]",
     implicit ec => {
-      implicit val cs: ContextShift[StateT[IO, Int, ?]] = ContextShift.deriveIO
+      implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
     })
 
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => {
-      implicit val cs: ContextShift[OptionT[IO, ?]] = ContextShift.deriveIO
+      implicit val cs = ec.contextShift[IO]
       ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int]
     })
 
   checkAllAsync("Kleisli[IO, ?]",
     implicit ec => {
-      implicit val cs: ContextShift[Kleisli[IO, Int, ?]] = ContextShift.deriveIO
+      implicit val cs = ec.contextShift[IO]
       ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int]
     })
 
@@ -48,13 +48,13 @@ class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("EitherT[IO, Throwable, ?]",
     implicit ec => {
-      implicit val cs: ContextShift[EitherT[IO, Throwable, ?]] = ContextShift.deriveIO
+      implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int]
     })
 
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => {
-      implicit val cs: ContextShift[WriterT[IO, Int, ?]] = ContextShift.deriveIO
+      implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
     })
 

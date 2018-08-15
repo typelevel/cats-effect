@@ -16,6 +16,9 @@
 
 package cats.effect
 
+import cats.{Applicative, Functor, Monad, Monoid}
+import cats.data._
+
 import scala.concurrent.ExecutionContext
 
 /**
@@ -57,22 +60,68 @@ trait ContextShift[F[_]] {
 }
 
 object ContextShift {
-   /**
-    * For a given `F` data type fetches the implicit [[ContextShift]]
-    * instance available implicitly in the local scope.
-    */
-  def apply[F[_]](implicit cs: ContextShift[F]): ContextShift[F] = cs
+  /**
+   * Derives a [[ContextShift]] instance for `cats.data.EitherT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveEitherT[F[_], L](implicit F: Functor[F], cs: ContextShift[F]): ContextShift[EitherT[F, L, ?]] =
+    new ContextShift[EitherT[F, L, ?]] {
+      def shift: EitherT[F, L, Unit] =
+        EitherT.liftF(cs.shift)
 
-   /**
-    * Derives a [[ContextShift]] for any type that has a [[Effect]] instance,
-    * from the implicitly available `ContextShift[IO]` that should be in scope.
-    */
-  def deriveIO[F[_]](implicit F: Async[F], cs: ContextShift[IO]): ContextShift[F] =
-    new ContextShift[F] {
-      def shift: F[Unit] =
-        F.liftIO(cs.shift)
+      def evalOn[A](context: ExecutionContext)(f: EitherT[F, L, A]): EitherT[F, L, A] =
+        EitherT(cs.evalOn(context)(f.value))
+    }
 
-      def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        F.bracket(Async.shift(context))(_ => f)(_ => shift)
+  /**
+   * Derives a [[ContextShift]] instance for `cats.data.OptionT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveOptionT[F[_]](implicit F: Functor[F], cs: ContextShift[F]): ContextShift[OptionT[F, ?]] =
+    new ContextShift[OptionT[F, ?]] {
+      def shift: OptionT[F, Unit] =
+        OptionT.liftF(cs.shift)
+
+      def evalOn[A](context: ExecutionContext)(f: OptionT[F, A]): OptionT[F, A] =
+        OptionT(cs.evalOn(context)(f.value))
+    }
+
+  /**
+   * Derives a [[ContextShift]] instance for `cats.data.WriterT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], cs: ContextShift[F]): ContextShift[WriterT[F, L, ?]] =
+    new ContextShift[WriterT[F, L, ?]] {
+      def shift: WriterT[F, L, Unit] =
+        WriterT.liftF(cs.shift)
+
+      def evalOn[A](context: ExecutionContext)(f: WriterT[F, L, A]): WriterT[F, L, A] =
+        WriterT(cs.evalOn(context)(f.run))
+    }
+
+  /**
+   * Derives a [[ContextShift]] instance for `cats.data.StateT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveStateT[F[_], L](implicit F: Monad[F], cs: ContextShift[F]): ContextShift[StateT[F, L, ?]] =
+    new ContextShift[StateT[F, L, ?]] {
+      def shift: StateT[F, L, Unit] =
+        StateT.liftF(cs.shift)
+
+      def evalOn[A](context: ExecutionContext)(f: StateT[F, L, A]): StateT[F, L, A] =
+        StateT(s => cs.evalOn(context)(f.run(s)))
+    }
+
+  /**
+   * Derives a [[ContextShift]] instance for `cats.data.Kleisli`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveKleisli[F[_], R](implicit cs: ContextShift[F]): ContextShift[Kleisli[F, R, ?]] =
+    new ContextShift[Kleisli[F, R, ?]] {
+      def shift: Kleisli[F, R, Unit] =
+        Kleisli.liftF(cs.shift)
+
+      def evalOn[A](context: ExecutionContext)(f: Kleisli[F, R, A]): Kleisli[F, R, A] =
+        Kleisli(a => cs.evalOn(context)(f.run(a)))
     }
 }

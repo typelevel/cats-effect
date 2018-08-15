@@ -16,8 +16,11 @@
 
 package cats.effect
 
+import cats.{Applicative, Functor, Monoid}
+import cats.data._
+
 import scala.annotation.implicitNotFound
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Timer is a scheduler of tasks.
@@ -43,16 +46,13 @@ import scala.concurrent.duration.{FiniteDuration, TimeUnit}
 @implicitNotFound("""Cannot find an implicit value for Timer[${F}]. 
 Either:
 * import Timer[${F}] from your effects library
-* use Timer.derive to create the necessary instance
-Timer.derive requires an implicit Timer[IO], which can be available from:
-* your platform (e.g. Scala JS)
-* implicitly in cats.effect.IOApp
-* cats.effect.IO.timer, if there's an implicit 
-scala.concurrent.ExecutionContext in scope
+* use cats.effect.IOApp
+* build one with cats.effect.IO.timer
 """)
 trait Timer[F[_]]  {
   /**
-   * Provides instance of clock backing this timer
+   * Returns a [[Clock]] instance associated with this timer
+   * that can provide the current time and do time measurements.
    */
   def clock: Clock[F]
 
@@ -77,31 +77,66 @@ trait Timer[F[_]]  {
    * equal to zero.
    */
   def sleep(duration: FiniteDuration): F[Unit]
-
 }
 
 object Timer {
   /**
-   * For a given `F` data type fetches the implicit [[Timer]]
-   * instance available implicitly in the local scope.
+   * Derives a [[Timer]] instance for `cats.data.EitherT`,
+   * given we have one for `F[_]`.
    */
-  def apply[F[_]](implicit timer: Timer[F]): Timer[F] = timer
+  implicit def deriveEitherT[F[_], L](implicit F: Functor[F], timer: Timer[F]): Timer[EitherT[F, L, ?]] =
+    new Timer[EitherT[F, L, ?]] {
+      val clock: Clock[EitherT[F, L, ?]] = Clock.deriveEitherT
+
+      def sleep(duration: FiniteDuration): EitherT[F, L, Unit] =
+        EitherT.liftF(timer.sleep(duration))
+    }
 
   /**
-   * Derives a [[Timer]] for any type that has a [[LiftIO]] instance,
-   * from the implicitly available `Timer[IO]` that should be in scope.
+   * Derives a [[Timer]] instance for `cats.data.OptionT`,
+   * given we have one for `F[_]`.
    */
-  def deriveIO[F[_]](implicit F: LiftIO[F], timer: Timer[IO]): Timer[F] =
-    new Timer[F] {
-      def sleep(timespan: FiniteDuration): F[Unit] =
-        F.liftIO(timer.sleep(timespan))
+  implicit def deriveOptionT[F[_]](implicit F: Functor[F], timer: Timer[F]): Timer[OptionT[F, ?]] =
+    new Timer[OptionT[F, ?]] {
+      val clock: Clock[OptionT[F, ?]] = Clock.deriveOptionT
 
-      val clock: Clock[F] = new Clock[F] {
-        override def realTime(unit: TimeUnit): F[Long] =
-          F.liftIO(timer.clock.realTime(unit))
+      def sleep(duration: FiniteDuration): OptionT[F, Unit] =
+        OptionT.liftF(timer.sleep(duration))
+    }
 
-        override def monotonic(unit: TimeUnit): F[Long] =
-          F.liftIO(timer.clock.monotonic(unit))
-      }
+  /**
+   * Derives a [[Timer]] instance for `cats.data.WriterT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], timer: Timer[F]): Timer[WriterT[F, L, ?]] =
+    new Timer[WriterT[F, L, ?]] {
+      val clock: Clock[WriterT[F, L, ?]] = Clock.deriveWriterT
+
+      def sleep(duration: FiniteDuration): WriterT[F, L, Unit] =
+        WriterT.liftF(timer.sleep(duration))
+    }
+
+  /**
+   * Derives a [[Timer]] instance for `cats.data.StateT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveStateT[F[_], S](implicit F: Applicative[F], timer: Timer[F]): Timer[StateT[F, S, ?]] =
+    new Timer[StateT[F, S, ?]] {
+      val clock: Clock[StateT[F, S, ?]] = Clock.deriveStateT
+
+      def sleep(duration: FiniteDuration): StateT[F, S, Unit] =
+        StateT.liftF(timer.sleep(duration))
+    }
+
+  /**
+   * Derives a [[Timer]] instance for `cats.data.Kleisli`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveKleisli[F[_], R](implicit timer: Timer[F]): Timer[Kleisli[F, R, ?]] =
+    new Timer[Kleisli[F, R, ?]] {
+      val clock: Clock[Kleisli[F, R, ?]] = Clock.deriveKleisli
+
+      def sleep(duration: FiniteDuration): Kleisli[F, R, Unit] =
+        Kleisli.liftF(timer.sleep(duration))
     }
 }

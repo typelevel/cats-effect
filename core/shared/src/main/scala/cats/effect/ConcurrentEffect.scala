@@ -37,7 +37,8 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for ConcurrentEffect[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
+or some equivalent type.""")
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.

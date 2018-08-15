@@ -16,21 +16,32 @@
 
 package cats.effect
 
+import cats.{Applicative, Functor, Monoid}
+import cats.data._
+
+import scala.annotation.implicitNotFound
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 
 /**
- * Clock provides access to platform's time information
+ * Clock provides the current time, as a pure alternative to:
  *
- * It does all of that in an `F` monadic context that can suspend
- * side effects and is capable of asynchronous execution (e.g. [[IO]]).
+ *  - Java's
+ *    [[https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#currentTimeMillis-- System.currentTimeMillis]]
+ *    for getting the "real-time clock" and
+ *    [[https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#nanoTime-- System.nanoTime]]
+ *    for a monotonic clock useful for time measurements
+ *  - JavaScript's `Date.now()` and `performance.now()`
+ *
+ * `Clock` works with an `F` monadic context that can suspend
+ * side effects (e.g. [[IO]]).
  *
  * This is NOT a type class, as it does not have the coherence
  * requirement.
- *
- * This is NOT a type class, as it does not have the coherence
- * requirement.
- *
  */
+@implicitNotFound("""Cannot find an implicit value for Clock[${F}].
+Either import an implicit Timer[${F}] in scope or
+create a Clock[${F}] instance with Clock.create
+""")
 trait Clock[F[_]] {
   /**
    * Returns the current time, as a Unix timestamp (number of time units
@@ -114,12 +125,6 @@ trait Clock[F[_]] {
 
 object Clock  {
   /**
-   * For a given `F` data type fetches the implicit [[Clock]]
-   * instance available implicitly in the local scope.
-   */
-  def apply[F[_]](implicit clock: Clock[F]): Clock[F] = clock
-
-  /**
    * Provides Clock instance for any `F` that has `Sync` defined
    */
   def create[F[_]](implicit F: Sync[F]): Clock[F] =
@@ -137,4 +142,69 @@ object Clock  {
    */
   implicit def instance[F[_]](implicit timer: Timer[F]): Clock[F] =
     timer.clock
+
+  /**
+   * Derives a [[Clock]] instance for `cats.data.EitherT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveEitherT[F[_], L](implicit F: Functor[F], clock: Clock[F]): Clock[EitherT[F, L, ?]] =
+    new Clock[EitherT[F, L, ?]] {
+      def realTime(unit: TimeUnit): EitherT[F, L, Long] =
+        EitherT.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): EitherT[F, L, Long] =
+        EitherT.liftF(clock.monotonic(unit))
+    }
+
+  /**
+   * Derives a [[Clock]] instance for `cats.data.OptionT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveOptionT[F[_]](implicit F: Functor[F], clock: Clock[F]): Clock[OptionT[F, ?]] =
+    new Clock[OptionT[F, ?]] {
+      def realTime(unit: TimeUnit): OptionT[F, Long] =
+        OptionT.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): OptionT[F, Long] =
+        OptionT.liftF(clock.monotonic(unit))
+    }
+
+  /**
+   * Derives a [[Clock]] instance for `cats.data.StateT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveStateT[F[_], S](implicit F: Applicative[F], clock: Clock[F]): Clock[StateT[F, S, ?]] =
+    new Clock[StateT[F, S, ?]] {
+      def realTime(unit: TimeUnit): StateT[F, S, Long] =
+        StateT.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): StateT[F, S, Long] =
+        StateT.liftF(clock.monotonic(unit))
+    }
+
+  /**
+   * Derives a [[Clock]] instance for `cats.data.WriterT`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], clock: Clock[F]): Clock[WriterT[F, L, ?]] =
+    new Clock[WriterT[F, L, ?]] {
+      def realTime(unit: TimeUnit): WriterT[F, L, Long] =
+        WriterT.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): WriterT[F, L, Long] =
+        WriterT.liftF(clock.monotonic(unit))
+    }
+
+  /**
+   * Derives a [[Clock]] instance for `cats.data.Kleisli`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveKleisli[F[_], R](implicit clock: Clock[F]): Clock[Kleisli[F, R, ?]] =
+    new Clock[Kleisli[F, R, ?]] {
+      def realTime(unit: TimeUnit): Kleisli[F, R, Long] =
+        Kleisli.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): Kleisli[F, R, Long] =
+        Kleisli.liftF(clock.monotonic(unit))
+    }
 }

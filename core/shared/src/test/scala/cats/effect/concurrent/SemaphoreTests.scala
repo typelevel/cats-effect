@@ -25,6 +25,7 @@ import scala.concurrent.ExecutionContext
 class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - acquire n synchronously") {

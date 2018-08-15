@@ -27,6 +27,8 @@ import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
 class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+  implicit val timer: Timer[IO] = IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
 
@@ -71,9 +73,9 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
         fiber <- p.get.start
         _ <- fiber.cancel
         _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
-        _ <- Timer[IO].sleep(100.millis)
+        _ <- timer.sleep(100.millis)
         _ <- p.complete(42)
-        _ <- Timer[IO].sleep(100.millis)
+        _ <- timer.sleep(100.millis)
         result <- r.get
       } yield result
 

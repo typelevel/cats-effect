@@ -16,28 +16,187 @@
 
 package cats.effect
 
-import cats.data.EitherT
-import org.scalatest.{AsyncFunSuite, Matchers}
+import cats.data._
+import cats.effect.laws.util.TestContext
+import cats.implicits._
+import scala.util.Success
 
-import scala.concurrent.ExecutionContext
+class ContextShiftTests extends BaseTestsSuite {
 
-class ContextShiftTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext =
-    ExecutionContext.global
+  type EitherTIO[A] = EitherT[IO, Throwable, A]
+  type OptionTIO[A] = OptionT[IO, A]
+  type WriterTIO[A] = WriterT[IO, Int, A]
+  type KleisliIO[A] = Kleisli[IO, Int, A]
+  type StateTIO[A]  = StateT[IO, Int, A]
 
-  type EitherIO[A] = EitherT[IO, Throwable, A]
+  testAsync("ContextShift[IO].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
 
+    val f = cs.shift.unsafeToFuture()
+    f.value shouldBe None
 
-  test("ContextShift[IO].shift") {
-    for (_ <- ContextShift[IO].shift.unsafeToFuture()) yield {
-      assert(1 == 1)
-    }
+    ec.tick()
+    f.value shouldBe Some(Success(()))
   }
 
-  test("Timer[EitherT].shift") {
-    for (r <- ContextShift.deriveIO[EitherIO].shift.value.unsafeToFuture()) yield {
-      r shouldBe Right(())
-    }
+  testAsync("ContextShift[IO].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val ec2 = TestContext()
+
+    val f = cs.evalOn(ec2)(IO(1)).unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(1))
   }
 
+  // -- EitherT
+
+  testAsync("Timer[EitherT].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[EitherTIO]].shift.value.unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success(Right(())))
+  }
+
+  testAsync("Timer[EitherT].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[EitherTIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(EitherT.liftF(IO(1))).value.unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(Right(1)))
+  }
+
+  // -- OptionT
+
+  testAsync("Timer[OptionT].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[OptionTIO]].shift.value.unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success(Some(())))
+  }
+
+  testAsync("Timer[OptionT].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[OptionTIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(OptionT.liftF(IO(1))).value.unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(Some(1)))
+  }
+
+  // -- WriterT
+
+  testAsync("Timer[WriterT].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[WriterTIO]].shift.value.unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success(()))
+  }
+
+  testAsync("Timer[WriterT].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[WriterTIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(WriterT.liftF[IO, Int, Int](IO(1))).value.unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
+  // -- StateT
+
+  testAsync("Timer[StateT].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[StateTIO]].shift.run(0).unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success((0, ())))
+  }
+
+  testAsync("Timer[StateT].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[StateTIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(StateT.liftF[IO, Int, Int](IO(1))).run(0).unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success((0, 1)))
+  }
+
+  // -- Kleisli
+
+  testAsync("Timer[Kleisli].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[KleisliIO]].shift.run(0).unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success(()))
+  }
+
+  testAsync("Timer[Kleisli].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[KleisliIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(Kleisli.liftF[IO, Int, Int](IO(1))).run(0).unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
 }

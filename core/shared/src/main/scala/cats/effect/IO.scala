@@ -1381,7 +1381,7 @@ object IO extends IOInstances {
    * @param ec is the execution context used for actual execution
    *        tasks (e.g. bind continuations)
    */
-  implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
+  def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

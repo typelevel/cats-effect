@@ -27,8 +27,10 @@ import scala.concurrent.duration._
 class RefTests extends AsyncFunSuite with Matchers {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+  implicit val timer: Timer[IO] = IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
-  private val smallDelay: IO[Unit] = Timer[IO].sleep(20.millis)
+  private val smallDelay: IO[Unit] = timer.sleep(20.millis)
 
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
