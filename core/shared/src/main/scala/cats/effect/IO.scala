@@ -19,14 +19,13 @@ package effect
 
 import cats.arrow.FunctionK
 import cats.effect.internals._
-import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Left, Right, Success}
+import scala.util.{Left, Right}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -176,7 +175,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *      token that can be used to send a cancel signal
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] = SyncIO {
-    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(Callback.report)))
+    unsafeRunAsync(cb.andThen(_.unsafeRunAsyncAndForget()))
   }
 
   final def runSyncStep: SyncIO[Either[IO[A], A]] = SyncIO.suspend {
@@ -267,6 +266,21 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.start(this, cb)
 
   /**
+   * Triggers the evaluation of the source and any suspended side
+   * effects therein, but ignores the result.
+   *
+   * This operation is similar to [[unsafeRunAsync]], in that the
+   * evaluation can happen asynchronously (depending on the source),
+   * however no callback is required, therefore the result gets
+   * ignored.
+   *
+   * Note that errors still get logged (via IO's internal logger),
+   * because errors being thrown should never be totally silent.
+   */
+  final def unsafeRunAsyncAndForget(): Unit =
+    unsafeRunAsync(Callback.report)
+
+  /**
    * Evaluates the source `IO`, passing the result of the encapsulated
    * effects to the given callback.
    *
@@ -281,7 +295,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): CancelToken[IO] = {
     val conn = IOConnection()
     IORunLoop.startCancelable(this, conn, cb)
-    IO.Delay(conn.cancel)
+    conn.cancel
   }
 
   /**
@@ -1119,7 +1133,7 @@ object IO extends IOInstances {
     Async { (conn, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
-      conn.push(ref)
+      conn.push(ref.cancel)
 
       ref := (
         try k(cb2) catch { case NonFatal(t) =>
@@ -1171,14 +1185,7 @@ object IO extends IOInstances {
    * @see [[IO#unsafeToFuture]]
    */
   def fromFuture[A](iof: IO[Future[A]]): IO[A] =
-    iof.flatMap { f =>
-      IO.async { cb =>
-        f.onComplete(r => cb(r match {
-          case Success(a) => Right(a)
-          case Failure(e) => Left(e)
-        }))(immediate)
-      }
-    }
+    iof.flatMap(IOFromFuture.apply)
 
   /**
    * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising

@@ -388,7 +388,38 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
-      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick")
+      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick"),
+
+      // Internals — https://github.com/typelevel/cats-effect/pull/305
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsEmptyCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOConnection$AlreadyCanceled"),
+      exclude[MissingTypesProblem]("cats.effect.internals.ForwardCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.apply"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.:="),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.this"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.ForwardCancelable.plusOne"),
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable$Dummy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Impl.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection#Impl.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Impl.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsEmpty$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$IsCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOFiber$"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection.pop"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.cancel"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.push"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOCancel$RaiseCancelable"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel.signal"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.cancel"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.push"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.pop"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOFiber"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOConnection.alreadyCanceled"),
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable")
     )
   })
 

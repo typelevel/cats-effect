@@ -49,9 +49,9 @@ private[internals] final class IOTimer private (
       def apply(conn: IOConnection, cb: T[Unit]): Unit = {
         // Doing what IO.cancelable does
         val ref = ForwardCancelable()
-        conn.push(ref)
+        conn.push(ref.cancel)
         val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
-        ref := (() => f.cancel(false))
+        ref := IO(f.cancel(false))
       }
     })
 

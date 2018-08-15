@@ -23,25 +23,9 @@ import scala.concurrent.ExecutionContext
 import scala.util.Left
 
 private[effect] object IOCancel {
-  import Callback.rightUnit
-
-  /** Implementation for `IO.cancel`. */
-  def signal[A](fa: IO[A]): IO[Unit] =
-    Async { (_, cb) =>
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          // Ironically, in order to describe cancellation as a pure operation
-          // we have to actually execute our `IO` task - the implementation passing an
-          // IOConnection.alreadyCanceled which will cancel any pushed cancelable
-          // tokens along the way and also return `false` on `isCanceled`
-          // (relevant for `IO.cancelBoundary`)
-          IORunLoop.startCancelable(fa, IOConnection.alreadyCanceled, Callback.dummy1)
-          cb(rightUnit)
-        }
-      })
-    }
-
-  /** Implementation for `IO.cancel`. */
+  /**
+   * Implementation for `IO.cancel`.
+   */
   def raise[A](fa: IO[A], e: Throwable): IO[A] =
     Async { (conn, cb) =>
       val canCall = new AtomicBoolean(true)
@@ -50,7 +34,7 @@ private[effect] object IOCancel {
       val connChild = IOConnection()
       // Registering a special cancelable that will trigger error on cancel.
       // Note the pair `conn.pop` happens in `RaiseCallback`.
-      conn.push(new RaiseCancelable(canCall, conn, connChild, cb, e))
+      conn.push(raiseCancelable(canCall, conn, connChild, cb, e))
       // Registering a callback that races against the cancelable we
       // registered above
       val cb2 = new RaiseCallback[A](canCall, conn, cb)
@@ -82,23 +66,31 @@ private[effect] object IOCancel {
       }
   }
 
-  private final class RaiseCancelable[A](
+
+  private def raiseCancelable[A](
     active: AtomicBoolean,
     conn: IOConnection,
     conn2: IOConnection,
     cb: Either[Throwable, A] => Unit,
-    e: Throwable)
-    extends (() => Unit) with Runnable {
+    e: Throwable): CancelToken[IO] = {
 
-    def run(): Unit = {
-      conn2.cancel()
-      conn.tryReactivate()
-      cb(Left(e))
-    }
-
-    def apply(): Unit = {
-      if (active.getAndSet(false))
-        ec.execute(this)
+    IO.async { onFinish =>
+      // Race-condition guard: in case the source was completed and the
+      // result already signaled, then no longer allow the finalization
+      if (active.getAndSet(false)) {
+        // Trigger cancellation
+        conn2.cancel.unsafeRunAsync { r =>
+          // Reset the original cancellation token
+          conn.tryReactivate()
+          // Signal completion of the cancellation logic, such that the
+          // logic waiting for the completion of finalizers can continue
+          onFinish(r)
+          // Continue with the bind continuation of `onCancelRaiseError`
+          cb(Left(e))
+        }
+      } else {
+        onFinish(Callback.rightUnit)
+      }
     }
   }
 

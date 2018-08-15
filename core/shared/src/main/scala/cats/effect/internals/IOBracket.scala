@@ -16,52 +16,98 @@
 
 package cats.effect.internals
 
-import cats.effect.{ExitCase, IO}
-import scala.concurrent.CancellationException
+import cats.effect.{CancelToken, ExitCase, IO}
+import scala.util.control.NonFatal
 
 private[effect] object IOBracket {
   /**
-    * Implementation for `IO.bracket`.
-    */
+   * Implementation for `IO.bracket`.
+   */
   def apply[A, B](acquire: IO[A])
     (use: A => IO[B])
     (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
 
-    acquire.uncancelable.flatMap { a =>
-      IO.Bind(
-        use(a).onCancelRaiseError(cancelException),
-        new ReleaseFrame[A, B](a, release))
+    IO.Async { (conn, cb) =>
+      // Doing manual plumbing; note that `acquire` here cannot be
+      // cancelled due to executing it via `IORunLoop.start`
+      IORunLoop.start[A](acquire, {
+        case Right(a) =>
+          val frame = new BracketReleaseFrame[A, B](a, release, conn)
+          val onNext = {
+            val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
+            fb.flatMap(frame)
+          }
+          // Registering our cancelable token ensures that in case
+          // cancellation is detected, `release` gets called
+          conn.push(frame.cancel)
+          // Actual execution
+          IORunLoop.startCancelable(onNext, conn, cb)
+
+        case error @ Left(_) =>
+          cb(error.asInstanceOf[Either[Throwable, B]])
+      })
     }
   }
 
   /**
-   * Implementation for `IO.ensureCase`.
+   * Implementation for `IO.guaranteeCase`.
    */
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] = {
-    IO.Bind(
-      source.onCancelRaiseError(cancelException),
-      new ReleaseFrame[Unit, A]((), (_, e) => release(e)))
+    IO.Async { (conn, cb) =>
+      val frame = new EnsureReleaseFrame[A](release, conn)
+      val onNext = source.flatMap(frame)
+      // Registering our cancelable token ensures that in case
+      // cancellation is detected, `release` gets called
+      conn.push(frame.cancel)
+      // Actual execution
+      IORunLoop.startCancelable(onNext, conn, cb)
+    }
   }
 
-  private final class ReleaseFrame[A, B](a: A,
-    release: (A, ExitCase[Throwable]) => IO[Unit])
+  private final class BracketReleaseFrame[A, B](
+    a: A,
+    releaseFn: (A, ExitCase[Throwable]) => IO[Unit],
+    conn: IOConnection)
+    extends BaseReleaseFrame[A, B](conn) {
+
+    def release(c: ExitCase[Throwable]): CancelToken[IO] =
+      releaseFn(a, c)
+  }
+
+  private final class EnsureReleaseFrame[A](
+    releaseFn: ExitCase[Throwable] => IO[Unit],
+    conn: IOConnection)
+    extends BaseReleaseFrame[Unit, A](conn) {
+
+    def release(c: ExitCase[Throwable]): CancelToken[IO] =
+      releaseFn(c)
+  }
+
+  private abstract class BaseReleaseFrame[A, B](conn: IOConnection)
     extends IOFrame[B, IO[B]] {
 
-    def recover(e: Throwable): IO[B] = {
-      if (e ne cancelException)
-        release(a, ExitCase.error(e))
-          .uncancelable
-          .flatMap(new ReleaseRecover(e))
-      else
-        release(a, ExitCase.canceled)
-          .uncancelable
-          .flatMap(Function.const(IO.never))
+    def release(c: ExitCase[Throwable]): CancelToken[IO]
+
+    final val cancel: CancelToken[IO] =
+      release(ExitCase.Canceled).uncancelable
+
+    final def recover(e: Throwable): IO[B] = {
+      // Unregistering cancel token, otherwise we can have a memory leak;
+      // N.B. this piece of logic does not work if IO is auto-cancelable
+      conn.pop()
+      release(ExitCase.error(e))
+        .uncancelable
+        .flatMap(new ReleaseRecover(e))
     }
 
-    def apply(b: B): IO[B] =
-      release(a, ExitCase.complete)
+    final def apply(b: B): IO[B] = {
+      // Unregistering cancel token, otherwise we can have a memory leak
+      // N.B. this piece of logic does not work if IO is auto-cancelable
+      conn.pop()
+      release(ExitCase.complete)
         .uncancelable
         .map(_ => b)
+    }
   }
 
   private final class ReleaseRecover(e: Throwable)
@@ -73,6 +119,4 @@ private[effect] object IOBracket {
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)
   }
-
-  private[this] val cancelException = new CancellationException("bracket")
 }

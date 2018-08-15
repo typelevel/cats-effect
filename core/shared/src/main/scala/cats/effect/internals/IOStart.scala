@@ -17,6 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.{Fiber, IO, Timer}
+import cats.effect.internals.Callback.Extensions
 import scala.concurrent.Promise
 
 private[effect] object IOStart {
@@ -35,11 +36,29 @@ private[effect] object IOStart {
 
       // Building a memoized IO - note we cannot use `IO.fromFuture`
       // because we need to link this `IO`'s cancellation with that
-      // of the executing task
-      val fiber = IOFiber.build(p, conn2)
-      // Signal the newly created fiber
-      cb(Right(fiber))
+      // of the executing task; then signal the fiber
+      cb(Right(fiber(p, conn2)))
     }
     IO.Async(start, trampolineAfter = true)
+  }
+
+  private[internals] def fiber[A](p: Promise[Either[Throwable, A]], conn: IOConnection): Fiber[IO, A] = {
+    val join = IO.Async[A] { (ctx, cb) =>
+      implicit val ec = TrampolineEC.immediate
+
+      // Short-circuit for already completed `Future`
+      p.future.value match {
+        case Some(value) =>
+          cb.async(value.get)
+        case None =>
+          // Cancellation needs to be linked to the active task
+          ctx.push(conn.cancel)
+          p.future.onComplete { r =>
+            ctx.pop()
+            cb(r.get)
+          }
+      }
+    }
+    Fiber(join, conn.cancel)
   }
 }

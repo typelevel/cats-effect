@@ -37,9 +37,10 @@ private[effect] object IORace {
 
       if (isActive.getAndSet(false)) {
         // First interrupts the other task
-        try other.cancel() finally {
+        other.cancel.unsafeRunAsync { r2 =>
           main.pop()
           cb(Right(r))
+          maybeReport(r2)
         }
       }
     }
@@ -52,9 +53,9 @@ private[effect] object IORace {
       err: Throwable): Unit = {
 
       if (active.getAndSet(false)) {
-        try other.cancel() finally {
+        other.cancel.unsafeRunAsync { r2 =>
           main.pop()
-          cb(Left(err))
+          cb(Left(composeErrors(err, r2)))
         }
       } else {
         Logger.reportFailure(err)
@@ -115,15 +116,15 @@ private[effect] object IORace {
         case Right(a) =>
           if (active.getAndSet(false)) {
             conn.pop()
-            cb(Right(Left((a, IOFiber.build[B](promiseR, connR)))))
+            cb(Right(Left((a, IOStart.fiber[B](promiseR, connR)))))
           } else {
             promiseL.trySuccess(Right(a))
           }
         case Left(err) =>
           if (active.getAndSet(false)) {
-            try connR.cancel() finally {
+            connR.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(err))
+              cb(Left(composeErrors(err, r2)))
             }
           } else {
             promiseL.trySuccess(Left(err))
@@ -135,16 +136,16 @@ private[effect] object IORace {
         case Right(b) =>
           if (active.getAndSet(false)) {
             conn.pop()
-            cb(Right(Right((IOFiber.build[A](promiseL, connL), b))))
+            cb(Right(Right((IOStart.fiber[A](promiseL, connL), b))))
           } else {
             promiseR.trySuccess(Right(b))
           }
 
         case Left(err) =>
           if (active.getAndSet(false)) {
-            try connL.cancel() finally {
+            connL.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(err))
+              cb(Left(composeErrors(err, r2)))
             }
           } else {
             promiseR.trySuccess(Left(err))
@@ -154,4 +155,16 @@ private[effect] object IORace {
 
     IO.Async(start, trampolineAfter = true)
   }
+
+  private[this] def composeErrors(e: Throwable, e2: Either[Throwable, _]): Throwable =
+    e2 match {
+      case Left(e2) => IOPlatform.composeErrors(e, e2)
+      case _ => e
+    }
+
+  private[this] def maybeReport(r: Either[Throwable, _]): Unit =
+    r match {
+      case Left(e) => Logger.reportFailure(e)
+      case _ => ()
+    }
 }

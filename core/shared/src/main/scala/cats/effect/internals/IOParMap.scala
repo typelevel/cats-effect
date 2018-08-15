@@ -17,6 +17,7 @@
 package cats.effect
 package internals
 
+import cats.effect.internals.Callback.Extensions
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.control.NonFatal
 
@@ -106,9 +107,12 @@ private[effect] object IOParMap {
           Logger.reportFailure(e)
         case null | Left(_) | Right(_) =>
           // Cancels the other before signaling the error
-          try other.cancel() finally {
+          other.cancel.unsafeRunAsync { r =>
             conn.pop()
-            cb(Left(e))
+            cb.async(Left(r match {
+              case Left(e2) => IOPlatform.composeErrors(e, e2)
+              case _ => e
+            }))
           }
       }
     }

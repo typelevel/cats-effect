@@ -16,9 +16,9 @@
 
 package cats.effect.internals
 
+import cats.effect.IO
 import org.scalatest.{FunSuite, Matchers}
-import cats.effect.internals.Callback.{T => Callback, Extensions}
-import cats.effect.internals.Cancelable.{Type => Cancelable}
+import cats.effect.internals.Callback.{Extensions, T => Callback}
 
 class CallbackTests extends FunSuite with Matchers with TestUtils {
   test("Callback.report(Right(_)) is a no-op") {
@@ -49,7 +49,7 @@ class CallbackTests extends FunSuite with Matchers with TestUtils {
 
   test("Callback.async pops Connection if provided") {
     val conn = IOConnection()
-    val ref: Cancelable = new Cancelable.Dummy
+    val ref = IO(())
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
@@ -73,7 +73,7 @@ class CallbackTests extends FunSuite with Matchers with TestUtils {
 
   test("Callback.asyncIdempotent pops Connection if provided") {
     val conn = IOConnection()
-    val ref: Cancelable = new Cancelable.Dummy
+    val ref = IO(())
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
