@@ -78,7 +78,9 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
           "racePair cancels loser" -> forAll(laws.racePairCancelsLoser[A, B] _),
           "racePair cancels both" -> forAll(laws.racePairCancelsBoth[A, B, C] _),
           "racePair can join left" -> forAll(laws.racePairCanJoinLeft[A] _),
-          "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _))
+          "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _),
+          "an action run concurrently with a pure value is the same as just doing that action" ->
+            forAll(laws.actionConcurrentWithPureValueIsJustAction[A] _))
 
         // Activating the tests that detect non-termination only if allowed by Params,
         // because such tests might not be reasonable depending on evaluation model

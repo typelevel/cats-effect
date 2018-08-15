@@ -26,10 +26,8 @@ import cats.laws.discipline.arbitrary._
 class InstancesTests extends BaseTestsSuite {
 
   checkAllAsync("StateT[IO, S, ?]",
-    implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      ConcurrentEffectTests[StateT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
-    })
+    implicit ec =>
+      AsyncTests[StateT[IO, Int, ?]].async[Int, Int, Int])
 
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => {

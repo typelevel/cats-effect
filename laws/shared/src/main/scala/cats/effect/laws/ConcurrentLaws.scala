@@ -271,6 +271,12 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
     fc <-> F.pure(f(a, b))
   }
+
+  def actionConcurrentWithPureValueIsJustAction[A](fa: F[A], a: A) = (for {
+    fiber <- F.start(a.pure)
+    x <- fa
+    _ <- fiber.join
+  } yield x) <-> fa
 }
 
 object ConcurrentLaws {

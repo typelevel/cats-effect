@@ -437,7 +437,15 @@ val mimaSettings = Seq(
       exclude[IncompatibleResultTypeProblem]("cats.effect.internals.IOConnection#Uncancelable.pop"),
       exclude[MissingClassProblem]("cats.effect.internals.IOFiber"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOConnection.alreadyCanceled"),
-      exclude[MissingClassProblem]("cats.effect.internals.Cancelable")
+      exclude[MissingClassProblem]("cats.effect.internals.Cancelable"),
+
+      // Removing ConcurrentEffect[StateT]
+      exclude[MissingClassProblem]("cats.effect.ConcurrentEffect$StateTConcurrentEffect"),
+      exclude[MissingClassProblem]("cats.effect.Concurrent$StateTConcurrent"),
+      exclude[MissingClassProblem]("cats.effect.Effect$StateTEffect"),
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect.catsStateTConcurrentEffect"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.catsStateTConcurrent"),
+      exclude[DirectMissingMethodProblem]("cats.effect.Effect.catsStateTEffect")
     )
   })
 
