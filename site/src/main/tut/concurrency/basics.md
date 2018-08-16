@@ -80,7 +80,7 @@ Creating a **Thread** has a price to it. The overhead depends on specific JVM an
 several activities from both of them so making too many threads for short-lived tasks is very inefficient .
 It may turn out that process of creating thread and possible context switches has higher costs than the task itself.
 Furthermore, having too many created threads means that we can eventually run out of memory and that they are 
-competing for CPU, slowing down application.
+competing for CPU, slowing down entire application.
 
 It is advised to use **thread pools** which by means of `Executor` (`ExecutionContext` in Scala) serve the purpose of 
 managing execution of threads.
@@ -153,7 +153,7 @@ between model represented by JVM Threads and Green Threads is that the latter ar
 much more lightweight which allows starting a lot of them without many issues.
 
 They are often characterized by [cooperative multitasking](https://en.wikipedia.org/wiki/Cooperative_multitasking) 
-which means the thread decides when it's giving up control instead of being forcefully denied it like it happen on JVM.
+which means the thread decides when it's giving up control instead of being forcefully denied it like it happens on JVM.
 
 This term is important for `cats.effect.IO` because with its' `Fiber` and `shift` design there are a lot of similarities
 to this model. This will be explained in the next section.
@@ -243,7 +243,7 @@ prog.unsafeRunSync()
 Now it will keep printing both `1` and `2` but neither `11` nor `22`. What changed? 
 Those thread pools are independent and interleave because of thread scheduling done by Operating System.
 
-It's about time to get it right:
+Let's get it right:
 ```scala
 def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => IO.shift *> repeat)
@@ -265,19 +265,19 @@ prog.unsafeRunSync()
 Notice `IO.shift *> repeat` call - `*>` means that we execute first operation, ignore its result and then call `repeat`. 
 Now everything is fair, we can see each of those numbers printed on the screen. 
 Calling `IO.shift` fixed the problem because when currently running `IO` was sent to schedule again it gave opportunity 
-to actually execute the other one.
+to execute the other one.
 
 It probably sounds quite complex and cumbersome to keep track of it yourself but once you understand fundamentals 
-this explicity is actually great virtue of `cats.effect.IO`. Knowing what exactly happens in concurrent scenarios 
+this explicity can be a great virtue of `cats.effect.IO`. Knowing what exactly happens in concurrent scenarios 
 in your application just by reading the piece of code can really speedup debugging process or even allow to 
 get it right the first time.
 
-Fortunately `cats.effect.IO` doesn’t always require to do it manually and operations like `race`, `parMapN` 
+Fortunately `cats.effect.IO` doesn't always require to do it manually and operations like `race`, `parMapN` 
 or `parTraverse` introduce asynchronous boundary at the beginning but if you have limited thread pool and long 
 running tasks keep fairness in mind. 
 
-Scala’s `Future` is optimized for fairness, doing `shift` equivalent after each `map` or `flatMap` 
-so we wouldn't have the problem described above but doing it too much results in putting a lot of pressure on 
+Scala's `Future` is optimized for fairness, doing `shift` equivalent after each `map` or `flatMap`.
+We wouldn't have the problem described above but doing it too much results in putting a lot of pressure on 
 scheduler causing low throughput. In typical purely functional programs we have many `flatMaps` because our 
 entire application is just one big `IO` composed of many smaller ones. Constant shifting is not feasible 
 but there's always the option to do it if our application has strict latency requirements.
