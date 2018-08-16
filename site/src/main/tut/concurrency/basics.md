@@ -45,6 +45,14 @@ IO.never *> IO(println("done"))
 
 It will never print "done" - it will silently finish instead and will be garbage collected at some point in the future.
 
+### logical thread
+
+JVM Thread, this is what we create with `new Thread()`. It is possible to create many logical threads.
+
+### native thread
+
+Operating System' thread, extremely scarce resource, usually the number of processor cores.
+
 ## Threads
 
 ### Threading (on JVM)
@@ -55,21 +63,22 @@ Others have to wait for their turn.
 
 If we try to run too many threads at once we will suffer because of many **context switches**. 
 Before any thread can start doing real work the OS needs to store state of earlier task and restore the state 
-for the current one. This cleanup has actually nontrivial cost so from performance point of view 
-the most efficient situation for CPU-bound tasks is when we execute as many threads as the number of available 
-operating systems' threads favoring synchronous execution whenever possible.
+for the current one. This cleanup has nontrivial cost. The most efficient situation for CPU-bound tasks 
+is when we execute as many logical threads as the number of available native threads.
 
-Remember that parallelizing everything won’t make it magically faster. 
-Often overhead of creating or jumping threads can be bigger than the speedup so make sure to benchmark. 
-Also remember that threads are scarce resource on JVM and if you exploit them at every opportunity 
+For above reasons, synchronous execution can perform much better than parallelizing 
+too much which won't make your code magically faster.
+
+Overhead of creating or jumping threads is often bigger than the speedup so make sure to benchmark. 
+Also, remember that threads are scarce resource on JVM. If you exploit them at every opportunity 
 it may turn out that your most performance critical parts of the application suffer because other part is 
-doing a lot of work in parallel, taking precious (native) threads.
+doing a lot of work in parallel, taking precious native threads.
 
 ### Thread Pools
 
 Creating a **Thread** has a price to it. The overhead depends on specific JVM and OS but it involves 
-several activities from both of them so making too many threads for short-lived tasks is very inefficient 
-because it may turn out that process of creating thread and possible context switches has higher costs than the task itself.
+several activities from both of them so making too many threads for short-lived tasks is very inefficient .
+It may turn out that process of creating thread and possible context switches has higher costs than the task itself.
 Furthermore, having too many created threads means that we can eventually run out of memory and that they are 
 competing for CPU, slowing down application.
 
@@ -101,25 +110,53 @@ Despite those dangers it is still very useful for blocking tasks. In limited thr
 too many threads which are waiting for callback from other (blocked) thread for a long time we risk 
 getting deadlock that prevents any new tasks from starting their work.
 
-#### Fork Join Pool
-
-// TODO
-
 For a bit more in-depth guidelines [read Daniel Spiewak's gist.](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
 
 ### Blocking Threads
 
 As a rule we should never block threads but sometimes we have to work with interface that does it. 
 Blocking a thread means that it is being wasted and nothing else can be scheduled to run on it. 
-As mentioned, this can be very dangerous and it’s best to use dedicated thread 
-pool for blocking operations. This way they won’t interfere with CPU-bound part of application.
+As mentioned, this can be very dangerous and it's best to use dedicated thread 
+pool for blocking operations. This way they won't interfere with CPU-bound part of application.
 
-`cats.effect.IO` and `monix.eval.Task` provide `.shift` operator which can switch computation to different thread pool 
-but you need to make sure to come back to original pool later. 
-For more convenient tool for this pattern [see linebacker.](https://github.com/ChristopherDavenport/linebacker)
+`cats.effect.IO` and `monix.eval.Task` provide `shift` operator which can switch computation to different thread pool.
+If you need to execute blocking operation and come back consider using `ContextShift.evalOn` which is meant for this use case:
+
+```tut:silent
+import java.util.concurrent.Executors
+import cats.effect.{ContextShift, IO}
+import scala.concurrent.ExecutionContext
+  
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+val blockingEC = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
+  
+def blockingOp: IO[Unit] = ???
+def doSth(): IO[Unit] = ???
+  
+val prog =
+  for {
+    _ <- contextShift.evalOn(blockingEC)(blockingOp) // executes on blockingEC
+    _ <- doSth()                                     // executes on contextShift
+  } yield ()
+``` 
+
+For more convenient tools for this pattern [see linebacker.](https://github.com/ChristopherDavenport/linebacker)
 
 Other resource with good practices regarding working with blocked threads 
 [is this section of Monix documentation.](https://monix.io/docs/3x/best-practices/blocking.html)
+
+### Green Threads
+
+There are more types of threads and they depend on the platform. One of them is
+[*green thread*](https://en.wikipedia.org/wiki/Green_threads). The main difference 
+between model represented by JVM Threads and Green Threads is that the latter aren't scheduled on OS level. They are
+much more lightweight which allows starting a lot of them without many issues.
+
+They are often characterized by [cooperative multitasking](https://en.wikipedia.org/wiki/Cooperative_multitasking) 
+which means the thread decides when it's giving up control instead of being forcefully denied it like it happen on JVM.
+
+This term is important for `cats.effect.IO` because with its' `Fiber` and `shift` design there are a lot of similarities
+to this model. This will be explained in the next section.
 
 ## Thread Scheduling
 Working with `cats.effect.IO` you should notice a lot of calls to `IO.shift` which is described 
@@ -142,39 +179,45 @@ so if it’s infinite `IO` it could hog the thread forever and if we use single 
 will ever run on it! 
 
 In other words - `IO` is executing synchronously until we call `IO.shift` or use function like `parSequence` which 
-does it for ourselves. In terms of individual thread pools we can actually treat `IO` a bit like **green thread** with 
-cooperative multitasking - instead of forcefully preempting thread we can decide when we yield CPU to other threads 
-from the same pool by calling `shift`.
+does it for ourselves. In terms of individual thread pools we can actually treat `IO` like **green thread** with 
+[cooperative multitasking](https://en.wikipedia.org/wiki/Cooperative_multitasking) - instead of 
+[forcefully preempting](https://en.wikipedia.org/wiki/Preemption_(computing)#PREEMPTIVE) thread 
+we can decide when we yield CPU to other threads from the same pool by calling `shift`.
 
 Calling `IO.shift` sends it to schedule again so if there are other `IO` waiting to execute they can have their chance. 
 Likelihood of different threads advancing their work is called **fairness**.
 
-Let’s illustrate this:
+Let's illustrate this:
 
 ```tut:silent
 import java.util.concurrent.Executors
-import cats.effect.{Fiber, IO}
-import scala.concurrent.ExecutionContext
+import cats.effect.{ContextShift, Fiber, IO}
 import cats.syntax.apply._
+import scala.concurrent.ExecutionContext
 
 val ecOne = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 val ecTwo = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 
-def infiniteIO(id: Int)(implicit ec: ExecutionContext): IO[Fiber[IO, Unit]] = {
+val csOne: ContextShift[IO] = IO.contextShift(ecOne)
+val csTwo: ContextShift[IO] = IO.contextShift(ecTwo)
+
+def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => repeat)
+
   repeat.start
 }
 ```
 
-We have two single threaded `ExecutionContexts` and a function that will run `IO` forever printing its identifier. 
-Note `repeat.start` and return type of `IO[Fiber[IO, Unit]]` which means that we run this computation in the background. 
-Now if we try this:
+We have two single threaded `ExecutionContexts` (wrapped in [ContextShift](./../datatypes/contextshift.html))
+and a function that will run `IO` forever printing its identifier. 
+Note `repeat.start` and return type of `IO[Fiber[IO, Unit]]` which means that we run this computation in the background.
+It will run on thread pool provided by `implicit cs: ContextShift[IO]` which we will pass directly:
 
 ```scala
 val prog =
   for {
-    _ <- infiniteIO(1)(ecOne)
-    _ <- infiniteIO(11)(ecOne)
+    _ <- infiniteIO(1)(csOne)
+    _ <- infiniteIO(11)(csTwo)
   } yield ()
 
 prog.unsafeRunSync()
@@ -188,10 +231,10 @@ How about two thread pools?
 ```scala
 val prog =
   for {
-    _ <- infiniteIO(1)(ecOne)
-    _ <- infiniteIO(11)(ecOne)
-    _ <- infiniteIO(2)(ecTwo)
-    _ <- infiniteIO(22)(ecTwo)
+    _ <- infiniteIO(1)(csOne)
+    _ <- infiniteIO(11)(csOne)
+    _ <- infiniteIO(2)(csTwo)
+    _ <- infiniteIO(22)(csTwo)
   } yield ()
 
 prog.unsafeRunSync()
@@ -202,17 +245,18 @@ Those thread pools are independent and interleave because of thread scheduling d
 
 It's about time to get it right:
 ```scala
-def infiniteIO(id: Int)(implicit ec: ExecutionContext): IO[Fiber[IO, Unit]] = {
+def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => IO.shift *> repeat)
+  
   repeat.start
 }
 
 val prog =
   for {
-    _ <- infiniteIO(1)(ecOne)
-    _ <- infiniteIO(11)(ecOne)
-    _ <- infiniteIO(2)(ecTwo)
-    _ <- infiniteIO(22)(ecTwo)
+    _ <- infiniteIO(1)(csOne)
+    _ <- infiniteIO(11)(csOne)
+    _ <- infiniteIO(2)(csTwo)
+    _ <- infiniteIO(22)(csTwo)
   } yield ()
 
 prog.unsafeRunSync()
