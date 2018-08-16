@@ -22,12 +22,12 @@ described by `IO`), you have to do something like this:
 import cats.effect._
 import cats.syntax.all._
 import scala.concurrent.duration._
-
-// Currently needed for Timer[IO] on top of the JVM, which is a
-// requirement for concurrent operations or for sleeps
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 
 object Main {
+  // Needed for `IO.sleep`
+  implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+  
   def program(args: List[String]): IO[Unit] =
     IO.sleep(1.second) *> IO(println("Hello world!"))
     
@@ -129,13 +129,17 @@ Therefore `IOApp` automatically installs an interruption handler for you.
 exposed by Cats-Effect. This is because different `F[_]` data types have 
 different requirements for evaluation at the end of the world.
 
-For example `cats.effect.IO` now needs a `Timer[IO]` in scope for
-working with `Concurrent` and thus for getting the `ConcurrentEffect`
-necessary to evaluate an `IO`, [Timer](../datatypes/timer.html) being
-provided by the environment and in this case the environment is the
-`IOApp`. Monix's [Task](https://monix.io/docs/3x/eval/task.html)
-however has a global `Timer[Task]` always in scope and doesn't need
-it, but it does need a
+For example `cats.effect.IO` now needs a `ContextShift[IO]` in scope
+for working with `Concurrent` and thus for getting the
+`ConcurrentEffect` necessary to evaluate an `IO`. It also needs a
+`Timer[IO]` in scope for utilities such as `IO.sleep` and `timeout`.
+ 
+[ContextShift](../datatypes/contextshift.html) and
+[Timer](../datatypes/timer.html) are provided by the environment and
+in this case the environment is the `IOApp`. Monix's
+[Task](https://monix.io/docs/3x/eval/task.html) however has global
+`ContextShift[Task]` and `Timer[Task]` always in scope and doesn't
+need them, but it does need a
 [Scheduler](https://monix.io/docs/3x/execution/scheduler.html) to be
 available for the necessary [Effect](effect.html) instance. And both
 Cats-Effect's `IO` and Monix's `Task` are cancelable, in which case it
@@ -157,8 +161,6 @@ import cats.data.EitherT
 
 object Main extends IOApp {
   type F[A] = EitherT[IO, Throwable, A]
-
-  implicit val timerF: Timer[F] = Timer.deriveIO[F]
   val F = implicitly[ConcurrentEffect[F]]
 
   def run(args: List[String]) = 

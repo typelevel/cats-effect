@@ -53,10 +53,10 @@ trait ContextShift[F[_]] {
    * The primary use case for this method is executing blocking code on a
    * dedicated execution context.
    *
-   * @param context  Execution content where the `f` has to be scheduled
-   * @param f        Computation to rin on `context`
+   * @param ec Execution context where the evaluation has to be scheduled
+   * @param fa  Computation to evaluate using `ec`
    */
-  def evalOn[A](context: ExecutionContext)(f: F[A]): F[A]
+  def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A]
 }
 
 object ContextShift {
@@ -69,8 +69,8 @@ object ContextShift {
       def shift: EitherT[F, L, Unit] =
         EitherT.liftF(cs.shift)
 
-      def evalOn[A](context: ExecutionContext)(f: EitherT[F, L, A]): EitherT[F, L, A] =
-        EitherT(cs.evalOn(context)(f.value))
+      def evalOn[A](ec: ExecutionContext)(fa: EitherT[F, L, A]): EitherT[F, L, A] =
+        EitherT(cs.evalOn(ec)(fa.value))
     }
 
   /**
@@ -82,8 +82,8 @@ object ContextShift {
       def shift: OptionT[F, Unit] =
         OptionT.liftF(cs.shift)
 
-      def evalOn[A](context: ExecutionContext)(f: OptionT[F, A]): OptionT[F, A] =
-        OptionT(cs.evalOn(context)(f.value))
+      def evalOn[A](ec: ExecutionContext)(fa: OptionT[F, A]): OptionT[F, A] =
+        OptionT(cs.evalOn(ec)(fa.value))
     }
 
   /**
@@ -95,8 +95,8 @@ object ContextShift {
       def shift: WriterT[F, L, Unit] =
         WriterT.liftF(cs.shift)
 
-      def evalOn[A](context: ExecutionContext)(f: WriterT[F, L, A]): WriterT[F, L, A] =
-        WriterT(cs.evalOn(context)(f.run))
+      def evalOn[A](ec: ExecutionContext)(fa: WriterT[F, L, A]): WriterT[F, L, A] =
+        WriterT(cs.evalOn(ec)(fa.run))
     }
 
   /**
@@ -108,8 +108,8 @@ object ContextShift {
       def shift: StateT[F, L, Unit] =
         StateT.liftF(cs.shift)
 
-      def evalOn[A](context: ExecutionContext)(f: StateT[F, L, A]): StateT[F, L, A] =
-        StateT(s => cs.evalOn(context)(f.run(s)))
+      def evalOn[A](ec: ExecutionContext)(fa: StateT[F, L, A]): StateT[F, L, A] =
+        StateT(s => cs.evalOn(ec)(fa.run(s)))
     }
 
   /**
@@ -121,7 +121,7 @@ object ContextShift {
       def shift: Kleisli[F, R, Unit] =
         Kleisli.liftF(cs.shift)
 
-      def evalOn[A](context: ExecutionContext)(f: Kleisli[F, R, A]): Kleisli[F, R, A] =
-        Kleisli(a => cs.evalOn(context)(f.run(a)))
+      def evalOn[A](ec: ExecutionContext)(fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+        Kleisli(a => cs.evalOn(ec)(fa.run(a)))
     }
 }

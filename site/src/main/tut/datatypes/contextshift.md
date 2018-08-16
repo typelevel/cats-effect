@@ -27,7 +27,7 @@ trait ContextShift[F[_]] {
 
   def shift: F[Unit]
 
-  def evalOn[A](context: ExecutionContext)(f: F[A]): F[A]
+  def evalOn[A](ec: ExecutionContext)(f: F[A]): F[A]
 }
 ```
 
@@ -93,7 +93,7 @@ object MyApp extends IOApp {
   def run(args: List[String]) = {
     val name = blockingThreadPool[IO].use { ec =>
       // Blocking operation, executed on special thread-pool
-      ContextShift[IO].evalOn(ec)(readName[IO])
+      contextShift.evalOn(ec)(readName[IO])
     }
     
     for {

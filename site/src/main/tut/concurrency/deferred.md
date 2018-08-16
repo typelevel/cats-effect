@@ -45,8 +45,10 @@ Two processes will try to complete at the same time but only one will succeed, c
 import cats.effect.IO
 import cats.effect.concurrent.Deferred
 import cats.implicits._
+import scala.concurrent.ExecutionContext
 
-import scala.concurrent.ExecutionContext.Implicits.global
+// Needed for `start` or `Concurrent[IO]` and therefore `parSequence`
+implicit val cs = IO.contextShift(ExecutionContext.global)
 
 def start(d: Deferred[IO, Int]): IO[Unit] = {
   val attemptCompletion: Int => IO[Unit] = n => d.complete(n).attempt.void

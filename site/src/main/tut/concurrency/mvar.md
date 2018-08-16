@@ -68,7 +68,10 @@ except that there's no actual thread blocking involved and it is powered by data
 
 ```tut:invisible
 import cats.effect.laws.util.TestContext
+import cats.effect.IO
+
 implicit val ec = TestContext()
+implicit val cs = IO.contextShift(ec)
 ```
 
 ```tut:silent

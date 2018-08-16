@@ -575,8 +575,10 @@ thread that can be either joined (via `join`) or interrupted (via
 Example:
 
 ```tut:silent
-// Needed in order to get a Timer[IO], for IO.start to execute concurrently
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
+
+// Needed for IO.start to do a logical thread fork
+implicit val cs = IO.contextShift(ExecutionContext.global)
 
 val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
@@ -610,6 +612,11 @@ Example relying on the side-effecting `unsafeRunCancelable` and note
 this kind of code is impure and should be used with care:
 
 ```tut:silent
+import scala.concurrent.ExecutionContext
+
+// Needed for `sleep`
+implicit val timer = IO.timer(ExecutionContext.global)
+
 // Delayed println
 val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
 
@@ -1116,7 +1123,7 @@ but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.html) i
 import cats.effect.{IO, ContextShift}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-val contextShift = ContextShift[IO]
+val contextShift = IO.contextShift(global)
 ```
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
@@ -1140,7 +1147,7 @@ import cats.syntax.apply._
 
 IO.shift *> task
 // equivalent to
-ContextShift[IO].shift *> task
+implicitly[ContextShift[IO]].shift *> task
 ```
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
@@ -1154,7 +1161,7 @@ Or using `Cats` syntax:
 ```tut:silent
 task <* IO.shift
 // equivalent to
-task <* ContextShift[IO].shift
+task <* implicitly[ContextShift[IO]].shift
 ```
 
 Example of where this might be useful:
@@ -1264,7 +1271,7 @@ parFailure.unsafeRunSync()
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
 ```tut:silent
-val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
+val ioA = IO.sleep(10.seconds) *> IO(println("Delayed!"))
 val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
 (ioA, ioB).parMapN((_, _) => ())

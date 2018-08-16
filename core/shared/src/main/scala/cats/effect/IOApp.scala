@@ -69,7 +69,7 @@ trait IOApp {
   /**
     * Provides an implicit [[ContextShift]] instance for the app.
     *
-    * On the JVM, the default lazily constructed from the global
+    * On the JVM, the default is lazily constructed from the global
     * execution context. Override to avoid instantiating this
     * execution context.
     *
@@ -79,11 +79,11 @@ trait IOApp {
 
   /**
    * Provides an implicit [[Timer]] instance for the app.
-   * 
+   *
    * On the JVM, the default lazily constructed from the global
    * execution context. Override to avoid instantiating this
    * execution context.
-   * 
+   *
    * On scala.js, the default is `Timer.global`.
    */
   protected implicit def timer: Timer[IO] = IOAppPlatform.defaultTimer

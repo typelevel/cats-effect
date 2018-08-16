@@ -140,7 +140,7 @@ object Clock  {
    * Default implicit instance — given there's an implicit [[Timer]]
    * in scope, extracts a [[Clock]] instance from it.
    */
-  implicit def instance[F[_]](implicit timer: Timer[F]): Clock[F] =
+  implicit def extractFromTimer[F[_]](implicit timer: Timer[F]): Clock[F] =
     timer.clock
 
   /**

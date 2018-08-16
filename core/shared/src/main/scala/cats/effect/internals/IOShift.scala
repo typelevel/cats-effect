@@ -28,8 +28,8 @@ private[effect] object IOShift {
         ec.execute(new Tick(cb))
     })
 
-  def shiftOn[A](shiftContext: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-     IOBracket[Unit, A](IOShift(shiftContext))(_ => io)((_, _) => IOShift(targetEc))
+  def shiftOn[A](cs: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
+     IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
 
   private[internals] final class Tick(cb: Either[Throwable, Unit] => Unit)
     extends Runnable {

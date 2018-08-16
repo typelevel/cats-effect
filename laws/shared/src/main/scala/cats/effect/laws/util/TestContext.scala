@@ -184,8 +184,8 @@ final class TestContext private () extends ExecutionContext { self =>
             self.execute(tick(cb))
         }))
 
-      override def evalOn[A](context: ExecutionContext)(f: F[A]): F[A] =
-        F.bracket(F.liftIO(IOShift(context)))(_ => f)(_ => shift)
+      override def evalOn[A](ec: ExecutionContext)(f: F[A]): F[A] =
+        F.bracket(F.liftIO(IOShift(ec)))(_ => f)(_ => shift)
     }
 
   /**
