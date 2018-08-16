@@ -8,7 +8,7 @@ matrix:
       env: COVERAGE=coverage
     - jdk: oraclejdk10
       scala: 2.11.12
-      env: COVERAGE=coverage
+      env: COVERAGE=
     - jdk: oraclejdk8
       scala: 2.12.6
       env: COVERAGE=
