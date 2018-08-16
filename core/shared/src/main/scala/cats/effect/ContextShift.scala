@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.{Applicative, Functor, Monad, Monoid}
 import cats.data._
-
+import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
 
 /**
@@ -33,6 +33,10 @@ import scala.concurrent.ExecutionContext
  * This is NOT a type class, as it does not have the coherence
  * requirement.
  */
+@implicitNotFound("""Cannot find an implicit value for ContextShift[${F}]:
+* import ContextShift[${F}] from your effects library
+* if using IO, use cats.effect.IOApp or build one with cats.effect.IO.contextShift
+""")
 trait ContextShift[F[_]] {
   /**
    * Asynchronous boundary described as an effectful `F[_]` that

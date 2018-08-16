@@ -43,11 +43,9 @@ import scala.concurrent.duration.FiniteDuration
  * This is NOT a type class, as it does not have the coherence
  * requirement.
  */
-@implicitNotFound("""Cannot find an implicit value for Timer[${F}]. 
-Either:
+@implicitNotFound("""Cannot find an implicit value for Timer[${F}]:
 * import Timer[${F}] from your effects library
-* use cats.effect.IOApp
-* build one with cats.effect.IO.timer
+* if using IO, use cats.effect.IOApp or build one with cats.effect.IO.timer
 """)
 trait Timer[F[_]]  {
   /**

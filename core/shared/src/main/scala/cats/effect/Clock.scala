@@ -38,9 +38,9 @@ import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
  * This is NOT a type class, as it does not have the coherence
  * requirement.
  */
-@implicitNotFound("""Cannot find an implicit value for Clock[${F}].
-Either import an implicit Timer[${F}] in scope or
-create a Clock[${F}] instance with Clock.create
+@implicitNotFound("""Cannot find an implicit value for Clock[${F}]:
+* import an implicit Timer[${F}] in scope or
+* create a Clock[${F}] instance with Clock.create
 """)
 trait Clock[F[_]] {
   /**
