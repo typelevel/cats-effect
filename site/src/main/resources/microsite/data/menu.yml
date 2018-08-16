@@ -20,6 +20,14 @@ options:
         url: datatypes/resource.html
         menu_section: resource
 
+      - title: Clock
+        url: datatypes/clock.html
+        menu_section: clock
+
+      - title: ContextShift
+        url: datatypes/contextshift.html
+        menu_section: contextshift
+
       - title: Timer
         url: datatypes/timer.html
         menu_section: timer

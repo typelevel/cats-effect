@@ -16,23 +16,20 @@
 
 package cats.effect.internals
 
-import cats.effect.IO
+import cats.effect.{Clock, IO}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 
-private[effect] object IOShift {
-  /** Implementation for `IO.shift`. */
-  def apply(ec: ExecutionContext): IO[Unit] =
-    IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
-        ec.execute(new Tick(cb))
-    })
+ /**
+  * Internal API, implementation of [[Clock]]
+  *
+  */
+private[internals]  class IOClock extends Clock[IO] {
 
-  def shiftOn[A](cs: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-     IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
+  final def realTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
 
-  private[internals] final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
-    def run() = cb(Callback.rightUnit)
-  }
+  final def monotonic(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.nanoTime(), NANOSECONDS))
+
 }

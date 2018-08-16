@@ -96,7 +96,8 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
 }
 
 object ConcurrentTests {
-  def apply[F[_]: Concurrent](implicit timer: Timer[F]): ConcurrentTests[F] = new ConcurrentTests[F] {
-    def laws = ConcurrentLaws[F]
-  }
+  def apply[F[_]: Concurrent](implicit cs: ContextShift[F]): ConcurrentTests[F] =
+    new ConcurrentTests[F] {
+      def laws = ConcurrentLaws[F]
+    }
 }

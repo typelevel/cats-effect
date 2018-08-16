@@ -17,8 +17,8 @@
 package cats.effect.laws.util
 
 import cats.effect.internals.Callback.T
-import cats.effect.internals.{IOConnection, IOForkedStart}
-import cats.effect.{CancelToken, IO, LiftIO, Timer}
+import cats.effect.internals.{IOConnection, IOForkedStart, IOShift}
+import cats.effect._
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
@@ -148,25 +148,44 @@ final class TestContext private () extends ExecutionContext { self =>
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
         new Runnable { def run() = cb(Right(())) }
 
+      override def sleep(timespan: FiniteDuration): F[Unit] =
+        F.liftIO(IO.cancelable { cb =>
+          self.schedule(timespan, tick(cb))
+        })
+
+      val clock: Clock[F] = new Clock[F] {
+        def realTime(unit: TimeUnit): F[Long] =
+          F.liftIO(IO {
+            val d = self.state.clock
+            unit.convert(d.length, d.unit)
+          })
+
+        def monotonic(unit: TimeUnit): F[Long] =
+          realTime(unit)
+      }
+    }
+
+  /**
+    * Derives a `cats.effect.ContextShift` from this `TestContext`, for any data
+    * type that has a `LiftIO` and `MonadError` instance.
+    *
+    * Example:
+    *
+    * $timerExample
+    */
+  def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
+    new ContextShift[F] {
+      def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
+        new Runnable { def run() = cb(Right(())) }
+
       override def shift: F[Unit] =
         F.liftIO(IO.Async(new IOForkedStart[Unit] {
           def apply(conn: IOConnection, cb: T[Unit]): Unit =
             self.execute(tick(cb))
         }))
 
-      override def sleep(timespan: FiniteDuration): F[Unit] =
-        F.liftIO(IO.cancelable { cb =>
-          self.schedule(timespan, tick(cb))
-        })
-
-      override def clockRealTime(unit: TimeUnit): F[Long] =
-        F.liftIO(IO {
-          val d = self.state.clock
-          unit.convert(d.length, d.unit)
-        })
-
-      override def clockMonotonic(unit: TimeUnit): F[Long] =
-        clockRealTime(unit)
+      override def evalOn[A](ec: ExecutionContext)(f: F[A]): F[A] =
+        F.bracket(F.liftIO(IOShift(ec)))(_ => f)(_ => shift)
     }
 
   /**

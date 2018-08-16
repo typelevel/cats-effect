@@ -26,7 +26,7 @@ import scala.concurrent.Promise
 
 trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Concurrent[F]
-  implicit val timer: Timer[F]
+  implicit val contextShift: ContextShift[F]
 
   def cancelOnBracketReleases[A, B](a: A, f: (A, A) => B) = {
     val received = for {
@@ -123,7 +123,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         fiber <- F.start(task)
         _     <- latch.get
         _     <- fiber.cancel
-        _     <- timer.shift
+        _     <- contextShift.shift
         _     <- mVar.take
         out   <- mVar.take
       } yield out
@@ -140,7 +140,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         fiber <- F.start(task)
         _     <- latch.get
         _     <- fiber.cancel
-        _     <- timer.shift
+        _     <- contextShift.shift
         _     <- mVar.take
         out   <- mVar.take
       } yield out
@@ -280,8 +280,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 }
 
 object ConcurrentLaws {
-  def apply[F[_]](implicit F0: Concurrent[F], timer0: Timer[F]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
+  def apply[F[_]](implicit F0: Concurrent[F], contextShift0: ContextShift[F]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
     val F = F0
-    val timer = timer0
+    val contextShift = contextShift0
   }
 }

@@ -60,11 +60,15 @@ import cats.effect.{Concurrent, IO, Timer}
 import cats.effect.concurrent.Semaphore
 import cats.implicits._
 
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class PreciousResource[F[_]](name: String, s: Semaphore[F])(implicit F: Concurrent[F], T: Timer[F]) {
+// Needed for getting a Concurrent[IO] instance
+implicit val ctx = IO.contextShift(ExecutionContext.global)
+// Needed for `sleep`
+implicit val timer = IO.timer(ExecutionContext.global)
 
+class PreciousResource[F[_]](name: String, s: Semaphore[F])(implicit F: Concurrent[F], timer: Timer[F]) {
   def use: F[Unit] =
     for {
       x <- s.available
@@ -72,12 +76,11 @@ class PreciousResource[F[_]](name: String, s: Semaphore[F])(implicit F: Concurre
       _ <- s.acquire
       y <- s.available
       _ <- F.delay(println(s"$name >> Started | Availability: $y"))
-      _ <- T.sleep(3.seconds)
+      _ <- timer.sleep(3.seconds)
       _ <- s.release
       z <- s.available
       _ <- F.delay(println(s"$name >> Done | Availability: $z"))
     } yield ()
-
 }
 
 implicit val par: Parallel[IO, IO] = Parallel[IO, IO.Par].asInstanceOf[Parallel[IO, IO]]

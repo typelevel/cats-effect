@@ -95,7 +95,8 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
+or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
    * Creates a simple, non-cancelable `F[A]` instance that

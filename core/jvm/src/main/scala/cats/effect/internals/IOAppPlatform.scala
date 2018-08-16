@@ -22,8 +22,10 @@ import cats.implicits._
 import java.util.concurrent.CountDownLatch
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
-    val code = mainFiber(args, timer)(run).flatMap(_.join)
+
+  // note that although timer is not required on JVM platform it is passed along to have same signature on JVM/JS
+  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
+    val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join)
       .handleErrorWith(t => IO(Logger.reportFailure(t)) *> IO(ExitCode.Error.code))
       .unsafeRunSync()
 
@@ -36,7 +38,7 @@ private[effect] object IOAppPlatform {
     else sys.exit(code)
   }
 
-  def mainFiber(args: Array[String], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
     object Canceled extends RuntimeException
     for {
       latch <- IO(new CountDownLatch(1))
@@ -54,7 +56,7 @@ private[effect] object IOAppPlatform {
         }
         .productL(IO(latch.countDown()))
         .map(_.code)
-        .start(timer.value)
+        .start(contextShift.value)
       _ <- IO(sys.addShutdownHook {
         fiber.cancel.unsafeRunSync()
         latch.await()
@@ -62,5 +64,8 @@ private[effect] object IOAppPlatform {
     } yield fiber
   }
 
-  def defaultTimer: Timer[IO] = IOTimerRef.defaultIOTimer
+  // both lazily initiated on JVM platform to prevent
+  // warm-up of underlying default EC's for code that does not require concurrency
+  def defaultTimer: Timer[IO] = IOTimer.global
+  def defaultContextShift: ContextShift[IO] = IOContextShift.global
 }

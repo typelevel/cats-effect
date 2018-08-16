@@ -87,6 +87,7 @@ class IOJVMTests extends FunSuite with Matchers {
 
   test("parMap2 concurrently") {
     import scala.concurrent.ExecutionContext.Implicits.global
+    implicit val cs = IO.contextShift(global)
 
     val io1 = IO.shift *> IO(1)
     val io2 = IO.shift *> IO(2)

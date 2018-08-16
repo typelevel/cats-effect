@@ -30,16 +30,23 @@ class FiberTests extends BaseTestsSuite {
   implicit def fiberEq[F[_] : Applicative, A](implicit FA: Eq[F[A]]): Eq[Fiber[F, A]] =
     Eq.by[Fiber[F, A], F[A]](_.join)
 
-  checkAllAsync("Fiber[IO, ?]",
-    implicit ec => ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int])
+  checkAllAsync("Fiber[IO, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int]
+  })
 
-  checkAllAsync("Fiber[IO, ?]",
-    implicit ec => SemigroupTests[Fiber[IO, Int]](Fiber.fiberSemigroup[IO, Int]).semigroup)
+  checkAllAsync("Fiber[IO, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    SemigroupTests[Fiber[IO, Int]](Fiber.fiberSemigroup[IO, Int]).semigroup
+  })
 
-  checkAllAsync("Fiber[IO, ?]",
-    implicit ec => MonoidTests[Fiber[IO, Int]].monoid)
+  checkAllAsync("Fiber[IO, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    MonoidTests[Fiber[IO, Int]].monoid
+  })
 
   testAsync("Applicative[Fiber[IO, ?].map2 preserves both cancelation tokens") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
     var canceled = 0
 
     val io1 = IO.cancelable[Int](_ => IO { canceled += 1 })
@@ -58,6 +65,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Applicative[Fiber[IO, ?].map2 cancels first, when second terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
@@ -77,6 +86,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Applicative[Fiber[IO, ?].map2 cancels second, when first terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
@@ -96,6 +107,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Monoid[Fiber[IO, ?].combine cancels first, when second terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
@@ -115,6 +128,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Monoid[Fiber[IO, ?].combine cancels second, when first terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
@@ -134,6 +149,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Semigroup[Fiber[IO, ?].combine cancels first, when second terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
@@ -153,6 +170,8 @@ class FiberTests extends BaseTestsSuite {
   }
 
   testAsync("Semigroup[Fiber[IO, ?].combine cancels second, when first terminates in error") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 

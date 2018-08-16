@@ -29,6 +29,10 @@ import scala.util.{Failure, Success, Try}
 class IOAsyncTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext =
     ExecutionContext.global
+  implicit val timer: Timer[IO] =
+    IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] =
+    IO.contextShift(executionContext)
 
   def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])
     (implicit pos: Position): Future[Assertion] = {

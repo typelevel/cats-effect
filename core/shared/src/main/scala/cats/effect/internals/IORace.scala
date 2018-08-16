@@ -26,7 +26,7 @@ private[effect] object IORace {
    * but this way it is more efficient, as we no longer have to keep
    * internal promises.
    */
-  def simple[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
+  def simple[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
     // Signals successful results
     def onSuccess[T, U](
       isActive: AtomicBoolean,
@@ -73,7 +73,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, cs), connL, {
         case Right(a) =>
           onSuccess(active, conn, connR, cb, Left(a))
         case Left(err) =>
@@ -81,7 +81,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, cs), connR, {
         case Right(b) =>
           onSuccess(active, conn, connL, cb, Right(b))
         case Left(err) =>
@@ -97,7 +97,7 @@ private[effect] object IORace {
   /**
    * Implementation for `IO.racePair`
    */
-  def pair[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Pair[A, B]] = {
+  def pair[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Pair[A, B]] = {
     val start: Start[Pair[A, B]] = (conn, cb) => {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
@@ -112,7 +112,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, cs), connL, {
         case Right(a) =>
           if (active.getAndSet(false)) {
             conn.pop()
@@ -132,7 +132,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, cs), connR, {
         case Right(b) =>
           if (active.getAndSet(false)) {
             conn.pop()
