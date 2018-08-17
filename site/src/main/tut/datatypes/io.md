@@ -299,13 +299,6 @@ IO.race(lh, IO.never) <-> lh.map(Left(_))
 IO.race(IO.never, rh) <-> rh.map(Right(_))
 ```
 
-It's also useful when dealing with the `onCancelRaiseError` operation.
-Because cancelable `IO` values usually become non-terminating on
-cancellation, you might want to use `IO.never` as the continuation of
-an `onCancelRaiseError`.
-
-See the description of `onCancelRaiseError`.
-
 ### Deferred Execution — IO.suspend
 
 The `IO.suspend` builder has this equivalence:
@@ -371,11 +364,6 @@ implementation detail:
     using `IO.cancelBoundary`    
 2. `IO` tasks that are cancelable, usually become non-terminating on
    `cancel`   
-  - such tasks can be turned into tasks that trigger an error on
-    cancellation with `onCancelRaiseError`, which can be used for
-    materializing cancellation and thus trigger necessary logic, the
-    `bracket` operation being described in terms of
-    `onCancelRaiseError`
     
 Also this might be a point of confusion for folks coming from Java and
 that expect the features of `Thread.interrupt` or of the old and
@@ -665,34 +653,6 @@ and in certain cases we need to make them atomic.
 This law is compliant with the laws of `Concurrent#uncancelable` (see
 [Concurrent](../typeclasses/concurrent.html)).
 
-### Materialization of interruption via onCancelRaiseError
-
-`IO` tasks usually become non-terminating when canceled, creating
-problems in case you want to release resources.
-
-Just like `attempt` (from `MonadError`) can materialize thrown errors,
-we have `onCancelRaiseError` that can materialize cancellation.  This
-way we can detect cancellation and trigger specific logic in response.
-
-As example, this is more or less how a `bracket` operation can get
-implemented for `IO`:
-
-
-```tut:silent
-import cats.syntax.all._
-import scala.concurrent.CancellationException
-
-val wasCanceled = new CancellationException("nope")
-val ioa: IO[Int] = IO(???)
-
-ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
-  case `wasCanceled` =>
-    IO(println("Was canceled!")) *> IO.never
-  case e =>
-    IO.raiseError(e)
-}
-```
-
 ### IO.cancelBoundary
 
 Returns a cancelable boundary — an `IO` task that checks for the
@@ -804,12 +764,6 @@ completed with that `Throwable`. Their impure cancel is:
 ```scala
 Throwable => Unit
 ```
-
-We on the other hand have an `onCancelRaiseError(e: Throwable)`, which
-can transform a task that's non-terminating on cancel, into one that
-raises an error on cancel. This operation also creates a race
-condition, cutting off the signaling to downstream, even if the source
-is not cancelable.
 
 `Throwable => Unit` allows the task's logic to know the cancellation
 reason, however cancellation is about cutting the connection to the
