@@ -29,7 +29,7 @@ import scala.util.Either
  * This type class is describing data types that:
  *
  *  1. implement the [[Async]] algebra
- *  2. implement a lawful [[Effect!.runAsync runAsync]] operation
+ *  1. implement a lawful [[Effect!.runAsync runAsync]] operation
  *     that triggers the evaluation (in the context of [[IO]])
  *
  * Note this is the safe and generic version of [[IO.unsafeRunAsync]]
