@@ -722,6 +722,8 @@ def race[A, B](lh: IO[A], rh: IO[B])
 Using `race` we could implement a "timeout" operation:
 
 ```tut:silent
+import scala.concurrent.CancellationException
+
 def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
   (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
 
