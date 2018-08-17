@@ -16,7 +16,9 @@
 
 package cats.effect.internals
 
+import cats.effect.IO.ContextSwitch
 import cats.effect.{CancelToken, ExitCase, IO}
+
 import scala.util.control.NonFatal
 
 private[effect] object IOBracket {
@@ -93,19 +95,17 @@ private[effect] object IOBracket {
 
     final def recover(e: Throwable): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak;
-      // N.B. this piece of logic does not work if IO is auto-cancelable
-      conn.pop()
-      release(ExitCase.error(e))
-        .uncancelable
+      // N.B. conn.pop() happens after the evaluation of `release`, because
+      // otherwise we might have a conflict with the auto-cancelation logic
+      ContextSwitch(release(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
         .flatMap(new ReleaseRecover(e))
     }
 
     final def apply(b: B): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak
-      // N.B. this piece of logic does not work if IO is auto-cancelable
-      conn.pop()
-      release(ExitCase.complete)
-        .uncancelable
+      // N.B. conn.pop() happens after the evaluation of `release`, because
+      // otherwise we might have a conflict with the auto-cancelation logic
+      ContextSwitch(release(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
         .map(_ => b)
     }
   }
@@ -119,4 +119,13 @@ private[effect] object IOBracket {
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)
   }
+
+  private[this] val makeUncancelable: IOConnection => IOConnection =
+    _ => IOConnection.uncancelable
+
+  private[this] val disableUncancelableAndPop: (Any, Throwable, IOConnection, IOConnection) => IOConnection =
+    (_, _, old, _) => {
+      old.pop()
+      old
+    }
 }

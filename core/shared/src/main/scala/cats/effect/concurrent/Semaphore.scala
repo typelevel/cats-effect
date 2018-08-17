@@ -96,15 +96,9 @@ abstract class Semaphore[F[_]] {
 }
 
 object Semaphore {
-
-  private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
-    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
-
-  // A semaphore is either empty, and there are number of outstanding acquires (Left)
-  // or it is non-empty, and there are n permits available (Right)
-  private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
-
-  /** Creates a new `Semaphore`, initialized with `n` available permits. */
+  /**
+   * Creates a new `Semaphore`, initialized with `n` available permits.
+   */
   def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
@@ -113,12 +107,25 @@ object Semaphore {
   /**
    * Like [[apply]] but only requires an `Async` constraint in exchange for the various
    * acquire effects being uncancelable.
+   *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use-case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancelation is used.
    */
   def uncancelable[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
-  
+
+  private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
+    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
+
+  // A semaphore is either empty, and there are number of outstanding acquires (Left)
+  // or it is non-empty, and there are n permits available (Right)
+  private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
+
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit]
@@ -146,11 +153,11 @@ object Semaphore {
               }
               (u, u)
             }
-            .flatMap { 
+            .flatMap {
               case Left(waiting) =>
                 val entry = waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
                 awaitGate(entry)
-                
+
               case Right(_) => F.unit
             }
         }
@@ -198,7 +205,7 @@ object Semaphore {
                     if (k > m) {
                       waiting2 = (k - m, gate) +: waiting2.tail
                       m = 0
-                    } else { 
+                    } else {
                       m -= k
                       waiting2 = waiting2.tail
                     }

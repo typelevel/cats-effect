@@ -145,6 +145,12 @@ object MVar {
    *
    * The resulting `MVar` has non-cancelable operations.
    *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use-case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancelation is used.
+   *
    * @see [[empty]] for creating cancelable MVars
    */
   def uncancelableEmpty[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
@@ -170,6 +176,12 @@ object MVar {
    * value.
    *
    * The resulting `MVar` has non-cancelable operations.
+   *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use-case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancelation is used.
    *
    * @see [[of]] for creating cancelable MVars
    */

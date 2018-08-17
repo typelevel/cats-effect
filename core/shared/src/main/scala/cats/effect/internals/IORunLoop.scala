@@ -329,7 +329,9 @@ private[effect] object IORunLoop {
     }
 
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
-      either match {
+      // Auto-cancelable logic: in case the connection was cancelled,
+      // we interrupt the bind continuation
+      if (!conn.isCanceled) either match {
         case Right(success) =>
           loop(Pure(success), conn, cb, this, bFirst, bRest)
         case Left(e) =>

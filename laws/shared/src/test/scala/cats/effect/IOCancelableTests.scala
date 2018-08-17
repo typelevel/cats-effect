@@ -66,27 +66,6 @@ class IOCancelableTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("fa.onCancelRaiseError(e) <-> fa") { implicit ec =>
-    Prop.forAll { (fa: IO[Int], e: Throwable) =>
-      fa.onCancelRaiseError(e) <-> fa
-    }
-  }
-
-  testAsync("(fa *> IO.cancelBoundary).onCancelRaiseError(e).cancel <-> IO.raiseError(e)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-
-    Prop.forAll { (fa: IO[Int], e: Throwable) =>
-      val received =
-        for {
-          f <- (fa <* IO.cancelBoundary).onCancelRaiseError(e).start
-          _ <- f.cancel
-          a <- f.join
-        } yield a
-
-      received <-> IO.raiseError(e)
-    }
-  }
-
   testAsync("uncancelable") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
@@ -123,47 +102,6 @@ class IOCancelableTests extends BaseTestsSuite {
     ec.tick()
     ec.state.tasks.isEmpty shouldBe true
     p.future.value shouldBe None
-  }
-
-  testAsync("onCancelRaiseError back-pressures on the finalizer") { ec =>
-    implicit val timer = ec.timer[IO]
-
-    val p1 = Promise[Unit]()
-    val io = IO.cancelable[Unit] { _ =>
-      IO.sleep(3.seconds) *> IO(p1.success(()))
-    }
-
-    val dummy = new RuntimeException("dummy")
-    val p2 = Promise[Unit]()
-    val token = io.onCancelRaiseError(dummy).unsafeRunCancelable(r => p2.complete(Conversions.toTry(r)))
-
-    ec.tick()
-    p1.future.value shouldBe None
-    p2.future.value shouldBe None
-
-    val cancel = token.unsafeToFuture()
-    ec.tick(2.seconds)
-    cancel.value shouldBe None
-    p1.future.value shouldBe None
-    p2.future.value shouldBe None
-
-    ec.tick(1.second)
-    cancel.value shouldBe Some(Success(()))
-    p1.future.value shouldBe Some(Success(()))
-    p2.future.value shouldBe Some(Failure(dummy))
-  }
-
-  testAsync("onCancelRaiseError deals with the error of the finalizer") { ec =>
-    val dummy1 = new RuntimeException("dummy1")
-    val dummy2 = new RuntimeException("dummy2")
-
-    val io = IO.cancelable[Unit](_ => IO.raiseError(dummy2)).onCancelRaiseError(dummy1)
-    val p = Promise[Unit]()
-    val cancel = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r))).unsafeToFuture()
-
-    ec.tick()
-    cancel.value shouldBe Some(Failure(dummy2))
-    p.future.value shouldBe Some(Failure(dummy1))
   }
 
   testAsync("bracket back-pressures on the finalizer") { ec =>

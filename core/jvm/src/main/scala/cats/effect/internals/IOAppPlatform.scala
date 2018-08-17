@@ -18,54 +18,43 @@ package cats
 package effect
 package internals
 
-import cats.implicits._
-import java.util.concurrent.CountDownLatch
-
 private[effect] object IOAppPlatform {
 
-  // note that although timer is not required on JVM platform it is passed along to have same signature on JVM/JS
-  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
-    val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join)
-      .handleErrorWith(t => IO(Logger.reportFailure(t)) *> IO(ExitCode.Error.code))
-      .unsafeRunSync()
-
-    if (code === 0) {
+  def main(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
+    val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join).unsafeRunSync()
+    if (code == 0) {
       // Return naturally from main. This allows any non-daemon
       // threads to gracefully complete their work, and managed
       // environments to execute their own shutdown hooks.
       ()
+    } else {
+      sys.exit(code)
     }
-    else sys.exit(code)
   }
 
   def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
-    object Canceled extends RuntimeException
-    for {
-      latch <- IO(new CountDownLatch(1))
-      fiber <- run(args.toList)
-        .onCancelRaiseError(Canceled) // force termination on cancel
-        .handleErrorWith {
-          case Canceled =>
-            // This error will get overridden by the JVM's signal
-            // handler to 128 plus the signal.  We don't have
-            // access to the signal, so we have to provide a dummy
-            // value here.
-            IO.pure(ExitCode.Error)
-          case t =>
-            IO(Logger.reportFailure(t)).as(ExitCode.Error)
-        }
-        .productL(IO(latch.countDown()))
-        .map(_.code)
-        .start(contextShift.value)
-      _ <- IO(sys.addShutdownHook {
-        fiber.cancel.unsafeRunSync()
-        latch.await()
-      })
-    } yield fiber
+    val io = run(args.toList).redeem(
+      e => {
+        Logger.reportFailure(e)
+        ExitCode.Error.code
+      },
+      r => r.code)
+
+    io.start(contextShift.value).flatMap { fiber =>
+      installHook(fiber).map(_ => fiber)
+    }
   }
 
   // both lazily initiated on JVM platform to prevent
   // warm-up of underlying default EC's for code that does not require concurrency
   def defaultTimer: Timer[IO] = IOTimer.global
   def defaultContextShift: ContextShift[IO] = IOContextShift.global
+
+  private def installHook(fiber: Fiber[IO, Int]): IO[Unit] =
+    IO {
+      sys.addShutdownHook {
+        // Should block the thread until all finalizers are executed
+        fiber.cancel.unsafeRunSync()
+      }
+    }
 }
