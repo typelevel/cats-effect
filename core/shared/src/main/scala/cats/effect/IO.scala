@@ -1286,6 +1286,32 @@ object IO extends IOInstances {
     timer.sleep(duration)
 
   /**
+    * Creates an asynchronous task that will run in a loop forever executing the given action
+    * at the given interval
+    *
+    * @param initialDelay initial amount of time to wait before executing the given action
+    * @param frequency    intermediate lapse of time between two different executions
+    * @param action       action to be executed
+    * @param timer        is the [[Timer]] used to manage this scheduled task
+    *
+    * @return a new asynchronous and cancellable `IO`
+    */
+  def schedule(
+    initialDelay: FiniteDuration,
+    frequency: FiniteDuration,
+    action: IO[Unit]
+  )(implicit timer: Timer[IO]): IO[Unit] = {
+
+    def loop: IO[Unit] = for {
+      _ <- action
+      _ <- timer.sleep(frequency)
+      _ <- IO.suspend(loop)
+    } yield ()
+
+    timer.sleep(initialDelay).flatMap(_ => loop)
+  }
+
+  /**
    * Returns a cancelable boundary — an `IO` task that checks for the
    * cancellation status of the run-loop and does not allow for the
    * bind continuation to keep executing in case cancellation happened.
