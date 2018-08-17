@@ -56,7 +56,6 @@ object SyntaxTests extends AllCatsEffectSyntax {
 
     typed[IO[A]](fa.toIO)
     typed[SyncIO[Unit]](fa.runAsync(cb))
-    typed[SyncIO[Either[F[A], A]]](fa.runSyncStep)
   }
 
   def concurrentEffectSyntax[F[_]: ConcurrentEffect, A] = {

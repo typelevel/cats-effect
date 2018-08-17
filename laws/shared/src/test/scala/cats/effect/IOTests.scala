@@ -622,39 +622,6 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
-  test("runSyncStep pure produces right IO") {
-    IO.pure(42).runSyncStep.unsafeRunSync() shouldBe Right(42)
-  }
-
-  test("runSyncStep raiseError produces error IO") {
-    val e = new Exception
-    IO.raiseError(e).runSyncStep.attempt.unsafeRunSync() shouldBe Left(e)
-  }
-
-  test("runSyncStep delay produces right IO") {
-    var v = 42
-    val io = (IO { v += 1 }).runSyncStep
-    v shouldBe 42
-    io.unsafeRunSync() shouldBe Right(())
-    v shouldBe 43
-    io.unsafeRunSync() shouldBe Right(())
-    v shouldBe 44
-  }
-
-  test("runSyncStep runs bind chain") {
-    var v = 42
-    val tsk = IO.pure(42).flatMap { x =>
-      (IO { v += x }).flatMap { _ =>
-        IO.pure(x)
-      }
-    }
-    val io = tsk.runSyncStep
-    v shouldBe 42
-    io.unsafeRunSync() shouldBe Right(42)
-    v shouldBe 84
-    io.unsafeRunSync() shouldBe Right(42)
-    v shouldBe 126
-  }
 
   testAsync("IO.timeout can mirror the source") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
@@ -1003,8 +970,6 @@ object IOTests {
       ref.tailRecM(a)(f)
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
-    def runSyncStep[A](fa: IO[A]): SyncIO[Either[IO[A], A]] =
-      ref.runSyncStep(fa)
     def suspend[A](thunk: =>IO[A]): IO[A] =
       ref.suspend(thunk)
     def bracketCase[A, B](acquire: IO[A])
