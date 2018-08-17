@@ -19,7 +19,6 @@ package effect
 package laws
 
 import cats.laws._
-import cats.implicits._
 
 trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit def F: Effect[F]
@@ -43,25 +42,6 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
   def runAsyncIgnoresErrorInHandler[A](e: Throwable) = {
     val fa = F.pure(())
     F.runAsync(fa)(_ => IO.raiseError(e)).toIO <-> IO.pure(())
-  }
-
-  def runSyncStepSuspendPureProducesTheSame[A](fa: F[A]) = {
-    F.runSyncStep(F.suspend(fa)).toIO <-> F.runSyncStep(fa).toIO
-  }
-
-  def runSyncStepAsyncProducesLeftPureIO[A](k: (Either[Throwable, A] => Unit) => Unit) = {
-    F.runSyncStep(F.async[A](k)).toIO <-> IO.pure(Left(F.async[A](k)))
-  }
-
-  def runSyncStepCanBeAttemptedSynchronously[A](fa: F[A]) = {
-    Either.catchNonFatal(F.runSyncStep(fa).attempt.unsafeRunSync()).isRight
-  }
-
-  def runSyncStepRunAsyncConsistency[A](fa: F[A]) = {
-    def runToIO(fa: F[A]): IO[A] = IO.async { cb =>
-      F.runAsync(fa)(eta => IO { cb(eta) }).unsafeRunSync()
-    }
-    F.runSyncStep(fa).toIO.flatMap(_.fold(runToIO, IO.pure)) <-> runToIO(fa)
   }
 
   def toIOinverseOfLiftIO[A](ioa: IO[A]) =

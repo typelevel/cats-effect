@@ -178,14 +178,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     unsafeRunAsync(cb.andThen(_.unsafeRunAsyncAndForget()))
   }
 
-  final def runSyncStep: SyncIO[Either[IO[A], A]] = SyncIO.suspend {
-    IORunLoop.step(this) match {
-      case Pure(a) => SyncIO.pure(Right(a))
-      case RaiseError(e) => SyncIO.raiseError(e)
-      case async => SyncIO.pure(Left(async))
-    }
-  }
-
   /**
    * Produces an `IO` reference that should execute the source on evaluation,
    * without waiting for its result and return a cancelable token, being the
@@ -813,8 +805,6 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       fa
     final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       ioa.runAsync(cb)
-    final override def runSyncStep[A](ioa: IO[A]): SyncIO[Either[IO[A], A]] =
-      ioa.runSyncStep
   }
 }
 
