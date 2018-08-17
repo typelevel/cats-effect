@@ -1289,9 +1289,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (conn, cb) => {
-      if (!conn.isCanceled) cb(Callback.rightUnit)
-    }
+    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 
