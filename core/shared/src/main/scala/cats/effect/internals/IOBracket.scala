@@ -96,7 +96,7 @@ private[effect] object IOBracket {
     final def recover(e: Throwable): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak;
       // N.B. conn.pop() happens after the evaluation of `release`, because
-      // otherwise we might have a conflict with the auto-cancelation logic
+      // otherwise we might have a conflict with the auto-cancellation logic
       ContextSwitch(release(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
         .flatMap(new ReleaseRecover(e))
     }
@@ -104,7 +104,7 @@ private[effect] object IOBracket {
     final def apply(b: B): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak
       // N.B. conn.pop() happens after the evaluation of `release`, because
-      // otherwise we might have a conflict with the auto-cancelation logic
+      // otherwise we might have a conflict with the auto-cancellation logic
       ContextSwitch(release(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
         .map(_ => b)
     }
