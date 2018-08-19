@@ -20,7 +20,7 @@ package internals
 
 private[effect] object IOAppPlatform {
 
-  def main(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
+  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
     val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join).unsafeRunSync()
     if (code == 0) {
       // Return naturally from main. This allows any non-daemon
