@@ -127,8 +127,8 @@ import scala.concurrent.ExecutionContext
 implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val blockingEC = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
 
-def blockingOp: IO[Unit] = ???
-def doSth(): IO[Unit] = ???
+def blockingOp: IO[Unit] = IO(/* blocking op*/ ())
+def doSth(): IO[Unit] = IO(/* do something */ ())
 
 val prog =
   for {
@@ -195,7 +195,7 @@ val ecTwo = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 val csOne: ContextShift[IO] = IO.contextShift(ecOne)
 val csTwo: ContextShift[IO] = IO.contextShift(ecTwo)
 
-def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
+def infiniteIO(id: Int)(cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => repeat)
 
   repeat.start
