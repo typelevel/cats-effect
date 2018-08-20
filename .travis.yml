@@ -22,6 +22,10 @@ matrix:
 script:
   - export SBT_PROFILE=$COVERAGE
   - sbt ++$TRAVIS_SCALA_VERSION $COVERAGE ci
+  - |
+    if [ "$TRAVIS_SCALA_VERSION" = "2.12.6"]; then
+      sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
+    fi
 
 after_success:
   - |

@@ -54,7 +54,7 @@ val DisciplineVersion = Def.setting{
   }
 }
 
-addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc; microsite/makeMicrosite")
+addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
