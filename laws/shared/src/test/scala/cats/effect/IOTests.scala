@@ -520,7 +520,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("parMap2 can fail for both, with non-deterministic failure") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val error = catchSystemErr {
+    catchSystemErr {
       val dummy1 = new RuntimeException("dummy1")
       val dummy2 = new RuntimeException("dummy2")
 
@@ -533,8 +533,6 @@ class IOTests extends BaseTestsSuite {
       val exc = f1.value.get.failed.get
       exc should (be (dummy1) or be (dummy2))
     }
-
-    error should include("dummy")
   }
 
   testAsync("parMap2 is stack safe") { implicit ec =>
@@ -554,13 +552,14 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
-    val io1 = IO.cancelable[Int](_ => IO { wasCanceled = true })
+    val latch = Promise[Unit]()
+    val io1 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCanceled shouldBe true
+    (wasCanceled || latch.future.value.isEmpty) shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
@@ -570,13 +569,14 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
+    val latch = Promise[Unit]()
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
-    val io2 = IO.cancelable[Int](_ => IO { wasCanceled = true })
+    val io2 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
 
-    wasCanceled shouldBe true
+    (wasCanceled || !latch.future.isCompleted) shouldBe true
     f.value shouldBe Some(Failure(dummy))
   }
 
@@ -586,7 +586,8 @@ class IOTests extends BaseTestsSuite {
     var wasCanceled = false
     val p = Promise[Int]()
 
-    val io1 = IO.shift *> IO.cancelable[Int](_ => IO { wasCanceled = true })
+    val latch = Promise[Unit]()
+    val io1 = IO.shift *> IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
     val cancel = io1.unsafeRunCancelable(Callback.promise(p))
 
     cancel.unsafeRunSync()
@@ -594,7 +595,7 @@ class IOTests extends BaseTestsSuite {
     wasCanceled shouldBe false
 
     ec.tick()
-    wasCanceled shouldBe true
+    (wasCanceled || latch.future.value.isEmpty) shouldBe true
     p.future.value shouldBe None
   }
 
@@ -649,31 +650,6 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick(1.second)
     f.value.get.failed.get shouldBe an [TimeoutException]
-  }
-
-  testAsync("onCancelRaiseError resets the isCanceled flag") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
-
-    val dummy = new RuntimeException("dummy")
-    val io = timer.sleep(2.second)
-      .onCancelRaiseError(dummy)
-      .recoverWith { case `dummy` =>
-        IO.cancelBoundary *> IO.sleep(1.seconds)
-      }
-
-    val task = for {
-      f <- io.start
-      _ <- f.cancel
-      _ <- f.join
-    } yield ()
-
-    val f = task.unsafeToFuture()
-    ec.tick()
-    f.value shouldBe None
-
-    ec.tick(1.seconds)
-    f.value shouldBe Some(Success(()))
   }
 
   test("unsafeRunSync works for bracket") {

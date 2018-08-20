@@ -73,7 +73,7 @@ private[effect] object IOParMap {
           case left =>
             // $COVERAGE-OFF$
             throw new IllegalStateException(s"parMap: $left")
-          // $COVERAGE-ON$
+            // $COVERAGE-ON$
         }
     }
 
@@ -90,7 +90,7 @@ private[effect] object IOParMap {
           case right =>
             // $COVERAGE-OFF$
             throw new IllegalStateException(s"parMap: $right")
-          // $COVERAGE-ON$
+            // $COVERAGE-ON$
         }
     }
 

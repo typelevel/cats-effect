@@ -66,7 +66,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
   tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
   tests("async", new DeferredConstructor { def apply[A] = Deferred.uncancelable[IO, A] })
 
-  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] = 
+  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
     for {
         r <- Ref[IO].of(Option.empty[Int])
         p <- pc
@@ -81,9 +81,5 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   test("concurrent - get - cancel before forcing") {
     cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
-  }
-
-  test("async - get - cancel before forcing") {
-    cancelBeforeForcing(Deferred.uncancelable).unsafeToFuture.map(_ shouldBe Some(42))
   }
 }

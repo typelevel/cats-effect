@@ -18,9 +18,7 @@ package cats
 package effect
 
 import scala.concurrent.ExecutionContext
-
-import cats.effect.internals.{IOAppPlatform, IOPlatform, TestUtils, TrampolineEC}
-import cats.implicits._
+import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
 import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
@@ -45,19 +43,6 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
         .flatMap(_.join)
         .unsafeToFuture
         .map(_ shouldEqual 1)
-    }
-  }
-
-  test("canceled IO exits unsuccessfully") {
-    assume(IOPlatform.isJVM, "test relevant only for the JVM")
-    silenceSystemErr {
-      (for {
-        fiber <- IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.never)
-        _ <- fiber.cancel
-        code <- fiber.join
-      } yield code)
-        .unsafeToFuture
-        .map(_ should be > 0)
     }
   }
 

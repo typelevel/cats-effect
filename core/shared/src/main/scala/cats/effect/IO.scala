@@ -373,19 +373,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOStart(cs, this)
 
   /**
-   * Returns a new `IO` that mirrors the source task for normal termination,
-   * but that triggers the given error on cancellation.
-   *
-   * Normally tasks that are canceled become non-terminating.
-   *
-   * This `onCancelRaiseError` operator transforms a task that is
-   * non-terminating on cancellation into one that yields an error,
-   * thus equivalent with [[IO.raiseError]].
-   */
-  final def onCancelRaiseError(e: Throwable): IO[A] =
-    IOCancel.raise(this, e)
-
-  /**
    * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]
    * signal has no effect.
    */
@@ -1302,9 +1289,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (conn, cb) => {
-      if (!conn.isCanceled) cb(Callback.rightUnit)
-    }
+    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 

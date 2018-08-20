@@ -355,6 +355,11 @@ val mimaSettings = Seq(
       exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
       exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
 
+      // Issue #308: make IO auto-cancelable on async boundaries
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.onCancelRaiseError"),
+      exclude[MissingClassProblem]("cats.effect.internals.IOCancel$RaiseCallback"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel.raise"),
+
       //
       // Following are all internal implementation details:
       //

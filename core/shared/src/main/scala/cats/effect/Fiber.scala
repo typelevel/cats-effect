@@ -91,13 +91,16 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
       Fiber(F.pure(x), F.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
       map2(ff, fa)(_(_))
-    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
+    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] = {
+      val fa2 = F.guaranteeCase(fa.join) { case ExitCase.Error(_) => fb.cancel; case _ => F.unit }
+      val fb2 = F.guaranteeCase(fb.join) { case ExitCase.Error(_) => fa.cancel; case _ => F.unit }
       Fiber(
-        F.racePair(fa.join, fb.join).flatMap {
+        F.racePair(fa2, fb2).flatMap {
           case Left((a, fiberB)) => (a.pure[F], fiberB.join).mapN(f)
           case Right((fiberA, b)) => (fiberA.join, b.pure[F]).mapN(f)
         },
-        fa.cancel *> fb.cancel)
+        F.map2(fa.cancel, fb.cancel)((_, _) => ()))
+    }
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
       map2(fa, fb)((_, _))
     final override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] =
