@@ -164,7 +164,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -534,7 +534,14 @@
         <span class="name">uncancelable</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.concurrent.Deferred.uncancelable.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Deferred.uncancelable.F">F</span>[<a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>[<span class="extype" name="cats.effect.concurrent.Deferred.uncancelable.F">F</span>, <span class="extype" name="cats.effect.concurrent.Deferred.uncancelable.A">A</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Creates an unset promise that only requires an <code>Async[F]</code> and does not support cancellation of <code>get</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates an unset promise that only requires an <code>Async[F]</code> and does not support cancellation of <code>get</code>. *</p></div></div>
+      <p class="shortcomment cmt">Creates an unset promise that only requires an <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a> and
+does not support cancellation of <code>get</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates an unset promise that only requires an <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a> and
+does not support cancellation of <code>get</code>.</p><p>WARN: some <code>Async</code> data types, like <a href="../IO.html" class="extype" name="cats.effect.IO">IO</a>, can be cancelable,
+making <code>uncancelable</code> values unsafe. Such values are only useful
+for optimization purposes, in cases where the use case does not
+require cancellation or in cases in which an <code>F[_]</code> data type
+that does not support cancellation is used.
+</p></div></div>
     </li><li name="cats.effect.concurrent.Deferred#unsafe" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafe[F[_],A](implicitevidence$1:cats.effect.Concurrent[F]):cats.effect.concurrent.Deferred[F,A]"></a><a id="unsafe[F[_],A](Concurrent[F]):Deferred[F,A]"></a>
       <span class="permalink">
@@ -550,9 +557,11 @@
         <span class="name">unsafe</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="../Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.concurrent.Deferred.unsafe.F">F</span>]</span>)</span><span class="result">: <a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>[<span class="extype" name="cats.effect.concurrent.Deferred.unsafe.F">F</span>, <span class="extype" name="cats.effect.concurrent.Deferred.unsafe.A">A</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Like <code>apply</code> but returns the newly allocated promise directly instead of wrapping it in <code>F.delay</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Like <code>apply</code> but returns the newly allocated promise directly instead of wrapping it in <code>F.delay</code>.
-This method is considered unsafe because it is not referentially transparent -- it allocates
-mutable state.
+      <p class="shortcomment cmt">Like <code>apply</code> but returns the newly allocated promise directly
+instead of wrapping it in <code>F.delay</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Like <code>apply</code> but returns the newly allocated promise directly
+instead of wrapping it in <code>F.delay</code>.  This method is considered
+unsafe because it is not referentially transparent -- it
+allocates mutable state.
 </p></div></div>
     </li><li name="cats.effect.concurrent.Deferred#unsafeUncancelable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeUncancelable[F[_],A](implicitevidence$2:cats.effect.Async[F]):cats.effect.concurrent.Deferred[F,A]"></a><a id="unsafeUncancelable[F[_],A](Async[F]):Deferred[F,A]"></a>
@@ -569,9 +578,11 @@ mutable state.
         <span class="name">unsafeUncancelable</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.concurrent.Deferred.unsafeUncancelable.F">F</span>]</span>)</span><span class="result">: <a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>[<span class="extype" name="cats.effect.concurrent.Deferred.unsafeUncancelable.F">F</span>, <span class="extype" name="cats.effect.concurrent.Deferred.unsafeUncancelable.A">A</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Like <code>async</code> but returns the newly allocated promise directly instead of wrapping it in <code>F.delay</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Like <code>async</code> but returns the newly allocated promise directly instead of wrapping it in <code>F.delay</code>.
-This method is considered unsafe because it is not referentially transparent -- it allocates
-mutable state.
+      <p class="shortcomment cmt">Like <a href="#uncancelable[F[_],A](implicitF:cats.effect.Async[F]):F[cats.effect.concurrent.Deferred[F,A]]" class="extmbr" name="cats.effect.concurrent.Deferred#uncancelable">uncancelable</a> but returns the newly allocated promise directly
+instead of wrapping it in <code>F.delay</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Like <a href="#uncancelable[F[_],A](implicitF:cats.effect.Async[F]):F[cats.effect.concurrent.Deferred[F,A]]" class="extmbr" name="cats.effect.concurrent.Deferred#uncancelable">uncancelable</a> but returns the newly allocated promise directly
+instead of wrapping it in <code>F.delay</code>. This method is considered
+unsafe because it is not referentially transparent -- it
+allocates mutable state.</p><p>WARN: read the caveats of <a href="#uncancelable[F[_],A](implicitF:cats.effect.Async[F]):F[cats.effect.concurrent.Deferred[F,A]]" class="extmbr" name="cats.effect.concurrent.Deferred#uncancelable">uncancelable</a>.
 </p></div></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>

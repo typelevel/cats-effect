@@ -118,6 +118,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="internals"></a><a id="internals:internals"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#internals" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="internals/index.html"><span class="name">internals</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -159,6 +175,10 @@
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Clock$.html" title=""></a>
+                        <a class="trait" href="Clock.html" title="Clock provides the current time, as a pure alternative to:"></a>
+                        <a href="Clock.html" title="Clock provides the current time, as a pure alternative to:">Clock</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -166,6 +186,10 @@
                         <a class="object" href="ConcurrentEffect$.html" title=""></a>
                         <a class="trait" href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable."></a>
                         <a href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable.">ConcurrentEffect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ContextShift$.html" title=""></a>
+                        <a class="trait" href="ContextShift.html" title="ContextShift provides support for shifting execution."></a>
+                        <a href="ContextShift.html" title="ContextShift provides support for shifting execution.">ContextShift</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
@@ -203,6 +227,10 @@
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="SyncIO$.html" title=""></a>
+                        <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
+                        <a href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.">SyncIO</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Timer$.html" title=""></a>
                         <a class="trait" href="Timer.html" title="Timer is a scheduler of tasks."></a>
                         <a href="Timer.html" title="Timer is a scheduler of tasks.">Timer</a>
@@ -236,7 +264,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -608,6 +636,30 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Resource#fromAutoCloseable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="fromAutoCloseable[F[_],A&lt;:AutoCloseable](acquire:F[A])(implicitF:cats.effect.Sync[F]):cats.effect.Resource[F,A]"></a><a id="fromAutoCloseable[F[_],A&lt;:AutoCloseable](F[A])(Sync[F]):Resource[F,A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource$.html#fromAutoCloseable[F[_],A&lt;:AutoCloseable](acquire:F[A])(implicitF:cats.effect.Sync[F]):cats.effect.Resource[F,A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromAutoCloseable</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A &lt;: <span class="extype" name="java.lang.AutoCloseable">AutoCloseable</span></span>]</span><span class="params">(<span name="acquire">acquire: <span class="extype" name="cats.effect.Resource.fromAutoCloseable.F">F</span>[<span class="extype" name="cats.effect.Resource.fromAutoCloseable.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Resource.fromAutoCloseable.F">F</span>]</span>)</span><span class="result">: <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.fromAutoCloseable.F">F</span>, <span class="extype" name="cats.effect.Resource.fromAutoCloseable.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Creates a <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a> by wrapping a Java
+<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html" target="_blank">AutoCloseable</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a> by wrapping a Java
+<a href="https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html" target="_blank">AutoCloseable</a>.</p><p>Example:</p><pre><span class="kw">import</span> java.io._
+<span class="kw">import</span> cats.effect._
+
+<span class="kw">def</span> reader[F[_]](file: File)(<span class="kw">implicit</span> F: Sync[F]): Resource[F, BufferedReader] =
+  Resource.fromAutoCloseable(F.delay {
+    <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
+  })</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the type of the effect</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of the autocloseable resource</p></dd><dt class="param">acquire</dt><dd class="cmt"><p>The effect with the resource to acquire.</p></dd><dt class="param">F</dt><dd class="cmt"><p>the effect type in which the resource was acquired and will be released</p></dd><dt>returns</dt><dd class="cmt"><p>a Resource that will automatically close after use</p></dd></dl></div>
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">

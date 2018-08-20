@@ -118,6 +118,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="internals"></a><a id="internals:internals"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#internals" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="internals/index.html"><span class="name">internals</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -159,6 +175,10 @@
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Clock$.html" title=""></a>
+                        <a class="trait" href="Clock.html" title="Clock provides the current time, as a pure alternative to:"></a>
+                        <a href="Clock.html" title="Clock provides the current time, as a pure alternative to:">Clock</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -166,6 +186,10 @@
                         <a class="object" href="ConcurrentEffect$.html" title=""></a>
                         <a class="trait" href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable."></a>
                         <a href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable.">ConcurrentEffect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ContextShift$.html" title=""></a>
+                        <a class="trait" href="ContextShift.html" title="ContextShift provides support for shifting execution."></a>
+                        <a href="ContextShift.html" title="ContextShift provides support for shifting execution.">ContextShift</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
@@ -202,6 +226,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncIO$.html" title=""></a>
+                        <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
+                        <a href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.">SyncIO</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Timer$.html" title=""></a>
                         <a class="trait" href="Timer.html" title="Timer is a scheduler of tasks."></a>
@@ -265,7 +293,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -766,7 +794,7 @@ for the acquisition and release of resources.
         <span class="name">map</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.IO.A">A</span>) ⇒ <span class="extype" name="cats.effect.IO.map.B">B</span></span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.map.B">B</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Functor map on <code>IO</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Functor map on <code>IO</code>. Given a mapping functions, it transforms the
+      <p class="shortcomment cmt">Functor map on <code>IO</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Functor map on <code>IO</code>. Given a mapping function, it transforms the
 value produced by the source, while keeping the <code>IO</code> context.</p><p>Any exceptions thrown within the function will be caught and
 sequenced into the <code>IO</code>, because due to the nature of
 asynchronous processes, without catching and handling exceptions,
@@ -827,27 +855,6 @@ never terminate on evaluation.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
-    </li><li name="cats.effect.IO#onCancelRaiseError" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="onCancelRaiseError(e:Throwable):cats.effect.IO[A]"></a><a id="onCancelRaiseError(Throwable):IO[A]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/IO.html#onCancelRaiseError(e:Throwable):cats.effect.IO[A]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">final </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">onCancelRaiseError</span><span class="params">(<span name="e">e: <span class="extype" name="scala.Throwable">Throwable</span></span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancellation.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new <code>IO</code> that mirrors the source task for normal termination,
-but that triggers the given error on cancellation.</p><p>Normally tasks that are canceled become non-terminating.</p><p>This <code>onCancelRaiseError</code> operator transforms a task that is
-non-terminating on cancellation into one that yields an error,
-thus equivalent with <a href="IO$.html#raiseError[A](e:Throwable):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#raiseError">IO.raiseError</a>.
-</p></div></div>
     </li><li name="cats.effect.IO#redeem" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="redeem[B](recover:Throwable=&gt;B,map:A=&gt;B):cats.effect.IO[B]"></a><a id="redeem[B]((Throwable)⇒B,(A)⇒B):IO[B]"></a>
       <span class="permalink">
@@ -895,9 +902,9 @@ this equivalence being available:</p><pre>io.redeemWith(recover, bind) <span cla
        in case of error</p></dd><dt class="param">bind</dt><dd class="cmt"><p>is the function that gets to transform the source
        in case of success</p></dd></dl></div>
     </li><li name="cats.effect.IO#runAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]"></a><a id="runAsync((Either[Throwable,A])⇒IO[Unit]):IO[Unit]"></a>
+      <a id="runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[Unit]"></a><a id="runAsync((Either[Throwable,A])⇒IO[Unit]):SyncIO[Unit]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" title="Permalink">
+      <a href="../../cats/effect/IO.html#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[Unit]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -906,7 +913,7 @@ this equivalence being available:</p><pre>io.redeemWith(recover, bind) <span cla
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">runAsync</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>
+        <span class="name">runAsync</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Produces an <code>IO</code> reference that should execute the source on
@@ -929,12 +936,12 @@ is safe to do, even on top of runtimes that cannot block threads
 }
 <span class="cmt">// Safe, because it does not block for the source to finish</span>
 start.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an <code>IO</code> value that upon evaluation will execute the source,
-        but will not wait for its completion</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.IO#runCancelable">runCancelable</a> for the version that gives you a cancelable
+        but will not wait for its completion</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[cats.effect.IO]]" class="extmbr" name="cats.effect.IO#runCancelable">runCancelable</a> for the version that gives you a cancelable
      token that can be used to send a cancel signal</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#runCancelable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]"></a><a id="runCancelable((Either[Throwable,A])⇒IO[Unit]):IO[IO[Unit]]"></a>
+      <a id="runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[cats.effect.IO]]"></a><a id="runCancelable((Either[Throwable,A])⇒IO[Unit]):SyncIO[CancelToken[IO]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" title="Permalink">
+      <a href="../../cats/effect/IO.html#runCancelable(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[cats.effect.IO]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -943,22 +950,22 @@ start.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd c
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">runCancelable</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]]</span>
+        <span class="name">runCancelable</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>[<a href="index.html#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]]</span>
       </span>
       
       <p class="shortcomment cmt">Produces an <code>IO</code> reference that should execute the source on evaluation,
 without waiting for its result and return a cancelable token, being the
-safe analogue to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Produces an <code>IO</code> reference that should execute the source on evaluation,
+safe analogue to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Produces an <code>IO</code> reference that should execute the source on evaluation,
 without waiting for its result and return a cancelable token, being the
-safe analogue to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>.</p><p>This operation is isomorphic to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>. Just like
-<a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a>, this operation avoids the usage of impure callbacks or
+safe analogue to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>.</p><p>This operation is isomorphic to <a href="#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">unsafeRunCancelable</a>. Just like
+<a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a>, this operation avoids the usage of impure callbacks or
 eager evaluation.</p><p>The returned <code>IO</code> boxes an <code>IO[Unit]</code> that can be used to cancel the
 running asynchronous computation (if the source can be canceled).</p><p>The returned <code>IO</code> is guaranteed to execute immediately,
 and does not wait on any async action to complete, thus this
 is safe to do, even on top of runtimes that cannot block threads
 (e.g. JavaScript):</p><pre><span class="kw">val</span> source: IO[<span class="std">Int</span>] = ???
 <span class="cmt">// Describes interruptible execution</span>
-<span class="kw">val</span> start: IO[IO[<span class="std">Unit</span>]] = source.runCancelable
+<span class="kw">val</span> start: IO[CancelToken[IO]] = source.runCancelable
 
 <span class="cmt">// Safe, because it does not block for the source to finish</span>
 <span class="kw">val</span> cancel: IO[<span class="std">Unit</span>] = start.unsafeRunSync
@@ -967,27 +974,11 @@ is safe to do, even on top of runtimes that cannot block threads
 <span class="cmt">// but doesn't back-pressure on anything</span>
 cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd class="cmt"><p>an <code>IO</code> value that upon evaluation will execute the source,
         but will not wait for its completion, yielding a cancellation
-        token that can be used to cancel the async process</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a> for the simple, uninterruptible version</p></span></dd></dl></div>
-    </li><li name="cats.effect.IO#runSyncStep" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="runSyncStep:cats.effect.IO[Either[cats.effect.IO[A],A]]"></a><a id="runSyncStep:IO[Either[IO[A],A]]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/IO.html#runSyncStep:cats.effect.IO[Either[cats.effect.IO[A],A]]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">final </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">runSyncStep</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Either">Either</span>[<a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>], <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
-      </span>
-      
-      
+        token that can be used to cancel the async process</p></dd></dl><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#runAsync(cb:Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[Unit]" class="extmbr" name="cats.effect.IO#runAsync">runAsync</a> for the simple, uninterruptible version</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#start" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="start(Timer[IO]):IO[Fiber[IO,A]]"></a>
+      <a id="start(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="start(ContextShift[IO]):IO[Fiber[IO,A]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" title="Permalink">
+      <a href="../../cats/effect/IO.html#start(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -996,7 +987,7 @@ cancel.unsafeRunSync</pre></div><dl class="paramcmts block"><dt>returns</dt><dd 
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">start</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<a href="Fiber.html" class="extype" name="cats.effect.Fiber">Fiber</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>, <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
+        <span class="name">start</span><span class="params">(<span class="implicit">implicit </span><span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<a href="Fiber.html" class="extype" name="cats.effect.Fiber">Fiber</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>, <span class="extype" name="cats.effect.IO.A">A</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Start execution of the source suspended in the <code>IO</code> context.</p><div class="fullcomment"><div class="comment cmt"><p>Start execution of the source suspended in the <code>IO</code> context.</p><p>This can be used for non-deterministic / concurrent execution.
@@ -1030,9 +1021,9 @@ which creates a potential memory leak.
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef</dd></dl></div>
     </li><li name="cats.effect.IO#timeout" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]"></a><a id="timeout(FiniteDuration)(Timer[IO]):IO[A]"></a>
+      <a id="timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO],implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]"></a><a id="timeout(FiniteDuration)(Timer[IO],ContextShift[IO]):IO[A]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
+      <a href="../../cats/effect/IO.html#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO],implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -1041,7 +1032,7 @@ which creates a potential memory leak.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">timeout</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+        <span class="name">timeout</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>, <span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Returns an IO that either completes with the result of the source within
@@ -1050,11 +1041,15 @@ the specified time <code>duration</code> or otherwise raises a <code>TimeoutExce
 the specified time duration to complete.
 </p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
        complete; in the event that the specified time has passed without
-       the source completing, a <code>TimeoutException</code> is raised</p></dd></dl></div>
+       the source completing, a <code>TimeoutException</code> is raised</p></dd><dt class="param">timer</dt><dd class="cmt"><p>is an implicit requirement for the ability to do a fiber
+       <a href="Timer.html#sleep(duration:scala.concurrent.duration.FiniteDuration):F[Unit]" class="extmbr" name="cats.effect.Timer#sleep">sleep</a> for the specified timeout, at which point
+       the fallback needs to be triggered</p></dd><dt class="param">cs</dt><dd class="cmt"><p>is an implicit requirement for the ability to trigger a
+       <a href="IO$.html#race[A,B](lh:cats.effect.IO[A],rh:cats.effect.IO[B])(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Either[A,B]]" class="extmbr" name="cats.effect.IO#race">race</a>, needed because IO's <code>race</code> operation automatically
+       forks the involved tasks</p></dd></dl></div>
     </li><li name="cats.effect.IO#timeoutTo" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A2]"></a><a id="timeoutTo[A2&gt;:A](FiniteDuration,IO[A2])(Timer[IO]):IO[A2]"></a>
+      <a id="timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO],implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A2]"></a><a id="timeoutTo[A2&gt;:A](FiniteDuration,IO[A2])(Timer[IO],ContextShift[IO]):IO[A2]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A2]" title="Permalink">
+      <a href="../../cats/effect/IO.html#timeoutTo[A2&gt;:A](duration:scala.concurrent.duration.FiniteDuration,fallback:cats.effect.IO[A2])(implicittimer:cats.effect.Timer[cats.effect.IO],implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A2]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -1063,7 +1058,7 @@ the specified time duration to complete.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">timeoutTo</span><span class="tparams">[<span name="A2">A2 &gt;: <span class="extype" name="cats.effect.IO.A">A</span></span>]</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="fallback">fallback: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>
+        <span class="name">timeoutTo</span><span class="tparams">[<span name="A2">A2 &gt;: <span class="extype" name="cats.effect.IO.A">A</span></span>]</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>, <span name="fallback">fallback: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>, <span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.timeoutTo.A2">A2</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Returns an IO that either completes with the result of the source within
@@ -1074,7 +1069,11 @@ happening immediately after that.
 </p></div><dl class="paramcmts block"><dt class="param">duration</dt><dd class="cmt"><p>is the time span for which we wait for the source to
        complete; in the event that the specified time has passed without
        the source completing, the <code>fallback</code> gets evaluated</p></dd><dt class="param">fallback</dt><dd class="cmt"><p>is the task evaluated after the duration has passed and
-       the source canceled</p></dd></dl></div>
+       the source canceled</p></dd><dt class="param">timer</dt><dd class="cmt"><p>is an implicit requirement for the ability to do a fiber
+       <a href="Timer.html#sleep(duration:scala.concurrent.duration.FiniteDuration):F[Unit]" class="extmbr" name="cats.effect.Timer#sleep">sleep</a> for the specified timeout, at which point
+       the fallback needs to be triggered</p></dd><dt class="param">cs</dt><dd class="cmt"><p>is an implicit requirement for the ability to trigger a
+       <a href="IO$.html#race[A,B](lh:cats.effect.IO[A],rh:cats.effect.IO[B])(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Either[A,B]]" class="extmbr" name="cats.effect.IO#race">race</a>, needed because IO's <code>race</code> operation automatically
+       forks the involved tasks</p></dd></dl></div>
     </li><li name="cats.effect.IO#to" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="to[F[_]](implicitF:cats.effect.LiftIO[F]):F[A@scala.annotation.unchecked.uncheckedVariance]"></a><a id="to[F[_]](LiftIO[F]):F[A]"></a>
       <span class="permalink">
@@ -1123,7 +1122,7 @@ the <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a> ty
         <span class="name">uncancelable</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Makes the source <code>IO</code> uninterruptible such that a <a href="Fiber.html#cancel:F[Unit]" class="extmbr" name="cats.effect.Fiber#cancel">Fiber.cancel</a>
+      <p class="shortcomment cmt">Makes the source <code>IO</code> uninterruptible such that a <a href="Fiber.html#cancel:cats.effect.CancelToken[F]" class="extmbr" name="cats.effect.Fiber#cancel">Fiber.cancel</a>
 signal has no effect.</p>
     </li><li name="cats.effect.IO#unsafeRunAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit"></a><a id="unsafeRunAsync((Either[Throwable,A])⇒Unit):Unit"></a>
@@ -1151,10 +1150,10 @@ where the callback is *never* invoked.</p><p>As the name says, this is an UNSAFE
 performs side effects.  You should ideally only call this
 function <i>once</i>, at the very end of your program.
 </p></div></div>
-    </li><li name="cats.effect.IO#unsafeRunCancelable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit"></a><a id="unsafeRunCancelable((Either[Throwable,A])⇒Unit):()⇒Unit"></a>
+    </li><li name="cats.effect.IO#unsafeRunAsyncAndForget" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="unsafeRunAsyncAndForget():Unit"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO.html#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" title="Permalink">
+      <a href="../../cats/effect/IO.html#unsafeRunAsyncAndForget():Unit" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -1163,7 +1162,30 @@ function <i>once</i>, at the very end of your program.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">unsafeRunCancelable</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <span class="extype" name="scala.Unit">Unit</span></span>)</span><span class="result">: () ⇒ <span class="extype" name="scala.Unit">Unit</span></span>
+        <span class="name">unsafeRunAsyncAndForget</span><span class="params">()</span><span class="result">: <span class="extype" name="scala.Unit">Unit</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">Triggers the evaluation of the source and any suspended side
+effects therein, but ignores the result.</p><div class="fullcomment"><div class="comment cmt"><p>Triggers the evaluation of the source and any suspended side
+effects therein, but ignores the result.</p><p>This operation is similar to <a href="#unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit" class="extmbr" name="cats.effect.IO#unsafeRunAsync">unsafeRunAsync</a>, in that the
+evaluation can happen asynchronously (depending on the source),
+however no callback is required, therefore the result gets
+ignored.</p><p>Note that errors still get logged (via IO's internal logger),
+because errors being thrown should never be totally silent.
+</p></div></div>
+    </li><li name="cats.effect.IO#unsafeRunCancelable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]"></a><a id="unsafeRunCancelable((Either[Throwable,A])⇒Unit):CancelToken[IO]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">unsafeRunCancelable</span><span class="params">(<span name="cb">cb: (<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.IO.A">A</span>]) ⇒ <span class="extype" name="scala.Unit">Unit</span></span>)</span><span class="result">: <a href="index.html#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>
       </span>
       
       <p class="shortcomment cmt">Evaluates the source <code>IO</code>, passing the result of the encapsulated
@@ -1235,7 +1257,7 @@ absolutely not an appropriate function to use if you want to
 implement timeouts, or anything similar. If you need that sort
 of functionality, you should be using a streaming library (like
 fs2 or Monix).
-</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span><span class="cmt"><p><a href="#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#timeout">timeout</a> for pure and safe version</p></span></dd></dl></div>
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#unsafeRunSync():A" class="extmbr" name="cats.effect.IO#unsafeRunSync">unsafeRunSync</a></p></span><span class="cmt"><p><a href="#timeout(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO],implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#timeout">timeout</a> for pure and safe version</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#unsafeToFuture" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="unsafeToFuture():scala.concurrent.Future[A]"></a><a id="unsafeToFuture():Future[A]"></a>
       <span class="permalink">

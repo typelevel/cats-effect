@@ -118,6 +118,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="internals"></a><a id="internals:internals"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#internals" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="internals/index.html"><span class="name">internals</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -159,6 +175,10 @@
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Clock$.html" title=""></a>
+                        <a class="trait" href="Clock.html" title="Clock provides the current time, as a pure alternative to:"></a>
+                        <a href="Clock.html" title="Clock provides the current time, as a pure alternative to:">Clock</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -166,6 +186,10 @@
                         <a class="object" href="" title=""></a>
                         <a class="trait" href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable."></a>
                         <a href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable.">ConcurrentEffect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ContextShift$.html" title=""></a>
+                        <a class="trait" href="ContextShift.html" title="ContextShift provides support for shifting execution."></a>
+                        <a href="ContextShift.html" title="ContextShift provides support for shifting execution.">ContextShift</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
@@ -203,6 +227,10 @@
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="SyncIO$.html" title=""></a>
+                        <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
+                        <a href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.">SyncIO</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Timer$.html" title=""></a>
                         <a class="trait" href="Timer.html" title="Timer is a scheduler of tasks."></a>
                         <a href="Timer.html" title="Timer is a scheduler of tasks.">Timer</a>
@@ -236,7 +264,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/ConcurrentEffect.scala" target="_blank">ConcurrentEffect.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/ConcurrentEffect.scala" target="_blank">ConcurrentEffect.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -444,27 +472,10 @@
       
       <p class="shortcomment cmt"><a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a> instance built for <code>cats.data.EitherT</code> values initialized
 with any <code>F</code> data type that also implements <code>ConcurrentEffect</code>.</p>
-    </li><li name="cats.effect.ConcurrentEffect#catsStateTConcurrentEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsStateTConcurrentEffect[F[_],S](implicitevidence$2:cats.effect.ConcurrentEffect[F],implicitevidence$3:cats.Monoid[S]):cats.effect.ConcurrentEffect[[γ$1$]cats.data.IndexedStateT[F,S,S,γ$1$]]"></a><a id="catsStateTConcurrentEffect[F[_],S](ConcurrentEffect[F],Monoid[S]):ConcurrentEffect[[γ$1$]IndexedStateT[F,S,S,γ$1$]]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/ConcurrentEffect$.html#catsStateTConcurrentEffect[F[_],S](implicitevidence$2:cats.effect.ConcurrentEffect[F],implicitevidence$3:cats.Monoid[S]):cats.effect.ConcurrentEffect[[γ$1$]cats.data.IndexedStateT[F,S,S,γ$1$]]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">implicit </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">catsStateTConcurrentEffect</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsStateTConcurrentEffect.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsStateTConcurrentEffect.S">S</span>]</span>)</span><span class="result">: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[[γ$1$]<span class="extype" name="cats.data.IndexedStateT">IndexedStateT</span>[<span class="extype" name="cats.effect.ConcurrentEffect.catsStateTConcurrentEffect.F">F</span>, <span class="extype" name="cats.effect.ConcurrentEffect.catsStateTConcurrentEffect.S">S</span>, <span class="extype" name="cats.effect.ConcurrentEffect.catsStateTConcurrentEffect.S">S</span>, <span class="extype" name="cats.effect.ConcurrentEffect.&lt;refinement&gt;.Λ$.γ$1$">γ$1$</span>]]</span>
-      </span>
-      
-      <p class="shortcomment cmt"><a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a> instance built for <code>cats.data.StateT</code> values initialized
-with any <code>F</code> data type that also implements <code>ConcurrentEffect</code>.</p>
     </li><li name="cats.effect.ConcurrentEffect#catsWriterTConcurrentEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsWriterTConcurrentEffect[F[_],L](implicitevidence$4:cats.effect.ConcurrentEffect[F],implicitevidence$5:cats.Monoid[L]):cats.effect.ConcurrentEffect[[γ$2$]cats.data.WriterT[F,L,γ$2$]]"></a><a id="catsWriterTConcurrentEffect[F[_],L](ConcurrentEffect[F],Monoid[L]):ConcurrentEffect[[γ$2$]WriterT[F,L,γ$2$]]"></a>
+      <a id="catsWriterTConcurrentEffect[F[_],L](implicitevidence$2:cats.effect.ConcurrentEffect[F],implicitevidence$3:cats.Monoid[L]):cats.effect.ConcurrentEffect[[γ$1$]cats.data.WriterT[F,L,γ$1$]]"></a><a id="catsWriterTConcurrentEffect[F[_],L](ConcurrentEffect[F],Monoid[L]):ConcurrentEffect[[γ$1$]WriterT[F,L,γ$1$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/ConcurrentEffect$.html#catsWriterTConcurrentEffect[F[_],L](implicitevidence$4:cats.effect.ConcurrentEffect[F],implicitevidence$5:cats.Monoid[L]):cats.effect.ConcurrentEffect[[γ$2$]cats.data.WriterT[F,L,γ$2$]]" title="Permalink">
+      <a href="../../cats/effect/ConcurrentEffect$.html#catsWriterTConcurrentEffect[F[_],L](implicitevidence$2:cats.effect.ConcurrentEffect[F],implicitevidence$3:cats.Monoid[L]):cats.effect.ConcurrentEffect[[γ$1$]cats.data.WriterT[F,L,γ$1$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -473,7 +484,7 @@ with any <code>F</code> data type that also implements <code>ConcurrentEffect</c
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsWriterTConcurrentEffect</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.L">L</span>]</span>)</span><span class="result">: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[[γ$2$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.F">F</span>, <span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.L">L</span>, <span class="extype" name="cats.effect.ConcurrentEffect.&lt;refinement&gt;.Λ$.γ$2$">γ$2$</span>]]</span>
+        <span class="name">catsWriterTConcurrentEffect</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.L">L</span>]</span>)</span><span class="result">: <a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a>[[γ$1$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.F">F</span>, <span class="extype" name="cats.effect.ConcurrentEffect.catsWriterTConcurrentEffect.L">L</span>, <span class="extype" name="cats.effect.ConcurrentEffect.&lt;refinement&gt;.Λ$.γ$1$">γ$1$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt"><a href="ConcurrentEffect.html" class="extype" name="cats.effect.ConcurrentEffect">ConcurrentEffect</a> instance built for <code>cats.data.WriterT</code> values initialized
@@ -696,7 +707,7 @@ with any <code>F</code> data type that also implements <code>ConcurrentEffect</c
       </span>
       
       <p class="shortcomment cmt"><a href="ConcurrentEffect.html#toIO[A](fa:F[A]):cats.effect.IO[A]" class="extmbr" name="cats.effect.ConcurrentEffect#toIO">ConcurrentEffect.toIO</a> default implementation, derived from
-<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">ConcurrentEffect.runCancelable</a>.</p>
+<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[F]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">ConcurrentEffect.runCancelable</a>.</p>
     </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="toString():String"></a>
       <span class="permalink">

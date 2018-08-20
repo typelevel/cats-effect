@@ -118,6 +118,22 @@
       </span>
       
       
+    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="internals"></a><a id="internals:internals"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#internals" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="internals/index.html"><span class="name">internals</span></a>
+      </span>
+      
+      
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -159,6 +175,10 @@
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Clock$.html" title=""></a>
+                        <a class="trait" href="Clock.html" title="Clock provides the current time, as a pure alternative to:"></a>
+                        <a href="Clock.html" title="Clock provides the current time, as a pure alternative to:">Clock</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -166,6 +186,10 @@
                         <a class="object" href="ConcurrentEffect$.html" title=""></a>
                         <a class="trait" href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable."></a>
                         <a href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable.">ConcurrentEffect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ContextShift$.html" title=""></a>
+                        <a class="trait" href="ContextShift.html" title="ContextShift provides support for shifting execution."></a>
+                        <a href="ContextShift.html" title="ContextShift provides support for shifting execution.">ContextShift</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
@@ -203,6 +227,10 @@
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="SyncIO$.html" title=""></a>
+                        <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
+                        <a href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.">SyncIO</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Timer$.html" title=""></a>
                         <a class="trait" href="Timer.html" title="Timer is a scheduler of tasks."></a>
                         <a href="Timer.html" title="Timer is a scheduler of tasks.">Timer</a>
@@ -234,7 +262,12 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"></div>
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
+          <span class="toggle">
+            Linear Supertypes
+          </span>
+          <div class="superTypes hiddenContent"><span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
+        </div></div>
         
 
       <div id="mbrsel">
@@ -252,10 +285,22 @@
             <ol>
               
               <li class="alpha in"><span>Alphabetic</span></li>
-              
+              <li class="inherit out"><span>By Inheritance</span></li>
             </ol>
           </div>
-          
+          <div class="ancestors">
+                  <span class="filtertype">Inherited<br />
+                  </span>
+                  <ol id="linearization">
+                    <li class="in" name="cats.effect"><span>effect</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                  </ol>
+                </div><div class="ancestors">
+              <span class="filtertype"></span>
+              <ol>
+                <li class="hideall out"><span>Hide All</span></li>
+                <li class="showall in"><span>Show All</span></li>
+              </ol>
+            </div>
           <div id="visbl">
               <span class="filtertype">Visibility</span>
               <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
@@ -307,7 +352,7 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for Async[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for Async[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -329,6 +374,59 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
       <p class="shortcomment cmt">An extension of <code>MonadError</code> exposing the <code>bracket</code> operation,
 a generalized abstracted pattern of safe resource acquisition and
 release in the face of errors or interruption.</p>
+    </li><li name="cats.effect.CancelToken" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="CancelToken[F[_]]=F[Unit]"></a><a id="CancelToken[F[_]]:CancelToken[F]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#CancelToken[F[_]]=F[Unit]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">type</span>
+      </span>
+      <span class="symbol">
+        <span class="name">CancelToken</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result alias"> = <span class="extype" name="cats.effect.CancelToken.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">A cancelation token is an effectful action that is
+able to cancel a running task.</p><div class="fullcomment"><div class="comment cmt"><p>A cancelation token is an effectful action that is
+able to cancel a running task.</p><p>This is just an alias in order to clarify the API.
+For example seeing <code>CancelToken[IO]</code> instead of <code>IO[Unit]</code>
+can be more readable.</p><p>Cancelation tokens usually have these properties:</p><ol class="decimal"><li>they suspend over side effectful actions on shared state</li><li>they need to be idempotent</li></ol><p>Note that in the case of well behaved implementations like
+that of <a href="IO.html" class="extype" name="cats.effect.IO">IO</a> idempotency is taken care of by its internals
+whenever dealing with cancellation tokens, but idempotency
+is a useful property to keep in mind when building such values.
+</p></div></div>
+    </li><li name="cats.effect.Clock" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="Clock[F[_]]extendsAnyRef"></a><a id="Clock[F[_]]:Clock[F]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Clock[F[_]]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="Clock provides the current time, as a pure alternative to:" href="Clock.html"><span class="name">Clock</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">Clock provides the current time, as a pure alternative to:</p><div class="fullcomment"><div class="comment cmt"><p>Clock provides the current time, as a pure alternative to:</p><ul><li>Java's
+   <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#currentTimeMillis--" target="_blank">System.currentTimeMillis</a>
+   for getting the &quot;real-time clock&quot; and
+   <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#nanoTime--" target="_blank">System.nanoTime</a>
+   for a monotonic clock useful for time measurements</li><li>JavaScript's <code>Date.now()</code> and <code>performance.now()</code></li></ul><p><code>Clock</code> works with an <code>F</code> monadic context that can suspend
+side effects (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>).</p><p>This is NOT a type class, as it does not have the coherence
+requirement.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;&quot;&quot;Cannot find an implicit value for Clock[${F}]:<br/>* import an implicit Timer[${F}] in scope or<br/>* create a Clock[${F}] instance with Clock.create<br/>&quot;&quot;&quot;">...</span>
+    </span>)</span>
+              
+        </dd></dl></div>
     </li><li name="cats.effect.Concurrent" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Concurrent[F[_]]extendsAsync[F]withSerializable"></a><a id="Concurrent[F[_]]:Concurrent[F]"></a>
       <span class="permalink">
@@ -348,14 +446,15 @@ release in the face of errors or interruption.</p>
 can be started concurrently.</p><div class="fullcomment"><div class="comment cmt"><p>Type class for <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data types that are cancelable and
 can be started concurrently.</p><p>Thus this type class allows abstracting over data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra, with all its restrictions</li><li>can provide logic for cancellation, to be used in race
     conditions in order to release resources early
-    (in its <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a> builder)</li></ol><p>Due to these restrictions, this type class also affords to describe
+    (in its <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.CancelToken[F]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a> builder)</li></ol><p>Due to these restrictions, this type class also affords to describe
 a <a href="Concurrent.html#start[A](fa:F[A]):F[cats.effect.Fiber[F,A]]" class="extmbr" name="cats.effect.Concurrent#start">start</a> operation that can start async
-processing, suspended in the context of <code>F[_]</code> and that can be
+processes, suspended in the context of <code>F[_]</code> and that can be
 canceled or joined.</p><p>Without cancellation being baked in, we couldn't afford to do it.
-See below.</p><h4>Cancelable builder</h4><p>The signature exposed by the <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>
-builder is this:</p><pre>(Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> IO[<span class="std">Unit</span>]</pre><p><code>IO[Unit]</code> is used to represent a cancellation action which will
-send a signal to the producer, that may observe it and cancel the
-asynchronous process.</p><h4>On Cancellation</h4><p>Simple asynchronous processes, like Scala's <code>Future</code>, can be
+See below.</p><h4>Cancelable builder</h4><p>The signature exposed by the <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.CancelToken[F]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>
+builder is this:</p><pre>(Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> CancelToken[F]</pre><p><a href="#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken[F</a>] is just an alias for <code>F[Unit]</code> and
+used to represent a cancellation action which will send a signal
+to the producer, that may observe it and cancel the asynchronous
+process.</p><h4>On Cancellation</h4><p>Simple asynchronous processes, like Scala's <code>Future</code>, can be
 described with this very basic and side-effectful type and you
 should recognize what is more or less the signature of
 <code>Future#onComplete</code> or of <a href="Async.html#async[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;Unit):F[A]" class="extmbr" name="cats.effect.Async#async">Async.async</a> (minus the error
@@ -363,14 +462,13 @@ handling):</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span
 tasks can also provide a way to cancel such processes, to be used
 in race conditions in order to cleanup resources early, so a very
 basic and side-effectful definition of asynchronous processes that
-can be canceled would be:</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> Cancelable</pre><p>This is approximately the signature of JavaScript's <code>setTimeout</code>,
+can be canceled would be:</p><pre>(A <span class="kw">=&gt;</span> <span class="std">Unit</span>) <span class="kw">=&gt;</span> CancelToken</pre><p>This is approximately the signature of JavaScript's <code>setTimeout</code>,
 which will return a &quot;task ID&quot; that can be used to cancel it. Or of
 Java's <code>ScheduledExecutorService#schedule</code>, which will return a
 Java <code>ScheduledFuture</code> that has a <code>.cancel()</code> operation on it.</p><p>Similarly, for <code>Concurrent</code> data types, we can provide
-cancellation logic, that can be triggered in race conditions to
+cancellation logic that can be triggered in race conditions to
 cancel the on-going processing, only that <code>Concurrent</code>'s
-cancelable token is an action suspended in an <code>IO[Unit]</code>. See
-<a href="IO$.html#cancelable[A](k:(Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#cancelable">IO.cancelable</a>.</p><p>Suppose you want to describe a &quot;sleep&quot; operation, like that described
+cancelation token is an action suspended in an <code>F[Unit]</code>.</p><p>Suppose you want to describe a &quot;sleep&quot; operation, like that described
 by <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> to mirror Java's <code>ScheduledExecutorService.schedule</code>
 or JavaScript's <code>setTimeout</code>:</p><pre><span class="kw">def</span> sleep(d: FiniteDuration): F[<span class="std">Unit</span>]</pre><p>This signature is in fact incomplete for data types that are not
 cancelable, because such equivalent operations always return some
@@ -396,10 +494,18 @@ release of allocated resources.</p><p>Thus a <a href="Concurrent.html" class="ex
 conditions, whereas a data type that is only <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> cannot do it
 without exposing and forcing the user to work with cancellation
 tokens. An <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type cannot expose for example a <code>start</code>
-operation that is safe.</p><h4> Resource-safety </h4><p><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data type is also required to cooperate with <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><p>For <code>uncancelable</code>, the <a href="Fiber.html#cancel:F[Unit]" class="extmbr" name="cats.effect.Fiber#cancel">cancel</a> signal has no effect on the
-result of <a href="Fiber.html#join:F[A]" class="extmbr" name="cats.effect.Fiber#join">join</a> and that the cancelable token returned by
-<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">ConcurrentEffect.runCancelable</a> on evaluation will have no effect.</p><p>So <code>uncancelable</code> must undo the cancellation mechanism of <a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.IO[Unit]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>,
-with this equivalence:</p><pre>F.uncancelable(F.cancelable { cb <span class="kw">=&gt;</span> f(cb); io }) <span class="kw">&lt;-</span>&gt; F.async(f)</pre><p>Sample:</p><pre><span class="kw">val</span> F = Concurrent[IO]
+operation that is safe.</p><h4> Resource-safety </h4><p><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data types are required to cooperate with <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>.
+<code>Concurrent</code> being cancelable by law, what this means for the
+corresponding <code>Bracket</code> is that cancelation can be observed and
+that in the case of <a href="Bracket.html#bracketCase[A,B](acquire:F[A])(use:A=&gt;F[B])(release:(A,cats.effect.ExitCase[E])=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracketCase">bracketCase</a> the
+<a href="ExitCase$$Canceled$.html" class="extype" name="cats.effect.ExitCase.Canceled">ExitCase.Canceled</a> branch will get executed on cancelation.</p><p>By default the <code>cancelable</code> builder is derived from <code>bracketCase</code>
+and from <a href="Async.html#asyncF[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Async#asyncF">asyncF</a>, so what this means is that
+whatever you can express with <code>cancelable</code>, you can also express
+with <code>bracketCase</code>.</p><p>For <a href="Bracket.html#uncancelable[A](fa:F[A]):F[A]" class="extmbr" name="cats.effect.Bracket#uncancelable">uncancelable</a>, the <a href="Fiber.html#cancel:cats.effect.CancelToken[F]" class="extmbr" name="cats.effect.Fiber#cancel">cancel</a>
+signal has no effect on the result of <a href="Fiber.html#join:F[A]" class="extmbr" name="cats.effect.Fiber#join">join</a> and
+the cancelable token returned by <a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[F]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">ConcurrentEffect.runCancelable</a>
+on evaluation will have no effect if evaluated.</p><p>So <code>uncancelable</code> must undo the cancellation mechanism of
+<a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.CancelToken[F]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">cancelable</a>, with this equivalence:</p><pre>F.uncancelable(F.cancelable { cb <span class="kw">=&gt;</span> f(cb); token }) <span class="kw">&lt;-</span>&gt; F.async(f)</pre><p>Sample:</p><pre><span class="kw">val</span> F = Concurrent[IO]
 <span class="kw">val</span> timer = Timer[IO]
 
 <span class="cmt">// Normally Timer#sleep yields cancelable tasks</span>
@@ -417,7 +523,7 @@ with this equivalence:</p><pre>F.uncancelable(F.cancelable { cb <span class="kw"
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -438,14 +544,40 @@ with this equivalence:</p><pre>F.uncancelable(F.cancelable { cb <span class="kw"
       
       <p class="shortcomment cmt">Type class describing effect data types that are cancelable.</p><div class="fullcomment"><div class="comment cmt"><p>Type class describing effect data types that are cancelable.</p><p>In addition to the algebras of <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> and of
 <a href="Effect.html" class="extype" name="cats.effect.Effect">Effect</a>, instances must also implement a
-<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[cats.effect.IO[Unit]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">runCancelable</a> operation that
+<a href="ConcurrentEffect.html#runCancelable[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[cats.effect.CancelToken[F]]" class="extmbr" name="cats.effect.ConcurrentEffect#runCancelable">runCancelable</a> operation that
 triggers the evaluation, suspended in the <code>IO</code> context, but that
 also returns a token that can be used for canceling the running
-computation.</p><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):()=&gt;Unit" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">IO.unsafeRunCancelable</a>.
+computation.</p><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunCancelable(cb:Either[Throwable,A]=&gt;Unit):cats.effect.CancelToken[cats.effect.IO]" class="extmbr" name="cats.effect.IO#unsafeRunCancelable">IO.unsafeRunCancelable</a>.
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for ConcurrentEffect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for ConcurrentEffect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
+    </span>)</span>
+              
+        </dd></dl></div>
+    </li><li name="cats.effect.ContextShift" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="ContextShift[F[_]]extendsAnyRef"></a><a id="ContextShift[F[_]]:ContextShift[F]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ContextShift[F[_]]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="ContextShift provides support for shifting execution." href="ContextShift.html"><span class="name">ContextShift</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">ContextShift provides support for shifting execution.</p><div class="fullcomment"><div class="comment cmt"><p>ContextShift provides support for shifting execution.</p><p>The <code>shift</code> method inserts an asynchronous boundary, which moves execution
+from the calling thread to the default execution environment of <code>F</code>.</p><p>The <code>evalOn</code> method provides a way to evaluate a task on a specific execution
+context, shifting back to the default execution context after the task completes.</p><p>This is NOT a type class, as it does not have the coherence
+requirement.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;&quot;&quot;Cannot find an implicit value for ContextShift[${F}]:<br/>* import ContextShift[${F}] from your effects library<br/>* if using IO, use cats.effect.IOApp or build one with cats.effect.IO.contextShift<br/>&quot;&quot;&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -466,14 +598,13 @@ computation.</p><p>Note this is the safe and generic version of <a href="IO.html
       
       <p class="shortcomment cmt">A monad that can suspend side effects into the <code>F</code> context and
 that supports lazy and potentially asynchronous evaluation.</p><div class="fullcomment"><div class="comment cmt"><p>A monad that can suspend side effects into the <code>F</code> context and
-that supports lazy and potentially asynchronous evaluation.</p><p>This type class is describing data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra</li><li>implement a lawful <a href="Effect.html#runAsync[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.Effect#runAsync">runAsync</a> operation
-    that triggers the evaluation (in the context of <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)</li><li>implement a lawful <a href="Effect.html#runSyncStep[A](fa:F[A]):cats.effect.IO[scala.util.Either[F[A],A]]" class="extmbr" name="cats.effect.Effect#runSyncStep">runSyncStep</a> operation
-    which triggers evaluation up to the first asynchronous boundary</li></ol><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit" class="extmbr" name="cats.effect.IO#unsafeRunAsync">IO.unsafeRunAsync</a>
+that supports lazy and potentially asynchronous evaluation.</p><p>This type class is describing data types that:</p><ol class="decimal"><li>implement the <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> algebra</li><li>implement a lawful <a href="Effect.html#runAsync[A](fa:F[A])(cb:scala.util.Either[Throwable,A]=&gt;cats.effect.IO[Unit]):cats.effect.SyncIO[Unit]" class="extmbr" name="cats.effect.Effect#runAsync">runAsync</a> operation
+    that triggers the evaluation (in the context of <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)</li></ol><p>Note this is the safe and generic version of <a href="IO.html#unsafeRunAsync(cb:Either[Throwable,A]=&gt;Unit):Unit" class="extmbr" name="cats.effect.IO#unsafeRunAsync">IO.unsafeRunAsync</a>
 (aka Haskell's <code>unsafePerformIO</code>).
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;Cannot find implicit value for Effect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
+      <span class="defval" name="&quot;Cannot find implicit value for Effect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -534,7 +665,7 @@ get canceled.</p><p>The types of exit signals are:</p><ul><li><a href="ExitCase$
       
       <p class="shortcomment cmt"><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g.</p><div class="fullcomment"><div class="comment cmt"><p><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)
 being started concurrently and that can be either joined or canceled.</p><p>You can think of fibers as being lightweight threads, a fiber being a
-concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
+concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
 
 <span class="kw">val</span> fiber: IO[Fiber[IO, <span class="std">Unit</span>]] = io.start</pre><p>Usage example:</p><pre><span class="kw">for</span> {
   fiber <span class="kw">&lt;-</span> IO.shift *&gt; launchMissiles.start
@@ -701,9 +832,9 @@ from <code>Resource</code> into something else is needed (e.g. conversion from <
 into a streaming data type).
 </p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
     </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
-      <a id="Sync[F[_]]extendsBracket[F,Throwable]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
+      <a id="Sync[F[_]]extendsBracket[F,Throwable]withDefer[F]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/index.html#Sync[F[_]]extendsBracket[F,Throwable]withSerializable" title="Permalink">
+      <a href="../../cats/effect/index.html#Sync[F[_]]extendsBracket[F,Throwable]withDefer[F]withSerializable" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -712,11 +843,38 @@ into a streaming data type).
         <span class="kind">trait</span>
       </span>
       <span class="symbol">
-        <a title="A monad that can suspend the execution of side effects in the F[_] context." href="Sync.html"><span class="name">Sync</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Sync.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>] with <span class="extype" name="scala.Serializable">Serializable</span></span>
+        <a title="A monad that can suspend the execution of side effects in the F[_] context." href="Sync.html"><span class="name">Sync</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Sync.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>] with <span class="extype" name="cats.Defer">Defer</span>[<span class="extype" name="cats.effect.Sync.F">F</span>] with <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       <p class="shortcomment cmt">A monad that can suspend the execution of side effects
 in the <code>F[_]</code> context.</p>
+    </li><li name="cats.effect.SyncIO" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="SyncIO[+A]extendsAnyRef"></a><a id="SyncIO[+A]:SyncIO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#SyncIO[+A]extendsAnyRef" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously." href="SyncIO.html"><span class="name">SyncIO</span></a><span class="tparams">[<span name="A">+A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A pure abstraction representing the intention to perform a
+side effect, where the result of that side effect is obtained
+synchronously.</p><div class="fullcomment"><div class="comment cmt"><p>A pure abstraction representing the intention to perform a
+side effect, where the result of that side effect is obtained
+synchronously.</p><p><code>SyncIO</code> is similar to <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>, but does not support asynchronous
+computations. Consequently, a <code>SyncIO</code> can be run synchronously
+to obtain a result via <code>unsafeRunSync</code>. This is unlike
+<code>IO#unsafeRunSync</code>, which cannot be safely called in general --
+doing so on the JVM blocks the calling thread while the
+async part of the computation is run and doing so on Scala.JS
+throws an exception upon encountering an async boundary.
+</p></div></div>
     </li><li name="cats.effect.Timer" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Timer[F[_]]extendsAnyRef"></a><a id="Timer[F[_]]:Timer[F]"></a>
       <span class="permalink">
@@ -734,13 +892,13 @@ in the <code>F[_]</code> context.</p>
       
       <p class="shortcomment cmt">Timer is a scheduler of tasks.</p><div class="fullcomment"><div class="comment cmt"><p>Timer is a scheduler of tasks.</p><p>This is the purely functional equivalent of:</p><ul><li>Java's
    <a href="https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html" target="_blank">ScheduledExecutorService</a></li><li>JavaScript's
-   <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout" target="_blank">setTimeout</a>.</li></ul><p>It provides:</p><ol class="decimal"><li>the ability to get the current time</li><li>thread / call-stack shifting</li><li>ability to delay the execution of a task with a specified time duration</li></ol><p>It does all of that in an <code>F</code> monadic context that can suspend
+   <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout" target="_blank">setTimeout</a>.</li></ul><p>It provides:</p><ol class="decimal"><li>the ability to get the current time</li><li>ability to delay the execution of a task with a specified time duration</li></ol><p>It does all of that in an <code>F</code> monadic context that can suspend
 side effects and is capable of asynchronous execution (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>).</p><p>This is NOT a type class, as it does not have the coherence
 requirement.
 </p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
-      <span class="defval" name="&quot;&quot;&quot;Cannot find an implicit value for Timer[${F}]. <br/>Either:<br/>* import Timer[${F}] from your effects library<br/>* use Timer.derive to create the necessary instance<br/>Timer.derive requires an implicit Timer[IO], which can be available from:<br/>* your platform (e.g. Scala JS)<br/>* implicitly in cats.effect.IOApp<br/>* cats.effect.IO.timer, if there's an implicit <br/>scala.concurrent.ExecutionContext in scope<br/>&quot;&quot;&quot;">...</span>
+      <span class="defval" name="&quot;&quot;&quot;Cannot find an implicit value for Timer[${F}]:<br/>* import Timer[${F}] from your effects library<br/>* if using IO, use cats.effect.IOApp or build one with cats.effect.IO.timer<br/>&quot;&quot;&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -784,6 +942,22 @@ requirement.
       </span>
       
       
+    </li><li name="cats.effect.Clock" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Clock"></a><a id="Clock:Clock"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Clock" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Clock$.html"><span class="name">Clock</span></a>
+      </span>
+      
+      
     </li><li name="cats.effect.Concurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Concurrent"></a><a id="Concurrent:Concurrent"></a>
       <span class="permalink">
@@ -813,6 +987,22 @@ requirement.
       </span>
       <span class="symbol">
         <a title="" href="ConcurrentEffect$.html"><span class="name">ConcurrentEffect</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="cats.effect.ContextShift" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ContextShift"></a><a id="ContextShift:ContextShift"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#ContextShift" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="ContextShift$.html"><span class="name">ContextShift</span></a>
       </span>
       
       
@@ -876,7 +1066,7 @@ requirement.
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="Fiber$.html"><span class="name">Fiber</span></a>
+        <a title="" href="Fiber$.html"><span class="name">Fiber</span></a><span class="result"> extends <span class="extype" name="cats.effect.FiberInstances">FiberInstances</span></span>
       </span>
       
       
@@ -944,6 +1134,22 @@ requirement.
       </span>
       
       
+    </li><li name="cats.effect.SyncIO" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="SyncIO"></a><a id="SyncIO:SyncIO"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#SyncIO" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="SyncIO$.html"><span class="name">SyncIO</span></a><span class="result"> extends <span class="extype" name="cats.effect.SyncIOInstances">SyncIOInstances</span></span>
+      </span>
+      
+      
     </li><li name="cats.effect.Timer" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="Timer"></a><a id="Timer:Timer"></a>
       <span class="permalink">
@@ -970,7 +1176,11 @@ requirement.
         </div>
 
         <div id="inheritedMembers">
-        
+        <div class="parent" name="scala.AnyRef">
+              <h3>Inherited from <span class="extype" name="scala.AnyRef">AnyRef</span></h3>
+            </div><div class="parent" name="scala.Any">
+              <h3>Inherited from <span class="extype" name="scala.Any">Any</span></h3>
+            </div>
         
         </div>
 

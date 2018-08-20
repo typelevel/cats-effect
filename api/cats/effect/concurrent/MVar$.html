@@ -164,7 +164,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Builders for <a href="MVar.html" class="extype" name="cats.effect.concurrent.MVar">MVar</a>.</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/concurrent/MVar.scala" target="_blank">MVar.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>Builders for <a href="MVar.html" class="extype" name="cats.effect.concurrent.MVar">MVar</a>.</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/concurrent/MVar.scala" target="_blank">MVar.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -595,7 +595,11 @@ value.
         <span class="name">uncancelableEmpty</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.concurrent.MVar.uncancelableEmpty.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.MVar.uncancelableEmpty.F">F</span>[<a href="MVar.html" class="extype" name="cats.effect.concurrent.MVar">MVar</a>[<span class="extype" name="cats.effect.concurrent.MVar.uncancelableEmpty.F">F</span>, <span class="extype" name="cats.effect.concurrent.MVar.uncancelableEmpty.A">A</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Creates a non-cancelable <code>MVar</code> that starts as empty.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a non-cancelable <code>MVar</code> that starts as empty.</p><p>The resulting <code>MVar</code> has non-cancelable operations.
+      <p class="shortcomment cmt">Creates a non-cancelable <code>MVar</code> that starts as empty.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a non-cancelable <code>MVar</code> that starts as empty.</p><p>The resulting <code>MVar</code> has non-cancelable operations.</p><p>WARN: some <code>Async</code> data types, like <a href="../IO.html" class="extype" name="cats.effect.IO">IO</a>, can be cancelable,
+making <code>uncancelable</code> values unsafe. Such values are only useful
+for optimization purposes, in cases where the use case does not
+require cancellation or in cases in which an <code>F[_]</code> data type
+that does not support cancellation is used.
 </p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#empty[F[_],A](implicitF:cats.effect.Concurrent[F]):F[cats.effect.concurrent.MVar[F,A]]" class="extmbr" name="cats.effect.concurrent.MVar#empty">empty</a> for creating cancelable MVars</p></span></dd></dl></div>
     </li><li name="cats.effect.concurrent.MVar#uncancelableOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="uncancelableOf[F[_],A](initial:A)(implicitF:cats.effect.Async[F]):F[cats.effect.concurrent.MVar[F,A]]"></a><a id="uncancelableOf[F[_],A](A)(Async[F]):F[MVar[F,A]]"></a>
@@ -614,7 +618,11 @@ value.
       
       <p class="shortcomment cmt">Creates a non-cancelable <code>MVar</code> that's initialized to an <code>initial</code>
 value.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a non-cancelable <code>MVar</code> that's initialized to an <code>initial</code>
-value.</p><p>The resulting <code>MVar</code> has non-cancelable operations.
+value.</p><p>The resulting <code>MVar</code> has non-cancelable operations.</p><p>WARN: some <code>Async</code> data types, like <a href="../IO.html" class="extype" name="cats.effect.IO">IO</a>, can be cancelable,
+making <code>uncancelable</code> values unsafe. Such values are only useful
+for optimization purposes, in cases where the use case does not
+require cancellation or in cases in which an <code>F[_]</code> data type
+that does not support cancellation is used.
 </p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="#of[F[_],A](initial:A)(implicitF:cats.effect.Concurrent[F]):F[cats.effect.concurrent.MVar[F,A]]" class="extmbr" name="cats.effect.concurrent.MVar#of">of</a> for creating cancelable MVars</p></span></dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>

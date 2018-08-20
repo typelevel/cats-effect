@@ -173,7 +173,7 @@ all readers currently blocked on a call to <code>get</code>.
 its content, and result in a failed <code>F</code>.</p><p>Albeit simple, <code>Deferred</code> can be used in conjunction with <a href="Ref.html" class="extype" name="cats.effect.concurrent.Ref">Ref</a> to build
 complex concurrent behaviour and data structures like queues and semaphores.</p><p>Finally, the blocking mentioned above is semantic only, no actual threads are
 blocked by the implementation.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -263,11 +263,14 @@ blocked by the implementation.
       
       <p class="shortcomment cmt">If this <code>Deferred</code> is empty, sets the current value to <code>a</code>, and notifies
 any and all readers currently blocked on a <code>get</code>.</p><div class="fullcomment"><div class="comment cmt"><p>If this <code>Deferred</code> is empty, sets the current value to <code>a</code>, and notifies
-any and all readers currently blocked on a <code>get</code>.</p><p>Note that the returned action may complete after the reference has been successfully set:
-use <code>F.start(Async.shift *&gt; r.complete)</code> if you want asynchronous behaviour.</p><p>If this <code>Deferred</code> has already been completed, the returned action immediately fails with
-an <code>IllegalStateException</code>. In the uncommon scenario where this behavior
-is problematic, you can handle failure explicitly using <code>attempt</code> or any other
-<code>ApplicativeError</code>/<code>MonadError</code> combinator on the returned action.</p><p>Satisfies:
+any and all readers currently blocked on a <code>get</code>.</p><p>Note that the returned action may complete after the reference
+has been successfully set: use <code>F.start(r.complete)</code> if you want
+asynchronous behaviour.</p><p>If this <code>Deferred</code> has already been completed, the returned
+action immediately fails with an <code>IllegalStateException</code>. In the
+uncommon scenario where this behavior is problematic, you can
+handle failure explicitly using <code>attempt</code> or any other
+<code>ApplicativeError</code>/<code>MonadError</code> combinator on the returned
+action.</p><p>Satisfies:
   <code>Deferred[F, A].flatMap(r =&gt; r.complete(a) *&gt; r.get) == a.pure[F]</code>
 </p></div></div>
     </li><li name="cats.effect.concurrent.Deferred#get" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">

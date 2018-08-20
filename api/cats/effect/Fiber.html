@@ -118,6 +118,22 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
+    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="internals"></a><a id="internals:internals"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#internals" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="internals/index.html"><span class="name">internals</span></a>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -159,6 +175,10 @@
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Clock$.html" title=""></a>
+                        <a class="trait" href="Clock.html" title="Clock provides the current time, as a pure alternative to:"></a>
+                        <a href="Clock.html" title="Clock provides the current time, as a pure alternative to:">Clock</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Concurrent$.html" title=""></a>
                         <a class="trait" href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently."></a>
                         <a href="Concurrent.html" title="Type class for Async data types that are cancelable and can be started concurrently.">Concurrent</a>
@@ -166,6 +186,10 @@
                         <a class="object" href="ConcurrentEffect$.html" title=""></a>
                         <a class="trait" href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable."></a>
                         <a href="ConcurrentEffect.html" title="Type class describing effect data types that are cancelable.">ConcurrentEffect</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="ContextShift$.html" title=""></a>
+                        <a class="trait" href="ContextShift.html" title="ContextShift provides support for shifting execution."></a>
+                        <a href="ContextShift.html" title="ContextShift provides support for shifting execution.">ContextShift</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Effect$.html" title=""></a>
                         <a class="trait" href="Effect.html" title="A monad that can suspend side effects into the F context and that supports lazy and potentially asynchronous evaluation."></a>
@@ -203,6 +227,10 @@
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="SyncIO$.html" title=""></a>
+                        <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
+                        <a href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.">SyncIO</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Timer$.html" title=""></a>
                         <a class="trait" href="Timer.html" title="Timer is a scheduler of tasks."></a>
                         <a href="Timer.html" title="Timer is a scheduler of tasks.">Timer</a>
@@ -238,7 +266,7 @@
       
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)
 being started concurrently and that can be either joined or canceled.</p><p>You can think of fibers as being lightweight threads, a fiber being a
-concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
+concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
 
 <span class="kw">val</span> fiber: IO[Fiber[IO, <span class="std">Unit</span>]] = io.start</pre><p>Usage example:</p><pre><span class="kw">for</span> {
   fiber <span class="kw">&lt;-</span> IO.shift *&gt; launchMissiles.start
@@ -250,7 +278,7 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
   aftermath <span class="kw">&lt;-</span> fiber.join
 } <span class="kw">yield</span> {
   aftermath
-}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/78a795d48b35b3c0625e3ffe452c02fd3af3dd59/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
+}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -305,9 +333,9 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
         <div class="values members">
               <h3>Abstract Value Members</h3>
               <ol><li name="cats.effect.Fiber#cancel" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="cancel:F[Unit]"></a>
+      <a id="cancel:cats.effect.CancelToken[F]"></a><a id="cancel:CancelToken[F]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Fiber.html#cancel:F[Unit]" title="Permalink">
+      <a href="../../cats/effect/Fiber.html#cancel:cats.effect.CancelToken[F]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -316,7 +344,7 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">cancel</span><span class="result">: <span class="extype" name="cats.effect.Fiber.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>
+        <span class="name">cancel</span><span class="result">: <a href="index.html#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken</a>[<span class="extype" name="cats.effect.Fiber.F">F</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Triggers the cancellation of the fiber.</p><div class="fullcomment"><div class="comment cmt"><p>Triggers the cancellation of the fiber.</p><p>Returns a new task that will complete when the cancellation is
