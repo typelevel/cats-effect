@@ -18,12 +18,13 @@ package cats.effect.internals
 
 import cats.effect.IO.ContextSwitch
 import cats.effect.{CancelToken, ExitCase, IO}
-
+import cats.effect.internals.TrampolineEC.immediate
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 private[effect] object IOBracket {
   /**
-   * Implementation for `IO.bracket`.
+   * Implementation for `IO.bracketCase`.
    */
   def apply[A, B](acquire: IO[A])
     (use: A => IO[B])
@@ -32,22 +33,45 @@ private[effect] object IOBracket {
     IO.Async { (conn, cb) =>
       // Doing manual plumbing; note that `acquire` here cannot be
       // cancelled due to executing it via `IORunLoop.start`
-      IORunLoop.start[A](acquire, {
-        case Right(a) =>
-          val frame = new BracketReleaseFrame[A, B](a, release, conn)
-          val onNext = {
-            val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
-            fb.flatMap(frame)
-          }
-          // Registering our cancelable token ensures that in case
-          // cancellation is detected, `release` gets called
-          conn.push(frame.cancel)
-          // Actual execution
-          IORunLoop.startCancelable(onNext, conn, cb)
+      IORunLoop.start[A](acquire, new BracketStart(use, release, conn, cb))
+    }
+  }
 
-        case error @ Left(_) =>
-          cb(error.asInstanceOf[Either[Throwable, B]])
-      })
+  // Internals of `IO.bracketCase`.
+  private final class BracketStart[A, B](
+    use: A => IO[B],
+    release: (A, ExitCase[Throwable]) => IO[Unit],
+    conn: IOConnection,
+    cb: Callback.T[B])
+    extends (Either[Throwable, A] => Unit) with Runnable {
+
+    private[this] var result: Either[Throwable, A] = _
+
+    def apply(ea: Either[Throwable, A]): Unit = {
+      if (result ne null) {
+        throw new IllegalStateException("callback called multiple times!")
+      }
+      // Introducing a light async boundary, otherwise executing the required
+      // logic directly will yield a StackOverflowException
+      result = ea
+      ec.execute(this)
+    }
+
+    def run(): Unit = result match {
+      case Right(a) =>
+        val frame = new BracketReleaseFrame[A, B](a, release, conn)
+        val onNext = {
+          val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
+          fb.flatMap(frame)
+        }
+        // Registering our cancelable token ensures that in case
+        // cancellation is detected, `release` gets called
+        conn.push(frame.cancel)
+        // Actual execution
+        IORunLoop.startCancelable(onNext, conn, cb)
+
+      case error @ Left(_) =>
+        cb(error.asInstanceOf[Either[Throwable, B]])
     }
   }
 
@@ -56,13 +80,18 @@ private[effect] object IOBracket {
    */
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] = {
     IO.Async { (conn, cb) =>
-      val frame = new EnsureReleaseFrame[A](release, conn)
-      val onNext = source.flatMap(frame)
-      // Registering our cancelable token ensures that in case
-      // cancellation is detected, `release` gets called
-      conn.push(frame.cancel)
-      // Actual execution
-      IORunLoop.startCancelable(onNext, conn, cb)
+      // Light async boundary, otherwise this will trigger a StackOverflowException
+      ec.execute(new Runnable {
+        def run(): Unit = {
+          val frame = new EnsureReleaseFrame[A](release, conn)
+          val onNext = source.flatMap(frame)
+          // Registering our cancelable token ensures that in case
+          // cancellation is detected, `release` gets called
+          conn.push(frame.cancel)
+          // Actual execution
+          IORunLoop.startCancelable(onNext, conn, cb)
+        }
+      })
     }
   }
 
@@ -119,6 +148,11 @@ private[effect] object IOBracket {
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)
   }
+
+  /**
+   * Trampolined execution context used to preserve stack-safety.
+   */
+  private[this] val ec: ExecutionContext = immediate
 
   private[this] val makeUncancelable: IOConnection => IOConnection =
     _ => IOConnection.uncancelable

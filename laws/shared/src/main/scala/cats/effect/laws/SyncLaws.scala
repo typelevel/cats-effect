@@ -93,7 +93,7 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   }
 
   def stackSafetyOnRepeatedAttempts(iterations: Int) = {
-    // Note this isn't enough to guarantee stack safety, unless 
+    // Note this isn't enough to guarantee stack safety, unless
     // coupled with `bindSuspendsEvaluation`
     val result = (0 until iterations).foldLeft(F.delay(())) { (acc, _) =>
       F.attempt(acc).map(_ => ())
@@ -102,12 +102,40 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   }
 
   def stackSafetyOnRepeatedMaps(iterations: Int) = {
-    // Note this isn't enough to guarantee stack safety, unless 
+    // Note this isn't enough to guarantee stack safety, unless
     // coupled with `mapSuspendsEvaluation`
     val result = (0 until iterations).foldLeft(F.delay(0)) { (acc, _) =>
       F.map(acc)(_ + 1)
     }
     result <-> F.pure(iterations)
+  }
+
+  def stackSafetyOfBracketOnRepeatedLeftBinds(iterations: Int) = {
+    val result = (0 until iterations).foldRight(F.delay(())) { (_, acc) =>
+      acc.flatMap(_ => F.bracket(F.unit)(F.pure(_))(_ => F.unit))
+    }
+    result <-> F.pure(())
+  }
+
+  def stackSafetyOfBracketOnRepeatedRightBinds(iterations: Int) = {
+    val result = (0 until iterations).foldRight(F.delay(())) { (_, acc) =>
+      F.bracket(F.unit)(F.pure(_))(_ => F.unit).flatMap(_ => acc)
+    }
+    result <-> F.pure(())
+  }
+
+  def stackSafetyOfGuaranteeOnRepeatedLeftBinds(iterations: Int) = {
+    val result = (0 until iterations).foldRight(F.delay(())) { (_, acc) =>
+      acc.flatMap(_ => F.guarantee(F.unit)(F.unit))
+    }
+    result <-> F.pure(())
+  }
+
+  def stackSafetyOfGuaranteeOnRepeatedRightBinds(iterations: Int) = {
+    val result = (0 until iterations).foldRight(F.delay(())) { (_, acc) =>
+      F.guarantee(F.unit)(F.unit).flatMap(_ => acc)
+    }
+    result <-> F.pure(())
   }
 }
 
