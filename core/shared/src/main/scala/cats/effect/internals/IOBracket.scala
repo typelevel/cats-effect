@@ -45,6 +45,9 @@ private[effect] object IOBracket {
     cb: Callback.T[B])
     extends (Either[Throwable, A] => Unit) with Runnable {
 
+    // This runnable is a dirty optimization to avoid some memory allocations;
+    // This class switches from being a Callback to a Runnable, but relies on
+    // the internal IO callback protocol to be respected (called at most once)
     private[this] var result: Either[Throwable, A] = _
 
     def apply(ea: Either[Throwable, A]): Unit = {
