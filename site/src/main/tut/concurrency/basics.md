@@ -69,7 +69,7 @@ is when we execute as many logical threads as the number of available native thr
 For the above reasons, synchronous execution can perform much better than a parallel
 too much which won't make your code magically faster.  The overhead of creating or switching threads is often greater than the speedup, so make sure to benchmark.
 
-Femember that threads are scarce resource on JVM. If you exploit them at every opportunity
+Remember that threads are scarce resource on JVM. If you exploit them at every opportunity
 it may turn out that your most performance critical parts of the application suffer because the other part is
 doing a lot of work in parallel, taking precious native threads.
 
