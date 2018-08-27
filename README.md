@@ -90,6 +90,24 @@ Do *not* rebase commits that have been PR'd!  That history doesn't belong to you
 
 cats-effect is a [Typelevel](http://typelevel.org/) project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the Typelevel [Code of Conduct](http://typelevel.org/conduct.html).
 
+### Contributing documentation
+
+The sources for the cats-effect microsite can be found in `site/src/main/tut`.
+The menu structure is in `site/src/main/resources/microsite/data/menu.yml`.
+
+You can build the microsite with `sbt microsite/makeMicrosite`.
+
+To preview your changes you need to have
+[jekyll](https://github.com/jekyll/jekyll) installed. This depends on your
+platform, but assuming you have ruby installed it could be as simple as `gem
+install jekyll`.
+
+Start a local server by navigating to `site/target/site`, then run `jekyll
+serve`. Finally point your browser at
+[http://localhost:4000/cats-effect/](http://localhost:4000/cats-effect/).  Any
+changes should be picked up immediately when you re-run `sbt
+microsite/makeMicrosite`.
+
 ## License
 
 ```
