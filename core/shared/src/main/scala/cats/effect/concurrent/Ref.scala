@@ -55,22 +55,9 @@ abstract class Ref[F[_], A] {
   def set(a: A): F[Unit]
 
   /**
-   * Eventually sets the current value to the `a`.
-   *
-   * The returned action completes after the reference has been lazily set.
-   */
-  def lazySet(a: A): F[Unit]
-
-  /**
    * Replaces the current value with `a`, returning the previous value.
    */
   def getAndSet(a: A): F[A]
-
-  /**
-   * Sets the value to `newValue` if the current value is `expected`.
-   * Note: reference equality is used here.
-   */
-  def compareAndSet(expected: A, newValue: A): F[Boolean]
 
   /**
    * Obtains a snapshot of the current value, and a setter for updating it.
@@ -169,7 +156,7 @@ object Ref {
    * This method uses the [[http://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially Applied Type Params technique]],
    * so only effect type needs to be specified explicitly.
    *
-   * A care must be taken to preserve referential transparency:
+   * Some care must be taken to preserve referential transparency:
    *
    * {{{
    *   import cats.effect.IO
@@ -187,7 +174,7 @@ object Ref {
    *   }
    * }}}
    *
-   * Such usage is safe, as long as class constructor is not accessible and public one suspends creation in IO
+   * Such usage is safe, as long as the class constructor is not accessible and the public one suspends creation in IO
    *
    * The recommended alternative is accepting a `Ref[F, A]` as a parameter:
    *
@@ -218,11 +205,7 @@ object Ref {
 
     def set(a: A): F[Unit] = F.delay(ar.set(a))
 
-    def lazySet(a: A): F[Unit] = F.delay(ar.lazySet(a))
-
     def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
-    
-    def compareAndSet(expected: A, newValue: A): F[Boolean] = F.delay(ar.compareAndSet(expected, newValue))
 
     def access: F[(A, A => F[Boolean])] = F.delay {
       val snapshot = ar.get
