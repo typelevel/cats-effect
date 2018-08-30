@@ -78,7 +78,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("throw in register is fail") { implicit ec =>
-    check { e: Throwable =>
+    Prop.forAll { e: Throwable =>
       IO.async[Unit](_ => throw e) <-> IO.raiseError(e)
     }
   }

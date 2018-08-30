@@ -22,6 +22,7 @@ import cats.effect.concurrent.Ref
 import scala.concurrent.duration._
 import scala.util.{Success}
 
+import org.scalacheck._
 import cats.effect.laws.discipline.arbitrary._
 import cats.laws._
 import cats.laws.discipline._
@@ -88,7 +89,7 @@ class MemoizeTests extends BaseTestsSuite {
 
   testAsync("Concurrent.memoize and then flatten is identity") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    check { fa: IO[Int] =>
+    Prop.forAll { fa: IO[Int] =>
       Concurrent.memoize(fa).flatten <-> fa
     }
   }

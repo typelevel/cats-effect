@@ -24,6 +24,7 @@ import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
+import org.scalacheck.Prop
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -45,7 +46,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("fa *> IO.cancelBoundary <-> fa") { implicit ec =>
-    check { (fa: IO[Int]) =>
+    Prop.forAll { (fa: IO[Int]) =>
       fa <* IO.cancelBoundary <-> fa
     }
   }
@@ -53,7 +54,7 @@ class IOCancelableTests extends BaseTestsSuite {
   testAsync("(fa *> IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    check { (fa: IO[Int]) =>
+    Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
           f <- (fa <* IO.cancelBoundary).start
@@ -68,7 +69,7 @@ class IOCancelableTests extends BaseTestsSuite {
   testAsync("uncancelable") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    check { (fa: IO[Int]) =>
+    Prop.forAll { (fa: IO[Int]) =>
       val received =
         for {
           f <- (fa <* IO.cancelBoundary).uncancelable.start
@@ -83,7 +84,7 @@ class IOCancelableTests extends BaseTestsSuite {
   testAsync("task.start.flatMap(id) <-> task") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    check { (task: IO[Int]) =>
+    Prop.forAll { (task: IO[Int]) =>
       task.start.flatMap(_.join) <-> task
     }
   }
