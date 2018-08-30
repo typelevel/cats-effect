@@ -198,7 +198,7 @@ val csTwo: ContextShift[IO] = IO.contextShift(ecTwo)
 def infiniteIO(id: Int)(cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => repeat)
 
-  repeat.start
+  repeat.start(cs)
 }
 ```
 
@@ -211,7 +211,7 @@ It will run on thread pool provided by `cs`, which we will pass explicitly:
 val prog =
   for {
     _ <- infiniteIO(1)(csOne)
-    _ <- infiniteIO(11)(csTwo)
+    _ <- infiniteIO(11)(csOne)
   } yield ()
 
 prog.unsafeRunSync()
