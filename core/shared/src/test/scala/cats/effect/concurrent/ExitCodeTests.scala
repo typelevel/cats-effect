@@ -19,17 +19,17 @@ package effect
 package concurrent
 
 import org.scalatest.{FunSuite, Matchers}
-import org.scalacheck.Prop
+import org.scalatest.prop.Checkers
 
-class ExitCodeTests extends FunSuite with Matchers {
+class ExitCodeTests extends FunSuite with Matchers with Checkers {
   test("fromInt(i) == fromInt(i & 0xff)") {
-    Prop.forAll { i: Int =>
+    check { i: Int =>
       ExitCode(i) == ExitCode(i & 0xff)
     }
   }
 
   test("code is in range from 0 to 255, inclusive") {
-    Prop.forAll { i: Int =>
+    check { i: Int =>
       val ec = ExitCode(i)
       ec.code >= 0 && ec.code < 256
     }
