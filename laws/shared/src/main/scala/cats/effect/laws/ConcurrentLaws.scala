@@ -277,9 +277,6 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     x <- fa
     _ <- fiber.join
   } yield x) <-> fa
-
-  def memoizeAndThenFlattenIsIdentity[A](fa: F[A]) =
-    Concurrent.memoize(fa).flatten <-> fa
 }
 
 object ConcurrentLaws {

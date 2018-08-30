@@ -17,9 +17,15 @@
 package cats
 package effect
 
+import cats.implicits._
 import cats.effect.concurrent.Ref
 import scala.concurrent.duration._
 import scala.util.{Success}
+
+import org.scalacheck._
+import cats.effect.laws.discipline.arbitrary._
+import cats.laws._
+import cats.laws.discipline._
 
 class MemoizeTests extends BaseTestsSuite {
   testAsync("Concurrent.memoize does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
@@ -79,5 +85,12 @@ class MemoizeTests extends BaseTestsSuite {
     val result = prog.unsafeToFuture()
     ec.tick(200.millis)
     result.value shouldBe Some(Success((1, 1)))
+  }
+
+  testAsync("Concurrent.memoize and then flatten is identity") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+    Prop.forAll { fa: IO[Int] =>
+      Concurrent.memoize(fa).flatten <-> fa
+    }
   }
 }

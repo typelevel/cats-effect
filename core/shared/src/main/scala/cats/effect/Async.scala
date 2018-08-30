@@ -18,8 +18,10 @@ package cats
 package effect
 
 import simulacrum._
+import cats.implicits._
 import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
+import cats.effect.concurrent.{Ref, Deferred}
 import cats.effect.internals.{Callback, IORunLoop}
 
 import scala.annotation.implicitNotFound
@@ -292,6 +294,29 @@ object Async {
             case async => F.async(async.unsafeRunAsync)
           }
         }
+    }
+
+  /**
+    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
+    * bound, the effect `f` will be performed at most once (when the
+    * inner `F[A]` is bound the first time).
+    *
+    * Note: This version of `memoize` does not support interruption.
+    * Use `Concurrent.memoize` if you need that.
+    */
+  def memoize[F[_], A](f: F[A])(implicit F: Async[F]): F[F[A]] =
+    Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
+      Deferred.uncancelable[F, Either[Throwable, A]].flatMap { d =>
+        ref
+          .modify {
+            case None =>
+              Some(d) -> f.attempt.flatTap(d.complete)
+            case s @ Some(other) =>
+              s -> other.get
+          }
+          .flatten
+          .rethrow
+      }
     }
 
   /**

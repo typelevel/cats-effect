@@ -366,7 +366,8 @@ object Concurrent {
           .modify {
             case None =>
               Some(d) -> f.attempt.flatTap(d.complete)
-            case s @ Some(other) => s -> other.get
+            case s @ Some(other) =>
+              s -> other.get
           }
           .flatten
           .rethrow
