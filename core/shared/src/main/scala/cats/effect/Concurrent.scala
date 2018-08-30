@@ -19,6 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.concurrent.{Ref, Deferred}
 import cats.effect.ExitCase.Canceled
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.Callback.{rightUnit, successUnit}
