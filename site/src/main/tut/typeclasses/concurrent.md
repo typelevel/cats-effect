@@ -24,15 +24,15 @@ trait Concurrent[F[_]] extends Async[F] {
   def start[A](fa: F[A]): F[Fiber[F, A]]
   
   def race[A, B](lh: F[A], rh: F[B]): F[Either[A, B]]
-  def raceWith[A, B](lh: F[A], rh: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
+  def racePair[A, B](lh: F[A], rh: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[F]): F[A]
 }
 ```
 
 Notes: 
 
-- this type class is defined by `start` and by `raceWith`
-- `race` is derived from `raceWith`
+- this type class is defined by `start` and by `racePair`
+- `race` is derived from `racePair`
 - `cancelable` is derived from `asyncF` and from `bracketCase`, however it is expected to be overridden in instances for optimization purposes
 
 ### Cancelable Builder
