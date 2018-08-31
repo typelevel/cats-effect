@@ -779,7 +779,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       fa.guaranteeCase(finalizer)
 
     final override def delay[A](thunk: => A): IO[A] =
-      IO(thunk)
+      IO.delay(thunk)
     final override def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
@@ -955,12 +955,21 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
+    * Suspends a synchronous side effect in `IO`.
+    *
+    * Alias for `IO.delay(body)`.
+    */
+  def apply[A](body: => A): IO[A] =
+    delay(body)
+
+  /**
    * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
-  def apply[A](body: => A): IO[A] = Delay(body _)
+  def delay[A](body: => A): IO[A] =
+    Delay(body _)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
