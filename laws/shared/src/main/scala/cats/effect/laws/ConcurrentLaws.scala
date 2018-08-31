@@ -20,6 +20,7 @@ package laws
 import cats.effect.concurrent.{Deferred, MVar, Semaphore}
 import cats.laws._
 import cats.syntax.all._
+import cats.effect.implicits._
 
 import scala.Predef.{identity => id}
 import scala.concurrent.Promise
@@ -99,6 +100,21 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def startCancelIsUnit[A](fa: F[A]) = {
     F.start(fa).flatMap(_.cancel) <-> F.unit
+  }
+
+  def cancelJoinCancelsFiber[A](a: A) = {
+    val fa = for {
+      latch1 <- Deferred[F, Unit]
+      latch2 <- Deferred[F, Unit]
+      result <- Deferred[F, A]
+      nonTerminatingUnlessInterrupted = F.cancelable[A](cb => result.complete(a))
+      fiber <- (latch1.complete(()) *> nonTerminatingUnlessInterrupted).start
+      waitFiber <- (latch1.get *> latch2.complete(()) *> fiber.join).start
+      _ <- latch2.get *> waitFiber.cancel
+      res <- result.get
+    } yield res
+
+    fa <-> a.pure[F]
   }
 
   def uncancelableMirrorsSource[A](fa: F[A]) = {
