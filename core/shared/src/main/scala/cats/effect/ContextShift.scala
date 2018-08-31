@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monad, Monoid}
+import cats.{Applicative, Functor, Monad, Monoid, ~>}
 import cats.data._
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
