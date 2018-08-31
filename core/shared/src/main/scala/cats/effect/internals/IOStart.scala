@@ -51,10 +51,7 @@ private[effect] object IOStart {
         case Some(value) =>
           cb.async(value.get)
         case None =>
-          // Cancellation needs to be linked to the active task
-          ctx.push(conn.cancel)
           p.future.onComplete { r =>
-            ctx.pop()
             cb(r.get)
           }
       }

@@ -48,6 +48,41 @@ class FiberTests extends BaseTestsSuite {
     MonoidTests[Fiber[IO, Int]].monoid
   })
 
+  testAsync("Canceling join does not cancel the source fiber") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
+    var fiberCanceled = false
+    var joinCanceled = false
+    val fiberFinalisersInstalled = Promise[Unit]()
+    val joinFinalisersInstalled = Promise[Unit]()
+
+    def waitUnlessInterrupted = IO.cancelable[Unit](cb => IO { fiberCanceled = true })
+    def wait(p: Promise[Unit]) = IO.fromFuture(IO.pure(p.future))
+    def signal(p: Promise[Unit]) = IO(p.success(()))
+
+    val fa = for {
+      fiber <- {
+        signal(fiberFinalisersInstalled) *>
+        waitUnlessInterrupted
+      }.start
+      joinFiber <- {
+        wait(fiberFinalisersInstalled) *>
+        signal(joinFinalisersInstalled) *>
+        fiber.join.guaranteeCase {
+          case ExitCase.Canceled => IO { joinCanceled = true }
+          case _ => IO.unit
+        }
+      }.start
+      _ <- wait(joinFinalisersInstalled) *> joinFiber.cancel
+    } yield ()
+
+    fa.unsafeToFuture
+    ec.tick()
+
+    joinCanceled shouldBe true
+    fiberCanceled shouldBe false
+  }
+
   testAsync("Applicative[Fiber[IO, ?].map2 preserves both cancelation tokens") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     var canceled = 0

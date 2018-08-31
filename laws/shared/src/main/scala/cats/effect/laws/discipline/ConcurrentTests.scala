@@ -66,7 +66,6 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
           "start then join is identity" -> forAll(laws.startJoinIsIdentity[A] _),
           "join is idempotent" -> forAll(laws.joinIsIdempotent[A] _),
           "start.flatMap(_.cancel) is unit" -> forAll(laws.startCancelIsUnit[A] _),
-          "cancel join" -> forAll(laws.cancelJoinCancelsFiber[A] _),
           "uncancelable mirrors source" -> forAll(laws.uncancelableMirrorsSource[A] _),
           "acquire of bracket is not cancelable" -> forAll(laws.acquireIsNotCancelable[A] _),
           "release of bracket is not cancelable" -> forAll(laws.releaseIsNotCancelable[A] _),
