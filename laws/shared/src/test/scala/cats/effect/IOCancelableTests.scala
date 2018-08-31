@@ -65,21 +65,6 @@ class IOCancelableTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("uncancelable") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-
-    check { (fa: IO[Int]) =>
-      val received =
-        for {
-          f <- (fa <* IO.cancelBoundary).uncancelable.start
-          _ <- f.cancel
-          a <- f.join
-        } yield a
-
-      received <-> fa
-    }
-  }
-
   testAsync("task.start.flatMap(id) <-> task") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
