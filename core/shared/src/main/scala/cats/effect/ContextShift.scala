@@ -61,6 +61,11 @@ trait ContextShift[F[_]] {
    * @param fa  Computation to evaluate using `ec`
    */
   def evalOn[A](ec: ExecutionContext)(fa: F[A]): F[A]
+  
+  /**
+   * `evalOn` as a natural transformation.
+   */
+  def evalOnK(ec: ExecutionContext): F ~> F = λ[F ~> F](evalOn)
 }
 
 object ContextShift {
