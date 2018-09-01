@@ -357,11 +357,11 @@ can be seen, `IO` allows very precise control over the evaluation.
 implementation detail:
 
 1. not all `IO` tasks are cancelable. Cancellation status is only checked *after*
-asynchronous boundaries. It can be achieved in following way:
+asynchronous boundaries. It can be achieved in the following way:
   - Building it with `IO.cancelable`, `IO.async`, `IO.asyncF` or `IO.bracket`
   - Using `IO.cancelBoundary` or `IO.shift`
   
-  Note that second point is the consequence of the first one and anything that involves
+  Note that the second point is the consequence of the first one and anything that involves
   those operations is also possible to cancel. It includes, but is not limited to
   waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
   
