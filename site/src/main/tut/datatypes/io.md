@@ -356,14 +356,23 @@ can be seen, `IO` allows very precise control over the evaluation.
 `IO` can describe interruptible asynchronous processes. As an
 implementation detail:
 
-1. not all `IO` tasks are cancelable, only tasks built with
-   `IO.cancelable` can cancel the evaluation
-  - should go without saying (after point 1) that `flatMap` chains are
-    not auto-cancelable
-  - if this is a problem, `flatMap` loops can be made cancelable by
-    using `IO.cancelBoundary`    
+1. not all `IO` tasks are cancelable. Cancellation status is only checked *after*
+asynchronous boundaries. It can be achieved in following way:
+  - Building it with `IO.cancelable`, `IO.async`, `IO.asyncF` or `IO.bracket`
+  - Using `IO.cancelBoundary` or `IO.shift`
+  
+  Note that second point is the consequence of the first one and anything that involves
+  those operations is also possible to cancel. It includes, but is not limited to
+  waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
+  
+  We should also note that `flatMap` chains are not auto-cancelable. Asynchronous
+  boundaries are important for fairness and it's not reasonable to expect interruption
+  in its' absence. With `IO`, fairness needs to be managed explicitly, the protocol being
+  easy to follow and predictable in a WYSIWYG fashion. Try to avoid very long, 
+  or never-ending loops without it.
+  
 2. `IO` tasks that are cancelable, usually become non-terminating on
-   `cancel`   
+   `cancel`
     
 Also this might be a point of confusion for folks coming from Java and
 that expect the features of `Thread.interrupt` or of the old and
@@ -371,6 +380,8 @@ deprecated `Thread.stop`:
 
 `IO` cancellation does NOT work like that, as thread interruption in
 Java is inherently *unsafe, unreliable and not portable*!
+
+Next subsections describe cancellation-related operations in more depth.
 
 ### Building cancelable IO tasks
 
@@ -592,7 +603,7 @@ Implementation notes:
 ### runCancelable & unsafeRunCancelable
 
 The above is the pure `cancel`, accessible via `Fiber`. However the
-second way to access cancellation and thus interrupt tasks is via
+second way to access cancellation token and thus interrupt tasks is via
 `runCancelable` (the pure version) and `unsafeRunCancelable` (the
 unsafe version).
 
@@ -677,8 +688,14 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
   }
 ```
 
-With `IO`, fairness needs to be managed explicitly, the protocol being
-easy to follow and predictable in a WYSIWYG fashion.
+As mentioned at the very beginning of this section, fairness needs to be managed explicitly, 
+the protocol being easy to follow and predictable in a WYSIWYG fashion.
+
+#### Comparison to IO.shift
+
+`IO.cancelBoundary` is essentially lighter version of `IO.shift` without 
+ability to shift into different thread pool. It is lighter in the sense that
+it will avoid doing logical fork.
 
 ### Race Conditions — race & racePair
 
