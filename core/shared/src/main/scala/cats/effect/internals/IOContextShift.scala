@@ -40,8 +40,4 @@ object IOContextShift {
   /** `ContextShift` builder. */
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)
-
-  /** Global instance, used in `IOApp`. */
-  lazy val global: ContextShift[IO] =
-    apply(ExecutionContext.Implicits.global)
 }

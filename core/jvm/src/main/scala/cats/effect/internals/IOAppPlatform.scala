@@ -18,10 +18,25 @@ package cats
 package effect
 package internals
 
+import scala.concurrent.ExecutionContext
+
 private[effect] object IOAppPlatform {
 
-  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
-    val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join).unsafeRunSync()
+  def main(args: Array[String], executionResource: Resource[SyncIO, ExecutionContext])(run: (List[String], ExecutionContext) => IO[ExitCode]): Unit = {
+    val (ec: ExecutionContext, shutdown: (ExitCase[Throwable] => SyncIO[Unit])) = {
+      def go[A](r: Resource[SyncIO, A]): (A, ExitCase[Throwable] => SyncIO[Unit]) = r match {
+        case Resource.Allocate(resource) =>
+          resource.unsafeRunSync()
+        case Resource.Bind(source, fs) =>
+          val (s, shutdownS) = go(source)
+          val (a, shutdownA) = go(fs(s))
+          (a, exitCase => shutdownA(exitCase).guaranteeCase(shutdownS))
+        case Resource.Suspend(resource) =>
+          go(resource.unsafeRunSync())
+      }
+      go(executionResource)
+    }
+    val code = mainFiber(args, shutdown)(run)(ec).flatMap(_.join).unsafeRunSync()
     if (code == 0) {
       // Return naturally from main. This allows any non-daemon
       // threads to gracefully complete their work, and managed
@@ -32,23 +47,25 @@ private[effect] object IOAppPlatform {
     }
   }
 
-  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
-    val io = run(args.toList).redeem(
+  def mainFiber(args: Array[String], shutdown: ExitCase[Throwable] => SyncIO[Unit])(run: (List[String], ExecutionContext) => IO[ExitCode])(implicit ec: ExecutionContext): IO[Fiber[IO, Int]] = {
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+    val io = run(args.toList, ec).redeem(
       e => {
+        try shutdown(ExitCase.Error(e)).unsafeRunSync()
+        catch { case e2: Throwable => Logger.reportFailure(e2) }
         Logger.reportFailure(e)
         ExitCode.Error.code
       },
-      r => r.code)
+      r => {
+        try shutdown(ExitCase.Completed).unsafeRunSync()
+        catch { case e2: Throwable => Logger.reportFailure(e2) }
+        r.code
+      })
 
-    io.start(contextShift.value).flatMap { fiber =>
+    io.start.flatMap { fiber =>
       installHook(fiber).map(_ => fiber)
     }
   }
-
-  // both lazily initiated on JVM platform to prevent
-  // warm-up of underlying default EC's for code that does not require concurrency
-  def defaultTimer: Timer[IO] = IOTimer.global
-  def defaultContextShift: ContextShift[IO] = IOContextShift.global
 
   private def installHook(fiber: Fiber[IO, Int]): IO[Unit] =
     IO {

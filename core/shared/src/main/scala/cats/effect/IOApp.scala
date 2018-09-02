@@ -18,6 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals.IOAppPlatform
+import scala.concurrent.ExecutionContext
 
 /**
  * `App` type that runs a [[cats.effect.IO]].  Shutdown occurs after
@@ -57,14 +58,17 @@ trait IOApp {
    *
    * @return the [[cats.effect.ExitCode]] the JVM exits with
    */
-  def run(args: List[String]): IO[ExitCode]
+  def run(args: List[String])(implicit executionContext: ExecutionContext): IO[ExitCode]
+
+  protected def executionResource: Resource[SyncIO, ExecutionContext] =
+    Resource.liftF(SyncIO(ExecutionContext.global))
 
   /**
    * The main method that runs the `IO` returned by [[run]] and exits
    * the JVM with the resulting code on completion.
    */
   final def main(args: Array[String]): Unit =
-    IOAppPlatform.main(args, Eval.later(contextShift), Eval.later(timer))(run)
+    IOAppPlatform.main(args, executionResource)((args, ec) => run(args)(ec))
 
   /**
    * Provides an implicit [[ContextShift]] instance for the app.
@@ -76,8 +80,8 @@ trait IOApp {
    * thread-pool on top of the JVM, or to customize the run-loop on
    * top of JavaScript.
    */
-  protected implicit def contextShift: ContextShift[IO] =
-    IOAppPlatform.defaultContextShift
+  protected implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
+    IO.contextShift(ec)
 
   /**
    * Provides an implicit [[Timer]] instance for the app.
@@ -93,6 +97,6 @@ trait IOApp {
    * On top of JavaScript the default timer will simply use the standard
    * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
    */
-  protected implicit def timer: Timer[IO] =
-    IOAppPlatform.defaultTimer
+  protected implicit def timer(implicit ec: ExecutionContext): Timer[IO] =
+    IO.timer(ec)
 }

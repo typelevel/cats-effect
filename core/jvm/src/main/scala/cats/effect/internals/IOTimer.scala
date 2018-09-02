@@ -59,10 +59,6 @@ private[internals] object IOTimer {
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     new IOTimer(ec, sc)
 
-  /** Global instance, used by `IOApp`. */
-  lazy val global: Timer[IO] =
-    apply(ExecutionContext.Implicits.global)
-
   private lazy val scheduler: ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
