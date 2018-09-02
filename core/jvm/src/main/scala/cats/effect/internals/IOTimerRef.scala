@@ -34,7 +34,7 @@ private[effect] trait IOTimerRef {
    * @param ec is the execution context used for actual execution
    *        tasks (e.g. bind continuations)
    */
-  def timer(ec: ExecutionContext): Timer[IO] =
+  implicit def timer(implicit ec: ExecutionContext): Timer[IO] =
     IOTimer(ec)
 
   /**

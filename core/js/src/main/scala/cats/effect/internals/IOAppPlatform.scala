@@ -19,13 +19,16 @@ package effect
 package internals
 
 import cats.implicits._
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.scalajs.js
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String], cs: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
-    val io = mainFiber(args, cs, timer)(run).flatMap { fiber =>
-      installHandler(fiber) *> fiber.join
+  def main(args: Array[String], executionResource: Resource[IO, ExecutionContext])(run: (List[String], ExecutionContext) => IO[ExitCode]): Unit = {
+    val io = executionResource.use { implicit ec =>
+      mainFiber(args)(run).flatMap { fiber =>
+        installHandler(fiber) *> fiber.join
+      }
     }
     io.unsafeRunAsync {
       case Left(t) =>
@@ -38,30 +41,27 @@ private[effect] object IOAppPlatform {
     }
   }
 
-  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String])(run: (List[String], ExecutionContext) => IO[ExitCode])(implicit ec: ExecutionContext): IO[Fiber[IO, Int]] = {
     // An infinite heartbeat to keep main alive.  This is similar to
     // `IO.never`, except `IO.never` doesn't schedule any tasks and is
     // insufficient to keep main alive.  The tick is fast enough that
     // it isn't silently discarded, as longer ticks are, but slow
     // enough that we don't interrupt often.  1 hour was chosen
     // empirically.
-    def keepAlive: IO[Nothing] = timer.value.sleep(1.hour) >> keepAlive
+    def keepAlive: IO[Nothing] = IO.timer(ec).sleep(1.hour) >> keepAlive
 
-    val program = run(args.toList).handleErrorWith {
+    val program = run(args.toList, ec).handleErrorWith {
       t => IO(Logger.reportFailure(t)) *> IO.pure(ExitCode.Error)
     }
 
-    IO.race(keepAlive, program)(contextShift.value).flatMap {
+    IO.race(keepAlive, program).flatMap {
       case Left(_) =>
         // This case is unreachable, but scalac won't let us omit it.
         IO.raiseError(new AssertionError("IOApp keep alive failed unexpectedly."))
       case Right(exitCode) =>
         IO.pure(exitCode.code)
-    }.start(contextShift.value)
+    }.start
   }
-
-  val defaultTimer: Timer[IO] = IOTimer.global
-  val defaultContextShift: ContextShift[IO] = IOContextShift.global
 
   private def installHandler(fiber: Fiber[IO, Int]): IO[Unit] = {
     def handler(code: Int) = () =>
