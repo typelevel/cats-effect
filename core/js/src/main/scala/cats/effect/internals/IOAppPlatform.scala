@@ -24,11 +24,22 @@ import scala.concurrent.duration._
 import scala.scalajs.js
 
 private[effect] object IOAppPlatform {
-  def main(args: Array[String], executionResource: Resource[IO, ExecutionContext])(run: (List[String], ExecutionContext) => IO[ExitCode]): Unit = {
-    val io = executionResource.use { implicit ec =>
-      mainFiber(args)(run).flatMap { fiber =>
-        installHandler(fiber) *> fiber.join
+  def main(args: Array[String], executionResource: Resource[SyncIO, ExecutionContext])(run: (List[String], ExecutionContext) => IO[ExitCode]): Unit = {
+    val (ec: ExecutionContext, shutdown: (ExitCase[Throwable] => SyncIO[Unit])) = {
+      def go[A](r: Resource[SyncIO, A]): (A, ExitCase[Throwable] => SyncIO[Unit]) = r match {
+        case Resource.Allocate(resource) =>
+          resource.unsafeRunSync()
+        case Resource.Bind(source, fs) =>
+          val (s, shutdownS) = go(source)
+          val (a, shutdownA) = go(fs(s))
+          (a, exitCase => shutdownA(exitCase).guaranteeCase(shutdownS))
+        case Resource.Suspend(resource) =>
+          go(resource.unsafeRunSync())
       }
+      go(executionResource)
+    }
+    val io = mainFiber(args, shutdown)(run)(ec).flatMap { fiber =>
+      installHandler(fiber) *> fiber.join
     }
     io.unsafeRunAsync {
       case Left(t) =>
@@ -41,7 +52,9 @@ private[effect] object IOAppPlatform {
     }
   }
 
-  def mainFiber(args: Array[String])(run: (List[String], ExecutionContext) => IO[ExitCode])(implicit ec: ExecutionContext): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], shutdown: ExitCase[Throwable] => SyncIO[Unit])(run: (List[String], ExecutionContext) => IO[ExitCode])(implicit ec: ExecutionContext): IO[Fiber[IO, Int]] = {
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+
     // An infinite heartbeat to keep main alive.  This is similar to
     // `IO.never`, except `IO.never` doesn't schedule any tasks and is
     // insufficient to keep main alive.  The tick is fast enough that

@@ -1364,7 +1364,7 @@ object IO extends IOInstances {
    *        tasks (e.g. bind continuations) and can be backed by the
    *        user's own thread-pool
    */
-  implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
+  def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

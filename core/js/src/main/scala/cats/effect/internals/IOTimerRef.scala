@@ -34,5 +34,5 @@ private[effect] trait IOTimerRef {
    * @param ec is an execution context that gets used for
    *        evaluating the `sleep` tick
    */
-  implicit def timer(implicit ec: ExecutionContext): Timer[IO] = new IOTimer(ec)
+  def timer(ec: ExecutionContext): Timer[IO] = new IOTimer(ec)
 }

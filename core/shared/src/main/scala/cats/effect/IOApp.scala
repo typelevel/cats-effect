@@ -60,7 +60,8 @@ trait IOApp {
    */
   def run(args: List[String])(implicit executionContext: ExecutionContext): IO[ExitCode]
 
-  protected def executionResource: Resource[IO, ExecutionContext]
+  protected def executionResource: Resource[SyncIO, ExecutionContext] =
+    Resource.liftF(SyncIO(ExecutionContext.global))
 
   /**
    * The main method that runs the `IO` returned by [[run]] and exits
@@ -68,4 +69,34 @@ trait IOApp {
    */
   final def main(args: Array[String]): Unit =
     IOAppPlatform.main(args, executionResource)((args, ec) => run(args)(ec))
+
+  /**
+   * Provides an implicit [[ContextShift]] instance for the app.
+   *
+   * The default is lazily constructed from the global execution context
+   * (i.e. `scala.concurrent.ExecutionContext.Implicits.global`).
+   *
+   * Users can override this instance in order to customize the main
+   * thread-pool on top of the JVM, or to customize the run-loop on
+   * top of JavaScript.
+   */
+  protected implicit def contextShift(implicit ec: ExecutionContext): ContextShift[IO] =
+    IO.contextShift(ec)
+
+  /**
+   * Provides an implicit [[Timer]] instance for the app.
+   *
+   * Users can override this instance in order to customize the
+   * underlying scheduler being used.
+   *
+   * The default on top of the JVM uses an internal scheduler built with Java's
+   * [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Executors.html#newScheduledThreadPool-int- Executors.newScheduledThreadPool]]
+   * (configured with one or two threads) and that defers the execution of the
+   * scheduled ticks (the bind continuations get shifted) to Scala's `global`.
+   *
+   * On top of JavaScript the default timer will simply use the standard
+   * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
+   */
+  protected implicit def timer(implicit ec: ExecutionContext): Timer[IO] =
+    IO.timer(ec)
 }
