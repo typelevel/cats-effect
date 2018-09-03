@@ -17,36 +17,29 @@
 package cats
 package effect
 
-import scala.concurrent.ExecutionContext
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
 import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
+  val trampoline = TrampolineEC.immediate
+
   test("exits with specified code") {
-    IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ => IO.pure(ExitCode(42)))
-      .flatMap(_.join)
-      .unsafeToFuture
-      .map(_ shouldEqual 42)
+    IOAppPlatform.main(Array.empty, trampoline) { (_, _) =>
+      IO.pure(ExitCode(42))
+    }.unsafeToFuture.map(_ shouldEqual 42)
   }
 
   test("accepts arguments") {
-    IOAppPlatform.mainFiber(Array("1", "2", "3"), Eval.now(implicitly), Eval.now(implicitly))(args =>
-      IO.pure(ExitCode(args.mkString.toInt)))
-      .flatMap(_.join)
-      .unsafeToFuture
-      .map(_ shouldEqual 123)
+    IOAppPlatform.main(Array("1", "2", "3"), trampoline) { (_, args) =>
+      IO.pure(ExitCode(args.mkString.toInt))
+    }.unsafeToFuture.map(_ shouldEqual 123)
   }
 
   test("raised error exits with 1") {
     silenceSystemErr {
-      IOAppPlatform.mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
-        .flatMap(_.join)
-        .unsafeToFuture
-        .map(_ shouldEqual 1)
+      IOAppPlatform.main(Array.empty, trampoline) { (_, _) =>
+        IO.raiseError(new Exception())
+      }.unsafeToFuture.map(_ shouldEqual 1)
     }
   }
-
-  override implicit def executionContext: ExecutionContext = TrampolineEC.immediate
-  implicit val timer: Timer[IO] = IO.timer(executionContext)
-  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 }
