@@ -63,7 +63,7 @@ private[internals] object IOTimer {
   lazy val global: Timer[IO] =
     apply(ExecutionContext.Implicits.global)
 
-  private lazy val scheduler: ScheduledExecutorService =
+  private[internals] lazy val scheduler: ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)

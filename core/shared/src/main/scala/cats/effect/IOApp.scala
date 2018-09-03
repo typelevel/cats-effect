@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.effect.internals.IOAppPlatform
+import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
 
 /**
  * `App` type that runs a [[cats.effect.IO]].  Shutdown occurs after
@@ -63,7 +63,7 @@ trait IOApp {
    * The main method that runs the `IO` returned by [[run]] and exits
    * the JVM with the resulting code on completion.
    */
-  final def main(args: Array[String]): Unit =
+  def main(args: Array[String]): Unit =
     IOAppPlatform.main(args, Eval.later(contextShift), Eval.later(timer))(run)
 
   /**
@@ -96,3 +96,5 @@ trait IOApp {
   protected implicit def timer: Timer[IO] =
     IOAppPlatform.defaultTimer
 }
+
+object IOApp extends IOAppCompanionPlatform
