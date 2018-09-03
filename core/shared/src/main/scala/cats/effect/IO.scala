@@ -1367,11 +1367,12 @@ object IO extends IOInstances {
    * Returns a [[ContextShift]] instance for [[IO]], built from a
    * Scala `ExecutionContext`.
    *
-   * NOTE: you don't need to build such instances when using [[IOApp]].
+   * NOTE: When using [[IOApp]], an appropriate implicit instance
+   * can be imported from `runtime`
    *
    * @param ec is the execution context used for the actual execution of
    *        tasks (e.g. bind continuations) and can be backed by the
-   *        user's own thread-pool
+   *        user's own thread pool
    */
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)

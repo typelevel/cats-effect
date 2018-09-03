@@ -63,15 +63,18 @@ private[internals] object IOTimer {
   lazy val global: Timer[IO] =
     apply(ExecutionContext.Implicits.global)
 
-  private lazy val scheduler: ScheduledExecutorService =
+  private[internals] def newScheduler(daemon: Boolean): ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
-        th.setName("cats-effect")
-        th.setDaemon(true)
+        th.setName(s"cats-effect-scheduler-${th.getId}")
+        th.setDaemon(daemon)
         th
       }
     })
+
+  private lazy val scheduler: ScheduledExecutorService =
+    newScheduler(daemon = true)
 
   private final class ShiftTick(
     conn: IOConnection,
