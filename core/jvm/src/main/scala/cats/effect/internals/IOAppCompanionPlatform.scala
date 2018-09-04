@@ -43,13 +43,8 @@ private[effect] trait IOAppCompanionPlatform {
      *   pool.awaitTermination(10, TimeUnit.SECONDS)
      * }).map(ExecutionContext.fromExecutorService)
      * }}}
-     *
-     * The default implementation uses `ExecutionContext.global`,
-     * which can't be shut down or awaited.  In this default implementation,
-     * any pending tasks are dropped when `run` completes.
      */
-    protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
-      defaultExecutionContext
+    protected def executionContextResource: Resource[SyncIO, ExecutionContext]
 
     /**
      * Provides a scheduler for this app to use.  This scheduler is
@@ -79,7 +74,7 @@ private[effect] trait IOAppCompanionPlatform {
      * [[executionContextResoruce]].  Outside `run`, this context will
      * reject all tasks.
      */
-    protected def executionContext: ExecutionContext =
+    protected final def executionContext: ExecutionContext =
       currentContext.get().executionContext
 
     /**
@@ -87,21 +82,21 @@ private[effect] trait IOAppCompanionPlatform {
      * [[schedulerResource]].  Outside `run`, this scheduler will
      * reject all tasks.
      */
-    protected def scheduler: ScheduledExecutorService =
+    protected final def scheduler: ScheduledExecutorService =
       currentContext.get().scheduler
 
     /**
      * The default [[ContextShift]] for this app.  Based on
      * [[executionContext]].
      */
-    override protected implicit def contextShift: ContextShift[IO] =
+    override protected final implicit def contextShift: ContextShift[IO] =
       currentContext.get().contextShift
 
     /**
      * The default [[Timer]] for this app.  Based on [[executionContext]]
      * and [[scheduler]].
      */
-    override protected implicit def timer: Timer[IO] =
+    override protected final implicit def timer: Timer[IO] =
       currentContext.get().timer
 
     /**
@@ -110,7 +105,7 @@ private[effect] trait IOAppCompanionPlatform {
      * blocked until both resources are fully released, permitting a
      * graceful shutdown of the application.
      */
-    override def main(args: Array[String]): Unit = {
+    override final def main(args: Array[String]): Unit = synchronized {
       val mainIO = executionContextResource.use { ec =>
         schedulerResource.use { sc =>
           val init = SyncIO {
@@ -126,13 +121,10 @@ private[effect] trait IOAppCompanionPlatform {
     }
   }
 
-  private[this] val defaultExecutionContext: Resource[SyncIO, ExecutionContext] =
-    Resource.liftF(SyncIO(ExecutionContext.global))
-
   private[this] val defaultScheduler: Resource[SyncIO, ScheduledExecutorService] =
     Resource.liftF(SyncIO(IOTimer.scheduler))
 
-  private class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
+  private final class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
     val timer: Timer[IO] = IO.timer(executionContext, scheduler)
     val contextShift: ContextShift[IO] = IO.contextShift(executionContext)
   }
