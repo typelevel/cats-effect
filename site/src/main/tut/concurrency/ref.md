@@ -6,6 +6,7 @@ source: "shared/src/main/scala/cats/effect/concurrent/Ref.scala"
 scaladoc: "#cats.effect.concurrent.Ref"
 ---
 
+{:.responsive-pic}
 ![concurrency ref](../img/concurrency-ref.png)
 
 An asynchronous, concurrent mutable reference.

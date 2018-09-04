@@ -6,6 +6,7 @@ source: "shared/src/main/scala/cats/effect/concurrent/MVar.scala"
 scaladoc: "#cats.effect.concurrent.MVar"
 ---
 
+{:.responsive-pic}
 ![concurrency mvar](../img/concurrency-mvar.png)
 
 An `MVar` is a mutable location that can be empty or contain a value,
