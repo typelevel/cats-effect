@@ -30,13 +30,28 @@ private[effect] object IOAppPlatform {
     io.unsafeRunAsync {
       case Left(t) =>
         Logger.reportFailure(t)
-        sys.exit(ExitCode.Error.code)
-      case Right(0) =>
-        ()
+        setExitCode(ExitCode.Error.code)
       case Right(code) =>
-        sys.exit(code)
+        setExitCode(code)
     }
   }
+
+  /**
+   * Sets the exit code with `process.exitCode = code` for runtimes
+   * that support it.  This allows a graceful shutdown with a specific
+   * exit code.
+   *
+   * If the call is not supported, does a `sys.exit(code)` on any
+   * non-zero exit code.
+   *
+   * @see https://nodejs.org/api/process.html#process_process_exitcode
+   **/
+  private def setExitCode(code: Int): Unit =
+    try js.Dynamic.global.process.exitCode = code
+    catch {
+      case _: js.JavaScriptException =>
+        if (code != 0) sys.exit(code)
+    }
 
   def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
     // An infinite heartbeat to keep main alive.  This is similar to
