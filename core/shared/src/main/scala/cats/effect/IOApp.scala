@@ -61,18 +61,18 @@ trait IOApp {
 
   /**
    * The main method that runs the `IO` returned by [[run]] and exits
-   * the JVM with the resulting code on completion.
+   * the app with the resulting code on completion.
    */
   def main(args: Array[String]): Unit =
     IOAppPlatform.main(args, Eval.later(contextShift), Eval.later(timer))(run)
 
   /**
-   * Provides an implicit [[ContextShift]] instance for the app.
+   * Provides an implicit [[ContextShift]] for the app.
    *
    * The default is lazily constructed from the global execution context
    * (i.e. `scala.concurrent.ExecutionContext.Implicits.global`).
    *
-   * Users can override this instance in order to customize the main
+   * Users can override this value in order to customize the main
    * thread-pool on top of the JVM, or to customize the run-loop on
    * top of JavaScript.
    */
@@ -80,9 +80,9 @@ trait IOApp {
     IOAppPlatform.defaultContextShift
 
   /**
-   * Provides an implicit [[Timer]] instance for the app.
+   * Provides an implicit [[Timer]] for the app.
    *
-   * Users can override this instance in order to customize the
+   * Users can override this value in order to customize the
    * underlying scheduler being used.
    *
    * The default on top of the JVM uses an internal scheduler built with Java's
