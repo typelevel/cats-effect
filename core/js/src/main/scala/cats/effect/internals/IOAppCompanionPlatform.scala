@@ -18,4 +18,4 @@ package cats
 package effect
 package internals
 
-trait IOAppCompanionPlatform
+private[effect] trait IOAppCompanionPlatform
