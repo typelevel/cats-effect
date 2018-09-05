@@ -6,6 +6,9 @@ source: "shared/src/main/scala/cats/effect/concurrent/Deferred.scala"
 scaladoc: "#cats.effect.concurrent.Deferred"
 ---
 
+{:.responsive-pic}
+![concurrency deferred](../img/concurrency-deferred.png)
+
 A purely functional synchronization primitive which represents a single value which may not yet be available.
 
 When created, a `Deferred` is empty. It can then be completed exactly once, and never be made empty again.
