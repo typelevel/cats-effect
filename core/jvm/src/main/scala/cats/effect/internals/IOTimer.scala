@@ -67,7 +67,7 @@ private[internals] object IOTimer {
     Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
-        th.setName("cats-effect")
+        th.setName(s"cats-effect-scheduler-${th.getId}")
         th.setDaemon(true)
         th
       }
