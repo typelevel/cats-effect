@@ -19,6 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.concurrent.Ref
 import cats.syntax.all._
 
 /**
@@ -53,6 +54,49 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
 }
 
 object Sync {
+
+  /**
+    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
+    * bound, the effect `f` will be performed at most once (when the
+    * inner `F[A]` is bound the first time).
+    *
+    * This has to spin if there are two concurrent evaluations.
+    *
+    * This method can be unsafe in cases with concurrency and when there is
+    * a single thread of execution, e.g. an ExecutionContext with 1 thread or in
+    * scala-js.
+    */
+  def memoize[F[_], A](f: F[A])(implicit F: Sync[F]): F[F[A]] = {
+    sealed trait SpinState
+    case object Unset extends SpinState
+    case class Error(throwable: Throwable) extends SpinState
+    case object Evaluating extends SpinState
+    case class Finished(result: A) extends SpinState
+
+    Ref.of[F, SpinState](Unset).map { ref =>
+      lazy val spin: F[A] =
+        ref.access.flatMap {
+          case (Unset, set) =>
+            set(Evaluating).flatMap {
+              case true =>
+                // we got the lock
+                f.attempt
+                  .flatTap {
+                    case Right(a) => ref.set(Finished(a))
+                    case Left(err) => ref.set(Error(err))
+                  }
+                  .rethrow
+              case false =>
+                spin
+            }
+          case (Finished(a), _) => F.pure(a)
+          case (Error(err), _) => F.raiseError(err)
+          case (Evaluating, _) => spin
+        }
+
+      spin
+    }
+  }
 
   /**
    * [[Sync]] instance built for `cats.data.EitherT` values initialized
