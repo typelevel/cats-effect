@@ -28,8 +28,6 @@ val CompileTime = config("CompileTime").hide
 
 val CatsVersion = "1.3.0"
 val SimulacrumVersion = "0.13.0"
-val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.10.0"
 
 val ScalaTestVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
@@ -37,6 +35,22 @@ val ScalaTestVersion = Def.setting{
       "3.0.5"
     case _ =>
       "3.0.6-SNAP1"
+  }
+}
+val ScalaCheckVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.13.5"
+    case _ =>
+      "1.14.0"
+  }
+}
+val DisciplineVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "0.9.0"
+    case _ =>
+      "0.10.0"
   }
 }
 
@@ -476,8 +490,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
 
       "org.typelevel"  %%% "cats-laws"  % CatsVersion             % "test",
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value  % "test",
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion       % "test",
-      "org.typelevel"  %%% "discipline" % DisciplineVersion       % "test"),
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value % "test",
+      "org.typelevel"  %%% "discipline" % DisciplineVersion.value % "test"),
 
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -509,8 +523,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline" % DisciplineVersion,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value,
+      "org.typelevel"  %%% "discipline" % DisciplineVersion.value,
+
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
