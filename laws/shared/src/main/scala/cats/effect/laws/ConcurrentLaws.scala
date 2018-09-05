@@ -139,7 +139,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         task   = F.bracket(latch.complete(()))(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
         _     <- latch.get
-        _     <- fiber.cancel
+        _     <- F.start(fiber.cancel)
         _     <- contextShift.shift
         _     <- mVar.take
         out   <- mVar.take
