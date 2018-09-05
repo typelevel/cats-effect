@@ -28,11 +28,11 @@ import cats.laws.discipline._
 
 abstract class MemoizeTestsBase extends BaseTestsSuite {
 
-  def method: String
+  def variant: String
 
   def memoize[A](fa: IO[A])(implicit F: Concurrent[IO]): IO[IO[A]]
 
-  testAsync(s"Concurrent.$method does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
+  testAsync(s"$variant.memoize does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     val timer = ec.timer[IO]
 
@@ -49,7 +49,7 @@ abstract class MemoizeTestsBase extends BaseTestsSuite {
     result.value shouldBe Some(Success(0))
   }
 
-  testAsync(s"Concurrent.$method evalutes effect once if inner `F[A]` is bound twice"){ implicit ec =>
+  testAsync(s"$variant.memoize evalutes effect once if inner `F[A]` is bound twice"){ implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
     val prog = for {
@@ -69,7 +69,7 @@ abstract class MemoizeTestsBase extends BaseTestsSuite {
     result.value shouldBe Some(Success((1, 1, 1)))
   }
 
-  testAsync(s"Concurrent.$method effect evaluates effect once if the inner `F[A]` is bound twice (race)" ){ implicit ec =>
+  testAsync(s"$variant.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" ){ implicit ec =>
     implicit val cs = ec.contextShift[IO]
     val timer = ec.timer[IO]
 
@@ -91,22 +91,35 @@ abstract class MemoizeTestsBase extends BaseTestsSuite {
     result.value shouldBe Some(Success((1, 1)))
   }
 
-  testAsync(s"Concurrent.$method and then flatten is identity") { implicit ec =>
+  testAsync(s"$variant.memoize and then flatten is identity") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     check { fa: IO[Int] =>
       memoize(fa).flatten <-> fa
     }
   }
+
+  testAsync(s"$variant.memoize completes with a shift") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+    check { fa: IO[Int] =>
+      memoize(IO.shift *> fa).flatten <-> fa
+    }
+  }
 }
 
 class MemoizeTests extends MemoizeTestsBase {
-  lazy val method = "memoize"
+  lazy val variant = "Concurrent"
   def memoize[A](fa: IO[A])(implicit F: Concurrent[IO]): IO[IO[A]] =
     Concurrent.memoize(fa)
 }
 
-class MemoizeSpinTests extends MemoizeTestsBase {
-  lazy val method = "memoizeSpin"
+class MemoizeAsyncTests extends MemoizeTestsBase {
+  lazy val variant = "Async"
   def memoize[A](fa: IO[A])(implicit F: Concurrent[IO]): IO[IO[A]] =
-    Concurrent.memoizeSpin(fa)
+    Async.memoize(fa)
+}
+
+class MemoizeSyncTests extends MemoizeTestsBase {
+  lazy val variant = "Sync"
+  def memoize[A](fa: IO[A])(implicit F: Concurrent[IO]): IO[IO[A]] =
+    Sync.memoize(fa)
 }

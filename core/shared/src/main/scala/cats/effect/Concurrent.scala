@@ -375,45 +375,6 @@ object Concurrent {
     }
 
   /**
-    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
-    * bound, the effect `f` will be performed at most once (when the
-    * inner `F[A]` is bound the first time).
-    *
-    * This has to spin if there are two concurrent evaluations.
-    */
-  def memoizeSpin[F[_], A](f: F[A])(implicit F: Sync[F]): F[F[A]] = {
-    sealed trait SpinState
-    case object Unset extends SpinState
-    case class Error(throwable: Throwable) extends SpinState
-    case object Evaluating extends SpinState
-    case class Finished(result: A) extends SpinState
-
-    Ref.of[F, SpinState](Unset).map { ref =>
-      lazy val spin: F[A] =
-        ref.access.flatMap {
-          case (Unset, set) =>
-            set(Evaluating).flatMap {
-              case true =>
-                // we got the lock
-                f.attempt
-                  .flatTap {
-                    case Right(a) => ref.set(Finished(a))
-                    case Left(err) => ref.set(Error(err))
-                  }
-                  .rethrow
-              case false =>
-                spin
-            }
-          case (Finished(a), _) => F.pure(a)
-          case (Error(err), _) => F.raiseError(err)
-          case (Evaluating, _) => spin
-        }
-
-      spin
-    }
-  }
-
-  /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
