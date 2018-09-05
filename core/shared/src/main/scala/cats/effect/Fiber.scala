@@ -57,7 +57,9 @@ trait Fiber[F[_], A] {
    * Triggers the cancellation of the fiber.
    *
    * Returns a new task that will complete when the cancellation is
-   * sent (but not when it is observed or acted upon).
+   * sent. Depending on the implementation, this task might await
+   * for all registered finalizers to finish, but this behavior
+   * is implementation dependent.
    *
    * Note that if the background process that's evaluating the result
    * of the underlying fiber is already complete, then there's nothing
