@@ -168,7 +168,7 @@
 functionality for synchronisation, which is instead handled by <a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>.
 For this reason, a <code>Ref</code> is always initialised to a value.</p><p>The default implementation is nonblocking and lightweight, consisting essentially
 of a purely functional wrapper over an <code>AtomicReference</code>.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -262,24 +262,6 @@ call to <code>access</code> uses its setter first.</p><p>Once it has noop'd or b
   <code>r.access.map(_._1) == r.get</code>
   <code>r.access.flatMap { case (v, setter) =&gt; setter(f(v)) } == r.tryUpdate(f).map(_.isDefined)</code>
 </p></div></div>
-    </li><li name="cats.effect.concurrent.Ref#compareAndSet" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="compareAndSet(expected:A,newValue:A):F[Boolean]"></a><a id="compareAndSet(A,A):F[Boolean]"></a>
-      <span class="permalink">
-      <a href="../../../cats/effect/concurrent/Ref.html#compareAndSet(expected:A,newValue:A):F[Boolean]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">abstract </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">compareAndSet</span><span class="params">(<span name="expected">expected: <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>, <span name="newValue">newValue: <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="scala.Boolean">Boolean</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Sets the value to <code>newValue</code> if the current value is <code>expected</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Sets the value to <code>newValue</code> if the current value is <code>expected</code>.
-Note: reference equality is used here.
-</p></div></div>
     </li><li name="cats.effect.concurrent.Ref#get" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="get:F[A]"></a>
       <span class="permalink">
@@ -314,23 +296,6 @@ completes immediately after being bound.
       </span>
       
       <p class="shortcomment cmt">Replaces the current value with <code>a</code>, returning the previous value.</p>
-    </li><li name="cats.effect.concurrent.Ref#lazySet" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="lazySet(a:A):F[Unit]"></a><a id="lazySet(A):F[Unit]"></a>
-      <span class="permalink">
-      <a href="../../../cats/effect/concurrent/Ref.html#lazySet(a:A):F[Unit]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">abstract </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">lazySet</span><span class="params">(<span name="a">a: <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Eventually sets the current value to the <code>a</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Eventually sets the current value to the <code>a</code>.</p><p>The returned action completes after the reference has been lazily set.
-</p></div></div>
     </li><li name="cats.effect.concurrent.Ref#modify" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="modify[B](f:A=&gt;(A,B)):F[B]"></a><a id="modify[B]((A)⇒(A,B)):F[B]"></a>
       <span class="permalink">

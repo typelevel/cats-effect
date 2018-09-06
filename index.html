@@ -156,6 +156,24 @@
 
 <p>cats-effect is a <a href="http://typelevel.org/">Typelevel</a> project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the Typelevel <a href="http://typelevel.org/conduct.html">Code of Conduct</a>.</p>
 
+<h3 id="contributing-documentation">Contributing documentation</h3>
+
+<p>The sources for the cats-effect microsite can be found in <code class="highlighter-rouge">site/src/main/tut</code>.
+The menu structure is in <code class="highlighter-rouge">site/src/main/resources/microsite/data/menu.yml</code>.</p>
+
+<p>You can build the microsite with <code class="highlighter-rouge">sbt microsite/makeMicrosite</code>.</p>
+
+<p>To preview your changes you need to have
+<a href="https://github.com/jekyll/jekyll">jekyll</a> installed. This depends on your
+platform, but assuming you have ruby installed it could be as simple as <code class="highlighter-rouge">gem
+install jekyll</code>.</p>
+
+<p>Start a local server by navigating to <code class="highlighter-rouge">site/target/site</code>, then run <code class="highlighter-rouge">jekyll
+serve</code>. Finally point your browser at
+<a href="http://localhost:4000/cats-effect/">http://localhost:4000/cats-effect/</a>.  Any
+changes should be picked up immediately when you re-run <code class="highlighter-rouge">sbt
+microsite/makeMicrosite</code>.</p>
+
 <h2 id="license">License</h2>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers

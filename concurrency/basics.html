@@ -64,7 +64,7 @@ is when we execute as many logical threads as the number of available native thr
 <p>For the above reasons, synchronous execution can perform much better than a parallel
 too much which won’t make your code magically faster.  The overhead of creating or switching threads is often greater than the speedup, so make sure to benchmark.</p>
 
-<p>Femember that threads are scarce resource on JVM. If you exploit them at every opportunity
+<p>Remember that threads are scarce resource on JVM. If you exploit them at every opportunity
 it may turn out that your most performance critical parts of the application suffer because the other part is
 doing a lot of work in parallel, taking precious native threads.</p>
 
@@ -191,7 +191,7 @@ Allowing different threads to advance their work is called <strong>fairness</str
 <span class="k">def</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">id</span><span class="o">)).</span><span class="n">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">repeat</span><span class="o">)</span>
 
-  <span class="n">repeat</span><span class="o">.</span><span class="n">start</span>
+  <span class="n">repeat</span><span class="o">.</span><span class="n">start</span><span class="o">(</span><span class="n">cs</span><span class="o">)</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -203,7 +203,7 @@ It will run on thread pool provided by <code class="highlighter-rouge">cs</code>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">prog</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 
 <span class="n">prog</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>

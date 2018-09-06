@@ -358,15 +358,26 @@ can be seen, <code class="highlighter-rouge">IO</code> allows very precise contr
 implementation detail:</p>
 
 <ol>
-  <li>not all <code class="highlighter-rouge">IO</code> tasks are cancelable, only tasks built with
-<code class="highlighter-rouge">IO.cancelable</code> can cancel the evaluation
+  <li>not all <code class="highlighter-rouge">IO</code> tasks are cancelable. Cancellation status is only checked <em>after</em>
+asynchronous boundaries. It can be achieved in the following way:
     <ul>
-      <li>should go without saying (after point 1) that <code class="highlighter-rouge">flatMap</code> chains are
- not auto-cancelable</li>
-      <li>if this is a problem, <code class="highlighter-rouge">flatMap</code> loops can be made cancelable by
- using <code class="highlighter-rouge">IO.cancelBoundary</code></li>
+      <li>Building it with <code class="highlighter-rouge">IO.cancelable</code>, <code class="highlighter-rouge">IO.async</code>, <code class="highlighter-rouge">IO.asyncF</code> or <code class="highlighter-rouge">IO.bracket</code></li>
+      <li>Using <code class="highlighter-rouge">IO.cancelBoundary</code> or <code class="highlighter-rouge">IO.shift</code></li>
     </ul>
   </li>
+</ol>
+
+<p>Note that the second point is the consequence of the first one and anything that involves
+  those operations is also possible to cancel. It includes, but is not limited to
+  waiting on <code class="highlighter-rouge">Mvar.take</code>, <code class="highlighter-rouge">Mvar.put</code> and <code class="highlighter-rouge">Deferred.get</code>.</p>
+
+<p>We should also note that <code class="highlighter-rouge">flatMap</code> chains are not auto-cancelable. Asynchronous
+  boundaries are important for fairness and it’s not reasonable to expect interruption
+  in its’ absence. With <code class="highlighter-rouge">IO</code>, fairness needs to be managed explicitly, the protocol being
+  easy to follow and predictable in a WYSIWYG fashion. Try to avoid very long, 
+  or never-ending loops without it.</p>
+
+<ol>
   <li><code class="highlighter-rouge">IO</code> tasks that are cancelable, usually become non-terminating on
 <code class="highlighter-rouge">cancel</code></li>
 </ol>
@@ -377,6 +388,8 @@ deprecated <code class="highlighter-rouge">Thread.stop</code>:</p>
 
 <p><code class="highlighter-rouge">IO</code> cancellation does NOT work like that, as thread interruption in
 Java is inherently <em>unsafe, unreliable and not portable</em>!</p>
+
+<p>Next subsections describe cancellation-related operations in more depth.</p>
 
 <h3 id="building-cancelable-io-tasks">Building cancelable IO tasks</h3>
 
@@ -593,7 +606,7 @@ alias for <code class="highlighter-rouge">lh.flatMap(_ =&gt; rh)</code></li>
 <h3 id="runcancelable--unsaferuncancelable">runCancelable &amp; unsafeRunCancelable</h3>
 
 <p>The above is the pure <code class="highlighter-rouge">cancel</code>, accessible via <code class="highlighter-rouge">Fiber</code>. However the
-second way to access cancellation and thus interrupt tasks is via
+second way to access cancellation token and thus interrupt tasks is via
 <code class="highlighter-rouge">runCancelable</code> (the pure version) and <code class="highlighter-rouge">unsafeRunCancelable</code> (the
 unsafe version).</p>
 
@@ -674,8 +687,14 @@ continuation to keep executing in case cancellation happened.</p>
   <span class="o">}</span>
 </code></pre></div></div>
 
-<p>With <code class="highlighter-rouge">IO</code>, fairness needs to be managed explicitly, the protocol being
-easy to follow and predictable in a WYSIWYG fashion.</p>
+<p>As mentioned at the very beginning of this section, fairness needs to be managed explicitly, 
+the protocol being easy to follow and predictable in a WYSIWYG fashion.</p>
+
+<h4 id="comparison-to-ioshift">Comparison to IO.shift</h4>
+
+<p><code class="highlighter-rouge">IO.cancelBoundary</code> is essentially lighter version of <code class="highlighter-rouge">IO.shift</code> without 
+ability to shift into different thread pool. It is lighter in the sense that
+it will avoid doing logical fork.</p>
 
 <h3 id="race-conditions--race--racepair">Race Conditions — race &amp; racePair</h3>
 
@@ -1277,7 +1296,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!
-// res88: cats.effect.CancelToken[cats.effect.IO] = IO$1436046103
+// res88: cats.effect.CancelToken[cats.effect.IO] = IO$73106899
 </span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>

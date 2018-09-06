@@ -211,7 +211,7 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
-                        <span class="separator"></span>
+                        <a class="object" href="IOApp$.html" title=""></a>
                         <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
                         <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
                       </li><li class="current-entities indented2">
@@ -264,7 +264,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -688,6 +688,26 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       </span>
       
       <p class="shortcomment cmt">Lifts any <code>IO</code> value into any data type implementing <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Lifts any <code>IO</code> value into any data type implementing <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>.</p><p>This is the default <code>Async.liftIO</code> implementation.
+</p></div></div>
+    </li><li name="cats.effect.Async#memoize" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="memoize[F[_],A](f:F[A])(implicitF:cats.effect.Async[F]):F[F[A]]"></a><a id="memoize[F[_],A](F[A])(Async[F]):F[F[A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async$.html#memoize[F[_],A](f:F[A])(implicitF:cats.effect.Async[F]):F[F[A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">memoize</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="f">f: <span class="extype" name="cats.effect.Async.memoize.F">F</span>[<span class="extype" name="cats.effect.Async.memoize.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.memoize.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.memoize.F">F</span>[<span class="extype" name="cats.effect.Async.memoize.F">F</span>[<span class="extype" name="cats.effect.Async.memoize.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Lazily memoizes <code>f</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Lazily memoizes <code>f</code>. For every time the returned <code>F[F[A]]</code> is
+bound, the effect <code>f</code> will be performed at most once (when the
+inner <code>F[A]</code> is bound the first time).</p><p>Note: This version of <code>memoize</code> does not support interruption.
+Use <code>Concurrent.memoize</code> if you need that.
 </p></div></div>
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>

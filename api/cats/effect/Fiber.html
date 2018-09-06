@@ -211,7 +211,7 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
-                        <span class="separator"></span>
+                        <a class="object" href="IOApp$.html" title=""></a>
                         <a class="trait" href="IOApp.html" title="App type that runs a cats.effect.IO."></a>
                         <a href="IOApp.html" title="App type that runs a cats.effect.IO.">IOApp</a>
                       </li><li class="current-entities indented2">
@@ -278,7 +278,7 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
   aftermath <span class="kw">&lt;-</span> fiber.join
 } <span class="kw">yield</span> {
   aftermath
-}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
+}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -347,8 +347,10 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
         <span class="name">cancel</span><span class="result">: <a href="index.html#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken</a>[<span class="extype" name="cats.effect.Fiber.F">F</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Triggers the cancellation of the fiber.</p><div class="fullcomment"><div class="comment cmt"><p>Triggers the cancellation of the fiber.</p><p>Returns a new task that will complete when the cancellation is
-sent (but not when it is observed or acted upon).</p><p>Note that if the background process that's evaluating the result
+      <p class="shortcomment cmt">Triggers the cancellation of the fiber.</p><div class="fullcomment"><div class="comment cmt"><p>Triggers the cancellation of the fiber.</p><p>Returns a new task that will trigger the cancellation upon
+evaluation. Depending on the implementation, this task might
+await for all registered finalizers to finish, but this behavior
+is implementation dependent.</p><p>Note that if the background process that's evaluating the result
 of the underlying fiber is already complete, then there's nothing
 to cancel.
 </p></div></div>

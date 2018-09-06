@@ -164,7 +164,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -580,7 +580,7 @@ technique.</p><pre>Ref[IO].of(<span class="num">10</span>) <span class="kw">&lt;
       <p class="shortcomment cmt">Like <code>apply</code> but returns the newly allocated ref directly instead of wrapping it in <code>F.delay</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Like <code>apply</code> but returns the newly allocated ref directly instead of wrapping it in <code>F.delay</code>.
 This method is considered unsafe because it is not referentially transparent -- it allocates
 mutable state.</p><p>This method uses the <a href="http://typelevel.org/cats/guidelines.html#partially-applied-type-params" target="_blank">Partially Applied Type Params technique</a>,
-so only effect type needs to be specified explicitly.</p><p>A care must be taken to preserve referential transparency:</p><pre><span class="kw">import</span> cats.effect.IO
+so only effect type needs to be specified explicitly.</p><p>Some care must be taken to preserve referential transparency:</p><pre><span class="kw">import</span> cats.effect.IO
 <span class="kw">import</span> cats.effect.concurrent.Ref
 
 <span class="kw">class</span> Counter <span class="kw">private</span> () {
@@ -592,7 +592,7 @@ so only effect type needs to be specified explicitly.</p><p>A care must be taken
 
 <span class="kw">object</span> Counter {
   <span class="kw">def</span> apply(): IO[Counter] = IO(<span class="kw">new</span> Counter)
-}</pre><p>Such usage is safe, as long as class constructor is not accessible and public one suspends creation in IO</p><p>The recommended alternative is accepting a <code>Ref[F, A]</code> as a parameter:</p><pre><span class="kw">class</span> Counter (count: Ref[IO, <span class="std">Int</span>]) {
+}</pre><p>Such usage is safe, as long as the class constructor is not accessible and the public one suspends creation in IO</p><p>The recommended alternative is accepting a <code>Ref[F, A]</code> as a parameter:</p><pre><span class="kw">class</span> Counter (count: Ref[IO, <span class="std">Int</span>]) {
   <span class="cmt">// same body</span>
 }
 

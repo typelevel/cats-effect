@@ -211,7 +211,7 @@
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
                         <a href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback).">IO</a>
                       </li><li class="current-entities indented2">
-                        <span class="separator"></span>
+                        <a class="object" href="IOApp$.html" title=""></a>
                         <a class="trait" href="" title="App type that runs a cats.effect.IO."></a>
                         <a href="" title="App type that runs a cats.effect.IO.">IOApp</a>
                       </li><li class="current-entities indented2">
@@ -241,14 +241,16 @@
           <div id="content">
             <body class="trait type">
       <div id="definition">
-        <div class="big-circle trait">t</div>
+        <a href="IOApp$.html" title="See companion object"><div class="big-circle trait-companion-object">t</div></a>
         <p id="owner"><a href="../index.html" class="extype" name="cats">cats</a>.<a href="index.html" class="extype" name="cats.effect">effect</a></p>
-        <h1>IOApp<span class="permalink">
+        <h1><a href="IOApp$.html" title="See companion object">IOApp</a><span class="permalink">
       <a href="../../cats/effect/IOApp.html" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span></h1>
-        <h3><span class="morelinks"></span></h3>
+        <h3><span class="morelinks"><div>
+            Companion <a href="IOApp$.html" title="See companion object">object IOApp</a>
+          </div></span></h3>
       </div>
 
       <h4 id="signature" class="signature">
@@ -279,7 +281,7 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
       <span class="kw">case</span> <span class="std">None</span> <span class="kw">=&gt;</span>
         IO(System.err.println(<span class="lit">"Usage: MyApp name"</span>)).as(ExitCode(<span class="num">2</span>))
     }
-}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0-RC3/core/shared/src/main/scala/cats/effect/IOApp.scala" target="_blank">IOApp.scala</a></dd></dl><div class="toggleContainer block">
+}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.0.0/core/shared/src/main/scala/cats/effect/IOApp.scala" target="_blank">IOApp.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -459,8 +461,8 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
         <span class="name">contextShift</span><span class="result">: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="IO.html" class="extype" name="cats.effect.IO">IO</a>]</span>
       </span>
       
-      <p class="shortcomment cmt">Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> instance for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> instance for the app.</p><p>The default is lazily constructed from the global execution context
-(i.e. <code>scala.concurrent.ExecutionContext.Implicits.global</code>).</p><p>Users can override this instance in order to customize the main
+      <p class="shortcomment cmt">Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><p>The default is lazily constructed from the global execution context
+(i.e. <code>scala.concurrent.ExecutionContext.Implicits.global</code>).</p><p>Users can override this value in order to customize the main
 thread-pool on top of the JVM, or to customize the run-loop on
 top of JavaScript.
 </p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
@@ -580,7 +582,7 @@ top of JavaScript.
       </a>
     </span>
       <span class="modifier_kind">
-        <span class="modifier">final </span>
+        <span class="modifier"></span>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
@@ -588,7 +590,7 @@ top of JavaScript.
       </span>
       
       <p class="shortcomment cmt">The main method that runs the <code>IO</code> returned by <a href="#run(args:List[String]):cats.effect.IO[cats.effect.ExitCode]" class="extmbr" name="cats.effect.IOApp#run">run</a> and exits
-the JVM with the resulting code on completion.</p>
+the app with the resulting code on completion.</p>
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>
       <span class="permalink">
@@ -674,7 +676,7 @@ the JVM with the resulting code on completion.</p>
         <span class="name">timer</span><span class="result">: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="IO.html" class="extype" name="cats.effect.IO">IO</a>]</span>
       </span>
       
-      <p class="shortcomment cmt">Provides an implicit <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for the app.</p><p>Users can override this instance in order to customize the
+      <p class="shortcomment cmt">Provides an implicit <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> for the app.</p><p>Users can override this value in order to customize the
 underlying scheduler being used.</p><p>The default on top of the JVM uses an internal scheduler built with Java's
 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Executors.html#newScheduledThreadPool-int-" target="_blank">Executors.newScheduledThreadPool</a>
 (configured with one or two threads) and that defers the execution of the
