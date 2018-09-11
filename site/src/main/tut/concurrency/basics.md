@@ -13,6 +13,9 @@ It is focused on using Scala with libraries in Cats-Effect ecosystem.
 
 ## Dictionary
 
+{:.responsive-pic}
+![concurrency vs parallelism](../img/concurrency-vs-parallelism.png)
+
 ### Parallelism
 Using multiple computational resources (like more processor cores) to perform a computation faster,
 usually executing at the same time.
@@ -89,6 +92,9 @@ In Scala, we avoid explicitly working with `Runnable` and use abstractions that 
 mentioned earlier.
 
 ### Choosing Thread Pool
+
+{:.responsive-pic}
+![thread pools](../img/concurrency-thread-pools.png)
 
 We can configure thread pools in multiple ways:
 
