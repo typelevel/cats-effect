@@ -36,6 +36,16 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
       }.unsafeToFuture.map(_ shouldBe 0)
     }
 
+    test(s"$label - tryAcquire with available permits") {
+      val n = 20
+      sc(30).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          t <- s.tryAcquire
+        } yield t
+      }.unsafeToFuture.map(_ shouldBe true)
+    }
+
     test(s"$label - tryAcquire with no available permits") {
       val n = 20
       sc(20).flatMap { s =>
