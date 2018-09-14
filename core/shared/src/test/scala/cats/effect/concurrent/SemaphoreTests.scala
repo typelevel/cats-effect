@@ -19,8 +19,9 @@ package effect
 package concurrent
 
 import cats.implicits._
-import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
-import scala.concurrent.ExecutionContext
+import org.scalatest.{Assertion, AsyncFunSuite, EitherValues, Matchers}
+
+import scala.concurrent.{ExecutionContext, Future}
 
 class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
@@ -35,6 +36,16 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
       }.unsafeToFuture.map(_ shouldBe 0)
     }
 
+    test(s"$label - tryAcquire with no available permits") {
+      val n = 20
+      sc(20).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          t <- s.tryAcquire
+        } yield t
+      }.unsafeToFuture.map(_ shouldBe false)
+    }
+
     test(s"$label - offsetting acquires/releases - acquires parallel with releases") {
       testOffsettingReleasesAcquires(
         (s, permits) => permits.traverse(s.acquireN).void,
@@ -47,7 +58,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         (s, permits) => Parallel.parTraverse(permits.reverse)(IO.shift *> s.releaseN(_)).void)
     }
 
-    def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]) = {
+    def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       sc(0).flatMap { s =>
         for {
