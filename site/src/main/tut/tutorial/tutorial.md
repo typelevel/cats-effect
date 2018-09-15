@@ -9,12 +9,22 @@ position: 2
 ## Introduction
 
 This tutorial tries to help newcomers to cats-effect to get familiar with its
-main concepts by means of code examples. The first one shows how we can use
-cats-effect to copy the contents from one file to another. That should help us
-to flex our muscles. The second one is a bit more elaborated. Step by step, we
-will build a light TCP server whose complexity will grow as we introduce more
-features. That growing complexity will help us to introduce more and more
-concepts from cats-effect.
+main concepts by means of code examples, in a learn-by-doing fashion. Two small
+programs will be coded. The first one copies the contents from one file to
+another, safely handling resources in the process. That should help us to flex
+our muscles. The second one is a bit more elaborated, it is a light TCP server
+able to attend concurrent connections. In both cases complexity will grow as we
+add more features, which will allow to introduce more and more concepts from
+cats-effect.
+
+This tutorial assumes certain familiarity with FP. It is also a good idea to
+read cats-effect documentation prior to starting this tutorial, at least the
+[excellent documentation about `IO` data
+type](https://typelevel.org/cats-effect/datatypes/io.html).
+
+Please read this tutorial as training material, not as a best-practices
+document. As you gain more experience with cats-effect, probably you will find
+your own solutions to deal with the problems presented in this tutorial.
 
 That said, let's go!
 
@@ -45,16 +55,28 @@ scalacOptions ++= Seq(
   "-Ypartial-unification")
 ```
 
-## Warming up: Copying contents of a file
+All code snippets in this tutorial can be pasted and compiled right in the scala
+console of the project defined above (or any similar one).
 
-First we will code a function that copies the content from a file to another
-file. The function takes as parameters the source and destination files. But
-this is functional programming! So invoking the function will not copy anything,
-instead it will return an `IO` instance that encapsulates all the side-effects
-involved (opening/closing files, copying content), that way _purity_ is kept.
-Only when that `IO` instance is evaluated all those side-effectul actions will
-be run. In our implementation the `IO` instance will return the amount of bytes
-copied upon execution, but this is just a design decission.
+## Copying contents of a file - safely handling resources
+
+Our goal is to create a program that copies files. So first we will work on a
+function that carries such task, and then we will create a program that can be
+invoked from the shell that uses that function.
+
+So first we must code the function that copies the content from a file to
+another file. The function takes as parameters the source and destination files.
+But this is functional programming! So invoking the function shall not copy
+anything, instead it will return an `IO` instance that encapsulates all the
+side-effects involved (opening/closing files, reading/writing content), that way
+_purity_ is kept.  Only when that `IO` instance is evaluated all those
+side-effectul actions will be run. In our implementation the `IO` instance will
+return the amount of bytes copied upon execution, but this is just a design
+decission. Of course errors can occur, but when working with any `IO` those
+should be embedded in the `IO` instance. That is, no exception is raised outside
+the `IO` and so no `try` (or the like) needs to be used when using the function,
+instead the `IO` evaluation will fail and the `IO` instance will carry the error
+raised.
 
 Now, the signature of our function looks like this:
 
@@ -69,7 +91,7 @@ Nothing scary, uh? As we said before, the function just returns an `IO`
 instance. When run, all side-effects will be actually executed and the `IO`
 instance will return the bytes copies in a `Long`. Note that`IO` is
 parameterized by the return type). Now, let's start implementing our funtion.
-First, we need to open two streams that will read and write file contents. 
+First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
 We consider opening an stream to be a side-effect action, so we have to
@@ -103,16 +125,18 @@ def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputSt
   } yield (inStream, outStream)
 ```
 
-We want to ensure that once we are done using each stream is closed, no matter
+We want to ensure that streams are closed once we are done using them, no matter
 what. That is precisely why we use `Resource` in both `inputStream` and
 `outputStream` functions, each one returning one `Resource` that encapsulates
 the actions for opening and then closing each stream.  `inputOutputStreams`
 encapsulates both resources in a single `Resource` instance that will be
-available once the creation has been successful. As seen in the code above
-`Resource` instances can be combined in for-comprehensions as they implement
-`flatMap`. Note also that when releasing resources we also take care of any
-possible error during the release itself. In this case we just 'swallow' the
-error, but normally it would be at least logged.
+available once the creation of both streams has been successful, and only in
+that case. As seen in the code above `Resource` instances can be combined in
+for-comprehensions as they implement `flatMap`. Note also that when releasing
+resources we must also take care of any possible error during the release
+itself, for example with the `handleErrorWith` call as we do in the code above.
+In this case we just 'swallow' the error, but normally it would be at least
+logged.
 
 Optionally we could have used `Resource.fromAutoCloseable` to define our
 resources, that method creates `Resource` instances over objects that implement
@@ -130,8 +154,8 @@ def inputStream(f: File): Resource[IO, FileInputStream] =
 That code is way simpler, but with that code we would not have control over what
 would happen if the closing operation throws an exception. Also it could be that
 we want to be aware when closing operations are being run, for example using
-logs. Those can be easily added to the release phase of a 'typical' `Resource`
-definition.
+logs. In contrast, using `Resource.make` allows to easily control the actions
+of the release phase.
 
 Let's go back to our `copy` function, which now looks like this:
 
@@ -146,11 +170,9 @@ def inputOutputStreams(in: File, out: File): Resource[IO, (InputStream, OutputSt
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
 
 def copy(origin: File, destination: File): IO[Long] = 
-  for {
-    count <- inputOutputStreams(origin, destination).use { case (in, out) => 
-               transfer(in, out)
-             }
-  } yield count
+  inputOutputStreams(origin, destination).use { case (in, out) => 
+    transfer(in, out)
+  }
 ```
 
 The new method `transfer` will perform the actual copying of data, once the
@@ -163,20 +185,26 @@ opened.  On the other hand, if there is any issue opening the output file, then
 the input stream will be closed.
 
 ### What about `bracket`?
-Now, if you are familiar with cats-effect's `bracket` you can be wondering why
-we are not using it as it looks so similar to `Resource`. There are three stages
-when using `bracket`: _resource adquisition_, _usage_, and _release_. Each stage
-is defined by an `IO` instance.  A fundamental property is that the _release_
-stage will always be run regardless whether the _usage_ stage finished correctly
-or an exception was thrown during its execution. In our case, in the
-_adquisition_ stage we would create the streams, then in the _usage_ stage we
-will copy the contents, and finally in the release stage we will close the
-streams.  Thus we could define our `copy` function as follows:
+Now, if you are familiar with cats-effect's `bracket` you may be wondering why
+we are not using it as it looks so similar to `Resource` (and there is a good
+reason for that: `Resource` is based on `bracket`). Ok, before moving forward it
+is worth to take a look to `bracket`.
+
+There are three stages when using `bracket`: _resource adquisition_, _usage_,
+and _release_. Each stage is defined by an `IO` instance.  A fundamental
+property is that the _release_ stage will always be run regardless whether the
+_usage_ stage finished correctly or an exception was thrown during its
+execution. In our case, in the _adquisition_ stage we would create the streams,
+then in the _usage_ stage we will copy the contents, and finally in the release
+stage we will close the streams.  Thus we could define our `copy` function as
+follows:
 
 ```scala
 import cats.effect.IO
 import cats.implicits._ 
 import java.io._ 
+
+// function inputOutputStreams not needed
 
 // transfer will do the real work
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
@@ -199,21 +227,23 @@ def copy(origin: File, destination: File): IO[Long] = {
 }
 ```
 
-Code is way shorter! But there is a catch in the code above.  When using
-`bracket`, if there is a problem when getting resources in the first stage, then
-the release stage will not be run. Now, in the code above first the origin file
-and then the destination file are opened (`tupled` just reorganizes both `IO`
-instances in a single one). So what would happen if we successfully open the
-origin file (_i.e._ when evaluating `inIO`) but then an exception is raised when
-opening the destination file (_i.e._ when evaluating `outIO`)? In that case the
-origin stream will not be closed!
-
-Still, keep in mind there is a reason why `Resource` and `bracket` look so
-similar. In fact, `Resource` instances are using `bracket` underneath. But as
-commented before `Resource` allows for a more orderly handling of resources.
+New `copy` definition is more complex, still code as a whole is way shorter as
+we do not need the `inputOutputStreams` function. But there is a catch in the
+code above.  When using `bracket`, if there is a problem when getting resources
+in the first stage, then the release stage will not be run. Now, in the code
+above, first the origin file and then the destination file are opened (`tupled`
+just reorganizes both `IO` instances into a single one). So what would happen if
+we successfully open the origin file (_i.e._ when evaluating `inIO`) but then an
+exception is raised when opening the destination file (_i.e._ when evaluating
+`outIO`)? In that case the origin stream will not be closed! To solve this we
+should first get the first stream with one `bracket` call, and then the second
+stream with another `bracket` call inside the first. But, in a way, that's
+precisely what we do when we `flatMap` instances of `Resource`. And code looks
+cleaner too :) .  So, while `bracket` has its usage, when using several
+resources at once it is likely a better choice using `Resource` to handle them.
 
 ### Copying data 
-Now we do have our streams ready to go! We have to focus now on coding
+Finally we have our streams ready to go! We have to focus now on coding
 `transfer`. That function will have to define a loop that at each iteration
 reads data from the input stream into a buffer, and then writes the buffer
 contents into the output stream. At the same time, the loop will keep a counter
@@ -243,10 +273,11 @@ def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
 Take a look to `transmit`, observe that both input and output actions are
 encapsulated in their own `IO` instances. Being `IO` a monad, we can sequence
 them using a for-comprehension to create another `IO`. The for-comprehension
-loops as long as the call to `read()` does not return a negative value, by means
-of recursive calls. But `IO` is stack safe, so we are not concerned about stack
-overflow issues. At each iteration we increase the counter `acc` with the amount
-of bytes read at that iteration. 
+loops as long as the call to `read()` does not return a negative value that
+would signal the end of the stream has been reached. It uses recursive calls to
+`transmit` but `IO` is stack safe, so we are not concerned about stack overflow
+issues. At each iteration we increase the counter `acc` with the amount of bytes
+read at that iteration. 
 
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
@@ -257,13 +288,13 @@ cancellation in the next section.
 
 ### Dealing with cancellation
 Cancellation is a cats-effect feature, powerful but non trivial. In cats-effect,
-some `IO` instances can be cancelable, meaning than their evaluation will be
+some `IO` instances can be cancelable, meaning that their evaluation will be
 aborted. If the programmer is careful, an alternative `IO` task will be run
 under cancellation, for example to deal with potential cleaning up activities.
 We will see how an `IO` can be actually cancelled at the end of the [Fibers are
-not threads!  section](#fibers-are-not-threads), but for now we will just keep
-in mind that during the execution of the `transfer` method a cancellation can
-occur at any time.
+not threads! section](#fibers-are-not-threads) later on, but for now we will
+just keep in mind that during the execution of the `transfer` method a
+cancellation can occur at any time.
 
 Now, `IO`s created with `Resource.use` can be cancelled. The cancellation will
 trigger the execution of the code that handles the closing of the resource. In
@@ -292,7 +323,7 @@ import cats.effect.concurrent.Semaphore
 import java.io._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-// (transfer and transmit methods are not changed)
+// transfer and transmit methods as defined before
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
 
 def inputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileInputStream] =
@@ -339,8 +370,8 @@ until `transfer` is done. The `guarantee` call ensures that the semaphore will
 be released under any circumstance, whatever the result of `transfer` (success,
 error, or cancellation). As the 'release' parts in the `Resource` instances are
 now blocked on the same semaphore, we can be sure that streams are closed only
-after `transfer` is over, _i.e._ we have implemented mutual exclusion of those
-functionalities.
+after `transfer` is over, _i.e._ we have implemented mutual exclusion of
+`transfer` execution and resources releasing.
 
 And that is it! We are done, now we can create a program that uses this
 function.
@@ -350,22 +381,48 @@ function.
 We will create a program that copies files, this program only takes two
 parameters: the name of the origin and destination files. For coding this
 program we will use `IOApp` as it allows to maintain purity in our definitions
-up to the main function. You can check the final result
-[here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFile.scala).
+up to the main function.
 
 `IOApp` is a kind of 'functional' equivalent to Scala's `App`, where instead of
 coding an effectful `main` method we code a pure `run` function. When executing
 the class a `main` method defined in `IOApp` will call the `run` function we
 have coded. Any interruption (like pressing `Ctrl-c`) will be treated as a
 cancellation of the running `IO`. Also `IOApp` provides an implicit execution
-context so it does not be imported/created by the code explicitely.
+context so it does not be imported/created by the code explicitely. When coding
+`IOApp` instead of `main` we have a `run` function, which creates the `IO`
+instance that forms the program. In our case, our `run` method can look like
+this:
 
-Also, heed in the example linked above how `run` verifies the `args` list
-passed. If there are less than two arguments, an error is raised. As `IO`
-implements `MonadError` we can at any moment call to `IO.raiseError` to
-interrupt a sequence of `IO` operations.
+```scala
+import cats.effect._
+import cats.implicits._
+import java.io.File
 
-You can run this code from `sbt` just by issuing this call:
+object Main extends IOApp {
+
+  // copy as defined before
+  def copy(origin: File, destination: File): IO[Long] = ???
+
+  override def run(args: List[String]): IO[ExitCode] =
+    for {
+      _      <- if(args.length < 2) IO.raiseError(new IllegalArgumentException("Need origin and destination files"))
+                else IO.unit
+      orig = new File(args(0))
+      dest = new File(args(1))
+      count <- copy(orig, dest)
+      _     <- IO(println(s"$count bytes copied from ${orig.getPath} to ${dest.getPath}"))
+    } yield ExitCode.Success
+}
+```
+
+Heed how `run` verifies the `args` list passed. If there are less than two
+arguments, an error is raised. As `IO` implements `MonadError` we can at any
+moment call to `IO.raiseError` to interrupt a sequence of `IO` operations.
+
+You can check the [final version of our copy program
+here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFile.scala).
+
+Program can be run from `sbt` just by issuing this call:
 
 ```scala
 > runMain catsEffectTutorial.CopyFile origin.txt destination.txt
@@ -398,24 +455,26 @@ your IO-kungfu:
    subfolders, then their contents must be recursively copied too. Of course the
    copying must be safely cancelable at any moment.
 
-## A concurrent system with `Fiber`s: echo server
+## TCP echo server - concurrent system with `Fiber`s
 
-This example is a bit more complex. Here we create an echo TCP server that
-simply replies to each text message from a client sending back that same
-message. When the client sends an empty line its connection is shutdown by the
-server. This server will be able to attend several clients at the same time. For
-that we will use `cats-effect`'s `Fiber`, which can be seen as light threads.
-For each new client a `Fiber` instance will be spawned to serve that client.
+This program is a bit more complex than the previous one. Here we create an echo
+TCP server that replies to each text message from a client sending back that
+same message. When the client sends an empty line its connection is shutdown by
+the server. This server will also bring a key feature, it will be able to attend
+several clients at the same time. For that we will use `cats-effect`'s `Fiber`,
+which can be seen as light threads. For each new client a `Fiber` instance will
+be spawned to serve that client.
 
 We will stick to a simple design principle: _whoever method creates a resource
 is the sole responsible of dispatching it!_.  It's worth to remark this from the
 beginning to better understand the code listings shown in this tutorial.
 
-Let's build our server step-by-step. First we will code a method that implements
-the echo protocol. It will take as input the socket (`java.net.Socket` instance)
-that is connected to the client. The method will be basically a loop that at
-each iteration reads the input from the client, if the input is not an empty
-line then the text is sent back to the client, otherwise the method will finish.
+Ok, we are ready to start coding our server. Let's build it step-by-step. First
+we will code a method that implements the echo protocol. It will take as input
+the socket (`java.net.Socket` instance) that is connected to the client. The
+method will be basically a loop that at each iteration reads the input from the
+client, if the input is not an empty line then the text is sent back to the
+client, otherwise the method will finish.
 
 The method signature will look like this:
 
@@ -426,7 +485,7 @@ def echoProtocol(clientSocket: Socket): IO[Unit] = ???
 ```
 
 Reading and writing will be done using `java.io.BufferedReader` and
-`java.io.BufferedWriter` instances build from the socket. Recall that this
+`java.io.BufferedWriter` instances built from the socket. Recall that this
 method will be in charge of closing those buffers, but not the client socket (it
 did not create that socket after all!). We will use again `Resource` to ensure
 that we close the streams we create. Also, all actions with potential
@@ -442,13 +501,7 @@ import java.net._
 
 def echoProtocol(clientSocket: Socket): IO[Unit] = {
 
-  def loop(reader: BufferedReader, writer: BufferedWriter): IO[Unit] = for {
-    line <- IO(reader.readLine())
-    _    <- line match {
-              case "" => IO.unit // Empty line, we are done
-              case _  => IO{ writer.write(line); writer.newLine(); writer.flush() } *> loop(reader, writer)
-            }
-  } yield ()
+  def loop(reader: BufferedReader, writer: BufferedWriter): IO[Unit] = ???
 
   def reader(clientSocket: Socket): Resource[IO, BufferedReader] =
     Resource.make {
@@ -500,7 +553,10 @@ def loop(reader: BufferedReader, writer: BufferedWriter): IO[Unit] =
 
 The loop tries to read a line from the client, and if successful then it checks
 the line content. If empty it finishes the method, if not it sends back the
-line through the writer and loops back to the beginning. Easy, right :) ?
+line through the writer and loops back to the beginning. And what happens if we
+find any error in the `reader.readLine()` call? Well, `IO` will catch the
+exception and will short-circuit the evaluation, this method would then return
+an `IO` instance carrying the caught exception. Easy, right :) ?
 
 So we are done with our `echoProtocol` method, good! But we still miss the part
 of our server that will list for new connections and create fibers to attend
@@ -542,20 +598,11 @@ ignoring any possible error when closing. Also quite interesting: we use
 `start`! By doing so the `echoProtocol` call will run on its own fiber thus
 not blocking the main loop.
 
-However let's not mix up this with Java thread `interrupt` or the like. Calling
-to `cancel` on a `Fiber` instance will not stop it immediately.  Thing is, a
-`cancel` call can only have effect when an `IO` is evaluated. In this case the
-`IO` is blocked on `accept()`, until that call returns and the next `IO` is
-evaluated (next line in the for-comprehension in the code example above)
-cats-effect will not be able to 'abandon' the execution. So in the code above,
-if the fiber is waiting on `accept()` then `cancel()` would not 'unlock' the
-fiber. Instead the fiber will keep waiting for a connection.
-
 _NOTE: If you have coded servers before, probably you are wondering if
 cats-effect provides some magical way to attend an unlimited number of clients
 without balancing the load somehow. Truth is, it doesn't. You can spawn as many
 fibers as you wish, but there is no guarantee they will run simultaneously. More
-about this in the section [Fibers are not threads!](#fibers-are-not-threads)_
+about this in the [Fibers are not threads!](#fibers-are-not-threads)_ section.
 
 So, what do we miss now? Only the creation of the server socket of course,
 which we can already do in the `run` method of an `IOApp`:
@@ -582,8 +629,11 @@ def run(args: List[String]): IO[ExitCode] = {
 }
 ```
 
-Our server now looks [like
-this](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala).
+Heed how this time we can use `bracket` right ahead, as there is a single
+resource to deal with and no action to be taken if the creation fails.
+
+[Full code of our server is available
+here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala).
 
 As before you can run in for example from the `sbt` console just by typing
  
@@ -608,7 +658,8 @@ Connection closed by foreign host.
 ```
 
 You can connect several telnet sessions at the same time to verify that indeed
-our server can attend all of them simultaneously.
+our server can attend all of them simultaneously. Several... but not many, more
+about that in [Fibers are not threads!](#fibers-are-not-threads)_ section.
 
 Unfortunately this server is a bit too simplistic. For example, how can we stop
 it? Well, that is something we have not addressed yet and it is when things can
@@ -616,37 +667,39 @@ get a bit more complicated. We will deal with proper server halting in the next
 section.
 
 
-## Graceful server stop (handling exit events)
+### Graceful server stop (handling exit events)
 
 There is no way to shutdown gracefully the echo server coded in the previous
-version. Sure we can always `Ctrl-c` it, but proper servers should provide
+section. Sure we can always `Ctrl-c` it, but proper servers should provide
 better mechanisms to stop them. In this section we use some other `cats-effect`
-constructs to deal with this.
+types to deal with this.
 
-First, we will use a flag to signal when the server shall quit. The server will
-run on its own fiber, that will be cancelled when that flag is set. The flag
-will be an instance of `MVar`. The `cats-effect` documentation describes `MVar`
-as _a mutable location that can be empty or contains a value, asynchronously
-blocking reads when empty and blocking writes when full_. That is what we need,
-the ability to block! So we will 'block' by reading our `MVar` instance, and
-only writing when `STOP` is received, the write being the _signal_ that the
-server must be shut down. The server will be only stopped once, so we are not
-concerned about blocking on writing. Another possible choice would be using
-`cats-effect`'s `Deferred`, but unlike `Deferred` `MVar` does allow to peek
-whether a value was written or not. As we shall see, this will come handy later
-on.
+First, we will use a flag to signal when the server shall quit. The main server
+loop will run on its own fiber, that will be cancelled when that flag is set.
+The flag will be an instance of `MVar`. The `cats-effect` documentation
+describes `MVar` as _a mutable location that can be empty or contains a value,
+asynchronously blocking reads when empty and blocking writes when full_. Why not
+using `Semaphore` or `Deferred`? Thing is, as we will see later on, we will need
+to be able to 'peek' whether a value has been written or not in a non-blocking
+fashion. That's a handy feature that `MVar` implements.
+
+So we will 'block' by reading our `MVar` instance, and only writing when `STOP`
+is received, the write being the _signal_ that the server must be shut down. The
+server will be only stopped once, so we are not concerned about blocking on
+writing.
 
 And who shall signal that the server must be stopped? In this example, we will
 assume that it will be the connected users who can request the server to halt by
 sendind a `STOP` message. Thus, the method attending clients (`echoProtocol`!)
-needs access to the flag.
+needs access to the flag to use it to communicate that the stop must stop when
+that message is received.
 
 Let's first define a new method `server` that instantiates the flag, runs the
 `serve` method in its own fiber and waits on the flag to be set. Only when
 the flag is set the server fiber will be cancelled.
 
 ```scala
-import cats.effect.{ExitCode, IO}
+import cats.effect._
 import cats.effect.concurrent.MVar
 import java.net.ServerSocket
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -659,7 +712,7 @@ def server(serverSocket: ServerSocket): IO[ExitCode] = {
   implicit val contextShift = IO.contextShift(global)
   for {
       stopFlag    <- MVar[IO].empty[Unit]
-      serverFiber <- serve(serverSocket, stopFlag).start // Server runs on its own Fiber
+      serverFiber <- serve(serverSocket, stopFlag).start // Server loop in its own Fiber
       _           <- stopFlag.read                       // Blocked until 'stopFlag.put(())' is run
       _           <- serverFiber.cancel                  // Stopping server!
   } yield ExitCode.Success
@@ -698,13 +751,26 @@ So `run` calls `server` which in turn calls `serve`. Do we need to modify
 `serve` as well? Yes, for two reasons:
 
 1. We need to pass the `stopFlag` to the `echoProtocol` method.
-2. When the `server` method returns the `run` method will close the server
+2. When the `server` method returns, the `run` method will close the server
    socket. That will cause the `serverSocket.accept()` in `serve` to throw an
    exception. We could handle it as any other exception... but that would show
    an error message in console, while in fact this is a 'controlled' shutdown.
    So we should instead control what caused the exception.
 
-This is how we implement `serve` now:
+To control the outcome of an `IO` evaluation we can use `attempt` on that same
+`IO`, which will return an `Either` carrying either a `Right` with the result of
+the successful execution of the `IO`, or a `Left` carrying any error raised
+during its execution.
+
+In our server `attempt` will return `Either[Throwable, Socket]`. We can then
+check the value of that `Either` to verify if the `accept()` call was
+successful, and in case of error deciding what to do depending on whether the
+`stopFlag` is set or not. If it is set then we assume that the socket was closed
+due to normal cancellation (_i.e._ `server` called `cancel` on the fiber running
+`serve`). If not the error is promoted using `IO.raiseError`, which will also
+quit the current `IO` execution.
+
+This is how we code `serve` now using `attempt`:
 
 ```scala
 import cats.effect.IO
@@ -744,14 +810,10 @@ def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit]): IO[Unit] = {
 }
 ```
 
-This new implementation of `serve` does not just call `accept()` inside an `IO`.
-It also uses `attempt`, which returns an instance of `Either`
-(`Either[Throwable, Socket]` in this case). We can then check the value of that
-`Either` to verify if the `accept()` call was successful, and in case of error
-deciding what to do depending on whether the `stopFlag` is set or not. If it is
-set then we assume that the socket was closed due to normal cancellation (_i.e._
-`server` called `cancel` on the fiber running `serve`). If not the error is
-promoted using `IO.raiseError`, which will also quit the current `IO` execution.
+You may be wondering _"what if the `IO` with the `accept`is cancelled, what
+happens with `attempt`?"_ Well, in that case that `IO` evaluation is aborted and
+no `Either` value is returned, which in any case is not needed as the
+for-comprehension is also cancelled.
 
 There is only one step missing, modifying `echoProtocol`. In fact, the only
 relevant changes are on its inner `loop` method. Now it will check whether the
@@ -775,20 +837,20 @@ def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[IO, Unit
   } yield ()
 ```
 
-Code now looks [like
+Code now [looks like
 this](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala).
 
 If you run the server coded above, open a telnet session against it and send an
-`STOP` message you will see how the server finishes properly.
+`STOP` message you will see how the server is properly terminated.
 
 But there is a catch yet. If there are several clients connected, sending an
 `STOP` message will close the server's fiber and the one attending the client
 that sent the message. But the other fibers will keep running normally! It is
 like they were daemon threads. Arguably, we could expect that shutting down the
 server shall close _all_ connections. How could we do it? Solving that issue is
-the proposed final exercise below.
+the proposed exercise below.
 
-### Exercise: closing client connections to echo server on shutdown
+#### Exercise: closing client connections to echo server on shutdown
 We need to close all connections with clients when the server is shut down. To
 do that we can call `cancel` on each one of the `Fiber` instances we have
 created to attend each new client. But how? After all, we are not tracking
@@ -797,7 +859,7 @@ you devise a mechanism so all client connections are closed when the server is
 shutdown? We propose a solution in the next subsection, but maybe you can
 consider taking some time looking for a solution yourself :) .
 
-### Solution
+#### Solution
 We could keep a list of active fibers serving client connections. It is
 doable, but cumbersome...  and not really needed at this point.
 
@@ -848,19 +910,19 @@ def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit]): IO[Unit] = {
 }
 ```
 
-Now you may think '_wait a minute!, why don't cancelling the client fiber
-instead of closing the socket straight away?_'. Well, cancellation will not have
-effect until some new `IO` instance is evaluated. Normally the loop will be
-blocked on the `IO` instance that contains the `reader.readLine()` call. Until
-that `IO` operation is done the cancellation will not take effect. But then
-again, we want the connection to the client to be closed right away.  To force
-the termination even when the reader is waiting for input data we close the
-client socket. That will raise an exception in the `reader.readLine()` line.  As
-it happened before with the server socket, that exception will be shown as an
-ugly error message in the console. To prevent this we modify the `loop` function
-so it uses `attempt` to control possible errors. If some error is detected first
-the state of `stopFlag` is checked, and if it is set a graceful shutdown is
-assumed and no action is taken; otherwise the error is raised:
+Now you may think '_wait a minute!, why don't we cancel the client fiber instead
+of closing the socket straight away?_'. Well, cancellation will not have effect
+until some new `IO` instance is evaluated. Normally the loop will be blocked on
+the `IO` instance that contains the `reader.readLine()` call. Until that `IO`
+operation is done the cancellation will not take effect. But then again, we want
+the connection to the client to be closed right away.  To force the termination
+even when the reader is waiting for input data we close the client socket. That
+will raise an exception in the `reader.readLine()` line.  As it happened before
+with the server socket, that exception will be shown as an ugly error message in
+the console. To prevent this we modify the `loop` function so it uses `attempt`
+to control possible errors. If some error is detected first the state of
+`stopFlag` is checked, and if it is set a graceful shutdown is assumed and no
+action is taken; otherwise the error is raised:
 
 ```scala
 import cats.effect.IO
@@ -887,10 +949,10 @@ def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[IO, Unit
   } yield ()
 ```
 
-The resulting server code is [also
+The [resulting server code is also
 available](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV3_ClosingClientsOnShutdown).
 
-## `Fiber`s are not threads!<a name="fibers-are-not-threads"></a>
+### `Fiber`s are not threads!<a name="fibers-are-not-threads"></a>
 
 As stated before, fibers are like 'light' threads, meaning they can be used in a
 similar way than threads to create concurrent code. However, they are _not_
@@ -911,7 +973,7 @@ It shall be clear from that experiment than fibers are run by thread pools. And
 that in our case, all our fibers share the same thread pool!  Which one in our
 case? Well, `IOApp` automatically brings a `Timer[IO]`, that is defined by
 cats-effect as a '_functional equivalente of Java's
-[ScheduledExecutorService](https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html)_'.
+[ScheduledExecutorService](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html)_'.
 Each executor service has an underlying thread pool to execute the commands it
 is requested, and the same applies to `Timer`, which is in charge of assigning
 available threads to the pending `IO` actions. So there are our threads!
@@ -947,15 +1009,15 @@ for {
 intermediate) users of cats-effect. So do not worry if it takes some time for
 you to master.
 
-### Exercise: using a custom thread pool in echo server
+#### Exercise: using a custom thread pool in echo server
 Given what we know so far, how could we solve the problem of the limited number
 of clients attended in parallel in our echo server? Recall that in traditional
 servers we would make use of an specific thread pool for clients, able to resize
-in case more threads are needed. You can get such a pool using
+itself by creating new threads if they are needed. You can get such a pool using
 `Executors.newCachedThreadPool()` as in the example of the previous section. But
 take care of shutting it down when the server is stopped!
 
-### Solution
+#### Solution
 Well, the solution is quite straighforward. We only need to create a thread pool
 and execution context, and use it whenever we need to read input from some
 connected client. So the beginning of the `loop` function would look like:
@@ -1001,8 +1063,8 @@ def server(serverSocket: ServerSocket): IO[ExitCode] = {
 ```
 
 Signatures of `serve` and of `echoProtocol` will have to be changed too to pass
-the execution context as parameter. The resulting server code is [available in
-github](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool).
+the execution context as parameter. The [resulting server code is available
+here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool).
 
 
 ## Let's not forget about `async`
@@ -1030,7 +1092,7 @@ val delayedIO = for {
   _ <- IO(println("Done")) // 2 seconds to get here, no matter what
 } yield()
 
-delayedIO.unsafeRunSync()
+delayedIO.unsafeRunSync() // a way to run an IO without IOApp
 ```
 
 You will notice that the code still blocks. So how is `async` useful? Well,
@@ -1059,9 +1121,9 @@ shifting the task to the execution context! And in fact `shift` makes something
 close to what we have just coded: it introduces asynchronous boundaries to
 reorganize how threads are used. The final result will be identical to our
 previous server version. To attend client connections, if no thread is available
-in the pool, new threads will be created in the pool. A full version of our echo
-server using this approach is [available in
-github](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV5_Async.scala).
+in the pool, new threads will be created in the pool. A [full version of our
+echo server using this approach is available
+here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV5_Async.scala).
 
 ### When is `async` useful then?
 
@@ -1088,18 +1150,18 @@ IO.async[String]{ (cb: Either[Throwable, String] => Unit) =>
 }
 ```
 
-So, our aim is to create an echo server that does not require a thread per
-connected socket to wait on the blocking `read()` method. If we use a network
-library that avoids or at limits blocking operations, we could then combine that
-with `async` to create such non-blocking server. And Java NIO can be helpful
-here. While Java NIO does have some blocking method (`Selector`'s `select()`),
-it allows to build servers that do not require a thread per connected client:
-`select()` will return those 'channels' (such as `SochetChannel`) that have data
-available to read from, then processing of the incoming data can be split among
-threads of a size-bounded pool. This way, a thread-per-client approach is not
-needed. Java NIO2 or netty could also be applicable to this scenario. We leave
-as a final exercise to implement again our echo server but this time using an
-async lib.
+So, let's say our new goal is to create an echo server that does not require a
+thread per connected socket to wait on the blocking `read()` method. If we use a
+network library that avoids or at limits blocking operations, we could then
+combine that with `async` to create such non-blocking server. And Java NIO can
+be helpful here. While Java NIO does have some blocking method (`Selector`'s
+`select()`), it allows to build servers that do not require a thread per
+connected client: `select()` will return those 'channels' (such as
+`SochetChannel`) that have data available to read from, then processing of the
+incoming data can be split among threads of a size-bounded pool. This way, a
+thread-per-client approach is not needed. Java NIO2 or netty could also be
+applicable to this scenario. We leave as a final exercise to implement again our
+echo server but this time using an async lib.
 
 ## Conclusion
 
