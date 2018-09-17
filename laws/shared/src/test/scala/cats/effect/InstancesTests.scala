@@ -56,6 +56,12 @@ class InstancesTests extends BaseTestsSuite {
       ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
     })
 
+  checkAllAsync("IorT[IO, Int, ?]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+      ConcurrentTests[IorT[IO, Int, ?]].concurrent[Int, Int, Int]
+    })
+
   implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
     Eq.by(_.run(Monoid[R].empty))
 

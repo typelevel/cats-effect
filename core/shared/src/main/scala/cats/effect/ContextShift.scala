@@ -128,4 +128,17 @@ object ContextShift {
       def evalOn[A](ec: ExecutionContext)(fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
         Kleisli(a => cs.evalOn(ec)(fa.run(a)))
     }
+
+  /**
+    * Derives a [[ContextShift]] instance for `cats.data.IorT`,
+    * given we have one for `F[_]`.
+    */
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], cs: ContextShift[F]): ContextShift[IorT[F, L, ?]] =
+    new ContextShift[IorT[F, L, ?]] {
+      def shift: IorT[F, L, Unit] =
+        IorT.liftF(cs.shift)
+
+      def evalOn[A](ec: ExecutionContext)(fa: IorT[F, L, A]): IorT[F, L, A] =
+        IorT(cs.evalOn(ec)(fa.value))
+    }
 }

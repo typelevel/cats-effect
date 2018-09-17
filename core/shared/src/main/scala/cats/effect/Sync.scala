@@ -89,6 +89,13 @@ object Sync {
   implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, ?]] =
     new KleisliSync[F, R] { def F = Sync[F] }
 
+  /**
+    * [[Sync]] instance built for `cats.data.IorT` values initialized
+    * with any `F` data type that also implements `Sync`.
+    */
+  implicit def catsIorTSync[F[_]: Sync, L: Semigroup]: Sync[IorT[F, L, ?]] =
+    new IorTSync[F, L] { def F = Sync[F]; def L = Semigroup[L] }
+
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
     protected implicit def F: Sync[F]
 
@@ -263,5 +270,55 @@ object Sync {
 
     override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
+  }
+
+  private[effect] trait IorTSync[F[_], L] extends Sync[IorT[F, L, ?]] {
+    protected implicit def F: Sync[F]
+    protected implicit def L: Semigroup[L]
+
+    def pure[A](x: A): IorT[F, L, A] =
+      IorT.pure(x)
+
+    def handleErrorWith[A](fa: IorT[F, L, A])(f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
+      IorT(F.handleErrorWith(fa.value)(f.andThen(_.value)))
+
+    def raiseError[A](e: Throwable): IorT[F, L, A] =
+      IorT.liftF(F.raiseError(e))
+
+    def bracketCase[A, B](acquire: IorT[F, L, A])
+                         (use: A => IorT[F, L, B])
+                         (release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] = {
+
+      IorT(F.bracketCase(acquire.value) {
+        case Ior.Left(l) => F.pure(Ior.left[L, B](l))
+        case Ior.Right(a) => use(a).value
+        case Ior.Both(l1, a) => use(a).value.map {
+          case Ior.Left(l2) => Ior.Left(L.combine(l1, l2))
+          case Ior.Right(b) => Ior.Both(l1, b)
+          case Ior.Both(l2, b) => Ior.Both(L.combine(l1, l2), b)
+        }
+      } { (ea, br) =>
+        ea match {
+          case Ior.Right(a) =>
+            release(a, br).value.void
+          case Ior.Left(_) =>
+            F.unit // nothing to release
+          case Ior.Both(_, a) =>
+            release(a, br).value.void
+        }
+      })
+    }
+
+    def flatMap[A, B](fa: IorT[F, L, A])(f: A => IorT[F, L, B]): IorT[F, L, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => IorT[F, L, Either[A, B]]): IorT[F, L, B] =
+      IorT.catsDataMonadErrorForIorT[F, L].tailRecM(a)(f)
+
+    def suspend[A](thunk: => IorT[F, L, A]): IorT[F, L, A] =
+      IorT(F.suspend(thunk.value))
+
+    override def uncancelable[A](fa: IorT[F, L, A]): IorT[F, L, A] =
+      IorT(F.uncancelable(fa.value))
   }
 }

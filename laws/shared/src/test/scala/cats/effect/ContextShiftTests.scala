@@ -28,6 +28,7 @@ class ContextShiftTests extends BaseTestsSuite {
   type WriterTIO[A] = WriterT[IO, Int, A]
   type KleisliIO[A] = Kleisli[IO, Int, A]
   type StateTIO[A]  = StateT[IO, Int, A]
+  type IorTIO[A]    = IorT[IO, Int, A]
 
   testAsync("ContextShift[IO].shift") { ec =>
     implicit val cs = ec.contextShift[IO]
@@ -198,5 +199,34 @@ class ContextShiftTests extends BaseTestsSuite {
     f.value shouldBe None
     ec.tick()
     f.value shouldBe Some(Success(1))
+  }
+
+  // -- IorT
+
+  testAsync("Timer[IorT].shift") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val f = implicitly[ContextShift[IorTIO]].shift.value.unsafeToFuture()
+
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe Some(Success(Ior.Right(())))
+  }
+
+  testAsync("Timer[IorT].evalOn") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val cs2 = implicitly[ContextShift[IorTIO]]
+    val ec2 = TestContext()
+
+    val f = cs2.evalOn(ec2)(IorT.liftF(IO(1))).value.unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(Ior.Right(1)))
   }
 }

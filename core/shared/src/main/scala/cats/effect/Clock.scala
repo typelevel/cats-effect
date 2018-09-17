@@ -207,4 +207,17 @@ object Clock  {
       def monotonic(unit: TimeUnit): Kleisli[F, R, Long] =
         Kleisli.liftF(clock.monotonic(unit))
     }
+
+  /**
+    * Derives a [[Clock]] instance for `cats.data.IorT`,
+    * given we have one for `F[_]`.
+    */
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], clock: Clock[F]): Clock[IorT[F, L, ?]] =
+    new Clock[IorT[F, L, ?]] {
+      def realTime(unit: TimeUnit): IorT[F, L, Long] =
+        IorT.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): IorT[F, L, Long] =
+        IorT.liftF(clock.monotonic(unit))
+    }
 }
