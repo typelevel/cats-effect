@@ -206,7 +206,7 @@ trait CircuitBreaker[F[_]] {
   /** Returns the current [[CircuitBreaker.State]], meant for
    * debugging purposes.
    */
-  def unsafeState(): CircuitBreaker.State
+  def state: F[CircuitBreaker.State]
 }
 
 object CircuitBreaker {
@@ -425,8 +425,8 @@ object CircuitBreaker {
     val maxResetTimeout: Duration = _maxResetTimeout
 
 
-    def unsafeState(): CircuitBreaker.State =
-      stateRef.get
+    def state: F[CircuitBreaker.State] =
+      F.delay(stateRef.get)
 
     /** Function for counting failures in the `Closed` state,
      * triggering the `Open` state if necessary.

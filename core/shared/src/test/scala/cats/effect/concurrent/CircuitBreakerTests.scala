@@ -151,6 +151,8 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
         .doOnRejected(IO { rejectedCount += 1 })
     }
 
+    def unsafeState() = circuitBreaker.state.unsafeRunSync()
+
     val dummy = new RuntimeException("dummy")
     val taskInError = circuitBreaker.protect(IO[Int](throw dummy))
     val taskSuccess = circuitBreaker.protect(IO { 1 })
@@ -158,13 +160,13 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
       for {
         _ <- taskInError.attempt
         _ <- taskInError.attempt
-        _ = circuitBreaker.unsafeState() shouldBe CircuitBreaker.Closed(2)
+        _ = unsafeState() shouldBe CircuitBreaker.Closed(2)
         // A successful value should reset the counter
         _ <- taskSuccess
-        _ = circuitBreaker.unsafeState() shouldBe CircuitBreaker.Closed(0)
+        _ = unsafeState() shouldBe CircuitBreaker.Closed(0)
 
         _ <- taskInError.attempt.replicateA(5)
-        _ = circuitBreaker.unsafeState() should matchPattern {
+        _ = unsafeState() should matchPattern {
           case CircuitBreaker.Open(_, t) if t == 200.millis =>
         }
         res <- taskSuccess.attempt
@@ -183,7 +185,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
         d <- Deferred[IO, Unit]
         fiber <- circuitBreaker.protect(d.get).start
         _ <- IO.sleep(10.millis)
-        _ = circuitBreaker.unsafeState() should matchPattern {
+        _ = unsafeState() should matchPattern {
           case CircuitBreaker.HalfOpen(_) =>
         }
 
@@ -198,7 +200,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
         _ <- fiber.join
 
         // Should re-open on success
-        _ = circuitBreaker.unsafeState() shouldBe CircuitBreaker.Closed(0)
+        _ = unsafeState() shouldBe CircuitBreaker.Closed(0)
 
         _ = (openedCount, closedCount, halfOpenCount, rejectedCount) shouldBe ((1, 1, 1, 3))
       } yield Succeeded
