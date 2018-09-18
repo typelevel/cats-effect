@@ -140,7 +140,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
     val circuitBreaker = {
       val cb = CircuitBreaker[IO].of(
         maxFailures = 5,
-        resetTimeout = 100.millis,
+        resetTimeout = 200.millis,
         exponentialBackoffFactor = 2,
         maxResetTimeout = 1.second
       ).unsafeRunSync()
@@ -165,19 +165,19 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
 
         _ <- taskInError.attempt.replicateA(5)
         _ = circuitBreaker.unsafeState() should matchPattern {
-          case CircuitBreaker.Open(_, t) if t == 100.millis =>
+          case CircuitBreaker.Open(_, t) if t == 200.millis =>
         }
         res <- taskSuccess.attempt
         _ = res should matchPattern {
           case Left(_: CircuitBreaker.ExecutionRejectedException) =>
         }
-        _ <- IO.sleep(10.millis)
+        _ <- IO.sleep(1.nano) // This timeout is intentionally small b/c actuall time is not deterministic
         // Should still fail-fast
         res2 <- taskSuccess.attempt
         _ = res2 should matchPattern {
           case Left(_: CircuitBreaker.ExecutionRejectedException) =>
         }
-        _ <- IO.sleep(100.millis)
+        _ <- IO.sleep(200.millis)
 
         // Testing half-open state
         d <- Deferred[IO, Unit]
