@@ -18,6 +18,7 @@ package cats
 package effect
 package concurrent
 
+import cats.syntax.all._
 import cats.data.State
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
@@ -87,6 +88,14 @@ abstract class Ref[F[_], A] {
   def tryModify[B](f: A => (A, B)): F[Option[B]]
 
   /**
+    * Like `tryModify` but allows the update function to return an output value of
+    * type `B`. The returned action completes with `None` if the value is not updated
+    * successfully and `Some(b)` otherwise.
+    * Instead of B returns F[B] for more effective code compared to modify(f).flatMap { ... }
+    */
+  def tryModifyF[B](f: A => (A, F[B])): F[Option[B]]
+
+  /**
    * Modifies the current value using the supplied update function. If another modification
    * occurs between the time the current value is read and subsequently updated, the modification
    * is retried using the new value. Hence, `f` may be invoked multiple times.
@@ -100,6 +109,12 @@ abstract class Ref[F[_], A] {
    * Like `tryModify` but does not complete until the update has been successfully made.
    */
   def modify[B](f: A => (A, B)): F[B]
+
+  /**
+    * Like `modify` but does not complete until the update has been successfully made.
+    * Instead of B returns F[B] for more effective code compared to modify(f).flatten.
+    */
+  def modifyF[B](f: A => (A, F[B])): F[B]
 
   /**
    * Update the value of this ref with a state computation.
@@ -224,6 +239,13 @@ object Ref {
       else None
     }
 
+    def tryModifyF[B](f: A => (A, F[B])): F[Option[B]] = F.suspend {
+      val c = ar.get
+      val (u, fb) = f(c)
+      if (ar.compareAndSet(c, u)) fb.map(Some(_))
+      else F.pure(None)
+    }
+
     def update(f: A => A): F[Unit] =
       modify(a => (f(a), ()))
 
@@ -236,6 +258,17 @@ object Ref {
         else b
       }
       F.delay(spin)
+    }
+
+    def modifyF[B](f: A => (A, F[B])): F[B] = F.suspend {
+      @tailrec
+      def spin: F[B] = {
+        val c = ar.get()
+        val (u, fb) = f(c)
+        if (!ar.compareAndSet(c, u)) spin
+        else fb
+      }
+      spin
     }
 
     def tryModifyState[B](state: State[A, B]): F[Option[B]] = {
