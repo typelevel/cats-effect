@@ -290,7 +290,7 @@ object Sync {
                          (release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] = {
 
       IorT(F.bracketCase(acquire.value) {
-        case Ior.Left(l) => F.pure(Ior.left[L, B](l))
+        case l @ Ior.Left(_) => F.pure(l: Ior[L, B])
         case Ior.Right(a) => use(a).value
         case Ior.Both(l1, a) => use(a).value.map {
           case Ior.Left(l2) => Ior.Left(L.combine(l1, l2))

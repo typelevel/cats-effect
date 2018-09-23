@@ -577,21 +577,21 @@ object Concurrent {
       IorT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
-            case Ior.Left(l) =>
-              fiberB.cancel.map(_ => Ior.left(l))
+            case l @ Ior.Left(_) =>
+              fiberB.cancel.map(_ => l)
             case Ior.Right(r) =>
-              F.pure(Ior.right(Left((r, fiberT[B](fiberB)))))
+              F.pure(Ior.Right(Left((r, fiberT[B](fiberB)))))
             case Ior.Both(l, r) =>
-              F.pure(Ior.both(l, Left((r, fiberT[B](fiberB)))))
+              F.pure(Ior.Both(l, Left((r, fiberT[B](fiberB)))))
           }
         case Right((fiberA, value)) =>
           value match {
-            case Ior.Left(l) =>
-              fiberA.cancel.map(_ => Ior.left(l))
+            case l @ Ior.Left(_) =>
+              fiberA.cancel.map(_ => l)
             case Ior.Right(r) =>
-              F.pure(Ior.right(Right((fiberT[A](fiberA), r))))
+              F.pure(Ior.Right(Right((fiberT[A](fiberA), r))))
             case Ior.Both(l, r) =>
-              F.pure(Ior.both(l, Right((fiberT[A](fiberA), r))))
+              F.pure(Ior.Both(l, Right((fiberT[A](fiberA), r))))
           }
       })
 
