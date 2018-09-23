@@ -1210,11 +1210,14 @@ It has the potential to run an arbitrary number of `IO`s in parallel, and it all
 
 ```tut:silent
 import cats.syntax.all._
+import scala.concurrent.ExecutionContext
+import cats.effect.ContextShift
 
 val ioA = IO(println("Running ioA"))
 val ioB = IO(println("Running ioB"))
 val ioC = IO(println("Running ioC"))
 
+implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()
