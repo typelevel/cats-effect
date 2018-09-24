@@ -19,6 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.concurrent.Ref
 import cats.syntax.all._
 
 /**
@@ -177,16 +178,20 @@ object Sync {
 
     def bracketCase[A, B](acquire: StateT[F, S, A])
       (use: A => StateT[F, S, B])
-      (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] = {
-
-      StateT { startS =>
-        F.bracketCase(acquire.run(startS)) { case (s, a) =>
-          use(a).run(s)
-        } { case ((s, a), br) =>
-          release(a, br).run(s).void
+      (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] =
+        StateT.liftF(Ref.of[F, Option[S]](None)).flatMap { ref =>
+          StateT { startS =>
+            F.bracketCase[(S, A), (S, B)](acquire.run(startS)) { case (s, a) =>
+              use(a).run(s).flatTap { case (s, _) => ref.set(Some(s)) }
+            } {
+              case ((oldS, a), ExitCase.Completed) =>
+                ref.get.map(_.getOrElse(oldS))
+                  .flatMap(s => release(a, ExitCase.Completed).runS(s)).flatMap(s => ref.set(Some(s)))
+              case ((s, a), br) =>
+                release(a, br).run(s).void
+            }.flatMap { case (s, b) => ref.get.map(_.getOrElse(s)).tupleRight(b) }
+          }
         }
-      }
-    }
 
     override def uncancelable[A](fa: StateT[F, S, A]): StateT[F, S, A] =
       fa.transformF(F.uncancelable)
@@ -216,16 +221,20 @@ object Sync {
 
     def bracketCase[A, B](acquire: WriterT[F, L, A])
       (use: A => WriterT[F, L, B])
-      (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] = {
-
-      uncancelable(acquire).flatMap { a =>
-        WriterT(
-          F.bracketCase(F.pure(a))(use.andThen(_.run)){ (a, res) =>
-            release(a, res).value
+      (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
+        WriterT.liftF(Ref.of[F, Option[L]](None)).flatMap { ref =>
+          uncancelable(acquire).flatMap { a =>
+            WriterT(
+              F.bracketCase[A, (L, B)](F.pure(a)) { a =>
+                use(a).run.flatTap { case (l, _) => ref.set(Some(l)) }
+              } {
+                case (a, ExitCase.Completed) =>
+                  release(a, ExitCase.Completed).written.flatMap { l => ref.update(_.map(L.combine(_, l))) }
+                case (a, res) => release(a, res).value
+              }.flatMap { case (l, b) => ref.get.map(_.getOrElse(l)).tupleRight(b) }
+            )
           }
-        )
-      }
-    }
+        }
 
     override def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(F.uncancelable(fa.run))
