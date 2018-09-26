@@ -35,7 +35,14 @@ private[effect] object IOBracket {
       // cancelled due to executing it via `IORunLoop.start`
       val deferredRelease = new DeferredCancelable
       conn.push(deferredRelease.cancel)
-      IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
+      // Race-condition check, avoiding starting the bracket if the
+      // connection was cancelled already, to ensure that `cancel`
+      // really blocks if we start `acquire`
+      if (!conn.isCanceled)
+        IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
+      else {
+        deferredRelease.complete(IO.unit)
+      }
     }
   }
 
@@ -94,8 +101,12 @@ private[effect] object IOBracket {
           // Registering our cancelable token ensures that in case
           // cancellation is detected, `release` gets called
           conn.push(frame.cancel)
-          // Actual execution
-          IORunLoop.startCancelable(onNext, conn, cb)
+          // Race condition check, avoiding starting `source` in case
+          // the connection was already cancelled — n.b. we don't need
+          // to trigger `release` otherwise, because it already happened
+          if (!conn.isCanceled) {
+            IORunLoop.startCancelable(onNext, conn, cb)
+          }
         }
       })
     }
