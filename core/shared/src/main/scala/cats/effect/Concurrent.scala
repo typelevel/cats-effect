@@ -413,6 +413,7 @@ object Concurrent {
    * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
+  @deprecated("WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
