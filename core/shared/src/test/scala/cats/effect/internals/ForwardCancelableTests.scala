@@ -19,95 +19,51 @@ package cats.effect.internals
 import cats.effect.IO
 import org.scalatest.{FunSuite, Matchers}
 
-import scala.util.Success
-
 class ForwardCancelableTests extends FunSuite with Matchers {
-  test("cancel()") {
+  test("cancel() after complete") {
     var effect = 0
-    val s = ForwardCancelable()
-    val b = IO { effect += 1 }
+
+    val ref = ForwardCancelable()
+    ref.complete(IO { effect += 1 })
     effect shouldBe 0
 
-    s := b
-    s.cancel.unsafeRunSync()
-    effect shouldBe 1
-    s.cancel.unsafeRunSync()
-    effect shouldBe 1
-  }
-
-  test("cancel() (plus one)") {
-    var effect = 0
-    val extra = IO { effect += 1 }
-    val b = IO { effect += 2 }
-
-    val s = ForwardCancelable.plusOne(extra)
-    s := b
-
-    s.cancel.unsafeRunSync()
-    effect shouldBe 3
-    s.cancel.unsafeRunSync()
-    effect shouldBe 3
-  }
-
-  test("cancel on single assignment") {
-    val s = ForwardCancelable()
-    s.cancel.unsafeRunAsyncAndForget()
-
-    var effect = 0
-    val b = IO { effect += 1 }
-    s := b
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 1
 
-    s.cancel.unsafeRunSync()
+    // Weak idempotency guarantees (not thread-safe)
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 1
   }
 
-  test("cancel on single assignment (plus one)") {
+  test("cancel() before complete") {
     var effect = 0
-    val extra = IO { effect += 1 }
-    val s = ForwardCancelable.plusOne(extra)
 
-    s.cancel.unsafeRunAsyncAndForget()
+    val ref = ForwardCancelable()
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 0
 
-    val b = IO { effect += 1 }
-    s := b
+    ref.complete(IO { effect += 1 })
+    effect shouldBe 1
 
+    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
+    // completed task was canceled before error was thrown
+    effect shouldBe 3
+
+    ref.cancel.unsafeRunAsyncAndForget()
+    effect shouldBe 3
+  }
+
+  test("complete twice before cancel") {
+    var effect = 0
+
+    val ref = ForwardCancelable()
+    ref.complete(IO { effect += 1 })
+    effect shouldBe 0
+
+    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
     effect shouldBe 2
 
-    s.cancel.unsafeRunSync()
-    effect shouldBe 2
-  }
-
-  test("throw exception on multi assignment") {
-    val s = ForwardCancelable()
-    s := IO.unit
-
-    intercept[IllegalStateException] {
-      s := IO.pure(())
-    }
-  }
-
-  test("throw exception on multi assignment when canceled") {
-    val s = ForwardCancelable()
-    s.cancel.unsafeRunAsyncAndForget()
-    s := IO.unit
-
-    intercept[IllegalStateException] {
-      s := IO.pure(())
-    }
-  }
-
-  test("empty and cancelled reference back-pressures for assignment") {
-    val s = ForwardCancelable()
-    val f = s.cancel.unsafeToFuture()
-    f.value shouldBe None
-
-    s := IO.unit
-    f.value shouldBe Some(Success(()))
-
-    intercept[IllegalStateException] {
-      s := IO.unit
-    }
+    ref.cancel.unsafeRunAsyncAndForget()
+    effect shouldBe 3
   }
 }

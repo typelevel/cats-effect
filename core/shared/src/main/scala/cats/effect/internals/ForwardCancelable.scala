@@ -14,114 +14,106 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
-import cats.effect.{CancelToken, IO}
-import cats.effect.internals.TrampolineEC.immediate
 import java.util.concurrent.atomic.AtomicReference
-
+import cats.effect.internals.TrampolineEC.immediate
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Promise}
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
 
 /**
- * INTERNAL API — a forward reference for a cancelable.
+ * A placeholder for a [[CancelToken]] that will be set at a later time,
+ * the equivalent of a `Deferred[IO, CancelToken]`.
+ *
+ * Used in the implementation of `bracket`, see [[IOBracket]].
  */
-private[effect] final class ForwardCancelable private (plusOne: CancelToken[IO]) {
+private[effect] final class ForwardCancelable private () {
   import ForwardCancelable._
-  import ForwardCancelable.State._
 
-  private[this] val state = new AtomicReference(IsEmpty : State)
+  private[this] val state = new AtomicReference[State](init)
 
   val cancel: CancelToken[IO] = {
-    @tailrec def loop(ref: Promise[Unit])(implicit ec: ExecutionContext): CancelToken[IO] = {
-      state.get match {
-        case IsCanceled =>
-          IO.unit
-        case IsEmptyCanceled(p) =>
-          IOFromFuture(p.future)
-        case IsEmpty =>
-          val p = if (ref ne null) ref else Promise[Unit]()
-          if (!state.compareAndSet(IsEmpty, IsEmptyCanceled(p)))
-            loop(p) // retry
-          else {
-            val token = IOFromFuture(p.future)
-            if (plusOne ne null)
-              CancelUtils.cancelAll(token, plusOne)
-            else
-              token
-          }
-        case current @ Reference(token) =>
-          if (!state.compareAndSet(current, IsCanceled))
-            loop(ref) // retry
-          else if (plusOne ne null)
-            CancelUtils.cancelAll(token, plusOne)
-          else
-            token
+    @tailrec def loop(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+      state.get() match {
+        case current @ Empty(list) =>
+          if (!state.compareAndSet(current, Empty(cb :: list)))
+            loop(conn, cb)
+
+        case Active(token) =>
+          state.lazySet(finished) // GC purposes
+          context.execute(new Runnable {
+            def run() =
+              IORunLoop.startCancelable(token, conn, cb)
+          })
       }
-    }
-    IO.suspend(loop(null)(immediate))
+
+    IO.Async(loop)
   }
 
-  @tailrec def :=(token: CancelToken[IO]): Unit =
+  def complete(value: CancelToken[IO]): Unit =
     state.get() match {
-      case IsEmpty =>
-        if (!state.compareAndSet(IsEmpty, Reference(token)))
-          :=(token) // retry
-      case current @ IsEmptyCanceled(p) =>
-        if (!state.compareAndSet(current, IsCanceled))
-          :=(token) // retry
-        else
-          token.unsafeRunAsync(Callback.promise(p))
-      case _ =>
-        throw new IllegalStateException("ForwardCancelable already assigned")
+      case current @ Active(_) =>
+        value.unsafeRunAsyncAndForget()
+        throw new IllegalStateException(current.toString)
+
+      case current @ Empty(stack) =>
+        if (current eq init) {
+          // If `init`, then `cancel` was not triggered yet
+          if (!state.compareAndSet(current, Active(value)))
+            complete(value)
+        } else {
+          if (!state.compareAndSet(current, finished))
+            complete(value)
+          else
+            execute(value, stack)
+        }
     }
 }
 
 private[effect] object ForwardCancelable {
   /**
-   * Builder for a `ForwardCancelable`.
-   */
+    * Builds reference.
+    */
   def apply(): ForwardCancelable =
-    new ForwardCancelable(null)
+    new ForwardCancelable
 
   /**
-   * Builder for a `ForwardCancelable` that also cancels
-   * a second reference when canceled.
-   */
-  def plusOne(ref: CancelToken[IO]): ForwardCancelable =
-    new ForwardCancelable(ref)
-
-  /**
-   * Models the state machine of our forward reference.
+   * Models the internal state of [[ForwardCancelable]]:
+   *
+   *  - on start, the state is [[Empty]] of `Nil`, aka [[init]]
+   *  - on `cancel`, if no token was assigned yet, then the state will
+   *    remain [[Empty]] with a non-nil `List[Callback]`
+   *  - if a `CancelToken` is provided without `cancel` happening,
+   *    then the state transitions to [[Active]] mode
+   *  - on `cancel`, if the state was [[Active]], or if it was [[Empty]],
+   *    regardless, the state transitions to `Active(IO.unit)`, aka [[finished]]
    */
   private sealed abstract class State
 
-  private object State {
-    /** Newly initialized `ForwardCancelable`. */
-    object IsEmpty extends State
+  private final case class Empty(stack: List[Callback.T[Unit]])
+    extends State
+  private final case class Active(token: CancelToken[IO])
+    extends State
 
-    /**
-     * Represents a cancelled `ForwardCancelable` that had a `Reference`
-     * to interrupt on cancellation. This is a final state.
-     */
-    object IsCanceled extends State
+  private val init: State = Empty(Nil)
+  private val finished: State = Active(IO.unit)
+  private val context: ExecutionContext = immediate
 
-    /**
-     * Represents a cancelled `ForwardCancelable` that was caught
-     * in an `IsEmpty` state on interruption.
-     *
-     * When cancelling a `ForwardCancelable` we still have to
-     * back-pressure on the pending cancelable reference, hence we
-     * register a callback.
-     */
-    final case class IsEmptyCanceled(p: Promise[Unit])
-      extends State
+  private def execute(token: CancelToken[IO], stack: List[Callback.T[Unit]]): Unit =
+    context.execute(new Runnable {
+      def run(): Unit =
+        token.unsafeRunAsync { r =>
+          val errors = ListBuffer.empty[Throwable]
+          for (cb <- stack)
+            try cb(r) catch { case NonFatal(e) => errors += e }
 
-    /**
-     * Non-cancelled state in which a token was assigned to our
-     * forward reference, awaiting cancellation.
-     */
-    final case class Reference(token: CancelToken[IO])
-      extends State
-  }
+          errors.toList match {
+            case x :: xs => IOPlatform.composeErrors(x, xs:_*)
+            case _ => ()
+          }
+        }
+    })
 }

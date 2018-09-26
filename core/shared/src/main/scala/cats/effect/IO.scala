@@ -1139,11 +1139,15 @@ object IO extends IOInstances {
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
 
-      ref := (
-        try k(cb2) catch { case NonFatal(t) =>
-          cb2(Left(t))
-          IO.unit
-        })
+      // Avoids race condition — no need to execute if it was already cancelled
+      if (!conn.isCanceled)
+        ref.complete(
+          try k(cb2) catch { case NonFatal(t) =>
+            cb2(Left(t))
+            IO.unit
+          })
+      else
+        ref.complete(IO.unit)
     }
 
   /**

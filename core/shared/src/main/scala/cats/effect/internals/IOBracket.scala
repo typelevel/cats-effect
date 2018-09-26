@@ -32,7 +32,7 @@ private[effect] object IOBracket {
 
     IO.Async { (conn, cb) =>
       // Placeholder for the future finalizer
-      val deferredRelease = new DeferredCancelable
+      val deferredRelease = ForwardCancelable()
       conn.push(deferredRelease.cancel)
       // Race-condition check, avoiding starting the bracket if the
       // connection was cancelled already, to ensure that `cancel`
@@ -52,7 +52,7 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
-    deferredRelease: DeferredCancelable,
+    deferredRelease: ForwardCancelable,
     cb: Callback.T[B])
     extends (Either[Throwable, A] => Unit) with Runnable {
 
