@@ -16,8 +16,12 @@
 
 package cats.effect
 
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+
 import org.scalatest._
 import cats.syntax.all._
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -108,5 +112,47 @@ class IOJVMTests extends FunSuite with Matchers {
 
     r shouldEqual Left(e1)
     r.left.get.getSuppressed.toList shouldBe List(e2)
+  }
+
+  test("long synchronous loops that are forked are cancelable") {
+    implicit val ec = new ExecutionContext {
+      val thread = new AtomicReference[Thread](null)
+
+      def execute(runnable: Runnable): Unit = {
+        val th = new Thread(runnable)
+        if (!thread.compareAndSet(null, th))
+          throw new IllegalStateException("Execute again")
+        th.start()
+      }
+      def reportFailure(cause: Throwable): Unit =
+        cause.printStackTrace()
+    }
+
+    try {
+      val latch = new java.util.concurrent.CountDownLatch(1)
+      def loop(): IO[Int] = IO.suspend(loop())
+
+      implicit val ctx = IO.contextShift(ec)
+      val task = IO.shift *> IO(latch.countDown()) *> loop()
+      val c = task.unsafeRunCancelable {
+        case Left(e) => e.printStackTrace()
+        case _ => ()
+      }
+
+      latch.await(10, TimeUnit.SECONDS)
+      // Cancelling
+      c.unsafeRunSync()
+      // Joining thread should succeed in case of cancelation
+      val th = ec.thread.get()
+      th.join(1000 * 10) // 10 seconds
+
+      if (th.isAlive) {
+        fail("thread is still active")
+      }
+    } finally {
+      val th = ec.thread.get()
+      if (th != null && th.isAlive)
+        th.interrupt()
+    }
   }
 }

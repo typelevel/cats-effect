@@ -141,13 +141,14 @@ private[effect] object IORunLoop {
             unboxed = null
             bFirst = null
             currentIO = fa
-            // Auto-cancellation logic
-            currentIndex += 1
-            if (currentIndex == maxAutoCancelableBatchSize) {
-              if (conn.isCanceled) return
-              currentIndex = 0
-            }
         }
+      }
+
+      // Auto-cancellation logic
+      currentIndex += 1
+      if (currentIndex == maxAutoCancelableBatchSize) {
+        if (conn.isCanceled) return
+        currentIndex = 0
       }
     } while (true)
   }
