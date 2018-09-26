@@ -31,16 +31,17 @@ private[effect] object IOBracket {
     (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
 
     IO.Async { (conn, cb) =>
-      // Doing manual plumbing; note that `acquire` here cannot be
-      // cancelled due to executing it via `IORunLoop.start`
+      // Placeholder for the future finalizer
       val deferredRelease = new DeferredCancelable
       conn.push(deferredRelease.cancel)
       // Race-condition check, avoiding starting the bracket if the
       // connection was cancelled already, to ensure that `cancel`
       // really blocks if we start `acquire`
-      if (!conn.isCanceled)
+      if (!conn.isCanceled) {
+        // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
+        // (in other words it is disconnected from our IOConnection)
         IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
-      else {
+      } else {
         deferredRelease.complete(IO.unit)
       }
     }
