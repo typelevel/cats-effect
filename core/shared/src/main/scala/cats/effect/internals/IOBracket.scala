@@ -33,7 +33,9 @@ private[effect] object IOBracket {
     IO.Async { (conn, cb) =>
       // Doing manual plumbing; note that `acquire` here cannot be
       // cancelled due to executing it via `IORunLoop.start`
-      IORunLoop.start[A](acquire, new BracketStart(use, release, conn, cb))
+      val deferredRelease = new DeferredCancelable
+      conn.push(deferredRelease.cancel)
+      IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
     }
   }
 
@@ -42,6 +44,7 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
+    deferredRelease: DeferredCancelable,
     cb: Callback.T[B])
     extends (Either[Throwable, A] => Unit) with Runnable {
 
@@ -69,7 +72,7 @@ private[effect] object IOBracket {
         }
         // Registering our cancelable token ensures that in case
         // cancellation is detected, `release` gets called
-        conn.push(frame.cancel)
+        deferredRelease.complete(frame.cancel)
         // Actual execution
         IORunLoop.startCancelable(onNext, conn, cb)
 
