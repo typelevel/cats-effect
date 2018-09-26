@@ -44,7 +44,7 @@ private[internals] final class IOTimer private (
         // Doing what IO.cancelable does
         val ref = ForwardCancelable()
         conn.push(ref.cancel)
-
+        // Race condition test
         if (!conn.isCanceled) {
           val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
           ref.complete(IO(f.cancel(false)))

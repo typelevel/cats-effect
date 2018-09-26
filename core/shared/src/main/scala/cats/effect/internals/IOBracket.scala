@@ -34,9 +34,9 @@ private[effect] object IOBracket {
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
       conn.push(deferredRelease.cancel)
-      // Race-condition check, avoiding starting the bracket if the
-      // connection was cancelled already, to ensure that `cancel`
-      // really blocks if we start `acquire`
+      // Race-condition check, avoiding starting the bracket if the connection
+      // was cancelled already, to ensure that `cancel` really blocks if we
+      // start `acquire` — n.b. `isCanceled` is visible here due to `push`
       if (!conn.isCanceled) {
         // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
         // (in other words it is disconnected from our IOConnection)
