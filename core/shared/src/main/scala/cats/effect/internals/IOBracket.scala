@@ -62,7 +62,7 @@ private[effect] object IOBracket {
 
     def run(): Unit = result match {
       case Right(a) =>
-        val frame = new BracketReleaseFrame[A, B](a, release, conn)
+        val frame = new BracketReleaseFrame[A, B](a, release)
         val onNext = {
           val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
           fb.flatMap(frame)
@@ -86,7 +86,7 @@ private[effect] object IOBracket {
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
         def run(): Unit = {
-          val frame = new EnsureReleaseFrame[A](release, conn)
+          val frame = new EnsureReleaseFrame[A](release)
           val onNext = source.flatMap(frame)
           // Registering our cancelable token ensures that in case
           // cancellation is detected, `release` gets called
@@ -100,24 +100,22 @@ private[effect] object IOBracket {
 
   private final class BracketReleaseFrame[A, B](
     a: A,
-    releaseFn: (A, ExitCase[Throwable]) => IO[Unit],
-    conn: IOConnection)
-    extends BaseReleaseFrame[A, B](conn) {
+    releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
+    extends BaseReleaseFrame[A, B] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(a, c)
   }
 
   private final class EnsureReleaseFrame[A](
-    releaseFn: ExitCase[Throwable] => IO[Unit],
-    conn: IOConnection)
-    extends BaseReleaseFrame[Unit, A](conn) {
+    releaseFn: ExitCase[Throwable] => IO[Unit])
+    extends BaseReleaseFrame[Unit, A] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(c)
   }
 
-  private abstract class BaseReleaseFrame[A, B](conn: IOConnection)
+  private abstract class BaseReleaseFrame[A, B]
     extends IOFrame[B, IO[B]] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO]
