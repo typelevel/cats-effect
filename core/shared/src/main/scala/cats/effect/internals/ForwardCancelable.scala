@@ -20,7 +20,6 @@ package internals
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.internals.TrampolineEC.immediate
 import scala.annotation.tailrec
-import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
@@ -106,14 +105,12 @@ private[effect] object ForwardCancelable {
     context.execute(new Runnable {
       def run(): Unit =
         token.unsafeRunAsync { r =>
-          val errors = ListBuffer.empty[Throwable]
           for (cb <- stack)
-            try cb(r) catch { case NonFatal(e) => errors += e }
-
-          errors.toList match {
-            case x :: xs => IOPlatform.composeErrors(x, xs:_*)
-            case _ => ()
-          }
+            try { cb(r) } catch {
+              // $COVERAGE-OFF$
+              case NonFatal(e) => Logger.reportFailure(e)
+              // $COVERAGE-ON$
+            }
         }
     })
 }
