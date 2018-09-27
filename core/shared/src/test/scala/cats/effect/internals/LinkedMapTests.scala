@@ -18,23 +18,40 @@ package cats.effect.internals
 
 import org.scalatest.{FunSuite, Matchers}
 
-final class LinkedMapTests extends FunSuite with Matchers with TestUtils {
+final class LinkedMapTests extends FunSuite with Matchers {
 
-  test("a new map is empty") {
+  test("empty map") {
     val map = LinkedMap.empty[Int, Int]
 
-    assert(map.isEmpty, true)
+    map.isEmpty shouldBe true
   }
 
-  test("entries inserted are fetched in order of insertion") {
+  test("inserting entries") {
     val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
 
-    assert(map.keys.toList == ns)
-    assert(map.values.toList == ns)
+    map.isEmpty shouldBe false
+    map.keys.toList shouldBe ns
+    map.values.toList shouldBe ns
   }
 
-  test("removing a key") {
+  test("dequeueing entries") {
+    val ns = (0 until 10).toList
+    val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
+
+    var n = 0
+    var acc = map
+    while (!acc.isEmpty) {
+      val res = acc.dequeue
+
+      res._1 shouldBe n
+
+      n += 1
+      acc = res._2
+    }
+  }
+
+  test("removing an entry") {
     val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
     val n = 2
@@ -42,10 +59,13 @@ final class LinkedMapTests extends FunSuite with Matchers with TestUtils {
     assert(map.keys.exists(_ == n))
     assert(map.values.exists(_ == n))
 
-    val newMap = map - n
+    map.keys.exists(_ == n) shouldBe true
+    map.values.exists(_ == n) shouldBe true
 
-    assert(!newMap.keys.exists(_ == n))
-    assert(!newMap.values.exists(_ == n))
+    val map2 = map - n
+
+    map2.keys.exists(_ == n) shouldBe false
+    map2.values.exists(_ == n) shouldBe false
   }
 
 }
