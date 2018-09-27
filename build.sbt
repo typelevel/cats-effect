@@ -197,7 +197,11 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.plusOne"),
       exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$"),
       exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$Reference$"),
-      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsCanceled$")
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsCanceled$"),
+      // https://github.com/typelevel/cats-effect/pull/377
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#EnsureReleaseFrame.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketReleaseFrame.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this")
     )
   })
 
