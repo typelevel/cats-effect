@@ -16,13 +16,12 @@
 
 package cats.effect.concurrent
 
-import scala.annotation.tailrec
 import scala.concurrent.duration._
 
 import cats.effect.{Clock, Sync}
 import cats.implicits._
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.TimeUnit
 
 /** The `CircuitBreaker` is used to provide stability and prevent
  * cascading failures in distributed systems.
@@ -68,13 +67,13 @@ import java.util.concurrent.atomic.AtomicReference
  *
  *  1. [[CircuitBreaker$.Open Open]]: The circuit breaker rejects
  *     all tasks with an
- *     [[CircuitBreaker$.ExecutionRejectedException ExecutionRejectedException]]
- *    - all tasks fail fast with `ExecutionRejectedException`
+ *     [[CircuitBreaker$.RejectedExecution RejectedExecution]]
+ *    - all tasks fail fast with `RejectedExecution`
  *    - after the configured `resetTimeout`, the circuit breaker
- *      enters a [[CircuitBreaker$.HalfOpen HalfOpen]] state,
+ *      enters a [[CircuitBreaker$.HalfOpen$ HalfOpen]] state,
  *      allowing one task to go through for testing the connection
  *
- *  1. [[CircuitBreaker$.HalfOpen HalfOpen]]: The circuit breaker
+ *  1. [[CircuitBreaker$.HalfOpen$ HalfOpen]]: The circuit breaker
  *     has already allowed a task to go through, as a reset attempt,
  *     in order to test the connection
  *    - The first task when `Open` has expired is allowed through
@@ -210,73 +209,39 @@ trait CircuitBreaker[F[_]] {
 }
 
 object CircuitBreaker {
-  /**
-   * Builds a `CircuitBreaker` value for data types that are [[Sync]] and have a [[Clock]] instance available
-   *
-   * This builder uses the
-   * [[https://typelevel.org/cats/guidelines.html#partially-applied-type-params Partially-Applied Type]]
-   * technique for providing default parameters.
-   *
-   * Example usage:
-   *
-   * {{{
-   *   CircuitBreaker[IO].of(
-   *     maxFailures = 4
-   *     resetTimeout = 10.seconds
-   *   )
-   * }}}
-   *
-   */
-  def apply[F[_]](implicit F: Sync[F]) = new ApplyBuilders(F)
-
-  final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
-    /** Builder for a [[CircuitBreaker]] reference.
-     *
-     * Value returned by this operation produces a new
-     * [[CircuitBreaker]] each time it is evaluated. To share a state between
-     * multiple consumers, pass [[CircuitBreaker]] as a parameter
-     *
-     * @param maxFailures is the maximum count for failures before
-     *        opening the circuit breaker
-     * @param resetTimeout is the timeout to wait in the `Open` state
-     *        before attempting a close of the circuit breaker (but
-     *        without the backoff factor applied)
-     * @param exponentialBackoffFactor is a factor to use for resetting
-     *        the `resetTimeout` when in the `HalfOpen` state, in case
-     *        the attempt to `Close` fails
-     * @param maxResetTimeout is the maximum timeout the circuit breaker
-     *        is allowed to use when applying the `exponentialBackoffFactor`
-     *
-     * @param onRejected is for signaling rejected tasks
-     * @param onClosed is for signaling a transition to `Closed`
-     * @param onHalfOpen is for signaling a transition to `HalfOpen`
-     * @param onOpen is for signaling a transition to `Open`
-     */
-    def of(
-      maxFailures: Int,
-      resetTimeout: FiniteDuration,
-      exponentialBackoffFactor: Double = 1.0,
-      maxResetTimeout: Duration = Duration.Inf,
-      onRejected: F[Unit] = F.unit,
-      onClosed: F[Unit] = F.unit,
-      onHalfOpen: F[Unit] = F.unit,
-      onOpen: F[Unit] = F.unit
-    )(implicit clock: Clock[F]): F[CircuitBreaker[F]] =
-      F.delay {
-        implicit val sync: Sync[F] = F
-        new SyncCircuitBreaker[F](
-          _stateRef = new AtomicReference(Closed(0): State),
-          _maxFailures = maxFailures,
-          _resetTimeout = resetTimeout,
-          _exponentialBackoffFactor = exponentialBackoffFactor,
-          _maxResetTimeout = maxResetTimeout,
-          onRejected = onRejected,
-          onClosed = onClosed,
-          onHalfOpen = onHalfOpen,
-          onOpen = onOpen
-        )
-      }
+  def of[F[_]](
+    maxFailures: Int,
+    resetTimeout: FiniteDuration,
+    exponentialBackoffFactor: Double = 1,
+    maxResetTimeout: Duration = Duration.Inf
+  )(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] = {
+    of(maxFailures, resetTimeout, exponentialBackoffFactor, maxResetTimeout, F.unit, F. unit, F.unit, F.unit)
   }
+
+
+  def of[F[_]](
+    maxFailures: Int,
+    resetTimeout: FiniteDuration,
+    exponentialBackoffFactor: Double,
+    maxResetTimeout: Duration,
+    onRejected: F[Unit],
+    onClosed: F[Unit],
+    onHalfOpen: F[Unit],
+    onOpen: F[Unit]
+  )(implicit F: Sync[F], clock: Clock[F]): F[CircuitBreaker[F]] =
+    Ref.of[F, State](ClosedZero).map { ref =>
+      new SyncCircuitBreaker[F](
+        ref,
+        maxFailures,
+        resetTimeout,
+        exponentialBackoffFactor,
+        maxResetTimeout,
+        onRejected,
+        onClosed,
+        onHalfOpen,
+        onOpen
+      )
+    }
 
   /** Type-alias to document timestamps specified in milliseconds, as returned by
    * [[cats.effect.Clock.realTime Clock.realTime]].
@@ -296,6 +261,8 @@ object CircuitBreaker {
    */
   sealed abstract class State
 
+  sealed trait Reason
+
   /** The initial [[State]] of the [[CircuitBreaker]]. While in this
    * state the circuit breaker allows tasks to be executed.
    *
@@ -311,12 +278,11 @@ object CircuitBreaker {
   final case class Closed(failures: Int) extends State
 
   /** [[State]] of the [[CircuitBreaker]] in which the circuit
-   * breaker rejects all tasks with an
-   * [[ExecutionRejectedException]].
+   * breaker rejects all tasks with a [[RejectedExecution]].
    *
    * Contract:
    *
-   *  - all tasks fail fast with `ExecutionRejectedException`
+   *  - all tasks fail fast with `RejectedExecution`
    *  - after the configured `resetTimeout`, the circuit breaker
    *    enters a [[HalfOpen]] state, allowing one task to go through
    *    for testing the connection
@@ -328,7 +294,7 @@ object CircuitBreaker {
    *        exponential backoff factor for the next transition from
    *        `HalfOpen` to `Open`, in case the reset attempt fails
    */
-  final case class Open(startedAt: Timestamp, resetTimeout: FiniteDuration) extends State {
+  final case class Open(startedAt: Timestamp, resetTimeout: FiniteDuration) extends State with Reason {
     /** The timestamp in milliseconds since the epoch, specifying
      * when the `Open` state is to transition to [[HalfOpen]].
      *
@@ -357,31 +323,23 @@ object CircuitBreaker {
    *  - If the first call fails, the breaker is tripped again into
    *    the `Open` state (the `resetTimeout` is multiplied by the
    *    exponential backoff factor)
-   *
-   * @param resetTimeout is the current `resetTimeout` that was
-   *        applied to the previous `Open` state, to be multiplied by
-   *        the exponential backoff factor for the next transition to
-   *        `Open`, in case the reset attempt fails
    */
-  final case class HalfOpen(resetTimeout: FiniteDuration) extends State
+  final case object HalfOpen extends State with Reason
 
+  private val ClosedZero = Closed(0)
 
 
   /** Exception thrown whenever an execution attempt was rejected.
    */
-  final class ExecutionRejectedException(val message: String, cause: Throwable)
-    extends RuntimeException(message, cause) {
-
-    def this(message: String) = this(message, null)
-    def this(cause: Throwable) = this(null, cause)
-  }
+  final case class RejectedExecution (reason: Reason)
+    extends RuntimeException(s"Execution rejected: $reason")
 
   private final class SyncCircuitBreaker[F[_]] (
-    _stateRef: AtomicReference[CircuitBreaker.State],
-    _maxFailures: Int,
-    _resetTimeout: FiniteDuration,
-    _exponentialBackoffFactor: Double,
-    _maxResetTimeout: Duration,
+    ref: Ref[F, CircuitBreaker.State],
+    maxFailures: Int,
+    resetTimeout: FiniteDuration,
+    exponentialBackoffFactor: Double,
+    maxResetTimeout: Duration,
     onRejected: F[Unit],
     onClosed: F[Unit],
     onHalfOpen: F[Unit],
@@ -391,178 +349,24 @@ object CircuitBreaker {
     clock: Clock[F]
   ) extends CircuitBreaker[F] {
 
-    require(_maxFailures >= 0, "maxFailures >= 0")
-    require(_exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
-    require(_resetTimeout > Duration.Zero, "resetTimeout > 0")
-    require(_maxResetTimeout > Duration.Zero, "maxResetTimeout > 0")
-
-    private[this] val stateRef = _stateRef
-
-    /** The maximum count for allowed failures before
-     * opening the circuit breaker.
-     */
-    val maxFailures: Int = _maxFailures
-
-    /** The timespan to wait in the `Open` state before attempting
-     * a close of the circuit breaker (but without the backoff
-     * factor applied).
-     *
-     * If we have a specified [[exponentialBackoffFactor]] then the
-     * actual reset timeout applied will be this value multiplied
-     * repeatedly with that factor, a value that can be found by
-     * querying the [[unsafeState]].
-     */
-    val resetTimeout: FiniteDuration = _resetTimeout
-
-    /** A factor to use for resetting the [[resetTimeout]] when in the
-     * `HalfOpen` state, in case the attempt for `Close` fails.
-     */
-    val exponentialBackoffFactor: Double = _exponentialBackoffFactor
-
-    /** The maximum timespan the circuit breaker is allowed to use
-     * as a [[resetTimeout]] when applying the [[exponentialBackoffFactor]].
-     */
-    val maxResetTimeout: Duration = _maxResetTimeout
+    require(maxFailures >= 0, "maxFailures >= 0")
+    require(exponentialBackoffFactor >= 1, "exponentialBackoffFactor >= 1")
+    require(resetTimeout > Duration.Zero, "resetTimeout > 0")
+    require(maxResetTimeout > Duration.Zero, "maxResetTimeout > 0")
 
 
     def state: F[CircuitBreaker.State] =
-      F.delay(stateRef.get)
+      ref.get
 
-    /** Function for counting failures in the `Closed` state,
-     * triggering the `Open` state if necessary.
-     */
-    private[this] val maybeMarkOrResetFailures: Either[Throwable, Any] => F[Unit] =
-      exOpt => F.suspend {
-        // Recursive function because of going into CAS loop
-        @tailrec def markFailure(ts: Timestamp): F[Unit] =
-          stateRef.get match {
-            case current @ Closed(failures) =>
-              exOpt match {
-                case Right(_) =>
-                  // In case of success, must reset the failures counter!
-                  if (failures == 0) F.unit else {
-                    val update = Closed(0)
-                    if (!stateRef.compareAndSet(current, update))
-                      markFailure(ts) // retry?
-                    else
-                      F.unit
-                  }
-
-                case Left(_) =>
-                  // In case of failure, we either increment the failures counter,
-                  // or we transition in the `Open` state.
-                  if (failures+1 < maxFailures) {
-                    // It's fine, just increment the failures count
-                    val update = Closed(failures+1)
-                    if (!stateRef.compareAndSet(current, update))
-                      markFailure(ts) // retry?
-                    else
-                      F.unit
-                  } else {
-                    val update = Open(ts, resetTimeout)
-
-                    if (!stateRef.compareAndSet(current, update))
-                      markFailure(ts) // retry?
-                    else
-                      onOpen
-                  }
-              }
-
-            case Open(_,_) | HalfOpen(_) =>
-              // Concurrent execution of another handler happened, we are
-              // already in an Open state, so not doing anything extra
-              F.unit
-          }
-        clock.monotonic(MILLISECONDS).flatMap(markFailure)
-      }
-
-    /** Internal function that is the handler for the reset attempt when
-     * the circuit breaker is in `HalfOpen`. In this state we can
-     * either transition to `Closed` in case the attempt was
-     * successful, or to `Open` again, in case the attempt failed.
-     *
-     * @param fa is the effect to execute, along with the attempt
-     *        handler attached
-     * @param resetTimeout is the last timeout applied to the previous
-     *        `Open` state, to be multiplied by the backoff factor in
-     *        case the attempt fails and it needs to transition to
-     *        `Open` again
-     */
-    private def attemptReset[A](fa: F[A], resetTimeout: FiniteDuration): F[A] =
-      onHalfOpen.flatMap(_ => fa).attempt.flatMap {
-        case Right(value) =>
-          // While in HalfOpen only a reset attempt is allowed to update
-          // the state, so setting this directly is safe
-          stateRef.set(Closed(0))
-          onClosed.map(_ => value)
-
-        case Left(ex) =>
-          // Failed reset, which means we go back in the Open state with new expiry
-          val nextTimeout = {
-            val value = (resetTimeout.toMillis * exponentialBackoffFactor).millis
-            if (maxResetTimeout.isFinite() && value > maxResetTimeout)
-              maxResetTimeout.asInstanceOf[FiniteDuration]
-            else
-              value
-          }
-
-          clock.monotonic(MILLISECONDS).flatMap { timeout =>
-            stateRef.set(Open(timeout, nextTimeout))
-            onOpen >> F.raiseError(ex)
-          }
-      }
-
-    def protect[A](fa: F[A]): F[A] = {
-      @tailrec def execute(now: Timestamp): F[A] =
-        stateRef.get match {
-          case Closed(_) =>
-            // CircuitBreaker is closed, allowing our task to go through, but with an
-            // attached error handler that transitions the state to Open if needed
-            fa.attempt.flatTap(maybeMarkOrResetFailures).rethrow
-
-          case HalfOpen(_) =>
-            // CircuitBreaker is in HalfOpen state, which means we still reject all tasks,
-            // while waiting to see if our reset attempt succeeds or fails
-            onRejected.flatMap { _ =>
-              F.raiseError(new ExecutionRejectedException(
-                "Rejected because the CircuitBreaker is in the HalfOpen state"
-              ))
-            }
-
-          case current @ Open(_, timeout) =>
-            val expiresAt = current.expiresAt
-
-            if (now >= expiresAt) {
-              // The Open state has expired, so we are letting just one
-              // task to execute, while transitioning into HalfOpen
-              if (!stateRef.compareAndSet(current, HalfOpen(timeout)))
-                execute(now) // retry!
-              else
-                attemptReset(fa, timeout)
-            }
-            else {
-              // Open isn't expired, so we need to fail
-              val expiresInMillis = expiresAt - now
-              onRejected.flatMap { _ =>
-                F.raiseError(new ExecutionRejectedException(
-                  "Rejected because the CircuitBreaker is in the Open state, " +
-                    s"attempting to close in $expiresInMillis millis"
-                ))
-              }
-            }
-        }
-
-      clock.monotonic(MILLISECONDS).flatMap(execute)
-    }
 
     def doOnRejected(callback: F[Unit]): CircuitBreaker[F] = {
       val onRejected = this.onRejected.flatMap(_ => callback)
       new SyncCircuitBreaker(
-        _stateRef = stateRef,
-        _maxFailures = maxFailures,
-        _resetTimeout = resetTimeout,
-        _exponentialBackoffFactor = exponentialBackoffFactor,
-        _maxResetTimeout = maxResetTimeout,
+        ref = ref,
+        maxFailures = maxFailures,
+        resetTimeout = resetTimeout,
+        exponentialBackoffFactor = exponentialBackoffFactor,
+        maxResetTimeout = maxResetTimeout,
         onRejected = onRejected,
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
@@ -572,11 +376,11 @@ object CircuitBreaker {
     def doOnClosed(callback: F[Unit]): CircuitBreaker[F] = {
       val onClosed = this.onClosed.flatMap(_ => callback)
       new SyncCircuitBreaker(
-        _stateRef = stateRef,
-        _maxFailures = maxFailures,
-        _resetTimeout = resetTimeout,
-        _exponentialBackoffFactor = exponentialBackoffFactor,
-        _maxResetTimeout = maxResetTimeout,
+        ref = ref,
+        maxFailures = maxFailures,
+        resetTimeout = resetTimeout,
+        exponentialBackoffFactor = exponentialBackoffFactor,
+        maxResetTimeout = maxResetTimeout,
         onRejected = onRejected,
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
@@ -586,11 +390,11 @@ object CircuitBreaker {
     def doOnHalfOpen(callback: F[Unit]): CircuitBreaker[F] = {
       val onHalfOpen = this.onHalfOpen.flatMap(_ => callback)
       new SyncCircuitBreaker(
-        _stateRef = stateRef,
-        _maxFailures = maxFailures,
-        _resetTimeout = resetTimeout,
-        _exponentialBackoffFactor = exponentialBackoffFactor,
-        _maxResetTimeout = maxResetTimeout,
+        ref = ref,
+        maxFailures = maxFailures,
+        resetTimeout = resetTimeout,
+        exponentialBackoffFactor = exponentialBackoffFactor,
+        maxResetTimeout = maxResetTimeout,
         onRejected = onRejected,
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
@@ -601,15 +405,75 @@ object CircuitBreaker {
     def doOnOpen(callback: F[Unit]): CircuitBreaker[F] = {
       val onOpen = this.onOpen.flatMap(_ => callback)
       new SyncCircuitBreaker(
-        _stateRef = stateRef,
-        _maxFailures = maxFailures,
-        _resetTimeout = resetTimeout,
-        _exponentialBackoffFactor = exponentialBackoffFactor,
-        _maxResetTimeout = maxResetTimeout,
+        ref = ref,
+        maxFailures = maxFailures,
+        resetTimeout = resetTimeout,
+        exponentialBackoffFactor = exponentialBackoffFactor,
+        maxResetTimeout = maxResetTimeout,
         onRejected = onRejected,
         onClosed = onClosed,
         onHalfOpen = onHalfOpen,
         onOpen = onOpen)
+    }
+
+
+    def openOnFail[A](f: F[A]): F[A] = {
+      f.attempt.flatMap {
+        case Right(a) =>
+          ref.set(ClosedZero) as a
+
+        case Left(err) =>
+          clock.monotonic(TimeUnit.MILLISECONDS).flatMap { now =>
+            ref.modify {
+              case Closed(failures) =>
+                val count = failures + 1
+                if (count >= maxFailures) (Open(now, resetTimeout), onOpen >> F.raiseError[A](err))
+                else (Closed(count), F.raiseError[A](err))
+              case open: Open => (open, F.raiseError[A](err))
+              case HalfOpen => (HalfOpen, F.raiseError[A](err))
+            }.flatten
+          }
+      }
+    }
+
+    def backoff(open:Open): Open = {
+      def next = (open.resetTimeout.toMillis * exponentialBackoffFactor).millis
+      open.copy(
+        resetTimeout = maxResetTimeout match {
+          case fin: FiniteDuration => next min fin
+          case _: Duration => next
+        }
+      )
+    }
+
+    def tryReset[A](open:Open,fa: F[A]): F[A] = {
+      clock.monotonic(TimeUnit.MILLISECONDS).flatMap { now =>
+        if (open.startedAt + open.resetTimeout.toMillis >= now) onRejected >> F.raiseError(RejectedExecution(open))
+        else {
+          def resetOnSuccess: F[A] = {
+            fa.attempt.flatMap {
+              case Left(err) => ref.set(backoff(open)) >> F.raiseError(err)
+              case Right(a) => onClosed >> ref.set(ClosedZero) as a
+            }
+          }
+          ref.modify {
+            case closed: Closed => (closed, openOnFail(fa))
+            case open@Open(startedAt, resetTimeout) =>
+              if (startedAt == open.startedAt && open.resetTimeout == resetTimeout) (HalfOpen, onHalfOpen >> resetOnSuccess)
+              else (open, onRejected >> F.raiseError[A](RejectedExecution(open)))
+            case HalfOpen => (HalfOpen, onRejected >> F.raiseError[A](RejectedExecution(HalfOpen)))
+          }.flatten
+
+        }
+      }
+    }
+
+    def protect[A](fa: F[A]): F[A] = {
+      ref.modify {
+        case closed: Closed  => (closed, openOnFail(fa))
+        case open: Open  => (open, tryReset(open, fa))
+        case HalfOpen => (HalfOpen,  onRejected >> F.raiseError[A](RejectedExecution(HalfOpen)))
+      }.flatten
     }
   }
 }

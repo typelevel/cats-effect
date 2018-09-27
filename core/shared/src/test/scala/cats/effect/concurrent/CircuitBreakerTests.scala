@@ -35,7 +35,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
 
-  private def mkBreaker() = CircuitBreaker[IO].of(
+  private def mkBreaker() = CircuitBreaker.of[IO](
     maxFailures = 5,
     resetTimeout = 1.minute
   ).unsafeRunSync()
@@ -138,7 +138,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
     var rejectedCount = 0
 
     val circuitBreaker = {
-      val cb = CircuitBreaker[IO].of(
+      val cb = CircuitBreaker.of[IO](
         maxFailures = 5,
         resetTimeout = 200.millis,
         exponentialBackoffFactor = 2,
@@ -171,13 +171,13 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
         }
         res <- taskSuccess.attempt
         _ = res should matchPattern {
-          case Left(_: CircuitBreaker.ExecutionRejectedException) =>
+          case Left(_: CircuitBreaker.RejectedExecution) =>
         }
         _ <- IO.sleep(1.nano) // This timeout is intentionally small b/c actuall time is not deterministic
         // Should still fail-fast
         res2 <- taskSuccess.attempt
         _ = res2 should matchPattern {
-          case Left(_: CircuitBreaker.ExecutionRejectedException) =>
+          case Left(_: CircuitBreaker.RejectedExecution) =>
         }
         _ <- IO.sleep(200.millis)
 
@@ -186,14 +186,14 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
         fiber <- circuitBreaker.protect(d.get).start
         _ <- IO.sleep(10.millis)
         _ = unsafeState() should matchPattern {
-          case CircuitBreaker.HalfOpen(_) =>
+          case CircuitBreaker.HalfOpen =>
         }
 
         // Should reject other tasks
 
         res3 <- taskSuccess.attempt
         _ = res3 should matchPattern {
-          case Left(_: CircuitBreaker.ExecutionRejectedException) =>
+          case Left(_: CircuitBreaker.RejectedExecution) =>
         }
 
         _ <- d.complete(())
@@ -211,7 +211,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
   test("validate parameters") {
     intercept[IllegalArgumentException] {
       // Positive maxFailures
-      CircuitBreaker[IO].of(
+      CircuitBreaker.of[IO](
         maxFailures = -1,
         resetTimeout = 1.minute
       ).unsafeRunSync()
@@ -219,7 +219,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
 
     intercept[IllegalArgumentException] {
       // Strictly positive resetTimeout
-      CircuitBreaker[IO].of(
+      CircuitBreaker.of[IO](
         maxFailures = 2,
         resetTimeout = -1.minute
       ).unsafeRunSync()
@@ -227,7 +227,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
 
     intercept[IllegalArgumentException] {
       // exponentialBackoffFactor >= 1
-      CircuitBreaker[IO].of(
+      CircuitBreaker.of[IO](
         maxFailures = 2,
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 0.5
@@ -236,7 +236,7 @@ class CircuitBreakerTests extends AsyncFunSuite with Matchers {
 
     intercept[IllegalArgumentException] {
       // Strictly positive maxResetTimeout
-      CircuitBreaker[IO].of(
+      CircuitBreaker.of[IO](
         maxFailures = 2,
         resetTimeout = 1.minute,
         exponentialBackoffFactor = 2,
