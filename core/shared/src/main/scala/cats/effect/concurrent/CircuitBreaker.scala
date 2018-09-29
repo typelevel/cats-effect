@@ -209,6 +209,23 @@ trait CircuitBreaker[F[_]] {
 }
 
 object CircuitBreaker {
+  /** Builder for a [[CircuitBreaker]] reference.
+   *
+   * Effect returned by this operation produces a new
+   * [[CircuitBreaker]] each time it is evaluated. To share a state between
+   * multiple consumers, pass [[CircuitBreaker]] as a parameter
+   *
+   * @param maxFailures is the maximum count for failures before
+   *        opening the circuit breaker
+   * @param resetTimeout is the timeout to wait in the `Open` state
+   *        before attempting a close of the circuit breaker (but
+   *        without the backoff factor applied)
+   * @param exponentialBackoffFactor is a factor to use for resetting
+   *        the `resetTimeout` when in the `HalfOpen` state, in case
+   *        the attempt to `Close` fails
+   * @param maxResetTimeout is the maximum timeout the circuit breaker
+   *        is allowed to use when applying the `exponentialBackoffFactor`
+   */
   def of[F[_]](
     maxFailures: Int,
     resetTimeout: FiniteDuration,
@@ -218,7 +235,28 @@ object CircuitBreaker {
     of(maxFailures, resetTimeout, exponentialBackoffFactor, maxResetTimeout, F.unit, F. unit, F.unit, F.unit)
   }
 
-
+  /** Builder for a [[CircuitBreaker]] reference.
+   *
+   * Effect returned by this operation produces a new
+   * [[CircuitBreaker]] each time it is evaluated. To share a state between
+   * multiple consumers, pass [[CircuitBreaker]] as a parameter
+   *
+   * @param maxFailures is the maximum count for failures before
+   *        opening the circuit breaker
+   * @param resetTimeout is the timeout to wait in the `Open` state
+   *        before attempting a close of the circuit breaker (but
+   *        without the backoff factor applied)
+   * @param exponentialBackoffFactor is a factor to use for resetting
+   *        the `resetTimeout` when in the `HalfOpen` state, in case
+   *        the attempt to `Close` fails
+   * @param maxResetTimeout is the maximum timeout the circuit breaker
+   *        is allowed to use when applying the `exponentialBackoffFactor`
+   *
+   * @param onRejected is for signaling rejected tasks
+   * @param onClosed is for signaling a transition to `Closed`
+   * @param onHalfOpen is for signaling a transition to `HalfOpen`
+   * @param onOpen is for signaling a transition to `Open`
+   */
   def of[F[_]](
     maxFailures: Int,
     resetTimeout: FiniteDuration,
@@ -324,7 +362,7 @@ object CircuitBreaker {
    *    the `Open` state (the `resetTimeout` is multiplied by the
    *    exponential backoff factor)
    */
-  final case object HalfOpen extends State with Reason
+  case object HalfOpen extends State with Reason
 
   private val ClosedZero = Closed(0)
 
