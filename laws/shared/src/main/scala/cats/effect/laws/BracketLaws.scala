@@ -27,9 +27,6 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketCaseWithPureUnitIsEqvMap[A, B](fa: F[A], f: A => B) =
     F.bracketCase(fa)(a => f(a).pure[F])((_, _) => F.unit) <-> F.map(fa)(f)
 
-  def bracketCaseWithPureUnitIsUncancelable[A, B](fa: F[A], f: A => F[B]) =
-    F.bracketCase(fa)(f)((_, _) => F.unit) <-> F.uncancelable(fa).flatMap(f)
-
   def bracketCaseFailureInAcquisitionRemainsFailure[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError(e)
 
@@ -42,14 +39,25 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
       case _ => onFinish
     }) <-> F.uncancelable(F.guarantee(fa)(onFinish))
 
-  def acquireAndReleaseAreUncancelable[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
-    F.bracket(F.uncancelable(fa))(use)(a => F.uncancelable(release(a))) <-> F.bracket(fa)(use)(release)
-
   def guaranteeIsDerivedFromBracket[A](fa: F[A], finalizer: F[Unit]) =
     F.guarantee(fa)(finalizer) <-> F.bracket(F.unit)(_ => fa)(_ => finalizer)
 
   def guaranteeCaseIsDerivedFromBracketCase[A](fa: F[A], finalizer: ExitCase[E] => F[Unit]) =
     F.guaranteeCase(fa)(finalizer) <-> F.bracketCase(F.unit)(_ => fa)((_, e) => finalizer(e))
+
+  @deprecated("Law to be removed, see typelevel/cats-effect#382", "1.1.0")
+  def bracketCaseWithPureUnitIsUncancelable[A, B](fa: F[A], f: A => F[B]) = {
+    // $COVERAGE-OFF$
+    F.bracketCase(fa)(f)((_, _) => F.unit) <-> F.uncancelable(fa).flatMap(f)
+    // $COVERAGE-ON$
+  }
+
+  @deprecated("Law to be removed, see typelevel/cats-effect#382", "1.1.0")
+  def acquireAndReleaseAreUncancelable[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) = {
+    // $COVERAGE-OFF$
+    F.bracket(F.uncancelable(fa))(use)(a => F.uncancelable(release(a))) <-> F.bracket(fa)(use)(release)
+    // $COVERAGE-ON$
+  }
 }
 
 object BracketLaws {

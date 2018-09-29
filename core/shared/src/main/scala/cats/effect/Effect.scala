@@ -48,7 +48,7 @@ trait Effect[F[_]] extends Async[F] {
    *
    * {{{
    *   val io = F.runAsync(fa)(cb)
-   *   // Running io results in evaluation of `fa` starting 
+   *   // Running io results in evaluation of `fa` starting
    *   io.unsafeRunSync
    * }}}
    */
@@ -91,10 +91,10 @@ object Effect {
 
     protected def F: Effect[F]
 
-    def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
+    final def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       F.runAsync(fa.value)(cb.compose(_.right.flatMap(x => x)))
 
-    override def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
+    final override def toIO[A](fa: EitherT[F, Throwable, A]): IO[A] =
       F.toIO(F.rethrow(fa.value))
   }
 
@@ -104,10 +104,10 @@ object Effect {
     protected def F: Effect[F]
     protected def L: Monoid[L]
 
-    def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
+    final def runAsync[A](fa: WriterT[F, L, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       F.runAsync(fa.run)(cb.compose(_.right.map(_._2)))
 
-    override def toIO[A](fa: WriterT[F, L, A]): IO[A] =
+    final override def toIO[A](fa: WriterT[F, L, A]): IO[A] =
       F.toIO(fa.value(F))
   }
 }

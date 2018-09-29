@@ -303,6 +303,16 @@ trait Concurrent[F[_]] extends Async[F] {
    */
   override def liftIO[A](ioa: IO[A]): F[A] =
     Concurrent.liftIO(ioa)(this)
+
+  /* TODO: remove in Cats-Effect 2.0
+   *
+   * See: https://github.com/typelevel/cats-effect/issues/382
+   */
+  override def uncancelable[A](fa: F[A]): F[A] = {
+    // We only need this equivalence in `Concurrent`, therefore
+    // we move the implementation here:
+    bracket(fa)(pure)(_ => unit)
+  }
 }
 
 
@@ -416,8 +426,8 @@ object Concurrent {
   implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L]
-    with Concurrent[EitherT[F, L, ?]] {
+  private[effect] trait EitherTConcurrent[F[_], L] extends Concurrent[EitherT[F, L, ?]]
+    with Async.EitherTAsync[F, L] {
 
     override protected implicit def F: Concurrent[F]
     override protected def FF = F
@@ -426,13 +436,13 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[EitherT[F, L, ?], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[EitherT[F, L, ?]]): EitherT[F, L, A] =
+    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[EitherT[F, L, ?]]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
 
-    override def start[A](fa: EitherT[F, L, A]) =
+    final override def start[A](fa: EitherT[F, L, A]) =
       EitherT.liftF(F.start(fa.value).map(fiberT))
 
-    override def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    final override def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       EitherT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -450,12 +460,12 @@ object Concurrent {
           }
       })
 
-    protected def fiberT[A](fiber: effect.Fiber[F, Either[L, A]]): Fiber[A] =
+    final protected def fiberT[A](fiber: effect.Fiber[F, Either[L, A]]): Fiber[A] =
       Fiber(EitherT(fiber.join), EitherT.liftF(fiber.cancel))
   }
 
-  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F]
-    with Concurrent[OptionT[F, ?]] {
+  private[effect] trait OptionTConcurrent[F[_]] extends Concurrent[OptionT[F, ?]]
+    with Async.OptionTAsync[F] {
 
     override protected implicit def F: Concurrent[F]
     override protected def FF = F
@@ -464,13 +474,13 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[OptionT[F, ?], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[OptionT[F, ?]]): OptionT[F, A] =
+    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[OptionT[F, ?]]): OptionT[F, A] =
       OptionT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
 
-    override def start[A](fa: OptionT[F, A]) =
+    final override def start[A](fa: OptionT[F, A]) =
       OptionT.liftF(F.start(fa.value).map(fiberT))
 
-    override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    final override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       OptionT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -488,13 +498,13 @@ object Concurrent {
           }
       })
 
-    protected def fiberT[A](fiber: effect.Fiber[F, Option[A]]): Fiber[A] =
+    final protected def fiberT[A](fiber: effect.Fiber[F, Option[A]]): Fiber[A] =
       Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
   }
 
 
-  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L]
-    with Concurrent[WriterT[F, L, ?]] {
+  private[effect] trait WriterTConcurrent[F[_], L] extends Concurrent[WriterT[F, L, ?]]
+    with Async.WriterTAsync[F, L] {
 
     override protected implicit def F: Concurrent[F]
     override protected def FA = F
@@ -503,15 +513,15 @@ object Concurrent {
     // compiler will choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[WriterT[F, L, ?], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[WriterT[F, L, ?]]): WriterT[F, L, A] =
+    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[WriterT[F, L, ?]]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k.andThen(_.run.map(_ => ()))))(L, F)
 
-    override def start[A](fa: WriterT[F, L, A]) =
+    final override def start[A](fa: WriterT[F, L, A]) =
       WriterT(F.start(fa.run).map { fiber =>
         (L.empty, fiberT[A](fiber))
       })
 
-    override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    final override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       WriterT(F.racePair(fa.run, fb.run).map {
         case Left(((l, value), fiber)) =>
           (l, Left((value, fiberT(fiber))))
@@ -519,26 +529,25 @@ object Concurrent {
           (l, Right((fiberT(fiber), value)))
       })
 
-    protected def fiberT[A](fiber: effect.Fiber[F, (L, A)]): Fiber[A] =
+    final protected def fiberT[A](fiber: effect.Fiber[F, (L, A)]): Fiber[A] =
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
   }
 
-  private[effect] abstract class KleisliConcurrent[F[_], R]
-    extends Async.KleisliAsync[F, R]
-    with Concurrent[Kleisli[F, R, ?]] {
+  private[effect] trait KleisliConcurrent[F[_], R] extends Concurrent[Kleisli[F, R, ?]]
+    with Async.KleisliAsync[F, R] {
 
     override protected implicit def F: Concurrent[F]
     // Needed to drive static checks, otherwise the
     // compiler can choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Kleisli[F, R, ?]]): Kleisli[F, R, A] =
+    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Kleisli[F, R, ?]]): Kleisli[F, R, A] =
       Kleisli(r => F.cancelable(k.andThen(_.run(r).map(_ => ()))))
 
-    override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
+    final override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
       Kleisli(r => F.start(fa.run(r)).map(fiberT))
 
-    override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]) =
+    final override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]) =
       Kleisli { r =>
         F.racePair(fa.run(r), fb.run(r)).map {
           case Left((a, fiber)) => Left((a, fiberT[B](fiber)))
@@ -546,7 +555,7 @@ object Concurrent {
         }
       }
 
-    protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
+    final protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
   }
 
