@@ -361,10 +361,10 @@ object Async {
     override implicit protected def F: Async[F]
     protected def FF = F
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => EitherT[F, L, Unit]): EitherT[F, L, A] =
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => EitherT[F, L, Unit]): EitherT[F, L, A] =
       EitherT.liftF(F.asyncF(cb => F.as(k(cb).value, ())))
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): EitherT[F, L, A] =
       EitherT.liftF(F.async(k))
   }
 
@@ -375,10 +375,10 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FF = F
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => OptionT[F, Unit]): OptionT[F, A] =
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => OptionT[F, Unit]): OptionT[F, A] =
       OptionT.liftF(F.asyncF(cb => F.as(k(cb).value, ())))
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): OptionT[F, A] =
       OptionT.liftF(F.async(k))
   }
 
@@ -389,10 +389,10 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FA = F
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => StateT[F, S, Unit]): StateT[F, S, A] =
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => StateT[F, S, Unit]): StateT[F, S, A] =
       StateT(s => F.map(F.asyncF[A](cb => k(cb).runA(s)))(a => (s, a)))
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): StateT[F, S, A] =
       StateT.liftF(F.async(k))
   }
 
@@ -403,23 +403,23 @@ object Async {
     override protected implicit def F: Async[F]
     protected def FA = F
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => WriterT[F, L, Unit]): WriterT[F, L, A] =
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => WriterT[F, L, Unit]): WriterT[F, L, A] =
       WriterT.liftF(F.asyncF(cb => F.as(k(cb).run, ())))
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): WriterT[F, L, A] =
       WriterT.liftF(F.async(k))(L, FA)
   }
 
-  private[effect] abstract class KleisliAsync[F[_], R]
-    extends Sync.KleisliSync[F, R]
-    with Async[Kleisli[F, R, ?]] {
+  private[effect] trait KleisliAsync[F[_], R]
+    extends Async[Kleisli[F, R, ?]]
+    with Sync.KleisliSync[F, R] {
 
     override protected implicit def F: Async[F]
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+    final override def asyncF[A](k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
       Kleisli(a => F.asyncF(cb => k(cb).run(a)))
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
+    final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
       Kleisli.liftF(F.async(k))
   }
 }

@@ -742,7 +742,8 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 
   implicit val ioEffect: Effect[IO] = new IOEffect
 
-  private[effect] class IOEffect extends Effect[IO] with StackSafeMonad[IO] {
+  private[effect] class IOEffect extends IOEffectBase
+  private[effect] trait IOEffectBase extends Effect[IO] with StackSafeMonad[IO] {
     final override def pure[A](a: A): IO[A] =
       IO.pure(a)
     final override def unit: IO[Unit] =
@@ -815,7 +816,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
   }
 
   implicit def ioConcurrentEffect(implicit cs: ContextShift[IO]): ConcurrentEffect[IO] =
-    new IOEffect with ConcurrentEffect[IO] {
+    new ConcurrentEffect[IO] with IOEffectBase {
       final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
         fa.start
       final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =

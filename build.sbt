@@ -188,7 +188,14 @@ val mimaSettings = Seq(
     Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#EnsureReleaseFrame.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketReleaseFrame.this"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this"),
+      // Related to: https://github.com/typelevel/cats-effect/issues/382
+      // All internal implementation details (fingers crossed)
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync"),
+      exclude[IncompatibleTemplateDefProblem]("cats.effect.Bracket$KleisliBracket")
+      // ...
     )
   })
 
