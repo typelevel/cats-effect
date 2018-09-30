@@ -69,7 +69,7 @@ Before any thread can start doing real work, the OS needs to store state of earl
 for the current one. This cleanup has nontrivial cost. The most efficient situation for CPU-bound tasks
 is when we execute as many logical threads as the number of available native threads.
 
-For the above reasons, synchronous execution can perform much better than a parallel. If you parallelize it
+For the above reasons, synchronous execution can have better throughput than parallel execution. If you parallelize it
 too much, it won't make your code magically faster.  The overhead of creating or switching threads is often greater than the speedup, so make sure to benchmark.
 
 Remember that threads are scarce resource on JVM. If you exploit them at every opportunity
