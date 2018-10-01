@@ -21,6 +21,7 @@ import cats.effect.{CancelToken, ExitCase, IO}
 import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
+import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
   /**
@@ -130,19 +131,29 @@ private[effect] object IOBracket {
       releaseFn(c)
   }
 
-  private abstract class BaseReleaseFrame[A, B]
-    extends IOFrame[B, IO[B]] {
+  private abstract class BaseReleaseFrame[A, B] extends IOFrame[B, IO[B]] {
+    // Guard used for thread-safety, to ensure the idempotency
+    // of the release; otherwise `release` can be called twice
+    private[this] val waitsForResult = new AtomicBoolean(true)
 
     def release(c: ExitCase[Throwable]): CancelToken[IO]
 
+    private def applyRelease(e: ExitCase[Throwable]): IO[Unit] =
+      IO.suspend {
+        if (waitsForResult.compareAndSet(true, false))
+          release(e)
+        else
+          IO.unit
+      }
+
     final val cancel: CancelToken[IO] =
-      release(ExitCase.Canceled).uncancelable
+      applyRelease(ExitCase.Canceled).uncancelable
 
     final def recover(e: Throwable): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak;
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
-      ContextSwitch(release(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
+      ContextSwitch(applyRelease(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
         .flatMap(new ReleaseRecover(e))
     }
 
@@ -150,7 +161,7 @@ private[effect] object IOBracket {
       // Unregistering cancel token, otherwise we can have a memory leak
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
-      ContextSwitch(release(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
+      ContextSwitch(applyRelease(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
         .map(_ => b)
     }
   }
