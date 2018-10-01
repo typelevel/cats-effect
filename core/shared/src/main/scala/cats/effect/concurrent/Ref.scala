@@ -19,8 +19,11 @@ package effect
 package concurrent
 
 import cats.data.State
-
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+
+import cats.effect.concurrent.Ref.TransformedRef
+import cats.instances.tuple._
+import cats.instances.function._
 
 import scala.annotation.tailrec
 
@@ -114,6 +117,12 @@ abstract class Ref[F[_], A] {
    * Like [[tryModifyState]] but retries the modification until successful.
    */
   def modifyState[B](state: State[A, B]): F[B]
+
+  /**
+    * Modify the context `F` using transformation `f`.
+    */
+  def mapK[G[_]](f: F ~> G)(implicit F: Functor[F]): Ref[G, A] =
+    new TransformedRef(this, f)
 }
 
 object Ref {
@@ -248,5 +257,22 @@ object Ref {
       modify(a => f(a).value)
     }
   }
+
+  private[concurrent] final class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)
+    (implicit F: Functor[F]) extends Ref[G, A]{
+    override def get: G[A] = trans(underlying.get)
+    override def set(a: A): G[Unit] = trans(underlying.set(a))
+    override def getAndSet(a: A): G[A] = trans(underlying.getAndSet(a))
+    override def tryUpdate(f: A => A): G[Boolean] = trans(underlying.tryUpdate(f))
+    override def tryModify[B](f: A => (A, B)): G[Option[B]] = trans(underlying.tryModify(f))
+    override def update(f: A => A): G[Unit] = trans(underlying.update(f))
+    override def modify[B](f: A => (A, B)): G[B] = trans(underlying.modify(f))
+    override def tryModifyState[B](state: State[A, B]): G[Option[B]] = trans(underlying.tryModifyState(state))
+    override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
+
+    override def access: G[(A, A => G[Boolean])] =
+      trans(F.compose[(A, ?)].compose[A => ?].map(underlying.access)(trans(_)))
+  }
+
 }
 

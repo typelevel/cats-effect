@@ -19,7 +19,9 @@ package effect
 package concurrent
 
 import cats.effect.ExitCase
+import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
+
 import scala.collection.immutable.Queue
 
 /**
@@ -93,6 +95,12 @@ abstract class Semaphore[F[_]] {
    * Returns an effect that acquires a permit, runs the supplied effect, and then releases the permit.
    */
   def withPermit[A](t: F[A]): F[A]
+
+  /**
+    * Modify the context `F` using natural isomorphism  `f` with `g`.
+    */
+  def imapK[G[_]](f: F ~> G, g: G ~> F): Semaphore[G] =
+    new TransformedSemaphore(this, f, g)
 }
 
 object Semaphore {
@@ -261,5 +269,14 @@ object Semaphore {
   private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred.uncancelable[F, Unit]
     protected def awaitGate(entry: (Long, Deferred[F, Unit])): F[Unit] = entry._2.get
+  }
+
+  private[concurrent] final class TransformedSemaphore[F[_], G[_]](underlying: Semaphore[F], trans: F ~> G, inverse: G ~> F) extends Semaphore[G]{
+    override def available: G[Long] = trans(underlying.available)
+    override def count: G[Long] = trans(underlying.count)
+    override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
+    override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
+    override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
+    override def withPermit[A](t: G[A]): G[A] = trans(underlying.withPermit(inverse(t)))
   }
 }
