@@ -23,6 +23,8 @@ See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob
 libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0"
 ```
 
+Cats Effect relies on improved type inference and needs partial unification enabled as described in the cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
+
 If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
 
 Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0-M4, as well as Scala.js 0.6.x.
