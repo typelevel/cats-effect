@@ -44,7 +44,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       // Waits for the `use` action to execute
       waitStart <- startLatch.get
       // Triggers cancellation
-      _ <- fiber.cancel
+      _ <- F.start(fiber.cancel)
       // Observes cancellation via bracket's `release`
       waitExit <- exitLatch.get
     } yield f(waitStart, waitExit)
@@ -63,7 +63,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       async    = F.cancelable[Unit] { _ => latch.success(()); release.complete(a) }
       fiber   <- F.start(async)
       _       <- F.liftIO(IO.fromFuture(IO.pure(latch.future)))
-      _       <- fiber.cancel
+      _       <- F.start(fiber.cancel)
       result  <- release.get
     } yield result
 
@@ -79,7 +79,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       }
       fiber <- F.start(task)
       _ <- acquire.get
-      _ <- fiber.cancel
+      _ <- F.start(fiber.cancel)
       a <- release.get
     } yield a
 
@@ -122,7 +122,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         task   = F.bracket(latch.complete(()) *> mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
         _     <- latch.get
-        _     <- fiber.cancel
+        _     <- F.start(fiber.cancel)
         _     <- contextShift.shift
         _     <- mVar.take
         out   <- mVar.take
@@ -179,7 +179,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       pb <- Deferred.uncancelable[F, B]
       loserB = F.bracket(s.release)(_ => F.never[B])(_ => pb.complete(b))
       race <- F.start(F.race(loserA, loserB))
-      _ <- s.acquireN(2L) *> race.cancel
+      _ <- s.acquireN(2L) *> F.start(race.cancel)
       a <- pa.get
       b <- pb.get
     } yield f(a, b)
@@ -223,9 +223,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
       b <- F.attempt(race).flatMap {
         case Right(Left((_, fiber))) =>
-          fiber.cancel *> effect.get
+          F.start(fiber.cancel) *> effect.get
         case Right(Right((fiber, _))) =>
-          fiber.cancel *> effect.get
+          F.start(fiber.cancel) *> effect.get
         case Left(_) =>
           effect.get
       }

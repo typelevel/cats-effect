@@ -44,8 +44,13 @@ private[internals] final class IOTimer private (
         // Doing what IO.cancelable does
         val ref = ForwardCancelable()
         conn.push(ref.cancel)
-        val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
-        ref := IO(f.cancel(false))
+        // Race condition test
+        if (!conn.isCanceled) {
+          val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
+          ref.complete(IO(f.cancel(false)))
+        } else {
+          ref.complete(IO.unit)
+        }
       }
     })
 }
@@ -79,7 +84,7 @@ private[internals] object IOTimer {
     ec: ExecutionContext)
     extends Runnable {
 
-    def run() = {
+    def run(): Unit = {
       // Shifts actual execution on our `ExecutionContext`, because
       // the scheduler is in charge only of ticks and the execution
       // needs to shift because the tick might continue with whatever

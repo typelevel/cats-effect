@@ -186,6 +186,19 @@ val mimaSettings = Seq(
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
     Seq(
+      // All internals — https://github.com/typelevel/cats-effect/pull/376
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketStart.this"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmptyCanceled"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmptyCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$Reference"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmpty$"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.:="),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.plusOne"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$Reference$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsCanceled$"),
+      // https://github.com/typelevel/cats-effect/pull/377
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#EnsureReleaseFrame.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketReleaseFrame.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this")

@@ -66,7 +66,7 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
       fiber   <- F.start(never)
       // Waiting for the task to start before cancelling it
       _       <- latch.get
-      _       <- fiber.cancel
+      _       <- F.start(fiber.cancel)
       result  <- effect2.get
     } yield result
 
