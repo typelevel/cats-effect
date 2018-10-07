@@ -19,6 +19,7 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.concurrent.{Ref, Deferred}
 import cats.effect.ExitCase.Canceled
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.Callback.{rightUnit, successUnit}
@@ -192,7 +193,8 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
+or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
   /**
    * Start concurrent execution of the source suspended in
@@ -351,6 +353,28 @@ object Concurrent {
     }
 
   /**
+    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
+    * bound, the effect `f` will be performed at most once (when the
+    * inner `F[A]` is bound the first time).
+    *
+    * Note: `start` can be used for eager memoization.
+    */
+  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] =
+    Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
+      Deferred[F, Either[Throwable, A]].flatMap { d =>
+        ref
+          .modify {
+            case None =>
+              Some(d) -> f.attempt.flatTap(d.complete)
+            case s @ Some(other) =>
+              s -> other.get
+          }
+          .flatten
+          .rethrow
+      }
+    }
+
+  /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
    *
@@ -389,6 +413,7 @@ object Concurrent {
    * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
+  @deprecated("WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 

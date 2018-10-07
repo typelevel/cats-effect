@@ -6,6 +6,9 @@ source: "shared/src/main/scala/cats/effect/concurrent/MVar.scala"
 scaladoc: "#cats.effect.concurrent.MVar"
 ---
 
+{:.responsive-pic}
+![concurrency mvar](../img/concurrency-mvar.png)
+
 An `MVar` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
@@ -34,7 +37,7 @@ It has these fundamental (atomic) operations:
 - `put`: fills the `MVar` if it is empty, or blocks (asynchronously)
   if the `MVar` is full, until the given value is next in line to be
   consumed on `take`
-- `take`: tries reading the current value, or blocks (asynchronously)
+- `take`: tries reading the current value (also emptying it), or blocks (asynchronously)
   until there is a value available, at which point the operation resorts
   to a `take` followed by a `put`
 - `read`: which reads the current value without modifying the `MVar`,
@@ -68,7 +71,10 @@ except that there's no actual thread blocking involved and it is powered by data
 
 ```tut:invisible
 import cats.effect.laws.util.TestContext
+import cats.effect.IO
+
 implicit val ec = TestContext()
+implicit val cs = IO.contextShift(ec)
 ```
 
 ```tut:silent

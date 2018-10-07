@@ -14,21 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect
-package internals
+package cats.effect.internals
 
+import cats.effect.{BaseTestsSuite, IO}
 import scala.util.Success
 
-class IOTimerTests extends BaseTestsSuite {
-  test("Timer[IO] default instance") {
-    val ref1 = Timer[IO]
-    ref1 shouldBe Timer[IO]
-  }
+class IOContextShiftTests extends BaseTestsSuite {
+ 
+  testAsync("ContextShift[IO] instance based on implicit ExecutionContext") { implicit ec =>
+    val contextShift = ec.contextShift[IO]
 
-  testAsync("Timer[IO] instance based on implicit ExecutionContext") { implicit ec =>
-    val timer = Timer[IO]
-
-    val f = timer.shift.map(_ => 1).unsafeToFuture()
+    val f = contextShift.shift.map(_ => 1).unsafeToFuture()
     f.value shouldBe None
 
     ec.tick()

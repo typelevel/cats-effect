@@ -37,7 +37,8 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for ConcurrentEffect[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Timer, Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
+or some equivalent type.""")
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.
@@ -80,6 +81,7 @@ object ConcurrentEffect {
    * [[ConcurrentEffect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `ConcurrentEffect`.
    */
+  @deprecated("WARNING: currently the ConcurrentEffect[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTConcurrentEffect[F[_]: ConcurrentEffect, L: Monoid]: ConcurrentEffect[WriterT[F, L, ?]] =
     new WriterTConcurrentEffect[F, L] { def F = ConcurrentEffect[F]; def L = Monoid[L] }
 

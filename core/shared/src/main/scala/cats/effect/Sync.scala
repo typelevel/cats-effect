@@ -26,8 +26,8 @@ import cats.syntax.all._
  * A monad that can suspend the execution of side effects
  * in the `F[_]` context.
  */
-@typeclass
-trait Sync[F[_]] extends Bracket[F, Throwable] {
+@typeclass(excludeParents = List("Defer"))
+trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -36,6 +36,12 @@ trait Sync[F[_]] extends Bracket[F, Throwable] {
    * in `F`.
    */
   def suspend[A](thunk: => F[A]): F[A]
+
+  /**
+    * Alias for `suspend` that suspends the evaluation of
+    * an `F` reference and implements `cats.Defer` typeclass.
+    */
+  override final def defer[A](fa: => F[A]): F[A] = suspend(fa)
 
   /**
    * Lifts any by-name parameter into the `F` context.
@@ -223,7 +229,7 @@ object Sync {
       (use: A => WriterT[F, L, B])
       (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
         WriterT.liftF(Ref.of[F, Option[L]](None)).flatMap { ref =>
-          uncancelable(acquire).flatMap { a =>
+          acquire.flatMap { a =>
             WriterT(
               F.bracketCase[A, (L, B)](F.pure(a)) { a =>
                 use(a).run.flatTap { case (l, _) => ref.set(Some(l)) }

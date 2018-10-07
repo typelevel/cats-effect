@@ -18,18 +18,16 @@ package cats.effect
 package internals
 
 import java.util.concurrent.{Executors, ScheduledExecutorService, ThreadFactory}
-
 import cats.effect.internals.Callback.T
 import cats.effect.internals.IOShift.Tick
-
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, NANOSECONDS, TimeUnit}
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Internal API — JVM specific implementation of a `Timer[IO]`.
  *
- * Depends on having a Scala `ExecutionContext` for the actual
- * execution of tasks (i.e. bind continuations) and on a Java
+ * Depends on having a Scala `ExecutionContext` for the
+ * execution of tasks after their schedule (i.e. bind continuations) and on a Java
  * `ScheduledExecutorService` for scheduling ticks with a delay.
  */
 private[internals] final class IOTimer private (
@@ -38,25 +36,23 @@ private[internals] final class IOTimer private (
 
   import IOTimer._
 
-  override def clockRealTime(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
-
-  override def clockMonotonic(unit: TimeUnit): IO[Long] =
-    IO(unit.convert(System.nanoTime(), NANOSECONDS))
+  val clock : Clock[IO] = Clock.create[IO]
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
       def apply(conn: IOConnection, cb: T[Unit]): Unit = {
         // Doing what IO.cancelable does
         val ref = ForwardCancelable()
-        conn.push(ref)
-        val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
-        ref := (() => f.cancel(false))
+        conn.push(ref.cancel)
+        // Race condition test
+        if (!conn.isCanceled) {
+          val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
+          ref.complete(IO(f.cancel(false)))
+        } else {
+          ref.complete(IO.unit)
+        }
       }
     })
-
-  override def shift: IO[Unit] =
-    IOShift(ec)
 }
 
 private[internals] object IOTimer {
@@ -68,11 +64,15 @@ private[internals] object IOTimer {
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     new IOTimer(ec, sc)
 
-  private lazy val scheduler: ScheduledExecutorService =
+  /** Global instance, used by `IOApp`. */
+  lazy val global: Timer[IO] =
+    apply(ExecutionContext.Implicits.global)
+
+  private[internals] lazy val scheduler: ScheduledExecutorService =
     Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
-        th.setName("cats-effect")
+        th.setName(s"cats-effect-scheduler-${th.getId}")
         th.setDaemon(true)
         th
       }
@@ -84,7 +84,7 @@ private[internals] object IOTimer {
     ec: ExecutionContext)
     extends Runnable {
 
-    def run() = {
+    def run(): Unit = {
       // Shifts actual execution on our `ExecutionContext`, because
       // the scheduler is in charge only of ticks and the execution
       // needs to shift because the tick might continue with whatever

@@ -16,93 +16,54 @@
 
 package cats.effect.internals
 
+import cats.effect.IO
 import org.scalatest.{FunSuite, Matchers}
 
 class ForwardCancelableTests extends FunSuite with Matchers {
-  test("cancel()") {
+  test("cancel() after complete") {
     var effect = 0
-    val s = ForwardCancelable()
-    val b = BooleanCancelable { () => effect += 1 }
 
-    s := b
-    s()
-    b.isCanceled shouldBe true
+    val ref = ForwardCancelable()
+    ref.complete(IO { effect += 1 })
+    effect shouldBe 0
+
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 1
-    s()
+
+    // Weak idempotency guarantees (not thread-safe)
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 1
   }
 
-  test("cancel() (plus one)") {
+  test("cancel() before complete") {
     var effect = 0
-    val extra = BooleanCancelable { () => effect += 1 }
-    val b = BooleanCancelable { () => effect += 2 }
 
-    val s = ForwardCancelable.plusOne(extra)
-    s := b
+    val ref = ForwardCancelable()
+    ref.cancel.unsafeRunAsyncAndForget()
+    effect shouldBe 0
 
-    s()
-    b.isCanceled shouldBe true
-    extra.isCanceled shouldBe true
+    ref.complete(IO { effect += 1 })
+    effect shouldBe 1
+
+    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
+    // completed task was canceled before error was thrown
     effect shouldBe 3
-    s()
+
+    ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 3
   }
 
-  test("cancel on single assignment") {
-    val s = ForwardCancelable()
-    s()
-
+  test("complete twice before cancel") {
     var effect = 0
-    val b = BooleanCancelable { () => effect += 1 }
-    s := b
 
-    b.isCanceled shouldBe true
-    effect shouldBe 1
+    val ref = ForwardCancelable()
+    ref.complete(IO { effect += 1 })
+    effect shouldBe 0
 
-    s()
-    effect shouldBe 1
-  }
-
-  test("cancel on single assignment (plus one)") {
-    var effect = 0
-    val extra = BooleanCancelable { () => effect += 1 }
-    val s = ForwardCancelable.plusOne(extra)
-
-    s()
-    extra.isCanceled shouldBe true
-    effect shouldBe 1
-
-    val b = BooleanCancelable { () => effect += 1 }
-    s := b
-
-    b.isCanceled shouldBe true
+    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
     effect shouldBe 2
 
-    s()
-    effect shouldBe 2
-  }
-
-  test("throw exception on multi assignment") {
-    val s = ForwardCancelable()
-    val b1 = () => ()
-    s := b1
-
-    intercept[IllegalStateException] {
-      val b2 = () => ()
-      s := b2
-    }
-  }
-
-  test("throw exception on multi assignment when canceled") {
-    val s = ForwardCancelable()
-    s()
-
-    val b1 = () => ()
-    s := b1
-
-    intercept[IllegalStateException] {
-      val b2 = () => ()
-      s := b2
-    }
+    ref.cancel.unsafeRunAsyncAndForget()
+    effect shouldBe 3
   }
 }

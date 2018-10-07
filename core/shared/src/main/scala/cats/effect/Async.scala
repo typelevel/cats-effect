@@ -18,8 +18,10 @@ package cats
 package effect
 
 import simulacrum._
+import cats.implicits._
 import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
+import cats.effect.concurrent.{Ref, Deferred}
 import cats.effect.internals.{Callback, IORunLoop}
 
 import scala.annotation.implicitNotFound
@@ -95,7 +97,8 @@ import scala.util.Either
 @typeclass
 @implicitNotFound("""Cannot find implicit value for Async[${F}].
 Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
+s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
+or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
@@ -294,6 +297,29 @@ object Async {
     }
 
   /**
+    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
+    * bound, the effect `f` will be performed at most once (when the
+    * inner `F[A]` is bound the first time).
+    *
+    * Note: This version of `memoize` does not support interruption.
+    * Use `Concurrent.memoize` if you need that.
+    */
+  def memoize[F[_], A](f: F[A])(implicit F: Async[F]): F[F[A]] =
+    Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
+      Deferred.uncancelable[F, Either[Throwable, A]].flatMap { d =>
+        ref
+          .modify {
+            case None =>
+              Some(d) -> f.attempt.flatTap(d.complete)
+            case s @ Some(other) =>
+              s -> other.get
+          }
+          .flatten
+          .rethrow
+      }
+    }
+
+  /**
    * [[Async]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Async`.
    */
@@ -318,6 +344,7 @@ object Async {
    * [[Async]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Async`.
    */
+  @deprecated("WARNING: currently the Async[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 

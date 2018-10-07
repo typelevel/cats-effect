@@ -73,7 +73,11 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
         "stack-safe on left-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
         "stack-safe on right-associated binds" -> Prop.lzy(laws.stackSafetyOnRepeatedRightBinds(params.stackSafeIterationsCount)),
         "stack-safe on repeated attempts" -> Prop.lzy(laws.stackSafetyOnRepeatedAttempts(params.stackSafeIterationsCount)),
-        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps(params.stackSafeIterationsCount)))
+        "stack-safe on repeated maps" -> Prop.lzy(laws.stackSafetyOnRepeatedMaps(params.stackSafeIterationsCount)),
+        "stack-safe on bracket with left-associated binds" -> Prop.lzy(laws.stackSafetyOfBracketOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
+        "stack-safe on bracket with right-associated binds" -> Prop.lzy(laws.stackSafetyOfBracketOnRepeatedRightBinds(params.stackSafeIterationsCount)),
+        "stack-safe on guarantee with left-associated binds" -> Prop.lzy(laws.stackSafetyOfGuaranteeOnRepeatedLeftBinds(params.stackSafeIterationsCount)),
+        "stack-safe on guarantee with right-associated binds" -> Prop.lzy(laws.stackSafetyOfGuaranteeOnRepeatedRightBinds(params.stackSafeIterationsCount)))
     }
   }
 }

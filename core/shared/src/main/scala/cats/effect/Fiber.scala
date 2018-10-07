@@ -56,8 +56,10 @@ trait Fiber[F[_], A] {
   /**
    * Triggers the cancellation of the fiber.
    *
-   * Returns a new task that will complete when the cancellation is
-   * sent (but not when it is observed or acted upon).
+   * Returns a new task that will trigger the cancellation upon
+   * evaluation. Depending on the implementation, this task might
+   * await for all registered finalizers to finish, but this behavior
+   * is implementation dependent.
    *
    * Note that if the background process that's evaluating the result
    * of the underlying fiber is already complete, then there's nothing
@@ -77,10 +79,10 @@ object Fiber extends FiberInstances {
   /**
    * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
    */
-  def apply[F[_], A](join: F[A], cancel: F[Unit]): Fiber[F, A] =
-    Tuple(join, cancel)
+  def apply[F[_], A](join: F[A], cancel: CancelToken[F]): Fiber[F, A] =
+    Tuple[F, A](join, cancel)
 
-  private final case class Tuple[F[_], A](join: F[A], cancel: F[Unit])
+  private final case class Tuple[F[_], A](join: F[A], cancel: CancelToken[F])
     extends Fiber[F, A]
 }
 
@@ -91,13 +93,16 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
       Fiber(F.pure(x), F.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
       map2(ff, fa)(_(_))
-    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] =
+    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] = {
+      val fa2 = F.guaranteeCase(fa.join) { case ExitCase.Error(_) => fb.cancel; case _ => F.unit }
+      val fb2 = F.guaranteeCase(fb.join) { case ExitCase.Error(_) => fa.cancel; case _ => F.unit }
       Fiber(
-        F.racePair(fa.join, fb.join).flatMap {
+        F.racePair(fa2, fb2).flatMap {
           case Left((a, fiberB)) => (a.pure[F], fiberB.join).mapN(f)
           case Right((fiberA, b)) => (fiberA.join, b.pure[F]).mapN(f)
         },
-        fa.cancel *> fb.cancel)
+        F.map2(fa.cancel, fb.cancel)((_, _) => ()))
+    }
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
       map2(fa, fb)((_, _))
     final override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] =

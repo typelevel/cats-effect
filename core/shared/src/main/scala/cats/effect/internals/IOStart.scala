@@ -16,14 +16,15 @@
 
 package cats.effect.internals
 
-import cats.effect.{Fiber, IO, Timer}
+import cats.effect.{Fiber, IO, ContextShift}
+import cats.implicits._
 import scala.concurrent.Promise
 
 private[effect] object IOStart {
   /**
    * Implementation for `IO.start`.
    */
-  def apply[A](timer: Timer[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
+  def apply[A](cs: ContextShift[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
     val start: Start[Fiber[IO, A]] = (_, cb) => {
       // Memoization
       val p = Promise[Either[Throwable, A]]()
@@ -31,15 +32,13 @@ private[effect] object IOStart {
       // Starting the source `IO`, with a new connection, because its
       // cancellation is now decoupled from our current one
       val conn2 = IOConnection()
-      IORunLoop.startCancelable(IOForkedStart(fa, timer), conn2, p.success)
+      IORunLoop.startCancelable(IOForkedStart(fa, cs), conn2, p.success)
 
-      // Building a memoized IO - note we cannot use `IO.fromFuture`
-      // because we need to link this `IO`'s cancellation with that
-      // of the executing task
-      val fiber = IOFiber.build(p, conn2)
-      // Signal the newly created fiber
-      cb(Right(fiber))
+      cb(Right(fiber(p, conn2)))
     }
     IO.Async(start, trampolineAfter = true)
   }
+
+  private[internals] def fiber[A](p: Promise[Either[Throwable, A]], conn: IOConnection): Fiber[IO, A] =
+    Fiber(IOFromFuture(p.future).rethrow, conn.cancel)
 }

@@ -26,7 +26,7 @@ private[effect] object IORace {
    * but this way it is more efficient, as we no longer have to keep
    * internal promises.
    */
-  def simple[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
+  def simple[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
     // Signals successful results
     def onSuccess[T, U](
       isActive: AtomicBoolean,
@@ -37,9 +37,10 @@ private[effect] object IORace {
 
       if (isActive.getAndSet(false)) {
         // First interrupts the other task
-        try other.cancel() finally {
+        other.cancel.unsafeRunAsync { r2 =>
           main.pop()
           cb(Right(r))
+          maybeReport(r2)
         }
       }
     }
@@ -52,9 +53,9 @@ private[effect] object IORace {
       err: Throwable): Unit = {
 
       if (active.getAndSet(false)) {
-        try other.cancel() finally {
+        other.cancel.unsafeRunAsync { r2 =>
           main.pop()
-          cb(Left(err))
+          cb(Left(composeErrors(err, r2)))
         }
       } else {
         Logger.reportFailure(err)
@@ -72,7 +73,7 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, cs), connL, {
         case Right(a) =>
           onSuccess(active, conn, connR, cb, Left(a))
         case Left(err) =>
@@ -80,7 +81,7 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, cs), connR, {
         case Right(b) =>
           onSuccess(active, conn, connL, cb, Right(b))
         case Left(err) =>
@@ -96,7 +97,7 @@ private[effect] object IORace {
   /**
    * Implementation for `IO.racePair`
    */
-  def pair[A, B](timer: Timer[IO], lh: IO[A], rh: IO[B]): IO[Pair[A, B]] = {
+  def pair[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Pair[A, B]] = {
     val start: Start[Pair[A, B]] = (conn, cb) => {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
@@ -111,19 +112,19 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh, timer), connL, {
+      IORunLoop.startCancelable[A](IOForkedStart(lh, cs), connL, {
         case Right(a) =>
           if (active.getAndSet(false)) {
             conn.pop()
-            cb(Right(Left((a, IOFiber.build[B](promiseR, connR)))))
+            cb(Right(Left((a, IOStart.fiber[B](promiseR, connR)))))
           } else {
             promiseL.trySuccess(Right(a))
           }
         case Left(err) =>
           if (active.getAndSet(false)) {
-            try connR.cancel() finally {
+            connR.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(err))
+              cb(Left(composeErrors(err, r2)))
             }
           } else {
             promiseL.trySuccess(Left(err))
@@ -131,20 +132,20 @@ private[effect] object IORace {
       })
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh, timer), connR, {
+      IORunLoop.startCancelable[B](IOForkedStart(rh, cs), connR, {
         case Right(b) =>
           if (active.getAndSet(false)) {
             conn.pop()
-            cb(Right(Right((IOFiber.build[A](promiseL, connL), b))))
+            cb(Right(Right((IOStart.fiber[A](promiseL, connL), b))))
           } else {
             promiseR.trySuccess(Right(b))
           }
 
         case Left(err) =>
           if (active.getAndSet(false)) {
-            try connL.cancel() finally {
+            connL.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(err))
+              cb(Left(composeErrors(err, r2)))
             }
           } else {
             promiseR.trySuccess(Left(err))
@@ -154,4 +155,16 @@ private[effect] object IORace {
 
     IO.Async(start, trampolineAfter = true)
   }
+
+  private[this] def composeErrors(e: Throwable, e2: Either[Throwable, _]): Throwable =
+    e2 match {
+      case Left(e2) => IOPlatform.composeErrors(e, e2)
+      case _ => e
+    }
+
+  private[this] def maybeReport(r: Either[Throwable, _]): Unit =
+    r match {
+      case Left(e) => Logger.reportFailure(e)
+      case _ => ()
+    }
 }

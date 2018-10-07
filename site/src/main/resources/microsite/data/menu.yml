@@ -8,6 +8,10 @@ options:
         url: datatypes/io.html
         menu_section: io
 
+      - title: SyncIO
+        url: datatypes/syncio.html
+        menu_section: syncio
+
       - title: Fiber
         url: datatypes/fiber.html
         menu_section: fiber
@@ -16,19 +20,31 @@ options:
         url: datatypes/resource.html
         menu_section: resource
 
+      - title: Clock
+        url: datatypes/clock.html
+        menu_section: clock
+
+      - title: ContextShift
+        url: datatypes/contextshift.html
+        menu_section: contextshift
+
       - title: Timer
         url: datatypes/timer.html
         menu_section: timer
 
       - title: IOApp
         url: datatypes/ioapp.html
-        menu_section: ioapp    
+        menu_section: ioapp
 
   - title: Concurrency
     url: concurrency/
     menu_section: concurrency
 
     nested_options:
+      - title: Concurrency Basics
+        url: concurrency/basics.html
+        menu_section: basics
+
       - title: Deferred
         url: concurrency/deferred.html
         menu_section: deferred

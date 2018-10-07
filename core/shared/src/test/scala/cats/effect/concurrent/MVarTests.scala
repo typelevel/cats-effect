@@ -96,6 +96,10 @@ class MVarAsyncTests extends BaseMVarTests {
 abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext: ExecutionContext =
     ExecutionContext.Implicits.global
+  implicit val timer: Timer[IO] =
+    IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] =
+    IO.contextShift(executionContext)
 
   def init[A](a: A): IO[MVar[IO, A]]
   def empty[A]: IO[MVar[IO, A]]

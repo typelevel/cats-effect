@@ -16,26 +16,28 @@
 
 package cats.effect
 
-import cats.data.EitherT
+import cats.implicits._
+import cats.data._
 import org.scalatest.{AsyncFunSuite, Matchers}
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class TimerTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext =
     ExecutionContext.global
+  implicit val timer: Timer[IO] =
+    IO.timer(executionContext)
 
-  type EitherIO[A] = EitherT[IO, Throwable, A]
+  type EitherTIO[A] = EitherT[IO, Throwable, A]
+  type OptionTIO[A] = OptionT[IO, A]
+  type WriterTIO[A] = WriterT[IO, Int, A]
+  type KleisliIO[A] = Kleisli[IO, Int, A]
+  type StateTIO[A]  = StateT[IO, Int, A]
 
-  test("Timer[IO].shift") {
-    for (_ <- Timer[IO].shift.unsafeToFuture()) yield {
-      assert(1 == 1)
-    }
-  }
-
-  test("Timer[IO].clockRealTime") {
+  test("Timer[IO].clock.realTime") {
     val time = System.currentTimeMillis()
-    val io = Timer[IO].clockRealTime(MILLISECONDS)
+    val io = timer.clock.realTime(MILLISECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
       time should be > 0L
@@ -43,9 +45,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("Timer[IO].clockMonotonic") {
+  test("Timer[IO].clock.monotonic") {
     val time = System.nanoTime()
-    val io = Timer[IO].clockMonotonic(NANOSECONDS)
+    val io = timer.clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
       time should be > 0L
@@ -54,11 +56,10 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[IO].sleep(10.ms)") {
-    implicit val timer = Timer[IO]
     val io = for {
-      start <- timer.clockMonotonic(MILLISECONDS)
+      start <- timer.clock.monotonic(MILLISECONDS)
       _ <- timer.sleep(10.millis)
-      end <- timer.clockMonotonic(MILLISECONDS)
+      end <- timer.clock.monotonic(MILLISECONDS)
     } yield {
       end - start
     }
@@ -69,23 +70,17 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[IO].sleep(negative)") {
-    val io = Timer[IO].sleep(-10.seconds).map(_ => 10)
+    val io = timer.sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
       r shouldBe 10
     }
   }
 
-  test("Timer[EitherT].shift") {
-    for (r <- Timer.derive[EitherIO].shift.value.unsafeToFuture()) yield {
-      r shouldBe Right(())
-    }
-  }
 
-
-  test("Timer[EitherT].clockRealTime") {
+  test("Timer[EitherT].clock.realTime") {
     val time = System.currentTimeMillis()
-    val io = Timer.derive[EitherIO].clockRealTime(MILLISECONDS)
+    val io = implicitly[Timer[EitherTIO]].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -93,9 +88,9 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("Timer[EitherT].clockMonotonic") {
+  test("Timer[EitherT].clock.monotonic") {
     val time = System.nanoTime()
-    val io = Timer.derive[EitherIO].clockMonotonic(NANOSECONDS)
+    val io = implicitly[Timer[EitherTIO]].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
@@ -104,11 +99,11 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[EitherT].sleep(10.ms)") {
-    implicit val timer = Timer.derive[EitherIO]
+    val t = implicitly[Timer[EitherTIO]]
     val io = for {
-      start <- timer.clockMonotonic(MILLISECONDS)
-      _ <- timer.sleep(10.millis)
-      end <- timer.clockMonotonic(MILLISECONDS)
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
     } yield {
       end - start
     }
@@ -119,10 +114,190 @@ class TimerTests extends AsyncFunSuite with Matchers {
   }
 
   test("Timer[EitherT].sleep(negative)") {
-    val io = Timer.derive[EitherIO].sleep(-10.seconds).map(_ => 10)
+    val io = implicitly[Timer[EitherTIO]].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
       r.right.getOrElse(0) shouldBe 10
+    }
+  }
+  
+  // --- OptionT
+
+  test("Timer[OptionT].clock.realTime") {
+    val time = System.currentTimeMillis()
+    val io = implicitly[Timer[OptionTIO]].clock.realTime(MILLISECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2.getOrElse(0L)
+    }
+  }
+
+  test("Timer[OptionT].clock.monotonic") {
+    val time = System.nanoTime()
+    val io = implicitly[Timer[OptionTIO]].clock.monotonic(NANOSECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2.getOrElse(0L)
+    }
+  }
+
+  test("Timer[OptionT].sleep(10.ms)") {
+    val t = implicitly[Timer[OptionTIO]]
+    val io = for {
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
+    } yield {
+      end - start
+    }
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r.getOrElse(0L) should be > 0L
+    }
+  }
+
+  test("Timer[OptionT].sleep(negative)") {
+    val io = implicitly[Timer[OptionTIO]].sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r.getOrElse(0) shouldBe 10
+    }
+  }
+
+  // --- WriterT
+
+  test("Timer[WriterT].clock.realTime") {
+    val time = System.currentTimeMillis()
+    val io = implicitly[Timer[WriterTIO]].clock.realTime(MILLISECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2
+    }
+  }
+
+  test("Timer[WriterT].clock.monotonic") {
+    val time = System.nanoTime()
+    val io = implicitly[Timer[WriterTIO]].clock.monotonic(NANOSECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2
+    }
+  }
+
+  test("Timer[WriterT].sleep(10.ms)") {
+    val t = implicitly[Timer[WriterTIO]]
+    val io = for {
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
+    } yield {
+      end - start
+    }
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r should be > 0L
+    }
+  }
+
+  test("Timer[WriterT].sleep(negative)") {
+    val io = implicitly[Timer[WriterTIO]].sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r shouldBe 10
+    }
+  }
+
+  // --- Kleisli
+
+  test("Timer[Kleisli].clock.realTime") {
+    val time = System.currentTimeMillis()
+    val io = implicitly[Timer[KleisliIO]].clock.realTime(MILLISECONDS)
+
+    for (t2 <- io.run(0).unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2
+    }
+  }
+
+  test("Timer[Kleisli].clock.monotonic") {
+    val time = System.nanoTime()
+    val io = implicitly[Timer[KleisliIO]].clock.monotonic(NANOSECONDS)
+
+    for (t2 <- io.run(0).unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2
+    }
+  }
+
+  test("Timer[Kleisli].sleep(10.ms)") {
+    val t = implicitly[Timer[KleisliIO]]
+    val io = for {
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
+    } yield {
+      end - start
+    }
+
+    for (r <- io.run(0).unsafeToFuture()) yield {
+      r should be > 0L
+    }
+  }
+
+  test("Timer[Kleisli].sleep(negative)") {
+    val io = implicitly[Timer[KleisliIO]].sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.run(0).unsafeToFuture()) yield {
+      r shouldBe 10
+    }
+  }
+
+  // --- StateT
+
+  test("Timer[StateT].clock.realTime") {
+    val time = System.currentTimeMillis()
+    val io = implicitly[Timer[StateTIO]].clock.realTime(MILLISECONDS)
+
+    for (t2 <- io.run(0).unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2._2
+    }
+  }
+
+  test("Timer[StateT].clock.monotonic") {
+    val time = System.nanoTime()
+    val io = implicitly[Timer[StateTIO]].clock.monotonic(NANOSECONDS)
+
+    for (t2 <- io.run(0).unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2._2
+    }
+  }
+
+  test("Timer[StateT].sleep(10.ms)") {
+    val t = implicitly[Timer[StateTIO]]
+    val io = for {
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
+    } yield {
+      end - start
+    }
+
+    for (r <- io.run(0).unsafeToFuture()) yield {
+      r._2 should be > 0L
+    }
+  }
+
+  test("Timer[StateT].sleep(negative)") {
+    val io = implicitly[Timer[StateTIO]].sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.run(0).unsafeToFuture()) yield {
+      r._2 shouldBe 10
     }
   }
 }

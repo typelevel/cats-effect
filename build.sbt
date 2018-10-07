@@ -26,7 +26,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 
-val CatsVersion = "1.2.0"
+val CatsVersion = "1.4.0"
 val SimulacrumVersion = "0.13.0"
 
 val ScalaTestVersion = Def.setting{
@@ -180,218 +180,28 @@ val commonSettings = Seq(
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, v)) if v <= 12 =>
-        Set(organization.value %% name.value % "0.10")
-      case _ =>
-        Set.empty
-    }
+    Set(organization.value %% name.value % "1.0.0")
   },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
     import com.typesafe.tools.mima.core.ProblemFilters._
     Seq(
-      exclude[DirectMissingMethodProblem]("cats.effect.Sync#StateTSync.map"),
-      exclude[IncompatibleMethTypeProblem]("cats.effect.Sync#StateTSync.map"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracket"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.bracketCase"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#OptionTSync.bracketCase"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#WriterTSync.bracketCase"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#StateTSync.bracketCase"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#EitherTSync.bracketCase"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#KleisliSync.bracketCase"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Concat$"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single"),
-      exclude[MissingClassProblem]("cats.effect.internals.AndThen$Single$"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Sync.catsEitherTEvalSync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runSyncStep"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runSyncStep"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runSyncStep"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runSyncStep"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runSyncStep"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.toIO"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.toIO"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.toIO"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.toIO"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.toIO"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.toIO"),
-
-      // Uncancelable moved down to Bracket
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#WriterTConcurrent.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#OptionTSync.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#WriterTSync.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#EitherTConcurrent.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#OptionTConcurrent.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#StateTSync.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Sync#EitherTSync.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.uncancelable"),
-      exclude[UpdateForwarderBodyProblem]("cats.effect.Concurrent#StateTConcurrent.uncancelable"),
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guarantee"),
-
-      // Require Timer[IO] for auto-shifting now
-      exclude[DirectMissingMethodProblem]("cats.effect.IO.start"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IO.race"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IO.racePair"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IOParallelNewtype.ioEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.parApplicative"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.ioParallel"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IOInstances.ioConcurrentEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOParMap.apply"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCompanionBinaryCompat.ioEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.simple"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORace.pair"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOStart.apply"),
-
-      // Issue #123: introducing Async.asyncF
-      exclude[DirectMissingMethodProblem]("cats.effect.Async.shift"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.asyncF"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async#OptionTAsync.asyncF"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async#WriterTAsync.asyncF"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async#EitherTAsync.asyncF"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async#StateTAsync.asyncF"),
-      // Issue #123: Fixed cats.effect.implicits to include all syntax
-      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax"),
-      exclude[DirectMissingMethodProblem]("cats.effect.implicits.package.IOSyntax"),
-      exclude[MissingClassProblem]("cats.effect.implicits.package$IOSyntax$"),
-
-      // Issue #251: breakage — Bracket changes
-      exclude[InheritedNewAbstractMethodProblem]("cats.effect.Bracket.guaranteeCase"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#WriterTConcurrent.onCancelRaiseError"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#EitherTConcurrent.onCancelRaiseError"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#OptionTConcurrent.onCancelRaiseError"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.onCancelRaiseError"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#StateTConcurrent.onCancelRaiseError"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent#Ops.onCancelRaiseError"),
-
-      // Issue #290: Concurrent/ConcurrentEffect changes
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.unsafeRunCancelable"),
-
-      // Issue #298: SyncIO changes
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO.runCancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#StateTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect.runCancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#Ops.runAsync"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect.runAsync"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.Effect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#StateTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#WriterTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#Ops.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#StateTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#WriterTEffect.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#Ops.runAsync"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.ConcurrentEffect#EitherTConcurrentEffect.runCancelable"),
-      exclude[IncompatibleResultTypeProblem]("cats.effect.Effect#EitherTEffect.runAsync"),
-
-      //
-      // Following are all internal implementation details:
-      //
-      // Not a problem: IO.Async is a private class
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.apply"),
-      // Not a problem: IO.Async is a private class
-      exclude[MissingTypesProblem]("cats.effect.Async$"),
-      // Not a problem: IO.Async is a private class
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
-      // Not a problem: IO.Async is a private class
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.copy"),
-      // Not a problem: IO.Async is a private class
-      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
-      // Not a problem: IO.Async is a private class
-      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Async.this"),
-      // Not a problem: RestartCallback is a private class
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.this"),
-      // Not a problem: IOPlatform is private
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOPlatform.onceOnly"),
-      // Not a problem: IORunLoop is private
-      exclude[MissingClassProblem]("cats.effect.internals.IORunLoop$RestartCallback$"),
-      // Not a problem: Async.never implementation is just moved
-      exclude[ReversedMissingMethodProblem]("cats.effect.Async.never"),
-      // Deleted
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOFrame.errorHandler"),
-      // New stuff
-      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.tryReactivate"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOCancel#RaiseCancelable.this"),
-      // PR #235: switch to standard NonFatal
-      exclude[MissingClassProblem]("cats.effect.internals.NonFatal$"),
-      exclude[MissingClassProblem]("cats.effect.internals.NonFatal"),
-      // Adding #236: adding Bracket instance for Kleisli
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.Concurrent$KleisliConcurrent"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.Sync$KleisliSync"),
-      exclude[IncompatibleTemplateDefProblem]("cats.effect.Async$KleisliAsync"),
-      // PR #250: optimisations
-      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.copy"),
-      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.this"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IORunLoop#RestartCallback.prepare"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension1"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async$extension0"),
-      exclude[MissingClassProblem]("cats.effect.internals.TrampolineEC$ResumeRun"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.internals.IOConnection.pushPair"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.Callback#Extensions.async"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOTimer#ShiftTick.this"),
-      exclude[MissingClassProblem]("cats.effect.internals.IOTimer$Tick"),
-      // Removing ConcurrentEffect[StateT]
-      exclude[MissingClassProblem]("cats.effect.ConcurrentEffect$StateTConcurrentEffect"),
-      exclude[MissingClassProblem]("cats.effect.Concurrent$StateTConcurrent"),
-      exclude[MissingClassProblem]("cats.effect.Effect$StateTEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect.catsStateTConcurrentEffect"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Concurrent.catsStateTConcurrent"),
-      exclude[DirectMissingMethodProblem]("cats.effect.Effect.catsStateTEffect")
+      // All internals — https://github.com/typelevel/cats-effect/pull/376
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketStart.this"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmptyCanceled"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmptyCanceled$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$Reference"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsEmpty$"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.:="),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.ForwardCancelable.plusOne"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$Reference$"),
+      exclude[MissingClassProblem]("cats.effect.internals.ForwardCancelable$State$IsCanceled$"),
+      // https://github.com/typelevel/cats-effect/pull/377
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#EnsureReleaseFrame.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketReleaseFrame.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this")
     )
   })
 
@@ -580,7 +390,7 @@ lazy val microsite = project.in(file("site"))
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "1.0.0-RC2"
+val BaseVersion = "1.0.0"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 

@@ -299,13 +299,6 @@ IO.race(lh, IO.never) <-> lh.map(Left(_))
 IO.race(IO.never, rh) <-> rh.map(Right(_))
 ```
 
-It's also useful when dealing with the `onCancelRaiseError` operation.
-Because cancelable `IO` values usually become non-terminating on
-cancellation, you might want to use `IO.never` as the continuation of
-an `onCancelRaiseError`.
-
-See the description of `onCancelRaiseError`.
-
 ### Deferred Execution — IO.suspend
 
 The `IO.suspend` builder has this equivalence:
@@ -340,15 +333,15 @@ asynchronous boundaries:
 
 ```tut:silent
 import cats.implicits._
-import cats.effect.Timer
+import cats.effect.ContextShift
 
-def fib(n: Int, a: Long, b: Long)(implicit timer: Timer[IO]): IO[Long] =
+def fib(n: Int, a: Long, b: Long)(implicit cs: ContextShift[IO]): IO[Long] =
   IO.suspend {
     if (n == 0) IO.pure(a) else {
       val next = fib(n - 1, b, a + b)
       // Every 100 cycles, introduce a logical thread fork
       if (n % 100 == 0)
-        timer.shift *> next
+        cs.shift *> next
       else
         next
     }
@@ -363,19 +356,23 @@ can be seen, `IO` allows very precise control over the evaluation.
 `IO` can describe interruptible asynchronous processes. As an
 implementation detail:
 
-1. not all `IO` tasks are cancelable, only tasks built with
-   `IO.cancelable` can cancel the evaluation
-  - should go without saying (after point 1) that `flatMap` chains are
-    not auto-cancelable
-  - if this is a problem, `flatMap` loops can be made cancelable by
-    using `IO.cancelBoundary`    
+1. not all `IO` tasks are cancelable. Cancellation status is only checked *after*
+asynchronous boundaries. It can be achieved in the following way:
+  - Building it with `IO.cancelable`, `IO.async`, `IO.asyncF` or `IO.bracket`
+  - Using `IO.cancelBoundary` or `IO.shift`
+  
+  Note that the second point is the consequence of the first one and anything that involves
+  those operations is also possible to cancel. It includes, but is not limited to
+  waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
+  
+  We should also note that `flatMap` chains are not auto-cancelable. Asynchronous
+  boundaries are important for fairness and it's not reasonable to expect interruption
+  in its' absence. With `IO`, fairness needs to be managed explicitly, the protocol being
+  easy to follow and predictable in a WYSIWYG fashion. Try to avoid very long, 
+  or never-ending loops without it.
+  
 2. `IO` tasks that are cancelable, usually become non-terminating on
-   `cancel`   
-  - such tasks can be turned into tasks that trigger an error on
-    cancellation with `onCancelRaiseError`, which can be used for
-    materializing cancellation and thus trigger necessary logic, the
-    `bracket` operation being described in terms of
-    `onCancelRaiseError`
+   `cancel`
     
 Also this might be a point of confusion for folks coming from Java and
 that expect the features of `Thread.interrupt` or of the old and
@@ -383,6 +380,8 @@ deprecated `Thread.stop`:
 
 `IO` cancellation does NOT work like that, as thread interruption in
 Java is inherently *unsafe, unreliable and not portable*!
+
+Next subsections describe cancellation-related operations in more depth.
 
 ### Building cancelable IO tasks
 
@@ -575,8 +574,10 @@ thread that can be either joined (via `join`) or interrupted (via
 Example:
 
 ```tut:silent
-// Needed in order to get a Timer[IO], for IO.start to execute concurrently
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
+
+// Needed for IO.start to do a logical thread fork
+implicit val cs = IO.contextShift(ExecutionContext.global)
 
 val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
@@ -602,7 +603,7 @@ Implementation notes:
 ### runCancelable & unsafeRunCancelable
 
 The above is the pure `cancel`, accessible via `Fiber`. However the
-second way to access cancellation and thus interrupt tasks is via
+second way to access cancellation token and thus interrupt tasks is via
 `runCancelable` (the pure version) and `unsafeRunCancelable` (the
 unsafe version).
 
@@ -610,6 +611,11 @@ Example relying on the side-effecting `unsafeRunCancelable` and note
 this kind of code is impure and should be used with care:
 
 ```tut:silent
+import scala.concurrent.ExecutionContext
+
+// Needed for `sleep`
+implicit val timer = IO.timer(ExecutionContext.global)
+
 // Delayed println
 val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
 
@@ -658,34 +664,6 @@ and in certain cases we need to make them atomic.
 This law is compliant with the laws of `Concurrent#uncancelable` (see
 [Concurrent](../typeclasses/concurrent.html)).
 
-### Materialization of interruption via onCancelRaiseError
-
-`IO` tasks usually become non-terminating when canceled, creating
-problems in case you want to release resources.
-
-Just like `attempt` (from `MonadError`) can materialize thrown errors,
-we have `onCancelRaiseError` that can materialize cancellation.  This
-way we can detect cancellation and trigger specific logic in response.
-
-As example, this is more or less how a `bracket` operation can get
-implemented for `IO`:
-
-
-```tut:silent
-import cats.syntax.all._
-import scala.concurrent.CancellationException
-
-val wasCanceled = new CancellationException("nope")
-val ioa: IO[Int] = IO(???)
-
-ioa.onCancelRaiseError(wasCanceled).handleErrorWith {
-  case `wasCanceled` =>
-    IO(println("Was canceled!")) *> IO.never
-  case e =>
-    IO.raiseError(e)
-}
-```
-
 ### IO.cancelBoundary
 
 Returns a cancelable boundary — an `IO` task that checks for the
@@ -710,8 +688,14 @@ def fib(n: Int, a: Long, b: Long): IO[Long] =
   }
 ```
 
-With `IO`, fairness needs to be managed explicitly, the protocol being
-easy to follow and predictable in a WYSIWYG fashion.
+As mentioned at the very beginning of this section, fairness needs to be managed explicitly, 
+the protocol being easy to follow and predictable in a WYSIWYG fashion.
+
+#### Comparison to IO.shift
+
+`IO.cancelBoundary` is essentially lighter version of `IO.shift` without 
+ability to shift into different thread pool. It is lighter in the sense that
+it will avoid doing logical fork.
 
 ### Race Conditions — race & racePair
 
@@ -723,10 +707,12 @@ losers being usually canceled.
 
 ```scala
 // simple version
-def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]]
+def race[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[A, B]]
   
 // advanced version
-def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
+def racePair[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]]
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
@@ -736,20 +722,27 @@ you decide what to do next.
 So `race` can be derived with `racePair` like so:
 
 ```tut:silent
-def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
+import cats.effect._
+
+def race[A, B](lh: IO[A], rh: IO[B])
+  (implicit cs: ContextShift[IO]): IO[Either[A, B]] = {
+  
   IO.racePair(lh, rh).flatMap {
     case Left((a, fiber)) => 
       fiber.cancel.map(_ => Left(a))
     case Right((fiber, b)) => 
       fiber.cancel.map(_ => Right(b))
   }
+}
 ```
 
 Using `race` we could implement a "timeout" operation:
 
 ```tut:silent
+import scala.concurrent.CancellationException
+
 def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
-  (implicit timer: Timer[IO]): IO[A] = {
+  (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
 
   IO.race(fa, timer.sleep(after)).flatMap {
     case Left(a) => IO.pure(a)
@@ -758,7 +751,7 @@ def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
 }
 
 def timeout[A](fa: IO[A], after: FiniteDuration)
-  (implicit timer: Timer[IO]): IO[A] = {
+  (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
 
   val error = new CancellationException(after.toString)
   timeoutTo(fa, after, IO.raiseError(error))
@@ -790,12 +783,6 @@ completed with that `Throwable`. Their impure cancel is:
 ```scala
 Throwable => Unit
 ```
-
-We on the other hand have an `onCancelRaiseError(e: Throwable)`, which
-can transform a task that's non-terminating on cancel, into one that
-raises an error on cancel. This operation also creates a race
-condition, cutting off the signaling to downstream, even if the source
-is not cancelable.
 
 `Throwable => Unit` allows the task's logic to know the cancellation
 reason, however cancellation is about cutting the connection to the
@@ -1096,19 +1083,20 @@ def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: In
 ### shift
 
 Note there are 2 overloads of the `IO.shift` function:
-- One that takes an `Timer` that manages the thread-pool used to trigger async boundaries.
+
+- One that takes a [ContextShift](./contextshift.html) that manages the thread-pool used to trigger async boundaries.
 - Another that takes a Scala `ExecutionContext` as the thread-pool.
 
-***Please use the former by default and use the latter only for fine-grained control over the thread pool in use.***
+Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
-Examples:
-
-By default, `Cats Effect` provides an instance of `Timer[IO]` that manages thread-pools. Eg.:
+By default, `Cats Effect` can provide instance of `ContextShift[IO]` that manages thread-pools,
+but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.html) is used:
 
 ```tut:silent
-import cats.effect.Timer
+import cats.effect.{IO, ContextShift}
+import scala.concurrent.ExecutionContext.Implicits.global
 
-val ioTimer = Timer[IO]
+val contextShift = IO.contextShift(global)
 ```
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
@@ -1116,7 +1104,13 @@ We can introduce an asynchronous boundary in the `flatMap` chain before a certai
 ```tut:silent
 val task = IO(println("task"))
 
-IO.shift(ioTimer).flatMap(_ => task)
+IO.shift(contextShift).flatMap(_ => task)
+```
+
+Note that the `ContextShift` value is taken implicitly from the context so you can just do this:
+
+```tut:silent
+IO.shift.flatMap(_ => task)
 ```
 
 Or using `Cats` syntax:
@@ -1124,23 +1118,23 @@ Or using `Cats` syntax:
 ```tut:silent
 import cats.syntax.apply._
 
-IO.shift(ioTimer) *> task
+IO.shift *> task
 // equivalent to
-Timer[IO].shift *> task
+implicitly[ContextShift[IO]].shift *> task
 ```
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
 
 ```tut:silent
-task.flatMap(a => IO.shift(ioTimer).map(_ => a))
+task.flatMap(a => IO.shift.map(_ => a))
 ```
 
 Or using `Cats` syntax:
 
 ```tut:silent
-task <* IO.shift(ioTimer)
+task <* IO.shift
 // equivalent to
-task <* Timer[IO].shift
+task <* implicitly[ContextShift[IO]].shift
 ```
 
 Example of where this might be useful:
@@ -1203,9 +1197,12 @@ def loop(n: Int): IO[Int] =
 
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
-Note: all parallel operations require an implicit `Timer[IO]` in scope.
-On JVM, `Timer[IO]` is available when there's an implicit `ExecutionContext` in scope. Alternatively, it can be created using `IO.timer` builder, taking an `ExecutionContext`, managing actual execution, and a `ScheduledExecutorService`, which manages scheduling (not actual execution, so no point in giving it more than one thread).
-On JS, `Timer[IO]` is always available.
+Note: all parallel operations require an implicit `ContextShift[IO]` in scope
+(see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
+
+1. there's an implicit `ExecutionContext` in scope
+2. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
+3. the user provides a custom `ContextShift`
 
 ### parMapN
 
@@ -1247,7 +1244,7 @@ parFailure.unsafeRunSync()
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
 ```tut:silent
-val ioA = Timer[IO].sleep(10.seconds) *> IO(println("Delayed!"))
+val ioA = IO.sleep(10.seconds) *> IO(println("Delayed!"))
 val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
 (ioA, ioB).parMapN((_, _) => ())

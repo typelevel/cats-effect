@@ -16,12 +16,20 @@
 
 package cats.effect.internals
 
-import java.util.concurrent.atomic.AtomicBoolean
+import cats.effect.{Clock, IO}
 
-case class BooleanCancelable(thunk: () => Unit = () => ())
-  extends (() => Unit) {
+import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 
-  private[this] val canCall = new AtomicBoolean(true)
-  def isCanceled: Boolean = !canCall.get()
-  def apply(): Unit = if (canCall.getAndSet(false)) thunk()
+ /**
+  * Internal API, implementation of [[Clock]]
+  *
+  */
+private[internals]  class IOClock extends Clock[IO] {
+
+  final def realTime(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.currentTimeMillis(), MILLISECONDS))
+
+  final def monotonic(unit: TimeUnit): IO[Long] =
+    IO(unit.convert(System.nanoTime(), NANOSECONDS))
+
 }

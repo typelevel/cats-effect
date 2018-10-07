@@ -16,6 +16,28 @@
 
 package cats.effect.internals
 
-private[effect] final object Canceled extends RuntimeException {
-  override def fillInStackTrace = this
+import cats.effect.IO
+import cats.effect.internals.TrampolineEC.immediate
+import scala.concurrent.Future
+import scala.util.{Failure, Left, Right, Success}
+
+private[effect] object IOFromFuture {
+  /**
+   * Implementation for `IO.fromFuture`.
+   */
+  def apply[A](f: Future[A]): IO[A] =
+    f.value match {
+      case Some(result) =>
+        result match {
+          case Success(a) => IO.pure(a)
+          case Failure(e) => IO.raiseError(e)
+        }
+      case _ =>
+        IO.async { cb =>
+          f.onComplete(r => cb(r match {
+            case Success(a) => Right(a)
+            case Failure(e) => Left(e)
+          }))(immediate)
+        }
+    }
 }

@@ -24,6 +24,8 @@ import cats.effect.{Fiber, IO}
 import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
+// Needed for `start`
+implicit val ctx = IO.contextShift(global)
 
 val io = IO(println("Hello!"))
 val fiber: IO[Fiber[IO, Unit]] = io.start

@@ -30,3 +30,7 @@
 #toc > ul > li {
     margin-left: 0;
 }
+
+.responsive-pic > img {
+  max-width: 100%;
+}

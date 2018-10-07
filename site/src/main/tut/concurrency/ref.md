@@ -6,6 +6,9 @@ source: "shared/src/main/scala/cats/effect/concurrent/Ref.scala"
 scaladoc: "#cats.effect.concurrent.Ref"
 ---
 
+{:.responsive-pic}
+![concurrency ref](../img/concurrency-ref.png)
+
 An asynchronous, concurrent mutable reference.
 
 ```tut:silent
@@ -42,8 +45,10 @@ The workers will concurrently run and modify the value of the Ref so this is one
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref
 import cats.implicits._
+import scala.concurrent.ExecutionContext
 
-import scala.concurrent.ExecutionContext.Implicits.global
+// Needed for triggering evaluation in parallel
+implicit val ctx = IO.contextShift(ExecutionContext.global)
 
 class Worker[F[_]](number: Int, ref: Ref[F, Int])(implicit F: Sync[F]) {
 

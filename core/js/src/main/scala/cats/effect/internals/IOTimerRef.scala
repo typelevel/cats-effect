@@ -22,20 +22,17 @@ import scala.concurrent.ExecutionContext
 /**
  * Internal API — gets mixed-in the `IO` companion object.
  */
-private[effect] abstract class IOTimerRef {
+private[effect] trait IOTimerRef {
+  /**
+   * Returns a reusable [[Timer]] instance for [[IO]].
+   */
+  def timer: Timer[IO] = IOTimer.global
+
   /**
    * Returns a [[Timer]] instance for [[IO]].
    *
-   * @param ec is a Scala `ExecutionContext` that's used for
-   *        the `shift` operation. Without one the implementation
-   *        would fallback to `setImmediate` (if available) or
-   *        to `setTimeout`
+   * @param ec is an execution context that gets used for
+   *        evaluating the `sleep` tick
    */
-  implicit def timer(implicit ec: ExecutionContext = ExecutionContext.Implicits.global): Timer[IO] =
-    ec match {
-      case ExecutionContext.Implicits.global =>
-        IOTimer.global
-      case _ =>
-        IOTimer.deferred(ec)
-    }
+  def timer(ec: ExecutionContext): Timer[IO] = new IOTimer(ec)
 }

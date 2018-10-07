@@ -19,14 +19,13 @@ package effect
 
 import cats.arrow.FunctionK
 import cats.effect.internals._
-import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Left, Right, Success}
+import scala.util.{Left, Right}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -176,15 +175,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *      token that can be used to send a cancel signal
    */
   final def runAsync(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] = SyncIO {
-    unsafeRunAsync(cb.andThen(_.unsafeRunAsync(Callback.report)))
-  }
-
-  final def runSyncStep: SyncIO[Either[IO[A], A]] = SyncIO.suspend {
-    IORunLoop.step(this) match {
-      case Pure(a) => SyncIO.pure(Right(a))
-      case RaiseError(e) => SyncIO.raiseError(e)
-      case async => SyncIO.pure(Left(async))
-    }
+    unsafeRunAsync(cb.andThen(_.unsafeRunAsyncAndForget()))
   }
 
   /**
@@ -267,6 +258,21 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IORunLoop.start(this, cb)
 
   /**
+   * Triggers the evaluation of the source and any suspended side
+   * effects therein, but ignores the result.
+   *
+   * This operation is similar to [[unsafeRunAsync]], in that the
+   * evaluation can happen asynchronously (depending on the source),
+   * however no callback is required, therefore the result gets
+   * ignored.
+   *
+   * Note that errors still get logged (via IO's internal logger),
+   * because errors being thrown should never be totally silent.
+   */
+  final def unsafeRunAsyncAndForget(): Unit =
+    unsafeRunAsync(Callback.report)
+
+  /**
    * Evaluates the source `IO`, passing the result of the encapsulated
    * effects to the given callback.
    *
@@ -281,7 +287,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def unsafeRunCancelable(cb: Either[Throwable, A] => Unit): CancelToken[IO] = {
     val conn = IOConnection()
     IORunLoop.startCancelable(this, conn, cb)
-    IO.Delay(conn.cancel)
+    conn.cancel
   }
 
   /**
@@ -363,21 +369,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
    */
-  final def start(implicit timer: Timer[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
-    IOStart(timer, this)
-
-  /**
-   * Returns a new `IO` that mirrors the source task for normal termination,
-   * but that triggers the given error on cancellation.
-   *
-   * Normally tasks that are canceled become non-terminating.
-   *
-   * This `onCancelRaiseError` operator transforms a task that is
-   * non-terminating on cancellation into one that yields an error,
-   * thus equivalent with [[IO.raiseError]].
-   */
-  final def onCancelRaiseError(e: Throwable): IO[A] =
-    IOCancel.raise(this, e)
+  final def start(implicit cs: ContextShift[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
+    IOStart(cs, this)
 
   /**
    * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]
@@ -407,8 +400,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * @param fallback is the task evaluated after the duration has passed and
    *        the source canceled
+   *
+   * @param timer is an implicit requirement for the ability to do a fiber
+   *        [[Timer.sleep sleep]] for the specified timeout, at which point
+   *        the fallback needs to be triggered
+   *
+   * @param cs is an implicit requirement for the ability to trigger a
+   *        [[IO.race race]], needed because IO's `race` operation automatically
+   *        forks the involved tasks
    */
-  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO]): IO[A2] =
+  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])
+    (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A2] =
     Concurrent.timeoutTo(this, duration, fallback)
 
   /**
@@ -421,8 +423,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @param duration is the time span for which we wait for the source to
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
+   *
+   * @param timer is an implicit requirement for the ability to do a fiber
+   *        [[Timer.sleep sleep]] for the specified timeout, at which point
+   *        the fallback needs to be triggered
+   *
+   * @param cs is an implicit requirement for the ability to trigger a
+   *        [[IO.race race]], needed because IO's `race` operation automatically
+   *        forks the involved tasks
    */
-  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+  final def timeout(duration: FiniteDuration)
+    (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] =
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
@@ -697,7 +708,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 }
 
 private[effect] abstract class IOParallelNewtype
-  extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
+  extends internals.IOTimerRef
+     with internals.IOCompanionBinaryCompat {
 
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
@@ -767,7 +779,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       fa.guaranteeCase(finalizer)
 
     final override def delay[A](thunk: => A): IO[A] =
-      IO(thunk)
+      IO.delay(thunk)
     final override def suspend[A](thunk: => IO[A]): IO[A] =
       IO.suspend(thunk)
     final override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
@@ -780,20 +792,18 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
       fa
     final override def runAsync[A](ioa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
       ioa.runAsync(cb)
-    final override def runSyncStep[A](ioa: IO[A]): SyncIO[Either[IO[A], A]] =
-      ioa.runSyncStep
   }
 }
 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
-  implicit def parApplicative(implicit timer: Timer[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
+  implicit def parApplicative(implicit cs: ContextShift[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
     import IO.Par.{unwrap, apply => par}
 
     final override def pure[A](x: A): IO.Par[A] =
       par(IO.pure(x))
     final override def map2[A, B, Z](fa: IO.Par[A], fb: IO.Par[B])(f: (A, B) => Z): IO.Par[Z] =
-      par(IOParMap(timer, unwrap(fa), unwrap(fb))(f))
+      par(IOParMap(cs, unwrap(fa), unwrap(fb))(f))
     final override def ap[A, B](ff: IO.Par[A => B])(fa: IO.Par[A]): IO.Par[B] =
       map2(ff, fa)(_(_))
     final override def product[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[(A, B)] =
@@ -804,30 +814,29 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       par(IO.unit)
   }
 
-  implicit def ioConcurrentEffect(implicit timer: Timer[IO]): ConcurrentEffect[IO] = new IOEffect with ConcurrentEffect[IO] {
-    final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
-      fa.start
+  implicit def ioConcurrentEffect(implicit cs: ContextShift[IO]): ConcurrentEffect[IO] =
+    new IOEffect with ConcurrentEffect[IO] {
+      final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
+        fa.start
+      final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
+        IO.race(fa, fb)
+      final override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+        IO.racePair(fa, fb)
+      final override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+        IO.cancelable(k)
+      final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
+        fa.runCancelable(cb)
 
-    final override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
-      IO.race(fa, fb)
-    final override def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
-      IO.racePair(fa, fb)
+      final override def toIO[A](fa: IO[A]): IO[A] = fa
+      final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
+    }
 
-    final override def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-      IO.cancelable(k)
-    final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
-      fa.runCancelable(cb)
-
-    final override def toIO[A](fa: IO[A]): IO[A] = fa
-    final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
-  }
-
-  implicit def ioParallel(implicit timer: Timer[IO]): Parallel[IO, IO.Par] =
+  implicit def ioParallel(implicit cs: ContextShift[IO]): Parallel[IO, IO.Par] =
     new Parallel[IO, IO.Par] {
       final override val applicative: Applicative[IO.Par] =
-        parApplicative(timer)
+        parApplicative(cs)
       final override val monad: Monad[IO] =
-        ioConcurrentEffect(timer)
+        ioConcurrentEffect(cs)
 
       final override val sequential: ~>[IO.Par, IO] =
         new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
@@ -946,12 +955,21 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
+    * Suspends a synchronous side effect in `IO`.
+    *
+    * Alias for `IO.delay(body)`.
+    */
+  def apply[A](body: => A): IO[A] =
+    delay(body)
+
+  /**
    * Suspends a synchronous side effect in `IO`.
    *
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
-  def apply[A](body: => A): IO[A] = Delay(body _)
+  def delay[A](body: => A): IO[A] =
+    Delay(body _)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1119,13 +1137,18 @@ object IO extends IOInstances {
     Async { (conn, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
-      conn.push(ref)
-
-      ref := (
-        try k(cb2) catch { case NonFatal(t) =>
-          cb2(Left(t))
-          IO.unit
-        })
+      conn.push(ref.cancel)
+      // Race condition test — no need to execute `k` if it was already cancelled,
+      // ensures that fiber.cancel will always wait for the finalizer if `k`
+      // is executed — note that `isCanceled` is visible here due to `push`
+      if (!conn.isCanceled)
+        ref.complete(
+          try k(cb2) catch { case NonFatal(t) =>
+            cb2(Left(t))
+            IO.unit
+          })
+      else
+        ref.complete(IO.unit)
     }
 
   /**
@@ -1171,14 +1194,7 @@ object IO extends IOInstances {
    * @see [[IO#unsafeToFuture]]
    */
   def fromFuture[A](iof: IO[Future[A]]): IO[A] =
-    iof.flatMap { f =>
-      IO.async { cb =>
-        f.onComplete(r => cb(r match {
-          case Success(a) => Right(a)
-          case Failure(e) => Left(e)
-        }))(immediate)
-      }
-    }
+    iof.flatMap(IOFromFuture.apply)
 
   /**
    * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising
@@ -1192,18 +1208,18 @@ object IO extends IOInstances {
 
   /**
    * Asynchronous boundary described as an effectful `IO`, managed
-   * by the provided [[Timer]].
+   * by the provided [[ContextShift]].
    *
    * This operation can be used in `flatMap` chains to "shift" the
    * continuation of the run-loop to another thread or call stack.
    *
    * $shiftDesc
    *
-   * @param timer is the [[Timer]] that's managing the thread-pool
+   * @param cs is the [[ContextShift]] that's managing the thread-pool
    *        used to trigger this async boundary
    */
-  def shift(implicit timer: Timer[IO]): IO[Unit] =
-    timer.shift
+  def shift(implicit cs: ContextShift[IO]): IO[Unit] =
+    cs.shift
 
   /**
    * Asynchronous boundary described as an effectful `IO`, managed
@@ -1287,9 +1303,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (conn, cb) => {
-      if (!conn.isCanceled) cb(Callback.rightUnit)
-    }
+    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 
@@ -1307,9 +1321,15 @@ object IO extends IOInstances {
    *
    * Also see [[racePair]] for a version that does not cancel
    * the loser automatically on successful results.
+   *
+   * @param lh is the "left" task participating in the race
+   * @param rh is the "right" task participating in the race
+   *
+   * @param cs is an implicit requirement needed because
+   *        `race` automatically forks the involved tasks
    */
-  def race[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[A, B]] =
-    IORace.simple(timer, lh, rh)
+  def race[A, B](lh: IO[A], rh: IO[B])(implicit cs: ContextShift[IO]): IO[Either[A, B]] =
+    IORace.simple(cs, lh, rh)
 
   /**
    * Run two IO tasks concurrently, and returns a pair
@@ -1338,9 +1358,28 @@ object IO extends IOInstances {
    *
    * See [[race]] for a simpler version that cancels the loser
    * immediately.
+   *
+   * @param lh is the "left" task participating in the race
+   * @param rh is the "right" task participating in the race
+   *
+   * @param cs is an implicit requirement needed because
+   *        `race` automatically forks the involved tasks
    */
-  def racePair[A, B](lh: IO[A], rh: IO[B])(implicit timer: Timer[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
-    IORace.pair(timer, lh, rh)
+  def racePair[A, B](lh: IO[A], rh: IO[B])(implicit cs: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+    IORace.pair(cs, lh, rh)
+
+  /**
+   * Returns a [[ContextShift]] instance for [[IO]], built from a
+   * Scala `ExecutionContext`.
+   *
+   * NOTE: you don't need to build such instances when using [[IOApp]].
+   *
+   * @param ec is the execution context used for the actual execution of
+   *        tasks (e.g. bind continuations) and can be backed by the
+   *        user's own thread-pool
+   */
+  def contextShift(ec: ExecutionContext): ContextShift[IO] =
+    IOContextShift(ec)
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
@@ -1407,7 +1446,8 @@ object IO extends IOInstances {
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
-  /** Internal reference, used as an optimization for [[IO.attempt]]
+  /**
+   * Internal reference, used as an optimization for [[IO.attempt]]
    * in order to avoid extraneous memory allocations.
    */
   private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {

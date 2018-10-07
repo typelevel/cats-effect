@@ -27,6 +27,8 @@ import org.scalatest.{AsyncFunSuite, EitherValues, Matchers}
 class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+  implicit val timer: Timer[IO] = IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
 
@@ -64,24 +66,20 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
   tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
   tests("async", new DeferredConstructor { def apply[A] = Deferred.uncancelable[IO, A] })
 
-  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] = 
+  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
     for {
         r <- Ref[IO].of(Option.empty[Int])
         p <- pc
         fiber <- p.get.start
         _ <- fiber.cancel
         _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
-        _ <- Timer[IO].sleep(100.millis)
+        _ <- timer.sleep(100.millis)
         _ <- p.complete(42)
-        _ <- Timer[IO].sleep(100.millis)
+        _ <- timer.sleep(100.millis)
         result <- r.get
       } yield result
 
   test("concurrent - get - cancel before forcing") {
     cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
-  }
-
-  test("async - get - cancel before forcing") {
-    cancelBeforeForcing(Deferred.uncancelable).unsafeToFuture.map(_ shouldBe Some(42))
   }
 }

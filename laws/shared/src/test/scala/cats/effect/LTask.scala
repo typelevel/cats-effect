@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.Eq
-import cats.effect.internals.{Callback, Conversions}
+import cats.effect.internals.Conversions
 import cats.effect.laws.util.TestContext
 import org.scalacheck.{Arbitrary, Cogen}
 import cats.syntax.flatMap._
@@ -77,11 +77,8 @@ object LTask {
 
       def runAsync[A](fa: LTask[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
         SyncIO(fa.run(ec).onComplete { r =>
-          cb(Conversions.toEither(r)).unsafeRunAsync(Callback.report)
+          cb(Conversions.toEither(r)).unsafeRunAsyncAndForget()
         })
-
-      def runSyncStep[A](fa: LTask[A]): SyncIO[Either[LTask[A], A]] =
-        SyncIO.pure(Left(fa))
 
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =
         LTask { implicit ec =>
