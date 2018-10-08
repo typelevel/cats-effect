@@ -19,6 +19,8 @@ package effect
 
 import simulacrum._
 import cats.data._
+import cats.effect.concurrent.Ref
+import cats.instances.option._
 import cats.syntax.all._
 
 /**
@@ -288,27 +290,24 @@ object Sync {
 
     def bracketCase[A, B](acquire: IorT[F, L, A])
                          (use: A => IorT[F, L, B])
-                         (release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] = {
-
-      IorT(F.bracketCase(acquire.value) {
-        case l @ Ior.Left(_) => F.pure(l: Ior[L, B])
-        case Ior.Right(a) => use(a).value
-        case Ior.Both(l1, a) => use(a).value.map {
-          case Ior.Left(l2) => Ior.Left(L.combine(l1, l2))
-          case Ior.Right(b) => Ior.Both(l1, b)
-          case Ior.Both(l2, b) => Ior.Both(L.combine(l1, l2), b)
+                         (release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] =
+      IorT.liftF(Ref[F].of(().rightIor[L])).flatMapF { ref =>
+        F.bracketCase(acquire.value) { ia =>
+          IorT.fromIor[F](ia).flatMap(use).value
+        } { (ia, ec) =>
+          ia.toOption.tupleRight(ec).fold(F.unit) {
+            case (a, ExitCase.Completed) =>
+              release(a, ExitCase.Completed).value flatMap {
+                case Ior.Right(_) => F.unit
+                case other => ref.set(other.void)
+              }
+            case (a, res) => release(a, res).value.void
+          }
+        }.flatMap {
+          case l @ Ior.Left(_) => F.pure(l)
+          case other => ref.get.map(other <* _)
         }
-      } { (ea, br) =>
-        ea match {
-          case Ior.Right(a) =>
-            release(a, br).value.void
-          case Ior.Left(_) =>
-            F.unit // nothing to release
-          case Ior.Both(_, a) =>
-            release(a, br).value.void
-        }
-      })
-    }
+      }
 
     def flatMap[A, B](fa: IorT[F, L, A])(f: A => IorT[F, L, B]): IorT[F, L, B] =
       fa.flatMap(f)
