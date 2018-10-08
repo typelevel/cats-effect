@@ -65,6 +65,8 @@ private[effect] object IORunLoop {
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
+    // For auto-cancellation
+    var currentIndex = 0
 
     do {
       currentIO match {
@@ -140,6 +142,13 @@ private[effect] object IORunLoop {
             bFirst = null
             currentIO = fa
         }
+      }
+
+      // Auto-cancellation logic
+      currentIndex += 1
+      if (currentIndex == maxAutoCancelableBatchSize) {
+        if (conn.isCanceled) return
+        currentIndex = 0
       }
     } while (true)
   }
@@ -369,4 +378,10 @@ private[effect] object IORunLoop {
     def recover(e: Throwable): IO[Any] =
       ContextSwitch(RaiseError(e), current => restore(null, e, old, current), null)
   }
+
+  /**
+   * Number of iterations before the connection is checked for its
+   * cancelled status, to interrupt synchronous flatMap loops.
+   */
+  private[this] val maxAutoCancelableBatchSize = 512
 }

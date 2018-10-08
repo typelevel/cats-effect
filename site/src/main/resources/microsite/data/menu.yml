@@ -41,6 +41,10 @@ options:
     menu_section: concurrency
 
     nested_options:
+      - title: Concurrency Basics
+        url: concurrency/basics.html
+        menu_section: basics
+
       - title: Deferred
         url: concurrency/deferred.html
         menu_section: deferred

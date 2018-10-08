@@ -344,6 +344,7 @@ object Async {
    * [[Async]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Async`.
    */
+  @deprecated("WARNING: currently the Async[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 

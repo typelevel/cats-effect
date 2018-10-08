@@ -79,6 +79,7 @@ object Sync {
    * [[Sync]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
+  @deprecated("WARNING: currently the Sync[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 

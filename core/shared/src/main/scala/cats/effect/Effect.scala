@@ -48,7 +48,7 @@ trait Effect[F[_]] extends Async[F] {
    *
    * {{{
    *   val io = F.runAsync(fa)(cb)
-   *   // Running io results in evaluation of `fa` starting 
+   *   // Running io results in evaluation of `fa` starting
    *   io.unsafeRunSync
    * }}}
    */
@@ -83,6 +83,7 @@ object Effect {
    * [[Effect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Effect`.
    */
+  @deprecated("WARNING: currently the Effect[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
     new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 
