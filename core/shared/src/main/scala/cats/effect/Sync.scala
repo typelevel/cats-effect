@@ -106,17 +106,25 @@ object Sync {
       (use: A => EitherT[F, L, B])
       (release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] = {
 
-      EitherT(F.bracketCase(acquire.value) {
-        case Right(a) => use(a).value
-        case e @ Left(_) => F.pure(e.rightCast[B])
-      } { (ea, br) =>
-        ea match {
-          case Right(a) =>
-            release(a, br).value.map(_ => ())
-          case Left(_) =>
-            F.unit // nothing to release
-        }
-      })
+      EitherT.liftF(Ref.of[F, Option[L]](None)).flatMap { ref =>
+          EitherT(
+            F.bracketCase(acquire.value) {
+              case Right(a) => use(a).value
+              case l @ Left(_) => F.pure(l.rightCast[B])
+            } {
+              case (Left(_), _) => F.unit //Nothing to release
+              case (Right(a), ExitCase.Completed) =>
+                release(a, ExitCase.Completed).value.flatMap {
+                  case Left(l) => ref.set(Some(l))
+                  case Right(_) => F.unit
+                }
+              case (Right(a), res) => release(a, res).value.void
+            }.flatMap[Either[L, B]] {
+              case r @ Right(_) => ref.get.map(_.fold(r: Either[L, B])(Either.left[L, B]))
+              case l @ Left(_) => F.pure(l)
+            }
+          )
+      }
     }
 
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
@@ -147,15 +155,26 @@ object Sync {
       (use: A => OptionT[F, B])
       (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
 
-      OptionT(F.bracketCase(acquire.value) {
-        case Some(a) => use(a).value
-        case None => F.pure[Option[B]](None)
-      } {
-        case (Some(a), br) =>
-          release(a, br).value.map(_ => ())
-        case _ =>
-          F.unit
-      })
+      //Boolean represents if release returned None
+      OptionT.liftF(Ref.of[F, Boolean](false)).flatMap { ref =>
+        OptionT(
+          F.bracketCase(acquire.value) {
+            case Some(a) => use(a).value
+            case None => F.pure(Option.empty[B])
+          } {
+            case (None, _) => F.unit //Nothing to release
+            case (Some(a), ExitCase.Completed) =>
+              release(a, ExitCase.Completed).value.flatMap {
+                case None => ref.set(true)
+                case Some(_) => F.unit
+              }
+            case (Some(a), res) => release(a, res).value.void
+          }.flatMap[Option[B]] {
+            case s @ Some(_) => ref.get.map(b => if (b) None else s)
+            case None => F.pure(None)
+          }
+        )
+      }
     }
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
