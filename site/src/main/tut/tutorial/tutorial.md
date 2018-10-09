@@ -42,7 +42,7 @@ name := "cats-effect-tutorial"
 
 version := "1.0"
 
-scalaVersion := "2.12.2"
+scalaVersion := "2.12.7"
 
 libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0" withSources() withJavadoc()
 
@@ -65,14 +65,14 @@ function that carries such task, and then we will create a program that can be
 invoked from the shell that uses that function.
 
 So first we must code the function that copies the content from a file to
-another file. The function takes as parameters the source and destination files.
+another file. The function takes the source and destination files as parameters.
 But this is functional programming! So invoking the function shall not copy
 anything, instead it will return an `IO` instance that encapsulates all the
 side-effects involved (opening/closing files, reading/writing content), that way
 _purity_ is kept.  Only when that `IO` instance is evaluated all those
 side-effectul actions will be run. In our implementation the `IO` instance will
 return the amount of bytes copied upon execution, but this is just a design
-decission. Of course errors can occur, but when working with any `IO` those
+decision. Of course errors can occur, but when working with any `IO` those
 should be embedded in the `IO` instance. That is, no exception is raised outside
 the `IO` and so no `try` (or the like) needs to be used when using the function,
 instead the `IO` evaluation will fail and the `IO` instance will carry the error
@@ -90,7 +90,7 @@ def copy(origin: File, destination: File): IO[Long] = ???
 Nothing scary, uh? As we said before, the function just returns an `IO`
 instance. When run, all side-effects will be actually executed and the `IO`
 instance will return the bytes copies in a `Long`. Note that`IO` is
-parameterized by the return type). Now, let's start implementing our funtion.
+parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
@@ -190,11 +190,11 @@ we are not using it as it looks so similar to `Resource` (and there is a good
 reason for that: `Resource` is based on `bracket`). Ok, before moving forward it
 is worth to take a look to `bracket`.
 
-There are three stages when using `bracket`: _resource adquisition_, _usage_,
+There are three stages when using `bracket`: _resource acquisition_, _usage_,
 and _release_. Each stage is defined by an `IO` instance.  A fundamental
 property is that the _release_ stage will always be run regardless whether the
 _usage_ stage finished correctly or an exception was thrown during its
-execution. In our case, in the _adquisition_ stage we would create the streams,
+execution. In our case, in the _acquisition_ stage we would create the streams,
 then in the _usage_ stage we will copy the contents, and finally in the release
 stage we will close the streams.  Thus we could define our `copy` function as
 follows:
@@ -222,7 +222,7 @@ def copy(origin: File, destination: File): IO[Long] = {
       case (in, out) =>      // Stage 3: Freeing resources
         (IO(in.close()), IO(out.close()))
         .tupled              // From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]
-        .handleErrorWith(_ => IO.unit) *> IO.unit
+        .handleErrorWith(_ => IO.unit).void
     }
 }
 ```
@@ -274,8 +274,11 @@ Take a look to `transmit`, observe that both input and output actions are
 encapsulated in their own `IO` instances. Being `IO` a monad, we can sequence
 them using a for-comprehension to create another `IO`. The for-comprehension
 loops as long as the call to `read()` does not return a negative value that
-would signal the end of the stream has been reached. It uses recursive calls to
-`transmit` but `IO` is stack safe, so we are not concerned about stack overflow
+would signal the end of the stream has been reached. `*>` is a Cats operator to
+sequence two operations where the output of the first is not needed by the
+second, _i.e._ it is equivalent to `first.flatMap(_ => second)`). In the code
+above that means that after each write operation we recursively call `transmit`
+again, but as `IO` is stack safe we are not concerned about stack overflow
 issues. At each iteration we increase the counter `acc` with the amount of bytes
 read at that iteration. 
 
@@ -303,25 +306,29 @@ cancellations happens _while_ the streams are being used, _i.e._ the `transfer`
 method is being run? This could lead to data corruption as a stream where some
 thread is writting to is at the same time being closed by another thread. For
 more info about this problem see [Gotcha: Cancellation is a concurrent
-action](https://typelevel.org/cats-effect/datatypes/io.html#gotcha-cancellation-is-a-concurrent-action)
+action](../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action)
 in cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
 that ensures that no stream will be closed while `transfer` is being evaluated.
 Cats effect provides several constructs for controlling concurrency, for this
 case we will use a
-[_semaphore_](https://typelevel.org/cats-effect/concurrency/semaphore.html). A
-semaphore has a number of permits, its method `adquire` blocks if no permit is
-available until `release` is called on the same semaphore. We will use a
-semaphore with a single permit, along with a new function `close` that will
-close the stream, defined outside `copy` for the sake of readability:
+[_semaphore_](../concurrency/semaphore.html). A
+semaphore has a number of permits, its method `acquire` 'blocks' if no permit is
+available until `release` is called on the same semaphore. It is important to
+remark that _there is no actual thread being really blocked_, the thread that
+finds the `acquire` will be immediately recycled by cats-effect. When the
+`release` method is invoked then cats-effect will look for some available thread
+to resume the execution of the code after `acquire`.
+
+We will use a semaphore with a single permit, along with a new function `close`
+that will close the stream, defined outside `copy` for the sake of readability:
 
 ```scala
 import cats.implicits._
-import cats.effect.{IO, Resource}
+import cats.effect.{ContextShift, IO, Resource}
 import cats.effect.concurrent.Semaphore
 import java.io._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 // transfer and transmit methods as defined before
 def transfer(origin: InputStream, destination: OutputStream): IO[Long] = ???
@@ -354,8 +361,7 @@ def inputOutputStreams(in: File, out: File, guard: Semaphore[IO]): Resource[IO, 
     outStream <- outputStream(out, guard)
   } yield (inStream, outStream)
 
-def copy(origin: File, destination: File): IO[Long] = {
-  implicit val contextShift = IO.contextShift(global)
+def copy(origin: File, destination: File)(implicit contextShift: ContextShift[IO]): IO[Long] = {
   for {
     guard <- Semaphore[IO](1)
     count <- inputOutputStreams(origin, destination, guard).use { case (in, out) => 
@@ -371,7 +377,10 @@ be released under any circumstance, whatever the result of `transfer` (success,
 error, or cancellation). As the 'release' parts in the `Resource` instances are
 now blocked on the same semaphore, we can be sure that streams are closed only
 after `transfer` is over, _i.e._ we have implemented mutual exclusion of
-`transfer` execution and resources releasing.
+`transfer` execution and resources releasing. The implicit `ContextShift`
+instance is required to create the semaphore instance; at this point you can
+ignore it, a bit more about that data type will be explained later on when we
+work with cats-effect `Fiber`s.
 
 And that is it! We are done, now we can create a program that uses this
 function.
@@ -428,10 +437,10 @@ Program can be run from `sbt` just by issuing this call:
 > runMain catsEffectTutorial.CopyFile origin.txt destination.txt
 ```
 
-It can be argued than using `IO{java.nio.file.Files.copy(...)}` would get an
-`IO` with the same characteristics of purity than our function. But there is a
-difference: our `IO` is safely cancelable! So the user can stop the running
-code at any time for example by pressing `Ctrl-c`, our code will deal with safe
+It can be argued that using `IO{java.nio.file.Files.copy(...)}` would get an
+`IO` with the same characteristics of purity as our function. But there is a
+difference: our `IO` is safely cancelable! So the user can stop the running code
+at any time for example by pressing `Ctrl-c`, our code will deal with safe
 resource release (streams closing) even under such circumstances. The same will
 apply if the `copy` function is run from other modules that require its
 functionality. If the function is cancelled while being run, still resources
@@ -565,18 +574,16 @@ that takes as input the `java.io.ServerSocket` instance that will listen for
 clients:
 
 ```scala
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import java.net.{ServerSocket, Socket}
-import scala.concurrent.ExecutionContext.Implicits.global
 
 // echoProtocol as defined before
 def echoProtocol(clientSocket: Socket): IO[Unit] = ???
 
-def serve(serverSocket: ServerSocket): IO[Unit] = {
+def serve(serverSocket: ServerSocket)(implicit contextShift: ContextShift[IO]): IO[Unit] = {
   def close(socket: Socket): IO[Unit] = 
     IO(socket.close()).handleErrorWith(_ => IO.unit)
 
-  implicit val contextShift = IO.contextShift(global)
   for {
     socket <- IO(serverSocket.accept())
     _      <- echoProtocol(socket)
@@ -596,7 +603,10 @@ that ensures that when the `IO` finishes the functionality inside `guarantee`
 is run whatever the outcome was. In this case we ensure closing the socket,
 ignoring any possible error when closing. Also quite interesting: we use
 `start`! By doing so the `echoProtocol` call will run on its own fiber thus
-not blocking the main loop.
+not blocking the main loop. The call to `start` we need an instance of
+`ContextShift`, which we pass to the method as an `implicit` parameter. As
+cats-effect defines it, a `ContextShift` is the "_functional equivalent to
+`ExecutionContext`_".
 
 _NOTE: If you have coded servers before, probably you are wondering if
 cats-effect provides some magical way to attend an unlimited number of clients
@@ -630,7 +640,10 @@ def run(args: List[String]): IO[ExitCode] = {
 ```
 
 Heed how this time we can use `bracket` right ahead, as there is a single
-resource to deal with and no action to be taken if the creation fails.
+resource to deal with and no action to be taken if the creation fails. Also
+`IOApp` provides a `ContextShift` in scope so we do not need to create/pass our
+own (so the function `serve` defined above would not need to get the
+`ContextShift` instance as a parameter).
 
 [Full code of our server is available
 here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala).
@@ -659,7 +672,7 @@ Connection closed by foreign host.
 
 You can connect several telnet sessions at the same time to verify that indeed
 our server can attend all of them simultaneously. Several... but not many, more
-about that in [Fibers are not threads!](#fibers-are-not-threads)_ section.
+about that in [Fibers are not threads!](#fibers-are-not-threads) section.
 
 Unfortunately this server is a bit too simplistic. For example, how can we stop
 it? Well, that is something we have not addressed yet and it is when things can
@@ -702,26 +715,23 @@ the flag is set the server fiber will be cancelled.
 import cats.effect._
 import cats.effect.concurrent.MVar
 import java.net.ServerSocket
-import scala.concurrent.ExecutionContext.Implicits.global
 
 // serve now requires access to the stopFlag, it will use it to signal the
 // server must stop
-def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit]): IO[Unit] = ???
+def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit])(implicit contextShift: ContextShift[IO]): IO[Unit] = ???
 
-def server(serverSocket: ServerSocket): IO[ExitCode] = {
-  implicit val contextShift = IO.contextShift(global)
+def server(serverSocket: ServerSocket)(implicit contextShift: ContextShift[IO]): IO[ExitCode] = 
   for {
       stopFlag    <- MVar[IO].empty[Unit]
       serverFiber <- serve(serverSocket, stopFlag).start // Server loop in its own Fiber
       _           <- stopFlag.read                       // Blocked until 'stopFlag.put(())' is run
       _           <- serverFiber.cancel                  // Stopping server!
   } yield ExitCode.Success
-}
 ```
 
-The code above requires a `contextShift` in scope to compile. In the final version our
-server will run inside an `IOApp` and it will not be necessary to pass it
-explicitly, `IOApp` will take care of that.
+As before, creating new fibers requires an instance of `ContextShift` in scope
+to compile. In the final version our server will run inside an `IOApp` and so it
+will not be necessary to pass it explicitly, `IOApp` will take care of that.
 
 We must also modify the main `run` method in `IOApp` so now it calls to `server`:
 
@@ -773,22 +783,20 @@ quit the current `IO` execution.
 This is how we code `serve` now using `attempt`:
 
 ```scala
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.effect.concurrent.MVar
 import cats.implicits._
 import java.net._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 // echoProtocol now requires access to the stopFlag, it will use it to signal the
 // server must stop
 def echoProtocol(clientSocket: Socket, stopFlag: MVar[IO, Unit]): IO[Unit] = ???
 
-def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit]): IO[Unit] = {
+def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit])(implicit contextShift: ContextShift[IO]): IO[Unit] = {
 
   def close(socket: Socket): IO[Unit] = 
     IO(socket.close()).handleErrorWith(_ => IO.unit)
 
-  implicit val contextShift = IO.contextShift(global)
   for {
     socketE <- IO(serverSocket.accept()).attempt
     _       <- socketE match {
@@ -873,20 +881,18 @@ client to stop. This is how the `serve` method will look like now with
 that change:
 
 ```scala
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.effect.concurrent.MVar
 import cats.implicits._
 import java.net._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 def echoProtocol(clientSocket: Socket, stopFlag: MVar[IO, Unit]): IO[Unit] = ???
 
-def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit]): IO[Unit] = {
+def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit])(implicit contextShift: ContextShift[IO]): IO[Unit] = {
 
   def close(socket: Socket): IO[Unit] = 
     IO(socket.close()).handleErrorWith(_ => IO.unit)
 
-  implicit val contextShift = IO.contextShift(global)
   for {
     socketE <- IO(serverSocket.accept()).attempt
     _       <- socketE match {
@@ -969,7 +975,7 @@ used all _underlying_ threads available!  But if we close one of the active
 clients by sending an empty line (recall that makes the server to close that
 client session) then immediately one of the blocked clients will be active.
 
-It shall be clear from that experiment than fibers are run by thread pools. And
+It shall be clear from that experiment that fibers are run by thread pools. And
 that in our case, all our fibers share the same thread pool!  Which one in our
 case? Well, `IOApp` automatically brings a `Timer[IO]`, that is defined by
 cats-effect as a '_functional equivalente of Java's
@@ -1000,7 +1006,7 @@ implicit val contextShift = IO.contextShift(global)
 for {
   _ <- IO.shift(clientsExecutionContext) // Swapping to cached thread pool
   _ <- IO(???) // Whatever is done here, is done by a thread from the cached thread pool
-  _ <- IO.shift // Swapping back to default timer
+  _ <- IO.shift // Swapping back to default thread pool
   _ <- IO(println(s"Welcome!")) 
 } yield ()
 ```
@@ -1041,15 +1047,13 @@ import cats.implicits._
 import java.net.ServerSocket
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContext.Implicits.global
 
 def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit])(implicit clientsExecutionContext: ExecutionContext): IO[Unit] = ???
 
-def server(serverSocket: ServerSocket): IO[ExitCode] = {
+def server(serverSocket: ServerSocket)(implicit contextShift: ContextShift[IO]): IO[ExitCode] = {
 
   val clientsThreadPool = Executors.newCachedThreadPool()
   implicit val clientsExecutionContext = ExecutionContext.fromExecutor(clientsThreadPool)
-  implicit val contextShift = IO.contextShift(global)
 
   for {
     stopFlag     <- MVar[IO].empty[Unit]
@@ -1064,7 +1068,7 @@ def server(serverSocket: ServerSocket): IO[ExitCode] = {
 
 Signatures of `serve` and of `echoProtocol` will have to be changed too to pass
 the execution context as parameter. The [resulting server code is available
-here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool).
+here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala).
 
 
 ## Let's not forget about `async`
@@ -1157,7 +1161,7 @@ combine that with `async` to create such non-blocking server. And Java NIO can
 be helpful here. While Java NIO does have some blocking method (`Selector`'s
 `select()`), it allows to build servers that do not require a thread per
 connected client: `select()` will return those 'channels' (such as
-`SochetChannel`) that have data available to read from, then processing of the
+`SocketChannel`) that have data available to read from, then processing of the
 incoming data can be split among threads of a size-bounded pool. This way, a
 thread-per-client approach is not needed. Java NIO2 or netty could also be
 applicable to this scenario. We leave as a final exercise to implement again our
