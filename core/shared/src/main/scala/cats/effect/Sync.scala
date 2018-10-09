@@ -20,7 +20,6 @@ package effect
 import simulacrum._
 import cats.data._
 import cats.effect.concurrent.Ref
-import cats.instances.option._
 import cats.syntax.all._
 
 /**
@@ -295,13 +294,15 @@ object Sync {
         F.bracketCase(acquire.value) { ia =>
           IorT.fromIor[F](ia).flatMap(use).value
         } { (ia, ec) =>
-          ia.toOption.tupleRight(ec).fold(F.unit) {
-            case (a, ExitCase.Completed) =>
-              release(a, ExitCase.Completed).value flatMap {
+          ia.toOption.fold(F.unit) { a =>
+            val r = release(a, ec).value
+            if (ec == ExitCase.Completed)
+              r flatMap {
                 case Ior.Right(_) => F.unit
                 case other => ref.set(other.void)
               }
-            case (a, res) => release(a, res).value.void
+            else
+              r.void
           }
         }.flatMap {
           case l @ Ior.Left(_) => F.pure(l)
