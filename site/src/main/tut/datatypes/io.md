@@ -1195,14 +1195,27 @@ def loop(n: Int): IO[Int] =
 
 ## Parallelism
 
-Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
+Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel. "in parallel" here does not refer to any concurrent processing but instead refers to "independent computation" as opposed to monadic computation. 
 
-Note: all parallel operations require an implicit `ContextShift[IO]` in scope
+### concurrent parallel IO
+If you want concurrent parallel IO note that these operations require an implicit `ContextShift[IO]` in scope
 (see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
 
 1. there's an implicit `ExecutionContext` in scope
 2. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
 3. the user provides a custom `ContextShift`
+
+We dispatch our two IO's to a different thread pool and aggregate their results: 
+
+```tut:silent
+import cats.implicits._
+import scala.concurrent.ExecutionContext.Implicits._
+
+val x = IO.shift *> IO(10)
+val y = IO.shift *> IO(5)
+(x, y).parMapN((a, b) => a + b).unsafeRunSync()
+//=> 15
+```
 
 ### parMapN
 
