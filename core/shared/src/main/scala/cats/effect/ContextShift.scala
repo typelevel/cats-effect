@@ -64,6 +64,8 @@ trait ContextShift[F[_]] {
 }
 
 object ContextShift {
+  def apply[F[_]](implicit ev: ContextShift[F]): ContextShift[F] = ev
+
   /**
    * Derives a [[ContextShift]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.
