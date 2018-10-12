@@ -119,8 +119,37 @@ object Semaphore {
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
 
+  /**
+   * Like [[apply]] but returns the newly allocated semaphore instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state and can throw runtime exceptions
+   */
+  def unsafe[F[_]](n: Long)(implicit F: Concurrent[F]): Semaphore[F] = {
+    assertNonNegativeUnsafe(n: Long)
+    new ConcurrentSemaphore[F](Ref.unsafe[F, State[F]](Right(n)))
+  }
+
+  /**
+   * Like [[uncancelable]] but returns the newly allocated semaphore instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state and can throw runtime exceptions
+   *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancellation is used.
+   */
+  def unsafeUncancelable[F[_]](n: Long)(implicit F: Async[F]): Semaphore[F] = {
+    assertNonNegativeUnsafe(n: Long)
+    new AsyncSemaphore[F](Ref.unsafe[F, State[F]](Right(n)))
+  }
+
   private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
     if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
+
+  private def assertNonNegativeUnsafe(n: Long): Unit =
+    if (n < 0) throw new IllegalArgumentException(s"n must be nonnegative, was: $n")
 
   // A semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)

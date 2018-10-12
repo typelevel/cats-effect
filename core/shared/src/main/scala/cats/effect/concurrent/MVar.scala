@@ -208,4 +208,48 @@ object MVar {
     def empty[A]: F[MVar[F, A]] =
       MVar.empty(F)
   }
+
+  /**
+   * Like `of` but returns the newly allocated mvar directly instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state.
+   */
+  def unsafeOf[F[_], A](initial: A)(implicit F: Concurrent[F]): MVar[F, A] =
+    MVarConcurrent(initial)
+
+  /**
+   * Like `uncancelableOf` but returns the newly allocated mvar directly instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state.
+   *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancellation is used.
+   */
+  def unsafeUncancelableOf[F[_], A](initial: A)(
+      implicit F: Concurrent[F]): MVar[F, A] = MVarAsync(initial)
+
+  /**
+   * Like `empty` but returns the newly allocated mvar directly instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state.
+   */
+  def unsafeEmpty[F[_], A](implicit F: Concurrent[F]): MVar[F, A] =
+    MVarConcurrent.empty[F, A]
+
+  /**
+   * Like `uncancelableEmpty` but returns the newly allocated mvar directly instead of wrapping it in `F.delay`.
+   * This method is considered unsafe because it is not referentially transparent -- it allocates
+   * mutable state.
+   *
+   * WARN: some `Async` data types, like [[IO]], can be cancelable,
+   * making `uncancelable` values unsafe. Such values are only useful
+   * for optimization purposes, in cases where the use case does not
+   * require cancellation or in cases in which an `F[_]` data type
+   * that does not support cancellation is used.
+   */
+  def unsafeUncancelableEmpty[F[_], A](implicit F: Async[F]): MVar[F, A] =
+    MVarAsync.empty[F, A]
 }
