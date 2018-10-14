@@ -24,18 +24,23 @@ type](https://typelevel.org/cats-effect/datatypes/io.html).
 
 Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
-your own solutions to deal with the problems presented in this tutorial.
+your own solutions to deal with the problems presented here. Also, bear in mind
+that using cats-effect for copying files or building TCP servers is suitable for
+a 'getting things done' approach, but for more complex
+systems/settings/requirements you might want to take a look at
+[fs2](http://fs2.io) or [Monix](https://monix.io) to find powerful network and
+file abstractions that integrate with cats-effect. But that is beyond the
+purpose of this tutorial, which focuses solely on cats-effect.
 
 That said, let's go!
 
 ## Setting things up
 
-The [Github repo for this
-tutorial](https://github.com/lrodero/cats-effect-tutorial) includes all the
-software that will be developed during this tutorial. It uses `sbt` as the build
-tool. To ease coding, compiling and running the code snippets in this tutorial
-it is recommended to use the same `build.sbt`, or at least one with the same
-dependencies and compilation options:
+This [Github repo](https://github.com/lrodero/cats-effect-tutorial) includes all
+the software that will be developed during this tutorial. It uses `sbt` as the
+build tool. To ease coding, compiling and running the code snippets in this
+tutorial it is recommended to use the same `build.sbt`, or at least one with the
+same dependencies and compilation options:
 
 ```scala
 name := "cats-effect-tutorial"
@@ -89,7 +94,7 @@ def copy(origin: File, destination: File): IO[Long] = ???
 
 Nothing scary, uh? As we said before, the function just returns an `IO`
 instance. When run, all side-effects will be actually executed and the `IO`
-instance will return the bytes copies in a `Long`. Note that`IO` is
+instance will return the bytes copies in a `Long` (note that`IO` is
 parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
@@ -238,9 +243,9 @@ exception is raised when opening the destination file (_i.e._ when evaluating
 `outIO`)? In that case the origin stream will not be closed! To solve this we
 should first get the first stream with one `bracket` call, and then the second
 stream with another `bracket` call inside the first. But, in a way, that's
-precisely what we do when we `flatMap` instances of `Resource`. And code looks
-cleaner too :) .  So, while `bracket` has its usage, when using several
-resources at once it is likely a better choice using `Resource` to handle them.
+precisely what we do when we `flatMap` instances of `Resource`. And the code
+looks cleaner too. So, while using `bracket` directly has its place, `Resource`
+is likely to be a better choice when dealing with multiple resources at once.
 
 ### Copying data 
 Finally we have our streams ready to go! We have to focus now on coding
@@ -259,7 +264,7 @@ import java.io._
 def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
   for {
     amount <- IO(origin.read(buffer, 0, buffer.size))
-    count  <- if(amount > -1) IO(destination.write(buffer, 0, amount)) *> transmit(origin, destination, buffer, acc + amount)
+    count  <- if(amount > -1) IO(destination.write(buffer, 0, amount)) >> transmit(origin, destination, buffer, acc + amount)
               else IO.pure(acc) // End of read stream reached (by java.io.InputStream contract), nothing to write
   } yield count // Returns the actual amount of bytes transmitted
 
@@ -270,17 +275,17 @@ def transfer(origin: InputStream, destination: OutputStream): IO[Long] =
   } yield total
 ```
 
-Take a look to `transmit`, observe that both input and output actions are
-encapsulated in their own `IO` instances. Being `IO` a monad, we can sequence
-them using a for-comprehension to create another `IO`. The for-comprehension
-loops as long as the call to `read()` does not return a negative value that
-would signal the end of the stream has been reached. `*>` is a Cats operator to
-sequence two operations where the output of the first is not needed by the
-second, _i.e._ it is equivalent to `first.flatMap(_ => second)`). In the code
-above that means that after each write operation we recursively call `transmit`
-again, but as `IO` is stack safe we are not concerned about stack overflow
-issues. At each iteration we increase the counter `acc` with the amount of bytes
-read at that iteration. 
+Take a look at `transmit`, observe that both input and output actions are
+encapsulated in (suspended in) `IO`. `IO` being a monad, we can sequence them
+using a for-comprehension to create another `IO`. The for-comprehension loops as
+long as the call to `read()` does not return a negative value that would signal
+that the end of the stream has been reached. `>>` is a Cats operator to sequence
+two operations where the output of the first is not needed by the second, _i.e._
+it is equivalent to `first.flatMap(_ => second)`). In the code above that means
+that after each write operation we recursively call `transmit` again, but as
+`IO` is stack safe we are not concerned about stack overflow issues. At each
+iteration we increase the counter `acc` with the amount of bytes read at that
+iteration. 
 
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
@@ -290,7 +295,7 @@ should not be ignored, as it is a key feature of cats-effect. We will discuss
 cancellation in the next section.
 
 ### Dealing with cancellation
-Cancellation is a cats-effect feature, powerful but non trivial. In cats-effect,
+Cancellation is a powerful but non trivial cats-effect feature. In cats-effect,
 some `IO` instances can be cancelable, meaning that their evaluation will be
 aborted. If the programmer is careful, an alternative `IO` task will be run
 under cancellation, for example to deal with potential cleaning up activities.
@@ -321,12 +326,15 @@ finds the `acquire` will be immediately recycled by cats-effect. When the
 `release` method is invoked then cats-effect will look for some available thread
 to resume the execution of the code after `acquire`.
 
-We will use a semaphore with a single permit, along with a new function `close`
-that will close the stream, defined outside `copy` for the sake of readability:
+We will use a semaphore with a single permit. The `.withPermit` method acquires
+one permit, runs the `IO` (or any effect) given and then releases the permit.
+We could also use `.acquire` and then `.release` on the semaphor explicitly,
+but `.withPermit` is more idiomatic and ensures that the permit is released even
+if the effect run fails.
 
 ```scala
 import cats.implicits._
-import cats.effect.{ContextShift, IO, Resource}
+import cats.effect.{Concurrent, IO, Resource}
 import cats.effect.concurrent.Semaphore
 import java.io._
 
@@ -337,22 +345,18 @@ def inputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileInputStream] =
   Resource.make {
     IO(new FileInputStream(f))
   } { inStream => 
-    for  {
-     _ <- guard.acquire
-     _ <- IO(inStream.close())
-     _ <- guard.release
-    } yield ()
+    guard.withPermit {
+     IO(inStream.close()).handleErrorWith(_ => IO.unit)
+    }
   }
 
 def outputStream(f: File, guard: Semaphore[IO]): Resource[IO, FileOutputStream] =
   Resource.make {
     IO(new FileOutputStream(f))
   } { outStream =>
-    for  {
-     _ <- guard.acquire
-     _ <- IO(outStream.close())
-     _ <- guard.release
-    } yield ()
+    guard.withPermit {
+     IO(outStream.close()).handleErrorWith(_ => IO.unit)
+    }
   }
 
 def inputOutputStreams(in: File, out: File, guard: Semaphore[IO]): Resource[IO, (InputStream, OutputStream)] =
@@ -361,11 +365,11 @@ def inputOutputStreams(in: File, out: File, guard: Semaphore[IO]): Resource[IO, 
     outStream <- outputStream(out, guard)
   } yield (inStream, outStream)
 
-def copy(origin: File, destination: File)(implicit contextShift: ContextShift[IO]): IO[Long] = {
+def copy(origin: File, destination: File)(implicit concurrent: Concurrent[IO]): IO[Long] = {
   for {
     guard <- Semaphore[IO](1)
     count <- inputOutputStreams(origin, destination, guard).use { case (in, out) => 
-               guard.acquire *> transfer(in, out).guarantee(guard.release)
+               guard.withPermit(transfer(in, out))
              }
   } yield count
 }
@@ -377,10 +381,8 @@ be released under any circumstance, whatever the result of `transfer` (success,
 error, or cancellation). As the 'release' parts in the `Resource` instances are
 now blocked on the same semaphore, we can be sure that streams are closed only
 after `transfer` is over, _i.e._ we have implemented mutual exclusion of
-`transfer` execution and resources releasing. The implicit `ContextShift`
-instance is required to create the semaphore instance; at this point you can
-ignore it, a bit more about that data type will be explained later on when we
-work with cats-effect `Fiber`s.
+`transfer` execution and resources releasing. The implicit `Concurrent`
+instance is required to create the semaphore instance.
 
 And that is it! We are done, now we can create a program that uses this
 function.
@@ -396,11 +398,14 @@ up to the main function.
 coding an effectful `main` method we code a pure `run` function. When executing
 the class a `main` method defined in `IOApp` will call the `run` function we
 have coded. Any interruption (like pressing `Ctrl-c`) will be treated as a
-cancellation of the running `IO`. Also `IOApp` provides an implicit execution
-context so it does not be imported/created by the code explicitely. When coding
-`IOApp` instead of `main` we have a `run` function, which creates the `IO`
-instance that forms the program. In our case, our `run` method can look like
-this:
+cancellation of the running `IO`. Also `IOApp` provides implicit instances of
+`Timer[IO]` and `ContextShift[IO]` (not discussed yet in this tutorial).
+`ContextShift[IO]` allows for having a `Concurrent[IO]` in scope, as the one
+required by the `copy` function.
+
+When coding `IOApp` instead of `main` we have a `run` function, which creates
+the `IO` instance that forms the program. In our case, our `run` method can look
+like this:
 
 ```scala
 import cats.effect._
@@ -424,7 +429,7 @@ object Main extends IOApp {
 }
 ```
 
-Heed how `run` verifies the `args` list passed. If there are less than two
+Heed how `run` verifies the `args` list passed. If there are fewer than two
 arguments, an error is raised. As `IO` implements `MonadError` we can at any
 moment call to `IO.raiseError` to interrupt a sequence of `IO` operations.
 
@@ -445,6 +450,16 @@ resource release (streams closing) even under such circumstances. The same will
 apply if the `copy` function is run from other modules that require its
 functionality. If the function is cancelled while being run, still resources
 will be properly released.
+
+### Polymorphic version of copy
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
+TODOTODOTODO
 
 ### Exercises: improving our small `IO` program
 
@@ -555,7 +570,7 @@ def loop(reader: BufferedReader, writer: BufferedWriter): IO[Unit] =
     line <- IO(reader.readLine())
     _    <- line match {
               case "" => IO.unit // Empty line, we are done
-              case _  => IO{ writer.write(line); writer.newLine(); writer.flush() } *> loop(reader, writer)
+              case _  => IO{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer)
             }
   } yield ()
 ```
@@ -632,9 +647,9 @@ def run(args: List[String]): IO[ExitCode] = {
 
   IO( new ServerSocket(args.headOption.map(_.toInt).getOrElse(5432)) )
     .bracket{
-      serverSocket => serve(serverSocket) *> IO.pure(ExitCode.Success)
+      serverSocket => serve(serverSocket) >> IO.pure(ExitCode.Success)
     } {
-      serverSocket => close(serverSocket) *> IO(println("Server finished"))
+      serverSocket => close(serverSocket) >> IO(println("Server finished"))
     }
 }
 ```
@@ -750,9 +765,9 @@ def run(args: List[String]): IO[ExitCode] = {
 
   IO{ new ServerSocket(args.headOption.map(_.toInt).getOrElse(5432)) }
     .bracket{
-      serverSocket => server(serverSocket) *> IO.pure(ExitCode.Success)
+      serverSocket => server(serverSocket) >> IO.pure(ExitCode.Success)
     } {
-      serverSocket => close(serverSocket)  *> IO(println("Server finished"))
+      serverSocket => close(serverSocket)  >> IO(println("Server finished"))
     }
 }
 ```
@@ -840,7 +855,7 @@ def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[IO, Unit
     _    <- line match {
               case "STOP" => stopFlag.put(()) // Stopping server! Also put(()) returns IO[Unit] which is handy as we are done
               case ""     => IO.unit          // Empty line, we are done
-              case _      => IO{ writer.write(line); writer.newLine(); writer.flush() } *> loop(reader, writer, stopFlag)
+              case _      => IO{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer, stopFlag)
             }
   } yield ()
 ```
@@ -901,7 +916,7 @@ def serve(serverSocket: ServerSocket, stopFlag: MVar[IO, Unit])(implicit context
           fiber <- echoProtocol(socket, stopFlag)
                      .guarantee(close(socket))      // We close the server whatever happens
                      .start                         // Client attended by its own Fiber
-          _     <- (stopFlag.read *> close(socket)) 
+          _     <- (stopFlag.read >> close(socket)) 
                      .start                         // Another Fiber to cancel the client when stopFlag is set
           _     <- serve(serverSocket, stopFlag)    // Looping to wait for the next client connection
         } yield ()
@@ -943,7 +958,7 @@ def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[IO, Unit
                case Right(line) => line match {
                  case "STOP" => stopFlag.put(()) // Stopping server! Also put(()) returns IO[Unit] which is handy as we are done
                  case ""     => IO.unit          // Empty line, we are done
-                 case _      => IO{ writer.write(line); writer.newLine(); writer.flush() } *> loop(reader, writer, stopFlag)
+                 case _      => IO{ writer.write(line); writer.newLine(); writer.flush() } >> loop(reader, writer, stopFlag)
                }
                case Left(e) =>
                  for { // readLine() failed, stopFlag will tell us whether this is a graceful shutdown
@@ -1058,7 +1073,7 @@ def server(serverSocket: ServerSocket)(implicit contextShift: ContextShift[IO]):
   for {
     stopFlag     <- MVar[IO].empty[Unit]
     serverFiber  <- serve(serverSocket, stopFlag).start
-    _            <- stopFlag.read *> IO{println(s"Stopping server")}
+    _            <- stopFlag.read >> IO{println(s"Stopping server")}
     _            <- IO{clientsThreadPool.shutdown()}
     _            <- serverFiber.cancel
   } yield ExitCode.Success
