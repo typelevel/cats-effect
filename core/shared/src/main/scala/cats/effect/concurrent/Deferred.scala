@@ -52,6 +52,12 @@ abstract class Deferred[F[_], A] {
    */
   def get: F[A]
 
+
+  /**
+   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
+   */
+  def tryGet: F[Option[A]]
+
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies
    * any and all readers currently blocked on a `get`.
@@ -144,6 +150,14 @@ object Deferred {
         }
       }
 
+    def tryGet: F[Option[A]] =
+      F.delay{
+        ref.get match {
+          case State.Set(a) => Some(a)
+          case State.Unset(_) => None
+        }
+      }
+
     private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
       val id = new Id
 
@@ -189,6 +203,9 @@ object Deferred {
           case Failure(t) => cb(Left(t))
         }
       }
+
+    def tryGet: F[Option[A]] =
+      F.delay(p.future.value.flatMap(_.toOption))
 
     def complete(a: A): F[Unit] =
       F.delay(p.success(a))

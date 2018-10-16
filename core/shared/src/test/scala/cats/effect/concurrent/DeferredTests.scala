@@ -61,6 +61,20 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
       } yield res
       op.unsafeToFuture.map(_ shouldBe 2)
     }
+
+    test(s"$label - tryGet returns None for unset Deferred"){
+      pc[Unit].flatMap(_.tryGet).unsafeToFuture.map(_ shouldBe None)
+    }
+
+    test(s"$label - tryGet returns Some() for set Deferred"){
+      val op = for{
+        d <- pc[Unit]
+        _ <- d.complete(())
+        result <- d.tryGet
+      } yield result shouldBe Some(())
+
+      op.unsafeToFuture
+    }
   }
 
   tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
