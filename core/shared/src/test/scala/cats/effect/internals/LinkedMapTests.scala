@@ -51,7 +51,7 @@ final class LinkedMapTests extends FunSuite with Matchers {
     }
   }
 
-  test("removing an entry") {
+  test("removing entry") {
     val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
     val n = 2
