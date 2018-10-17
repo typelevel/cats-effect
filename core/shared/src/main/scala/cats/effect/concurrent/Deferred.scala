@@ -54,11 +54,6 @@ abstract class Deferred[F[_], A] {
 
 
   /**
-   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
-   */
-  def tryGet: F[Option[A]]
-
-  /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies
    * any and all readers currently blocked on a `get`.
    *
@@ -79,11 +74,22 @@ abstract class Deferred[F[_], A] {
   def complete(a: A): F[Unit]
 }
 
+abstract class TryableDeferred[F[_], A] extends Deferred[F, A]{
+  /**
+   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
+   */
+  def tryGet: F[Option[A]]
+}
+
 object Deferred {
 
   /** Creates an unset promise. **/
   def apply[F[_], A](implicit F: Concurrent[F]): F[Deferred[F, A]] =
     F.delay(unsafe[F, A])
+
+  /** Creates an unset tryable promise. **/
+  def tryable[F[_], A](implicit F: Concurrent[F]): F[TryableDeferred[F, A]] =
+    F.delay(unsafeTryable[F, A])
 
   /**
    * Like `apply` but returns the newly allocated promise directly
@@ -91,8 +97,7 @@ object Deferred {
    * unsafe because it is not referentially transparent -- it
    * allocates mutable state.
    */
-  def unsafe[F[_]: Concurrent, A]: Deferred[F, A] =
-    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
+  def unsafe[F[_]: Concurrent, A]: Deferred[F, A] = unsafeTryable[F, A]
 
   /**
    * Creates an unset promise that only requires an [[Async]] and
@@ -108,6 +113,13 @@ object Deferred {
     F.delay(unsafeUncancelable[F, A])
 
   /**
+   * Creates an unset tryable promise that only requires an [[Async]] and
+   * does not support cancellation of `get`.
+   */
+  def tryableUncancelable[F[_], A](implicit F: Async[F]): F[TryableDeferred[F, A]] =
+    F.delay(unsafeTryableUncancelable[F, A])
+
+  /**
    * Like [[uncancelable]] but returns the newly allocated promise directly
    * instead of wrapping it in `F.delay`. This method is considered
    * unsafe because it is not referentially transparent -- it
@@ -115,8 +127,14 @@ object Deferred {
    *
    * WARN: read the caveats of [[uncancelable]].
    */
-  def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] =
+  def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] = unsafeTryableUncancelable[F, A]
+
+  private def unsafeTryable[F[_]: Concurrent, A]: TryableDeferred[F, A] =
+    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
+
+  private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
     new UncancelabbleDeferred[F, A](Promise[A]())
+
 
   private final class Id
 
@@ -127,7 +145,7 @@ object Deferred {
   }
 
   private final class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
-    extends Deferred[F, A] {
+    extends TryableDeferred[F, A] {
 
     def get: F[A] =
       F.suspend {
@@ -194,7 +212,7 @@ object Deferred {
     }
   }
 
-  private final class UncancelabbleDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Deferred[F, A] {
+  private final class UncancelabbleDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends TryableDeferred[F, A] {
     def get: F[A] =
       F.async { cb =>
         implicit val ec: ExecutionContext = TrampolineEC.immediate

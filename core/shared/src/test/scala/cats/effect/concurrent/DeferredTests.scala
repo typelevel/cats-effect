@@ -31,6 +31,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
+  trait TryableDeferredConstructor { def apply[A]: IO[TryableDeferred[IO, A]] }
 
   def tests(label: String, pc: DeferredConstructor): Unit = {
 
@@ -61,7 +62,9 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
       } yield res
       op.unsafeToFuture.map(_ shouldBe 2)
     }
+  }
 
+  def tryableTests(label: String, pc: TryableDeferredConstructor): Unit = {
     test(s"$label - tryGet returns None for unset Deferred"){
       pc[Unit].flatMap(_.tryGet).unsafeToFuture.map(_ shouldBe None)
     }
@@ -78,7 +81,12 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
+  tests("concurrentTryable", new DeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
   tests("async", new DeferredConstructor { def apply[A] = Deferred.uncancelable[IO, A] })
+  tests("asyncTryable", new DeferredConstructor { def apply[A] = Deferred.tryableUncancelable[IO, A] })
+
+  tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
+  tryableTests("asyncTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryableUncancelable[IO, A] })
 
   private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
     for {
