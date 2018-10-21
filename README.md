@@ -65,6 +65,7 @@ These are some well known libraries that depend on `cats-effect`:
 | [Doobie](http://tpolecat.github.io/doobie/) | A principled JDBC layer for Scala |
 | [Eff](http://atnos-org.github.io/eff/) | Extensible Effects for Scala |
 | [Fs2](https://functional-streams-for-scala.github.io/fs2/) | Functional Streams for Scala (Streaming I/O library) |
+| [Finch](https://finagle.github.io/finch/) | Scala combinator API for building Finagle HTTP services |
 | [Http4s](http://http4s.org/) | Typeful, functional, streaming HTTP for Scala |
 | [Monix](https://monix.io/) | Asynchronous, Reactive Programming for Scala and Scala.js |
 | [Pure Config](https://pureconfig.github.io/) | A boilerplate-free library for loading configuration files |
