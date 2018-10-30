@@ -201,7 +201,11 @@ val mimaSettings = Seq(
       // https://github.com/typelevel/cats-effect/pull/377
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#EnsureReleaseFrame.this"),
       exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BracketReleaseFrame.this"),
-      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this")
+      exclude[DirectMissingMethodProblem]("cats.effect.internals.IOBracket#BaseReleaseFrame.this"),
+      // All internals - https://github.com/typelevel/cats-effect/pull/403
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AbstractSemaphore.awaitGate"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AsyncSemaphore.awaitGate"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate")
     )
   })
 
