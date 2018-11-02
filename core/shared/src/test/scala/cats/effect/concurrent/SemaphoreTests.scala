@@ -22,11 +22,13 @@ import cats.implicits._
 import org.scalatest.{Assertion, AsyncFunSuite, EitherValues, Matchers}
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.duration._
 
 class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
+  implicit val timer: Timer[IO] = IO.timer(executionContext)
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - acquire n synchronously") {
@@ -77,5 +79,26 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", n => Semaphore[IO](n))
+  
+  test("concurrent - acquire does not leak permits upon cancelation") {
+    Semaphore[IO](1L).flatMap { s =>
+      // acquireN(2) will get 1 permit and then timeout waiting for another,
+      // which should restore the semaphore count to 1. We then release a permit
+      // bringing the count to 2. Since the old acquireN(2) is canceled, the final
+      // count stays at 2.
+      s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
+    }.unsafeToFuture.map(_ shouldBe 2L)
+  }
+
+  test("concurrent - withPermit does not leak fibers or permits upon cancelation") {
+    Semaphore[IO](0L).flatMap { s =>
+      // The inner s.release should never be run b/c the timeout will be reached before a permit
+      // is available. After the timeout and hence cancelation of s.withPermit(...), we release
+      // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
+      // cancel, the permit count will be 2, otherwise 1
+      s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
+    }.unsafeToFuture.map(_ shouldBe 1L)
+  }
+
   tests("async", n => Semaphore.uncancelable[IO](n))
 }
