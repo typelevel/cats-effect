@@ -64,20 +64,14 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
     test(s"$label - offsetting acquires/releases - individual acquires/increment in parallel") {
       testOffsettingReleasesAcquires(
-        (s, permits) => Parallel.parTraverse(permits)(IO.shift *> s.acquireN(_)).void,
-        (s, permits) => Parallel.parTraverse(permits.reverse)(IO.shift *> s.releaseN(_)).void)
+        (s, permits) => permits.parTraverse(s.acquireN).void,
+        (s, permits) => permits.reverse.parTraverse(s.releaseN).void)
     }
 
     def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       sc(0).flatMap { s =>
-        for {
-          dfib <- (IO.shift *> acquires(s, permits)).start
-          ifib <- (IO.shift *> releases(s, permits)).start
-          _ <- dfib.join
-          _ <- ifib.join
-          cnt <- s.count
-        } yield cnt
+        (acquires(s, permits), releases(s, permits)).parTupled *> s.count
       }.unsafeToFuture.map(_ shouldBe 0L)
     }
   }
