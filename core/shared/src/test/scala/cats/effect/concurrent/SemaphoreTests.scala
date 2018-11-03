@@ -80,9 +80,10 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
     test(s"$label - available with no available permits") {
       sc(20).flatMap{ s =>
         for{
-          _ <- s.acquireN(20).void
-          t <- s.available
+          _ <- s.acquireN(21).void.start
+          t <- IO.shift *> s.available
         } yield t
+
       }.unsafeToFuture().map(_ shouldBe 0)
     }
 
@@ -90,7 +91,9 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
       sc(20).flatMap{ s =>
         for{
           _ <- s.acquireN(20).void
-          t <- s.tryAcquireN(1)
+          _ <- s.acquire.start
+          x <- (IO.shift *> s.tryAcquireN(1)).start
+          t <- x.join
         } yield t
       }.unsafeToFuture().map(_ shouldBe false)
     }
@@ -104,6 +107,16 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           t <- s.count
         } yield (a, t)
       }.unsafeToFuture().map{ case (available, count) => available shouldBe count }
+    }
+
+    test(s"$label - count with no available permits") {
+      sc(20).flatMap { s =>
+        for {
+          _ <- s.acquireN(21).void.start
+          x <- (IO.shift *> s.count).start
+          t <- x.join
+        } yield t
+      }.unsafeToFuture().map( count =>  count shouldBe -1)
     }
 
     def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
