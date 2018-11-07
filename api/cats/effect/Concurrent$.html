@@ -264,7 +264,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/2976967d581629241c465fa625c78a19b52a3cc7/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -505,23 +505,6 @@ with any <code>F</code> data type that also implements <code>Concurrent</code>.<
       </span>
       
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.OptionT</code> values initialized
-with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
-    </li><li name="cats.effect.Concurrent#catsWriterTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">implicit </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">catsWriterTConcurrent</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>]</span>)</span><span class="result">: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[[γ$3$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>, <span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>, <span class="extype" name="cats.effect.Concurrent.&lt;refinement&gt;.Λ$.γ$3$">γ$3$</span>]]</span>
-      </span>
-      
-      <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
@@ -930,7 +913,32 @@ happening immediately after that.
 
         
 
-        
+        <div class="values members">
+              <h3>Deprecated Value Members</h3>
+              <ol><li name="cats.effect.Concurrent#catsWriterTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name deprecated" title="Deprecated: (Since version 1.1.0) WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!">catsWriterTConcurrent</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>]</span>)</span><span class="result">: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[[γ$3$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>, <span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>, <span class="extype" name="cats.effect.Concurrent.&lt;refinement&gt;.Λ$.γ$3$">γ$3$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
+with any <code>F</code> data type that also implements <code>Concurrent</code>.</p><div class="fullcomment"><div class="comment cmt"><p><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
+with any <code>F</code> data type that also implements <code>Concurrent</code>.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.1.0)</i> WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!</p></dd></dl></div>
+    </li></ol>
+            </div>
         </div>
 
         <div id="inheritedMembers">

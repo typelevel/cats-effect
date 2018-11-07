@@ -28,6 +28,8 @@
 <pre><code class="language-sbt">libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0"
 </code></pre>
 
+<p>Cats Effect relies on improved type inference and needs partial unification enabled as described in the cats <a href="https://github.com/typelevel/cats#getting-started">Getting Started</a> documentation.</p>
+
 <p>If your project uses Scala.js, replace the double-<code class="highlighter-rouge">%</code> with a triple.  Note that <strong>cats-effect</strong> has an upstream dependency on <strong>cats-core</strong> version 1.x.</p>
 
 <p>Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0-M4, as well as Scala.js 0.6.x.</p>
@@ -88,6 +90,10 @@
     <tr>
       <td><a href="https://functional-streams-for-scala.github.io/fs2/">Fs2</a></td>
       <td>Functional Streams for Scala (Streaming I/O library)</td>
+    </tr>
+    <tr>
+      <td><a href="https://finagle.github.io/finch/">Finch</a></td>
+      <td>Scala combinator API for building Finagle HTTP services</td>
     </tr>
     <tr>
       <td><a href="http://http4s.org/">Http4s</a></td>
