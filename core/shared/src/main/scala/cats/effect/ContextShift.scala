@@ -50,8 +50,8 @@ trait ContextShift[F[_]] {
   def shift: F[Unit]
 
   /**
-   * Evaluates `f` on the supplied execution context and shifts evaluation
-   * back to the default execution environment of `F` at the completion of `f`,
+   * Evaluates `fa` on the supplied execution context and shifts evaluation
+   * back to the default execution environment of `F` at the completion of `fa`,
    * regardless of success or failure.
    *
    * The primary use case for this method is executing blocking code on a
