@@ -55,6 +55,23 @@ class ContextShiftTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(1))
   }
 
+  testAsync("ContextShift.evalOnK[IO]") { ec =>
+    implicit val cs = ec.contextShift[IO]
+    val ec2 = TestContext()
+
+    val funK = ContextShift.evalOnK[IO](ec2)
+    val f = funK(IO(1)).unsafeToFuture()
+    f.value shouldBe None
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec2.tick()
+    f.value shouldBe None
+    ec.tick()
+    f.value shouldBe Some(Success(1))
+  }
+
   // -- EitherT
 
   testAsync("Timer[EitherT].shift") { ec =>

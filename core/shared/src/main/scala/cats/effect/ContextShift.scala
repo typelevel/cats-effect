@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monad, Monoid}
+import cats.{Applicative, Functor, Monad, Monoid, ~>}
 import cats.data._
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -65,6 +65,11 @@ trait ContextShift[F[_]] {
 
 object ContextShift {
   def apply[F[_]](implicit ev: ContextShift[F]): ContextShift[F] = ev
+
+  /**
+    * `evalOn` as a natural transformation.
+    */
+  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F = λ[F ~> F](cs.evalOn(ec)(_))
 
   /**
    * Derives a [[ContextShift]] instance for `cats.data.EitherT`,
