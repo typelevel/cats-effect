@@ -1,7 +1,7 @@
 addSbtPlugin("com.dwijnand"       % "sbt-travisci"            % "1.1.1")
 addSbtPlugin("com.jsuereth"       % "sbt-pgp"                 % "1.1.0")
 addSbtPlugin("com.typesafe"       % "sbt-mima-plugin"         % "0.1.18")
-addSbtPlugin("com.typesafe.sbt"   % "sbt-git"                 % "0.9.3")
+addSbtPlugin("com.typesafe.sbt"   % "sbt-git"                 % "1.0.0")
 addSbtPlugin("de.heikoseeberger"  % "sbt-header"              % "5.0.0")
 addSbtPlugin("io.get-coursier"    % "sbt-coursier"            % "1.0.0")
 addSbtPlugin("org.lyranthe.sbt"   % "partial-unification"     % "1.1.2")
