@@ -21,20 +21,20 @@ import org.scalatest._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
-class SemaphoreJVMTests extends FunSuite with Matchers {
+class DeferredJVMTests extends FunSuite with Matchers {
   implicit val ec: ExecutionContext = ExecutionContext.global
   implicit val cs = IO.contextShift(ec)
   implicit val timer: Timer[IO] = IO.timer(ec)
 
-  test("Semaphore: issue typelevel/cats-effect#380") {
+  test("Deferred: issue typelevel/cats-effect#380") {
     val t = 5.seconds
 
     def p1 = {
       for {
-        sem <- cats.effect.concurrent.Semaphore[IO](0)
-        _ <- (sem.acquire *> IO.unit.foreverM).start
+        d <- cats.effect.concurrent.Deferred[IO, Unit]
+        _ <- (d.get *> IO.unit.foreverM).start
         _ <- timer.sleep(100.millis)
-        _ <- sem.release
+        _ <- d.complete(())
       } yield true
     }.timeoutTo(t, IO.pure(false))
 

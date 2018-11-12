@@ -23,7 +23,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
 class MVarJVMTests extends FunSuite with Matchers {
-  test("Issue typelevel/cats-effect#380") {
+  test("MVar: issue typelevel/cats-effect#380") {
     implicit val ec: ExecutionContext = ExecutionContext.global
     implicit val cs = IO.contextShift(ec)
     implicit val timer: Timer[IO] = IO.timer(ec)

@@ -19,6 +19,8 @@ package effect
 package concurrent
 
 import cats.effect.internals.{LinkedMap, TrampolineEC}
+import cats.effect.internals.Callback.rightUnit
+import cats.implicits._
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
@@ -128,7 +130,7 @@ object Deferred {
         ref.get match {
           case State.Set(a) => F.pure(a)
           case State.Unset(_) =>
-            F.cancelable { cb =>
+            F.cancelable[A] { cb =>
               val id = unsafeRegister(cb)
               @tailrec
               def unregister(): Unit =
@@ -161,7 +163,9 @@ object Deferred {
       id
     }
 
-    def complete(a: A): F[Unit] = {
+    private[this] val asyncBoundary = F.start(F.unit).flatMap(_.join)
+
+    def complete(a: A): F[Unit] = asyncBoundary *> {
       def notifyReaders(r: State.Unset[A]): Unit =
         r.waiting.values.foreach { cb =>
           cb(a)
@@ -190,7 +194,12 @@ object Deferred {
         }
       }
 
+    private[this] val asyncBoundary: F[Unit] = {
+      val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
+      F.async[Unit](k)
+    }
+
     def complete(a: A): F[Unit] =
-      F.delay(p.success(a))
+      asyncBoundary *> F.delay(p.success(a))
   }
 }
