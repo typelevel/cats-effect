@@ -20,6 +20,7 @@ package concurrent
 
 import cats.implicits._
 import scala.collection.immutable.Queue
+import cats.effect.internals.Callback.rightUnit
 
 /**
  * A purely functional semaphore.
@@ -127,6 +128,7 @@ object Semaphore {
 
   private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
+    protected def asyncBoundary: F[Unit]
 
     private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(())
 
@@ -237,7 +239,7 @@ object Semaphore {
                     case Right(_) => 0
                   }
                   val released = waiting.size - newSize
-                  waiting.take(released).foldRight(F.unit) { (hd, tl) =>
+                  asyncBoundary *> waiting.take(released).foldRight(F.unit) { (hd, tl) =>
                     open(hd._2) *> tl
                   }
                 case Right(_) => F.unit
@@ -257,9 +259,14 @@ object Semaphore {
 
   private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
+    protected val asyncBoundary: F[Unit] = F.start(F.unit).flatMap(_.join)
   }
 
   private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred.uncancelable[F, Unit]
+    protected val asyncBoundary: F[Unit] = {
+      val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
+      F.async[Unit](k)
+    }
   }
 }
