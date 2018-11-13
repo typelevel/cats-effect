@@ -16,28 +16,37 @@
 
 package cats.effect
 
+import java.util.concurrent.atomic.AtomicBoolean
 import cats.implicits._
 import org.scalatest._
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{CancellationException, ExecutionContext}
 
 class SemaphoreJVMTests extends FunSuite with Matchers {
-  implicit val ec: ExecutionContext = ExecutionContext.global
-  implicit val cs = IO.contextShift(ec)
-  implicit val timer: Timer[IO] = IO.timer(ec)
-
   test("Semaphore: issue typelevel/cats-effect#380") {
-    val t = 5.seconds
+    implicit val ec: ExecutionContext = ExecutionContext.global
+    implicit val cs = IO.contextShift(ec)
+    implicit val timer: Timer[IO] = IO.timer(ec)
 
-    def p1 = {
-      for {
-        sem <- cats.effect.concurrent.Semaphore[IO](0)
-        _ <- (sem.acquire *> IO.unit.foreverM).start
-        _ <- timer.sleep(100.millis)
-        _ <- sem.release
-      } yield true
-    }.timeoutTo(t, IO.pure(false))
+    for (_ <- 0 until 10) {
+      val cancelLoop = new AtomicBoolean(false)
+      val unit = IO {
+        if (cancelLoop.get()) throw new CancellationException
+      }
 
-    assert(p1.unsafeRunSync, s"; timed-out after $t")
+      try {
+        val task = for {
+          sem <- cats.effect.concurrent.Semaphore[IO](0)
+          _  <- (sem.acquire *> unit.foreverM).start
+          _  <- timer.sleep(100.millis)
+          _  <- sem.release
+        } yield ()
+
+        val dt = 10.seconds
+        assert(task.unsafeRunTimed(dt).nonEmpty, s"; timed-out after $dt")
+      } finally {
+        cancelLoop.set(true)
+      }
+    }
   }
 }
