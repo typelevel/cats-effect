@@ -28,7 +28,7 @@ class DeferredJVMTests extends FunSuite with Matchers {
     implicit val cs = IO.contextShift(ec)
     implicit val timer: Timer[IO] = IO.timer(ec)
 
-    for (_ <- 0 until 100) {
+    for (_ <- 0 until 10) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
         if (cancelLoop.get()) throw new CancellationException
@@ -36,10 +36,10 @@ class DeferredJVMTests extends FunSuite with Matchers {
 
       try {
         val task = for {
-          mv <- cats.effect.concurrent.MVar[IO].empty[Unit]
-          _  <- (mv.take *> unit.foreverM).start
+          df <- cats.effect.concurrent.Deferred[IO, Unit]
+          _  <- (df.get *> unit.foreverM).start
           _  <- timer.sleep(100.millis)
-          _  <- mv.put(())
+          _  <- df.complete(())
         } yield ()
 
         val dt = 10.seconds
