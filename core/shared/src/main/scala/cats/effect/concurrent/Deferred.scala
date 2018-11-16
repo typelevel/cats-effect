@@ -163,10 +163,8 @@ object Deferred {
       id
     }
 
-    private[this] val asyncBoundary: F[Unit] = {
-      val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
-      F.async[Unit](k)
-    }
+    private[this] val asyncBoundary: F[Unit] =
+      F.start(F.unit).flatMap(_.join)
 
     def complete(a: A): F[Unit] = asyncBoundary *> {
       def notifyReaders(r: State.Unset[A]): Unit =
