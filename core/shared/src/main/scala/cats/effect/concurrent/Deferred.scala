@@ -168,7 +168,7 @@ object Deferred {
       F.async[Unit](k)
     }
 
-    def complete(a: A): F[Unit] = asyncBoundary *> {
+    def complete(a: A): F[Unit] = {
       def notifyReaders(r: State.Unset[A]): Unit =
         r.waiting.values.foreach { cb =>
           cb(a)

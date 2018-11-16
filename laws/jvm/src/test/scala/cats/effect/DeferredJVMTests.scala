@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import concurrent.Deferred
 import cats.implicits._
 import org.scalatest._
 import java.util.concurrent.atomic.AtomicBoolean
@@ -23,30 +24,75 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, CancellationException}
 
 class DeferredJVMTests extends FunSuite with Matchers {
-  test("Deferred: issue typelevel/cats-effect#380") {
+  // test("Deferred: issue typelevel/cats-effect#380") {
+  //   implicit val ec: ExecutionContext = ExecutionContext.global
+  //   implicit val cs = IO.contextShift(ec)
+  //   implicit val timer: Timer[IO] = IO.timer(ec)
+
+  //   for (_ <- 0 until 10) {
+  //     val cancelLoop = new AtomicBoolean(false)
+  //     val unit = IO {
+  //       if (cancelLoop.get()) throw new CancellationException
+  //     }
+
+  //     try {
+  //       val task = for {
+  //         df <- cats.effect.concurrent.Deferred[IO, Unit]
+  //         _  <- (df.get *> (unit *> IO.async[Unit](cb => cb(Right(())))).foreverM).start
+  //         _  <- timer.sleep(100.millis)
+  //         _  <- df.complete(())
+  //       } yield ()
+
+  //       val dt = 10.seconds
+  //       assert(task.unsafeRunTimed(dt).nonEmpty, s"; timed-out after $dt")
+  //     } finally {
+  //       cancelLoop.set(true)
+  //     }
+  //   }
+  // }
+
+  test("Deferred with cooperative light async boundaries") {
     implicit val ec: ExecutionContext = ExecutionContext.global
     implicit val cs = IO.contextShift(ec)
     implicit val timer: Timer[IO] = IO.timer(ec)
 
-    for (_ <- 0 until 10) {
-      val cancelLoop = new AtomicBoolean(false)
-      val unit = IO {
-        if (cancelLoop.get()) throw new CancellationException
+    def p = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
       }
 
-      try {
-        val task = for {
-          df <- cats.effect.concurrent.Deferred[IO, Unit]
-          _  <- (df.get *> unit.foreverM).start
-          _  <- timer.sleep(100.millis)
-          _  <- df.complete(())
-        } yield ()
-
-        val dt = 10.seconds
-        assert(task.unsafeRunTimed(dt).nonEmpty, s"; timed-out after $dt")
-      } finally {
-        cancelLoop.set(true)
-      }
+      for {
+        d <- Deferred[IO, Unit]
+        fb <- (d.get *> foreverAsync(0)).start
+        _ <- timer.sleep(1.second)
+        _ <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
+      } yield true
     }
+
+    assert(p.unsafeRunSync, s"timed out")
   }
+
+  test("Deferred with cooperative full async boundaries") {
+    implicit val ec: ExecutionContext = ExecutionContext.global
+    implicit val cs = IO.contextShift(ec)
+    implicit val timer: Timer[IO] = IO.timer(ec)
+
+    def p = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
+      }
+
+      for {
+        d <- Deferred[IO, Unit]
+        fb <- (d.get *> foreverAsync(0)).start
+        _ <- timer.sleep(1.second)
+        _ <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
+      } yield true
+    }
+
+    assert(p.unsafeRunSync, s"timed out")
+  }
+
 }
