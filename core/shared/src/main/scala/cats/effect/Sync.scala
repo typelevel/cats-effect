@@ -21,6 +21,7 @@ import simulacrum._
 import cats.data._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
+import cats.instances.tuple._
 
 /**
  * A monad that can suspend the execution of side effects
@@ -247,19 +248,21 @@ object Sync {
     def bracketCase[A, B](acquire: WriterT[F, L, A])
       (use: A => WriterT[F, L, B])
       (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
-        WriterT.liftF(Ref.of[F, Option[L]](None)).flatMap { ref =>
-          acquire.flatMap { a =>
-            WriterT(
-              F.bracketCase[A, (L, B)](F.pure(a)) { a =>
-                use(a).run.flatTap { case (l, _) => ref.set(Some(l)) }
-              } {
-                case (a, ExitCase.Completed) =>
-                  release(a, ExitCase.Completed).written.flatMap { l => ref.update(_.map(L.combine(_, l))) }
-                case (a, res) => release(a, res).value
-              }.flatMap { case (l, b) => ref.get.map(_.getOrElse(l)).tupleRight(b) }
-            )
+        WriterT(
+          Ref[F].of(L.empty).flatMap { ref =>
+            F.bracketCase(acquire.run) { la =>
+              WriterT(la.pure[F]).flatMap(use).run
+            } { case ((_, a), ec) =>
+              val r = release(a, ec).run
+              if (ec == ExitCase.Completed)
+                r.flatMap { case (l, _) => ref.set(l) }
+              else
+                r.void
+            }.flatMap { lb =>
+              ref.get.map(l => lb.leftMap(_ |+| l))
+            }
           }
-        }
+        )
 
     override def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(F.uncancelable(fa.run))
