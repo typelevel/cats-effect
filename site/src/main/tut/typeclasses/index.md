@@ -36,7 +36,7 @@ def liftIO[A](ioa: IO[A]): F[A]
 Can suspend(describe) synchronous side-effecting code in F. But can't evaluate(run) it
 
 ```scala
-def suspend[A](thunk: => F[A]): F[A]
+def delay[A](thunk: => A): F[A]
 ```
 
 ### Async
@@ -53,6 +53,13 @@ Can concurrently start or cancel the side-effecting code in F
 def start[A](fa: F[A]): F[Fiber[F, A]]
 def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]]
 def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[F]): F[A]
+```
+
+```scala
+trait Fiber[F[_], A] {
+  def cancel: F[Unit]
+  def join: F[A]
+}
 ```
 
 ### Effect
