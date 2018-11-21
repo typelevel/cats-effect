@@ -1138,12 +1138,17 @@ object IO extends IOInstances {
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
-
-      ref := (
-        try k(cb2) catch { case NonFatal(t) =>
-          cb2(Left(t))
-          IO.unit
-        })
+      // Race condition test — no need to execute `k` if it was already cancelled,
+      // ensures that fiber.cancel will always wait for the finalizer if `k`
+      // is executed — note that `isCanceled` is visible here due to `push`
+      if (!conn.isCanceled)
+        ref.complete(
+          try k(cb2) catch { case NonFatal(t) =>
+            cb2(Left(t))
+            IO.unit
+          })
+      else
+        ref.complete(IO.unit)
     }
 
   /**

@@ -6,7 +6,7 @@ matrix:
     - jdk: oraclejdk8
       scala: 2.11.12
       env: COVERAGE=coverage
-    - jdk: oraclejdk10
+    - jdk: openjdk11
       scala: 2.11.12
       env: COVERAGE=
     - jdk: oraclejdk8
@@ -15,7 +15,7 @@ matrix:
     - jdk: oraclejdk8
       scala: 2.13.0-M4
       env: COVERAGE=
-    - jdk: oraclejdk10
+    - jdk: openjdk11
       scala: 2.12.6
       env: COVERAGE=
 

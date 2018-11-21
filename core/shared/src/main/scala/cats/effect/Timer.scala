@@ -78,6 +78,8 @@ trait Timer[F[_]]  {
 }
 
 object Timer {
+  def apply[F[_]](implicit ev: Timer[F]): Timer[F] = ev
+
   /**
    * Derives a [[Timer]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.

@@ -124,6 +124,8 @@ trait Clock[F[_]] {
 }
 
 object Clock  {
+  def apply[F[_]](implicit ev: Clock[F]) = ev
+
   /**
    * Provides Clock instance for any `F` that has `Sync` defined
    */

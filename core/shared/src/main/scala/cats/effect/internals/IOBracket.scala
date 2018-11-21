@@ -21,6 +21,7 @@ import cats.effect.{CancelToken, ExitCase, IO}
 import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
+import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
   /**
@@ -31,9 +32,19 @@ private[effect] object IOBracket {
     (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
 
     IO.Async { (conn, cb) =>
-      // Doing manual plumbing; note that `acquire` here cannot be
-      // cancelled due to executing it via `IORunLoop.start`
-      IORunLoop.start[A](acquire, new BracketStart(use, release, conn, cb))
+      // Placeholder for the future finalizer
+      val deferredRelease = ForwardCancelable()
+      conn.push(deferredRelease.cancel)
+      // Race-condition check, avoiding starting the bracket if the connection
+      // was cancelled already, to ensure that `cancel` really blocks if we
+      // start `acquire` — n.b. `isCanceled` is visible here due to `push`
+      if (!conn.isCanceled) {
+        // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
+        // (in other words it is disconnected from our IOConnection)
+        IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
+      } else {
+        deferredRelease.complete(IO.unit)
+      }
     }
   }
 
@@ -42,6 +53,7 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
+    deferredRelease: ForwardCancelable,
     cb: Callback.T[B])
     extends (Either[Throwable, A] => Unit) with Runnable {
 
@@ -62,14 +74,14 @@ private[effect] object IOBracket {
 
     def run(): Unit = result match {
       case Right(a) =>
-        val frame = new BracketReleaseFrame[A, B](a, release, conn)
+        val frame = new BracketReleaseFrame[A, B](a, release)
         val onNext = {
           val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
           fb.flatMap(frame)
         }
         // Registering our cancelable token ensures that in case
         // cancellation is detected, `release` gets called
-        conn.push(frame.cancel)
+        deferredRelease.complete(frame.cancel)
         // Actual execution
         IORunLoop.startCancelable(onNext, conn, cb)
 
@@ -86,13 +98,17 @@ private[effect] object IOBracket {
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
         def run(): Unit = {
-          val frame = new EnsureReleaseFrame[A](release, conn)
+          val frame = new EnsureReleaseFrame[A](release)
           val onNext = source.flatMap(frame)
           // Registering our cancelable token ensures that in case
           // cancellation is detected, `release` gets called
           conn.push(frame.cancel)
-          // Actual execution
-          IORunLoop.startCancelable(onNext, conn, cb)
+          // Race condition check, avoiding starting `source` in case
+          // the connection was already cancelled — n.b. we don't need
+          // to trigger `release` otherwise, because it already happened
+          if (!conn.isCanceled) {
+            IORunLoop.startCancelable(onNext, conn, cb)
+          }
         }
       })
     }
@@ -100,36 +116,44 @@ private[effect] object IOBracket {
 
   private final class BracketReleaseFrame[A, B](
     a: A,
-    releaseFn: (A, ExitCase[Throwable]) => IO[Unit],
-    conn: IOConnection)
-    extends BaseReleaseFrame[A, B](conn) {
+    releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
+    extends BaseReleaseFrame[A, B] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(a, c)
   }
 
   private final class EnsureReleaseFrame[A](
-    releaseFn: ExitCase[Throwable] => IO[Unit],
-    conn: IOConnection)
-    extends BaseReleaseFrame[Unit, A](conn) {
+    releaseFn: ExitCase[Throwable] => IO[Unit])
+    extends BaseReleaseFrame[Unit, A] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(c)
   }
 
-  private abstract class BaseReleaseFrame[A, B](conn: IOConnection)
-    extends IOFrame[B, IO[B]] {
+  private abstract class BaseReleaseFrame[A, B] extends IOFrame[B, IO[B]] {
+    // Guard used for thread-safety, to ensure the idempotency
+    // of the release; otherwise `release` can be called twice
+    private[this] val waitsForResult = new AtomicBoolean(true)
 
     def release(c: ExitCase[Throwable]): CancelToken[IO]
 
+    private def applyRelease(e: ExitCase[Throwable]): IO[Unit] =
+      IO.suspend {
+        if (waitsForResult.compareAndSet(true, false))
+          release(e)
+        else
+          IO.unit
+      }
+
     final val cancel: CancelToken[IO] =
-      release(ExitCase.Canceled).uncancelable
+      applyRelease(ExitCase.Canceled).uncancelable
 
     final def recover(e: Throwable): IO[B] = {
       // Unregistering cancel token, otherwise we can have a memory leak;
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
-      ContextSwitch(release(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
+      ContextSwitch(applyRelease(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
         .flatMap(new ReleaseRecover(e))
     }
 
@@ -137,7 +161,7 @@ private[effect] object IOBracket {
       // Unregistering cancel token, otherwise we can have a memory leak
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
-      ContextSwitch(release(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
+      ContextSwitch(applyRelease(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
         .map(_ => b)
     }
   }

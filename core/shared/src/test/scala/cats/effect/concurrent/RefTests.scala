@@ -18,6 +18,7 @@ package cats
 package effect
 package concurrent
 
+import cats.data.State
 import cats.implicits._
 import org.scalatest.{AsyncFunSuite, Matchers, Succeeded}
 import org.scalatest.compatible.Assertion
@@ -42,6 +43,16 @@ class RefTests extends AsyncFunSuite with Matchers {
     val r = Ref.unsafe[IO, Int](0)
     val modifies = List.fill(finalValue)(IO.shift *> r.update(_ + 1)).sequence
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+  }
+
+  test("getAndSet - successful") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      getAndSetResult <- r.getAndSet(1)
+      getResult <- r.get
+    } yield getAndSetResult == 0 && getResult == 1
+
+    run(op.map(_ shouldBe true))
   }
 
   test("access - successful") {
@@ -77,6 +88,50 @@ class RefTests extends AsyncFunSuite with Matchers {
       cond2 <- setter(value + 1)
       result <- r.get
     } yield cond1 && !cond2 && result == 0
+    run(op.map(_ shouldBe true))
+  }
+
+  test("tryUpdate - modification occurs successfully") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.tryUpdate(_ + 1)
+      value <- r.get
+    } yield result && value == 1
+
+    run(op.map(_ shouldBe true))
+  }
+
+  test("tryUpdate - should fail to update if modification has occurred") {
+    val updateRefUnsafely: Ref[IO, Int] => Unit = _.update(_ + 1).unsafeRunSync()
+
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.tryUpdate(
+        currentValue => {
+          updateRefUnsafely(r)
+          currentValue + 1
+        }
+      )
+    } yield result
+
+    run(op.map(_ shouldBe false))
+  }
+
+  test("tryModifyState - modification occurs successfully") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.tryModifyState(State.pure(1))
+    } yield result.contains(1)
+
+    run(op.map(_ shouldBe true))
+  }
+
+  test("modifyState - modification occurs successfully") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.modifyState(State.pure(1))
+    } yield result == 1
+
     run(op.map(_ shouldBe true))
   }
 }
