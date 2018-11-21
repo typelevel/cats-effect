@@ -414,7 +414,10 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
           })
         })
       case Suspend(resource) =>
-        Suspend(resource.map(_.attempt))
+        Suspend(resource.attempt.map {
+          case Left(error) => Resource.pure(Left(error))
+          case Right(fa: Resource[F, A]) => fa.attempt
+        })
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =

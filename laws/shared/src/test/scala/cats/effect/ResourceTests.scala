@@ -111,4 +111,10 @@ class ResourceTests extends BaseTestsSuite {
 
     prog.unsafeRunSync
   }
+  
+  test("safe attempt suspended resource") {
+    val exception = new Exception("boom!")
+    val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
+    suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
+  }
 }
