@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid}
+import cats.{Applicative, Functor, Monoid, ~>}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -78,6 +78,8 @@ trait Timer[F[_]]  {
 }
 
 object Timer {
+  def apply[F[_]](implicit ev: Timer[F]): Timer[F] = ev
+
   /**
    * Derives a [[Timer]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.
@@ -149,4 +151,14 @@ object Timer {
       def sleep(duration: FiniteDuration): IorT[F, L, Unit] =
         IorT.liftF(timer.sleep(duration))
     }
+
+  implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal{
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Timer[G] = new Timer[G] {
+      val clock: Clock[G] = self.clock.mapK(f)
+      def sleep(duration: FiniteDuration): G[Unit] = f(self.sleep(duration))
+    }
+  }
 }

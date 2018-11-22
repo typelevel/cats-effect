@@ -17,6 +17,7 @@
 package cats.effect
 package internals
 
+import cats.implicits._
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.concurrent.MVar
 import cats.effect.internals.Callback.rightUnit
@@ -35,16 +36,26 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
-    F.cancelable(unsafePut(a))
+    lightAsyncBoundary.flatMap { _ =>
+      if (unsafeTryPut(a))
+        F.unit
+      else
+        F.cancelable(unsafePut(a))
+    }
 
   def tryPut(a: A): F[Boolean] =
-    F.async(unsafePut1(a))
+    F.delay(unsafeTryPut(a))
 
   def take: F[A] =
-    F.cancelable(unsafeTake)
+    lightAsyncBoundary.flatMap { _ =>
+      unsafeTryTake() match {
+        case Some(a) => F.pure(a)
+        case None => F.cancelable(unsafeTake)
+      }
+    }
 
   def tryTake: F[Option[A]] =
-    F.async(unsafeTake1)
+    F.delay(unsafeTryTake())
 
   def read: F[A] =
     F.cancelable(unsafeRead)
@@ -57,11 +68,10 @@ private[effect] final class MVarConcurrent[F[_], A] private (
       }
     }
 
-
   @tailrec
-  private def unsafePut1(a: A)(onPut: Listener[Boolean]): Unit = {
+  private def unsafeTryPut(a: A): Boolean = {
     stateRef.get match {
-      case WaitForTake(_, _) => onPut(Right(false))
+      case WaitForTake(_, _) => false
 
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
@@ -74,7 +84,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           }
 
         if (!stateRef.compareAndSet(current, update)) {
-          unsafePut1(a)(onPut) // retry
+          unsafeTryPut(a) // retry
         } else {
           val value = Right(a)
           // Satisfies all current `read` requests found
@@ -82,7 +92,7 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           // Satisfies the first `take` request found
           if (first ne null) first(value)
           // Signals completion of `put`
-          onPut(Right(true))
+          true
         }
     }
   }
@@ -138,32 +148,30 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     }
 
   @tailrec
-  private def unsafeTake1(onTake: Listener[Option[A]]): Unit = {
+  private def unsafeTryTake(): Option[A] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
-            // Signals completion of `take`
-            onTake(Right(Some(value)))
+            Some(value)
           else {
-            unsafeTake1(onTake) // retry
+            unsafeTryTake() // retry
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
-            // Signals completion of `take`
-            onTake(Right(Some(value)))
             // Complete the `put` request waiting on a notification
             notify(rightUnit)
+            Some(value)
           } else {
-            unsafeTake1(onTake) // retry
+            unsafeTryTake() // retry
           }
         }
 
       case WaitForPut(_, _) =>
-        onTake(Right(None))
+        None
     }
   }
 
@@ -250,6 +258,11 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     val cursor = listeners.values.iterator
     while (cursor.hasNext)
       cursor.next().apply(value)
+  }
+
+  private[this] val lightAsyncBoundary = {
+    val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
+    F.async[Unit](k)
   }
 }
 

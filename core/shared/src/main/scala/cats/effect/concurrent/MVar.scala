@@ -17,7 +17,9 @@
 package cats.effect
 package concurrent
 
+import cats.effect.concurrent.MVar.TransformedMVar
 import cats.effect.internals.{MVarAsync, MVarConcurrent}
+import cats.~>
 
 /**
  * A mutable location, that is either empty or contains
@@ -100,6 +102,12 @@ abstract class MVar[F[_], A] {
    *         a value has been read
    */
   def read: F[A]
+
+  /**
+    * Modify the context `F` using transformation `f`.
+    */
+  def mapK[G[_]](f: F ~> G): MVar[G, A] =
+    new TransformedMVar(this, f)
 }
 
 /** Builders for [[MVar]]. */
@@ -189,6 +197,30 @@ object MVar {
     F.delay(MVarAsync(initial))
 
   /**
+   * Like [[of]] but initializes state using another effect constructor
+   */
+  def in[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+    F.delay(MVarConcurrent(initial))
+
+  /**
+   * Like [[empty]] but initializes state using another effect constructor
+   */
+  def emptyIn[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+    F.delay(MVarConcurrent.empty)
+
+  /**
+   * Like [[uncancelableOf]] but initializes state using another effect constructor
+   */
+  def uncancelableIn[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync(initial))
+
+  /**
+   * Like [[uncancelableEmpty]] but initializes state using another effect constructor
+   */
+  def uncancelableEmptyIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync.empty)
+
+  /**
    * Returned by the [[apply]] builder.
    */
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
@@ -207,5 +239,14 @@ object MVar {
      */
     def empty[A]: F[MVar[F, A]] =
       MVar.empty(F)
+  }
+
+  private[concurrent] final class TransformedMVar[F[_], G[_], A](underlying: MVar[F, A], trans: F ~> G) extends MVar[G, A]{
+    override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
+    override def put(a: A): G[Unit] = trans(underlying.put(a))
+    override def tryPut(a: A): G[Boolean] = trans(underlying.tryPut(a))
+    override def take: G[A] = trans(underlying.take)
+    override def tryTake: G[Option[A]] = trans(underlying.tryTake)
+    override def read: G[A] = trans(underlying.read)
   }
 }

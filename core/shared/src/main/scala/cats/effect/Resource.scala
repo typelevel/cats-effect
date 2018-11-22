@@ -137,6 +137,70 @@ sealed abstract class Resource[F[_], A] {
    */
   def flatMap[B](f: A => Resource[F, B]): Resource[F, B] =
     Bind(this, f)
+
+  /**
+    * Given a `Resource`, possibly built by composing multiple
+    * `Resource`s monadically, returns the acquired resource, as well
+    * as an action that runs all the finalizers for releasing it.
+    *
+    * If the outer `F` fails or is interrupted, `allocated` guarantees
+    * that the finalizers will be called. However, if the outer `F`
+    * succeeds, it's up to the user to ensure the returned `F[Unit]`
+    * is called once `A` needs to be released. If the returned
+    * `F[Unit]` is not called, the finalizers will not be run.
+    *
+    * For this reason, this is an advanced and potentially unsafe api
+    * which can cause a resource leak if not used correctly, please
+    * prefer [[use]] as the standard way of running a `Resource`
+    * program.
+    *
+    * Use cases include interacting with side-effectful apis that
+    * expect separate acquire and release actions (like the `before`
+    * and `after` methods of many test frameworks), or complex library
+    * code that needs to modify or move the finalizer for an existing
+    * resource.
+    *
+    */
+  def allocated(implicit F: Bracket[F, Throwable]): F[(A, F[Unit])] = {
+
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(
+      current: Resource[F, Any],
+      stack: List[Any => Resource[F, Any]],
+      release: F[Unit]): F[(Any, F[Unit])] =
+      loop(current, stack, release)
+
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(
+      current: Resource[F, Any],
+      stack: List[Any => Resource[F, Any]],
+      release: F[Unit]): F[(Any, F[Unit])] =
+      current match {
+        case Resource.Allocate(resource) =>
+          F.bracketCase(resource) {
+            case (a, rel) =>
+              stack match {
+                case Nil => F.pure(a -> F.guarantee(rel(ExitCase.Completed))(release))
+                case f0 :: xs => continue(f0(a), xs, F.guarantee(rel(ExitCase.Completed))(release))
+              }
+          } {
+            case (_, ExitCase.Completed) =>
+              F.unit
+            case ((_, release), ec) =>
+              release(ec)
+          }
+        case Resource.Bind(source, f0) =>
+          loop(source, f0.asInstanceOf[Any => Resource[F, Any]] :: stack, release)
+        case Resource.Suspend(resource) =>
+          resource.flatMap(continue(_, stack, release))
+      }
+
+    loop(this.asInstanceOf[Resource[F, Any]], Nil, F.unit).map {
+      case (a, release) =>
+        (a.asInstanceOf[A], release)
+    }
+  }
 }
 
 object Resource extends ResourceInstances {
@@ -350,7 +414,10 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
           })
         })
       case Suspend(resource) =>
-        Suspend(resource.map(_.attempt))
+        Suspend(resource.attempt.map {
+          case Left(error) => Resource.pure(Left(error))
+          case Right(fa: Resource[F, A]) => fa.attempt
+        })
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =

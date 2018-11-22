@@ -50,15 +50,12 @@ class InstancesTests extends BaseTestsSuite {
       ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int]
     })
 
-  // TODO: fix or remove WriterT
-  // https://github.com/typelevel/cats-effect/issues/371
-  /*
+
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => {
       implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
     })
-    */
 
   checkAllAsync("IorT[IO, Int, ?]",
     implicit ec => {

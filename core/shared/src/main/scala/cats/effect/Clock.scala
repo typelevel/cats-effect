@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid}
+import cats.{Applicative, Functor, Monoid, ~>}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -124,6 +124,8 @@ trait Clock[F[_]] {
 }
 
 object Clock  {
+  def apply[F[_]](implicit ev: Clock[F]) = ev
+
   /**
    * Provides Clock instance for any `F` that has `Sync` defined
    */
@@ -220,4 +222,14 @@ object Clock  {
       def monotonic(unit: TimeUnit): IorT[F, L, Long] =
         IorT.liftF(clock.monotonic(unit))
     }
+
+  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
+      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
+      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
+    }
+  }
 }

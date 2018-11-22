@@ -87,4 +87,34 @@ class ResourceTests extends BaseTestsSuite {
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
+
+  testAsync("allocated produces the same value as the resource") { implicit ec =>
+    check { resource: Resource[IO, Int] =>
+      val a0 = Resource(resource.allocated).use(IO.pure).attempt
+      val a1 = resource.use(IO.pure).attempt
+
+      a0 <-> a1
+    }
+  }
+
+  test("allocate does not release until close is invoked") {
+    val released = new java.util.concurrent.atomic.AtomicBoolean(false)
+    val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
+    val resource = Resource.liftF(IO.unit)
+
+    val prog = for {
+      res <- (release *> resource).allocated
+      (_, close) = res
+      releaseAfterF <- IO(released.get() shouldBe false)
+      _ <- close >> IO(released.get() shouldBe true)
+    } yield ()
+
+    prog.unsafeRunSync
+  }
+  
+  test("safe attempt suspended resource") {
+    val exception = new Exception("boom!")
+    val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
+    suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
+  }
 }

@@ -20,6 +20,9 @@ package concurrent
 
 import cats.effect.internals.{LinkedMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
+
+import cats.effect.concurrent.Deferred.TransformedDeferred
+
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success}
@@ -71,6 +74,12 @@ abstract class Deferred[F[_], A] {
    *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
    */
   def complete(a: A): F[Unit]
+
+  /**
+    * Modify the context `F` using transformation `f`.
+    */
+  def mapK[G[_]](f: F ~> G): Deferred[G, A] =
+    new TransformedDeferred(this, f)
 }
 
 object Deferred {
@@ -100,6 +109,14 @@ object Deferred {
    */
   def uncancelable[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
     F.delay(unsafeUncancelable[F, A])
+
+  /** Like [[apply]] but initializes state using another effect constructor */
+  def in[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[Deferred[G, A]] =
+    F.delay(unsafe[G, A])
+
+  /** Like [[uncancelable]] but initializes state using another effect constructor */
+  def uncancelableIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
+    F.delay(unsafeUncancelable[G, A])
 
   /**
    * Like [[uncancelable]] but returns the newly allocated promise directly
@@ -192,5 +209,10 @@ object Deferred {
 
     def complete(a: A): F[Unit] =
       F.delay(p.success(a))
+  }
+
+  private final class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G) extends Deferred[G, A]{
+    override def get: G[A] = trans(underlying.get)
+    override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
 }

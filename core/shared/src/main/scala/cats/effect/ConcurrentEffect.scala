@@ -81,7 +81,6 @@ object ConcurrentEffect {
    * [[ConcurrentEffect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `ConcurrentEffect`.
    */
-  @deprecated("WARNING: currently the ConcurrentEffect[WriterT[F, L, ?]] instance is broken!", "1.1.0")
   implicit def catsWriterTConcurrentEffect[F[_]: ConcurrentEffect, L: Monoid]: ConcurrentEffect[WriterT[F, L, ?]] =
     new WriterTConcurrentEffect[F, L] { def F = ConcurrentEffect[F]; def L = Monoid[L] }
 
