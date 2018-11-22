@@ -70,6 +70,57 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         (s, permits) => permits.reverse.parTraverse(s.releaseN).void)
     }
 
+    test(s"$label - available with available permits") {
+      sc(20).flatMap{ s =>
+        for{
+          _ <- s.acquireN(19)
+          t <- s.available
+        } yield t
+      }.unsafeToFuture().map(_ shouldBe 1)
+    }
+
+    test(s"$label - available with no available permits") {
+      sc(20).flatMap{ s =>
+        for{
+          _ <- s.acquireN(21).void.start
+          t <- IO.shift *> s.available
+        } yield t
+
+      }.unsafeToFuture().map(_ shouldBe 0)
+    }
+
+    test(s"$label - tryAcquireN with no available permits") {
+      sc(20).flatMap{ s =>
+        for{
+          _ <- s.acquireN(20).void
+          _ <- s.acquire.start
+          x <- (IO.shift *> s.tryAcquireN(1)).start
+          t <- x.join
+        } yield t
+      }.unsafeToFuture().map(_ shouldBe false)
+    }
+
+    test(s"$label - count with available permits") {
+      val n = 18
+      sc(20).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          a <- s.available
+          t <- s.count
+        } yield (a, t)
+      }.unsafeToFuture().map{ case (available, count) => available shouldBe count }
+    }
+
+    test(s"$label - count with no available permits") {
+      sc(20).flatMap { s =>
+        for {
+          _ <- s.acquireN(21).void.start
+          x <- (IO.shift *> s.count).start
+          t <- x.join
+        } yield t
+      }.unsafeToFuture().map( count =>  count shouldBe -1)
+    }
+
     def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       sc(0).flatMap { s =>
