@@ -18,11 +18,10 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.{Callback, LinkedMap, TrampolineEC}
+import cats.effect.internals.{LinkedMap, TrampolineEC}
+import cats.effect.internals.Callback.rightUnit
 import java.util.concurrent.atomic.AtomicReference
-
 import cats.effect.concurrent.Deferred.TransformedDeferred
-
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success}
@@ -145,7 +144,7 @@ object Deferred {
         ref.get match {
           case State.Set(a) => F.pure(a)
           case State.Unset(_) =>
-            F.cancelable { cb =>
+            F.cancelable[A] { cb =>
               val id = unsafeRegister(cb)
               @tailrec
               def unregister(): Unit =
@@ -198,7 +197,7 @@ object Deferred {
     }
 
     private[this] val asyncBoundary =
-      F.async[Unit](_(Callback.rightUnit))
+      F.async[Unit](_(rightUnit))
   }
 
   private final class UncancelabbleDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Deferred[F, A] {
@@ -217,7 +216,7 @@ object Deferred {
     }
 
     private[this] val asyncBoundary =
-      F.async[Unit](_(Callback.rightUnit))
+      F.async[Unit](_(rightUnit))
   }
 
   private final class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G) extends Deferred[G, A]{

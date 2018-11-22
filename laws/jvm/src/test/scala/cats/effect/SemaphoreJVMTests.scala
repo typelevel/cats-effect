@@ -17,21 +17,18 @@
 package cats.effect
 
 import java.util.concurrent.atomic.AtomicBoolean
-
-import cats.effect.concurrent.Deferred
 import cats.implicits._
 import org.scalatest._
-
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
-class MVarJVMTests extends FunSuite with Matchers {
-  test("MVar: issue typelevel/cats-effect#380") {
+class SemaphoreJVMTests extends FunSuite with Matchers {
+  test("Semaphore: issue typelevel/cats-effect#380") {
     implicit val ec: ExecutionContext = ExecutionContext.global
     implicit val cs = IO.contextShift(ec)
     implicit val timer: Timer[IO] = IO.timer(ec)
 
-    for (_ <- 0 until 100) {
+    for (_ <- 0 until 10) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
         if (cancelLoop.get()) throw new CancellationException
@@ -39,12 +36,10 @@ class MVarJVMTests extends FunSuite with Matchers {
 
       try {
         val task = for {
-          mv    <- cats.effect.concurrent.MVar[IO].empty[Unit]
-          latch <- Deferred[IO, Unit]
-          _     <- (latch.complete(()) *> mv.take *> unit.foreverM).start
-          _     <- latch.get
-          _     <- timer.sleep(10.millis)
-          _     <- mv.put(())
+          sem <- cats.effect.concurrent.Semaphore[IO](0)
+          _  <- (sem.acquire *> unit.foreverM).start
+          _  <- timer.sleep(100.millis)
+          _  <- sem.release
         } yield ()
 
         val dt = 10.seconds

@@ -82,7 +82,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
     cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
   }
 
-  test("complete doesn't block, test #1") {
+  test("issue #380: complete doesn't block, test #1") {
     def execute(times: Int): IO[Assertion] = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -109,7 +109,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
     execute(100).unsafeToFuture()
   }
 
-  test("complete doesn't block, test #2") {
+  test("issue #380: complete doesn't block, test #2") {
     def execute(times: Int): IO[Assertion] = {
       val task = for {
         d <- Deferred[IO, Unit]
