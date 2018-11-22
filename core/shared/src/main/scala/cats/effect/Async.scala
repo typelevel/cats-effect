@@ -271,9 +271,7 @@ object Async {
    */
   def shift[F[_]](ec: ExecutionContext)(implicit F: Async[F]): F[Unit] =
     F.async { cb =>
-      ec.execute(new Runnable {
-        def run(): Unit = cb(Callback.rightUnit)
-      })
+      ec.execute(() => cb(Callback.rightUnit))
     }
 
   /**

@@ -45,15 +45,10 @@ class TestContextTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     var effect = false
 
-    ec.execute(new Runnable {
-      def run(): Unit = {
-        ec.execute(new Runnable {
-          def run(): Unit =
-            effect = true
-        })
+    ec.execute(() => {
+      ec.execute(() => effect = true)
 
-        throw dummy
-      }
+      throw dummy
     })
 
     assert(effect === false)
@@ -73,9 +68,7 @@ class TestContextTests extends BaseTestsSuite {
 
     var count = 0
     for (_ <- 0 until 100)
-      ec.execute(new Runnable {
-        def run(): Unit = count += 1
-      })
+      ec.execute(() => count += 1)
 
     assert(count === 0)
     var executed = 0

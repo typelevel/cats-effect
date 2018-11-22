@@ -146,7 +146,7 @@ final class TestContext private () extends ExecutionContext { self =>
   def timer[F[_]](implicit F: LiftIO[F]): Timer[F] =
     new Timer[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
-        new Runnable { def run() = cb(Right(())) }
+        () => cb(Right(()))
 
       override def sleep(timespan: FiniteDuration): F[Unit] =
         F.liftIO(IO.cancelable { cb =>
@@ -176,7 +176,7 @@ final class TestContext private () extends ExecutionContext { self =>
   def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
     new ContextShift[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
-        new Runnable { def run() = cb(Right(())) }
+        () => cb(Right(()))
 
       override def shift: F[Unit] =
         F.liftIO(IO.Async(new IOForkedStart[Unit] {

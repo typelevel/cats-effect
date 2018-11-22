@@ -96,19 +96,17 @@ private[effect] object IOBracket {
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] = {
     IO.Async { (conn, cb) =>
       // Light async boundary, otherwise this will trigger a StackOverflowException
-      ec.execute(new Runnable {
-        def run(): Unit = {
-          val frame = new EnsureReleaseFrame[A](release)
-          val onNext = source.flatMap(frame)
-          // Registering our cancelable token ensures that in case
-          // cancellation is detected, `release` gets called
-          conn.push(frame.cancel)
-          // Race condition check, avoiding starting `source` in case
-          // the connection was already cancelled — n.b. we don't need
-          // to trigger `release` otherwise, because it already happened
-          if (!conn.isCanceled) {
-            IORunLoop.startCancelable(onNext, conn, cb)
-          }
+      ec.execute(() => {
+        val frame = new EnsureReleaseFrame[A](release)
+        val onNext = source.flatMap(frame)
+        // Registering our cancelable token ensures that in case
+        // cancellation is detected, `release` gets called
+        conn.push(frame.cancel)
+        // Race condition check, avoiding starting `source` in case
+        // the connection was already cancelled — n.b. we don't need
+        // to trigger `release` otherwise, because it already happened
+        if (!conn.isCanceled) {
+          IORunLoop.startCancelable(onNext, conn, cb)
         }
       })
     }

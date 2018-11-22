@@ -43,10 +43,7 @@ private[effect] final class ForwardCancelable private () {
 
         case Active(token) =>
           state.lazySet(finished) // GC purposes
-          context.execute(new Runnable {
-            def run() =
-              IORunLoop.startCancelable(token, conn, cb)
-          })
+          context.execute(() => IORunLoop.startCancelable(token, conn, cb))
       }
 
     IO.Async(loop)
@@ -102,15 +99,14 @@ private[effect] object ForwardCancelable {
   private val context: ExecutionContext = immediate
 
   private def execute(token: CancelToken[IO], stack: List[Callback.T[Unit]]): Unit =
-    context.execute(new Runnable {
-      def run(): Unit =
-        token.unsafeRunAsync { r =>
-          for (cb <- stack)
-            try { cb(r) } catch {
-              // $COVERAGE-OFF$
-              case NonFatal(e) => Logger.reportFailure(e)
-              // $COVERAGE-ON$
-            }
+    context.execute(() => token.unsafeRunAsync { r =>
+      for (cb <- stack)
+        try {
+          cb(r)
+        } catch {
+          // $COVERAGE-OFF$
+          case NonFatal(e) => Logger.reportFailure(e)
+          // $COVERAGE-ON$
         }
     })
 }

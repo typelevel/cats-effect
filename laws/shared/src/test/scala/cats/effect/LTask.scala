@@ -42,13 +42,11 @@ object LTask {
 
   /** For testing laws with ScalaCheck. */
   implicit def eqForLTask[A](implicit A: Eq[Future[A]], ec: TestContext): Eq[LTask[A]] =
-    new Eq[LTask[A]] {
-      def eqv(x: LTask[A], y: LTask[A]): Boolean = {
-        val lh = x.run(ec)
-        val rh = y.run(ec)
-        ec.tick()
-        A.eqv(lh, rh)
-      }
+    (x: LTask[A], y: LTask[A]) => {
+      val lh = x.run(ec)
+      val rh = y.run(ec)
+      ec.tick()
+      A.eqv(lh, rh)
     }
 
   /** Instances for `LTask`. */

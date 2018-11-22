@@ -344,10 +344,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("IO.async.attempt.map") { implicit ec =>
     val dummy = new RuntimeException("dummy")
     val source = IO.async[Int] { callback =>
-      ec.execute(new Runnable {
-        def run(): Unit =
-          callback(Left(dummy))
-      })
+      ec.execute(() => callback(Left(dummy)))
     }
 
     val io = source.attempt.map {
@@ -362,10 +359,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("IO.async.flatMap.attempt.map") { implicit ec =>
     val dummy = new RuntimeException("dummy")
     val source = IO.async[Int] { callback =>
-      ec.execute(new Runnable {
-        def run(): Unit =
-          callback(Left(dummy))
-      })
+      ec.execute(() => callback(Left(dummy)))
     }
 
     val io = source.flatMap(IO.pure).attempt.map {
@@ -380,10 +374,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("IO.async.attempt.flatMap") { implicit ec =>
     val dummy = new RuntimeException("dummy")
     val source = IO.async[Int] { callback =>
-      ec.execute(new Runnable {
-        def run(): Unit =
-          callback(Left(dummy))
-      })
+      ec.execute(() => callback(Left(dummy)))
     }
 
     val io = source.attempt.flatMap {
@@ -418,10 +409,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("async.to[IO] is stack-safe if the source is") { implicit ec =>
     // Stack-safe async IO required
     def async(a: Int) = IO.async[Int] { cb =>
-      ec.execute(new Runnable {
-        def run(): Unit =
-          cb(Right(a))
-      })
+      ec.execute(() => cb(Right(a)))
     }
 
     val f = repeatedTransformLoop(10000, async(99)).unsafeToFuture()

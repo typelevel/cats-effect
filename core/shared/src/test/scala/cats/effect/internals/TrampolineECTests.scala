@@ -27,7 +27,7 @@ class TrampolineECTests extends FunSuite with Matchers with TestUtils {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =
-    ec.execute(new Runnable { def run(): Unit = f })
+    ec.execute(() => f)
 
   test("execution should be immediate") {
     var effect = 0
