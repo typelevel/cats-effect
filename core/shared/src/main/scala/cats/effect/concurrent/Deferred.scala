@@ -101,6 +101,14 @@ object Deferred {
   def uncancelable[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
     F.delay(unsafeUncancelable[F, A])
 
+  /** Like [[apply]] but initializes state using another effect constructor */
+  def in[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[Deferred[G, A]] =
+    F.delay(unsafe[G, A])
+
+  /** Like [[uncancelable]] but initializes state using another effect constructor */
+  def uncancelableIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
+    F.delay(unsafeUncancelable[G, A])
+
   /**
    * Like [[uncancelable]] but returns the newly allocated promise directly
    * instead of wrapping it in `F.delay`. This method is considered

@@ -149,6 +149,12 @@ object Ref {
   def of[F[_], A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] = F.delay(unsafe(a))
 
   /**
+   *  Builds a `Ref` value for data types that are [[Sync]]
+   *  Like [[of]] but initializes state using another effect constructor
+   */
+  def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] = F.delay(unsafe(a))
+
+  /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
    * This method is considered unsafe because it is not referentially transparent -- it allocates
    * mutable state.

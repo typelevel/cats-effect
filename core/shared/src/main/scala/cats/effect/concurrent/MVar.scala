@@ -189,6 +189,30 @@ object MVar {
     F.delay(MVarAsync(initial))
 
   /**
+   * Like [[of]] but initializes state using another effect constructor
+   */
+  def in[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+    F.delay(MVarConcurrent(initial))
+
+  /**
+   * Like [[empty]] but initializes state using another effect constructor
+   */
+  def emptyIn[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+    F.delay(MVarConcurrent.empty)
+
+  /**
+   * Like [[uncancelableOf]] but initializes state using another effect constructor
+   */
+  def uncancelableIn[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync(initial))
+
+  /**
+   * Like [[uncancelableEmpty]] but initializes state using another effect constructor
+   */
+  def uncancelableEmptyIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync.empty)
+
+  /**
    * Returned by the [[apply]] builder.
    */
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
