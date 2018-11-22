@@ -17,8 +17,11 @@
 package cats.effect
 
 import java.util.concurrent.atomic.AtomicBoolean
+
+import cats.effect.concurrent.Deferred
 import cats.implicits._
 import org.scalatest._
+
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
@@ -28,7 +31,7 @@ class MVarJVMTests extends FunSuite with Matchers {
     implicit val cs = IO.contextShift(ec)
     implicit val timer: Timer[IO] = IO.timer(ec)
 
-    for (_ <- 0 until 10) {
+    for (_ <- 0 until 100) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
         if (cancelLoop.get()) throw new CancellationException
@@ -36,10 +39,12 @@ class MVarJVMTests extends FunSuite with Matchers {
 
       try {
         val task = for {
-          mv <- cats.effect.concurrent.MVar[IO].empty[Unit]
-          _  <- (mv.take *> unit.foreverM).start
-          _  <- timer.sleep(100.millis)
-          _  <- mv.put(())
+          mv    <- cats.effect.concurrent.MVar[IO].empty[Unit]
+          latch <- Deferred[IO, Unit]
+          _     <- (latch.complete(()) *> mv.take *> unit.foreverM).start
+          _     <- latch.get
+          _     <- timer.sleep(10.millis)
+          _     <- mv.put(())
         } yield ()
 
         val dt = 10.seconds

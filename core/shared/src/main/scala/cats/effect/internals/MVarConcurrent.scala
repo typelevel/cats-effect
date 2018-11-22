@@ -44,10 +44,10 @@ private[effect] final class MVarConcurrent[F[_], A] private (
     }
 
   def tryPut(a: A): F[Boolean] =
-    F.delay(unsafeTryPut(a))
+    F.map(lightAsyncBoundary)(_ => unsafeTryPut(a))
 
   def take: F[A] =
-    lightAsyncBoundary.flatMap { _ =>
+    F.suspend {
       unsafeTryTake() match {
         case Some(a) => F.pure(a)
         case None => F.cancelable(unsafeTake)

@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.{LinkedMap, TrampolineEC}
+import cats.effect.internals.{Callback, LinkedMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
@@ -193,8 +193,12 @@ object Deferred {
             else loop()
         }
 
-      F.delay(loop())
+      val task = F.delay(loop())
+      F.flatMap(asyncBoundary)(_ => task)
     }
+
+    private[this] val asyncBoundary =
+      F.async[Unit](_(Callback.rightUnit))
   }
 
   private final class UncancelabbleDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Deferred[F, A] {
@@ -207,8 +211,13 @@ object Deferred {
         }
       }
 
-    def complete(a: A): F[Unit] =
-      F.delay(p.success(a))
+    def complete(a: A): F[Unit] = {
+      val task = F.delay[Unit](p.success(a))
+      F.flatMap(asyncBoundary)(_ => task)
+    }
+
+    private[this] val asyncBoundary =
+      F.async[Unit](_(Callback.rightUnit))
   }
 
   private final class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G) extends Deferred[G, A]{
