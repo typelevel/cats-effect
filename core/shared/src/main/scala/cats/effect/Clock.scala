@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid}
+import cats.{Applicative, Functor, Monoid, ~>}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -209,4 +209,14 @@ object Clock  {
       def monotonic(unit: TimeUnit): Kleisli[F, R, Long] =
         Kleisli.liftF(clock.monotonic(unit))
     }
+
+  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
+      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
+      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
+    }
+  }
 }
