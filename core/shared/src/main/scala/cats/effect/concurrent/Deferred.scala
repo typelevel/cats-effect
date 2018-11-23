@@ -18,10 +18,11 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.{LinkedMap, TrampolineEC}
-import cats.effect.internals.Callback.rightUnit
+import cats.effect.internals.{Callback, LinkedMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
+
 import cats.effect.concurrent.Deferred.TransformedDeferred
+
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success}
@@ -75,8 +76,8 @@ abstract class Deferred[F[_], A] {
   def complete(a: A): F[Unit]
 
   /**
-    * Modify the context `F` using transformation `f`.
-    */
+   * Modify the context `F` using transformation `f`.
+   */
   def mapK[G[_]](f: F ~> G): Deferred[G, A] =
     new TransformedDeferred(this, f)
 }
@@ -126,7 +127,7 @@ object Deferred {
    * WARN: read the caveats of [[uncancelable]].
    */
   def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] =
-    new UncancelabbleDeferred[F, A](Promise[A]())
+    new UncancelableDeferred[F, A](Promise[A]())
 
   private final class Id
 
@@ -142,7 +143,8 @@ object Deferred {
     def get: F[A] =
       F.suspend {
         ref.get match {
-          case State.Set(a) => F.pure(a)
+          case State.Set(a) =>
+            F.pure(a)
           case State.Unset(_) =>
             F.cancelable[A] { cb =>
               val id = unsafeRegister(cb)
@@ -178,29 +180,42 @@ object Deferred {
     }
 
     def complete(a: A): F[Unit] = {
-      def notifyReaders(r: State.Unset[A]): Unit =
-        r.waiting.values.foreach { cb =>
-          cb(a)
-        }
-
-      @tailrec
-      def loop(): Unit =
-        ref.get match {
-          case State.Set(_) => throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
-          case s @ State.Unset(_) =>
-            if (ref.compareAndSet(s, State.Set(a))) notifyReaders(s)
-            else loop()
-        }
-
-      val task = F.delay(loop())
-      F.flatMap(asyncBoundary)(_ => task)
+      F.suspend(unsafeComplete(a))
     }
 
-    private[this] val asyncBoundary =
-      F.async[Unit](_(rightUnit))
+    @tailrec
+    private def unsafeComplete(a: A): F[Unit] =
+      ref.get match {
+        case State.Set(_) =>
+          throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
+
+        case s @ State.Unset(_) =>
+          if (ref.compareAndSet(s, State.Set(a))) {
+            val list = s.waiting.values
+            if (list.nonEmpty)
+              notifyReadersLoop(a, list)
+            else
+              F.unit
+          } else {
+            unsafeComplete(a)
+          }
+      }
+
+    private def notifyReadersLoop(a: A, r: Iterable[A => Unit]): F[Unit] = {
+      var acc = F.unit
+      val cursor = r.iterator
+      while (cursor.hasNext) {
+        val next = cursor.next()
+        val task = F.map(F.start(F.delay(next(a))))(mapUnit)
+        acc = F.flatMap(acc)(_ => task)
+      }
+      acc
+    }
+
+    private[this] val mapUnit = (_: Any) => ()
   }
 
-  private final class UncancelabbleDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Deferred[F, A] {
+  private final class UncancelableDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends Deferred[F, A] {
     def get: F[A] =
       F.async { cb =>
         implicit val ec: ExecutionContext = TrampolineEC.immediate
@@ -210,13 +225,11 @@ object Deferred {
         }
       }
 
-    def complete(a: A): F[Unit] = {
-      val task = F.delay[Unit](p.success(a))
-      F.flatMap(asyncBoundary)(_ => task)
-    }
+    def complete(a: A): F[Unit] =
+      F.map(asyncBoundary)(_ => p.success(a))
 
     private[this] val asyncBoundary =
-      F.async[Unit](_(rightUnit))
+      F.async[Unit](cb => cb(Callback.rightUnit))
   }
 
   private final class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G) extends Deferred[G, A]{

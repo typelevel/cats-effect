@@ -17,7 +17,6 @@
 package cats.effect
 package internals
 
-import cats.implicits._
 import java.util.concurrent.atomic.AtomicReference
 import cats.effect.concurrent.MVar
 import cats.effect.internals.Callback.rightUnit
@@ -36,15 +35,14 @@ private[effect] final class MVarConcurrent[F[_], A] private (
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
-    lightAsyncBoundary.flatMap { _ =>
-      if (unsafeTryPut(a))
-        F.unit
-      else
+    F.flatMap(tryPut(a)) {
+      case true => F.unit
+      case false =>
         F.cancelable(unsafePut(a))
     }
 
   def tryPut(a: A): F[Boolean] =
-    F.map(lightAsyncBoundary)(_ => unsafeTryPut(a))
+    F.suspend(unsafeTryPut(a))
 
   def take: F[A] =
     F.suspend {
@@ -68,10 +66,9 @@ private[effect] final class MVarConcurrent[F[_], A] private (
       }
     }
 
-  @tailrec
-  private def unsafeTryPut(a: A): Boolean = {
+  @tailrec private def unsafeTryPut(a: A): F[Boolean] = {
     stateRef.get match {
-      case WaitForTake(_, _) => false
+      case WaitForTake(_, _) => F.pure(false)
 
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
@@ -85,14 +82,10 @@ private[effect] final class MVarConcurrent[F[_], A] private (
 
         if (!stateRef.compareAndSet(current, update)) {
           unsafeTryPut(a) // retry
+        } else if ((first ne null) || !reads.isEmpty) {
+          streamPutAndReads(a, first, reads)
         } else {
-          val value = Right(a)
-          // Satisfies all current `read` requests found
-          streamAll(value, reads)
-          // Satisfies the first `take` request found
-          if (first ne null) first(value)
-          // Signals completion of `put`
-          true
+          trueF
         }
     }
   }
@@ -121,14 +114,12 @@ private[effect] final class MVarConcurrent[F[_], A] private (
           }
 
         if (stateRef.compareAndSet(current, update)) {
-          val value = Right(a)
-          // Satisfies all current `read` requests found
-          streamAll(value, reads)
-          // Satisfies the first `take` request found
-          if (first ne null) first(value)
-          // Signals completion of `put`
-          onPut(rightUnit)
-          F.unit
+          if ((first ne null) || !reads.isEmpty)
+            F.map(streamPutAndReads(a, first, reads))(_ => onPut(rightUnit))
+          else {
+            onPut(rightUnit)
+            F.unit
+          }
         } else {
           unsafePut(a)(onPut) // retry
         }
@@ -253,17 +244,35 @@ private[effect] final class MVarConcurrent[F[_], A] private (
       case _ => ()
     }
 
-  // For streaming a value to a whole `reads` collection
-  private def streamAll(value: Either[Nothing, A], listeners: LinkedMap[Id, Listener[A]]): Unit = {
-    val cursor = listeners.values.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(value)
+  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedMap[Id, Listener[A]]): F[Boolean] = {
+    val value = Right(a)
+    // Satisfies all current `read` requests found
+    val task = streamAll(value, reads.values)
+    // Continue with signaling the put
+    F.flatMap(task) { _ =>
+      // Satisfies the first `take` request found
+      if (put ne null)
+        F.map(F.start(F.delay(put(value))))(mapTrue)
+      else
+        trueF
+    }
   }
 
-  private[this] val lightAsyncBoundary = {
-    val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
-    F.async[Unit](k)
+  // For streaming a value to a whole `reads` collection
+  private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): F[Unit] = {
+    var acc = F.unit
+    val cursor = listeners.iterator
+    while (cursor.hasNext) {
+      val next = cursor.next()
+      val task = F.map(F.start(F.delay(next(value))))(mapUnit)
+      acc = F.flatMap(acc)(_ => task)
+    }
+    acc
   }
+
+  private[this] val mapUnit = (_: Any) => ()
+  private[this] val mapTrue = (_: Any) => true
+  private[this] val trueF = F.pure(true)
 }
 
 private[effect] object MVarConcurrent {

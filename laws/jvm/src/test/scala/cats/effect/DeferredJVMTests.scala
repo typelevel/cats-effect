@@ -16,20 +16,88 @@
 
 package cats.effect
 
+import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import concurrent.Deferred
 import cats.implicits._
 import org.scalatest._
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, CancellationException}
+import scala.concurrent.{CancellationException, ExecutionContext}
 
-class DeferredJVMTests extends FunSuite with Matchers {
-  test("Deferred: issue #380 with foreverM") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
+class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
+class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
+class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-    for (_ <- 0 until 10) {
+abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matchers with BeforeAndAfter {
+  var service: ExecutorService = _
+
+  implicit val context = new ExecutionContext {
+    def execute(runnable: Runnable): Unit =
+      service.execute(runnable)
+    def reportFailure(cause: Throwable): Unit =
+      cause.printStackTrace()
+  }
+
+  implicit val cs = IO.contextShift(context)
+  implicit val timer: Timer[IO] = IO.timer(context)
+
+  before {
+    service = Executors.newFixedThreadPool(parallelism,
+      new ThreadFactory {
+        private[this] val index = new AtomicLong(0)
+        def newThread(r: Runnable): Thread = {
+          val th = new Thread(r)
+          th.setName(s"semaphore-tests-${index.getAndIncrement()}")
+          th.setDaemon(false)
+          th
+        }
+      })
+  }
+
+  after {
+    service.shutdown()
+    assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
+  }
+
+  // ----------------------------------------------------------------------------
+  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val iterations = if (isCI) 1000 else 10000
+  val timeout = if (isCI) 30.seconds else 10.seconds
+
+  def cleanupOnError[A](task: IO[A], f: Fiber[IO, _]) =
+    task.guaranteeCase {
+      case ExitCase.Canceled | ExitCase.Error(_) =>
+        f.cancel
+      case _ =>
+        IO.unit
+    }
+
+  test("Deferred (concurrent): issue #380 — producer keeps its thread, consumer stays forked") {
+    for (_ <- 0 until iterations) {
+      val name = Thread.currentThread().getName
+
+      def get(df: Deferred[IO, Unit]) =
+        for {
+          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+          _ <- df.get
+          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+        } yield ()
+
+      val task = for {
+        df    <- cats.effect.concurrent.Deferred[IO, Unit]
+        fb    <- get(df).start
+        _     <- IO(Thread.currentThread().getName shouldBe name)
+        _     <- df.complete(())
+        _     <- IO(Thread.currentThread().getName shouldBe name)
+        _     <- fb.join
+      } yield ()
+
+      assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
+  }
+
+  test("Deferred (concurrent): issue #380 with foreverM") {
+    for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
         if (cancelLoop.get()) throw new CancellationException
@@ -39,25 +107,20 @@ class DeferredJVMTests extends FunSuite with Matchers {
         val task = for {
           df    <- cats.effect.concurrent.Deferred[IO, Unit]
           latch <- Deferred[IO, Unit]
-          _     <- (latch.complete(()) *> df.get *> unit.foreverM).start
+          fb    <- (latch.complete(()) *> df.get *> unit.foreverM).start
           _     <- latch.get
-          _     <- timer.sleep(100.millis)
-          _     <- df.complete(())
+          _     <- cleanupOnError(df.complete(()).timeout(timeout), fb)
+          _     <- fb.cancel
         } yield ()
 
-        val dt = 10.seconds
-        assert(task.unsafeRunTimed(dt).nonEmpty, s"; timed-out after $dt")
+        assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
       } finally {
         cancelLoop.set(true)
       }
     }
   }
 
-  test("Deferred: issue #380 with cooperative light async boundaries") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Deferred (concurrent): issue #380 with cooperative light async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -69,19 +132,17 @@ class DeferredJVMTests extends FunSuite with Matchers {
         latch <- Deferred[IO, Unit]
         fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- timer.sleep(100.millis)
-        _     <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
+        _     <- cleanupOnError(d.complete(()).timeout(timeout), fb)
+        _     <- fb.cancel
       } yield true
     }
 
-    assert(run.unsafeRunSync(), s"timed out")
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
   }
 
-  test("Deferred: issue #380 with cooperative full async boundaries") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Deferred (concurrent): issue #380 with cooperative full async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -93,11 +154,77 @@ class DeferredJVMTests extends FunSuite with Matchers {
         latch <- Deferred[IO, Unit]
         fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- timer.sleep(100.millis)
+        _     <- cleanupOnError(d.complete(()).timeout(timeout), fb)
+        _     <- fb.cancel
+      } yield true
+    }
+
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
+  }
+
+  test("Deferred (async): issue #380 with foreverM") {
+    for (_ <- 0 until iterations) {
+      val cancelLoop = new AtomicBoolean(false)
+      val unit = IO {
+        if (cancelLoop.get()) throw new CancellationException
+      }
+
+      try {
+        val task = for {
+          df    <- cats.effect.concurrent.Deferred.uncancelable[IO, Unit]
+          f     <- (df.get *> unit.foreverM).start
+          _     <- df.complete(())
+          _     <- f.cancel
+        } yield ()
+
+        assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+      } finally {
+        cancelLoop.set(true)
+      }
+    }
+  }
+
+  test("Deferred (async): issue #380 with cooperative light async boundaries") {
+    def run = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
+      }
+
+      for {
+        d     <- Deferred.uncancelable[IO, Unit]
+        latch <- Deferred.uncancelable[IO, Unit]
+        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _     <- latch.get
+        _     <- d.complete(()).timeout(timeout).guarantee(fb.cancel)
+      } yield true
+    }
+
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
+  }
+
+  test("Deferred (async): issue #380 with cooperative full async boundaries") {
+    def run = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
+      }
+
+      for {
+        d     <- Deferred.uncancelable[IO, Unit]
+        latch <- Deferred.uncancelable[IO, Unit]
+        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _     <- latch.get
         _     <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
-    assert(run.unsafeRunSync(), s"timed out")
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
   }
 }

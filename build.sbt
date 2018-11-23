@@ -205,7 +205,9 @@ val mimaSettings = Seq(
       // All internals - https://github.com/typelevel/cats-effect/pull/403
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AbstractSemaphore.awaitGate"),
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AsyncSemaphore.awaitGate"),
-      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate")
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate"),
+      // All internals — https://github.com/typelevel/cats-effect/pull/424
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred")
     )
   })
 

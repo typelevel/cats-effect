@@ -18,8 +18,6 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
-
-import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -118,7 +116,7 @@ private[effect] object IORunLoop {
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          rcb.startAsync(async, bFirst, bRest)
+          rcb.start(async, bFirst, bRest)
           return
 
         case ContextSwitch(next, modify, restore) =>
@@ -149,9 +147,8 @@ private[effect] object IORunLoop {
       // Auto-cancellation logic
       currentIndex += 1
       if (currentIndex == maxAutoCancelableBatchSize) {
-        if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-        val current = if (hasUnboxed) Pure(unboxed) else currentIO
-        return rcb.restart(current, bFirst, bRest)
+        if (conn.isCanceled) return
+        currentIndex = 0
       }
     } while (true)
   }
@@ -313,9 +310,9 @@ private[effect] object IORunLoop {
    * For internal use only, here be dragons!
    */
   private final class RestartCallback(connInit: IOConnection, cb: Callback)
-    extends Callback { self =>
+    extends Callback with Runnable {
 
-    private[this] val ec: ExecutionContext = TrampolineEC.immediate
+    import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch
     private[this] var conn: IOConnection = connInit
@@ -324,19 +321,14 @@ private[effect] object IORunLoop {
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
 
-    private[this] var asyncRunnableRef: AsyncRunnable = _
-    private[this] var lightRunnableRef: LightRunnable = _
-
-    // Used in combination with trampolineAfter = true in AsyncRunnable
+    // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
-    // Used in LightRunnable
-    private[this] var currentIO: IO[Any] = _
 
     def contextSwitch(conn: IOConnection): Unit = {
       this.conn = conn
     }
 
-    def startAsync(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
+    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
@@ -345,31 +337,29 @@ private[effect] object IORunLoop {
       task.k(conn, this)
     }
 
-    def restart(task: IO[Any], bFirst: Bind, bRest: CallStack): Unit = {
-      canCall = true
-      this.bFirst = bFirst
-      this.bRest = bRest
-      this.currentIO = task
-      ec.execute(lightRunnable)
-    }
-
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
+      // Allow GC to collect
+      val bFirst = this.bFirst
+      val bRest = this.bRest
+      this.bFirst = null
+      this.bRest = null
+
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
-      if (!conn.isCanceled) {
-        val bFirst = self.bFirst
-        val bRest = self.bRest
-        // for GC
-        self.bFirst = null
-        self.bRest = null
-        // Go, go, go
-        either match {
-          case Right(success) =>
-            loop(Pure(success), conn, cb, this, bFirst, bRest)
-          case Left(e) =>
-            loop(RaiseError(e), conn, cb, this, bFirst, bRest)
-        }
+      if (!conn.isCanceled) either match {
+        case Right(success) =>
+          loop(Pure(success), conn, cb, this, bFirst, bRest)
+        case Left(e) =>
+          loop(RaiseError(e), conn, cb, this, bFirst, bRest)
       }
+    }
+
+    override def run(): Unit = {
+      // N.B. this has to be set to null *before* the signal
+      // otherwise a race condition can happen ;-)
+      val v = value
+      value = null
+      signal(v)
     }
 
     def apply(either: Either[Throwable, Any]): Unit =
@@ -377,51 +367,11 @@ private[effect] object IORunLoop {
         canCall = false
         if (trampolineAfter) {
           this.value = either
-          ec.execute(asyncRunnable)
+          ec.execute(this)
         } else {
           signal(either)
         }
       }
-
-    private def asyncRunnable: AsyncRunnable = {
-      if (asyncRunnableRef eq null) asyncRunnableRef = new AsyncRunnable
-      asyncRunnableRef
-    }
-
-    private def lightRunnable: LightRunnable = {
-      if (lightRunnableRef eq null) lightRunnableRef = new LightRunnable
-      lightRunnableRef
-    }
-
-    private final class AsyncRunnable extends Runnable {
-      def run(): Unit = {
-        // N.B. this has to be set to null *before* the signal
-        // otherwise a race condition can happen ;-)
-        val v = value
-        // for GC
-        value = null
-        signal(v)
-      }
-    }
-
-    private final class LightRunnable extends Runnable {
-      def run(): Unit = {
-        if (self.canCall) {
-          self.canCall = false
-          val currentIO = self.currentIO
-          val bFirst = self.bFirst
-          val bRest = self.bRest
-          // for GC
-          self.currentIO = null
-          self.bFirst = null
-          self.bRest = null
-          // Go, go, go
-          if (!conn.isCanceled) {
-            loop(currentIO, conn, cb, self, bFirst, bRest)
-          }
-        }
-      }
-    }
   }
 
   private final class RestoreContext(
