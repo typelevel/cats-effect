@@ -26,9 +26,75 @@ import org.scalatest._
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
-class MVarJVMParallelism1Tests extends BaseMVarJVMTests(1)
-class MVarJVMParallelism2Tests extends BaseMVarJVMTests(2)
-class MVarJVMParallelism4Tests extends BaseMVarJVMTests(4)
+class MVarEmptyJVMParallelism1Tests extends BaseMVarJVMTests(1) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.empty[IO, Unit]
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableEmpty[IO, Unit]
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+}
+
+class MVarEmptyJVMParallelism2Tests extends BaseMVarJVMTests(2) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.empty[IO, Unit]
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableEmpty[IO, Unit]
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+}
+
+class MVarEmptyJVMParallelism4Tests extends BaseMVarJVMTests(4) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.empty[IO, Unit]
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableEmpty[IO, Unit]
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+}
+
+// -----------------------------------------------------------------
+
+class MVarFullJVMParallelism1Tests extends BaseMVarJVMTests(1) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.of[IO, Unit](())
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableOf[IO, Unit](())
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+}
+
+class MVarFullJVMParallelism2Tests extends BaseMVarJVMTests(2) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.of[IO, Unit](())
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableOf[IO, Unit](())
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+}
+
+class MVarFullJVMParallelism4Tests extends BaseMVarJVMTests(4) {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+    MVar.of[IO, Unit](())
+  def allocateUncancelable: IO[MVar[IO, Unit]] =
+    MVar.uncancelableOf[IO, Unit](())
+  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.put(())
+  def release(ref: MVar[IO, Unit]): IO[Unit] =
+    ref.take
+}
+
+// -----------------------------------------------------------------
 
 abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers with BeforeAndAfter {
   var service: ExecutorService = _
@@ -62,26 +128,34 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
   }
 
   // ----------------------------------------------------------------------------
+
   val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 
-  test("MVar (concurrent): issue #380 — producer keeps its thread, consumer stays forked") {
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]]
+  def allocateUncancelable: IO[MVar[IO, Unit]]
+  def acquire(ref: MVar[IO, Unit]): IO[Unit]
+  def release(ref: MVar[IO, Unit]): IO[Unit]
+
+  // ----------------------------------------------------------------------------
+
+  test("MVar (concurrent) — issue #380: producer keeps its thread, consumer stays forked") {
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
       def get(df: MVar[IO, Unit]) =
         for {
           _ <- IO(Thread.currentThread().getName shouldNot be(name))
-          _ <- df.take
+          _ <- acquire(df)
           _ <- IO(Thread.currentThread().getName shouldNot be(name))
         } yield ()
 
       val task = for {
-        df    <- cats.effect.concurrent.MVar[IO].empty[Unit]
+        df    <- allocate
         fb    <- get(df).start
         _     <- IO(Thread.currentThread().getName shouldBe name)
-        _     <- df.put(())
+        _     <- release(df)
         _     <- IO(Thread.currentThread().getName shouldBe name)
         _     <- fb.join
       } yield ()
@@ -90,7 +164,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (concurrent): issue #380 with foreverM; with latch") {
+  test("MVar (concurrent) — issue #380: with foreverM; with latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -99,11 +173,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
 
       try {
         val task = for {
-          df    <- MVar.empty[IO, Unit]
+          df    <- allocate
           latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> df.take *> unit.foreverM).start
+          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
           _     <- latch.get
-          _     <- df.put(()).timeout(timeout).guarantee(fb.cancel)
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -113,7 +187,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (concurrent): issue #380 with foreverM; without latch") {
+  test("MVar (concurrent) — issue #380: with foreverM; without latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -122,9 +196,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
 
       try {
         val task = for {
-          df    <- MVar.empty[IO, Unit]
-          fb    <- (df.take *> unit.foreverM).start
-          _     <- df.put(()).timeout(timeout).guarantee(fb.cancel)
+          df    <- allocate
+          fb    <- (acquire(df) *> unit.foreverM).start
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -134,8 +208,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-
-  test("MVar (concurrent): issue #380 with cooperative light async boundaries; with latch") {
+  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -143,11 +216,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.empty[IO, Unit]
+        d     <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.take *> foreverAsync(0)).start
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- d.put(()).timeout(5.seconds).guarantee(fb.cancel)
+        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -156,7 +229,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (concurrent): issue #380 with cooperative light async boundaries; without latch") {
+  test("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -164,9 +237,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.empty[IO, Unit]
-        fb    <- (d.take *> foreverAsync(0)).start
-        _     <- d.put(()).timeout(5.seconds).guarantee(fb.cancel)
+        d     <- allocate
+        fb    <- (acquire(d) *> foreverAsync(0)).start
+        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -175,7 +248,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (concurrent): issue #380 with cooperative full async boundaries; with latch") {
+  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -183,11 +256,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.empty[IO, Unit]
+        d     <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.take *> foreverAsync(0)).start
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- d.put(()).timeout(timeout).guarantee(fb.cancel)
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -196,7 +269,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (concurrent): issue #380 with cooperative full async boundaries; without latch") {
+  test("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -204,9 +277,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.empty[IO, Unit]
-        fb    <- (d.take *> foreverAsync(0)).start
-        _     <- d.put(()).timeout(timeout).guarantee(fb.cancel)
+        d     <- allocate
+        fb    <- (acquire(d) *> foreverAsync(0)).start
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -215,7 +288,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (async): issue #380 with foreverM; with latch") {
+  test("MVar (async) — issue #380: with foreverM; with latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -224,11 +297,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
 
       try {
         val task = for {
-          df    <- MVar.uncancelableEmpty[IO, Unit]
-          latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> df.take *> unit.foreverM).start
+          df    <- allocateUncancelable
+          latch <- Deferred[IO, Unit]
+          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
           _     <- latch.get
-          _     <- df.put(()).timeout(timeout).guarantee(fb.cancel)
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -238,7 +311,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (async): issue #380 with foreverM; without latch") {
+  test("MVar (async) — issue #380: with foreverM; without latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -247,9 +320,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
 
       try {
         val task = for {
-          df    <- MVar.uncancelableEmpty[IO, Unit]
-          fb    <- (df.take *> unit.foreverM).start
-          _     <- df.put(()).timeout(timeout).guarantee(fb.cancel)
+          df    <- allocateUncancelable
+          fb    <- (acquire(df) *> unit.foreverM).start
+          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -260,7 +333,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
   }
 
 
-  test("MVar (async): issue #380 with cooperative light async boundaries; with latch") {
+  test("MVar (async) — issue #380: with cooperative light async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -268,11 +341,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.uncancelableEmpty[IO, Unit]
+        d     <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.take *> foreverAsync(0)).start
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- d.put(()).timeout(timeout).guarantee(fb.cancel)
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -281,7 +354,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (async): issue #380 with cooperative light async boundaries; without latch") {
+  test("MVar (async) — issue #380: with cooperative light async boundaries; without latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -289,9 +362,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.uncancelableEmpty[IO, Unit]
-        fb    <- (d.take *> foreverAsync(0)).start
-        _     <- d.put(()).timeout(timeout).guarantee(fb.cancel)
+        d     <- allocateUncancelable
+        fb    <- (acquire(d) *> foreverAsync(0)).start
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -300,7 +373,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
     }
   }
 
-  test("MVar (async): issue #380 with cooperative full async boundaries; with latch") {
+  test("MVar (async) — issue #380: with cooperative full async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -308,11 +381,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers
       }
 
       for {
-        d     <- MVar.uncancelableEmpty[IO, Unit]
+        d     <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.take *> foreverAsync(0)).start
+        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
         _     <- latch.get
-        _     <- d.put(()).timeout(timeout).guarantee(fb.cancel)
+        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

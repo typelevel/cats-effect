@@ -39,22 +39,20 @@ private[effect] final class MVarAsync[F[_], A] private (
     F.flatMap(tryPut(a)) {
       case true => F.unit
       case false =>
-        F.async(unsafePut(a))
+        F.asyncF(unsafePut(a))
     }
 
   def tryPut(a: A): F[Boolean] =
     F.suspend(unsafeTryPut(a))
 
-  def take: F[A] =
-    F.suspend {
-      unsafeTryTake() match {
-        case Some(a) => F.pure(a)
-        case None => F.async(unsafeTake)
-      }
-    }
+  val tryTake: F[Option[A]] =
+    F.suspend(unsafeTryTake())
 
-  def tryTake: F[Option[A]] =
-    F.delay(unsafeTryTake())
+  val take: F[A] =
+    F.flatMap(tryTake) {
+      case Some(a) => F.pure(a)
+      case None => F.asyncF(unsafeTake)
+    }
 
   def read: F[A] =
     F.async(unsafeRead)
@@ -94,12 +92,14 @@ private[effect] final class MVarAsync[F[_], A] private (
   }
 
   @tailrec
-  private def unsafePut(a: A)(onPut: Listener[Unit]): Unit =
+  private def unsafePut(a: A)(onPut: Listener[Unit]): F[Unit] =
     stateRef.get match {
       case current @ WaitForTake(value, puts) =>
         val update = WaitForTake(value, puts.enqueue(a -> onPut))
         if (!stateRef.compareAndSet(current, update)) {
           unsafePut(a)(onPut) // retry
+        } else {
+          F.unit
         }
 
       case current @ WaitForPut(reads, takes) =>
@@ -120,53 +120,55 @@ private[effect] final class MVarAsync[F[_], A] private (
     }
 
   @tailrec
-  private def unsafeTryTake(): Option[A] = {
+  private def unsafeTryTake(): F[Option[A]] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
-            Some(value)
+            F.pure(Some(value))
           else {
             unsafeTryTake() // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, awaitPut), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
-            // Complete the `put` request waiting on a notification
-            notify(rightUnit)
-            Some(value)
+            F.map(lightAsyncBoundary) { _ =>
+              awaitPut(rightUnit)
+              Some(value)
+            }
           } else {
             unsafeTryTake() // retry
           }
         }
-
       case WaitForPut(_, _) =>
-        None
+        pureNone
     }
   }
 
   @tailrec
-  private def unsafeTake(onTake: Listener[A]): Unit = {
+  private def unsafeTake(onTake: Listener[A]): F[Unit] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
-          if (stateRef.compareAndSet(current, State.empty))
+          if (stateRef.compareAndSet(current, State.empty)) {
             // Signals completion of `take`
             onTake(Right(value))
-          else {
+            F.unit
+          } else {
             unsafeTake(onTake) // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, awaitPut), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
-            // Signals completion of `take`
-            onTake(Right(value))
             // Complete the `put` request waiting on a notification
-            notify(rightUnit)
+            F.map(lightAsyncBoundary) { _ =>
+              try awaitPut(rightUnit)
+              finally onTake(Right(value))
+            }
           } else {
             unsafeTake(onTake) // retry
           }
@@ -175,6 +177,8 @@ private[effect] final class MVarAsync[F[_], A] private (
       case WaitForPut(reads, takes) =>
         if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake)))) {
           unsafeTake(onTake)
+        } else {
+          F.unit
         }
     }
   }
@@ -217,6 +221,9 @@ private[effect] final class MVarAsync[F[_], A] private (
     val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
     F.async[Unit](k)
   }
+
+  private[this] val pureNone: F[Option[A]] =
+    F.pure(None)
 }
 
 private[effect] object MVarAsync {

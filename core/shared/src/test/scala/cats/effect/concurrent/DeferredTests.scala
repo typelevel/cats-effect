@@ -94,7 +94,6 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _ <- latch.get
-        _ <- timer.sleep(10.millis)
         _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)
       } yield {
         Succeeded
@@ -116,7 +115,6 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
         _ <- latch.get
-        _ <- timer.sleep(10.millis)
         _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)
       } yield {
         Succeeded
