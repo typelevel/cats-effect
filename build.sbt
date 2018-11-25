@@ -25,18 +25,26 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
+val SimulacrumVersion = "0.14.0"
 
-val CatsVersion = "1.4.0"
-val SimulacrumVersion = "0.13.0"
+val CatsVersion = Def.setting{
+  CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, v)) if v <= 12 =>
+      "1.4.0"
+    case _ =>
+      "1.5.0-RC1"
+  }
+}
 
 val ScalaTestVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
       "3.0.5"
     case _ =>
-      "3.0.6-SNAP1"
+      "3.0.6-SNAP5"
   }
 }
+
 val ScalaCheckVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
@@ -45,6 +53,7 @@ val ScalaCheckVersion = Def.setting{
       "1.14.0"
   }
 }
+
 val DisciplineVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
@@ -60,7 +69,7 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.6",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M4"),
+  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M5"),
 
   //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
   sources in (Compile, doc) := (
@@ -175,7 +184,7 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.7" cross CrossVersion.binary)
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
@@ -245,10 +254,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
     name := "cats-effect",
 
     libraryDependencies ++= Seq(
-      "org.typelevel"        %%% "cats-core"  % CatsVersion,
+      "org.typelevel"        %%% "cats-core"  % CatsVersion.value,
       "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
 
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion             % "test",
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion.value       % "test",
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value  % "test",
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value % "test",
       "org.typelevel"  %%% "discipline" % DisciplineVersion.value % "test"),
@@ -282,11 +291,11 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-laws",
 
     libraryDependencies ++= Seq(
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion,
+      "org.typelevel"  %%% "cats-laws"  % CatsVersion.value,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value,
       "org.typelevel"  %%% "discipline" % DisciplineVersion.value,
-
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
+
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)

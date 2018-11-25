@@ -26,7 +26,7 @@ class MVarJVMTests extends FunSuite with Matchers {
   test("Issue typelevel/cats-effect#380") {
     implicit val ec: ExecutionContext = ExecutionContext.global
     implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
+    implicit val timer = IO.timer(ec)
 
     for (_ <- 0 until 10) {
       val cancelLoop = new AtomicBoolean(false)
