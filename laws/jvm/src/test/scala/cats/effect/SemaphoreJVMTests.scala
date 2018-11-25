@@ -66,7 +66,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 
-  test("Semaphore (concurrent): issue #380 — producer keeps its thread, consumer stays forked") {
+  test("Semaphore (concurrent) — issue #380: producer keeps its thread, consumer stays forked") {
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
@@ -91,7 +91,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (concurrent): issue #380 with foreverM") {
+  test("Semaphore (concurrent) — issue #380: with foreverM; with latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -114,11 +114,28 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (concurrent): issue #380 with cooperative light async boundaries") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
+  test("Semaphore (concurrent) — issue #380: with foreverM; with no latch") {
+    for (_ <- 0 until iterations) {
+      val cancelLoop = new AtomicBoolean(false)
+      val unit = IO {
+        if (cancelLoop.get()) throw new CancellationException
+      }
 
+      try {
+        val task = for {
+          df    <- Semaphore[IO](0)
+          fb    <- (df.acquire *> unit.foreverM).start
+          _     <- df.release.timeout(timeout).guarantee(fb.cancel)
+        } yield ()
+
+        assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+      } finally {
+        cancelLoop.set(true)
+      }
+    }
+  }
+
+  test("Semaphore (concurrent) — issue #380: with cooperative light async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -139,11 +156,26 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (concurrent): issue #380 with cooperative full async boundaries") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
+  test("Semaphore (concurrent) — issue #380: with cooperative light async boundaries; with no latch") {
+    def run = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
+      }
 
+      for {
+        d     <- Semaphore[IO](0)
+        fb    <- (d.acquire *> foreverAsync(0)).start
+        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+      } yield true
+    }
+
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
+  }
+
+  test("Semaphore (concurrent) — issue #380: with cooperative full async boundaries; with latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -164,11 +196,26 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with foreverM and latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
+  test("Semaphore (concurrent) — issue #380: with cooperative full async boundaries; with no latch") {
+    def run = {
+      def foreverAsync(i: Int): IO[Unit] = {
+        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+        else IO.unit >> foreverAsync(i + 1)
+      }
 
+      for {
+        d     <- Semaphore[IO](0)
+        fb    <- (d.acquire *> foreverAsync(0)).start
+        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+      } yield true
+    }
+
+    for (_ <- 0 until iterations) {
+      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+    }
+  }
+
+  test("Semaphore (async) — issue #380: with foreverM and latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -191,11 +238,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with foreverM and no latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Semaphore (async) — issue #380: with foreverM and no latch") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -216,11 +259,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with cooperative light async boundaries and latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Semaphore (async) — issue #380: with cooperative light async boundaries and latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -241,11 +280,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with cooperative light async boundaries and no latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Semaphore (async) — issue #380: with cooperative light async boundaries and no latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -264,11 +299,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with cooperative full async boundaries and latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Semaphore (async) — issue #380: with cooperative full async boundaries and latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -289,11 +320,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Mat
     }
   }
 
-  test("Semaphore (async): issue #380 with cooperative full async boundaries and no latch") {
-    implicit val ec: ExecutionContext = ExecutionContext.global
-    implicit val cs = IO.contextShift(ec)
-    implicit val timer: Timer[IO] = IO.timer(ec)
-
+  test("Semaphore (async) — issue #380: with cooperative full async boundaries and no latch") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)

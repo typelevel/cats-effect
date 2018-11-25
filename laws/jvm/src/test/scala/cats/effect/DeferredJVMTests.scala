@@ -72,7 +72,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
         IO.unit
     }
 
-  test("Deferred (concurrent): issue #380 — producer keeps its thread, consumer stays forked") {
+  test("Deferred (concurrent) — issue #380: producer keeps its thread, consumer stays forked") {
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
@@ -96,7 +96,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (concurrent): issue #380 with foreverM") {
+  test("Deferred (concurrent) — issue #380: with foreverM") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -120,7 +120,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (concurrent): issue #380 with cooperative light async boundaries") {
+  test("Deferred (concurrent) — issue #380: with cooperative light async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -142,7 +142,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (concurrent): issue #380 with cooperative full async boundaries") {
+  test("Deferred (concurrent) — issue #380: with cooperative full async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
@@ -164,7 +164,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (async): issue #380 with foreverM") {
+  test("Deferred (async) — issue #380: with foreverM") {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -186,7 +186,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (async): issue #380 with cooperative light async boundaries") {
+  test("Deferred (async) — issue #380: with cooperative light async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
@@ -207,7 +207,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matc
     }
   }
 
-  test("Deferred (async): issue #380 with cooperative full async boundaries") {
+  test("Deferred (async) — issue #380: with cooperative full async boundaries") {
     def run = {
       def foreverAsync(i: Int): IO[Unit] = {
         if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
