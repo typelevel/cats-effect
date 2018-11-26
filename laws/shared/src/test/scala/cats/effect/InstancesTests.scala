@@ -18,6 +18,7 @@ package cats
 package effect
 
 import cats.data._
+import cats.effect.Sync._
 import cats.effect.laws.discipline._
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
@@ -29,10 +30,22 @@ class InstancesTests extends BaseTestsSuite {
     implicit ec =>
       AsyncTests[StateT[IO, Int, ?]].async[Int, Int, Int])
 
+  checkAllAsync("StateT[IO, S, ?]",
+    implicit ec => {
+      val fromState = λ[State[Int, ?] ~> StateT[IO, Int, ?]](st => StateT(s => IO.pure(st.run(s).value)))
+      BracketTests[StateT[IO, Int, ?], Throwable].bracketTrans[State[Int, ?], Int, Int](fromState)
+    })
+
   checkAllAsync("OptionT[IO, ?]",
     implicit ec => {
       implicit val cs = ec.contextShift[IO]
       ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int]
+    })
+
+  checkAllAsync("OptionT[IO, ?]",
+    implicit ec => {
+      val fromOption = λ[Option ~> OptionT[IO, ?]](OptionT.fromOption(_))
+      BracketTests[OptionT[IO, ?], Throwable].bracketTrans[Option, Int, Int](fromOption)
     })
 
   checkAllAsync("Kleisli[IO, ?]",
@@ -50,11 +63,34 @@ class InstancesTests extends BaseTestsSuite {
       ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int]
     })
 
+  checkAllAsync("EitherT[IO, Throwable, ?]",
+    implicit ec => {
+      val fromEither = λ[Either[Throwable, ?] ~> EitherT[IO, Throwable, ?]](EitherT.fromEither(_))
+      BracketTests[EitherT[IO, Throwable, ?], Throwable].bracketTrans[Either[Throwable, ?], Int, Int](fromEither)
+    })
 
   checkAllAsync("WriterT[IO, Int, ?]",
     implicit ec => {
       implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
+    })
+
+  checkAllAsync("WriterT[IO, Int, ?]",
+    implicit ec => {
+      val fromWriter = λ[Writer[Int, ?] ~> WriterT[IO, Int, ?]](w => WriterT(IO.pure(w.run)))
+      BracketTests[WriterT[IO, Int, ?], Throwable].bracketTrans[Writer[Int, ?], Int, Int](fromWriter)
+    })
+
+  checkAllAsync("IorT[IO, Int, ?]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+      ConcurrentTests[IorT[IO, Int, ?]].concurrent[Int, Int, Int]
+    })
+
+  checkAllAsync("IorT[IO, Int, ?]",
+    implicit ec => {
+      val fromIor = λ[Ior[Int, ?] ~> IorT[IO, Int, ?]](IorT.fromIor(_))
+      BracketTests[IorT[IO, Int, ?], Throwable].bracketTrans[Ior[Int, ?], Int, Int](fromIor)
     })
 
   implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =

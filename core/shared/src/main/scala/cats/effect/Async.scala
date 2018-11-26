@@ -354,6 +354,13 @@ object Async {
   implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, ?]] =
     new KleisliAsync[F, R] { def F = Async[F]; }
 
+  /**
+    * [[Async]] instance built for `cats.data.IorT` values initialized
+    * with any `F` data type that also implements `Async`.
+    */
+  implicit def catsIorTAsync[F[_]: Async, L: Semigroup]: Async[IorT[F, L, ?]] =
+    new IorTAsync[F, L] { def F = Async[F]; def L = Semigroup[L] }
+
   private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
     with Sync.EitherTSync[F, L]
     with LiftIO.EitherTLiftIO[F, L] {
@@ -421,5 +428,19 @@ object Async {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): Kleisli[F, R, A] =
       Kleisli.liftF(F.async(k))
+  }
+
+  private[effect] trait IorTAsync[F[_], L] extends Async[IorT[F, L, ?]]
+    with Sync.IorTSync[F, L]
+    with LiftIO.IorTLiftIO[F, L] {
+
+    override implicit protected def F: Async[F]
+    protected def FA = F
+
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => IorT[F, L, Unit]): IorT[F, L, A] =
+      IorT.liftF(F.asyncF(cb => F.as(k(cb).value, ())))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IorT[F, L, A] =
+      IorT.liftF(F.async(k))
   }
 }

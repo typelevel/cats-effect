@@ -416,6 +416,13 @@ object Concurrent {
   implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
+  /**
+    * [[Concurrent]] instance built for `cats.data.IorT` values initialized
+    * with any `F` data type that also implements `Concurrent`.
+    */
+  implicit def catsIorTConcurrent[F[_]: Concurrent, L: Semigroup]: Concurrent[IorT[F, L, ?]] =
+    new IorTConcurrent[F, L] { def F = Concurrent[F]; def L = Semigroup[L] }
+
   private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L]
     with Concurrent[EitherT[F, L, ?]] {
 
@@ -548,6 +555,48 @@ object Concurrent {
 
     protected def fiberT[A](fiber: effect.Fiber[F, A]): Fiber[A] =
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
+  }
+
+  private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L]
+    with Concurrent[IorT[F, L, ?]] {
+
+    override protected implicit def F: Concurrent[F]
+    override protected def FA = F
+
+    // Needed to drive static checks, otherwise the
+    // compiler will choke on type inference :-(
+    type Fiber[A] = cats.effect.Fiber[IorT[F, L, ?], A]
+
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IorT[F, L, ?]]): IorT[F, L, A] =
+      IorT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
+
+    override def start[A](fa: IorT[F, L, A]) =
+      IorT.liftF(F.start(fa.value).map(fiberT))
+
+    override def racePair[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+      IorT(F.racePair(fa.value, fb.value).flatMap {
+        case Left((value, fiberB)) =>
+          value match {
+            case l @ Ior.Left(_) =>
+              fiberB.cancel.map(_ => l)
+            case Ior.Right(r) =>
+              F.pure(Ior.Right(Left((r, fiberT[B](fiberB)))))
+            case Ior.Both(l, r) =>
+              F.pure(Ior.Both(l, Left((r, fiberT[B](fiberB)))))
+          }
+        case Right((fiberA, value)) =>
+          value match {
+            case l @ Ior.Left(_) =>
+              fiberA.cancel.map(_ => l)
+            case Ior.Right(r) =>
+              F.pure(Ior.Right(Right((fiberT[A](fiberA), r))))
+            case Ior.Both(l, r) =>
+              F.pure(Ior.Both(l, Right((fiberT[A](fiberA), r))))
+          }
+      })
+
+    protected def fiberT[A](fiber: effect.Fiber[F, Ior[L, A]]): Fiber[A] =
+      Fiber(IorT(fiber.join), IorT.liftF(fiber.cancel))
   }
 
   /**

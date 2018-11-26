@@ -140,6 +140,18 @@ object Timer {
         Kleisli.liftF(timer.sleep(duration))
     }
 
+  /**
+    * Derives a [[Timer]] instance for `cats.data.IorT`,
+    * given we have one for `F[_]`.
+    */
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], timer: Timer[F]): Timer[IorT[F, L, ?]] =
+    new Timer[IorT[F, L, ?]] {
+      val clock: Clock[IorT[F, L, ?]] = Clock.deriveIorT
+
+      def sleep(duration: FiniteDuration): IorT[F, L, Unit] =
+        IorT.liftF(timer.sleep(duration))
+    }
+
   implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal{
     /**
      * Modify the context `F` using transformation `f`.
