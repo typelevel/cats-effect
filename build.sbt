@@ -69,7 +69,7 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.6",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M5"),
+  crossScalaVersions := Seq("2.11.12", "2.12.7", "2.13.0-M5"),
 
   //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
   sources in (Compile, doc) := (

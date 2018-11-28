@@ -10,20 +10,20 @@ matrix:
       scala: 2.11.12
       env: COVERAGE=
     - jdk: oraclejdk8
-      scala: 2.12.6
+      scala: 2.12.7
       env: COVERAGE=
     - jdk: oraclejdk8
-      scala: 2.13.0-M4
+      scala: 2.13.0-M5
       env: COVERAGE=
     - jdk: openjdk11
-      scala: 2.12.6
+      scala: 2.12.7
       env: COVERAGE=
 
 script:
   - export SBT_PROFILE=$COVERAGE
   - sbt ++$TRAVIS_SCALA_VERSION $COVERAGE ci
   - |
-    if [ "$TRAVIS_SCALA_VERSION" = "2.12.6"]; then
+    if [ "$TRAVIS_SCALA_VERSION" = "2.12.7"]; then
       sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
     fi
 
