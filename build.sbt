@@ -189,7 +189,10 @@ val commonSettings = Seq(
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
-    Set(organization.value %% name.value % "1.0.0")
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 13)) =>  Set(organization.value % (name.value + "_2.13.0-M4") % "1.0.0")
+      case _ => Set(organization.value %% name.value % "1.0.0")
+    }
   },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
