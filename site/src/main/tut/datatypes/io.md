@@ -762,7 +762,7 @@ See *Parallelism* section above for how to obtain a `Timer[IO]`
 
 ### Comparison with Haskell's "async interruption"
 
-Haskell treats interruption with what they call "asynchronous
+Haskell threads interruption with what they call "asynchronous
 exceptions", providing the ability to interrupt a running task by 
 throwing an exception from another thread (concurrently).
 
