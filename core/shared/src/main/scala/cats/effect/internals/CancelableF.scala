@@ -42,15 +42,18 @@ private[effect] object CancelableF {
           }
         }
       }
-
-      F.flatMap(k(cb1)) { token =>
-        F.cancelable { cb =>
-          if (state.compareAndSet(null, cb)) {
-            token
-          } else {
+      // Until we've got a cancellation token, the task needs to be evaluated
+      // uninterruptedly, otherwise risking a leak, hence the bracket
+      F.bracketCase(k(cb1)) { _ =>
+        F.async[Unit] { cb =>
+          if (!state.compareAndSet(null, cb)) {
             cb(Callback.rightUnit)
-            F.unit
           }
+        }
+      } { (token, e) =>
+        e match {
+          case ExitCase.Canceled => token
+          case _ => F.unit
         }
       }
     }

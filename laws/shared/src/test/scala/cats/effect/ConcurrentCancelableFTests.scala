@@ -88,13 +88,13 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     complete.future.value shouldBe Some(Success(()))
   }
 
-  testAsync("Concurrent.cancelableF is cancelable") { implicit ec =>
+  testAsync("Concurrent.cancelableF can yield cancelable tasks") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
     val task = for {
       d     <- MVar.empty[IO, Unit]
       latch <- Deferred[IO, Unit]
-      task   = Concurrent.cancelableF[IO, Unit] { _ => (cs.shift *> latch.complete(()) *> IO(d.put(()))).uncancelable }
+      task   = Concurrent.cancelableF[IO, Unit] { _ => cs.shift *> latch.complete(()) *> IO(d.put(())) }
       fiber <- task.start
       _     <- latch.get
       r     <- d.tryTake
@@ -107,5 +107,31 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     val f = task.unsafeToFuture()
     ec.tick()
     f.value shouldBe Some(Success(Succeeded))
+  }
+
+  testAsync("Concurrent.cancelableF executes generated task uninterruptedly") { implicit ec =>
+    import scala.concurrent.duration._
+
+    implicit val cs = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    var effect = 0
+    val task = Concurrent.cancelableF[IO, Unit] { cb =>
+      IO.sleep(1.second) *> IO(effect += 1) *> IO(cb(Right(()))) *> IO(IO.unit)
+    }
+
+    val p = Promise[Unit]()
+    val cancel = task.unsafeRunCancelable(r => p.success(r.right.get))
+    cancel.unsafeRunAsyncAndForget()
+
+    ec.tick()
+    p.future.value shouldBe None
+    ec.state.tasks.isEmpty shouldBe false
+    effect shouldBe 0
+
+    ec.tick(1.second)
+    p.future.value shouldBe None
+    ec.state.tasks.isEmpty shouldBe true
+    effect shouldBe 1
   }
 }

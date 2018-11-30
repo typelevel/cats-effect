@@ -316,7 +316,8 @@ private[effect] object MVarConcurrent {
    * `put` operations.
    */
   private final case class WaitForPut[A](
-    reads: LinkedMap[Id, Listener[A]], takes: LinkedMap[Id, Listener[A]])
+    reads: LinkedMap[Id, Listener[A]],
+    takes: LinkedMap[Id, Listener[A]])
     extends State[A]
 
   /**
@@ -330,7 +331,8 @@ private[effect] object MVarConcurrent {
    *        is unblocked from the user's point of view)
    */
   private final case class WaitForTake[A](
-    value: A, listeners: LinkedMap[Id, (A, Listener[Unit])])
+    value: A,
+    listeners: LinkedMap[Id, (A, Listener[Unit])])
     extends State[A]
 }
 
