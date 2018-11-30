@@ -19,8 +19,8 @@ package cats.effect
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import concurrent.Deferred
 import cats.implicits._
-import org.scalatest._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
