@@ -84,8 +84,8 @@ In terms of the behavior, the contract is currently this:
 The `cats.effect.IO` implementation is cancelable and so is `IOApp`.
 
 This means that when `IOApp` receives a `SIGABORT`, `SIGINT` or another
-interruption signal that can be caught, then the `IO` app will cancel,
-safely release any resources.
+interruption signal that can be caught, then the `IO` app will cancel
+and safely release any resources.
 
 For example:
 
