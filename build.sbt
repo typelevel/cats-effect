@@ -231,7 +231,21 @@ def profile: Project => Project = pr => cmdlineProfile match {
 }
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*")
+  coverageExcludedFiles := ".*",
+
+  // Use globally accessible (rather than local) source paths in JS source maps
+  scalacOptions += {
+    val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
+    val versionOrHash =
+      if (hasVersion)
+        s"v${version.value}"
+      else
+        git.gitHeadCommit.value.get
+
+    val l = (baseDirectory in LocalRootProject).value.toURI.toString
+    val g = s"https://raw.githubusercontent.com/typelevel/cats-effect/$versionOrHash/"
+    s"-P:scalajs:mapSourceURI:$l->$g"
+  })
 
 lazy val skipOnPublishSettings = Seq(
   skip in publish := true,
