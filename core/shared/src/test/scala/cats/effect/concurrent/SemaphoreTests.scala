@@ -82,7 +82,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
     test(s"$label - available with no available permits") {
       sc(20).flatMap{ s =>
         for{
-          _ <- s.acquireN(21).void.start
+          _ <- s.acquireN(20).void
           t <- IO.shift *> s.available
         } yield t
 
@@ -114,11 +114,11 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
     test(s"$label - count with no available permits") {
       sc(20).flatMap { s =>
         for {
-          _ <- s.acquireN(21).void.start
+          _ <- s.acquireN(20).void
           x <- (IO.shift *> s.count).start
           t <- x.join
         } yield t
-      }.unsafeToFuture().map( count =>  count shouldBe -1)
+      }.unsafeToFuture().map( count =>  count shouldBe 0)
     }
 
     def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit], releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
@@ -130,7 +130,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", n => Semaphore[IO](n))
-  
+
   test("concurrent - acquire does not leak permits upon cancelation") {
     Semaphore[IO](1L).flatMap { s =>
       // acquireN(2) will get 1 permit and then timeout waiting for another,

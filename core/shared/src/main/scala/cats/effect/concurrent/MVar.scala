@@ -53,7 +53,15 @@ import cats.~>
  * by `scalaz.concurrent.MVar`.
  */
 abstract class MVar[F[_], A] {
+  /**
+   * Returns `true` if the `MVar` is empty and can receive a `put`, or
+   * `false` otherwise.
+   *
+   * Note that due to concurrent tasks, logic built in terms of `isEmpty`
+   * is problematic.
+   */
   def isEmpty: F[Boolean]
+
   /**
    * Fills the `MVar` if it is empty, or blocks (asynchronously)
    * if the `MVar` is full, until the given value is next in

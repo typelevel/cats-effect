@@ -36,7 +36,7 @@ private[internals] final class IOContextShift private (ec: ExecutionContext)
     IOShift.shiftOn(context, ec, f)
 }
 
-object IOContextShift {
+private[effect] object IOContextShift {
   /** `ContextShift` builder. */
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)
