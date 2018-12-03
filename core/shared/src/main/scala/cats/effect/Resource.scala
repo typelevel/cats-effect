@@ -139,11 +139,10 @@ sealed abstract class Resource[F[_], A] {
     Bind(this, f)
 
   /**
-    * Direct implementation of the `map` operation which is otherwise
-    * available via the `cats.Monad` instance for `Resource[F, ?]`
+    *  Given a mapping function, transforms the resource provided by
+    *  this Resource.
     *
-    * This allows IDEs which have issues with Partial Unification to
-    * see `map`.
+    *  This is the standard `Functor.map`.
     */
   def map[B](f: A => B)(implicit F: Applicative[F]): Resource[F, B] =
     flatMap(a => Resource.pure[F, B](f(a)))
