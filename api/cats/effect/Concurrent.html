@@ -118,22 +118,6 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
-    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="internals"></a><a id="internals:internals"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/index.html#internals" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="" href="internals/index.html"><span class="name">internals</span></a>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -347,7 +331,7 @@ on evaluation will have no effect if evaluated.</p><p>So <code>uncancelable</cod
       <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
-        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -989,7 +973,7 @@ in <code>F</code>.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplyArityFunctions</dd></dl></div>
-    </li><li name="cats.Apply#ap2" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="cats.FlatMap#ap2" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ap2[A,B,Z](ff:F[(A,B)=&gt;Z])(fa:F[A],fb:F[B]):F[Z]"></a><a id="ap2[A,B,Z](F[(A,B)⇒Z])(F[A],F[B]):F[Z]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Concurrent.html#ap2[A,B,Z](ff:F[(A,B)=&gt;Z])(fa:F[A],fb:F[B]):F[Z]" title="Permalink">
@@ -1001,10 +985,10 @@ in <code>F</code>.
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">ap2</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>, <span name="Z">Z</span>]</span><span class="params">(<span name="ff">ff: <span class="extype" name="cats.effect.Concurrent.F">F</span>[(<span class="extype" name="cats.Apply.ap2.A">A</span>, <span class="extype" name="cats.Apply.ap2.B">B</span>) ⇒ <span class="extype" name="cats.Apply.ap2.Z">Z</span>]</span>)</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.ap2.A">A</span>]</span>, <span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.ap2.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.ap2.Z">Z</span>]</span>
+        <span class="name">ap2</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>, <span name="Z">Z</span>]</span><span class="params">(<span name="ff">ff: <span class="extype" name="cats.effect.Concurrent.F">F</span>[(<span class="extype" name="cats.FlatMap.ap2.A">A</span>, <span class="extype" name="cats.FlatMap.ap2.B">B</span>) ⇒ <span class="extype" name="cats.FlatMap.ap2.Z">Z</span>]</span>)</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.ap2.A">A</span>]</span>, <span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.ap2.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.ap2.Z">Z</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap → Apply</dd></dl></div>
     </li><li name="cats.ApplyArityFunctions#ap20" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ap20[A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,Z](f:F[(A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19)=&gt;Z])(f0:F[A0],f1:F[A1],f2:F[A2],f3:F[A3],f4:F[A4],f5:F[A5],f6:F[A6],f7:F[A7],f8:F[A8],f9:F[A9],f10:F[A10],f11:F[A11],f12:F[A12],f13:F[A13],f14:F[A14],f15:F[A15],f16:F[A16],f17:F[A17],f18:F[A18],f19:F[A19]):F[Z]"></a><a id="ap20[A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,Z](F[(A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19)⇒Z])(F[A0],F[A1],F[A2],F[A3],F[A4],F[A5],F[A6],F[A7],F[A8],F[A9],F[A10],F[A11],F[A12],F[A13],F[A14],F[A15],F[A16],F[A17],F[A18],F[A19]):F[Z]"></a>
       <span class="permalink">
@@ -2125,7 +2109,7 @@ use <a href="Concurrent$.html#liftIO[F[_],A](ioa:cats.effect.IO[A])(implicitF:ca
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplyArityFunctions</dd></dl></div>
-    </li><li name="cats.Apply#map2" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="cats.FlatMap#map2" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="map2[A,B,Z](fa:F[A],fb:F[B])(f:(A,B)=&gt;Z):F[Z]"></a><a id="map2[A,B,Z](F[A],F[B])((A,B)⇒Z):F[Z]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Concurrent.html#map2[A,B,Z](fa:F[A],fb:F[B])(f:(A,B)=&gt;Z):F[Z]" title="Permalink">
@@ -2137,10 +2121,10 @@ use <a href="Concurrent$.html#liftIO[F[_],A](ioa:cats.effect.IO[A])(implicitF:ca
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">map2</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>, <span name="Z">Z</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.map2.A">A</span>]</span>, <span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.map2.B">B</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.Apply.map2.A">A</span>, <span class="extype" name="cats.Apply.map2.B">B</span>) ⇒ <span class="extype" name="cats.Apply.map2.Z">Z</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.map2.Z">Z</span>]</span>
+        <span class="name">map2</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>, <span name="Z">Z</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.map2.A">A</span>]</span>, <span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.map2.B">B</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.FlatMap.map2.A">A</span>, <span class="extype" name="cats.FlatMap.map2.B">B</span>) ⇒ <span class="extype" name="cats.FlatMap.map2.Z">Z</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.map2.Z">Z</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap → Apply</dd></dl></div>
     </li><li name="cats.ApplyArityFunctions#map20" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="map20[A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,Z](f0:F[A0],f1:F[A1],f2:F[A2],f3:F[A3],f4:F[A4],f5:F[A5],f6:F[A6],f7:F[A7],f8:F[A8],f9:F[A9],f10:F[A10],f11:F[A11],f12:F[A12],f13:F[A13],f14:F[A14],f15:F[A15],f16:F[A16],f17:F[A17],f18:F[A18],f19:F[A19])(f:(A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19)=&gt;Z):F[Z]"></a><a id="map20[A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19,Z](F[A0],F[A1],F[A2],F[A3],F[A4],F[A5],F[A6],F[A7],F[A8],F[A9],F[A10],F[A11],F[A12],F[A13],F[A14],F[A15],F[A16],F[A17],F[A18],F[A19])((A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,A19)⇒Z):F[Z]"></a>
       <span class="permalink">
@@ -2455,7 +2439,7 @@ with a result, being equivalent to <code>async(_ =&gt; ())</code>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap → Apply → Semigroupal</dd></dl></div>
-    </li><li name="cats.Apply#productL" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="cats.FlatMap#productL" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="productL[A,B](fa:F[A])(fb:F[B]):F[A]"></a><a id="productL[A,B](F[A])(F[B]):F[A]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Concurrent.html#productL[A,B](fa:F[A])(fb:F[B]):F[A]" title="Permalink">
@@ -2467,10 +2451,10 @@ with a result, being equivalent to <code>async(_ =&gt; ())</code>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">productL</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productL.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productL.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productL.A">A</span>]</span>
+        <span class="name">productL</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productL.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productL.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productL.A">A</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap → Apply</dd></dl></div>
     </li><li name="cats.FlatMap#productLEval" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="productLEval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[A]"></a><a id="productLEval[A,B](F[A])(Eval[F[B]]):F[A]"></a>
       <span class="permalink">
@@ -2487,7 +2471,7 @@ with a result, being equivalent to <code>async(_ =&gt; ())</code>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd></dl></div>
-    </li><li name="cats.Apply#productR" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+    </li><li name="cats.FlatMap#productR" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="productR[A,B](fa:F[A])(fb:F[B]):F[B]"></a><a id="productR[A,B](F[A])(F[B]):F[B]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Concurrent.html#productR[A,B](fa:F[A])(fb:F[B]):F[B]" title="Permalink">
@@ -2499,10 +2483,10 @@ with a result, being equivalent to <code>async(_ =&gt; ())</code>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">productR</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productR.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productR.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.Apply.productR.B">B</span>]</span>
+        <span class="name">productR</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productR.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productR.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.F">F</span>[<span class="extype" name="cats.FlatMap.productR.B">B</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap → Apply</dd></dl></div>
     </li><li name="cats.FlatMap#productREval" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="productREval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[B]"></a><a id="productREval[A,B](F[A])(Eval[F[B]]):F[B]"></a>
       <span class="permalink">

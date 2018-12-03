@@ -118,22 +118,6 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
-    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="internals"></a><a id="internals:internals"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/index.html#internals" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="" href="internals/index.html"><span class="name">internals</span></a>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -264,7 +248,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/Timer.scala" target="_blank">Timer.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/Timer.scala" target="_blank">Timer.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -314,7 +298,26 @@
         <div id="allMembers">
         
 
-        
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="cats.effect.Timer.TimerOps" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="TimerOps[F[_]]extendsAnyVal"></a><a id="TimerOps[F[_]]:TimerOps[F]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Timer$.html#TimerOps[F[_]]extendsAnyVal" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit final </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Timer$$TimerOps.html"><span class="name">TimerOps</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <span class="extype" name="scala.AnyVal">AnyVal</span></span>
+      </span>
+      
+      
+    </li></ol>
+            </div>
 
         
 
@@ -441,6 +444,23 @@
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for <code>cats.data.EitherT</code>,
+given we have one for <code>F[_]</code>.</p>
+    </li><li name="cats.effect.Timer#deriveIorT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="deriveIorT[F[_],L](implicitF:cats.Applicative[F],implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[γ$15$]cats.data.IorT[F,L,γ$15$]]"></a><a id="deriveIorT[F[_],L](Applicative[F],Timer[F]):Timer[[γ$15$]IorT[F,L,γ$15$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Timer$.html#deriveIorT[F[_],L](implicitF:cats.Applicative[F],implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[γ$15$]cats.data.IorT[F,L,γ$15$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">deriveIorT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Timer.deriveIorT.F">F</span>]</span>, <span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<span class="extype" name="cats.effect.Timer.deriveIorT.F">F</span>]</span>)</span><span class="result">: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[[γ$15$]<span class="extype" name="cats.data.IorT">IorT</span>[<span class="extype" name="cats.effect.Timer.deriveIorT.F">F</span>, <span class="extype" name="cats.effect.Timer.deriveIorT.L">L</span>, <span class="extype" name="cats.effect.Timer.&lt;refinement&gt;.Λ$.γ$15$">γ$15$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Derives a <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for <code>cats.data.IorT</code>,
 given we have one for <code>F[_]</code>.</p>
     </li><li name="cats.effect.Timer#deriveKleisli" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="deriveKleisli[F[_],R](implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[γ$12$]cats.data.Kleisli[F,R,γ$12$]]"></a><a id="deriveKleisli[F[_],R](Timer[F]):Timer[[γ$12$]Kleisli[F,R,γ$12$]]"></a>

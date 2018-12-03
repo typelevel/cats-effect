@@ -1,0 +1,1297 @@
+<html><head><title>Cats Effect: Tutorial</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: Tutorial" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: Tutorial" /><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/style.css" /><link rel="stylesheet" href="/cats-effect/css/palette.css" /><link rel="stylesheet" href="/cats-effect/css/codemirror.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"><span>Cats Effect</span></div></a></li> <li><a href="/cats-effect/datatypes/" class="">Data Types</a> <ul class="sub_section"> <li><a href="/cats-effect/datatypes/io.html" class="">IO</a></li> <li><a href="/cats-effect/datatypes/syncio.html" class="">SyncIO</a></li> <li><a href="/cats-effect/datatypes/fiber.html" class="">Fiber</a></li> <li><a href="/cats-effect/datatypes/resource.html" class="">Resource</a></li> <li><a href="/cats-effect/datatypes/clock.html" class="">Clock</a></li> <li><a href="/cats-effect/datatypes/contextshift.html" class="">ContextShift</a></li> <li><a href="/cats-effect/datatypes/timer.html" class="">Timer</a></li> <li><a href="/cats-effect/datatypes/ioapp.html" class="">IOApp</a></li></ul></li> <li><a href="/cats-effect/concurrency/" class="">Concurrency</a> <ul class="sub_section"> <li><a href="/cats-effect/concurrency/basics.html" class="">Concurrency Basics</a></li> <li><a href="/cats-effect/concurrency/deferred.html" class="">Deferred</a></li> <li><a href="/cats-effect/concurrency/mvar.html" class="">MVar</a></li> <li><a href="/cats-effect/concurrency/ref.html" class="">Ref</a></li> <li><a href="/cats-effect/concurrency/semaphore.html" class="">Semaphore</a></li></ul></li> <li><a href="/cats-effect/typeclasses/" class="">Type Classes</a> <ul class="sub_section"> <li><a href="/cats-effect/typeclasses/bracket.html" class="">Bracket</a></li> <li><a href="/cats-effect/typeclasses/sync.html" class="">Sync</a></li> <li><a href="/cats-effect/typeclasses/liftio.html" class="">LiftIO</a></li> <li><a href="/cats-effect/typeclasses/async.html" class="">Async</a></li> <li><a href="/cats-effect/typeclasses/concurrent.html" class="">Concurrent</a></li> <li><a href="/cats-effect/typeclasses/effect.html" class="">Effect</a></li> <li><a href="/cats-effect/typeclasses/concurrent-effect.html" class="">ConcurrentEffect</a></li></ul></li> <li><a href="/cats-effect/tutorial/tutorial.html" class=" active ">Tutorial</a></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Cats Effect The IO Monad for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Cats Effect The IO Monad for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>Tutorial</h1>
+
+<nav role="navigation" id="toc"></nav>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>This tutorial tries to help newcomers to cats-effect to get familiar with its
+main concepts by means of code examples, in a learn-by-doing fashion. Two small
+programs will be coded. The first one copies the contents from one file to
+another, safely handling resources in the process. That should help us to flex
+our muscles. The second one is a bit more elaborated, it is a light TCP server
+able to attend concurrent connections. In both cases complexity will grow as we
+add more features, which will allow to introduce more and more concepts from
+cats-effect. Also, while the first example is focused on <code class="highlighter-rouge">IO</code>, the second one
+will shift towards polymorphic functions that make use of cats-effect type
+classes and do not tie our code to <code class="highlighter-rouge">IO</code>.</p>
+
+<p>This tutorial assumes certain familiarity with functional programming. It is
+also a good idea to read cats-effect documentation prior to starting this
+tutorial, at least the <a href="../datatypes/io.html">excellent documentation about <code class="highlighter-rouge">IO</code> data
+type</a>.</p>
+
+<p>Please read this tutorial as training material, not as a best-practices
+document. As you gain more experience with cats-effect, probably you will find
+your own solutions to deal with the problems presented here. Also, bear in mind
+that using cats-effect for copying files or building TCP servers is suitable for
+a ‘getting things done’ approach, but for more complex
+systems/settings/requirements you might want to take a look at
+<a href="http://fs2.io">fs2</a> or <a href="https://monix.io">Monix</a> to find powerful network and
+file abstractions that integrate with cats-effect. But that is beyond the
+purpose of this tutorial, which focuses solely on cats-effect.</p>
+
+<p>That said, let’s go!</p>
+
+<h2 id="setting-things-up">Setting things up</h2>
+
+<p>This <a href="https://github.com/lrodero/cats-effect-tutorial">Github repo</a> includes all
+the software that will be developed during this tutorial. It uses <code class="highlighter-rouge">sbt</code> as the
+build tool. To ease coding, compiling and running the code snippets in this
+tutorial it is recommended to use the same <code class="highlighter-rouge">build.sbt</code>, or at least one with the
+same dependencies and compilation options:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">name</span> <span class="o">:=</span> <span class="s">"cats-effect-tutorial"</span>
+
+<span class="n">version</span> <span class="o">:=</span> <span class="s">"1.0"</span>
+
+<span class="n">scalaVersion</span> <span class="o">:=</span> <span class="s">"2.12.7"</span>
+
+<span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"1.0.0"</span> <span class="n">withSources</span><span class="o">()</span> <span class="n">withJavadoc</span><span class="o">()</span>
+
+<span class="n">scalacOptions</span> <span class="o">++=</span> <span class="nc">Seq</span><span class="o">(</span>
+  <span class="s">"-feature"</span><span class="o">,</span>
+  <span class="s">"-deprecation"</span><span class="o">,</span>
+  <span class="s">"-unchecked"</span><span class="o">,</span>
+  <span class="s">"-language:postfixOps"</span><span class="o">,</span>
+  <span class="s">"-language:higherKinds"</span><span class="o">,</span>
+  <span class="s">"-Ypartial-unification"</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>Code snippets in this tutorial can be pasted and compiled right in the scala
+console of the project defined above (or any project with similar settings).</p>
+
+<h2 id="copying-contents-of-a-file---safely-handling-resources">Copying contents of a file - safely handling resources</h2>
+
+<p>Our goal is to create a program that copies files. First we will work on a
+function that carries such task, and then we will create a program that can be
+invoked from the shell and uses that function.</p>
+
+<p>First of all we must code the function that copies the content from a file to
+another file. The function takes the source and destination files as parameters.
+But this is functional programming! So invoking the function shall not copy
+anything, instead it will return an <code class="highlighter-rouge">IO</code> instance that encapsulates all the
+side effects involved (opening/closing files, reading/writing content), that way
+<em>purity</em> is kept.  Only when that <code class="highlighter-rouge">IO</code> instance is evaluated all those
+side-effectful actions will be run. In our implementation the <code class="highlighter-rouge">IO</code> instance will
+return the amount of bytes copied upon execution, but this is just a design
+decision. Of course errors can occur, but when working with any <code class="highlighter-rouge">IO</code> those
+should be embedded in the <code class="highlighter-rouge">IO</code> instance. That is, no exception is raised outside
+the <code class="highlighter-rouge">IO</code> and so no <code class="highlighter-rouge">try</code> (or the like) needs to be used when using the function,
+instead the <code class="highlighter-rouge">IO</code> evaluation will fail and the <code class="highlighter-rouge">IO</code> instance will carry the error
+raised.</p>
+
+<p>Now, the signature of our function looks like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">java.io.File</span>
+
+<span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+</code></pre></div></div>
+
+<p>Nothing scary, uh? As we said before, the function just returns an <code class="highlighter-rouge">IO</code>
+instance. When run, all side-effects will be actually executed and the <code class="highlighter-rouge">IO</code>
+instance will return the bytes copied in a <code class="highlighter-rouge">Long</code> (note that <code class="highlighter-rouge">IO</code> is
+parameterized by the return type). Now, let’s start implementing our function.
+First, we need to open two streams that will read and write file contents.</p>
+
+<h3 id="acquiring-and-releasing-resources">Acquiring and releasing <code class="highlighter-rouge">Resource</code>s</h3>
+<p>We consider opening an stream to be a side-effect action, so we have to
+encapsulate those actions in their own <code class="highlighter-rouge">IO</code> instances. For this, we will make
+use of cats-effect <code class="highlighter-rouge">Resource</code>, that allows to orderly create, use and then
+release resources. See this code:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">java.io._</span> 
+
+<span class="k">def</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileInputStream</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>                         <span class="c1">// build
+</span>  <span class="o">}</span> <span class="o">{</span> <span class="n">inStream</span> <span class="k">=&gt;</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="n">inStream</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">)</span> <span class="c1">// release
+</span>  <span class="o">}</span>
+
+<span class="k">def</span> <span class="n">outputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileOutputStream</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileOutputStream</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>                         <span class="c1">// build 
+</span>  <span class="o">}</span> <span class="o">{</span> <span class="n">outStream</span> <span class="k">=&gt;</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="n">outStream</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">)</span> <span class="c1">// release
+</span>  <span class="o">}</span>
+
+<span class="k">def</span> <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">out</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="o">(</span><span class="kt">InputStream</span>, <span class="kt">OutputStream</span><span class="o">)]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">inStream</span>  <span class="k">&lt;-</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">in</span><span class="o">)</span>
+    <span class="n">outStream</span> <span class="k">&lt;-</span> <span class="n">outputStream</span><span class="o">(</span><span class="n">out</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">inStream</span><span class="o">,</span> <span class="n">outStream</span><span class="o">)</span>
+</code></pre></div></div>
+
+<p>We want to ensure that streams are closed once we are done using them, no matter
+what. That is precisely why we use <code class="highlighter-rouge">Resource</code> in both <code class="highlighter-rouge">inputStream</code> and
+<code class="highlighter-rouge">outputStream</code> functions, each one returning one <code class="highlighter-rouge">Resource</code> that encapsulates
+the actions for opening and then closing each stream.  <code class="highlighter-rouge">inputOutputStreams</code>
+encapsulates both resources in a single <code class="highlighter-rouge">Resource</code> instance that will be
+available once the creation of both streams has been successful, and only in
+that case. As seen in the code above <code class="highlighter-rouge">Resource</code> instances can be combined in
+for-comprehensions as they implement <code class="highlighter-rouge">flatMap</code>. Note also that when releasing
+resources we must also take care of any possible error during the release
+itself, for example with the <code class="highlighter-rouge">.handleErrorWith</code> call as we do in the code above.
+In this case we just swallow the error, but normally it should be at least
+logged.</p>
+
+<p>Optionally we could have used <code class="highlighter-rouge">Resource.fromAutoCloseable</code> to define our
+resources, that method creates <code class="highlighter-rouge">Resource</code> instances over objects that implement
+<code class="highlighter-rouge">java.lang.AutoCloseable</code> interface without having to define how the resource is
+released. So our <code class="highlighter-rouge">inputStream</code> function would look like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">java.io.</span><span class="o">{</span><span class="nc">File</span><span class="o">,</span> <span class="nc">FileInputStream</span><span class="o">}</span>
+
+<span class="k">def</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">.</span><span class="n">fromAutoCloseable</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileInputStream</span><span class="o">(</span><span class="n">f</span><span class="o">)))</span>
+</code></pre></div></div>
+
+<p>That code is way simpler, but with that code we would not have control over what
+would happen if the closing operation throws an exception. Also it could be that
+we want to be aware when closing operations are being run, for example using
+logs. In contrast, using <code class="highlighter-rouge">Resource.make</code> allows to easily control the actions
+of the release phase.</p>
+
+<p>Let’s go back to our <code class="highlighter-rouge">copy</code> function, which now looks like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="c1">// as defined before
+</span><span class="k">def</span> <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">out</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="o">(</span><span class="kt">InputStream</span>, <span class="kt">OutputStream</span><span class="o">)]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="c1">// transfer will do the real work
+</span><span class="k">def</span> <span class="n">transfer</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">).</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span> 
+    <span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span>
+  <span class="o">}</span>
+</code></pre></div></div>
+
+<p>The new method <code class="highlighter-rouge">transfer</code> will perform the actual copying of data, once the
+resources (the streams) are obtained. When they are not needed anymore, whatever
+the outcome of <code class="highlighter-rouge">transfer</code> (success of failure) both streams will be closed. If
+any of the streams could not be obtained, then <code class="highlighter-rouge">transfer</code> will not be run. Even
+better, because of <code class="highlighter-rouge">Resource</code> semantics, if there is any problem opening the
+input file then the output file will not be opened.  On the other hand, if there
+is any issue opening the output file, then the input stream will be closed.</p>
+
+<h3 id="what-about-bracket">What about <code class="highlighter-rouge">bracket</code>?</h3>
+<p>Now, if you are familiar with cats-effect’s <code class="highlighter-rouge">bracket</code> you may be wondering why
+we are not using it as it looks so similar to <code class="highlighter-rouge">Resource</code> (and there is a good
+reason for that: <code class="highlighter-rouge">Resource</code> is based on <code class="highlighter-rouge">bracket</code>). Ok, before moving forward it
+is worth to take a look to <code class="highlighter-rouge">bracket</code>.</p>
+
+<p>There are three stages when using <code class="highlighter-rouge">bracket</code>: <em>resource acquisition</em>, <em>usage</em>,
+and <em>release</em>. Each stage is defined by an <code class="highlighter-rouge">IO</code> instance.  A fundamental
+property is that the <em>release</em> stage will always be run regardless whether the
+<em>usage</em> stage finished correctly or an exception was thrown during its
+execution. In our case, in the <em>acquisition</em> stage we would create the streams,
+then in the <em>usage</em> stage we will copy the contents, and finally in the release
+stage we will close the streams.  Thus we could define our <code class="highlighter-rouge">copy</code> function as
+follows:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">java.io._</span> 
+
+<span class="c1">// function inputOutputStreams not needed
+</span>
+<span class="c1">// transfer will do the real work
+</span><span class="k">def</span> <span class="n">transfer</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">inIO</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">InputStream</span><span class="o">]</span>  <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileInputStream</span><span class="o">(</span><span class="n">origin</span><span class="o">))</span>
+  <span class="k">val</span> <span class="n">outIO</span><span class="k">:</span><span class="kt">IO</span><span class="o">[</span><span class="kt">OutputStream</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileOutputStream</span><span class="o">(</span><span class="n">destination</span><span class="o">))</span>
+
+  <span class="o">(</span><span class="n">inIO</span><span class="o">,</span> <span class="n">outIO</span><span class="o">)</span>              <span class="c1">// Stage 1: Getting resources 
+</span>    <span class="o">.</span><span class="n">tupled</span>                  <span class="c1">// From (IO[InputStream], IO[OutputStream]) to IO[(InputStream, OutputStream)]
+</span>    <span class="o">.</span><span class="n">bracket</span><span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span>
+        <span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span>    <span class="c1">// Stage 2: Using resources (for copying data, in this case)
+</span>    <span class="o">}</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span>      <span class="c1">// Stage 3: Freeing resources
+</span>        <span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()),</span> <span class="nc">IO</span><span class="o">(</span><span class="n">out</span><span class="o">.</span><span class="n">close</span><span class="o">()))</span>
+        <span class="o">.</span><span class="n">tupled</span>              <span class="c1">// From (IO[Unit], IO[Unit]) to IO[(Unit, Unit)]
+</span>        <span class="o">.</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">).</span><span class="n">void</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>New <code class="highlighter-rouge">copy</code> definition is more complex, even though the code as a whole is way
+shorter as we do not need the <code class="highlighter-rouge">inputOutputStreams</code> function. But there is a
+catch in the code above.  When using <code class="highlighter-rouge">bracket</code>, if there is a problem when
+getting resources in the first stage, then the release stage will not be run.
+Now, in the code above, first the origin file and then the destination file are
+opened (<code class="highlighter-rouge">tupled</code> just reorganizes both <code class="highlighter-rouge">IO</code> instances into a single one). So
+what would happen if we successfully open the origin file (<em>i.e.</em> when
+evaluating <code class="highlighter-rouge">inIO</code>) but then an exception is raised when opening the destination
+file (<em>i.e.</em> when evaluating <code class="highlighter-rouge">outIO</code>)? In that case the origin stream will not
+be closed! To solve this we should first get the first stream with one <code class="highlighter-rouge">bracket</code>
+call, and then the second stream with another <code class="highlighter-rouge">bracket</code> call inside the first.
+But, in a way, that’s precisely what we do when we <code class="highlighter-rouge">flatMap</code> instances of
+<code class="highlighter-rouge">Resource</code>. And the code looks cleaner too. So, while using <code class="highlighter-rouge">bracket</code> directly
+has its place, <code class="highlighter-rouge">Resource</code> is likely to be a better choice when dealing with
+multiple resources at once.</p>
+
+<h3 id="copying-data">Copying data</h3>
+<p>Finally we have our streams ready to go! We have to focus now on coding
+<code class="highlighter-rouge">transfer</code>. That function will have to define a loop that at each iteration
+reads data from the input stream into a buffer, and then writes the buffer
+contents into the output stream. At the same time, the loop will keep a counter
+of the bytes transferred. To reuse the same buffer we should define it outside
+the main loop, and leave the actual transmission of data to another function
+<code class="highlighter-rouge">transmit</code> that uses that loop. Something like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">java.io._</span> 
+
+<span class="k">def</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">amount</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">origin</span><span class="o">.</span><span class="n">read</span><span class="o">(</span><span class="n">buffer</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">buffer</span><span class="o">.</span><span class="n">size</span><span class="o">))</span>
+    <span class="n">count</span>  <span class="k">&lt;-</span> <span class="k">if</span><span class="o">(</span><span class="n">amount</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span> <span class="nc">IO</span><span class="o">(</span><span class="n">destination</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">buffer</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">amount</span><span class="o">))</span> <span class="o">&gt;&gt;</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">buffer</span><span class="o">,</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span>
+              <span class="k">else</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">acc</span><span class="o">)</span> <span class="c1">// End of read stream reached (by java.io.InputStream contract), nothing to write
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span> <span class="c1">// Returns the actual amount of bytes transmitted
+</span>
+<span class="k">def</span> <span class="n">transfer</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">buffer</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">](</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">10</span><span class="o">))</span> <span class="c1">// Allocated only when the IO is evaluated
+</span>    <span class="n">total</span>  <span class="k">&lt;-</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">buffer</span><span class="o">,</span> <span class="mi">0L</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">total</span>
+</code></pre></div></div>
+
+<p>Take a look at <code class="highlighter-rouge">transmit</code>, observe that both input and output actions are
+encapsulated in (suspended in) <code class="highlighter-rouge">IO</code>. <code class="highlighter-rouge">IO</code> being a monad, we can sequence them
+using a for-comprehension to create another <code class="highlighter-rouge">IO</code>. The for-comprehension loops as
+long as the call to <code class="highlighter-rouge">read()</code> does not return a negative value that would signal
+that the end of the stream has been reached. <code class="highlighter-rouge">&gt;&gt;</code> is a Cats operator to sequence
+two operations where the output of the first is not needed by the second (<em>i.e.</em>
+it is equivalent to <code class="highlighter-rouge">first.flatMap(_ =&gt; second)</code>). In the code above that means
+that after each write operation we recursively call <code class="highlighter-rouge">transmit</code> again, but as
+<code class="highlighter-rouge">IO</code> is stack safe we are not concerned about stack overflow issues. At each
+iteration we increase the counter <code class="highlighter-rouge">acc</code> with the amount of bytes read at that
+iteration.</p>
+
+<p>We are making progress, and already have a version of <code class="highlighter-rouge">copy</code> that can be used.
+If any exception is raised when <code class="highlighter-rouge">transfer</code> is running, then the streams will be
+automatically closed by <code class="highlighter-rouge">Resource</code>. But there is something else we have to take
+into account: <code class="highlighter-rouge">IO</code> instances execution can be <strong><em>canceled!</em></strong>. And cancellation
+should not be ignored, as it is a key feature of cats-effect. We will discuss
+cancellation in the next section.</p>
+
+<h3 id="dealing-with-cancellation">Dealing with cancellation</h3>
+<p>Cancellation is a powerful but non-trivial cats-effect feature. In cats-effect,
+some <code class="highlighter-rouge">IO</code> instances can be cancelable, meaning that their evaluation will be
+aborted. If the programmer is careful, an alternative <code class="highlighter-rouge">IO</code> task will be run
+under cancellation, for example to deal with potential cleaning up activities.
+We will see how an <code class="highlighter-rouge">IO</code> can be actually canceled at the end of the <a href="#fibers-are-not-threads">Fibers are
+not threads! section</a> later on, but for now we will
+just keep in mind that during the execution of the <code class="highlighter-rouge">IO</code> returned by the <code class="highlighter-rouge">copy</code>
+method a cancellation could be requested at any time.</p>
+
+<p>Now, <code class="highlighter-rouge">IO</code>s created with <code class="highlighter-rouge">Resource.use</code> can be canceled. The cancellation will
+trigger the execution of the code that handles the closing of the resource. In
+our case, that would close both streams. So far so good! But what happens if
+cancellation happens <em>while</em> the streams are being used? This could lead to
+data corruption as a stream where some thread is writing to is at the same time
+being closed by another thread. For more info about this problem see <a href="../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action">Gotcha:
+Cancellation is a concurrent
+action</a> in
+cats-effect site.</p>
+
+<p>To prevent such data corruption we must use some concurrency control mechanism
+that ensures that no stream will be closed while the <code class="highlighter-rouge">IO</code> returned by
+<code class="highlighter-rouge">transfer</code> is being evaluated.  Cats-effect provides several constructs for
+controlling concurrency, for this case we will use a
+<a href="../concurrency/semaphore.html"><em>semaphore</em></a>. A semaphore has a number of
+permits, its method <code class="highlighter-rouge">.acquire</code> ‘blocks’ if no permit is available until
+<code class="highlighter-rouge">release</code> is called on the same semaphore. It is important to remark that
+<em>there is no actual thread being really blocked</em>, the thread that finds the
+<code class="highlighter-rouge">.acquire</code> call will be immediately recycled by cats-effect. When the <code class="highlighter-rouge">release</code>
+method is invoked then cats-effect will look for some available thread to
+resume the execution of the code after <code class="highlighter-rouge">.acquire</code>.</p>
+
+<p>We will use a semaphore with a single permit. The <code class="highlighter-rouge">.withPermit</code> method acquires
+one permit, runs the <code class="highlighter-rouge">IO</code> given and then releases the permit.  We could also
+use <code class="highlighter-rouge">.acquire</code> and then <code class="highlighter-rouge">.release</code> on the semaphore explicitly, but
+<code class="highlighter-rouge">.withPermit</code> is more idiomatic and ensures that the permit is released even if
+the effect run fails.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="c1">// transfer and transmit methods as defined before
+</span><span class="k">def</span> <span class="n">transfer</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileInputStream</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>
+  <span class="o">}</span> <span class="o">{</span> <span class="n">inStream</span> <span class="k">=&gt;</span> 
+    <span class="n">guard</span><span class="o">.</span><span class="n">withPermit</span> <span class="o">{</span>
+     <span class="nc">IO</span><span class="o">(</span><span class="n">inStream</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+<span class="k">def</span> <span class="n">outputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileOutputStream</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileOutputStream</span><span class="o">(</span><span class="n">f</span><span class="o">))</span>
+  <span class="o">}</span> <span class="o">{</span> <span class="n">outStream</span> <span class="k">=&gt;</span>
+    <span class="n">guard</span><span class="o">.</span><span class="n">withPermit</span> <span class="o">{</span>
+     <span class="nc">IO</span><span class="o">(</span><span class="n">outStream</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">}</span>
+
+<span class="k">def</span> <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">out</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="o">(</span><span class="kt">InputStream</span>, <span class="kt">OutputStream</span><span class="o">)]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">inStream</span>  <span class="k">&lt;-</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">guard</span><span class="o">)</span>
+    <span class="n">outStream</span> <span class="k">&lt;-</span> <span class="n">outputStream</span><span class="o">(</span><span class="n">out</span><span class="o">,</span> <span class="n">guard</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">inStream</span><span class="o">,</span> <span class="n">outStream</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">concurrent</span><span class="k">:</span> <span class="kt">Concurrent</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">guard</span> <span class="k">&lt;-</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="mi">1</span><span class="o">)</span>
+    <span class="n">count</span> <span class="k">&lt;-</span> <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">guard</span><span class="o">).</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span> 
+               <span class="n">guard</span><span class="o">.</span><span class="n">withPermit</span><span class="o">(</span><span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">))</span>
+             <span class="o">}</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Before calling to <code class="highlighter-rouge">transfer</code> we acquire the semaphore, which is not released
+until <code class="highlighter-rouge">transfer</code> is done. The <code class="highlighter-rouge">use</code> call ensures that the semaphore will be
+released under any circumstances, whatever the result of <code class="highlighter-rouge">transfer</code> (success,
+error, or cancellation). As the ‘release’ parts in the <code class="highlighter-rouge">Resource</code> instances are
+now blocked on the same semaphore, we can be sure that streams are closed only
+after <code class="highlighter-rouge">transfer</code> is over, <em>i.e.</em> we have implemented mutual exclusion of
+<code class="highlighter-rouge">transfer</code> execution and resources releasing. An implicit <code class="highlighter-rouge">Concurrent</code> instance
+is required to create the semaphore instance, which is included in the function
+signature.</p>
+
+<p>Mark that while the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">copy</code> is cancelable (because so are <code class="highlighter-rouge">IO</code>
+instances returned by <code class="highlighter-rouge">Resource.use</code>), the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">transfer</code> is not.
+Trying to cancel it will not have any effect and that <code class="highlighter-rouge">IO</code> will run until the
+whole file is copied! In real world code you will probably want to make your
+functions cancelable, section <a href="../datatypes/io.html#building-cancelable-io-tasks">Building cancelable IO
+tasks</a> of <code class="highlighter-rouge">IO</code> documentation
+explains how to create such cancelable <code class="highlighter-rouge">IO</code> instances (besides calling
+<code class="highlighter-rouge">Resource.use</code>, as we have done for our code).</p>
+
+<p>And that is it! We are done, now we can create a program that uses this
+<code class="highlighter-rouge">copy</code> function.</p>
+
+<h3 id="ioapp-for-our-final-program"><code class="highlighter-rouge">IOApp</code> for our final program</h3>
+
+<p>We will create a program that copies files, this program only takes two
+parameters: the name of the origin and destination files. For coding this
+program we will use <code class="highlighter-rouge">IOApp</code> as it allows to maintain purity in our definitions
+up to the program main function.</p>
+
+<p><code class="highlighter-rouge">IOApp</code> is a kind of ‘functional’ equivalent to Scala’s <code class="highlighter-rouge">App</code>, where instead of
+coding an effectful <code class="highlighter-rouge">main</code> method we code a pure <code class="highlighter-rouge">run</code> function. When executing
+the class a <code class="highlighter-rouge">main</code> method defined in <code class="highlighter-rouge">IOApp</code> will call the <code class="highlighter-rouge">run</code> function we
+have coded. Any interruption (like pressing <code class="highlighter-rouge">Ctrl-c</code>) will be treated as a
+cancellation of the running <code class="highlighter-rouge">IO</code>. Also <code class="highlighter-rouge">IOApp</code> provides implicit instances of
+<code class="highlighter-rouge">Timer[IO]</code> and <code class="highlighter-rouge">ContextShift[IO]</code> (not discussed yet in this tutorial).
+<code class="highlighter-rouge">ContextShift[IO]</code> allows for having a <code class="highlighter-rouge">Concurrent[IO]</code> in scope, as the one
+required by the <code class="highlighter-rouge">copy</code> function.</p>
+
+<p>When coding <code class="highlighter-rouge">IOApp</code>, instead of a <code class="highlighter-rouge">main</code> function we have a <code class="highlighter-rouge">run</code> function,
+which creates the <code class="highlighter-rouge">IO</code> instance that forms the program. In our case, our <code class="highlighter-rouge">run</code>
+method can look like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io.File</span>
+
+<span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
+
+  <span class="c1">// copy as defined before
+</span>  <span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+  <span class="k">override</span> <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="k">_</span>      <span class="k">&lt;-</span> <span class="k">if</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="n">length</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="o">)</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">IllegalArgumentException</span><span class="o">(</span><span class="s">"Need origin and destination files"</span><span class="o">))</span>
+                <span class="k">else</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
+      <span class="n">orig</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">File</span><span class="o">(</span><span class="n">args</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span>
+      <span class="n">dest</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">File</span><span class="o">(</span><span class="n">args</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
+      <span class="n">count</span> <span class="k">&lt;-</span> <span class="n">copy</span><span class="o">(</span><span class="n">orig</span><span class="o">,</span> <span class="n">dest</span><span class="o">)</span>
+      <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$count bytes copied from ${orig.getPath} to ${dest.getPath}"</span><span class="o">))</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Heed how <code class="highlighter-rouge">run</code> verifies the <code class="highlighter-rouge">args</code> list passed. If there are fewer than two
+arguments, an error is raised. As <code class="highlighter-rouge">IO</code> implements <code class="highlighter-rouge">MonadError</code> we can at any
+moment call to <code class="highlighter-rouge">IO.raiseError</code> to interrupt a sequence of <code class="highlighter-rouge">IO</code> operations.</p>
+
+<h4 id="copy-program-code">Copy program code</h4>
+<p>You can check the <a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFile.scala">final version of our copy program
+here</a>.</p>
+
+<p>The program can be run from <code class="highlighter-rouge">sbt</code> just by issuing this call:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">CopyFile</span> <span class="n">origin</span><span class="o">.</span><span class="n">txt</span> <span class="n">destination</span><span class="o">.</span><span class="n">txt</span>
+</code></pre></div></div>
+
+<p>It can be argued that using <code class="highlighter-rouge">IO{java.nio.file.Files.copy(...)}</code> would get an
+<code class="highlighter-rouge">IO</code> with the same characteristics of purity as our function. But there is a
+difference: our <code class="highlighter-rouge">IO</code> is safely cancelable! So the user can stop the running code
+at any time for example by pressing <code class="highlighter-rouge">Ctrl-c</code>, our code will deal with safe
+resource release (streams closing) even under such circumstances. The same will
+apply if the <code class="highlighter-rouge">copy</code> function is run from other modules that require its
+functionality. If the <code class="highlighter-rouge">IO</code> returned by this function is canceled while being
+run, still resources will be properly released. But recall what we commented
+before: this is because <code class="highlighter-rouge">use</code> returns <code class="highlighter-rouge">IO</code> instances that are cancelable, in
+contrast our <code class="highlighter-rouge">transfer</code> function is not cancelable.</p>
+
+<h3 id="polymorphic-cats-effect-code">Polymorphic cats-effect code</h3>
+<p>There is an important characteristic of <code class="highlighter-rouge">IO</code> that we shall be aware of. <code class="highlighter-rouge">IO</code> is
+able to encapsulate side-effects, but the capacity to define concurrent and/or
+async and/or cancelable <code class="highlighter-rouge">IO</code> instances comes from the existence of a
+<code class="highlighter-rouge">Concurrent[IO]</code> instance. <code class="highlighter-rouge">Concurrent[F[_]]</code> is a type class that, for an <code class="highlighter-rouge">F</code>
+carrying a side-effect, brings the ability to cancel or start concurrently the
+side-effect in <code class="highlighter-rouge">F</code>. <code class="highlighter-rouge">Concurrent</code> also extends type class <code class="highlighter-rouge">Async[F[_]]</code>, that
+allows to define synchronous/asynchronous computations. <code class="highlighter-rouge">Async[F[_]]</code>, in turn,
+extends type class <code class="highlighter-rouge">Sync[F[_]]</code>, which can suspend the execution of side effects
+in <code class="highlighter-rouge">F</code>.</p>
+
+<p>So well, <code class="highlighter-rouge">Sync</code> can suspend side effects (and so can <code class="highlighter-rouge">Async</code> and <code class="highlighter-rouge">Concurrent</code> as
+they extend <code class="highlighter-rouge">Sync</code>). We have used <code class="highlighter-rouge">IO</code> so far mostly for that purpose. Now,
+going back to the code we created to copy files, could have we coded its
+functions in terms of some <code class="highlighter-rouge">F[_]: Sync</code> instead of <code class="highlighter-rouge">IO</code>? Truth is we could and
+<strong>in fact it is recommendable</strong> in real world programs.  See for example how we
+would define a polymorphic version of our <code class="highlighter-rouge">transfer</code> function with this
+approach, just by replacing any use of <code class="highlighter-rouge">IO</code> by calls to the <code class="highlighter-rouge">delay</code> and <code class="highlighter-rouge">pure</code>
+methods of the <code class="highlighter-rouge">Sync[F[_]]</code> instance!</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">def</span> <span class="n">transmit</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">amount</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">origin</span><span class="o">.</span><span class="n">read</span><span class="o">(</span><span class="n">buffer</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">buffer</span><span class="o">.</span><span class="n">size</span><span class="o">))</span>
+    <span class="n">count</span>  <span class="k">&lt;-</span> <span class="k">if</span><span class="o">(</span><span class="n">amount</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">destination</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">buffer</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">amount</span><span class="o">))</span> <span class="o">&gt;&gt;</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">buffer</span><span class="o">,</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span>
+              <span class="k">else</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">pure</span><span class="o">(</span><span class="n">acc</span><span class="o">)</span> <span class="c1">// End of read stream reached (by java.io.InputStream contract), nothing to write
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span> <span class="c1">// Returns the actual amount of bytes transmitted
+</span></code></pre></div></div>
+
+<p>We can do the same transformation to most of the code we have created so far,
+but not all. In <code class="highlighter-rouge">copy</code> you will find out that we do need a full instance of
+<code class="highlighter-rouge">Concurrent[F]</code> in scope, this is because it is required by the <code class="highlighter-rouge">Semaphore</code>
+instantiation:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">def</span> <span class="n">transfer</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="n">inputOutputStreams</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">in</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">out</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="o">(</span><span class="kt">InputStream</span>, <span class="kt">OutputStream</span><span class="o">)]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">copy</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">guard</span> <span class="k">&lt;-</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">](</span><span class="mi">1</span><span class="o">)</span>
+    <span class="n">count</span> <span class="k">&lt;-</span> <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">guard</span><span class="o">).</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span> 
+               <span class="n">guard</span><span class="o">.</span><span class="n">withPermit</span><span class="o">(</span><span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">))</span>
+             <span class="o">}</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span>
+</code></pre></div></div>
+
+<p>Only in our <code class="highlighter-rouge">main</code> function we will set <code class="highlighter-rouge">IO</code> as the final <code class="highlighter-rouge">F</code> for
+our program. To do so, of course, a <code class="highlighter-rouge">Concurrent[IO]</code> instance must be in scope,
+but that instance is brought transparently by <code class="highlighter-rouge">IOApp</code> so we do not need to be
+concerned about it.</p>
+
+<p>During the remaining of this tutorial we will use polymorphic code, only falling
+to <code class="highlighter-rouge">IO</code> in the <code class="highlighter-rouge">run</code> method of our <code class="highlighter-rouge">IOApp</code>s. Polymorphic code is less
+restrictive, as functions are not tied to <code class="highlighter-rouge">IO</code> but are applicable to any <code class="highlighter-rouge">F[_]</code>
+as long as there is an instance of the type class required (<code class="highlighter-rouge">Sync[F[_]]</code> ,
+<code class="highlighter-rouge">Concurrent[F[_]]</code>…) in scope. The type class to use will depend on the
+requirements of our code. For example, if the execution of the side-effect
+should be cancelable, then we must stick to <code class="highlighter-rouge">Concurrent[F[_]]</code>. Also, it is
+actually easier to work on <code class="highlighter-rouge">F</code> than on any specific type.</p>
+
+<h4 id="copy-program-code-polymorphic-version">Copy program code, polymorphic version</h4>
+<p>The polymorphic version of our copy program in full is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/CopyFilePolymorphic.scala">here</a>.</p>
+
+<h3 id="exercises-improving-our-small-io-program">Exercises: improving our small <code class="highlighter-rouge">IO</code> program</h3>
+
+<p>To finalize we propose you some exercises that will help you to keep improving
+your IO-kungfu:</p>
+
+<ol>
+  <li>Modify the <code class="highlighter-rouge">IOApp</code> so it shows an error and abort the execution if the origin
+and destination files are the same, the origin file cannot be open for
+reading or the destination file cannot be opened for writing. Also, if the
+destination file already exists, the program should ask for confirmation
+before overwriting that file.</li>
+  <li>Modify <code class="highlighter-rouge">transmit</code> so the buffer size is not hardcoded but passed as
+parameter.</li>
+  <li>Use some other concurrency tool of cats-effect instead of <code class="highlighter-rouge">semaphore</code> to
+ensure mutual exclusion of <code class="highlighter-rouge">transfer</code> execution and streams closing.</li>
+  <li>Create a new program able to copy folders. If the origin folder has
+subfolders, then their contents must be recursively copied too. Of course the
+copying must be safely cancelable at any moment.</li>
+</ol>
+
+<h2 id="tcp-echo-server---concurrent-system-with-fibers">TCP echo server - concurrent system with <code class="highlighter-rouge">Fiber</code>s</h2>
+
+<p>This program is a bit more complex than the previous one. Here we create an echo
+TCP server that replies to each text message from a client sending back that
+same message. When the client sends an empty line its connection is shutdown by
+the server. This server will also bring a key feature, it will be able to attend
+several clients at the same time. For that we will use <code class="highlighter-rouge">cats-effect</code>’s <code class="highlighter-rouge">Fiber</code>,
+which can be seen as light threads. For each new client a <code class="highlighter-rouge">Fiber</code> instance will
+be spawned to serve that client.</p>
+
+<p>We will stick to a simple design principle: <em>whoever method creates a resource
+is the sole responsible of dispatching it!</em>  It’s worth to remark this from the
+beginning to better understand the code listings shown in this tutorial.</p>
+
+<p>Ok, we are ready to start coding our server. Let’s build it step-by-step. First
+we will code a method that implements the echo protocol. It will take as input
+the socket (<code class="highlighter-rouge">java.net.Socket</code> instance) that is connected to the client. The
+method will be basically a loop that at each iteration reads the input from the
+client, if the input is not an empty line then the text is sent back to the
+client, otherwise the method will finish.</p>
+
+<p>The method signature will look like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
+<span class="k">import</span> <span class="nn">java.net.Socket</span>
+<span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+</code></pre></div></div>
+
+<p>Reading and writing will be done using <code class="highlighter-rouge">java.io.BufferedReader</code> and
+<code class="highlighter-rouge">java.io.BufferedWriter</code> instances built from the socket. Recall that this
+method will be in charge of closing those buffers, but not the client socket (it
+did not create that socket after all!). We will use again <code class="highlighter-rouge">Resource</code> to ensure
+that we close the streams we create. Also, all actions with potential
+side-effects are encapsulated in <code class="highlighter-rouge">F</code> instances, where <code class="highlighter-rouge">F</code> only requires an
+implicit instance of <code class="highlighter-rouge">Sync[F]</code> to be present. That way we ensure no side-effect
+is actually run until the <code class="highlighter-rouge">F</code> returned by this method is evaluated.  With this
+in mind, the code looks like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+<span class="k">import</span> <span class="nn">java.net._</span>
+
+<span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">def</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">line</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span>
+    <span class="k">_</span>    <span class="k">&lt;-</span> <span class="n">line</span> <span class="k">match</span> <span class="o">{</span>
+              <span class="k">case</span> <span class="s">""</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span> <span class="c1">// Empty line, we are done
+</span>              <span class="k">case</span> <span class="k">_</span>  <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">{</span> <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">line</span><span class="o">);</span> <span class="n">writer</span><span class="o">.</span><span class="n">newLine</span><span class="o">();</span> <span class="n">writer</span><span class="o">.</span><span class="n">flush</span><span class="o">()</span> <span class="o">}</span> <span class="o">&gt;&gt;</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">)</span>
+            <span class="o">}</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+
+  <span class="k">def</span> <span class="n">reader</span><span class="o">(</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">BufferedReader</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span> <span class="k">new</span> <span class="nc">BufferedReader</span><span class="o">(</span><span class="k">new</span> <span class="nc">InputStreamReader</span><span class="o">(</span><span class="n">clientSocket</span><span class="o">.</span><span class="n">getInputStream</span><span class="o">()))</span> <span class="o">)</span>
+    <span class="o">}</span> <span class="o">{</span> <span class="n">reader</span> <span class="k">=&gt;</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+    <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">writer</span><span class="o">(</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">BufferedWriter</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Resource</span><span class="o">.</span><span class="n">make</span> <span class="o">{</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span> <span class="k">new</span> <span class="nc">BufferedWriter</span><span class="o">(</span><span class="k">new</span> <span class="nc">PrintWriter</span><span class="o">(</span><span class="n">clientSocket</span><span class="o">.</span><span class="n">getOutputStream</span><span class="o">()))</span> <span class="o">)</span>
+    <span class="o">}</span> <span class="o">{</span> <span class="n">writer</span> <span class="k">=&gt;</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">writer</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+    <span class="o">}</span>
+
+  <span class="k">def</span> <span class="n">readerWriter</span><span class="o">(</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="o">(</span><span class="kt">BufferedReader</span>, <span class="kt">BufferedWriter</span><span class="o">)]</span> <span class="k">=</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="n">reader</span> <span class="k">&lt;-</span> <span class="n">reader</span><span class="o">(</span><span class="n">clientSocket</span><span class="o">)</span>
+      <span class="n">writer</span> <span class="k">&lt;-</span> <span class="n">writer</span><span class="o">(</span><span class="n">clientSocket</span><span class="o">)</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">)</span>
+
+  <span class="n">readerWriter</span><span class="o">(</span><span class="n">clientSocket</span><span class="o">).</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">)</span> <span class="k">=&gt;</span>
+    <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">)</span> <span class="c1">// Let's get to work
+</span>  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Note that, as we did in the previous example, we swallow possible errors when
+closing the streams, as there is little to do in such cases.</p>
+
+<p>The actual interaction with the client is done by the <code class="highlighter-rouge">loop</code> function. It tries
+to read a line from the client, and if successful then it checks the line
+content. If empty it finishes the method, if not it sends back the line through
+the writer and loops back to the beginning. And what happens if we find any
+error in the <code class="highlighter-rouge">reader.readLine()</code> call? Well, <code class="highlighter-rouge">F</code> will catch the exception and
+will short-circuit the evaluation, this method would then return an <code class="highlighter-rouge">F</code>
+instance carrying the caught exception. Easy, right :) ?</p>
+
+<p>So we are done with our <code class="highlighter-rouge">echoProtocol</code> method, good! But we still miss the part
+of our server that will listen for new connections and create fibers to attend
+them. Let’s work on that, we implement that functionality in another method
+that takes as input the <code class="highlighter-rouge">java.io.ServerSocket</code> instance that will listen for
+clients:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net.</span><span class="o">{</span><span class="nc">ServerSocket</span><span class="o">,</span> <span class="nc">Socket</span><span class="o">}</span>
+
+<span class="c1">// echoProtocol as defined before
+</span><span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> 
+    <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+      <span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">())</span>
+      <span class="o">.</span><span class="n">bracketCase</span> <span class="o">{</span> <span class="n">socket</span> <span class="k">=&gt;</span>
+        <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+          <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>                 <span class="c1">// Ensuring socket is closed
+</span>          <span class="o">.</span><span class="n">start</span>                                    <span class="c1">// Will run in its own Fiber!
+</span>      <span class="o">}{</span> <span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">exit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">exit</span> <span class="k">match</span> <span class="o">{</span>
+        <span class="k">case</span> <span class="nc">Completed</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>
+        <span class="k">case</span> <span class="nc">Error</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="o">|</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+      <span class="o">}}</span>
+          <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">)</span>                  <span class="c1">// Looping back to the beginning
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>We invoke the <code class="highlighter-rouge">accept</code> method of <code class="highlighter-rouge">ServerSocket</code> and use <code class="highlighter-rouge">bracketCase</code> to define
+both the action that will make use of the resource (the client socket) and how
+it will be released. The action in this case invokes <code class="highlighter-rouge">echoProtocol</code>, and then
+uses <code class="highlighter-rouge">guarantee</code> call on the returned <code class="highlighter-rouge">F</code> to ensure that the socket will be
+safely closed when <code class="highlighter-rouge">echoProtocol</code> is done. Also quite interesting: we use
+<code class="highlighter-rouge">start</code>! By doing so the <code class="highlighter-rouge">echoProtocol</code> call will run on its own fiber thus
+not blocking the main loop. To be able to invoke <code class="highlighter-rouge">start</code> we need an instance of
+<code class="highlighter-rouge">Concurrent[F]</code> in scope (in fact we are invoking <code class="highlighter-rouge">Concurrent[F].start(...)</code>
+but the <code class="highlighter-rouge">cats.effect.syntax.all._</code> classes that we are importing did the
+trick). Finally, the release part of the <code class="highlighter-rouge">bracketCase</code> will only close the
+socket if there was an error or cancellation during the <code class="highlighter-rouge">accept</code> call or the
+subsequent invocation to <code class="highlighter-rouge">echoProtocol</code>. If that is not the case, it means that
+<code class="highlighter-rouge">echoProtocol</code> was started without any issue and so we do not need to take any
+action, the <code class="highlighter-rouge">guarantee</code> call will close the socket when <code class="highlighter-rouge">echoProtocol</code> is done.</p>
+
+<p>You may wonder if using <code class="highlighter-rouge">bracketCase</code> when we already have <code class="highlighter-rouge">guarantee</code> is not a
+bit overkill. We could have coded our loop like this:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">socket</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">)</span>
+  <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+              <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>
+              <span class="o">.</span><span class="n">start</span>
+  <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">)</span>            
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>That code is way simpler, but it contains a bug: if there is a cancellation in
+the <code class="highlighter-rouge">flatMap</code> between <code class="highlighter-rouge">socket</code> and <code class="highlighter-rouge">echoProtocol</code> then <code class="highlighter-rouge">close(socket)</code> does not
+execute. Using <code class="highlighter-rouge">bracketCase</code> solves that problem.</p>
+
+<p>So there it is, we have our concurrent code ready, able to handle several client
+connections at once!</p>
+
+<p><em>NOTE: If you have coded servers before, probably you are wondering if
+cats-effect provides some magical way to attend an unlimited number of clients
+without balancing the load somehow. Truth is, it doesn’t. You can spawn as many
+fibers as you wish, but there is no guarantee they will run simultaneously. More
+about this in the <a href="#fibers-are-not-threads">Fibers are not threads!</a></em> section.</p>
+
+<h3 id="ioapp-for-our-server"><code class="highlighter-rouge">IOApp</code> for our server</h3>
+<p>So, what do we miss now? Only the creation of the server socket of course,
+which we can already do in the <code class="highlighter-rouge">run</code> method of an <code class="highlighter-rouge">IOApp</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
+
+<span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
+  
+  <span class="c1">// serve as defined before
+</span>  <span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+  
+  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  
+    <span class="k">def</span> <span class="n">close</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">socket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+  
+    <span class="nc">IO</span><span class="o">(</span> <span class="k">new</span> <span class="nc">ServerSocket</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="n">headOption</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toInt</span><span class="o">).</span><span class="n">getOrElse</span><span class="o">(</span><span class="mi">5432</span><span class="o">))</span> <span class="o">)</span>
+      <span class="o">.</span><span class="n">bracket</span><span class="o">{</span>
+        <span class="n">serverSocket</span> <span class="k">=&gt;</span> <span class="n">serve</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="n">serverSocket</span><span class="o">)</span> <span class="o">&gt;&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+      <span class="o">}</span> <span class="o">{</span>
+        <span class="n">serverSocket</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="n">serverSocket</span><span class="o">)</span> <span class="o">&gt;&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Server finished"</span><span class="o">))</span>
+      <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Heed how this time we can use <code class="highlighter-rouge">bracket</code> right ahead, as there is a single
+resource to deal with and no action to be taken if the creation fails. Also
+<code class="highlighter-rouge">IOApp</code> provides a <code class="highlighter-rouge">ContextShift</code> in scope that brings a <code class="highlighter-rouge">Concurrent[IO]</code>, so we
+do not have to create our own.</p>
+
+<h4 id="echo-server-code-simple-version">Echo server code, simple version</h4>
+<p>Full code of our basic echo server is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV1_Simple.scala">here</a>.</p>
+
+<p>As before you can run in for example from the <code class="highlighter-rouge">sbt</code> console just by typing</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">EchoServerV1_Simple</span>
+</code></pre></div></div>
+
+<p>That will start the server on default port <code class="highlighter-rouge">5432</code>, you can also set any other
+port by passing it as argument. To test the server is properly running, you can
+connect to it using <code class="highlighter-rouge">telnet</code>. Here we connect, send <code class="highlighter-rouge">hi</code>, and the server replies
+with the same text. Finally we send an empty line to close the connection:</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> telnet localhost 5432
+<span class="go">Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+hi
+hi
+
+Connection closed by foreign host.
+</span></code></pre></div></div>
+
+<p>You can connect several telnet sessions at the same time to verify that indeed
+our server can attend all of them simultaneously. Several… but not many, more
+about that in <a href="#fibers-are-not-threads">Fibers are not threads!</a> section.</p>
+
+<p>Unfortunately this server is a bit too simplistic. For example, how can we stop
+it? Well, that is something we have not addressed yet and it is when things can
+get a bit more complicated. We will deal with proper server halting in the next
+section.</p>
+
+<h3 id="graceful-server-stop-handling-exit-events">Graceful server stop (handling exit events)</h3>
+
+<p>There is no way to shutdown gracefully the echo server coded in the previous
+section. Sure we can always <code class="highlighter-rouge">Ctrl-c</code> it, but proper servers should provide
+better mechanisms to stop them. In this section we use some other <code class="highlighter-rouge">cats-effect</code>
+types to deal with this.</p>
+
+<p>First, we will use a flag to signal when the server shall quit. The main server
+loop will run on its own fiber, that will be canceled when that flag is set.
+The flag will be an instance of <code class="highlighter-rouge">MVar</code>. The <code class="highlighter-rouge">cats-effect</code> documentation
+describes <code class="highlighter-rouge">MVar</code> as <em>a mutable location that can be empty or contains a value,
+asynchronously blocking reads when empty and blocking writes when full</em>. Why not
+using <code class="highlighter-rouge">Semaphore</code> or <code class="highlighter-rouge">Deferred</code>? Thing is, as we will see later on, we will need
+to be able to ‘peek’ whether a value has been written or not in a non-blocking
+fashion. That’s a handy feature that <code class="highlighter-rouge">MVar</code> implements.</p>
+
+<p>So, we will ‘block’ by reading our <code class="highlighter-rouge">MVar</code> instance, and we will only write on it
+when <code class="highlighter-rouge">STOP</code> is received, the write being the <em>signal</em> that the server must be
+shut down. The server will be only stopped once, so we are not concerned about
+blocking on writing.</p>
+
+<p>And who shall signal that the server must be stopped? In this example, we will
+assume that it will be the connected users who can request the server to halt by
+sending a <code class="highlighter-rouge">STOP</code> message. Thus, the method attending clients (<code class="highlighter-rouge">echoProtocol</code>!)
+needs access to the flag to use it to communicate that the server must stop when
+that message is received.</p>
+
+<p>Let’s first define a new method <code class="highlighter-rouge">server</code> that instantiates the flag, runs the
+<code class="highlighter-rouge">serve</code> method in its own fiber and waits on the flag to be set. Only when
+the flag is set the server fiber will be canceled.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
+
+<span class="c1">// serve now requires access to the stopFlag, it will use it to signal the
+// server must stop
+</span><span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">server</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">stopFlag</span>    <span class="k">&lt;-</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">empty</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+    <span class="n">serverFiber</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">).</span><span class="n">start</span> <span class="c1">// Server runs on its own Fiber
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span>                       <span class="c1">// Blocked until 'stopFlag.put(())' is run
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span>                  <span class="c1">// Stopping server!
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
+</code></pre></div></div>
+
+<p>As before, creating new fibers requires a <code class="highlighter-rouge">Concurrent[F]</code> in scope.</p>
+
+<p>We must also modify the main <code class="highlighter-rouge">run</code> method in <code class="highlighter-rouge">IOApp</code> so now it calls to <code class="highlighter-rouge">server</code>:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
+
+<span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
+
+  <span class="c1">// server as defined before
+</span>  <span class="k">def</span> <span class="n">server</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+  
+  <span class="k">override</span> <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  
+    <span class="k">def</span> <span class="n">close</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">socket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+      <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+  
+    <span class="nc">IO</span><span class="o">{</span> <span class="k">new</span> <span class="nc">ServerSocket</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="n">headOption</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span><span class="o">.</span><span class="n">toInt</span><span class="o">).</span><span class="n">getOrElse</span><span class="o">(</span><span class="mi">5432</span><span class="o">))</span> <span class="o">}</span>
+      <span class="o">.</span><span class="n">bracket</span><span class="o">{</span>
+        <span class="n">serverSocket</span> <span class="k">=&gt;</span> <span class="n">server</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="n">serverSocket</span><span class="o">)</span> <span class="o">&gt;&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+      <span class="o">}</span> <span class="o">{</span>
+        <span class="n">serverSocket</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="n">serverSocket</span><span class="o">)</span>  <span class="o">&gt;&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Server finished"</span><span class="o">))</span>
+      <span class="o">}</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>So <code class="highlighter-rouge">run</code> calls <code class="highlighter-rouge">server</code> which in turn calls <code class="highlighter-rouge">serve</code>. Do we need to modify
+<code class="highlighter-rouge">serve</code> as well? Yes, as we need to pass the <code class="highlighter-rouge">stopFlag</code> to the <code class="highlighter-rouge">echoProtocol</code>
+method:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net._</span>
+
+<span class="c1">// echoProtocol now requires access to the stopFlag, it will use it to signal the
+// server must stop
+</span><span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">def</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> 
+    <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+  
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+           <span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">())</span>
+           <span class="o">.</span><span class="n">bracketCase</span> <span class="o">{</span> <span class="n">socket</span> <span class="k">=&gt;</span>
+             <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
+               <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>                 <span class="c1">// Ensuring socket is closed
+</span>               <span class="o">.</span><span class="n">start</span>                                    <span class="c1">// Client attended by its own Fiber
+</span>           <span class="o">}{</span> <span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">exit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">exit</span> <span class="k">match</span> <span class="o">{</span>
+             <span class="k">case</span> <span class="nc">Completed</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>
+             <span class="k">case</span> <span class="nc">Error</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="o">|</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+           <span class="o">}}</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>There is only one step missing, modifying <code class="highlighter-rouge">echoProtocol</code>. In fact, the only
+relevant changes are on its inner <code class="highlighter-rouge">loop</code> method. Now it will check whether the
+line received from the client is <code class="highlighter-rouge">STOP</code>, if so it will set the <code class="highlighter-rouge">stopFlag</code> to
+signal the server must be stopped, and the function will quit:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">def</span> <span class="n">loop</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:Concurrent</span><span class="o">](</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">line</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span>
+    <span class="k">_</span>    <span class="k">&lt;-</span> <span class="n">line</span> <span class="k">match</span> <span class="o">{</span>
+              <span class="k">case</span> <span class="s">"STOP"</span> <span class="k">=&gt;</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">put</span><span class="o">(())</span> <span class="c1">// Stopping server! Also put(()) returns F[Unit] which is handy as we are done
+</span>              <span class="k">case</span> <span class="s">""</span>     <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>     <span class="c1">// Empty line, we are done
+</span>              <span class="k">case</span> <span class="k">_</span>      <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">{</span> <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">line</span><span class="o">);</span> <span class="n">writer</span><span class="o">.</span><span class="n">newLine</span><span class="o">();</span> <span class="n">writer</span><span class="o">.</span><span class="n">flush</span><span class="o">()</span> <span class="o">}</span> <span class="o">&gt;&gt;</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
+            <span class="o">}</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<h4 id="echo-server-code-graceful-stop-version">Echo server code, graceful stop version</h4>
+<p>The code of the server able to react to stop events is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala">here</a>.</p>
+
+<p>If you run the server coded above, open a telnet session against it and send an
+<code class="highlighter-rouge">STOP</code> message you will see how the server is properly terminated.</p>
+
+<h4 id="exercise-closing-client-connections-to-echo-server-on-shutdown">Exercise: closing client connections to echo server on shutdown</h4>
+<p>There is a catch yet in our server. If there are several clients connected,
+sending an <code class="highlighter-rouge">STOP</code> message will close the server’s fiber and the one attending
+the client that sent the message. But the other fibers will keep running
+normally! It is like they were daemon threads. Arguably, we could expect that
+shutting down the server shall close <em>all</em> connections. How could we do it?
+Solving that issue is the proposed exercise below.</p>
+
+<p>We need to close all connections with clients when the server is shut down. To
+do that we can call <code class="highlighter-rouge">cancel</code> on each one of the <code class="highlighter-rouge">Fiber</code> instances we have
+created to attend each new client. But how? After all, we are not tracking
+which fibers are running at any given time. We propose this exercise to you: can
+you devise a mechanism so all client connections are closed when the server is
+shutdown? We outline a solution in the next subsection, but maybe you can
+consider taking some time looking for a solution yourself :) .</p>
+
+<h4 id="solution">Solution</h4>
+<p>We could keep a list of active fibers serving client connections. It is
+doable, but cumbersome…  and not really needed at this point.</p>
+
+<p>Think about it: we have a <code class="highlighter-rouge">stopFlag</code> that signals when the server must be
+stopped. When that flag is set we can assume we shall close all client
+connections too. Thus what we need to do is, every time we create a new fiber to
+attend some new client, we must also make sure that when <code class="highlighter-rouge">stopFlag</code> is set that
+client is ‘shutdown’. As <code class="highlighter-rouge">Fiber</code> instances are very light we can create a new
+instance just to wait for <code class="highlighter-rouge">stopFlag.read</code> and then forcing the client to stop.
+This is how the <code class="highlighter-rouge">serve</code> method will look like now with that change:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">java.net._</span>
+
+<span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">def</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> 
+    <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">socket</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+                <span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">())</span>
+                <span class="o">.</span><span class="n">bracketCase</span> <span class="o">{</span> <span class="n">socket</span> <span class="k">=&gt;</span>
+                  <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
+                    <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>                 <span class="c1">// Ensuring socket is closed
+</span>                    <span class="o">.</span><span class="n">start</span> <span class="o">&gt;&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">pure</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>            <span class="c1">// Client attended by its own Fiber, socket is returned
+</span>                <span class="o">}{</span> <span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">exit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">exit</span> <span class="k">match</span> <span class="o">{</span>
+                  <span class="k">case</span> <span class="nc">Completed</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>
+                  <span class="k">case</span> <span class="nc">Error</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="o">|</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+                <span class="o">}}</span>
+    <span class="k">_</span>      <span class="k">&lt;-</span> <span class="o">(</span><span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span> <span class="o">&gt;&gt;</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span> 
+                <span class="o">.</span><span class="n">start</span>                                        <span class="c1">// Another Fiber to cancel the client when stopFlag is set
+</span>    <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Here we close the client socket once the read on <code class="highlighter-rouge">stopFlag</code> unblocks. This will
+trigger an exception on the <code class="highlighter-rouge">reader.readLine</code> call. To capture and process the
+exception we will use <code class="highlighter-rouge">attempt</code>, which returns an <code class="highlighter-rouge">Either</code> instance that will
+contain either a <code class="highlighter-rouge">Right[String]</code> with the line read or a <code class="highlighter-rouge">Left[Throwable]</code> with
+the exception captured. If some error is detected first the state of <code class="highlighter-rouge">stopFlag</code>
+is checked, and if it is set a graceful shutdown is assumed and no action is
+taken; otherwise the error is raised:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">def</span> <span class="n">loop</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">attempt</span>
+    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="n">lineE</span> <span class="k">match</span> <span class="o">{</span>
+               <span class="k">case</span> <span class="nc">Right</span><span class="o">(</span><span class="n">line</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">line</span> <span class="k">match</span> <span class="o">{</span>
+                 <span class="k">case</span> <span class="s">"STOP"</span> <span class="k">=&gt;</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">put</span><span class="o">(())</span> <span class="c1">// Stopping server! Also put(()) returns F[Unit] which is handy as we are done
+</span>                 <span class="k">case</span> <span class="s">""</span>     <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>     <span class="c1">// Empty line, we are done
+</span>                 <span class="k">case</span> <span class="k">_</span>      <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">{</span> <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">line</span><span class="o">);</span> <span class="n">writer</span><span class="o">.</span><span class="n">newLine</span><span class="o">();</span> <span class="n">writer</span><span class="o">.</span><span class="n">flush</span><span class="o">()</span> <span class="o">}</span> <span class="o">&gt;&gt;</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
+               <span class="o">}</span>
+               <span class="k">case</span> <span class="nc">Left</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="k">=&gt;</span>
+                 <span class="k">for</span> <span class="o">{</span> <span class="c1">// readLine() failed, stopFlag will tell us whether this is a graceful shutdown
+</span>                   <span class="n">isEmpty</span> <span class="k">&lt;-</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">isEmpty</span>
+                   <span class="k">_</span>       <span class="k">&lt;-</span> <span class="k">if</span><span class="o">(!</span><span class="n">isEmpty</span><span class="o">)</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>  <span class="c1">// stopFlag is set, cool, we are done
+</span>                              <span class="k">else</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">raiseError</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="c1">// stopFlag not set, must raise error
+</span>                 <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+             <span class="o">}</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<p>Recall that we used <code class="highlighter-rouge">Resource</code> to instantiate both the <code class="highlighter-rouge">reader</code> and <code class="highlighter-rouge">writer</code>
+used by <code class="highlighter-rouge">loop</code>; following how we coded that resource, both that <code class="highlighter-rouge">reader</code> and
+<code class="highlighter-rouge">writer</code> will be automatically closed.</p>
+
+<p>Now you may think ‘<em>wait a minute!, why don’t we cancel the client fiber instead
+of closing the socket straight away?</em>’ In fact this is perfectly possible, and
+it will have a similar effect:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">java.net._</span>
+
+<span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">def</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> 
+    <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span><span class="o">)</span>
+
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+               <span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">())</span>
+               <span class="o">.</span><span class="n">bracketCase</span> <span class="o">{</span> <span class="n">socket</span> <span class="k">=&gt;</span>
+                 <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
+                   <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>                 <span class="c1">// Ensuring socket is closed
+</span>                   <span class="o">.</span><span class="n">start</span>                                    <span class="c1">// Client attended by its own Fiber, which is returned
+</span>               <span class="o">}{</span> <span class="o">(</span><span class="n">socket</span><span class="o">,</span> <span class="n">exit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">exit</span> <span class="k">match</span> <span class="o">{</span>
+                 <span class="k">case</span> <span class="nc">Completed</span> <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">unit</span>
+                 <span class="k">case</span> <span class="nc">Error</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="o">|</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
+               <span class="o">}}</span>
+    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="o">(</span><span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span> <span class="o">&gt;&gt;</span> <span class="n">fiber</span><span class="o">.</span><span class="n">cancel</span><span class="o">)</span> 
+               <span class="o">.</span><span class="n">start</span>                                        <span class="c1">// Another Fiber to cancel the client when stopFlag is set
+</span>    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>What is happening in this latter case? If you take a look again to
+<code class="highlighter-rouge">echoProtocol</code> you will see that the <code class="highlighter-rouge">F</code> returned by <code class="highlighter-rouge">echoProtocol</code> is the <code class="highlighter-rouge">F</code>
+given by <code class="highlighter-rouge">Resource.use</code>. When we cancel the fiber running that <code class="highlighter-rouge">F</code>, the release
+of the resources defined is triggered. That release phase closes the <code class="highlighter-rouge">reader</code>
+and <code class="highlighter-rouge">writer</code> streams that we created from the client socket… which in turn
+closes the client socket! As before, the <code class="highlighter-rouge">attempt</code> call will take care of the
+exception raised. In fact using <code class="highlighter-rouge">cancel</code> looks cleaner overall. But there is a
+catch. The call to <code class="highlighter-rouge">cancel</code> does not force an <code class="highlighter-rouge">F</code> to be immediately terminated,
+it is not like a <code class="highlighter-rouge">Thread.interrupt</code>! It happened in our server because it
+indirectly created an exception that was raised inside the <code class="highlighter-rouge">F</code> running the
+<code class="highlighter-rouge">reader.readLine</code>, caused by the socket being closed. If that had not been the
+case, the <code class="highlighter-rouge">cancel</code> call would only have taken effect when the code inside the
+<code class="highlighter-rouge">F</code> running the <code class="highlighter-rouge">reader.readLine</code> was normally finished. Keep that in mind when
+using <code class="highlighter-rouge">cancel</code> to handle fibers.</p>
+
+<h4 id="echo-server-code-closing-client-connections-version">Echo server code, closing client connections version</h4>
+<p>The resulting code of this new server, able to shutdown all client connections
+on shutdown, is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV3_ClosingClientsOnShutdown.scala">here</a>.</p>
+
+<h3 id="fibers-are-not-threads"><code class="highlighter-rouge">Fiber</code>s are not threads!<a name="fibers-are-not-threads"></a></h3>
+
+<p>As stated before, fibers are like ‘light’ threads, meaning they can be used in a
+similar way than threads to create concurrent code. However, they are <em>not</em>
+threads. Spawning new fibers does not guarantee that the action described in the
+<code class="highlighter-rouge">F</code> associated to it will be run if there is a shortage of threads. At the end
+of the day, if no thread is available that can run the fiber, then the actions
+in that fiber will be blocked until some thread is free again.</p>
+
+<p>You can test this yourself. Start the server defined in the previous sections
+and try to connect several clients and send lines to the server through them.
+Soon you will notice that the latest clients… do not get any echo reply when
+sending lines! Why is that?  Well, the answer is that the first fibers already
+used all <em>underlying</em> threads available!  But if we close one of the active
+clients by sending an empty line (recall that makes the server to close that
+client session) then immediately one of the blocked clients will be active.</p>
+
+<p>It shall be clear from that experiment that fibers are run by thread pools. And
+that in our case, all our fibers share the same thread pool! <code class="highlighter-rouge">ContextShif[F]</code>
+is in charge of assigning threads to the fibers waiting to be run, each one
+with a pending <code class="highlighter-rouge">F</code> action. When using <code class="highlighter-rouge">IOApp</code> we get also the <code class="highlighter-rouge">ContextShift[IO]</code>
+that we need to run the fibers in our code. So there are our threads!</p>
+
+<h3 id="the-contextshift-type-class">The <code class="highlighter-rouge">ContextShift</code> type class</h3>
+
+<p>Cats-effect provides ways to use different <code class="highlighter-rouge">ContextShift</code>s (each with its own
+thread pool) when running <code class="highlighter-rouge">F</code> actions, and to swap which one should be used for
+each new <code class="highlighter-rouge">F</code> to ask to reschedule threads among the current active <code class="highlighter-rouge">F</code>
+instances <em>e.g.</em> for improved fairness etc. Code below shows an example of how to
+declare tasks that will be run in different thread pools: first task will be run
+by the thread pool of the <code class="highlighter-rouge">ExecutionContext</code> passed as parameter, the second
+task will be run in the default thread pool.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">def</span> <span class="n">doHeavyStuffInADifferentThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">ContextShift:</span> <span class="kt">Sync</span><span class="o">](</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">csf</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">csf</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">ec</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">)))</span> <span class="c1">// Swapping to thread pool of given ExecutionContext
+</span>    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Welcome!"</span><span class="o">))</span> <span class="c1">// Running back in default thread pool
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="exercise-using-a-custom-thread-pool-in-echo-server">Exercise: using a custom thread pool in echo server</h4>
+<p>Given what we know so far, how could we solve the problem of the limited number
+of clients attended in parallel in our echo server? Recall that in traditional
+servers we would make use of an specific thread pool for clients, able to resize
+itself by creating new threads if they are needed. You can get such a pool using
+<code class="highlighter-rouge">Executors.newCachedThreadPool()</code>. But take care of shutting the pool down when
+the server is stopped!</p>
+
+<h4 id="solution-1">Solution</h4>
+<p>Well, the solution is quite straightforward. We only need to create a thread pool
+and execution context, and use it whenever we need to read input from some
+connected client. So the beginning of the <code class="highlighter-rouge">echoProtocol</code> function would look like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">clientsExecutionContext</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">val</span> <span class="n">csf</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+
+  <span class="k">def</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="n">csf</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">clientsExecutionContext</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">attempt</span><span class="o">)</span>
+<span class="c1">//    ...
+</span></code></pre></div></div>
+
+<p>and… that is mostly it. Only pending change is to create the thread pool and
+execution context in the <code class="highlighter-rouge">server</code> function, which will be in charge also of
+shutting down the thread pool when the server finishes:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
+<span class="k">import</span> <span class="nn">java.util.concurrent.Executors</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">def</span> <span class="n">serve</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">clientsExecutionContext</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">server</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">serverSocket</span><span class="k">:</span> <span class="kt">ServerSocket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+
+  <span class="k">val</span> <span class="n">clientsThreadPool</span> <span class="k">=</span> <span class="nc">Executors</span><span class="o">.</span><span class="n">newCachedThreadPool</span><span class="o">()</span>
+  <span class="k">implicit</span> <span class="k">val</span> <span class="n">clientsExecutionContext</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="n">clientsThreadPool</span><span class="o">)</span>
+
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">stopFlag</span>    <span class="k">&lt;-</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">empty</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+    <span class="n">serverFiber</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">).</span><span class="n">start</span>         <span class="c1">// Server runs on its own Fiber
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span>                               <span class="c1">// Blocked until 'stopFlag.put(())' is run
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">clientsThreadPool</span><span class="o">.</span><span class="n">shutdown</span><span class="o">())</span> <span class="c1">// Shutting down clients pool
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span>                          <span class="c1">// Stopping server
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Signatures of <code class="highlighter-rouge">serve</code> and of <code class="highlighter-rouge">echoProtocol</code> will have to be changed too to pass
+the execution context as parameter. Finally, we need an implicit
+<code class="highlighter-rouge">ContextShift[F]</code> that will be carried by the functions signature. It is <code class="highlighter-rouge">IOApp</code>
+who provides the instance of <code class="highlighter-rouge">ContextShift[IO]</code> in the <code class="highlighter-rouge">run</code> method.</p>
+
+<h4 id="echo-server-code-thread-pool-for-clients-version">Echo server code, thread pool for clients version</h4>
+<p>The version of our echo server using a thead pool is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala">here</a>.</p>
+
+<h2 id="lets-not-forget-about-async">Let’s not forget about <code class="highlighter-rouge">async</code></h2>
+
+<p>The <code class="highlighter-rouge">async</code> functionality is another powerful capability of cats-effect we have
+not mentioned yet. It is provided by <code class="highlighter-rouge">Async</code> type class, that it allows to
+describe <code class="highlighter-rouge">F</code> instances that may be terminated by a thread different than the
+one carrying the evaluation of that instance. Result will be returned by using
+a callback.</p>
+
+<p>Some of you may wonder if that could help us to solve the issue of having
+blocking code in our fabulous echo server. Unfortunately, <code class="highlighter-rouge">async</code> cannot
+magically ‘unblock’ such code. Try this simple code snippet (<em>e.g.</em> in <code class="highlighter-rouge">sbt</code>
+console):</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">scala.util.Either</span>
+
+<span class="k">def</span> <span class="n">delayed</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Async</span><span class="o">]</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Starting"</span><span class="o">))</span> <span class="c1">// Async extends Sync, so (F[_]: Async) 'brings' (F[_]: Sync)
+</span>  <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">async</span><span class="o">{</span> <span class="o">(</span><span class="n">cb</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>,<span class="kt">Unit</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span>
+      <span class="nc">Thread</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mi">2000</span><span class="o">)</span>
+      <span class="n">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(()))</span>
+    <span class="o">}</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Done"</span><span class="o">))</span> <span class="c1">// 2 seconds to get here, no matter what, as we were 'blocked' by previous call
+</span><span class="o">}</span> <span class="k">yield</span><span class="o">()</span>
+
+<span class="n">delayed</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">unsafeRunSync</span><span class="o">()</span> <span class="c1">// a way to run an IO without IOApp
+</span></code></pre></div></div>
+
+<p>You will notice that the code above still blocks, waiting for the <code class="highlighter-rouge">async</code> call
+to finish.</p>
+
+<h3 id="using-async-in-our-echo-server">Using <code class="highlighter-rouge">async</code> in our echo server</h3>
+<p>So how is <code class="highlighter-rouge">async</code> useful? Well, let’s see how we can apply it on our server
+code. Because <code class="highlighter-rouge">async</code> allows a different thread to finish the task, we can
+modify the blocking read call inside the <code class="highlighter-rouge">loop</code> function of our server with
+something like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+  <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">async</span><span class="o">{</span> <span class="o">(</span><span class="n">cb</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">String</span><span class="o">]]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> 
+             <span class="n">clientsExecutionContext</span><span class="o">.</span><span class="n">execute</span><span class="o">(</span><span class="k">new</span> <span class="nc">Runnable</span> <span class="o">{</span>
+               <span class="k">override</span> <span class="k">def</span> <span class="n">run</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+                 <span class="k">val</span> <span class="n">result</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Try</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">toEither</span>
+                 <span class="n">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">result</span><span class="o">))</span>
+               <span class="o">}</span>
+             <span class="o">})</span>
+           <span class="o">}</span>
+<span class="c1">// ...           
+</span></code></pre></div></div>
+
+<p>Note that the call <code class="highlighter-rouge">clientsExecutionContext.execute</code> will create a thread from
+that execution context, setting free the thread that was evaluating the <code class="highlighter-rouge">F</code>
+for-comprehension. If the thread pool used by the execution context can create
+new threads if no free ones are available, then we will be able to attend as
+many clients as needed. This is similar to the solution we used previously when
+we asked to run the blocking <code class="highlighter-rouge">readLine</code> call in a different execution context.
+The final result will be identical to our previous server version. To attend
+client connections, if no thread is available in the pool, new threads will be
+created from that pool.</p>
+
+<h4 id="echo-server-code-async-version">Echo server code, async version</h4>
+<p>A full version of our echo server using this async approach is available
+<a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV5_Async.scala">here</a>.</p>
+
+<h3 id="when-is-async-useful-then">When is <code class="highlighter-rouge">async</code> useful then?</h3>
+<p>The <code class="highlighter-rouge">Async</code> type class is useful specially when the task to run by the <code class="highlighter-rouge">F</code> can
+be terminated by any thread. For example, calls to remote services are often
+modeled with <code class="highlighter-rouge">Future</code>s so they do not block the calling thread. When defining
+our <code class="highlighter-rouge">F</code>, should we block on the <code class="highlighter-rouge">Future</code> waiting for the result? No! We can
+wrap the call in an <code class="highlighter-rouge">async</code> call like:</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
+<span class="k">import</span> <span class="nn">scala.util._</span>
+
+<span class="k">trait</span> <span class="nc">Service</span> <span class="o">{</span> <span class="k">def</span> <span class="n">getResult</span><span class="o">()</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="o">}</span>
+<span class="k">def</span> <span class="n">service</span><span class="k">:</span> <span class="kt">Service</span> <span class="o">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">processServiceResult</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Async</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">async</span><span class="o">{</span> <span class="o">(</span><span class="n">cb</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">String</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> 
+  <span class="n">service</span><span class="o">.</span><span class="n">getResult</span><span class="o">().</span><span class="n">onComplete</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Success</span><span class="o">(</span><span class="n">s</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">s</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">Failure</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">e</span><span class="o">))</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>So, let’s say our new goal is to create an echo server that does not require a
+thread per connected socket to wait on the blocking <code class="highlighter-rouge">read()</code> method. If we use a
+network library that avoids blocking operations, we could then combine that with
+<code class="highlighter-rouge">async</code> to create such non-blocking server. And Java NIO can be helpful here.
+While Java NIO does have some blocking method (<code class="highlighter-rouge">Selector</code>’s <code class="highlighter-rouge">select()</code>), it
+allows to build servers that do not require a thread per connected client:
+<code class="highlighter-rouge">select()</code> will return those ‘channels’ (such as <code class="highlighter-rouge">SocketChannel</code>) that have data
+available to read from, then processing of the incoming data can be split among
+threads of a size-bounded pool. This way, a thread-per-client approach is not
+needed. Java NIO2 or netty could also be applicable to this scenario. We leave
+as a final exercise to implement again our echo server but this time using an
+async lib.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>With all this we have covered a good deal of what cats-effect has to offer (but
+not all!). Now you are ready to use to create code that operate side effects in
+a purely functional manner. Enjoy the ride!</p>
+
+
+<link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
+<script type="text/javascript" src="/cats-effect/js/toc.js"></script>
+</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/cats-effect/highlight/highlight.pack.js"></script><script>hljs.configure({
+languages:['scala','java','bash']
+});
+hljs.initHighlighting();
+             </script><script src="/cats-effect/js/toc.js"></script><script>((window.gitter = {}).chat = {}).options = {
+room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/cats-effect/js/main.js"></script></body></html>

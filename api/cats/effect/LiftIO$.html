@@ -118,22 +118,6 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
-    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="internals"></a><a id="internals:internals"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/index.html#internals" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="" href="internals/index.html"><span class="name">internals</span></a>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -264,7 +248,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/LiftIO.scala" target="_blank">LiftIO.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/LiftIO.scala" target="_blank">LiftIO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -471,6 +455,23 @@
       </span>
       
       <p class="shortcomment cmt"><a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a> instance built for <code>cats.data.EitherT</code> values initialized
+with any <code>F</code> data type that also implements <code>LiftIO</code>.</p>
+    </li><li name="cats.effect.LiftIO#catsIorTLiftIO" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="catsIorTLiftIO[F[_],L](implicitevidence$11:cats.effect.LiftIO[F],implicitevidence$12:cats.Applicative[F]):cats.effect.LiftIO[[γ$5$]cats.data.IorT[F,L,γ$5$]]"></a><a id="catsIorTLiftIO[F[_],L](LiftIO[F],Applicative[F]):LiftIO[[γ$5$]IorT[F,L,γ$5$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/LiftIO$.html#catsIorTLiftIO[F[_],L](implicitevidence$11:cats.effect.LiftIO[F],implicitevidence$12:cats.Applicative[F]):cats.effect.LiftIO[[γ$5$]cats.data.IorT[F,L,γ$5$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catsIorTLiftIO</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.LiftIO.catsIorTLiftIO.F">F</span>]</span>, <span name="arg1">arg1: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.LiftIO.catsIorTLiftIO.F">F</span>]</span>)</span><span class="result">: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[[γ$5$]<span class="extype" name="cats.data.IorT">IorT</span>[<span class="extype" name="cats.effect.LiftIO.catsIorTLiftIO.F">F</span>, <span class="extype" name="cats.effect.LiftIO.catsIorTLiftIO.L">L</span>, <span class="extype" name="cats.effect.LiftIO.&lt;refinement&gt;.Λ$.γ$5$">γ$5$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"><a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a> instance built for <code>cats.data.IorT</code> values initialized
 with any <code>F</code> data type that also implements <code>LiftIO</code>.</p>
     </li><li name="cats.effect.LiftIO#catsKleisliLiftIO" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="catsKleisliLiftIO[F[_],R](implicitevidence$3:cats.effect.LiftIO[F]):cats.effect.LiftIO[[γ$1$]cats.data.Kleisli[F,R,γ$1$]]"></a><a id="catsKleisliLiftIO[F[_],R](LiftIO[F]):LiftIO[[γ$1$]Kleisli[F,R,γ$1$]]"></a>

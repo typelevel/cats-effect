@@ -118,22 +118,6 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
-    </li><li name="cats.effect.internals" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="internals"></a><a id="internals:internals"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/index.html#internals" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">package</span>
-      </span>
-      <span class="symbol">
-        <a title="" href="internals/index.html"><span class="name">internals</span></a>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="index.html" class="extype" name="cats.effect">effect</a></dd></dl></div>
     </li><li name="cats.effect.syntax" visbl="pub" class="indented3 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syntax"></a><a id="syntax:syntax"></a>
       <span class="permalink">
@@ -264,7 +248,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -455,6 +439,85 @@
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="cats.effect.Concurrent#cancelableF" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="cancelableF[F[_],A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[cats.effect.CancelToken[F]])(implicitF:cats.effect.Concurrent[F]):F[A]"></a><a id="cancelableF[F[_],A](((Either[Throwable,A])⇒Unit)⇒F[CancelToken[F]])(Concurrent[F]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#cancelableF[F[_],A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[cats.effect.CancelToken[F]])(implicitF:cats.effect.Concurrent[F]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">cancelableF</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="k">k: ((<span class="extype" name="scala.util.Either">Either</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.effect.Concurrent.cancelableF.A">A</span>]) ⇒ <span class="extype" name="scala.Unit">Unit</span>) ⇒ <span class="extype" name="cats.effect.Concurrent.cancelableF.F">F</span>[<a href="index.html#CancelToken[F[_]]=F[Unit]" class="extmbr" name="cats.effect.CancelToken">CancelToken</a>[<span class="extype" name="cats.effect.Concurrent.cancelableF.F">F</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.cancelableF.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.cancelableF.F">F</span>[<span class="extype" name="cats.effect.Concurrent.cancelableF.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Function that creates an async and cancelable <code>F[A]</code>, similar with
+<a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.CancelToken[F]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">Concurrent.cancelable</a>, but with the semantics of <a href="Async.html#asyncF[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Async#asyncF">Async.asyncF</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Function that creates an async and cancelable <code>F[A]</code>, similar with
+<a href="Concurrent.html#cancelable[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;cats.effect.CancelToken[F]):F[A]" class="extmbr" name="cats.effect.Concurrent#cancelable">Concurrent.cancelable</a>, but with the semantics of <a href="Async.html#asyncF[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Async#asyncF">Async.asyncF</a>.</p><p>Example building an asynchronous queue, with the state being
+kept in <a href="concurrent/Ref.html" class="extype" name="cats.effect.concurrent.Ref">cats.effect.concurrent.Ref</a> and thus needing <code>cancelableF</code>:</p><pre><span class="kw">import</span> cats.implicits._
+<span class="kw">import</span> cats.effect.{CancelToken, Concurrent}
+<span class="kw">import</span> cats.effect.concurrent.Ref
+<span class="kw">import</span> scala.collection.immutable.Queue
+
+<span class="kw">final</span> <span class="kw">class</span> AsyncQueue[F[_], A] <span class="kw">private</span> (
+  ref: Ref[F, AsyncQueue.State[A]])
+  (<span class="kw">implicit</span> F: Concurrent[F]) {
+
+  <span class="kw">import</span> AsyncQueue._
+
+  <span class="kw">def</span> poll: F[A] =
+    Concurrent.cancelableF { cb <span class="kw">=&gt;</span>
+      ref.modify {
+        <span class="kw">case</span> Await(listeners) <span class="kw">=&gt;</span>
+          (Await(listeners.enqueue(cb)), F.pure(unregister(cb)))
+        <span class="kw">case</span> Available(queue) <span class="kw">=&gt;</span>
+          queue.dequeueOption <span class="kw">match</span> {
+            <span class="kw">case</span> <span class="std">None</span> <span class="kw">=&gt;</span>
+              (Await(Queue(cb)), F.pure(unregister(cb)))
+            <span class="kw">case</span> <span class="std">Some</span>((a, queue2)) <span class="kw">=&gt;</span>
+              (Available(queue2), F.delay(cb(a)).as(unregister(cb)))
+          }
+      }.flatten
+    }
+
+  <span class="kw">def</span> offer(a: A): F[<span class="std">Unit</span>] = {
+    <span class="cmt">// Left as an exercise for the reader ;-)</span>
+    ???
+  }
+
+  <span class="kw">private</span> <span class="kw">def</span> unregister(cb: Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>): CancelToken[F] =
+    ref.update {
+      <span class="kw">case</span> Await(listeners) <span class="kw">=&gt;</span> Await(listeners.filter(_ != cb))
+      <span class="kw">case</span> other <span class="kw">=&gt;</span> other
+    }
+}
+
+<span class="kw">object</span> AsyncQueue {
+  <span class="kw">def</span> empty[F[_], A](<span class="kw">implicit</span> F: Concurrent[F]): F[AsyncQueue[F, A]] =
+    <span class="kw">for</span> {
+      ref <span class="kw">&lt;-</span> Ref.of[F, State[A]](Available(Queue.empty))
+    } <span class="kw">yield</span> {
+      <span class="kw">new</span> AsyncQueue[F, A](ref)
+    }
+
+  <span class="kw">private</span> <span class="kw">sealed</span> <span class="kw">trait</span> State[A]
+
+  <span class="kw">private</span> <span class="kw">case</span> <span class="kw">class</span> Await[A](listeners: Queue[Either[Throwable, A] <span class="kw">=&gt;</span> <span class="std">Unit</span>])
+    <span class="kw">extends</span> State[A]
+
+  <span class="kw">private</span> <span class="kw">case</span> <span class="kw">class</span> Available[A](values: Queue[A])
+    <span class="kw">extends</span> State[A]
+}</pre><h4>Contract</h4><p>The given generator function will be executed uninterruptedly, via <code>bracket</code>,
+because due to the possibility of auto-cancellation we can have a resource
+leak otherwise.</p><p>This means that the task generated by <code>k</code> cannot be cancelled while being
+evaluated. This is in contrast with <a href="Async.html#asyncF[A](k:(scala.util.Either[Throwable,A]=&gt;Unit)=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Async#asyncF">Async.asyncF</a>, which does allow
+cancelable tasks.
+</p></div><dl class="paramcmts block"><dt class="param">k</dt><dd class="cmt"><p>is a function that's going to be injected with a callback, to call on
+       completion, returning an effect that's going to be evaluated to a
+       cancellation token</p></dd></dl></div>
     </li><li name="cats.effect.Concurrent#catsEitherTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="catsEitherTConcurrent[F[_],L](implicitevidence$1:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTConcurrent[F[_],L](Concurrent[F]):Concurrent[[γ$0$]EitherT[F,L,γ$0$]]"></a>
       <span class="permalink">
@@ -471,6 +534,23 @@
       </span>
       
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.EitherT</code> values initialized
+with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
+    </li><li name="cats.effect.Concurrent#catsIorTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="catsIorTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]"></a><a id="catsIorTConcurrent[F[_],L](Concurrent[F],Semigroup[L]):Concurrent[[γ$4$]IorT[F,L,γ$4$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsIorTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catsIorTConcurrent</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.catsIorTConcurrent.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Semigroup[A]=cats.kernel.Semigroup[A]" class="extmbr" name="cats.Semigroup">Semigroup</a>[<span class="extype" name="cats.effect.Concurrent.catsIorTConcurrent.L">L</span>]</span>)</span><span class="result">: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[[γ$4$]<span class="extype" name="cats.data.IorT">IorT</span>[<span class="extype" name="cats.effect.Concurrent.catsIorTConcurrent.F">F</span>, <span class="extype" name="cats.effect.Concurrent.catsIorTConcurrent.L">L</span>, <span class="extype" name="cats.effect.Concurrent.&lt;refinement&gt;.Λ$.γ$4$">γ$4$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.IorT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="cats.effect.Concurrent#catsKleisliConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="catsKleisliConcurrent[F[_],R](implicitevidence$3:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$2$]cats.data.Kleisli[F,R,γ$2$]]"></a><a id="catsKleisliConcurrent[F[_],R](Concurrent[F]):Concurrent[[γ$2$]Kleisli[F,R,γ$2$]]"></a>
@@ -505,6 +585,23 @@ with any <code>F</code> data type that also implements <code>Concurrent</code>.<
       </span>
       
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.OptionT</code> values initialized
+with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
+    </li><li name="cats.effect.Concurrent#catsWriterTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catsWriterTConcurrent</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>]</span>)</span><span class="result">: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[[γ$3$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>, <span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>, <span class="extype" name="cats.effect.Concurrent.&lt;refinement&gt;.Λ$.γ$3$">γ$3$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="scala.AnyRef#clone" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="clone():Object"></a><a id="clone():AnyRef"></a>
@@ -913,32 +1010,7 @@ happening immediately after that.
 
         
 
-        <div class="values members">
-              <h3>Deprecated Value Members</h3>
-              <ol><li name="cats.effect.Concurrent#catsWriterTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">implicit </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name deprecated" title="Deprecated: (Since version 1.1.0) WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!">catsWriterTConcurrent</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>]</span>)</span><span class="result">: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[[γ$3$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.F">F</span>, <span class="extype" name="cats.effect.Concurrent.catsWriterTConcurrent.L">L</span>, <span class="extype" name="cats.effect.Concurrent.&lt;refinement&gt;.Λ$.γ$3$">γ$3$</span>]]</span>
-      </span>
-      
-      <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
-with any <code>F</code> data type that also implements <code>Concurrent</code>.</p><div class="fullcomment"><div class="comment cmt"><p><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.WriterT</code> values initialized
-with any <code>F</code> data type that also implements <code>Concurrent</code>.
-</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
-                <span class="name">@deprecated</span>
-              
-        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.1.0)</i> WARNING: currently the Concurrent[WriterT[F, L, ?]] instance is broken!</p></dd></dl></div>
-    </li></ol>
-            </div>
+        
         </div>
 
         <div id="inheritedMembers">

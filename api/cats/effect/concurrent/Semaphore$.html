@@ -164,7 +164,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/concurrent/Semaphore.scala" target="_blank">Semaphore.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/concurrent/Semaphore.scala" target="_blank">Semaphore.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -417,6 +417,24 @@
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.concurrent.Semaphore#in" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="in[F[_],G[_]](n:Long)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Concurrent[G]):F[cats.effect.concurrent.Semaphore[G]]"></a><a id="in[F[_],G[_]](Long)(Sync[F],Concurrent[G]):F[Semaphore[G]]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Semaphore$.html#in[F[_],G[_]](n:Long)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Concurrent[G]):F[cats.effect.concurrent.Semaphore[G]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">in</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="G">G<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="../Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.in.F">F</span>]</span>, <span name="G">G: <a href="../Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.in.G">G</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Semaphore.in.F">F</span>[<a href="Semaphore.html" class="extype" name="cats.effect.concurrent.Semaphore">Semaphore</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.in.G">G</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Creates a new <code>Semaphore</code>, initialized with <code>n</code> available permits.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <code>Semaphore</code>, initialized with <code>n</code> available permits.
+like <code>apply</code> but initializes state using another effect constructor
+</p></div></div>
     </li><li name="scala.Any#isInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <span class="permalink">
@@ -541,6 +559,26 @@ making <code>uncancelable</code> values unsafe. Such values are only useful
 for optimization purposes, in cases where the use case does not
 require cancellation or in cases in which an <code>F[_]</code> data type
 that does not support cancellation is used.
+</p></div></div>
+    </li><li name="cats.effect.concurrent.Semaphore#uncancelableIn" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="uncancelableIn[F[_],G[_]](n:Long)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Async[G]):F[cats.effect.concurrent.Semaphore[G]]"></a><a id="uncancelableIn[F[_],G[_]](Long)(Sync[F],Async[G]):F[Semaphore[G]]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Semaphore$.html#uncancelableIn[F[_],G[_]](n:Long)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Async[G]):F[cats.effect.concurrent.Semaphore[G]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">uncancelableIn</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="G">G<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="../Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.uncancelableIn.F">F</span>]</span>, <span name="G">G: <a href="../Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.uncancelableIn.G">G</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Semaphore.uncancelableIn.F">F</span>[<a href="Semaphore.html" class="extype" name="cats.effect.concurrent.Semaphore">Semaphore</a>[<span class="extype" name="cats.effect.concurrent.Semaphore.uncancelableIn.G">G</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Creates a new <code>Semaphore</code>, initialized with <code>n</code> available permits.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a new <code>Semaphore</code>, initialized with <code>n</code> available permits.
+Like <a href="#apply[F[_]](n:Long)(implicitF:cats.effect.Concurrent[F]):F[cats.effect.concurrent.Semaphore[F]]" class="extmbr" name="cats.effect.concurrent.Semaphore#apply">apply</a> but only requires an <code>Async</code> constraint in exchange for the various
+acquire effects being uncancelable
+and initializes state using another effect constructor
 </p></div></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>

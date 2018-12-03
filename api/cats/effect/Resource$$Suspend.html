@@ -160,7 +160,7 @@
       
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p><code>Resource</code> data constructor that suspends the evaluation of another
 resource value.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -284,6 +284,37 @@ resource value.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="cats.effect.Resource#allocated" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="allocated(implicitF:cats.effect.Bracket[F,Throwable]):F[(A,F[Unit])]"></a><a id="allocated(Bracket[F,Throwable]):F[(A,F[Unit])]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource$$Suspend.html#allocated(implicitF:cats.effect.Bracket[F,Throwable]):F[(A,F[Unit])]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">allocated</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.Suspend.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.Suspend.F">F</span>[(<span class="extype" name="cats.effect.Resource.Suspend.A">A</span>, <span class="extype" name="cats.effect.Resource.Suspend.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>])]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Given a <code>Resource</code>, possibly built by composing multiple
+<code>Resource</code>s monadically, returns the acquired resource, as well
+as an action that runs all the finalizers for releasing it.</p><div class="fullcomment"><div class="comment cmt"><p>Given a <code>Resource</code>, possibly built by composing multiple
+<code>Resource</code>s monadically, returns the acquired resource, as well
+as an action that runs all the finalizers for releasing it.</p><p>If the outer <code>F</code> fails or is interrupted, <code>allocated</code> guarantees
+that the finalizers will be called. However, if the outer <code>F</code>
+succeeds, it's up to the user to ensure the returned <code>F[Unit]</code>
+is called once <code>A</code> needs to be released. If the returned
+<code>F[Unit]</code> is not called, the finalizers will not be run.</p><p>For this reason, this is an advanced and potentially unsafe api
+which can cause a resource leak if not used correctly, please
+prefer <a href="Resource.html#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> as the standard way of running a <code>Resource</code>
+program.</p><p>Use cases include interacting with side-effectful apis that
+expect separate acquire and release actions (like the <code>before</code>
+and <code>after</code> methods of many test frameworks), or complex library
+code that needs to modify or move the finalizer for an existing
+resource.</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a></dd></dl></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">

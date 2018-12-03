@@ -164,7 +164,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0-M1/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -438,6 +438,24 @@ technique.</p><pre>Ref[IO].of(<span class="num">10</span>) <span class="kw">&lt;
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.concurrent.Ref#in" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="in[F[_],G[_],A](a:A)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Sync[G]):F[cats.effect.concurrent.Ref[G,A]]"></a><a id="in[F[_],G[_],A](A)(Sync[F],Sync[G]):F[Ref[G,A]]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Ref$.html#in[F[_],G[_],A](a:A)(implicitF:cats.effect.Sync[F],implicitG:cats.effect.Sync[G]):F[cats.effect.concurrent.Ref[G,A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">in</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="G">G<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="a">a: <span class="extype" name="cats.effect.concurrent.Ref.in.A">A</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="../Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.concurrent.Ref.in.F">F</span>]</span>, <span name="G">G: <a href="../Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.concurrent.Ref.in.G">G</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.in.F">F</span>[<a href="Ref.html" class="extype" name="cats.effect.concurrent.Ref">Ref</a>[<span class="extype" name="cats.effect.concurrent.Ref.in.G">G</span>, <span class="extype" name="cats.effect.concurrent.Ref.in.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"> Builds a <code>Ref</code> value for data types that are <a href="../Sync.html" class="extype" name="cats.effect.Sync">Sync</a>
+ Like <a href="#of[F[_],A](a:A)(implicitF:cats.effect.Sync[F]):F[cats.effect.concurrent.Ref[F,A]]" class="extmbr" name="cats.effect.concurrent.Ref#of">of</a> but initializes state using another effect constructor
+</p>
     </li><li name="scala.Any#isInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="isInstanceOf[T0]:Boolean"></a>
       <span class="permalink">
