@@ -145,7 +145,7 @@ sealed abstract class Resource[F[_], A] {
     * This allows IDEs which have issues with Partial Unification to
     * see `map`.
     */
-  def map[B](f: A => B)(implicit F: Monad[F]): Resource[F, B] =
+  def map[B](f: A => B)(implicit F: Applicative[F]): Resource[F, B] =
     flatMap(a => Resource.pure[F, B](f(a)))
 
   /**
