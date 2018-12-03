@@ -146,7 +146,7 @@ sealed abstract class Resource[F[_], A] {
     * see `map`.
     */
   def map[B](f: A => B)(implicit F: Monad[F]): Resource[F, B] =
-    flatMap(a => Resource.applyCase(F.pure((f(a), _ => F.unit))))
+    flatMap(a => Resource.pure[F, B](f(a)))
 
   /**
     * Given a `Resource`, possibly built by composing multiple
