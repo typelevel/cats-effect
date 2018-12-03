@@ -139,6 +139,16 @@ sealed abstract class Resource[F[_], A] {
     Bind(this, f)
 
   /**
+    * Direct implementation of the `map` operation which is otherwise
+    * available via the `cats.Monad` instance for `Resource[F, ?]`
+    *
+    * This allows IDEs which have issues with Partial Unification to
+    * see `map`.
+    */
+  def map[B](f: A => B)(implicit F: Monad[F]): Resource[F, B] =
+    flatMap(a => Resource.applyCase(F.pure((f(a), _ => F.unit))))
+
+  /**
     * Given a `Resource`, possibly built by composing multiple
     * `Resource`s monadically, returns the acquired resource, as well
     * as an action that runs all the finalizers for releasing it.
