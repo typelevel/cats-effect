@@ -87,13 +87,6 @@ class ResourceTests extends BaseTestsSuite {
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
-  testAsync("map should be the same as going via Monad") { implicit ec =>
-    val monad = implicitly[Monad[Resource[IO, ?]]]
-    check { fa: IO[String] =>
-      Resource.liftF(fa).map(_.toLowerCase).use(IO.pure) <->
-        monad.map(Resource.liftF(fa))(_.toLowerCase).use(IO.pure)
-    }
-  }
 
   testAsync("allocated produces the same value as the resource") { implicit ec =>
     check { resource: Resource[IO, Int] =>

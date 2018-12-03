@@ -444,6 +444,9 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
 private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
   protected implicit def F: Monad[F]
 
+  override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
+    fa.map(f)
+
   def pure[A](a: A): Resource[F, A] =
     Resource.applyCase(F.pure((a, _ => F.unit)))
 
