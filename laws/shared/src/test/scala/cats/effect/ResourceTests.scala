@@ -124,5 +124,4 @@ class ResourceTests extends BaseTestsSuite {
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
   }
-
 }
