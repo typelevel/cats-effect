@@ -201,6 +201,13 @@ sealed abstract class Resource[F[_], A] {
         (a.asInstanceOf[A], release)
     }
   }
+
+  /**
+    * Applies an effectful transformation to the allocated resource. Like a
+    * `flatMap` on `F[A]` while maintaining the resource context
+    */
+  def semiflatMap[B](f: A => F[B])(implicit F: Applicative[F]): Resource[F, B] =
+    this.flatMap(a => Resource.liftF(f(a)))
 }
 
 object Resource extends ResourceInstances {

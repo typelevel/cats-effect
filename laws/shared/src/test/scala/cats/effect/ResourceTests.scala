@@ -88,6 +88,12 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("semiflatMap") { implicit ec =>
+    check { fa: IO[String] =>
+      Resource.liftF(fa).semiflatMap(IO.pure).use(IO.pure) <-> fa
+    }
+  }
+
   testAsync("allocated produces the same value as the resource") { implicit ec =>
     check { resource: Resource[IO, Int] =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
@@ -111,7 +117,7 @@ class ResourceTests extends BaseTestsSuite {
 
     prog.unsafeRunSync
   }
-  
+
   test("safe attempt suspended resource") {
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
