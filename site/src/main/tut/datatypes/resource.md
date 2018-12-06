@@ -13,7 +13,7 @@ import cats.effect.Bracket
 
 abstract class Resource[F[_], A] {
   def allocate: F[(A, F[Unit])]
-  
+
   def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] =
     F.bracket(allocate)(a => f(a._1))(_._2)
 }
@@ -21,6 +21,34 @@ abstract class Resource[F[_], A] {
 
 Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner use or release fails.
 
+You can lift any `F[A]` with an `Applicative` instance into a `Resource[F, A]` with a no-op release via `Resource.liftF`:
+
+```
+import cats.effect.{IO, Resource}
+import cats.implicits._
+
+val greet: String => IO[Unit] = x => IO(println("Hello " ++ x))
+
+Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
+
+```
+
+Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `semiflatMap`:
+
+```
+import cats.effect.{IO, Resource}
+import cats.implicits._
+
+val acquire: IO[String] = IO(println("Acquire cats...")) *> IO("cats")
+val release: String => IO[Unit] = x => IO(println("...release everything"))
+val addDogs: String => IO[String] = x =>
+  IO(println("...more animals...")) *> IO.pure(x ++ " and dogs")
+val report: String => IO[String] = x =>
+  IO(println("...produce weather report...")) *> IO("It's raining " ++ x)
+
+Resource.make(acquire)(release).semiflatMap(addDogs).use(report).unsafeRunSync
+
+```
 ### Example
 
 ```tut:silent
@@ -75,7 +103,7 @@ def reader(file: File): Resource[IO, BufferedReader] =
         new BufferedReader(new FileReader(file))
       }
   )
-  
+
 def readLinesFromFile(file: File): IO[List[String]] = {
     reader(file).use(readAllLines)
 }
@@ -108,5 +136,5 @@ def dumpResource[F[_]](res: Resource[F, BufferedReader])(implicit F: Sync[F]): F
 
 def dumpFile[F[_]](file: File)(implicit F: Sync[F]): F[Unit] =
   dumpResource(reader(file))
-  
+
 ```
