@@ -109,6 +109,17 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("(semiflatMap with error <-> IO.raiseError") { implicit ec =>
+    case object Foo extends Exception
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
+      Resource.liftF(IO(0)).semiflatMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
+    }
+  }
+
+
   testAsync("allocated produces the same value as the resource") { implicit ec =>
     check { resource: Resource[IO, Int] =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
