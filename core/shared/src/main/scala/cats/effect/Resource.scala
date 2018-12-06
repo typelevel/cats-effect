@@ -139,6 +139,15 @@ sealed abstract class Resource[F[_], A] {
     Bind(this, f)
 
   /**
+    *  Given a mapping function, transforms the resource provided by
+    *  this Resource.
+    *
+    *  This is the standard `Functor.map`.
+    */
+  def map[B](f: A => B)(implicit F: Applicative[F]): Resource[F, B] =
+    flatMap(a => Resource.pure[F, B](f(a)))
+
+  /**
     * Given a `Resource`, possibly built by composing multiple
     * `Resource`s monadically, returns the acquired resource, as well
     * as an action that runs all the finalizers for releasing it.
@@ -433,6 +442,9 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
 
 private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
   protected implicit def F: Monad[F]
+
+  override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
+    fa.map(f)
 
   def pure[A](a: A): Resource[F, A] =
     Resource.applyCase(F.pure((a, _ => F.unit)))
