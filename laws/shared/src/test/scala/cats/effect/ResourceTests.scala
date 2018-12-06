@@ -97,6 +97,24 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("map on lifted Resource") { implicit ec =>
+    check { fa: IO[Int] =>
+      Resource.liftF(fa).map(_ + 1).use(IO.pure) <-> fa.map(_ + 1)
+    }
+  }
+
+  testAsync("map on pure Resource") { implicit ec =>
+    check { a: Int =>
+      Resource.pure[IO, Int](a).map(_ + 1).use(IO.pure) <-> IO.pure(a + 1)
+    }
+  }
+
+  testAsync("map on lifted Resource is equivalent to flatMap with pure") { implicit ec =>
+    check { (resource: Resource[IO, Int], fb: Int => IO[String]) =>
+      resource.map(_ + 5).use(fb) <-> resource.flatMap(a => Resource.pure(a + 5)).use(fb)
+    }
+  }
+
   test("allocate does not release until close is invoked") {
     val released = new java.util.concurrent.atomic.AtomicBoolean(false)
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
