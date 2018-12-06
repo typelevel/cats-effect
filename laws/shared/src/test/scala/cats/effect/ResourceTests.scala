@@ -89,8 +89,23 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("semiflatMap") { implicit ec =>
-    check { fa: IO[String] =>
-      Resource.liftF(fa).semiflatMap(IO.pure).use(IO.pure) <-> fa
+    check { (f: Int => IO[Int]) =>
+      Resource.liftF(IO(0)).semiflatMap(f).use(IO.pure) <-> f(0)
+    }
+  }
+
+  testAsync("semiflatMap with cancellation <-> IO.never") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a =>
+        for {
+          f <- (g(a) <* IO.cancelBoundary).start
+          _ <- f.cancel
+          r <- f.join
+        } yield r
+
+      Resource.liftF(IO(0)).semiflatMap(effect).use(IO.pure) <-> IO.never
     }
   }
 
