@@ -82,7 +82,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
       // Start and forget
       // we attempt br because even if fa fails, we expect the release function
       // to run and set the promise.
-      F.asyncF[Unit](cb => F.delay(cb(Right(()))) *> br.attempt *> promise.get
+      F.asyncF[Unit](cb => F.delay(cb(Right(())))) *> br.attempt *> promise.get
     }
     lh <-> F.pure(b)
   }
