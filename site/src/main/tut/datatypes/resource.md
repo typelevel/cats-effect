@@ -33,7 +33,7 @@ Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
 
 ```
 
-Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `semiflatMap`:
+Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `flatMapF`:
 
 ```
 import cats.effect.{IO, Resource}
@@ -46,7 +46,7 @@ val addDogs: String => IO[String] = x =>
 val report: String => IO[String] = x =>
   IO(println("...produce weather report...")) *> IO("It's raining " ++ x)
 
-Resource.make(acquire)(release).semiflatMap(addDogs).use(report).unsafeRunSync
+Resource.make(acquire)(release).flatMapF(addDogs).use(report).unsafeRunSync
 
 ```
 ### Example
