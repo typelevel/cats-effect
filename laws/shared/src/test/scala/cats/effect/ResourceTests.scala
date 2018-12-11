@@ -88,13 +88,13 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("flatMapF") { implicit ec =>
+  testAsync("evalMap") { implicit ec =>
     check { (f: Int => IO[Int]) =>
-      Resource.liftF(IO(0)).flatMapF(f).use(IO.pure) <-> f(0)
+      Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
     }
   }
 
-  testAsync("flatMapF with cancellation <-> IO.never") { implicit ec =>
+  testAsync("evalMap with cancellation <-> IO.never") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
     check { (g: Int => IO[Int]) =>
@@ -105,17 +105,17 @@ class ResourceTests extends BaseTestsSuite {
           r <- f.join
         } yield r
 
-      Resource.liftF(IO(0)).flatMapF(effect).use(IO.pure) <-> IO.never
+      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.never
     }
   }
 
-  testAsync("(flatMapF with error <-> IO.raiseError") { implicit ec =>
+  testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
     implicit val cs = ec.contextShift[IO]
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
-      Resource.liftF(IO(0)).flatMapF(effect).use(IO.pure) <-> IO.raiseError(Foo)
+      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
     }
   }
 
