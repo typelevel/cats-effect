@@ -88,6 +88,38 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("evalMap") { implicit ec =>
+    check { (f: Int => IO[Int]) =>
+      Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
+    }
+  }
+
+  testAsync("evalMap with cancellation <-> IO.never") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a =>
+        for {
+          f <- (g(a) <* IO.cancelBoundary).start
+          _ <- f.cancel
+          r <- f.join
+        } yield r
+
+      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.never
+    }
+  }
+
+  testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
+    case object Foo extends Exception
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
+      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
+    }
+  }
+
+
   testAsync("allocated produces the same value as the resource") { implicit ec =>
     check { resource: Resource[IO, Int] =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
@@ -111,7 +143,7 @@ class ResourceTests extends BaseTestsSuite {
 
     prog.unsafeRunSync
   }
-  
+
   test("safe attempt suspended resource") {
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
