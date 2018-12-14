@@ -22,7 +22,7 @@ classes and do not tie our code to `IO`.
 This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
 tutorial, at least the [excellent documentation about `IO` data
-type](../datatypes/io.html).
+type](../datatypes/io.md).
 
 Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
