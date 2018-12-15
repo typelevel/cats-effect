@@ -1201,7 +1201,7 @@ Note: all parallel operations require an implicit `ContextShift[IO]` in scope
 (see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
 
 1. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
-3. the user provides a custom `ContextShift`, which can be created using `IO.contextShift(executionContext)`
+2. the user provides a custom `ContextShift`, which can be created using `IO.contextShift(executionContext)`
 
 ### parMapN
 
