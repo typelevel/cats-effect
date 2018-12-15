@@ -170,7 +170,7 @@ private[effect] object IOBracket {
     extends IOFrame[Unit, IO[Nothing]] {
 
     def recover(e2: Throwable): IO[Nothing] =
-      IO.raiseError(IOPlatform.composeErrors(e, e2))
+      IO.raiseError(IOFrame.composeErrors(e, e2))
 
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)

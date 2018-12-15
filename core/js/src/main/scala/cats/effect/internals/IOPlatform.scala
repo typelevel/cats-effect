@@ -16,9 +16,7 @@
 
 package cats.effect.internals
 
-import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.effect.util.CompositeException
 
 import scala.concurrent.duration.Duration
 
@@ -75,23 +73,6 @@ private[effect] object IOPlatform {
         case Left(e) => Logger.reportFailure(e)
         case _ => ()
       }
-    }
-  }
-
-  /**
-   * Composes multiple errors together, meant for those cases in which
-   * error suppression, due to a second error being triggered, is not
-   * acceptable.
-   *
-   * On top of the JVM this function uses `Throwable#addSuppressed`,
-   * available since Java 7. On top of JavaScript the function would return
-   * a `CompositeException`.
-   */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
-    rest.filter(_ != first).toList match {
-      case Nil => first
-      case nonEmpty =>
-        new CompositeException(first, NonEmptyList.fromListUnsafe(nonEmpty))
     }
   }
 }

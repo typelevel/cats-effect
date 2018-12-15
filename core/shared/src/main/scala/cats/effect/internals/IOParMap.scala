@@ -110,7 +110,7 @@ private[effect] object IOParMap {
           other.cancel.unsafeRunAsync { r =>
             conn.pop()
             cb.async(Left(r match {
-              case Left(e2) => IOPlatform.composeErrors(e, e2)
+              case Left(e2) => IOFrame.composeErrors(e, e2)
               case _ => e
             }))
           }

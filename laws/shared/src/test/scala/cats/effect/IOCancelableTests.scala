@@ -18,7 +18,7 @@ package cats.effect
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.effect.internals.{Callback, CancelUtils, Conversions, IOPlatform}
+import cats.effect.internals.{Callback, CancelUtils, Conversions}
 import cats.effect.laws.discipline.arbitrary._
 import cats.effect.util.CompositeException
 import cats.implicits._
@@ -29,7 +29,9 @@ import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
-class IOCancelableTests extends BaseTestsSuite {
+import org.scalatest.Inside
+
+class IOCancelableTests extends BaseTestsSuite with Inside {
   testAsync("IO.cancelBoundary <-> IO.unit") { implicit ec =>
     val f = IO.cancelBoundary.unsafeToFuture()
     f.value shouldBe Some(Success(()))
@@ -210,14 +212,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
     p.future.value shouldBe None
 
-    if (IOPlatform.isJVM) {
-      f.value shouldBe Some(Failure(dummy3))
-      dummy3.getSuppressed.toList shouldBe List(dummy2, dummy1)
-    } else {
-      f.value match {
-        case Some(Failure(CompositeException(`dummy3`, `dummy2`, `dummy1`))) => ()
-        case _ => fail(s"Unexpected result: ${f.value}")
-      }
-    }
+    f.value should
+      matchPattern { case Some(Failure(CompositeException(`dummy3`, `dummy2`, `dummy1`))) => }
   }
 }

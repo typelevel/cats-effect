@@ -57,7 +57,7 @@ private[effect] object CancelUtils {
           case Nil =>
             IO.unit
           case first :: rest =>
-            IO.raiseError(IOPlatform.composeErrors(first, rest: _*))
+            IO.raiseError(IOFrame.composeErrors(first, rest: _*))
         }
       }
     }

@@ -16,7 +16,9 @@
 
 package cats.effect.internals
 
+import cats.data.NonEmptyList
 import cats.effect.IO
+import cats.effect.util.CompositeException
 
 /** A mapping function that is also able to handle errors,
   * being the equivalent of:
@@ -66,5 +68,21 @@ private[effect] object IOFrame {
 
     def apply(a: A): IO[B] = fs(a)
     def recover(e: Throwable): IO[B] = fe(e)
+  }
+
+  /**
+   * Composes multiple errors together, meant for those cases in which
+   * error suppression, due to a second error being triggered, is not
+   * acceptable.
+   *
+   * To avoid leaking memory (such as into a case object throwable)
+   * this function creates and returns a `CompositeException`.
+   */
+  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
+    rest.filter(_ != first).toList match {
+      case Nil => first
+      case nonEmpty =>
+        new CompositeException(first, NonEmptyList.fromListUnsafe(nonEmpty))
+    }
   }
 }

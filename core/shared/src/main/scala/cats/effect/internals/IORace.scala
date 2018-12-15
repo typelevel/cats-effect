@@ -158,7 +158,7 @@ private[effect] object IORace {
 
   private[this] def composeErrors(e: Throwable, e2: Either[Throwable, _]): Throwable =
     e2 match {
-      case Left(e2) => IOPlatform.composeErrors(e, e2)
+      case Left(e2) => IOFrame.composeErrors(e, e2)
       case _ => e
     }
 

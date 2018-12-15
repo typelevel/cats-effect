@@ -23,18 +23,20 @@ import cats.effect.concurrent.Deferred
 import cats.effect.internals.{Callback, IOPlatform}
 import cats.effect.laws.discipline.{ConcurrentEffectTests, EffectTests}
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import org.scalacheck._
+import org.scalatest.Inside
 
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 
-class IOTests extends BaseTestsSuite {
+class IOTests extends BaseTestsSuite with Inside {
   checkAllAsync("IO", implicit ec => {
     implicit val cs = ec.contextShift[IO]
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
@@ -650,6 +652,21 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick(1.second)
     f.value.get.failed.get shouldBe an [TimeoutException]
+  }
+
+  test("bracket signals errors from both use and release via CompositeException") {
+    val e1 = new RuntimeException("e1")
+    val e2 = new RuntimeException("e2")
+
+    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
+      .attempt
+      .unsafeRunSync()
+
+    inside(r) { case Left(err: CompositeException) =>
+      err.head shouldBe e1
+      err.tail.toList shouldBe List(e2)
+      err.head.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+    }
   }
 
   test("unsafeRunSync works for bracket") {

@@ -18,11 +18,11 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.util.CompositeException
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{FunSuite, Inside, Matchers}
 
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends FunSuite with Matchers {
+class CancelUtilsTests extends FunSuite with Matchers with Inside {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }
@@ -67,23 +67,10 @@ class CancelUtilsTests extends FunSuite with Matchers {
       IO { wasCanceled2 = true }
     )
 
-    try {
-      io.unsafeRunSync()
-      fail("should have throw exception")
-    } catch {
-      case NonFatal(error) =>
-        if (IOPlatform.isJVM) {
-          error shouldBe dummy1
-          error.getSuppressed.toList shouldBe List(dummy2)
-        } else {
-          error match {
-            case CompositeException(`dummy1`, `dummy2`) =>
-              wasCanceled1 shouldBe true
-              wasCanceled2 shouldBe true
-            case _ =>
-              fail(s"Unexpected error: $error")
-          }
-        }
+    inside(the[CompositeException] thrownBy io.unsafeRunSync()) {
+      case NonFatal(CompositeException(`dummy1`, `dummy2`)) =>
+        wasCanceled1 shouldBe true
+        wasCanceled2 shouldBe true
     }
   }
 }
