@@ -21,12 +21,12 @@ import simulacrum._
 import cats.implicits._
 import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
-import cats.effect.concurrent.{Ref, Deferred}
+import cats.effect.concurrent.{Deferred, Ref}
 import cats.effect.internals.{Callback, IORunLoop}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
-import scala.util.Either
+import scala.util.{Either, Failure, Success}
 
 /**
  * A monad that can describe asynchronous or synchronous computations
@@ -318,6 +318,43 @@ object Async {
           .rethrow
       }
     }
+
+  /**
+    * Constructs an `Async` which evaluates the given `Future` and
+    * produces the result (or failure).
+    *
+    * Because `Future` eagerly evaluates, as well as because it
+    * memoizes, this function takes its parameter as an `Async`,
+    * which could be lazily evaluated.  If this laziness is
+    * appropriately threaded back to the definition site of the
+    * `Future`, it ensures that the computation is fully managed by
+    * `Async` and thus referentially transparent.
+    *
+    * Example:
+    *
+    * {{{
+    *   // Lazy evaluation, equivalent with by-name params
+    *   Async.fromFuture(F.delay(startRunningFuture()))
+    *
+    *   // Eager evaluation, for pure futures
+    *   Async.fromFuture(F.pure(startRunningFuture()))
+    * }}}
+    */
+  def fromFuture[F[_], A](af: F[scala.concurrent.Future[A]])(implicit F: Async[F], cs: ContextShift[F]): F[A] = {
+    F.flatMap(af) { f =>
+      f.value match {
+        case Some(r) =>
+          F.fromTry(r)
+        case _ =>
+          cs.shift *> F.async { cb =>
+            f.onComplete {
+              case Success(v) => cb(Right(v))
+              case Failure(e) => cb(Left(e))
+            } (internals.TrampolineEC.immediate)
+          }
+      }
+    }
+  }
 
   /**
    * [[Async]] instance built for `cats.data.EitherT` values initialized

@@ -17,6 +17,8 @@
 package cats.effect
 
 import cats.effect.syntax.AllCatsEffectSyntax
+
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
@@ -36,6 +38,14 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[B]](acquire.bracketCase(use)(releaseCase))
     typed[F[A]](acquire.guarantee(finalizer))
     typed[F[A]](acquire.guaranteeCase(finalCase))
+  }
+
+  def asyncSyntax[F[_]: ContextShift, A](implicit F: Async[F]) = {
+    val af = mock[F[Future[A]]]
+
+    typed[F[A]](af.fromFuture)
+    typed[F[A]](Async.fromFuture(af))
+    typed[F[A]](F.fromFuture(af))
   }
 
   def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
