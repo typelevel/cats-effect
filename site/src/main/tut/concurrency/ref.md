@@ -33,12 +33,12 @@ This is probably one of the most common uses of this concurrency primitive.
 The workers will concurrently run and modify the value of the Ref so this is one possible outcome showing “#worker » currentCount”:
 
 ```
+#2 >> 0
 #1 >> 0
 #3 >> 0
-#2 >> 0
-#1 >> 2
-#2 >> 3
-#3 >> 3
+#1 >> 0
+#3 >> 2
+#2 >> 1
 ```
 
 ```tut:silent
