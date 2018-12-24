@@ -35,9 +35,9 @@ def monotonic(unit: TimeUnit): F[Long]
 ```
 
 ### [ContextShift](./contextshift.html)
-A pure equivalent of an ExecutionContext. Provides support for cooperative yielding and shifting execution, e.g. allows to execute blocking code on a dedicated execution context
+ A pure equivalent of an `ExecutionContext`. Provides support for cooperative yielding and shifting execution, e.g. to execute blocking code on a dedicated execution context.
 
-Instance for IO is required by Concurrent[IO]
+ Instance for `IO` is required by `Concurrent[IO]`
 
 ```scala
 def shift: F[Unit]
@@ -45,9 +45,9 @@ def evalOn[A](ec: ExecutionContext)(f: F[A]): F[A]
 ```
 
 ### [Timer](./timer.html)
-A pure scheduler, provides the ability to get the current time and delay the execution of a task with a specified time duration
+ A pure scheduler. Provides the ability to get the current time and delay the execution of a task with a specified time duration.
 
-Instance for IO is required by IO.sleep, timeout etc
+ Instance for `IO` is required by `IO.sleep`, `timeout`, etc.
 
 ```scala
 def clock: Clock[F]
