@@ -18,7 +18,10 @@ package cats
 package effect
 package concurrent
 
+import cats.effect.ExitCase
+import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
+
 import scala.collection.immutable.Queue
 
 /**
@@ -92,6 +95,12 @@ abstract class Semaphore[F[_]] {
    * Returns an effect that acquires a permit, runs the supplied effect, and then releases the permit.
    */
   def withPermit[A](t: F[A]): F[A]
+
+  /**
+    * Modify the context `F` using natural isomorphism  `f` with `g`.
+    */
+  def imapK[G[_]](f: F ~> G, g: G ~> F): Semaphore[G] =
+    new TransformedSemaphore(this, f, g)
 }
 
 object Semaphore {
@@ -117,6 +126,24 @@ object Semaphore {
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
   }
+
+  /**
+   * Creates a new `Semaphore`, initialized with `n` available permits.
+   * like `apply` but initializes state using another effect constructor
+   */
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Concurrent[G]): F[Semaphore[G]] =
+    assertNonNegative[F](n) *>
+      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
+
+  /**
+   * Creates a new `Semaphore`, initialized with `n` available permits.
+   * Like [[apply]] but only requires an `Async` constraint in exchange for the various
+   * acquire effects being uncancelable
+   * and initializes state using another effect constructor
+   */
+  def uncancelableIn[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
+    assertNonNegative[F](n) *>
+      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
 
   private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
     if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
@@ -261,5 +288,14 @@ object Semaphore {
 
   private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred.uncancelable[F, Unit]
+  }
+
+  private[concurrent] final class TransformedSemaphore[F[_], G[_]](underlying: Semaphore[F], trans: F ~> G, inverse: G ~> F) extends Semaphore[G]{
+    override def available: G[Long] = trans(underlying.available)
+    override def count: G[Long] = trans(underlying.count)
+    override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
+    override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
+    override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
+    override def withPermit[A](t: G[A]): G[A] = trans(underlying.withPermit(inverse(t)))
   }
 }

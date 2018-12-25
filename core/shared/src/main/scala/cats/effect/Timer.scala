@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid}
+import cats.{Applicative, Functor, Monoid, ~>}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -139,4 +139,26 @@ object Timer {
       def sleep(duration: FiniteDuration): Kleisli[F, R, Unit] =
         Kleisli.liftF(timer.sleep(duration))
     }
+
+  /**
+    * Derives a [[Timer]] instance for `cats.data.IorT`,
+    * given we have one for `F[_]`.
+    */
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], timer: Timer[F]): Timer[IorT[F, L, ?]] =
+    new Timer[IorT[F, L, ?]] {
+      val clock: Clock[IorT[F, L, ?]] = Clock.deriveIorT
+
+      def sleep(duration: FiniteDuration): IorT[F, L, Unit] =
+        IorT.liftF(timer.sleep(duration))
+    }
+
+  implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal{
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Timer[G] = new Timer[G] {
+      val clock: Clock[G] = self.clock.mapK(f)
+      def sleep(duration: FiniteDuration): G[Unit] = f(self.sleep(duration))
+    }
+  }
 }

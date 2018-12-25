@@ -25,18 +25,18 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-
-val CatsVersion = "1.4.0"
-val SimulacrumVersion = "0.13.0"
+val SimulacrumVersion = "0.14.0"
+val CatsVersion = "1.5.0"
 
 val ScalaTestVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
       "3.0.5"
     case _ =>
-      "3.0.6-SNAP1"
+      "3.0.6-SNAP5"
   }
 }
+
 val ScalaCheckVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
@@ -45,6 +45,7 @@ val ScalaCheckVersion = Def.setting{
       "1.14.0"
   }
 }
+
 val DisciplineVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
@@ -60,7 +61,7 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.6",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.6", "2.13.0-M4"),
+  crossScalaVersions := Seq("2.11.12", "2.12.7", "2.13.0-M5"),
 
   //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
   sources in (Compile, doc) := (
@@ -175,12 +176,15 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.7" cross CrossVersion.binary)
+  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
-    Set(organization.value %% name.value % "1.0.0")
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 13)) =>  Set(organization.value % (name.value + "_2.13.0-M4") % "1.0.0")
+      case _ => Set(organization.value %% name.value % "1.0.0")
+    }
   },
   mimaBinaryIssueFilters ++= {
     import com.typesafe.tools.mima.core._
@@ -205,7 +209,9 @@ val mimaSettings = Seq(
       // All internals - https://github.com/typelevel/cats-effect/pull/403
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AbstractSemaphore.awaitGate"),
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AsyncSemaphore.awaitGate"),
-      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate")
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate"),
+      // All internals — https://github.com/typelevel/cats-effect/pull/424
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred")
     )
   })
 
@@ -217,7 +223,21 @@ def profile: Project => Project = pr => cmdlineProfile match {
 }
 
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*")
+  coverageExcludedFiles := ".*",
+
+  // Use globally accessible (rather than local) source paths in JS source maps
+  scalacOptions += {
+    val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
+    val versionOrHash =
+      if (hasVersion)
+        s"v${version.value}"
+      else
+        git.gitHeadCommit.value.get
+
+    val l = (baseDirectory in LocalRootProject).value.toURI.toString
+    val g = s"https://raw.githubusercontent.com/typelevel/cats-effect/$versionOrHash/"
+    s"-P:scalajs:mapSourceURI:$l->$g"
+  })
 
 lazy val skipOnPublishSettings = Seq(
   skip in publish := true,
@@ -285,8 +305,8 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value,
       "org.typelevel"  %%% "discipline" % DisciplineVersion.value,
-
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
+
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)

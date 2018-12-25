@@ -338,6 +338,12 @@ private[effect] object IORunLoop {
     }
 
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
+      // Allow GC to collect
+      val bFirst = this.bFirst
+      val bRest = this.bRest
+      this.bFirst = null
+      this.bRest = null
+
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {

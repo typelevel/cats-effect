@@ -19,7 +19,7 @@ package cats.effect
 import cats.syntax.apply._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
-import cats.{Applicative, Apply, Monoid, Semigroup}
+import cats.{Applicative, Apply, Monoid, Semigroup, ~>}
 
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
@@ -84,6 +84,16 @@ object Fiber extends FiberInstances {
 
   private final case class Tuple[F[_], A](join: F[A], cancel: CancelToken[F])
     extends Fiber[F, A]
+
+  implicit class FiberOps[F[_], A](val self: Fiber[F, A]) extends AnyVal{
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Fiber[G, A] = new Fiber[G, A] {
+      def cancel: CancelToken[G] = f(self.cancel)
+      def join: G[A] = f(self.join)
+    }
+  }
 }
 
 private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
