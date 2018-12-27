@@ -16,7 +16,8 @@
 
 package cats.effect.internals
 
-import java.io.{ByteArrayOutputStream, PrintStream}
+import java.io.{ByteArrayOutputStream, OutputStream, PrintStream}
+
 import scala.util.control.NonFatal
 
 /**
@@ -52,9 +53,17 @@ trait TestUtils {
   /**
    * Catches `System.err` output, for testing purposes.
    */
-  def catchSystemErr(thunk: => Unit): String = synchronized {
-    val oldErr = System.err
+  def catchSystemErr(thunk: => Unit): String = {
     val outStream = new ByteArrayOutputStream()
+    catchSystemErrInto(outStream)(thunk)
+    outStream.toString("utf-8")
+  }
+
+  /**
+   * Catches `System.err` output into `outStream`, for testing purposes.
+   */
+  def catchSystemErrInto[T](outStream: OutputStream)(thunk: => T): T = synchronized {
+    val oldErr = System.err
     val fakeErr = new PrintStream(outStream)
     System.setErr(fakeErr)
     try {
@@ -63,6 +72,5 @@ trait TestUtils {
       System.setErr(oldErr)
       fakeErr.close()
     }
-    outStream.toString("utf-8")
   }
 }
