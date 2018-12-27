@@ -676,14 +676,17 @@ class IOTests extends BaseTestsSuite {
 
   test("bracket signals the error in use and logs the error from release") {
     val e1 = new RuntimeException("error in use")
-    val e2 = new RuntimeException("error in release: expected to be logged during test")
+    val e2 = new RuntimeException("error in release")
 
-    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
-      .attempt
-      .unsafeRunSync()
+    var r: Option[Either[Throwable, Nothing]] = None
+    val sysErr = catchSystemErr {
+      r = Some(IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
+          .attempt
+          .unsafeRunSync())
+    }
 
-    r shouldEqual Left(e1)
-    // TODO: assert e2 is logged
+    r shouldEqual Some(Left(e1))
+    sysErr should include("error in release")
     e1.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
     e2.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
   }
