@@ -160,6 +160,11 @@ def consumer(ch: Channel[Int], sum: Long): IO[Long] =
       IO.pure(sum) // we are done!
   }
 
+// ContextShift required for
+// 1) MVar.empty
+// 2) IO.start
+implicit val cs = IO.contextShift(ExecutionContext.Implicits.global)
+
 for {
   channel <- MVar[IO].empty[Option[Int]]
   count = 100000
