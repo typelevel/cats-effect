@@ -385,8 +385,10 @@ object Concurrent {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
-    timeoutTo(fa, duration, F.raiseError(new TimeoutException(duration.toString)))
+  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
+    val timeoutException = F.delay(new TimeoutException(duration.toString)).flatMap(F.raiseError)
+    timeoutTo(fa, duration, timeoutException)
+  }
 
   /**
    * Function that creates an async and cancelable `F[A]`, similar with
