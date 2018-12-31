@@ -1208,7 +1208,7 @@ the execution context as parameter. Finally, we need an implicit
 who provides the instance of `ContextShift[IO]` in the `run` method.
 
 #### Echo server code, thread pool for clients version
-The version of our echo server using a thead pool is available
+The version of our echo server using a thread pool is available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala).
 
 ## Let's not forget about `async`
