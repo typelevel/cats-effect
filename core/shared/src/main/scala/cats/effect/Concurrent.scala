@@ -386,7 +386,7 @@ object Concurrent {
    *        the source completing, a `TimeoutException` is raised
    */
   def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
-    val timeoutException = F.delay(new TimeoutException(duration.toString)).flatMap(F.raiseError)
+    val timeoutException = F.delay(new TimeoutException(duration.toString)).flatMap(F.raiseError[A])
     timeoutTo(fa, duration, timeoutException)
   }
 
