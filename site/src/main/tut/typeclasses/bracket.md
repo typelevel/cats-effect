@@ -10,8 +10,8 @@ scaladoc: "#cats.effect.Bracket"
 operation, a generalized abstracted pattern of safe resource
 acquisition and release in the face of errors or interruption.
 
-Important note, throwing in `release` function is undefined since the behaviour is left to the
-concrete implemenations (ex. cats-effect `Bracket[IO]`, Monix `Bracket[Task]` or ZIO).
+Important note, throwing in `release` function is undefined since the behavior is left to the
+concrete implementations (ex. cats-effect `Bracket[IO]`, Monix `Bracket[Task]` or ZIO).
 
 ```tut:silent
 import cats.MonadError
