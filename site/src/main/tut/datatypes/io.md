@@ -831,7 +831,7 @@ It does have problems like:
 2. it's only meant for synchronous execution, so we can't use it
    when working with abstractions capable of asynchrony
    (e.g. `IO`, `Task`, `Future`)
-3. `finally` executes irregardless of the exception type, 
+3. `finally` executes regardless of the exception type,
    indiscriminately, so if you get an out of memory error it still
    tries to close the file handle, unnecessarily delaying a process
    crash

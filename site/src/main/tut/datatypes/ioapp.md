@@ -117,7 +117,7 @@ object Main extends IOApp {
 
 If you run this sample, you can get two outcomes:
 
-- if you leave it for 10 seconds, it wil print "*normal exit*" and exit normally
+- if you leave it for 10 seconds, it will print "*normal exit*" and exit normally
 - if you press `Ctrl-C` or do a `kill $pid` from the terminal, then it will immediately print
   "*interrupted: releasing and exiting*" and exit
   
