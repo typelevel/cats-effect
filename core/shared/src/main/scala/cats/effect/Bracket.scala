@@ -40,7 +40,9 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    * @param use $useParam
    * @param release is the action that's supposed to release the
    *        allocated resource after `use` is done, by observing
-   *        and acting on its exit condition
+   *        and acting on its exit condition. Throwing inside
+   *        this function leads to undefined behavior since it's
+   *        left to the implementation.
    */
   def bracketCase[A, B](acquire: F[A])(use: A => F[B])
     (release: (A, ExitCase[E]) => F[Unit]): F[B]
@@ -57,7 +59,8 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    * @param use $useParam
    * @param release is the action that's supposed to release the
    *        allocated resource after `use` is done, regardless of
-   *        its exit condition
+   *        its exit condition. Throwing inside this function
+   *        is undefined behavior since it's left to the implementation.
    */
   def bracket[A, B](acquire: F[A])(use: A => F[B])
     (release: A => F[Unit]): F[B] =
