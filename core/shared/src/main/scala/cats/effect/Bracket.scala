@@ -42,7 +42,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *        allocated resource after `use` is done, by observing
    *        and acting on its exit condition. Throwing inside
    *        this function leads to undefined behavior since it's
-    *       left to the implementation.
+   *        left to the implementation.
    */
   def bracketCase[A, B](acquire: F[A])(use: A => F[B])
     (release: (A, ExitCase[E]) => F[Unit]): F[B]
