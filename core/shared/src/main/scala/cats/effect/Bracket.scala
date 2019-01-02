@@ -58,7 +58,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    * @param acquire $acquireParam
    * @param use $useParam
    * @param release is the action that's supposed to release the
-   *        allocated resource after `use` is done, irregardless of
+   *        allocated resource after `use` is done, regardless of
    *        its exit condition. Throwing inside this function
    *        is undefined behavior since it's left to the implementation.
    */

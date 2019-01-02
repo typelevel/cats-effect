@@ -84,8 +84,8 @@ In terms of the behavior, the contract is currently this:
 The `cats.effect.IO` implementation is cancelable and so is `IOApp`.
 
 This means that when `IOApp` receives a `SIGABORT`, `SIGINT` or another
-interruption signal that can be caught, then the `IO` app will cancel,
-safely release any resources.
+interruption signal that can be caught, then the `IO` app will cancel
+and safely release any resources.
 
 For example:
 
@@ -117,7 +117,7 @@ object Main extends IOApp {
 
 If you run this sample, you can get two outcomes:
 
-- if you leave it for 10 seconds, it wil print "*normal exit*" and exit normally
+- if you leave it for 10 seconds, it will print "*normal exit*" and exit normally
 - if you press `Ctrl-C` or do a `kill $pid` from the terminal, then it will immediately print
   "*interrupted: releasing and exiting*" and exit
   

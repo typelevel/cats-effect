@@ -137,6 +137,86 @@ sealed abstract class Resource[F[_], A] {
    */
   def flatMap[B](f: A => Resource[F, B]): Resource[F, B] =
     Bind(this, f)
+
+  /**
+    *  Given a mapping function, transforms the resource provided by
+    *  this Resource.
+    *
+    *  This is the standard `Functor.map`.
+    */
+  def map[B](f: A => B)(implicit F: Applicative[F]): Resource[F, B] =
+    flatMap(a => Resource.pure[F, B](f(a)))
+
+  /**
+    * Given a `Resource`, possibly built by composing multiple
+    * `Resource`s monadically, returns the acquired resource, as well
+    * as an action that runs all the finalizers for releasing it.
+    *
+    * If the outer `F` fails or is interrupted, `allocated` guarantees
+    * that the finalizers will be called. However, if the outer `F`
+    * succeeds, it's up to the user to ensure the returned `F[Unit]`
+    * is called once `A` needs to be released. If the returned
+    * `F[Unit]` is not called, the finalizers will not be run.
+    *
+    * For this reason, this is an advanced and potentially unsafe api
+    * which can cause a resource leak if not used correctly, please
+    * prefer [[use]] as the standard way of running a `Resource`
+    * program.
+    *
+    * Use cases include interacting with side-effectful apis that
+    * expect separate acquire and release actions (like the `before`
+    * and `after` methods of many test frameworks), or complex library
+    * code that needs to modify or move the finalizer for an existing
+    * resource.
+    *
+    */
+  def allocated(implicit F: Bracket[F, Throwable]): F[(A, F[Unit])] = {
+
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(
+      current: Resource[F, Any],
+      stack: List[Any => Resource[F, Any]],
+      release: F[Unit]): F[(Any, F[Unit])] =
+      loop(current, stack, release)
+
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(
+      current: Resource[F, Any],
+      stack: List[Any => Resource[F, Any]],
+      release: F[Unit]): F[(Any, F[Unit])] =
+      current match {
+        case Resource.Allocate(resource) =>
+          F.bracketCase(resource) {
+            case (a, rel) =>
+              stack match {
+                case Nil => F.pure(a -> F.guarantee(rel(ExitCase.Completed))(release))
+                case f0 :: xs => continue(f0(a), xs, F.guarantee(rel(ExitCase.Completed))(release))
+              }
+          } {
+            case (_, ExitCase.Completed) =>
+              F.unit
+            case ((_, release), ec) =>
+              release(ec)
+          }
+        case Resource.Bind(source, f0) =>
+          loop(source, f0.asInstanceOf[Any => Resource[F, Any]] :: stack, release)
+        case Resource.Suspend(resource) =>
+          resource.flatMap(continue(_, stack, release))
+      }
+
+    loop(this.asInstanceOf[Resource[F, Any]], Nil, F.unit).map {
+      case (a, release) =>
+        (a.asInstanceOf[A], release)
+    }
+  }
+
+  /**
+    * Applies an effectful transformation to the allocated resource. Like a
+    * `flatMap` on `F[A]` while maintaining the resource context
+    */
+  def evalMap[B](f: A => F[B])(implicit F: Applicative[F]): Resource[F, B] =
+    this.flatMap(a => Resource.liftF(f(a)))
 }
 
 object Resource extends ResourceInstances {
@@ -350,7 +430,10 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
           })
         })
       case Suspend(resource) =>
-        Suspend(resource.map(_.attempt))
+        Suspend(resource.attempt.map {
+          case Left(error) => Resource.pure(Left(error))
+          case Right(fa: Resource[F, A]) => fa.attempt
+        })
     }
 
   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
@@ -366,6 +449,9 @@ private[effect] abstract class ResourceMonadError[F[_], E] extends ResourceMonad
 
 private[effect] abstract class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
   protected implicit def F: Monad[F]
+
+  override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
+    fa.map(f)
 
   def pure[A](a: A): Resource[F, A] =
     Resource.applyCase(F.pure((a, _ => F.unit)))

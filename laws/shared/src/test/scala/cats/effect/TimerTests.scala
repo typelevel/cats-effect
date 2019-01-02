@@ -34,6 +34,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
   type WriterTIO[A] = WriterT[IO, Int, A]
   type KleisliIO[A] = Kleisli[IO, Int, A]
   type StateTIO[A]  = StateT[IO, Int, A]
+  type IorTIO[A]    = IorT[IO, Int, A]
 
   test("Timer[IO].clock.realTime") {
     val time = System.currentTimeMillis()
@@ -298,6 +299,51 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
     for (r <- io.run(0).unsafeToFuture()) yield {
       r._2 shouldBe 10
+    }
+  }
+
+  // --- IorT
+
+  test("Timer[IorT].clock.realTime") {
+    val time = System.currentTimeMillis()
+    val io = implicitly[Timer[IorTIO]].clock.realTime(MILLISECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2.getOrElse(0L)
+    }
+  }
+
+  test("Timer[IorT].clock.monotonic") {
+    val time = System.nanoTime()
+    val io = implicitly[Timer[IorTIO]].clock.monotonic(NANOSECONDS)
+
+    for (t2 <- io.value.unsafeToFuture()) yield {
+      time should be > 0L
+      time should be <= t2.getOrElse(0L)
+    }
+  }
+
+  test("Timer[IorT].sleep(10.ms)") {
+    val t = implicitly[Timer[IorTIO]]
+    val io = for {
+      start <- t.clock.monotonic(MILLISECONDS)
+      _ <- t.sleep(10.millis)
+      end <- t.clock.monotonic(MILLISECONDS)
+    } yield {
+      end - start
+    }
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r.getOrElse(0L) should be > 0L
+    }
+  }
+
+  test("Timer[IorT].sleep(negative)") {
+    val io = implicitly[Timer[IorTIO]].sleep(-10.seconds).map(_ => 10)
+
+    for (r <- io.value.unsafeToFuture()) yield {
+      r.getOrElse(0L) shouldBe 10
     }
   }
 }

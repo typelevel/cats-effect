@@ -831,7 +831,7 @@ It does have problems like:
 2. it's only meant for synchronous execution, so we can't use it
    when working with abstractions capable of asynchrony
    (e.g. `IO`, `Task`, `Future`)
-3. `finally` executes irregardless of the exception type, 
+3. `finally` executes regardless of the exception type,
    indiscriminately, so if you get an out of memory error it still
    tries to close the file handle, unnecessarily delaying a process
    crash
@@ -1200,9 +1200,8 @@ Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/
 Note: all parallel operations require an implicit `ContextShift[IO]` in scope
 (see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
 
-1. there's an implicit `ExecutionContext` in scope
-2. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
-3. the user provides a custom `ContextShift`
+1. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
+2. the user provides a custom `ContextShift`, which can be created using `IO.contextShift(executionContext)`
 
 ### parMapN
 
@@ -1210,11 +1209,14 @@ It has the potential to run an arbitrary number of `IO`s in parallel, and it all
 
 ```tut:silent
 import cats.syntax.all._
+import scala.concurrent.ExecutionContext
+import cats.effect.ContextShift
 
 val ioA = IO(println("Running ioA"))
 val ioB = IO(println("Running ioB"))
 val ioC = IO(println("Running ioC"))
 
+implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()

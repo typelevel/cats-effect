@@ -69,6 +69,24 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       )
     }
   }
+
+  def bracketTrans[M[_], A: Arbitrary: Eq, B: Arbitrary: Eq](fromM: M ~> F)(
+    implicit
+      ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbMU: Arbitrary[M[Unit]],
+      CogenA: Cogen[A],
+      EqFB: Eq[F[B]]): RuleSet = {
+    new RuleSet {
+      val name = "bracket"
+      val bases = Nil
+      val parents = Nil
+
+      val props = Seq(
+        "bracket propagates transformer effects" -> forAll(laws.bracketPropagatesTransformerEffects[M, A, B](fromM) _)
+      )
+    }
+  }
 }
 
 object BracketTests {

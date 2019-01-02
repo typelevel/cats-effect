@@ -36,16 +36,23 @@ private[effect] final class MVarAsync[F[_], A] private (
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
-    F.async(unsafePut(a))
+    F.flatMap(tryPut(a)) {
+      case true => F.unit
+      case false =>
+        F.asyncF(unsafePut(a))
+    }
 
   def tryPut(a: A): F[Boolean] =
-    F.async(unsafePut1(a))
+    F.suspend(unsafeTryPut(a))
 
-  def take: F[A] =
-    F.async(unsafeTake)
+  val tryTake: F[Option[A]] =
+    F.suspend(unsafeTryTake())
 
-  def tryTake: F[Option[A]] =
-    F.async(unsafeTake1)
+  val take: F[A] =
+    F.flatMap(tryTake) {
+      case Some(a) => F.pure(a)
+      case None => F.asyncF(unsafeTake)
+    }
 
   def read: F[A] =
     F.async(unsafeRead)
@@ -59,9 +66,9 @@ private[effect] final class MVarAsync[F[_], A] private (
     }
 
   @tailrec
-  private def unsafePut1(a: A)(onPut: Listener[Boolean]): Unit = {
+  private def unsafeTryPut(a: A): F[Boolean] = {
     stateRef.get match {
-      case WaitForTake(_, _) => onPut(Right(false))
+      case WaitForTake(_, _) => F.pure(false)
 
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
@@ -74,26 +81,25 @@ private[effect] final class MVarAsync[F[_], A] private (
           }
 
         if (!stateRef.compareAndSet(current, update)) {
-          unsafePut1(a)(onPut) // retry
+          unsafeTryPut(a) // retry
+        }
+        else if ((first ne null) || reads.nonEmpty) {
+          streamPutAndReads(a, reads, first)
         } else {
-          val value = Right(a)
-          // Satisfies all current `read` requests found
-          streamAll(value, reads)
-          // Satisfies the first `take` request found
-          if (first ne null) first(value)
-          // Signals completion of `put`
-          onPut(Right(true))
+          F.pure(true)
         }
     }
   }
 
   @tailrec
-  private def unsafePut(a: A)(onPut: Listener[Unit]): Unit = {
+  private def unsafePut(a: A)(onPut: Listener[Unit]): F[Unit] =
     stateRef.get match {
       case current @ WaitForTake(value, puts) =>
         val update = WaitForTake(value, puts.enqueue(a -> onPut))
         if (!stateRef.compareAndSet(current, update)) {
           unsafePut(a)(onPut) // retry
+        } else {
+          F.unit
         }
 
       case current @ WaitForPut(reads, takes) =>
@@ -109,67 +115,60 @@ private[effect] final class MVarAsync[F[_], A] private (
         if (!stateRef.compareAndSet(current, update)) {
           unsafePut(a)(onPut) // retry
         } else {
-          val value = Right(a)
-          // Satisfies all current `read` requests found
-          streamAll(value, reads)
-          // Satisfies the first `take` request found
-          if (first ne null) first(value)
-          // Signals completion of `put`
-          onPut(rightUnit)
+          F.map(streamPutAndReads(a, reads, first))(_ => onPut(rightUnit))
         }
     }
-  }
 
   @tailrec
-  private def unsafeTake1(onTake: Listener[Option[A]]): Unit = {
+  private def unsafeTryTake(): F[Option[A]] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
-            // Signals completion of `take`
-            onTake(Right(Some(value)))
+            F.pure(Some(value))
           else {
-            unsafeTake1(onTake) // retry
+            unsafeTryTake() // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, awaitPut), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
-            // Signals completion of `take`
-            onTake(Right(Some(value)))
-            // Complete the `put` request waiting on a notification
-            notify(rightUnit)
+            F.map(lightAsyncBoundary) { _ =>
+              awaitPut(rightUnit)
+              Some(value)
+            }
           } else {
-            unsafeTake1(onTake) // retry
+            unsafeTryTake() // retry
           }
         }
-
       case WaitForPut(_, _) =>
-        onTake(Right(None))
+        pureNone
     }
   }
 
   @tailrec
-  private def unsafeTake(onTake: Listener[A]): Unit = {
+  private def unsafeTake(onTake: Listener[A]): F[Unit] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, queue) =>
         if (queue.isEmpty) {
-          if (stateRef.compareAndSet(current, State.empty))
+          if (stateRef.compareAndSet(current, State.empty)) {
             // Signals completion of `take`
             onTake(Right(value))
-          else {
+            F.unit
+          } else {
             unsafeTake(onTake) // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, awaitPut), xs) = queue.dequeue
           val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
-            // Signals completion of `take`
-            onTake(Right(value))
             // Complete the `put` request waiting on a notification
-            notify(rightUnit)
+            F.map(lightAsyncBoundary) { _ =>
+              try awaitPut(rightUnit)
+              finally onTake(Right(value))
+            }
           } else {
             unsafeTake(onTake) // retry
           }
@@ -178,6 +177,8 @@ private[effect] final class MVarAsync[F[_], A] private (
       case WaitForPut(reads, takes) =>
         if (!stateRef.compareAndSet(current, WaitForPut(reads, takes.enqueue(onTake)))) {
           unsafeTake(onTake)
+        } else {
+          F.unit
         }
     }
   }
@@ -199,11 +200,30 @@ private[effect] final class MVarAsync[F[_], A] private (
     }
   }
 
+  private def streamPutAndReads(a: A, reads: Queue[Listener[A]], first: Listener[A]): F[Boolean] =
+    F.map(lightAsyncBoundary) { _ =>
+      val value = Right(a)
+      // Satisfies all current `read` requests found
+      streamAll(value, reads)
+      // Satisfies the first `take` request found
+      if (first ne null) first(value)
+      // Signals completion of `put`
+      true
+    }
+
   private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): Unit = {
     val cursor = listeners.iterator
     while (cursor.hasNext)
       cursor.next().apply(value)
   }
+
+  private[this] val lightAsyncBoundary = {
+    val k = (cb: Either[Throwable, Unit] => Unit) => cb(rightUnit)
+    F.async[Unit](k)
+  }
+
+  private[this] val pureNone: F[Option[A]] =
+    F.pure(None)
 }
 
 private[effect] object MVarAsync {

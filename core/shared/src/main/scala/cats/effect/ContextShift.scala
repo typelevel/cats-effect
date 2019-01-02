@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monad, Monoid}
+import cats.{Applicative, Functor, Monad, Monoid, ~>}
 import cats.data._
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -50,8 +50,8 @@ trait ContextShift[F[_]] {
   def shift: F[Unit]
 
   /**
-   * Evaluates `f` on the supplied execution context and shifts evaluation
-   * back to the default execution environment of `F` at the completion of `f`,
+   * Evaluates `fa` on the supplied execution context and shifts evaluation
+   * back to the default execution environment of `F` at the completion of `fa`,
    * regardless of success or failure.
    *
    * The primary use case for this method is executing blocking code on a
@@ -64,6 +64,13 @@ trait ContextShift[F[_]] {
 }
 
 object ContextShift {
+  def apply[F[_]](implicit ev: ContextShift[F]): ContextShift[F] = ev
+
+  /**
+    * `evalOn` as a natural transformation.
+    */
+  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F = λ[F ~> F](cs.evalOn(ec)(_))
+
   /**
    * Derives a [[ContextShift]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.
@@ -127,5 +134,18 @@ object ContextShift {
 
       def evalOn[A](ec: ExecutionContext)(fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
         Kleisli(a => cs.evalOn(ec)(fa.run(a)))
+    }
+
+  /**
+    * Derives a [[ContextShift]] instance for `cats.data.IorT`,
+    * given we have one for `F[_]`.
+    */
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], cs: ContextShift[F]): ContextShift[IorT[F, L, ?]] =
+    new ContextShift[IorT[F, L, ?]] {
+      def shift: IorT[F, L, Unit] =
+        IorT.liftF(cs.shift)
+
+      def evalOn[A](ec: ExecutionContext)(fa: IorT[F, L, A]): IorT[F, L, A] =
+        IorT(cs.evalOn(ec)(fa.value))
     }
 }
