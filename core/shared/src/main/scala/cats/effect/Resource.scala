@@ -148,6 +148,20 @@ sealed abstract class Resource[F[_], A] {
     flatMap(a => Resource.pure[F, B](f(a)))
 
   /**
+    * Given a natural transformation from `F` to `G`, transforms this
+    * Resource from effect `F` to effect `G`.
+    */
+  def mapK[G[_]](f: F ~> G)(implicit B: Bracket[F, Throwable], D: Defer[G], G: Applicative[G]): Resource[G, A] =
+    this match {
+      case Allocate(resource) =>
+        Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
+      case Bind(source, f0) =>
+        Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
+      case Suspend(resource) =>
+        Suspend(f(resource).map(_.mapK(f)))
+    }
+
+  /**
     * Given a `Resource`, possibly built by composing multiple
     * `Resource`s monadically, returns the acquired resource, as well
     * as an action that runs all the finalizers for releasing it.
@@ -374,6 +388,7 @@ object Resource extends ResourceInstances {
   final case class Suspend[F[_], A](
     resource: F[Resource[F, A]])
     extends Resource[F, A]
+
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {
