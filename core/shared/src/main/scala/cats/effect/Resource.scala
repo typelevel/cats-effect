@@ -55,8 +55,8 @@ import scala.annotation.tailrec
  *
  * {{{
  *   def mkResource(s: String) = {
- *     val acquire = IO(println(s"Acquiring $$s")) *> IO.pure(s)
- *     def release(s: String) = IO(println(s"Releasing $$s"))
+ *     val acquire = IO(println(s"Acquiring $s")) *> IO.pure(s)
+ *     def release(s: String) = IO(println(s"Releasing $s"))
  *     Resource.make(acquire)(release)
  *   }
  *
@@ -66,7 +66,7 @@ import scala.annotation.tailrec
  *   } yield (outer, inner)
  *
  *   r.use { case (a, b) =>
- *     IO(println(s"Using $$a and $$b"))
+ *     IO(println(s"Using $a and $b"))
  *   }
  * }}}
  *
