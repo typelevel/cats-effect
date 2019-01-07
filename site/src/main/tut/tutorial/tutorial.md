@@ -78,7 +78,7 @@ anything, instead it will return an `IO` instance that encapsulates all the
 side effects involved (opening/closing files, reading/writing content), that way
 _purity_ is kept.  Only when that `IO` instance is evaluated all those
 side-effectful actions will be run. In our implementation the `IO` instance will
-return the amount of bytes copied upon execution, but this is just a design
+return the amount of bytes copied upon execution, but this is just a desrrrrrign
 decision. Of course errors can occur, but when working with any `IO` those
 should be embedded in the `IO` instance. That is, no exception is raised outside
 the `IO` and so no `try` (or the like) needs to be used when using the function,
@@ -101,7 +101,7 @@ parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
-We consider opening an stream to be a side-effect action, so we have to
+We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own `IO` instances. For this, we will make
 use of cats-effect `Resource`, that allows to orderly create, use and then
 release resources. See this code:
@@ -292,7 +292,7 @@ iteration.
 We are making progress, and already have a version of `copy` that can be used.
 If any exception is raised when `transfer` is running, then the streams will be
 automatically closed by `Resource`. But there is something else we have to take
-into account: `IO` instances execution can be **_canceled!_**. And cancellation
+into account: `IO` instances execution can be **_cancelled!_**. And cancellation
 should not be ignored, as it is a key feature of cats-effect. We will discuss
 cancellation in the next section.
 
