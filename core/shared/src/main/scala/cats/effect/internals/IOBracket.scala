@@ -169,8 +169,12 @@ private[effect] object IOBracket {
   private final class ReleaseRecover(e: Throwable)
     extends IOFrame[Unit, IO[Nothing]] {
 
-    def recover(e2: Throwable): IO[Nothing] =
-      IO.raiseError(IOPlatform.composeErrors(e, e2))
+    def recover(e2: Throwable): IO[Nothing] = {
+      // Logging the error somewhere, because exceptions
+      // should never be silent
+      Logger.reportFailure(e2)
+      IO.raiseError(e)
+    }
 
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)

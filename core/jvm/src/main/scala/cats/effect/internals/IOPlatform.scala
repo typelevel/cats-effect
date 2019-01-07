@@ -107,18 +107,4 @@ private[effect] object IOPlatform {
    * `false` if it's JavaScript.
    */
   final val isJVM = true
-
-  /**
-   * Composes multiple errors together, meant for those cases in which
-   * error suppression, due to a second error being triggered, is not
-   * acceptable.
-   *
-   * On top of the JVM this function uses `Throwable#addSuppressed`,
-   * available since Java 7. On top of JavaScript the function would return
-   * a `CompositeException`.
-   */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
-    for (e <- rest; if e != first) first.addSuppressed(e)
-    first
-  }
 }

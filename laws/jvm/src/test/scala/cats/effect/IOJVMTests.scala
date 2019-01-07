@@ -102,18 +102,6 @@ class IOJVMTests extends FunSuite with Matchers {
     }
   }
 
-  test("bracket signals errors from both use and release via Throwable#addSupressed") {
-    val e1 = new RuntimeException("e1")
-    val e2 = new RuntimeException("e2")
-
-    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
-      .attempt
-      .unsafeRunSync()
-
-    r shouldEqual Left(e1)
-    r.left.get.getSuppressed.toList shouldBe List(e2)
-  }
-
   test("long synchronous loops that are forked are cancelable") {
     implicit val ec = new ExecutionContext {
       val thread = new AtomicReference[Thread](null)
