@@ -97,7 +97,6 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-
   testAsync("evalMap with cancellation <-> IO.never") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
