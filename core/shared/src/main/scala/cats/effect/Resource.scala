@@ -388,7 +388,6 @@ object Resource extends ResourceInstances {
   final case class Suspend[F[_], A](
     resource: F[Resource[F, A]])
     extends Resource[F, A]
-
 }
 
 private[effect] abstract class ResourceInstances extends ResourceInstances0 {
