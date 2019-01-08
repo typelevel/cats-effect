@@ -57,7 +57,10 @@ private[effect] object CancelUtils {
           case Nil =>
             IO.unit
           case first :: rest =>
-            IO.raiseError(IOPlatform.composeErrors(first, rest: _*))
+            // Logging the errors somewhere, because exceptions
+            // should never be silent
+            rest foreach Logger.reportFailure
+            IO.raiseError(first)
         }
       }
     }
