@@ -577,7 +577,7 @@ Example:
 import scala.concurrent.ExecutionContext
 
 // Needed for IO.start to do a logical thread fork
-implicit val cs = IO.contextShift(ExecutionContext.global)
+implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
 val launchMissiles = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
@@ -1208,7 +1208,7 @@ Note: all parallel operations require an implicit `ContextShift[IO]` in scope
 It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
 ```tut:silent
-import cats.syntax.all._
+import cats.implicits._
 import scala.concurrent.ExecutionContext
 import cats.effect.ContextShift
 
@@ -1216,7 +1216,7 @@ val ioA = IO(println("Running ioA"))
 val ioB = IO(println("Running ioB"))
 val ioC = IO(println("Running ioC"))
 
-implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+// make sure that you have an implicit ContextShift[IO] in scope. We created one earlier in this document.
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()
