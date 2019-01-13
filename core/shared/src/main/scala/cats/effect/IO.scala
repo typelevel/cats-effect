@@ -797,7 +797,7 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
 
 private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 
-  implicit def parApplicative(implicit cs: ContextShift[IO]): Applicative[IO.Par] = new Applicative[IO.Par] {
+  implicit def parApplicative(implicit cs: ContextShift[IO]): CommutativeApplicative[IO.Par] = new CommutativeApplicative[IO.Par] {
     import IO.Par.{unwrap, apply => par}
 
     final override def pure[A](x: A): IO.Par[A] =
