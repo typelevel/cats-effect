@@ -59,7 +59,7 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  scalaVersion := "2.12.6",
+  scalaVersion := "2.12.7",
 
   crossScalaVersions := Seq("2.11.12", "2.12.7", "2.13.0-M5"),
 
