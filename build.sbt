@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,7 +149,7 @@ val commonSettings = Seq(
   homepage := Some(url("https://typelevel.org/cats-effect/")),
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
   headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+    """|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
        |
        |Licensed under the Apache License, Version 2.0 (the "License");
        |you may not use this file except in compliance with the License.
