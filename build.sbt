@@ -197,7 +197,11 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AsyncSemaphore.awaitGate"),
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate"),
       // All internals — https://github.com/typelevel/cats-effect/pull/424
-      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred")
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred"),
+      // Laws - https://github.com/typelevel/cats-effect/pull/473
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
     )
   })
 
