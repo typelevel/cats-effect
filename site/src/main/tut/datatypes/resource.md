@@ -8,6 +8,8 @@ scaladoc: "#cats.effect.Resource"
 
 Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance.
 
+The [Acquiring and releasing `Resource`s](../tutorial/tutorial.html#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
+
 ```tut:silent
 import cats.effect.Bracket
 
