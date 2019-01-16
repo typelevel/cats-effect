@@ -294,6 +294,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
   .jsConfigure(_.settings(scalaJSSettings))
