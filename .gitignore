@@ -9,3 +9,4 @@ tags
 benchmarks/results
 .java-version
 .DS_Store
+.metals
