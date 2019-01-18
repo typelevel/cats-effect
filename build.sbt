@@ -197,7 +197,11 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#AsyncSemaphore.awaitGate"),
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Semaphore#ConcurrentSemaphore.awaitGate"),
       // All internals — https://github.com/typelevel/cats-effect/pull/424
-      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred")
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$UncancelabbleDeferred"),
+      // Laws - https://github.com/typelevel/cats-effect/pull/473
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
     )
   })
 
@@ -294,6 +298,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
   .jsConfigure(_.settings(scalaJSSettings))
