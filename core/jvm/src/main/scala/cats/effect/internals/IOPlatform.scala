@@ -86,7 +86,7 @@ private[effect] object IOPlatform {
    *    about 4 KB of stack space
    *
    * If this parameter becomes a problem, it can be tuned by setting
-   * the `cats.effect.fusionMaxStackDepth` environment variable when
+   * the `cats.effect.fusionMaxStackDepth` system property when
    * executing the Java VM:
    *
    * <pre>
