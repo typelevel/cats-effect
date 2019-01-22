@@ -25,7 +25,7 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.14.0"
+val SimulacrumVersion = "0.15.0"
 val CatsVersion = "1.5.0"
 
 val ScalaTestVersion = Def.setting{
