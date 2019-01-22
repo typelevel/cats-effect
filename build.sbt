@@ -59,9 +59,9 @@ addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  scalaVersion := "2.12.7",
+  scalaVersion := "2.12.8",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.7", "2.13.0-M5"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
 
   //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
   sources in (Compile, doc) := (
