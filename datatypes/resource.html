@@ -2,11 +2,13 @@
 
 <p>Effectfully allocates and releases a resource. Forms a <code class="highlighter-rouge">MonadError</code> on the resource type when the effect type has a <code class="highlighter-rouge">Bracket</code> instance.</p>
 
+<p>The <a href="../tutorial/tutorial.html#acquiring-and-releasing-resources">Acquiring and releasing <code class="highlighter-rouge">Resource</code>s</a> section of the tutorial provides some additional context and examples regarding <code class="highlighter-rouge">Resource</code>.</p>
+
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Bracket</span>
 
 <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Resource</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">allocate</span><span class="k">:</span> <span class="kt">F</span><span class="o">[(</span><span class="kt">A</span>, <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])]</span>
-  
+
   <span class="k">def</span> <span class="n">use</span><span class="o">[</span><span class="kt">B</span>, <span class="kt">E</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Bracket</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">E</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span> <span class="k">=</span>
     <span class="n">F</span><span class="o">.</span><span class="n">bracket</span><span class="o">(</span><span class="n">allocate</span><span class="o">)(</span><span class="n">a</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">a</span><span class="o">.</span><span class="n">_1</span><span class="o">))(</span><span class="k">_</span><span class="o">.</span><span class="n">_2</span><span class="o">)</span>
 <span class="o">}</span>
@@ -14,6 +16,32 @@
 
 <p>Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner use or release fails.</p>
 
+<p>You can lift any <code class="highlighter-rouge">F[A]</code> with an <code class="highlighter-rouge">Applicative</code> instance into a <code class="highlighter-rouge">Resource[F, A]</code> with a no-op release via <code class="highlighter-rouge">Resource.liftF</code>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cats.effect.{IO, Resource}
+import cats.implicits._
+
+val greet: String =&gt; IO[Unit] = x =&gt; IO(println("Hello " ++ x))
+
+Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
+
+</code></pre></div></div>
+
+<p>Moreover it’s possible to apply further effects to the wrapped resource without leaving the <code class="highlighter-rouge">Resource</code> context via <code class="highlighter-rouge">evalMap</code>:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cats.effect.{IO, Resource}
+import cats.implicits._
+
+val acquire: IO[String] = IO(println("Acquire cats...")) *&gt; IO("cats")
+val release: String =&gt; IO[Unit] = x =&gt; IO(println("...release everything"))
+val addDogs: String =&gt; IO[String] = x =&gt;
+  IO(println("...more animals...")) *&gt; IO.pure(x ++ " and dogs")
+val report: String =&gt; IO[String] = x =&gt;
+  IO(println("...produce weather report...")) *&gt; IO("It's raining " ++ x)
+
+Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
+
+</code></pre></div></div>
 <h3 id="example">Example</h3>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
@@ -65,7 +93,7 @@
         <span class="k">new</span> <span class="nc">BufferedReader</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileReader</span><span class="o">(</span><span class="n">file</span><span class="o">))</span>
       <span class="o">}</span>
   <span class="o">)</span>
-  
+
 <span class="k">def</span> <span class="n">readLinesFromFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
     <span class="n">reader</span><span class="o">(</span><span class="n">file</span><span class="o">).</span><span class="n">use</span><span class="o">(</span><span class="n">readAllLines</span><span class="o">)</span>
 <span class="o">}</span>
@@ -97,7 +125,7 @@
 
 <span class="k">def</span> <span class="n">dumpFile</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="n">dumpResource</span><span class="o">(</span><span class="n">reader</span><span class="o">(</span><span class="n">file</span><span class="o">))</span>
-  
+
 </code></pre></div></div>
 
 

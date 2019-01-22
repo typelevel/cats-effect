@@ -578,7 +578,7 @@ thread that can be either joined (via <code class="highlighter-rouge">join</code
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for IO.start to do a logical thread fork
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
 <span class="k">val</span> <span class="n">launchMissiles</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
@@ -825,7 +825,7 @@ and can’t be used by FP abstractions</li>
   <li>it’s only meant for synchronous execution, so we can’t use it
 when working with abstractions capable of asynchrony
 (e.g. <code class="highlighter-rouge">IO</code>, <code class="highlighter-rouge">Task</code>, <code class="highlighter-rouge">Future</code>)</li>
-  <li><code class="highlighter-rouge">finally</code> executes irregardless of the exception type, 
+  <li><code class="highlighter-rouge">finally</code> executes regardless of the exception type,
 indiscriminately, so if you get an out of memory error it still
 tries to close the file handle, unnecessarily delaying a process
 crash</li>
@@ -1189,22 +1189,24 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 (see <a href="./contextshift.html">ContextShift</a>). You have a <code class="highlighter-rouge">ContextShift</code> in scope if:</p>
 
 <ol>
-  <li>there’s an implicit <code class="highlighter-rouge">ExecutionContext</code> in scope</li>
   <li>via usage of <a href="./ioapp.html">IOApp</a> that gives you a <code class="highlighter-rouge">ContextShift</code> by default</li>
-  <li>the user provides a custom <code class="highlighter-rouge">ContextShift</code></li>
+  <li>the user provides a custom <code class="highlighter-rouge">ContextShift</code>, which can be created using <code class="highlighter-rouge">IO.contextShift(executionContext)</code></li>
 </ol>
 
 <h3 id="parmapn">parMapN</h3>
 
 <p>It has the potential to run an arbitrary number of <code class="highlighter-rouge">IO</code>s in parallel, and it allows you to apply a function to the result (as in <code class="highlighter-rouge">map</code>). It finishes processing when all the <code class="highlighter-rouge">IO</code>s are completed, either successfully or with a failure. For example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.syntax.all._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">cats.effect.ContextShift</span>
 
 <span class="k">val</span> <span class="n">ioA</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioA"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">ioB</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioB"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">ioC</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioC"</span><span class="o">))</span>
 
-<span class="k">val</span> <span class="n">program</span> <span class="k">=</span> <span class="o">(</span><span class="n">ioA</span><span class="o">,</span> <span class="n">ioB</span><span class="o">,</span> <span class="n">ioC</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
+<span class="c1">// make sure that you have an implicit ContextShift[IO] in scope. We created one earlier in this document.
+</span><span class="k">val</span> <span class="n">program</span> <span class="k">=</span> <span class="o">(</span><span class="n">ioA</span><span class="o">,</span> <span class="n">ioB</span><span class="o">,</span> <span class="n">ioC</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 
 <span class="n">program</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">//=&gt; Running ioB
@@ -1296,7 +1298,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!
-// res88: cats.effect.CancelToken[cats.effect.IO] = IO$1972519422
+// res89: cats.effect.CancelToken[cats.effect.IO] = IO$1977957336
 </span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>

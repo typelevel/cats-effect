@@ -24,12 +24,12 @@
 
 <p>The workers will concurrently run and modify the value of the Ref so this is one possible outcome showing “#worker » currentCount”:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#1 &gt;&gt; 0
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#2 &gt;&gt; 0
+#1 &gt;&gt; 0
 #3 &gt;&gt; 0
-#2 &gt;&gt; 0
-#1 &gt;&gt; 2
-#2 &gt;&gt; 3
-#3 &gt;&gt; 3
+#1 &gt;&gt; 0
+#3 &gt;&gt; 2
+#2 &gt;&gt; 1
 </code></pre></div></div>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>

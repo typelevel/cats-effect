@@ -4,6 +4,9 @@
 operation, a generalized abstracted pattern of safe resource
 acquisition and release in the face of errors or interruption.</p>
 
+<p>Important note, throwing in <code class="highlighter-rouge">release</code> function is undefined since the behavior is left to the
+concrete implementations (ex. cats-effect <code class="highlighter-rouge">Bracket[IO]</code>, Monix <code class="highlighter-rouge">Bracket[Task]</code> or ZIO).</p>
+
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.MonadError</span>
 
 <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">ExitCase</span><span class="o">[</span><span class="kt">+E</span><span class="o">]</span>

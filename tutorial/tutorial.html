@@ -44,7 +44,7 @@ same dependencies and compilation options:</p>
 
 <span class="n">version</span> <span class="o">:=</span> <span class="s">"1.0"</span>
 
-<span class="n">scalaVersion</span> <span class="o">:=</span> <span class="s">"2.12.7"</span>
+<span class="n">scalaVersion</span> <span class="o">:=</span> <span class="s">"2.12.8"</span>
 
 <span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"1.0.0"</span> <span class="n">withSources</span><span class="o">()</span> <span class="n">withJavadoc</span><span class="o">()</span>
 
@@ -1176,7 +1176,7 @@ the execution context as parameter. Finally, we need an implicit
 who provides the instance of <code class="highlighter-rouge">ContextShift[IO]</code> in the <code class="highlighter-rouge">run</code> method.</p>
 
 <h4 id="echo-server-code-thread-pool-for-clients-version">Echo server code, thread pool for clients version</h4>
-<p>The version of our echo server using a thead pool is available
+<p>The version of our echo server using a thread pool is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV4_ClientThreadPool.scala">here</a>.</p>
 
 <h2 id="lets-not-forget-about-async">Let’s not forget about <code class="highlighter-rouge">async</code></h2>

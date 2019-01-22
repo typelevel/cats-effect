@@ -134,6 +134,10 @@
                         <a class="object" href="Semaphore$.html" title=""></a>
                         <a class="class" href="Semaphore.html" title="A purely functional semaphore."></a>
                         <a href="Semaphore.html" title="A purely functional semaphore.">Semaphore</a>
+                      </li><li class="current-entities indented3">
+                        <span class="separator"></span>
+                        <a class="class" href="TryableDeferred.html" title=""></a>
+                        <a href="TryableDeferred.html" title="">TryableDeferred</a>
                       </li>
               </ul>
             </div>
@@ -173,12 +177,17 @@ all readers currently blocked on a call to <code>get</code>.
 its content, and result in a failed <code>F</code>.</p><p>Albeit simple, <code>Deferred</code> can be used in conjunction with <a href="Ref.html" class="extype" name="cats.effect.concurrent.Ref">Ref</a> to build
 complex concurrent behaviour and data structures like queues and semaphores.</p><p>Finally, the blocking mentioned above is semantic only, no actual threads are
 blocked by the implementation.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.1.0/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.2.0/core/shared/src/main/scala/cats/effect/concurrent/Deferred.scala" target="_blank">Deferred.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
           <div class="superTypes hiddenContent"><span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
-        </div></div>
+        </div><div class="toggleContainer block">
+            <span class="toggle">
+              Known Subclasses
+            </span>
+            <div class="subClasses hiddenContent"><a href="TryableDeferred.html" class="extype" name="cats.effect.concurrent.TryableDeferred">TryableDeferred</a></div>
+          </div></div>
         
 
       <div id="mbrsel">
