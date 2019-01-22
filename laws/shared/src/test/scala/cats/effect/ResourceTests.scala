@@ -17,6 +17,9 @@
 package cats
 package effect
 
+import java.util.concurrent.atomic.AtomicBoolean
+
+import cats.data.Kleisli
 import cats.effect.laws.discipline.arbitrary._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -119,6 +122,43 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("mapK") { implicit ec =>
+    check { fa: Kleisli[IO, Int, Int] =>
+      val runWithTwo = new ~>[Kleisli[IO, Int, ?], IO] {
+        override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
+      }
+      Resource.liftF(fa).mapK(runWithTwo).use(IO.pure) <-> fa(2)
+    }
+  }
+
+  test("mapK should preserve ExitCode-specific behaviour") {
+    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
+      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli { i: Int => fa }
+    }
+
+    def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
+      val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val res = Resource.makeCase(IO.unit) {
+        case (_, ExitCase.Completed) => IO {
+          cleanExit.set(true)
+        }
+        case _ => IO.unit
+      }
+      (cleanExit, res)
+    }
+
+    val (clean, res) = sideEffectyResource
+    res.use(_ => IO.unit).attempt.unsafeRunSync()
+    clean.get() shouldBe true
+
+    val (clean1, res1) = sideEffectyResource
+    res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.unsafeRunSync()
+    clean1.get() shouldBe false
+
+    val (clean2, res2) = sideEffectyResource
+    res2.mapK(takeAnInteger).use(_ => Kleisli {i: Int => IO.raiseError[Unit](new Throwable("oh no"))}).run(0).attempt.unsafeRunSync()
+    clean2.get() shouldBe false
+  }
 
   testAsync("allocated produces the same value as the resource") { implicit ec =>
     check { resource: Resource[IO, Int] =>
@@ -136,6 +176,31 @@ class ResourceTests extends BaseTestsSuite {
 
     val prog = for {
       res <- (release *> resource).allocated
+      (_, close) = res
+      releaseAfterF <- IO(released.get() shouldBe false)
+      _ <- close >> IO(released.get() shouldBe true)
+    } yield ()
+
+    prog.unsafeRunSync
+  }
+
+  test("allocate does not release until close is invoked on mapK'd Resources") {
+    val released = new java.util.concurrent.atomic.AtomicBoolean(false)
+
+    val runWithTwo = new ~>[Kleisli[IO, Int, ?], IO] {
+      override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
+    }
+    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
+      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli { i: Int => fa }
+    }
+    val plusOne = Kleisli {i: Int => IO { i + 1 }}
+    val plusOneResource = Resource.liftF(plusOne)
+
+    val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
+    val resource = Resource.liftF(IO.unit)
+
+    val prog = for {
+      res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
       (_, close) = res
       releaseAfterF <- IO(released.get() shouldBe false)
       _ <- close >> IO(released.get() shouldBe true)
