@@ -80,7 +80,7 @@ import scala.annotation.tailrec
  * }}}
  *
  * A `Resource` is nothing more than a data structure, an ADT, described by
- * the following node types and that can be interpretted if needed:
+ * the following node types and that can be interpreted if needed:
  *
  *  - [[cats.effect.Resource.Allocate Allocate]]
  *  - [[cats.effect.Resource.Suspend Suspend]]
