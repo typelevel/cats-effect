@@ -19,6 +19,7 @@ package effect
 package laws
 
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.UnaryOperator
 
 import cats.effect.ExitCase.{Completed, Error}
 import cats.effect.concurrent.{Deferred, Ref}
@@ -38,9 +39,13 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
 
   def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
     val cur = new AtomicReference[A](a)
+    val op = new UnaryOperator[A] {
+      override def apply(t: A): A = f(t)
+    }
+
 
     val change: F[Unit] = F.async { cb =>
-      val _ = cur.updateAndGet(f(_))
+      val _ = cur.updateAndGet(op)
       cb(Right(()))
     }
 
