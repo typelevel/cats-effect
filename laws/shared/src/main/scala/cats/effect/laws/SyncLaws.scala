@@ -18,6 +18,7 @@ package cats
 package effect
 package laws
 
+import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.laws._
 
@@ -37,19 +38,16 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
     F.suspend[A](throw e) <-> F.raiseError(e)
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
-    var cur = a
-    val change = F delay { cur = f(cur) }
-    val _ = change
+    val refA = Ref.unsafe[F, A](a)
+    val _ = F.delay(refA.update(f(_)))
 
-    F.delay(cur) <-> F.pure(a)
+    refA.get <-> F.pure(a)
   }
 
   def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = {
-    var cur = a
-    val change = F delay { cur = f(cur) }
-    val read = F.delay(cur)
+    val fa = F.delay[A](f(a)).flatMap(x => F.delay(f(x)))
 
-    change *> change *> read <-> F.pure(f(f(a)))
+    fa <-> F.pure(f(f(a)))
   }
 
   def propagateErrorsThroughBindSuspend[A](t: Throwable) = {
@@ -59,23 +57,17 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   }
 
   def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
-    var state = a1
-    val evolve = F.flatMap(fa) { a2 =>
-      state = f(a1, a2)
-      F.pure(state)
-    }
+    val state = Ref.unsafe[F, A](a1)
+    val evolve = F.flatMap(fa)(a2 => state.update(x => f(x, a2)).flatMap(_ => state.get))
     // Observing `state` before and after `evolve`
-    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
+    F.map2(state.get, evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
   }
 
   def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
-    var state = a1
-    val evolve = F.map(fa) { a2 =>
-      state = f(a1, a2)
-      state
-    }
+    val state = Ref.unsafe[F, A](a1)
+    val evolve = F.flatMap(fa)(a2 => state.update(x => f(x, a2)).flatMap(_ => state.get))
     // Observing `state` before and after `evolve`
-    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
+    F.map2(state.get, evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
   }
 
   def stackSafetyOnRepeatedLeftBinds(iterations: Int) = {
