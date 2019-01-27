@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,7 +110,11 @@ private[effect] object IOParMap {
           other.cancel.unsafeRunAsync { r =>
             conn.pop()
             cb.async(Left(r match {
-              case Left(e2) => IOPlatform.composeErrors(e, e2)
+              case Left(e2) =>
+                // Logging the error somewhere, because exceptions
+                // should never be silent
+                Logger.reportFailure(e2)
+                e
               case _ => e
             }))
           }

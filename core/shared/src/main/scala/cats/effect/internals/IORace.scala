@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,8 @@ private[effect] object IORace {
       if (active.getAndSet(false)) {
         other.cancel.unsafeRunAsync { r2 =>
           main.pop()
-          cb(Left(composeErrors(err, r2)))
+          maybeReport(r2)
+          cb(Left(err))
         }
       } else {
         Logger.reportFailure(err)
@@ -124,7 +125,8 @@ private[effect] object IORace {
           if (active.getAndSet(false)) {
             connR.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(composeErrors(err, r2)))
+              maybeReport(r2)
+              cb(Left(err))
             }
           } else {
             promiseL.trySuccess(Left(err))
@@ -145,7 +147,8 @@ private[effect] object IORace {
           if (active.getAndSet(false)) {
             connL.cancel.unsafeRunAsync { r2 =>
               conn.pop()
-              cb(Left(composeErrors(err, r2)))
+              maybeReport(r2)
+              cb(Left(err))
             }
           } else {
             promiseR.trySuccess(Left(err))
@@ -155,12 +158,6 @@ private[effect] object IORace {
 
     IO.Async(start, trampolineAfter = true)
   }
-
-  private[this] def composeErrors(e: Throwable, e2: Either[Throwable, _]): Throwable =
-    e2 match {
-      case Left(e2) => IOPlatform.composeErrors(e, e2)
-      case _ => e
-    }
 
   private[this] def maybeReport(r: Either[Throwable, _]): Unit =
     r match {

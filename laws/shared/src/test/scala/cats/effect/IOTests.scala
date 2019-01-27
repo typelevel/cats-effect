@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -650,6 +650,45 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick(1.second)
     f.value.get.failed.get shouldBe an [TimeoutException]
+  }
+
+  test("bracket signals the error in use") {
+    val e = new RuntimeException("error in use")
+
+    val r = IO.unit.bracket(_ => IO.raiseError(e))(_ => IO.unit)
+      .attempt
+      .unsafeRunSync()
+
+    r shouldEqual Left(e)
+    e.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+  }
+
+  test("bracket signals the error in release") {
+    val e = new RuntimeException("error in release")
+
+    val r = IO.unit.bracket(_ => IO.unit)(_ => IO.raiseError(e))
+      .attempt
+      .unsafeRunSync()
+
+    r shouldEqual Left(e)
+    e.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+  }
+
+  test("bracket signals the error in use and logs the error from release") {
+    val e1 = new RuntimeException("error in use")
+    val e2 = new RuntimeException("error in release")
+
+    var r: Option[Either[Throwable, Nothing]] = None
+    val sysErr = catchSystemErr {
+      r = Some(IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
+          .attempt
+          .unsafeRunSync())
+    }
+
+    r shouldEqual Some(Left(e1))
+    sysErr should include("error in release")
+    e1.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+    e2.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
   }
 
   test("unsafeRunSync works for bracket") {

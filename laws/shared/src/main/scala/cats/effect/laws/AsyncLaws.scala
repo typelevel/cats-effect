@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,20 +34,33 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def asyncLeftIsRaiseError[A](e: Throwable) =
     F.async[A](_(Left(e))) <-> F.raiseError(e)
 
-  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = {
+  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
     var cur = a
 
-    val change: F[Unit] = F async { cb =>
+    val change: F[Unit] = F.async { cb =>
       cur = f(cur)
       cb(Right(()))
     }
 
     val read: F[A] = F.delay(cur)
 
-    change *> change *> read <-> F.pure(f(f(a)))
-  }
+    change *> change *> read
+  } <-> F.pure(f(f(a)))
 
-  def repeatedCallbackIgnored[A](a: A, f: A => A) = {
+  def repeatedAsyncFEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
+    var cur = a
+
+    val change: F[Unit] = F.asyncF { cb =>
+      cur = f(cur)
+      F.delay(cb(Right(())))
+    }
+
+    val read: F[A] = F.delay(cur)
+
+    change *> change *> read
+  } <-> F.pure(f(f(a)))
+
+  def repeatedCallbackIgnored[A](a: A, f: A => A) = F.suspend {
     var cur = a
     val change = F.delay { cur = f(cur) }
     val readResult = F.delay { cur }
@@ -57,8 +70,8 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
       cb(Right(()))
     }
 
-    double *> change *> readResult <-> F.delay(f(a))
-  }
+    double *> change *> readResult
+  } <-> F.delay(f(a))
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {
     val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))

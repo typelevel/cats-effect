@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -169,8 +169,12 @@ private[effect] object IOBracket {
   private final class ReleaseRecover(e: Throwable)
     extends IOFrame[Unit, IO[Nothing]] {
 
-    def recover(e2: Throwable): IO[Nothing] =
-      IO.raiseError(IOPlatform.composeErrors(e, e2))
+    def recover(e2: Throwable): IO[Nothing] = {
+      // Logging the error somewhere, because exceptions
+      // should never be silent
+      Logger.reportFailure(e2)
+      IO.raiseError(e)
+    }
 
     def apply(a: Unit): IO[Nothing] =
       IO.raiseError(e)

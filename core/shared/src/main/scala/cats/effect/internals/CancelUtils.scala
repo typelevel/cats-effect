@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,10 @@ private[effect] object CancelUtils {
           case Nil =>
             IO.unit
           case first :: rest =>
-            IO.raiseError(IOPlatform.composeErrors(first, rest: _*))
+            // Logging the errors somewhere, because exceptions
+            // should never be silent
+            rest foreach Logger.reportFailure
+            IO.raiseError(first)
         }
       }
     }

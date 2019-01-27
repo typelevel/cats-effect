@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.effect.util.CompositeException
 import org.scalatest.{AsyncFunSuite, Matchers}
 
 import scala.concurrent.duration.{FiniteDuration, _}
@@ -49,21 +48,5 @@ class IOJSTests extends AsyncFunSuite with Matchers {
           succeed
       }
     }
-  }
-
-  test("bracket signals errors from both use and release via CompositeException") {
-    val e1 = new RuntimeException("e1")
-    val e2 = new RuntimeException("e2")
-
-    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
-      .attempt
-      .unsafeRunSync()
-
-    r.isLeft shouldBe true
-    r.left.get shouldBe a[CompositeException]
-
-    val err = r.left.get.asInstanceOf[CompositeException]
-    err.head shouldBe e1
-    err.tail.toList shouldBe List(e2)
   }
 }

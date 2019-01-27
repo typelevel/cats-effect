@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -385,8 +385,10 @@ object Concurrent {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
-    timeoutTo(fa, duration, F.raiseError(new TimeoutException(duration.toString)))
+  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Concurrent[F], timer: Timer[F]): F[A] = {
+    val timeoutException = F.suspend(F.raiseError[A](new TimeoutException(duration.toString)))
+    timeoutTo(fa, duration, timeoutException)
+  }
 
   /**
    * Function that creates an async and cancelable `F[A]`, similar with

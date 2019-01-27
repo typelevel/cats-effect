@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,18 +100,6 @@ class IOJVMTests extends FunSuite with Matchers {
       val r = (io1, io2).parMapN(_ + _).unsafeRunSync()
       r shouldEqual 3
     }
-  }
-
-  test("bracket signals errors from both use and release via Throwable#addSupressed") {
-    val e1 = new RuntimeException("e1")
-    val e2 = new RuntimeException("e2")
-
-    val r = IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
-      .attempt
-      .unsafeRunSync()
-
-    r shouldEqual Left(e1)
-    r.left.get.getSuppressed.toList shouldBe List(e2)
   }
 
   test("long synchronous loops that are forked are cancelable") {

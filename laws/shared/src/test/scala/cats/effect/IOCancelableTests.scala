@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 package cats.effect
 
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.effect.internals.{Callback, CancelUtils, Conversions, IOPlatform}
+import cats.effect.internals.{Callback, CancelUtils, Conversions}
 import cats.effect.laws.discipline.arbitrary._
-import cats.effect.util.CompositeException
 import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
@@ -188,7 +188,7 @@ class IOCancelableTests extends BaseTestsSuite {
     atom.get() shouldBe 1
   }
 
-  testAsync("errors of nested brackets get aggregated") { _ =>
+  testAsync("first error in nested brackets gets returned, the rest are logged") { _ =>
     val dummy1 = new RuntimeException("dummy1")
     val dummy2 = new RuntimeException("dummy2")
     val dummy3 = new RuntimeException("dummy3")
@@ -205,19 +205,20 @@ class IOCancelableTests extends BaseTestsSuite {
       }
 
     val p = Promise[Unit]()
-    val token = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r)))
-    val f = token.unsafeToFuture()
+    val sysErr = new ByteArrayOutputStream()
+
+    val f = catchSystemErrInto(sysErr) {
+      val token = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r)))
+      token.unsafeToFuture()
+    }
 
     p.future.value shouldBe None
 
-    if (IOPlatform.isJVM) {
-      f.value shouldBe Some(Failure(dummy3))
-      dummy3.getSuppressed.toList shouldBe List(dummy2, dummy1)
-    } else {
-      f.value match {
-        case Some(Failure(CompositeException(`dummy3`, `dummy2`, `dummy1`))) => ()
-        case _ => fail(s"Unexpected result: ${f.value}")
-      }
-    }
+    f.value shouldBe Some(Failure(dummy3))
+    sysErr.toString("utf-8") should include("dummy2")
+    sysErr.toString("utf-8") should include("dummy1")
+    dummy1.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+    dummy2.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+    dummy3.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
   }
 }

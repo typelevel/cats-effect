@@ -831,7 +831,7 @@ It does have problems like:
 2. it's only meant for synchronous execution, so we can't use it
    when working with abstractions capable of asynchrony
    (e.g. `IO`, `Task`, `Future`)
-3. `finally` executes irregardless of the exception type, 
+3. `finally` executes regardless of the exception type,
    indiscriminately, so if you get an out of memory error it still
    tries to close the file handle, unnecessarily delaying a process
    crash
@@ -1208,7 +1208,7 @@ Note: all parallel operations require an implicit `ContextShift[IO]` in scope
 It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
 ```tut:silent
-import cats.syntax.all._
+import cats.implicits._
 import scala.concurrent.ExecutionContext
 import cats.effect.ContextShift
 
@@ -1216,7 +1216,7 @@ val ioA = IO(println("Running ioA"))
 val ioB = IO(println("Running ioB"))
 val ioC = IO(println("Running ioC"))
 
-implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+// make sure that you have an implicit ContextShift[IO] in scope. We created one earlier in this document.
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()
@@ -1246,13 +1246,9 @@ parFailure.unsafeRunSync()
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
 ```tut:silent
-import scala.concurrent.ExecutionContext
-import cats.effect.ContextShift
-
 val ioA = IO.sleep(10.seconds) *> IO(println("Delayed!"))
 val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
-implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 (ioA, ioB).parMapN((_, _) => ())
 ```
 
@@ -1262,14 +1258,12 @@ If you have a list of IO, and you want a single IO with the result list you can 
 
 ```tut:silent
 import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
-import scala.concurrent.ExecutionContext
 
 val anIO = IO(1)
 
 val aLotOfIOs = 
   NonEmptyList.of(anIO, anIO)
 
-implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val ioOfList = aLotOfIOs.parSequence
 ```
 
@@ -1280,13 +1274,6 @@ There is also `cats.Traverse.sequence` which does this synchronously.
 If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel.
 
 ```tut:silent
-import cats.data._
-import cats.effect._
-import cats.syntax.all._
-import scala.concurrent.ExecutionContext
-
-implicit val ctxShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-
 val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
   IO(i)
 }

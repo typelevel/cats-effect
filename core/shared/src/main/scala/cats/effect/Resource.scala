@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ import scala.annotation.tailrec
  * }}}
  *
  * A `Resource` is nothing more than a data structure, an ADT, described by
- * the following node types and that can be interpretted if needed:
+ * the following node types and that can be interpreted if needed:
  *
  *  - [[cats.effect.Resource.Allocate Allocate]]
  *  - [[cats.effect.Resource.Suspend Suspend]]
@@ -146,6 +146,20 @@ sealed abstract class Resource[F[_], A] {
     */
   def map[B](f: A => B)(implicit F: Applicative[F]): Resource[F, B] =
     flatMap(a => Resource.pure[F, B](f(a)))
+
+  /**
+    * Given a natural transformation from `F` to `G`, transforms this
+    * Resource from effect `F` to effect `G`.
+    */
+  def mapK[G[_]](f: F ~> G)(implicit B: Bracket[F, Throwable], D: Defer[G], G: Applicative[G]): Resource[G, A] =
+    this match {
+      case Allocate(resource) =>
+        Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
+      case Bind(source, f0) =>
+        Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
+      case Suspend(resource) =>
+        Suspend(f(resource).map(_.mapK(f)))
+    }
 
   /**
     * Given a `Resource`, possibly built by composing multiple

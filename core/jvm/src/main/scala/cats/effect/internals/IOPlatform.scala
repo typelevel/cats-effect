@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ private[effect] object IOPlatform {
    *    about 4 KB of stack space
    *
    * If this parameter becomes a problem, it can be tuned by setting
-   * the `cats.effect.fusionMaxStackDepth` environment variable when
+   * the `cats.effect.fusionMaxStackDepth` system property when
    * executing the Java VM:
    *
    * <pre>
@@ -107,18 +107,4 @@ private[effect] object IOPlatform {
    * `false` if it's JavaScript.
    */
   final val isJVM = true
-
-  /**
-   * Composes multiple errors together, meant for those cases in which
-   * error suppression, due to a second error being triggered, is not
-   * acceptable.
-   *
-   * On top of the JVM this function uses `Throwable#addSuppressed`,
-   * available since Java 7. On top of JavaScript the function would return
-   * a `CompositeException`.
-   */
-  def composeErrors(first: Throwable, rest: Throwable*): Throwable = {
-    for (e <- rest; if e != first) first.addSuppressed(e)
-    first
-  }
 }

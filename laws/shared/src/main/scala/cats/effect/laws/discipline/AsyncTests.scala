@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 The Typelevel Cats-effect Project Developers
+ * Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
           "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
           "repeated async evaluation not memoized" -> forAll(laws.repeatedAsyncEvaluationNotMemoized[A] _),
+          "repeated asyncF evaluation not memoized" -> forAll(laws.repeatedAsyncFEvaluationNotMemoized[A] _),
           "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _),
           "async can be derived from asyncF" -> forAll(laws.asyncCanBeDerivedFromAsyncF[A] _),
           "bracket release is called on Completed or Error" -> forAll(laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _))
