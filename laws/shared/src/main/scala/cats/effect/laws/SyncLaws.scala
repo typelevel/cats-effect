@@ -36,21 +36,22 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
   def suspendThrowIsRaiseError[A](e: Throwable) =
     F.suspend[A](throw e) <-> F.raiseError(e)
 
-  def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
+  def unsequencedDelayIsNoop[A](a: A, f: A => A) = F.suspend {
     var cur = a
     val change = F delay { cur = f(cur) }
     val _ = change
 
-    F.delay(cur) <-> F.pure(a)
-  }
+    F.delay(cur)
+  } <-> F.pure(a)
 
-  def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = {
+  def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
     var cur = a
     val change = F delay { cur = f(cur) }
     val read = F.delay(cur)
 
-    change *> change *> read <-> F.pure(f(f(a)))
-  }
+    change *> change *> read
+  } <-> F.pure(f(f(a)))
+
 
   def propagateErrorsThroughBindSuspend[A](t: Throwable) = {
     val fa = F.delay[A](throw t).flatMap(x => F.pure(x))
@@ -58,25 +59,26 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
     fa <-> F.raiseError(t)
   }
 
-  def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
+  def bindSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = F.suspend {
     var state = a1
     val evolve = F.flatMap(fa) { a2 =>
       state = f(a1, a2)
       F.pure(state)
     }
     // Observing `state` before and after `evolve`
-    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
-  }
+    F.map2(F.pure(state), evolve)(f)
+  } <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
 
-  def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = {
+
+  def mapSuspendsEvaluation[A](fa: F[A], a1: A, f: (A, A) => A) = F.suspend {
     var state = a1
     val evolve = F.map(fa) { a2 =>
       state = f(a1, a2)
       state
     }
     // Observing `state` before and after `evolve`
-    F.map2(F.pure(state), evolve)(f) <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
-  }
+    F.map2(F.pure(state), evolve)(f)
+  } <-> F.map(fa)(a2 => f(a1, f(a1, a2)))
 
   def stackSafetyOnRepeatedLeftBinds(iterations: Int) = {
     val result = (0 until iterations).foldLeft(F.delay(())) { (acc, _) =>
