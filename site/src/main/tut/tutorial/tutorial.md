@@ -846,7 +846,7 @@ def server[F[_]: Concurrent](serverSocket: ServerSocket): F[ExitCode] =
     stopFlag    <- MVar[F].empty[Unit]
     serverFiber <- serve(serverSocket, stopFlag).start // Server runs on its own Fiber
     _           <- stopFlag.read                       // Blocked until 'stopFlag.put(())' is run
-    _           <- serverFiber.cancel                  // Stopping server!
+    _           <- serverFiber.cancel.start            // Stopping server!
   } yield ExitCode.Success
 ```
 
@@ -1197,7 +1197,7 @@ def server[F[_]: Concurrent: ContextShift](serverSocket: ServerSocket): F[ExitCo
     serverFiber <- serve(serverSocket, stopFlag).start         // Server runs on its own Fiber
     _           <- stopFlag.read                               // Blocked until 'stopFlag.put(())' is run
     _           <- Sync[F].delay(clientsThreadPool.shutdown()) // Shutting down clients pool
-    _           <- serverFiber.cancel                          // Stopping server
+    _           <- serverFiber.cancel.start                    // Stopping server
   } yield ExitCode.Success
 }
 ```
