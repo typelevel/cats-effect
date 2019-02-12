@@ -20,7 +20,6 @@ abstract class MVar[F[_], A] {
 
   def tryPut(a: A): F[Boolean]
   def tryTake: F[Option[A]]
-  def tryRead: F[Option[A]]
 }
 ```
 
@@ -43,14 +42,14 @@ It has these fundamental (atomic) operations:
 - `read`: which reads the current value without modifying the `MVar`,
   assuming there is a value available, or otherwise it waits until a value
   is made available via `put`
-- `tryPut`, `tryTake` and `tryRead` variants of the above, that try
+- `tryPut` and `tryTake` variants of the above, that try
   those operation once and fail in case (semantic) blocking would
   be involved
 
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
-when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or 
+when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or
 [Concurrent](../typeclasses/concurrent.html) data types such as [IO](../datatypes/io.html))
 and it thus works on top of Javascript as well.
 </p>
