@@ -51,7 +51,7 @@ version := "1.0"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "1.2.0" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -1139,13 +1139,11 @@ import cats.effect._
 import cats.implicits._
 import scala.concurrent.ExecutionContext
 
-def doHeavyStuffInADifferentThreadPool[F[_]: ContextShift: Sync](implicit ec: ExecutionContext): F[Unit] = {
-  val csf = implicitly[ContextShift[F]]
+def doHeavyStuffInADifferentThreadPool[F[_]: ContextShift: Sync](implicit ec: ExecutionContext): F[Unit] =
   for {
-    _ <- csf.evalOn(ec)(Sync[F].delay(println("Hi!"))) // Swapping to thread pool of given ExecutionContext
+    _ <- ContextShift[F].evalOn(ec)(Sync[F].delay(println("Hi!"))) // Swapping to thread pool of given ExecutionContext
     _ <- Sync[F].delay(println("Welcome!")) // Running back in default thread pool
   } yield ()
-}
 ```
 
 #### Exercise: using a custom thread pool in echo server
@@ -1164,11 +1162,9 @@ connected client. So the beginning of the `echoProtocol` function would look lik
 ```scala
 def echoProtocol[F[_]: Sync: ContextShift](clientSocket: Socket, stopFlag: MVar[F, Unit])(implicit clientsExecutionContext: ExecutionContext): F[Unit] = {
 
-  val csf = implicitly[ContextShift[F]]
-
   def loop(reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
     for {
-      lineE <- csf.evalOn(clientsExecutionContext)(Sync[F].delay(reader.readLine()).attempt)
+      lineE <- ContextShift[F].evalOn(clientsExecutionContext)(Sync[F].delay(reader.readLine()).attempt)
 //    ...
 ```
 
