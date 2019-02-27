@@ -122,6 +122,37 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("evalTap") { implicit ec =>
+    check { (f: Int => IO[Int]) =>
+      Resource.liftF(IO(0)).evalTap(f).use(IO.pure) <-> f(0).as(0)
+    }
+  }
+
+  testAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a =>
+        for {
+          f <- (g(a) <* IO.cancelBoundary).start
+          _ <- f.cancel
+          r <- f.join
+        } yield r
+
+      Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) <-> IO.never
+    }
+  }
+
+  testAsync("(evalTap with error <-> IO.raiseError") { implicit ec =>
+    case object Foo extends Exception
+    implicit val cs = ec.contextShift[IO]
+
+    check { (g: Int => IO[Int]) =>
+      val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
+      Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) <-> IO.raiseError(Foo)
+    }
+  }
+
   testAsync("mapK") { implicit ec =>
     check { fa: Kleisli[IO, Int, Int] =>
       val runWithTwo = new ~>[Kleisli[IO, Int, ?], IO] {
