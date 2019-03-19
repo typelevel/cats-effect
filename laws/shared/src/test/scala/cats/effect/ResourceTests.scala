@@ -94,7 +94,6 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("liftF - interruption") { implicit ec =>
-    pending
     implicit val timer = ec.timer[IO]
     implicit val ctx = ec.contextShift[IO]
 
