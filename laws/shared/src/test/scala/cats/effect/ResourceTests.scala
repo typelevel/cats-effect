@@ -122,21 +122,6 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("evalMap with cancellation <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-
-    check { (g: Int => IO[Int]) =>
-      val effect: Int => IO[Int] = a =>
-        for {
-          f <- (g(a) <* IO.cancelBoundary).start
-          _ <- f.cancel
-          r <- f.join
-        } yield r
-
-      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.never
-    }
-  }
-
   testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
     implicit val cs = ec.contextShift[IO]
