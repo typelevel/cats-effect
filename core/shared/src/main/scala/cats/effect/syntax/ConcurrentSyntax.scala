@@ -17,7 +17,6 @@
 package cats.effect.syntax
 
 import scala.concurrent.duration.FiniteDuration
-
 import cats.effect.{Concurrent, Timer}
 
 
