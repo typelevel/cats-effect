@@ -19,6 +19,7 @@ package cats.effect
 package object syntax {
   object all extends AllCatsEffectSyntax
   object bracket extends BracketSyntax
+  object async extends AsyncSyntax
   object concurrent extends ConcurrentSyntax
   object concurrentEffect extends ConcurrentEffectSyntax
   object effect extends EffectSyntax

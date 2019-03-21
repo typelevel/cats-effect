@@ -16,7 +16,9 @@
 
 package cats.effect
 
+import cats.{Parallel, Traverse}
 import cats.effect.syntax.AllCatsEffectSyntax
+
 import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
@@ -38,6 +40,16 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[B]](acquire.bracketCase(use)(releaseCase))
     typed[F[A]](acquire.guarantee(finalizer))
     typed[F[A]](acquire.guaranteeCase(finalCase))
+  }
+
+  def asyncSyntax[T[_]: Traverse, M[_], F[_], A, B](implicit M: Async[M], P: Parallel[M, F]) = {
+    val n = mock[Long]
+    val ta = mock[T[A]]
+    val f = mock[A => M[B]]
+    val tma = mock[T[M[A]]]
+
+    typed[M[T[B]]](M.parTraverseN(n)(ta)(f))
+    typed[M[T[A]]](M.parSequenceN(n)(tma))
   }
 
   def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
