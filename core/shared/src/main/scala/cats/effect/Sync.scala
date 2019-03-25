@@ -162,9 +162,6 @@ object Sync {
     def bracketCase[A, B](acquire: OptionT[F, A])
       (use: A => OptionT[F, B])
       (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
-
-      //Boolean represents if release returned None
-      OptionT.liftF(Ref.of[F, Boolean](false)).flatMap { ref =>
         OptionT(
           F.bracketCase(acquire.value) {
             case Some(a) => use(a).value
@@ -172,17 +169,10 @@ object Sync {
           } {
             case (None, _) => F.unit //Nothing to release
             case (Some(a), ExitCase.Completed) =>
-              release(a, ExitCase.Completed).value.flatMap {
-                case None => ref.set(true)
-                case Some(_) => F.unit
-              }
+              release(a, ExitCase.Completed).value.void
             case (Some(a), res) => release(a, res).value.void
-          }.flatMap[Option[B]] {
-            case s @ Some(_) => ref.get.map(b => if (b) None else s)
-            case None => F.pure(None)
           }
         )
-      }
     }
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
