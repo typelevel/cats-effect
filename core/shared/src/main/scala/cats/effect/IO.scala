@@ -25,7 +25,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
-import scala.util.{Left, Right}
+import scala.util.{Failure, Left, Right, Success, Try}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -1204,6 +1204,16 @@ object IO extends IOInstances {
     e match {
       case Right(a) => pure(a)
       case Left(err) => raiseError(err)
+    }
+
+  /**
+   * Lifts an `Try[A]` into the `IO[A]` context, raising the throwable if it
+   * exists.
+   */
+  def fromTry[A](t: Try[A]): IO[A] =
+    t match {
+      case Success(a) => pure(a)
+      case Failure(err) => raiseError(err)
     }
 
   /**

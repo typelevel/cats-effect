@@ -30,7 +30,7 @@ import cats.laws.discipline._
 import org.scalacheck._
 
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
 
@@ -135,6 +135,24 @@ class IOTests extends BaseTestsSuite {
     val e : Either[Throwable, Foo] = Right(Foo(1))
 
     IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+      case Right(Foo(_)) => ()
+    }
+  }
+
+  test("fromTry handles Failure") {
+    case object Foo extends Exception
+    val t : Try[Nothing] = Failure(Foo)
+
+    IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
+      case Left(Foo) => ()
+    }
+  }
+
+  test("fromTry handles Success") {
+    case class Foo(x: Int)
+    val t : Try[Foo] = Success(Foo(1))
+
+    IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
       case Right(Foo(_)) => ()
     }
   }
