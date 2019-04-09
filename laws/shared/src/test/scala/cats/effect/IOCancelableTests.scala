@@ -226,7 +226,7 @@ class IOCancelableTests extends BaseTestsSuite {
   testAsync("bracket can be canceled while failing to acquire") { ec =>
     implicit val timer = ec.timer[IO]
 
-    val io = (IO.sleep(2.second) *> IO.raiseError(new Exception()))
+    val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
         .bracket(_ => IO.unit)(_ => IO.unit)
 
     val cancelToken = io.unsafeRunCancelable(_ => ())
