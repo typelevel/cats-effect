@@ -105,7 +105,7 @@ def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
     if (n > 0) 
       fib(n - 1, b, b2)
     else 
-      IO.pure(b2)
+      IO.pure(a)
   }
 ```
 
