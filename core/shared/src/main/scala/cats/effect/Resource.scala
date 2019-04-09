@@ -315,7 +315,7 @@ object Resource extends ResourceInstances {
    * @param fa the value to lift into a resource
    */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
-    make(fa)(_ => F.unit)
+    Resource.suspend(fa.map(a => Resource.pure(a)))
 
   /**
     * Creates a [[Resource]] by wrapping a Java

@@ -17,15 +17,17 @@
 package cats
 package effect
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 import cats.data.Kleisli
+import cats.effect.concurrent.Deferred
 import cats.effect.laws.discipline.arbitrary._
+import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
-import cats.implicits._
+import java.util.concurrent.atomic.AtomicBoolean
+import scala.concurrent.duration._
+import scala.util.Success
 
 class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
@@ -91,24 +93,31 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("liftF - interruption") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    def p = Deferred[IO, ExitCase[Throwable]].flatMap { stop =>
+      val r = Resource
+        .liftF(IO.never: IO[Int])
+        .use(IO.pure)
+        .guaranteeCase(stop.complete)
+
+      r.start.flatMap { fiber =>
+        timer.sleep(200.millis) >> fiber.cancel >> stop.get
+      }
+    }.timeout(2.seconds)
+
+    val res = p.unsafeToFuture
+
+    ec.tick(3.seconds)
+
+    res.value shouldBe Some(Success(ExitCase.Canceled))
+  }
+
   testAsync("evalMap") { implicit ec =>
     check { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
-    }
-  }
-
-  testAsync("evalMap with cancellation <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-
-    check { (g: Int => IO[Int]) =>
-      val effect: Int => IO[Int] = a =>
-        for {
-          f <- (g(a) <* IO.cancelBoundary).start
-          _ <- f.cancel
-          r <- f.join
-        } yield r
-
-      Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.never
     }
   }
 
