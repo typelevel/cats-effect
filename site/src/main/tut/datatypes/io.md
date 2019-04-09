@@ -238,7 +238,7 @@ def convert[A](fa: => Future[A])(implicit ec: ExecutionContext): IO[A] =
 
 For building cancelable `IO` tasks you need to use the
 `IO.cancelable` builder, this being compliant with
-`Concurrent#cancelable` (see [Concurrent](../typeclasses/concurrent.html))) 
+`Concurrent#cancelable` (see [Concurrent](../typeclasses/concurrent.html)) 
 and has this signature:
 
 ```tut:silent
