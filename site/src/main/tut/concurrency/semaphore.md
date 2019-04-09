@@ -86,8 +86,6 @@ class PreciousResource[F[_]](name: String, s: Semaphore[F])(implicit F: Concurre
     } yield ()
 }
 
-implicit val par: Parallel[IO, IO] = Parallel[IO, IO.Par].asInstanceOf[Parallel[IO, IO]]
-
 val program: IO[Unit] =
   for {
     s  <- Semaphore[IO](1)
