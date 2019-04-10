@@ -32,6 +32,12 @@ trait LiftIO[F[_]] {
 }
 
 object LiftIO {
+
+  /**
+    * [[LiftIO.liftIO]] as a natural transformation.
+    */
+  def liftK[F[_]: LiftIO]: IO ~> F = λ[IO ~> F](_.to[F])
+
   /**
    * [[LiftIO]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `LiftIO`.
