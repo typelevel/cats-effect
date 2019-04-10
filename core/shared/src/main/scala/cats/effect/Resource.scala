@@ -401,6 +401,12 @@ private[effect] abstract class ResourceInstances extends ResourceInstances0 {
       def A = A0
       def F = F0
     }
+
+  implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, ?]] =
+    new ResourceLiftIO[F] {
+      def F0 = F00
+      def F1 = F10
+    }
 }
 
 private[effect] abstract class ResourceInstances0 {
@@ -506,4 +512,12 @@ private[effect] abstract class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
       y <- ry
       xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
     } yield xy
+}
+
+private[effect] abstract class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, ?]] {
+  protected implicit def F0: LiftIO[F]
+  protected implicit def F1: Applicative[F]
+
+  def liftIO[A](ioa: IO[A]): Resource[F, A] =
+    Resource.liftF(F0.liftIO(ioa))
 }
