@@ -86,6 +86,7 @@ private[effect] object IOBracket {
         IORunLoop.startCancelable(onNext, conn, cb)
 
       case error @ Left(_) =>
+        deferredRelease.complete(IO.unit)
         cb(error.asInstanceOf[Either[Throwable, B]])
     }
   }

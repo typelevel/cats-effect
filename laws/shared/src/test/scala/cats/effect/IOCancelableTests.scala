@@ -44,13 +44,13 @@ class IOCancelableTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(()))
   }
 
-  testAsync("fa *> IO.cancelBoundary <-> fa") { implicit ec =>
+  testAsync("fa <* IO.cancelBoundary <-> fa") { implicit ec =>
     check { (fa: IO[Int]) =>
       fa <* IO.cancelBoundary <-> fa
     }
   }
 
-  testAsync("(fa *> IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
+  testAsync("(fa <* IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
     check { (fa: IO[Int]) =>
@@ -154,7 +154,7 @@ class IOCancelableTests extends BaseTestsSuite {
             }
           }
         } { x2 =>
-          IO.sleep(2.second) *> IO {
+          IO.sleep(2.seconds) *> IO {
             atom.compareAndSet(3, x2) shouldBe true
           }
         }
@@ -220,5 +220,21 @@ class IOCancelableTests extends BaseTestsSuite {
     dummy1.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
     dummy2.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
     dummy3.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+  }
+
+  // regression test for https://github.com/typelevel/cats-effect/issues/487
+  testAsync("bracket can be canceled while failing to acquire") { ec =>
+    implicit val timer = ec.timer[IO]
+
+    val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
+        .bracket(_ => IO.unit)(_ => IO.unit)
+
+    val cancelToken = io.unsafeRunCancelable(_ => ())
+
+    ec.tick(1.second)
+    val cancellation = cancelToken.unsafeToFuture()
+
+    ec.tick(1.second)
+    cancellation.value shouldBe Some(Success(()))
   }
 }
