@@ -25,15 +25,15 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.15.0"
+val SimulacrumVersion = "0.16.0"
 val CatsVersion = "1.6.0"
 
 val ScalaTestVersion = Def.setting{
   CrossVersion.partialVersion(scalaVersion.value) match {
     case Some((2, v)) if v <= 12 =>
-      "3.0.5"
+      "3.0.7"
     case _ =>
-      "3.0.6-SNAP5"
+      "3.0.8-RC2"
   }
 }
 
@@ -51,7 +51,7 @@ val DisciplineVersion = Def.setting{
     case Some((2, v)) if v <= 12 =>
       "0.9.0"
     case _ =>
-      "0.10.0"
+      "0.11.1"
   }
 }
 
@@ -61,7 +61,7 @@ addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeRelea
 val commonSettings = Seq(
   scalaVersion := "2.12.8",
 
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-M5"),
+  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
 
   //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
   sources in (Compile, doc) := (
