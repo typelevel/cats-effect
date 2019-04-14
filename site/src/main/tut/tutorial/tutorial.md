@@ -833,7 +833,7 @@ call to `fiber.cancel`) is also run in a separate fiber to prevent being
 blocked by it. This is not always needed, but the cancellation of actions
 defined by `bracket` or `bracketCase` will wait until all finalizers (release
 stage of bracket) are finished. The `F` created by our `serve` function is
-debined based on `bracketCase`, so if the action is blocked at any bracket stage
+defined based on `bracketCase`, so if the action is blocked at any bracket stage
 (acquisition, usage or release), then the cancel call will be blocked too. And
 our bracket blocks as the `serverSocket.accept` call is blocking!. As a result,
 invoking `.cancel` will block our `server` function. To fix this we just execute
