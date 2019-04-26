@@ -62,7 +62,7 @@ object LTask {
         LTask { implicit ec => Future.successful(()).flatMap(_ => thunk.run(ec)) }
 
       def async[A](k: (Either[Throwable, A] => Unit) => Unit): LTask[A] =
-        LTask { implicit ec =>
+        LTask { _ =>
           val p = Promise[A]()
           k(r => p.tryComplete(Conversions.toTry(r)))
           p.future

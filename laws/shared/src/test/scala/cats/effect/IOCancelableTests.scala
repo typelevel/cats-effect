@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 class IOCancelableTests extends BaseTestsSuite {
-  testAsync("IO.cancelBoundary <-> IO.unit") { implicit ec =>
+  testAsync("IO.cancelBoundary <-> IO.unit") { _ =>
     val f = IO.cancelBoundary.unsafeToFuture()
     f.value shouldBe Some(Success(()))
   }

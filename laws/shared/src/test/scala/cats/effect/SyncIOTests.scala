@@ -27,9 +27,9 @@ import cats.laws.discipline._
 
 
 class SyncIOTests extends BaseTestsSuite {
-  checkAllAsync("SyncIO", implicit ec => SyncTests[SyncIO].sync[Int, Int, Int])
-  checkAllAsync("SyncIO", implicit ec => MonoidTests[SyncIO[Int]].monoid)
-  checkAllAsync("SyncIO", implicit ec => SemigroupKTests[SyncIO].semigroupK[Int])
+  checkAllAsync("SyncIO", _ => SyncTests[SyncIO].sync[Int, Int, Int])
+  checkAllAsync("SyncIO", _ => MonoidTests[SyncIO[Int]].monoid)
+  checkAllAsync("SyncIO", _ => SemigroupKTests[SyncIO].semigroupK[Int])
 
   test("defer evaluation until run") {
     var run = false
