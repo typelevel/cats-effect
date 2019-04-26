@@ -20,7 +20,8 @@ import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit
 import concurrent.Deferred
 import cats.implicits._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
+import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
@@ -28,7 +29,7 @@ class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredJVMTests(parallelism: Int) extends FunSuite with Matchers with BeforeAndAfter {
+abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
   var service: ExecutorService = _
 
   implicit val context = new ExecutionContext {

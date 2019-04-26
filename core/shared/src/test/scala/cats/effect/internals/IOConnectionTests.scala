@@ -17,9 +17,10 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 
-class IOConnectionTests extends FunSuite with Matchers {
+class IOConnectionTests extends AnyFunSuite with Matchers {
   test("initial push") {
     var effect = 0
     val initial = IO(effect += 1)

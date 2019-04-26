@@ -17,10 +17,11 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.internals.Callback.{Extensions, T => Callback}
 
-class CallbackTests extends FunSuite with Matchers with TestUtils {
+class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
   test("Callback.report(Right(_)) is a no-op") {
     val output = catchSystemErr {
       // No-op

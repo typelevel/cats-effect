@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, MVar}
 import cats.implicits._
-import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
+import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -96,7 +97,7 @@ class MVarFullJVMParallelism4Tests extends BaseMVarJVMTests(4) {
 
 // -----------------------------------------------------------------
 
-abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite with Matchers with BeforeAndAfter {
+abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
   var service: ExecutorService = _
 
   implicit val context = new ExecutionContext {

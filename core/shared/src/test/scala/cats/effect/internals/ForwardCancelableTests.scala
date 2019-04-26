@@ -17,9 +17,10 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 
-class ForwardCancelableTests extends FunSuite with Matchers {
+class ForwardCancelableTests extends AnyFunSuite with Matchers {
   test("cancel() after complete") {
     var effect = 0
 

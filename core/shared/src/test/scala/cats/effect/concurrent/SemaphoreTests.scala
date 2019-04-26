@@ -19,8 +19,8 @@ package effect
 package concurrent
 
 import cats.implicits._
-import org.scalatest.{Assertion, AsyncFunSuite, EitherValues, Matchers}
-
+import org.scalatest.{Assertion, EitherValues, Matchers}
+import org.scalatest.funsuite.AsyncFunSuite
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 

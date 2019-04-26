@@ -16,9 +16,10 @@
 
 package cats.effect.internals
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 
-class ArrayStackTests extends FunSuite with Matchers with TestUtils {
+class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   test("push and pop 8 items") {
     val stack = new ArrayStack[Int]()
     var times = 0

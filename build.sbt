@@ -26,34 +26,11 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "0.16.0"
-val CatsVersion = "1.6.0"
-
-val ScalaTestVersion = Def.setting{
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "3.0.7"
-    case _ =>
-      "3.0.8-RC2"
-  }
-}
-
-val ScalaCheckVersion = Def.setting{
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "1.13.5"
-    case _ =>
-      "1.14.0"
-  }
-}
-
-val DisciplineVersion = Def.setting{
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 =>
-      "0.9.0"
-    case _ =>
-      "0.11.1"
-  }
-}
+val CatsVersion = "2.0.0-M1"
+val ScalaTestVersion = "3.1.0-SNAP9"
+val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP4"
+val ScalaCheckVersion = "1.14.0"
+val DisciplineVersion = "0.11.1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -258,10 +235,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
       "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
 
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion             % "test",
-      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value  % "test",
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value % "test",
-      "org.typelevel"  %%% "discipline" % DisciplineVersion.value % "test"),
+      "org.typelevel"     %%% "cats-laws"                % CatsVersion                    % Test,
+      "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
+      "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
+      "org.scalacheck"    %%% "scalacheck"               % ScalaCheckVersion              % Test,
+      "org.typelevel"     %%% "discipline"               % DisciplineVersion              % Test),
 
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -293,9 +271,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"  % CatsVersion,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion.value,
-      "org.typelevel"  %%% "discipline" % DisciplineVersion.value,
-      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion.value % "test"))
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      "org.typelevel"  %%% "discipline" % DisciplineVersion,
+      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))

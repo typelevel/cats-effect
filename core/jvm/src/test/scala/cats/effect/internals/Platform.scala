@@ -14,25 +14,9 @@
  * limitations under the License.
  */
 
-package cats
-package effect
-package concurrent
+package cats.effect.internals
 
-import org.scalatest.Matchers
-import org.scalatest.check.Checkers
-import org.scalatest.funsuite.AnyFunSuite
-
-class ExitCodeTests extends AnyFunSuite with Matchers with Checkers {
-  test("fromInt(i) == fromInt(i & 0xff)") {
-    check { i: Int =>
-      ExitCode(i) == ExitCode(i & 0xff)
-    }
-  }
-
-  test("code is in range from 0 to 255, inclusive") {
-    check { i: Int =>
-      val ec = ExitCode(i)
-      ec.code >= 0 && ec.code < 256
-    }
-  }
+private[effect] object Platform {
+  final val isJvm = true
+  final val isJs = false
 }

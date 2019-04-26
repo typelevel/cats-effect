@@ -19,7 +19,8 @@ package effect
 
 import scala.concurrent.ExecutionContext
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import org.scalatest.{AsyncFunSuite, BeforeAndAfterAll, Matchers}
+import org.scalatest.{BeforeAndAfterAll, Matchers}
+import org.scalatest.funsuite.AsyncFunSuite
 
 class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
   test("exits with specified code") {

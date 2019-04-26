@@ -18,7 +18,8 @@ package cats.effect
 
 import cats.implicits._
 import cats.data._
-import org.scalatest.{AsyncFunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AsyncFunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

@@ -16,9 +16,10 @@
 
 package cats.effect.internals
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 
-final class LinkedMapTests extends FunSuite with Matchers {
+final class LinkedMapTests extends AnyFunSuite with Matchers {
 
   test("empty map") {
     val map = LinkedMap.empty[Int, Int]

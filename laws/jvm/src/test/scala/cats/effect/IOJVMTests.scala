@@ -20,12 +20,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 import org.scalatest._
+import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class IOJVMTests extends FunSuite with Matchers {
+class IOJVMTests extends AnyFunSuite with Matchers {
   val ThreadName = "test-thread"
 
   val TestEC = new ExecutionContext {

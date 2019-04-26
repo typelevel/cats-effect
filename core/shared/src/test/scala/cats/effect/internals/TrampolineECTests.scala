@@ -17,13 +17,14 @@
 package cats.effect
 package internals
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.internals.TrampolineEC.immediate
 import scala.concurrent.ExecutionContext
 import cats.effect.internals.IOPlatform.isJVM
 import scala.collection.immutable.Queue
 
-class TrampolineECTests extends FunSuite with Matchers with TestUtils {
+class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =

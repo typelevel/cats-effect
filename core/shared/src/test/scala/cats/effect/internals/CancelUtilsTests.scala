@@ -18,11 +18,11 @@ package cats.effect.internals
 
 import java.io.ByteArrayOutputStream
 import cats.effect.IO
-import org.scalatest.{FunSuite, Matchers}
-
+import org.scalatest.Matchers
+import org.scalatest.funsuite.AnyFunSuite
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends FunSuite with Matchers with TestUtils {
+class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }

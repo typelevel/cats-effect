@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, Semaphore}
 import cats.implicits._
-import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
+import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -30,7 +31,7 @@ class SemaphoreJVMParallelism1Tests extends BaseSemaphoreJVMTests(1)
 class SemaphoreJVMParallelism2Tests extends BaseSemaphoreJVMTests(2)
 class SemaphoreJVMParallelism4Tests extends BaseSemaphoreJVMTests(4)
 
-abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite with Matchers with BeforeAndAfter {
+abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
   var service: ExecutorService = _
 
   implicit val context = new ExecutionContext {

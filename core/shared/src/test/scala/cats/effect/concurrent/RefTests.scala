@@ -20,8 +20,9 @@ package concurrent
 
 import cats.data.State
 import cats.implicits._
-import org.scalatest.{AsyncFunSuite, Matchers, Succeeded}
+import org.scalatest.{Matchers, Succeeded}
 import org.scalatest.compatible.Assertion
+import org.scalatest.funsuite.AsyncFunSuite
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
