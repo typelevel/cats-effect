@@ -131,6 +131,41 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    */
   def guaranteeCase[A](fa: F[A])(finalizer: ExitCase[E] => F[Unit]): F[A] =
     bracketCase(unit)(_ => fa)((_, e) => finalizer(e))
+
+  /**
+   * Executes the given `finalizer` when the source is canceled.
+   *
+   * The typical use case for this function arises in the
+   * implementation of concurrent abstractions, which generally
+   * consist of operations that perform asynchronous waiting after
+   * concurrently modifying some state: in case the user asks for
+   * cancelation, we want to interrupt the waiting operation, and
+   * restore the state to its previous value.
+   *
+   * {{{
+   * waitingOp.onCancel(_ => restoreState)
+   * }}}
+   *
+   * A direct use of `bracket` is not a good fit for this case as it
+   * would make the waiting action uncancelable.
+   *
+   * NOTE: This function handles interruption only, you need to take
+   * care of the success and error case elsewhere in your code
+   *
+   * @see [[guaranteeCase]] for the version that can discriminate
+   *      between termination conditions
+   *
+   * @see [[bracket]] for the more general operation
+   *
+   * @see [[Concurrent.continual]] when you have a use case similar to
+   *      the cancel/restore example above, but require access to the
+   *      result of `F[A]`
+   */
+  def onCancel[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+    guaranteeCase(fa) {
+      case ExitCase.Canceled => finalizer
+      case ExitCase.Completed | ExitCase.Error(_) => unit
+    }
 }
 
 /**
