@@ -153,13 +153,13 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.spire-math" % "kind-projector" % "0.9.9" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) =>  Set(organization.value % (name.value + "_2.13.0-M4") % "1.0.0")
+      case Some((2, 13)) => Set.empty
       case _ => Set(organization.value %% name.value % "1.0.0")
     }
   },
