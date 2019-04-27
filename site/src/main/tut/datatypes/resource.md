@@ -31,7 +31,7 @@ val greet: String => IO[Unit] = x => IO(println("Hello " ++ x))
 Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
 ```
 
-Note that resource acquisition cannot be canceled, so if you lift a long-running `F[A]` to `Resource` and cancel the `use` call while it runs,
+Note that resource acquisition cannot be canceled, so if you lift a long running `F[A]` into `Resource` and cancel the `use` call while it runs,
 the program will wait until that `F[A]` completes.
 
 For example, if you do this:
