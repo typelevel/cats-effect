@@ -144,6 +144,11 @@ val commonSettings = Seq(
         <name>Alexandru Nedelcu</name>
         <url>https://alexn.org</url>
       </developer>
+     <developer>
+        <id>SystemFw</id>
+        <name>Fabio Labella</name>
+        <url>https://github.com/systemfw</url>
+      </developer>
     </developers>,
 
   homepage := Some(url("https://typelevel.org/cats-effect/")),
