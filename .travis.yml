@@ -1,18 +1,19 @@
+dist: xenial
 sudo: false
 language: scala
 
 matrix:
   include:
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.11.12
       env: COVERAGE=coverage
     - jdk: openjdk11
       scala: 2.11.12
       env: COVERAGE=
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.12.8
       env: COVERAGE=
-    - jdk: oraclejdk8
+    - jdk: openjdk8
       scala: 2.13.0-M5
       env: COVERAGE=
     - jdk: openjdk11
