@@ -51,6 +51,12 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def guaranteeCaseIsDerivedFromBracketCase[A](fa: F[A], finalizer: ExitCase[E] => F[Unit]) =
     F.guaranteeCase(fa)(finalizer) <-> F.bracketCase(F.unit)(_ => fa)((_, e) => finalizer(e))
 
+  def onCancelIsDerivedFromGuaranteeCase[A](fa: F[A], finalizer: F[Unit]) =
+    F.onCancel(fa)(finalizer) <-> F.guaranteeCase(fa) {
+      case ExitCase.Canceled => finalizer
+      case ExitCase.Completed | ExitCase.Error(_) => F.unit
+    }
+
   // If MT[_[_], _] is a monad transformer, M[_] is its precursor monad, G[_] is a base (effect) monad such that
   // F[α] = MT[G, α], `fromM` lifts M to F purely wrt to G, and `release` does no G effects, then:
   def bracketPropagatesTransformerEffects[M[_], A, B](fromM: M ~> F)(acquire: F[A], use: A => F[B], release: A => M[Unit]) =
