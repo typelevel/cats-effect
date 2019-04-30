@@ -45,7 +45,7 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO.Par", implicit ec => {
     implicit val cs = ec.contextShift[IO]
-    ApplicativeTests[IO.Par].applicative[Int, Int, Int]
+    CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
   })
 
   checkAllAsync("IO", implicit ec => {
