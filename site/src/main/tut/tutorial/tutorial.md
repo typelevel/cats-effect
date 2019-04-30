@@ -184,7 +184,7 @@ def copy(origin: File, destination: File): IO[Long] =
 
 The new method `transfer` will perform the actual copying of data, once the
 resources (the streams) are obtained. When they are not needed anymore, whatever
-the outcome of `transfer` (success of failure) both streams will be closed. If
+the outcome of `transfer` (success or failure) both streams will be closed. If
 any of the streams could not be obtained, then `transfer` will not be run. Even
 better, because of `Resource` semantics, if there is any problem opening the
 input file then the output file will not be opened.  On the other hand, if there
@@ -828,7 +828,16 @@ that message is received.
 
 Let's first define a new method `server` that instantiates the flag, runs the
 `serve` method in its own fiber and waits on the flag to be set. Only when
-the flag is set the server fiber will be canceled.
+the flag is set the server fiber will be canceled. The cancellation itself (the
+call to `fiber.cancel`) is also run in a separate fiber to prevent being
+blocked by it. This is not always needed, but the cancellation of actions
+defined by `bracket` or `bracketCase` will wait until all finalizers (release
+stage of bracket) are finished. The `F` created by our `serve` function is
+defined based on `bracketCase`, so if the action is blocked at any bracket stage
+(acquisition, usage or release), then the cancel call will be blocked too. And
+our bracket blocks as the `serverSocket.accept` call is blocking!. As a result,
+invoking `.cancel` will block our `server` function. To fix this we just execute
+the cancellation on its own fiber by running `.cancel.start`.
 
 ```scala
 import cats.effect._
@@ -846,7 +855,7 @@ def server[F[_]: Concurrent](serverSocket: ServerSocket): F[ExitCode] =
     stopFlag    <- MVar[F].empty[Unit]
     serverFiber <- serve(serverSocket, stopFlag).start // Server runs on its own Fiber
     _           <- stopFlag.read                       // Blocked until 'stopFlag.put(())' is run
-    _           <- serverFiber.cancel                  // Stopping server!
+    _           <- serverFiber.cancel.start            // Stopping server!
   } yield ExitCode.Success
 ```
 
@@ -944,7 +953,13 @@ The code of the server able to react to stop events is available
 [here](https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala).
 
 If you run the server coded above, open a telnet session against it and send an
-`STOP` message you will see how the server is properly terminated.
+`STOP` message you will see how the server is properly terminated: the `server`
+function will cancel the fiber on `serve` and return, then `bracket` defined in
+our main `run` method will finalize the usage stage and relaese the server
+socket. This will make the `serverSocket.accept()` in the `serve` function to
+throw an exception that will be caught by the `bracketCase` of that function.
+Because `serve` was already canceled, and given how we defined the release stage
+of its `bracketCase`, the function will finish normally.
 
 #### Exercise: closing client connections to echo server on shutdown
 There is a catch yet in our server. If there are several clients connected,
@@ -1193,7 +1208,7 @@ def server[F[_]: Concurrent: ContextShift](serverSocket: ServerSocket): F[ExitCo
     serverFiber <- serve(serverSocket, stopFlag).start         // Server runs on its own Fiber
     _           <- stopFlag.read                               // Blocked until 'stopFlag.put(())' is run
     _           <- Sync[F].delay(clientsThreadPool.shutdown()) // Shutting down clients pool
-    _           <- serverFiber.cancel                          // Stopping server
+    _           <- serverFiber.cancel.start                    // Stopping server
   } yield ExitCode.Success
 }
 ```
