@@ -231,6 +231,13 @@ sealed abstract class Resource[F[_], A] {
     */
   def evalMap[B](f: A => F[B])(implicit F: Applicative[F]): Resource[F, B] =
     this.flatMap(a => Resource.liftF(f(a)))
+
+  /**
+    * Applies an effectful transformation to the allocated resource. Like a
+    * `flatTap` on `F[A]` while maintaining the resource context
+    */
+  def evalTap[B](f: A => F[B])(implicit F: Applicative[F]): Resource[F, A] =
+    this.evalMap(a => f(a).as(a))
 }
 
 object Resource extends ResourceInstances {
