@@ -52,7 +52,6 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
     EqFInt: Eq[F[Int]],
     EqIOU: Eq[IO[Unit]],
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-    EqIOEitherFAA: Eq[IO[Either[F[A], A]]],
     EqIOA: Eq[IO[A]],
     iso: Isomorphisms[F],
     params: Parameters): RuleSet = {

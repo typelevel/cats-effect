@@ -182,6 +182,12 @@ val mimaSettings = Seq(
     )
   })
 
+// We broke binary compatibily for laws in 2.0
+val lawsMimaSettings = mimaSettings ++ Seq(
+  // TODO: set to 2.0.0 after release
+  mimaPreviousArtifacts := Set.empty
+)
+
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
 def profile: Project => Project = pr => cmdlineProfile match {
@@ -276,7 +282,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
       "org.scalatest"  %%% "scalatest"  % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
-  .jvmConfigure(_.settings(mimaSettings))
+  .jvmConfigure(_.settings(lawsMimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(profile)
   .jsConfigure(_.settings(scalaJSSettings))

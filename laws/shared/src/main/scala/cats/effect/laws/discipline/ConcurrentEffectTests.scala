@@ -52,7 +52,6 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     EqIOA: Eq[IO[A]],
     EqIOU: Eq[IO[Unit]],
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-    EqIOEitherFAA: Eq[IO[Either[F[A], A]]],
     iso: Isomorphisms[F],
     params: Parameters): RuleSet = {
 
