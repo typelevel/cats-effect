@@ -95,7 +95,6 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.continual respects the continual guarantee") { implicit ec =>
-    pending
     import scala.concurrent.duration._
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]

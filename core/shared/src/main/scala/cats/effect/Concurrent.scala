@@ -526,9 +526,21 @@ object Concurrent {
    */
   def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])
     (implicit F: Concurrent[F]): F[B] = {
-    fa.attempt.flatMap(f)
-  }
+    import cats.effect.implicits._
+    import scala.util.control.NoStackTrace
 
+    Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
+      fa.start.bracket( fiber =>
+        fiber.join.guaranteeCase {
+          case ExitCase.Completed | ExitCase.Error(_) =>
+            (fiber.join.attempt.flatMap(f)).attempt.flatMap(r.complete)
+          case _ => fiber.cancel >>
+            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+        }.attempt
+      )(_ => r.get.void)
+      .flatMap(_ => r.get.rethrow)
+    }
+  }
 
   /**
    * [[Concurrent]] instance built for `cats.data.EitherT` values initialized
