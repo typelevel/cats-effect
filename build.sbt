@@ -33,7 +33,7 @@ val ScalaCheckVersion = "1.14.0"
 val DisciplineVersion = "0.11.1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
-addCommandAlias("release", ";project root ;reload ;+publishSigned ;sonatypeReleaseAll ;microsite/publishMicrosite")
+addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
   scalaVersion := "2.12.8",
@@ -438,8 +438,6 @@ scalacOptions in ThisBuild ++= {
 }
 
 scalacOptions in Test += "-Yrangepos"
-
-useGpg := true
 
 enablePlugins(GitVersioning)
 

@@ -14,10 +14,7 @@ The [Acquiring and releasing `Resource`s](../tutorial/tutorial.html#acquiring-an
 import cats.effect.Bracket
 
 abstract class Resource[F[_], A] {
-  def allocate: F[(A, F[Unit])]
-
-  def use[B, E](f: A => F[B])(implicit F: Bracket[F, E]): F[B] =
-    F.bracket(allocate)(a => f(a._1))(_._2)
+  def use[B](f: A => F[B])(implicit F: Bracket[F, Throwable]): F[B]
 }
 ```
 
@@ -32,8 +29,22 @@ import cats.implicits._
 val greet: String => IO[Unit] = x => IO(println("Hello " ++ x))
 
 Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
+```
+
+Note that resource acquisition cannot be canceled, so if you lift a long running `F[A]` into `Resource` and cancel the `use` call while it runs,
+the program will wait until that `F[A]` completes.
+
+For example, if you do this:
 
 ```
+//latch to make sure we cancel the `use` after it's actually started
+Deferred[IO, Unit].flatMap { promise =>
+  Resource.liftF(promise.complete(()) >> IO.never: IO[Unit])
+    .use(_ => IO.unit) race promise.get
+}
+```
+
+the program will never terminate.
 
 Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `evalMap`:
 
