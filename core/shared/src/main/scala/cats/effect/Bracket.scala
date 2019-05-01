@@ -143,7 +143,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    * restore the state to its previous value.
    *
    * {{{
-   * waitingOp.onCancel(_ => restoreState)
+   * waitingOp.onCancel(restoreState)
    * }}}
    *
    * A direct use of `bracket` is not a good fit for this case as it
