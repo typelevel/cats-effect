@@ -51,7 +51,7 @@ version := "1.0"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.2.0" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.0" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
