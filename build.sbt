@@ -40,16 +40,6 @@ val commonSettings = Seq(
 
   crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
 
-  //todo: re-enable disable scaladoc on 2.13 due to https://github.com/scala/bug/issues/11045
-  sources in (Compile, doc) := (
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, v)) if v <= 12 =>
-        (sources in (Compile, doc)).value
-      case _ =>
-        Nil
-    }
-  ),
-
   scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
     case Some((2, n)) if n >= 13 =>
       Seq(
@@ -389,7 +379,7 @@ lazy val microsite = project.in(file("site"))
  * version bump of 1.0.  Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
-val BaseVersion = "1.0.0"
+val BaseVersion = "2.0.0"
 
 licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
