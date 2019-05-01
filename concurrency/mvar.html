@@ -5,7 +5,7 @@
 <p>An <code class="highlighter-rouge">MVar</code> is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">put</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">take</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">read</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
@@ -13,7 +13,7 @@ asynchronously blocking reads when empty and blocking writes when full.</p>
   <span class="k">def</span> <span class="n">tryPut</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">tryTake</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <h2 id="introduction">Introduction</h2>
 
@@ -64,7 +64,7 @@ except that there’s no actual thread blocking involved and it is powered by da
 
 <h2 id="use-case-synchronized-mutable-variables">Use-case: Synchronized Mutable Variables</h2>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent._</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
@@ -78,7 +78,7 @@ except that there’s no actual thread blocking involved and it is powered by da
   <span class="o">}</span>
 
 <span class="nc">MVar</span><span class="o">.</span><span class="n">of</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">](</span><span class="mi">0</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">sum</span><span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="o">(</span><span class="mi">0</span> <span class="n">until</span> <span class="mi">100</span><span class="o">).</span><span class="n">toList</span><span class="o">))</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>This sample isn’t very useful, except to show how <code class="highlighter-rouge">MVar</code> can be used
 as a variable. The <code class="highlighter-rouge">take</code> and <code class="highlighter-rouge">put</code> operations are atomic.
@@ -97,7 +97,7 @@ this sample to be <em>safe</em>, then we need extra synchronization.</p>
 <p>The <code class="highlighter-rouge">take</code> operation can act as “acquire” and <code class="highlighter-rouge">put</code> can act as the “release”.
 Let’s do it:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">final</span> <span class="k">class</span> <span class="nc">MLock</span><span class="o">(</span><span class="n">mvar</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">])</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">final</span> <span class="k">class</span> <span class="nc">MLock</span><span class="o">(</span><span class="n">mvar</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">])</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
     <span class="n">mvar</span><span class="o">.</span><span class="n">take</span>
 
@@ -112,7 +112,7 @@ Let’s do it:</p>
   <span class="k">def</span> <span class="n">apply</span><span class="o">()</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">MLock</span><span class="o">]</span> <span class="k">=</span>
     <span class="nc">MVar</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">empty</span><span class="o">[</span><span class="kt">Unit</span><span class="o">].</span><span class="n">map</span><span class="o">(</span><span class="n">ref</span> <span class="k">=&gt;</span> <span class="k">new</span> <span class="nc">MLock</span><span class="o">(</span><span class="n">ref</span><span class="o">))</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <h2 id="use-case-producerconsumer-channel">Use-case: Producer/Consumer Channel</h2>
 
@@ -123,7 +123,7 @@ But we also need some back-pressure, so we need to wait on the
 consumer to consume the last event before being able to generate
 a new event.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="c1">// Signaling option, because we need to detect completion
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Signaling option, because we need to detect completion
 </span><span class="k">type</span> <span class="kt">Channel</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Option</span><span class="o">[</span><span class="kt">A</span><span class="o">]]</span>
 
 <span class="k">def</span> <span class="n">producer</span><span class="o">(</span><span class="n">ch</span><span class="k">:</span> <span class="kt">Channel</span><span class="o">[</span><span class="kt">Int</span><span class="o">],</span> <span class="n">list</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
@@ -155,7 +155,7 @@ a new event.</p>
   <span class="k">_</span>   <span class="k">&lt;-</span> <span class="n">fp</span><span class="o">.</span><span class="n">join</span>
   <span class="n">sum</span> <span class="k">&lt;-</span> <span class="n">fc</span><span class="o">.</span><span class="n">join</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">sum</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>Running this will work as expected. Our <code class="highlighter-rouge">producer</code> pushes values
 into our <code class="highlighter-rouge">MVar</code> and our <code class="highlighter-rouge">consumer</code> will consume all of those values.</p>

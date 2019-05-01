@@ -13,7 +13,7 @@
 
 <p>Without cancellation being baked in, we couldn’t afford to do it.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Async</span><span class="o">,</span> <span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">CancelToken</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Async</span><span class="o">,</span> <span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">CancelToken</span><span class="o">}</span>
 
 <span class="k">trait</span> <span class="nc">Concurrent</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="nc">extends</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">start</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">fa</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">A</span><span class="o">]]</span>
@@ -22,7 +22,7 @@
   <span class="k">def</span> <span class="n">racePair</span><span class="o">[</span><span class="kt">A</span>, <span class="kt">B</span><span class="o">](</span><span class="n">lh</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">],</span> <span class="n">rh</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Either</span><span class="o">[(</span><span class="kt">A</span>, <span class="kt">Fiber</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">B</span><span class="o">])</span>, <span class="o">(</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">A</span><span class="o">]</span>, <span class="kt">B</span><span class="o">)]]</span>
   <span class="k">def</span> <span class="n">cancelable</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">CancelToken</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>Notes:</p>
 
@@ -36,8 +36,8 @@
 
 <p>The signature exposed by the <code class="highlighter-rouge">Concurrent.cancelable</code> builder is this:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">CancelToken</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
-</code></pre></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">CancelToken</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">CancelToken[F]</code> is simply an alias for <code class="highlighter-rouge">F[Unit]</code> and is used to represent a cancellation action which will send a signal to the producer, that may observe it and cancel the asynchronous process.</p>
 
@@ -45,13 +45,13 @@
 
 <p>Simple asynchronous processes, like Scala’s <code class="highlighter-rouge">Future</code>, can be described with this very basic and side-effectful type and you should recognize what is more or less the signature of <code class="highlighter-rouge">Future.onComplete</code> or of <code class="highlighter-rouge">Async.async</code> (minus the error handling):</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
-</code></pre></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
+</code></pre></div></div>
 
 <p>But many times the abstractions built to deal with asynchronous tasks can also provide a way to cancel such processes, to be used in race conditions in order to cleanup resources early, so a very basic and side-effectful definition of asynchronous processes that can be canceled would be:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Cancelable</span>
-</code></pre></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Cancelable</span>
+</code></pre></div></div>
 
 <p>This is approximately the signature of JavaScript’s <code class="highlighter-rouge">setTimeout</code>, which will return a “task ID” that can be used to cancel it. Or of Java’s <code class="highlighter-rouge">ScheduledExecutorService.schedule</code>, which will return a Java <code class="highlighter-rouge">ScheduledFuture</code> that has a <code class="highlighter-rouge">.cancel()</code> operation on it.</p>
 
@@ -59,15 +59,15 @@
 
 <p>Suppose you want to describe a “sleep” operation, like that described by <code class="highlighter-rouge">Timer</code> to mirror Java’s <code class="highlighter-rouge">ScheduledExecutorService.schedule</code> or JavaScript’s <code class="highlighter-rouge">setTimeout</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-</code></pre></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+</code></pre></div></div>
 
 <p>This signature is in fact incomplete for data types that are not cancelable, because such equivalent operations always return some cancellation token that can be used to trigger a forceful interruption of the timer. This is not a normal “dispose” or “finally” clause in a try/catch block, because “cancel” in the context of an asynchronous process is “concurrent” with the task’s own run-loop.</p>
 
 <p>To understand what this means, consider that in the case of our <code class="highlighter-rouge">sleep</code> as described above, on cancellation we’d need a way to signal to the underlying <code class="highlighter-rouge">ScheduledExecutorService</code> to forcefully remove the scheduled <code class="highlighter-rouge">Runnable</code> from its internal queue of scheduled tasks, “before” its execution. Therefore, without a cancelable data type, a safe signature needs to return a cancellation token, so it would look like this:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[(</span><span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>, <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])]</span>
-</code></pre></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[(</span><span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>, <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])]</span>
+</code></pre></div></div>
 
 <p>This function is returning a tuple, with one <code class="highlighter-rouge">F[Unit]</code> to wait for the completion of our sleep and a second <code class="highlighter-rouge">F[Unit]</code> to cancel the scheduled computation in case we need it. This is in fact the shape of <code class="highlighter-rouge">Fiber</code>’s API. And this is exactly what the <code class="highlighter-rouge">Concurrent.start</code> operation returns.</p>
 

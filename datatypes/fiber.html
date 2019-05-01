@@ -4,15 +4,15 @@
 
 <p>You can think of fibers as being lightweight threads, a fiber being a concurrency primitive for doing cooperative multi-tasking.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">trait</span> <span class="nc">Fiber</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Fiber</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">cancel</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">join</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>For example a <code class="highlighter-rouge">Fiber</code> value is the result of evaluating <code class="highlighter-rouge">IO.start</code>:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
@@ -21,11 +21,11 @@
 
 <span class="k">val</span> <span class="n">io</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello!"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">fiber</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="n">io</span><span class="o">.</span><span class="n">start</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>Usage example:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">val</span> <span class="n">launchMissiles</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">launchMissiles</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
 
 <span class="k">for</span> <span class="o">{</span>
@@ -37,7 +37,7 @@
        <span class="o">}</span>
   <span class="n">aftermath</span> <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
-</code></pre></div>
+</code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

@@ -4,13 +4,13 @@
 
 <p>A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">available</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">acquire</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">release</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="c1">// ... and more
 </span><span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <h2 id="semantic-blocking-and-cancellation">Semantic Blocking and Cancellation</h2>
 
@@ -32,7 +32,7 @@ being blocked while waiting to acquire a permit.</p>
 
 <p><code class="highlighter-rouge">R1</code>, <code class="highlighter-rouge">R2</code> &amp; <code class="highlighter-rouge">R3</code> will request access of the precious resource concurrently so this could be one possible outcome:</p>
 
-<div class="highlighter-rouge"><pre class="codehilite"><code>R1 &gt;&gt; Availability: 1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>R1 &gt;&gt; Availability: 1
 R2 &gt;&gt; Availability: 1
 R2 &gt;&gt; Started | Availability: 0
 R3 &gt;&gt; Availability: 0
@@ -44,13 +44,13 @@ R3 &gt;&gt; Started | Availability: 0
 R1 &gt;&gt; Done | Availability: 0
 --------------------------------
 R3 &gt;&gt; Done | Availability: 1
-</code></pre></div>
+</code></pre></div></div>
 
 <p>This means when <code class="highlighter-rouge">R1</code> and <code class="highlighter-rouge">R2</code> requested the availability it was one and <code class="highlighter-rouge">R2</code> was faster in getting access to the resource so it started processing. <code class="highlighter-rouge">R3</code> was the slowest and saw that there was no availability from the beginning.</p>
 
 <p>Once <code class="highlighter-rouge">R2</code> was done <code class="highlighter-rouge">R1</code> started processing immediately showing no availability. Once <code class="highlighter-rouge">R1</code> was done <code class="highlighter-rouge">R3</code> started processing immediately showing no availability. Finally, <code class="highlighter-rouge">R3</code> was done showing an availability of one once again.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.Parallel</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.Parallel</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -86,7 +86,7 @@ R3 &gt;&gt; Done | Availability: 1
     <span class="n">r3</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">PreciousResource</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="s">"R3"</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span>
     <span class="k">_</span>  <span class="k">&lt;-</span> <span class="nc">List</span><span class="o">(</span><span class="n">r1</span><span class="o">.</span><span class="n">use</span><span class="o">,</span> <span class="n">r2</span><span class="o">.</span><span class="n">use</span><span class="o">,</span> <span class="n">r3</span><span class="o">.</span><span class="n">use</span><span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre></div>
+</code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

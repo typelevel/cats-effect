@@ -7,7 +7,7 @@ acquisition and release in the face of errors or interruption.</p>
 <p>Important note, throwing in <code class="highlighter-rouge">release</code> function is undefined since the behavior is left to the
 concrete implementations (ex. cats-effect <code class="highlighter-rouge">Bracket[IO]</code>, Monix <code class="highlighter-rouge">Bracket[Task]</code> or ZIO).</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.MonadError</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.MonadError</span>
 
 <span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">ExitCase</span><span class="o">[</span><span class="kt">+E</span><span class="o">]</span>
 
@@ -20,7 +20,7 @@ concrete implementations (ex. cats-effect <code class="highlighter-rouge">Bracke
 </span>  <span class="k">def</span> <span class="n">bracket</span><span class="o">[</span><span class="kt">A</span>, <span class="kt">B</span><span class="o">](</span><span class="n">acquire</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="n">use</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])</span>
     <span class="o">(</span><span class="n">release</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 
 
