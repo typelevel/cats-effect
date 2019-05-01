@@ -38,10 +38,10 @@
 <span class="c1">// import cats.effect.IO
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$1680693470
+<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$402538573
 </span>
 <span class="k">val</span> <span class="n">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">ioa</span><span class="o">.</span><span class="n">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// iob: cats.effect.IO[Unit] = IO$782029205
+<span class="c1">// iob: cats.effect.IO[Unit] = IO$1654244659
 </span>
 <span class="n">iob</span><span class="o">.</span><span class="n">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Hello world!
