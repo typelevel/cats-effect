@@ -12,7 +12,7 @@ a pure FP program.</p>
 which executes a pure FP program (with side effects suspended and
 described by <code class="highlighter-rouge">IO</code>), you have to do something like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -27,7 +27,7 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
   <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span>
     <span class="n">program</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="n">toList</span><span class="o">).</span><span class="n">unsafeRunSync</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>That’s dirty, error prone and doesn’t work on top of JavaScript.</p>
 
@@ -35,7 +35,7 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
 
 <p>You can now use <code class="highlighter-rouge">cats.effect.IOApp</code> to describe pure programs:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
@@ -48,7 +48,7 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
         <span class="nc">IO</span><span class="o">(</span><span class="nc">System</span><span class="o">.</span><span class="n">err</span><span class="o">.</span><span class="n">println</span><span class="o">(</span><span class="s">"Usage: MyApp name"</span><span class="o">)).</span><span class="n">as</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">(</span><span class="mi">2</span><span class="o">))</span>
     <span class="o">}</span>  
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Things to note:</p>
 
@@ -85,7 +85,7 @@ and safely release any resources.</p>
 
 <p>For example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.ExitCase.Canceled</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.ExitCase.Canceled</span>
 <span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
@@ -108,7 +108,7 @@ and safely release any resources.</p>
         <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Normal exit!"</span><span class="o">))</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>If you run this sample, you can get two outcomes:</p>
 
@@ -152,7 +152,7 @@ for its needs. For example Monix’s <code class="highlighter-rouge">Task</code>
 <p>That said <code class="highlighter-rouge">IOApp</code> can be used for any <code class="highlighter-rouge">F[_]</code>, because any <code class="highlighter-rouge">Effect</code>
 or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <code class="highlighter-rouge">IO</code>. Example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.data.EitherT</span>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
@@ -165,7 +165,7 @@ or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <
         <span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h2 id="final-words">Final Words</h2>
 

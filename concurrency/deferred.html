@@ -6,11 +6,11 @@
 
 <p>When created, a <code class="highlighter-rouge">Deferred</code> is empty. It can then be completed exactly once, and never be made empty again.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">complete</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Expected behavior of <code class="highlighter-rouge">get</code></p>
 
@@ -40,7 +40,7 @@ possible for as long as the <code class="highlighter-rouge">Deferred</code> valu
 
 <p>Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the <code class="highlighter-rouge">IO.race</code> mechanism, that’s why we call attempt on the evaluation.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Deferred</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -62,7 +62,7 @@ possible for as long as the <code class="highlighter-rouge">Deferred</code> valu
     <span class="n">d</span> <span class="k">&lt;-</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h2 id="cancellation">Cancellation</h2>
 
@@ -74,8 +74,8 @@ registered listener and can thus avoid memory leaks.</p>
 in situations where the cancelable behavior isn’t desirable.
 To do so you can use the <code class="highlighter-rouge">uncancelable</code> builder:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Deferred</span><span class="o">.</span><span class="n">uncancelable</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="nc">Deferred</span><span class="o">.</span><span class="n">uncancelable</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
+</code></pre></div>
 
 <p>The restriction on the <code class="highlighter-rouge">uncancelable</code> builder is just <code class="highlighter-rouge">Async</code>,
 whereas the restriction on the normal <code class="highlighter-rouge">apply</code> builder is <code class="highlighter-rouge">Concurrent</code>.</p>

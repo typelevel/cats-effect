@@ -2,12 +2,12 @@
 
 <p>A <code class="highlighter-rouge">Monad</code> that can suspend side effects into the <code class="highlighter-rouge">F[_]</code> context and supports lazy and potentially asynchronous evaluation.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Async</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">SyncIO</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Async</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">SyncIO</span><span class="o">}</span>
 
 <span class="k">trait</span> <span class="nc">Effect</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="nc">extends</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">runAsync</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">fa</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])(</span><span class="n">cb</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>This type class is describing data types that:</p>
 <ul>
@@ -21,7 +21,7 @@
 
 <p>It represents the intention to evaluate a given effect in the context of <code class="highlighter-rouge">F[_]</code> asynchronously giving you back a <code class="highlighter-rouge">SyncIO[A]</code>. Eg.:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Effect</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.Effect</span>
 
 <span class="k">val</span> <span class="n">task</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
 
@@ -32,7 +32,7 @@
   <span class="o">}</span>
 
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

@@ -40,13 +40,13 @@ build tool. To ease coding, compiling and running the code snippets in this
 tutorial it is recommended to use the same <code class="highlighter-rouge">build.sbt</code>, or at least one with the
 same dependencies and compilation options:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">name</span> <span class="o">:=</span> <span class="s">"cats-effect-tutorial"</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="n">name</span> <span class="o">:=</span> <span class="s">"cats-effect-tutorial"</span>
 
 <span class="n">version</span> <span class="o">:=</span> <span class="s">"1.0"</span>
 
 <span class="n">scalaVersion</span> <span class="o">:=</span> <span class="s">"2.12.8"</span>
 
-<span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"1.0.0"</span> <span class="n">withSources</span><span class="o">()</span> <span class="n">withJavadoc</span><span class="o">()</span>
+<span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"1.2.0"</span> <span class="n">withSources</span><span class="o">()</span> <span class="n">withJavadoc</span><span class="o">()</span>
 
 <span class="n">scalacOptions</span> <span class="o">++=</span> <span class="nc">Seq</span><span class="o">(</span>
   <span class="s">"-feature"</span><span class="o">,</span>
@@ -55,7 +55,7 @@ same dependencies and compilation options:</p>
   <span class="s">"-language:postfixOps"</span><span class="o">,</span>
   <span class="s">"-language:higherKinds"</span><span class="o">,</span>
   <span class="s">"-Ypartial-unification"</span><span class="o">)</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Code snippets in this tutorial can be pasted and compiled right in the scala
 console of the project defined above (or any project with similar settings).</p>
@@ -82,11 +82,11 @@ raised.</p>
 
 <p>Now, the signature of our function looks like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">java.io.File</span>
 
 <span class="k">def</span> <span class="n">copy</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Nothing scary, uh? As we said before, the function just returns an <code class="highlighter-rouge">IO</code>
 instance. When run, all side-effects will be actually executed and the <code class="highlighter-rouge">IO</code>
@@ -100,7 +100,7 @@ encapsulate those actions in their own <code class="highlighter-rouge">IO</code>
 use of cats-effect <code class="highlighter-rouge">Resource</code>, that allows to orderly create, use and then
 release resources. See this code:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
@@ -123,7 +123,7 @@ release resources. See this code:</p>
     <span class="n">inStream</span>  <span class="k">&lt;-</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">in</span><span class="o">)</span>
     <span class="n">outStream</span> <span class="k">&lt;-</span> <span class="n">outputStream</span><span class="o">(</span><span class="n">out</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">inStream</span><span class="o">,</span> <span class="n">outStream</span><span class="o">)</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>We want to ensure that streams are closed once we are done using them, no matter
 what. That is precisely why we use <code class="highlighter-rouge">Resource</code> in both <code class="highlighter-rouge">inputStream</code> and
@@ -143,12 +143,12 @@ resources, that method creates <code class="highlighter-rouge">Resource</code> i
 <code class="highlighter-rouge">java.lang.AutoCloseable</code> interface without having to define how the resource is
 released. So our <code class="highlighter-rouge">inputStream</code> function would look like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">java.io.</span><span class="o">{</span><span class="nc">File</span><span class="o">,</span> <span class="nc">FileInputStream</span><span class="o">}</span>
 
 <span class="k">def</span> <span class="n">inputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">Resource</span><span class="o">.</span><span class="n">fromAutoCloseable</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileInputStream</span><span class="o">(</span><span class="n">f</span><span class="o">)))</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>That code is way simpler, but with that code we would not have control over what
 would happen if the closing operation throws an exception. Also it could be that
@@ -158,7 +158,7 @@ of the release phase.</p>
 
 <p>Let’s go back to our <code class="highlighter-rouge">copy</code> function, which now looks like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
 <span class="c1">// as defined before
@@ -171,11 +171,11 @@ of the release phase.</p>
   <span class="n">inputOutputStreams</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">).</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span> <span class="k">=&gt;</span> 
     <span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">)</span>
   <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>The new method <code class="highlighter-rouge">transfer</code> will perform the actual copying of data, once the
 resources (the streams) are obtained. When they are not needed anymore, whatever
-the outcome of <code class="highlighter-rouge">transfer</code> (success of failure) both streams will be closed. If
+the outcome of <code class="highlighter-rouge">transfer</code> (success or failure) both streams will be closed. If
 any of the streams could not be obtained, then <code class="highlighter-rouge">transfer</code> will not be run. Even
 better, because of <code class="highlighter-rouge">Resource</code> semantics, if there is any problem opening the
 input file then the output file will not be opened.  On the other hand, if there
@@ -196,7 +196,7 @@ then in the <em>usage</em> stage we will copy the contents, and finally in the r
 stage we will close the streams.  Thus we could define our <code class="highlighter-rouge">copy</code> function as
 follows:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
@@ -221,7 +221,7 @@ follows:</p>
 </span>        <span class="o">.</span><span class="n">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span><span class="o">).</span><span class="n">void</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>New <code class="highlighter-rouge">copy</code> definition is more complex, even though the code as a whole is way
 shorter as we do not need the <code class="highlighter-rouge">inputOutputStreams</code> function. But there is a
@@ -248,7 +248,7 @@ of the bytes transferred. To reuse the same buffer we should define it outside
 the main loop, and leave the actual transmission of data to another function
 <code class="highlighter-rouge">transmit</code> that uses that loop. Something like:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
@@ -264,7 +264,7 @@ the main loop, and leave the actual transmission of data to another function
     <span class="n">buffer</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">](</span><span class="mi">1024</span> <span class="o">*</span> <span class="mi">10</span><span class="o">))</span> <span class="c1">// Allocated only when the IO is evaluated
 </span>    <span class="n">total</span>  <span class="k">&lt;-</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">buffer</span><span class="o">,</span> <span class="mi">0L</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">total</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Take a look at <code class="highlighter-rouge">transmit</code>, observe that both input and output actions are
 encapsulated in (suspended in) <code class="highlighter-rouge">IO</code>. <code class="highlighter-rouge">IO</code> being a monad, we can sequence them
@@ -323,7 +323,7 @@ use <code class="highlighter-rouge">.acquire</code> and then <code class="highli
 <code class="highlighter-rouge">.withPermit</code> is more idiomatic and ensures that the permit is released even if
 the effect run fails.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
@@ -363,7 +363,7 @@ the effect run fails.</p>
              <span class="o">}</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Before calling to <code class="highlighter-rouge">transfer</code> we acquire the semaphore, which is not released
 until <code class="highlighter-rouge">transfer</code> is done. The <code class="highlighter-rouge">use</code> call ensures that the semaphore will be
@@ -407,7 +407,7 @@ required by the <code class="highlighter-rouge">copy</code> function.</p>
 which creates the <code class="highlighter-rouge">IO</code> instance that forms the program. In our case, our <code class="highlighter-rouge">run</code>
 method can look like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.io.File</span>
 
@@ -426,7 +426,7 @@ method can look like this:</p>
       <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$count bytes copied from ${orig.getPath} to ${dest.getPath}"</span><span class="o">))</span>
     <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Heed how <code class="highlighter-rouge">run</code> verifies the <code class="highlighter-rouge">args</code> list passed. If there are fewer than two
 arguments, an error is raised. As <code class="highlighter-rouge">IO</code> implements <code class="highlighter-rouge">MonadError</code> we can at any
@@ -438,8 +438,8 @@ here</a>.</p>
 
 <p>The program can be run from <code class="highlighter-rouge">sbt</code> just by issuing this call:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">CopyFile</span> <span class="n">origin</span><span class="o">.</span><span class="n">txt</span> <span class="n">destination</span><span class="o">.</span><span class="n">txt</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">CopyFile</span> <span class="n">origin</span><span class="o">.</span><span class="n">txt</span> <span class="n">destination</span><span class="o">.</span><span class="n">txt</span>
+</code></pre></div>
 
 <p>It can be argued that using <code class="highlighter-rouge">IO{java.nio.file.Files.copy(...)}</code> would get an
 <code class="highlighter-rouge">IO</code> with the same characteristics of purity as our function. But there is a
@@ -472,7 +472,7 @@ would define a polymorphic version of our <code class="highlighter-rouge">transf
 approach, just by replacing any use of <code class="highlighter-rouge">IO</code> by calls to the <code class="highlighter-rouge">delay</code> and <code class="highlighter-rouge">pure</code>
 methods of the <code class="highlighter-rouge">Sync[F[_]]</code> instance!</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
@@ -483,14 +483,14 @@ methods of the <code class="highlighter-rouge">Sync[F[_]]</code> instance!</p>
     <span class="n">count</span>  <span class="k">&lt;-</span> <span class="k">if</span><span class="o">(</span><span class="n">amount</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mi">1</span><span class="o">)</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">destination</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">buffer</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">amount</span><span class="o">))</span> <span class="o">&gt;&gt;</span> <span class="n">transmit</span><span class="o">(</span><span class="n">origin</span><span class="o">,</span> <span class="n">destination</span><span class="o">,</span> <span class="n">buffer</span><span class="o">,</span> <span class="n">acc</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span>
               <span class="k">else</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">pure</span><span class="o">(</span><span class="n">acc</span><span class="o">)</span> <span class="c1">// End of read stream reached (by java.io.InputStream contract), nothing to write
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span> <span class="c1">// Returns the actual amount of bytes transmitted
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p>We can do the same transformation to most of the code we have created so far,
 but not all. In <code class="highlighter-rouge">copy</code> you will find out that we do need a full instance of
 <code class="highlighter-rouge">Concurrent[F]</code> in scope, this is because it is required by the <code class="highlighter-rouge">Semaphore</code>
 instantiation:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -506,7 +506,7 @@ instantiation:</p>
                <span class="n">guard</span><span class="o">.</span><span class="n">withPermit</span><span class="o">(</span><span class="n">transfer</span><span class="o">(</span><span class="n">in</span><span class="o">,</span> <span class="n">out</span><span class="o">))</span>
              <span class="o">}</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Only in our <code class="highlighter-rouge">main</code> function we will set <code class="highlighter-rouge">IO</code> as the final <code class="highlighter-rouge">F</code> for
 our program. To do so, of course, a <code class="highlighter-rouge">Concurrent[IO]</code> instance must be in scope,
@@ -569,10 +569,10 @@ client, otherwise the method will finish.</p>
 
 <p>The method signature will look like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
 <span class="k">import</span> <span class="nn">java.net.Socket</span>
 <span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Reading and writing will be done using <code class="highlighter-rouge">java.io.BufferedReader</code> and
 <code class="highlighter-rouge">java.io.BufferedWriter</code> instances built from the socket. Recall that this
@@ -584,7 +584,7 @@ implicit instance of <code class="highlighter-rouge">Sync[F]</code> to be presen
 is actually run until the <code class="highlighter-rouge">F</code> returned by this method is evaluated.  With this
 in mind, the code looks like:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 <span class="k">import</span> <span class="nn">java.net._</span>
@@ -623,7 +623,7 @@ in mind, the code looks like:</p>
     <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">)</span> <span class="c1">// Let's get to work
 </span>  <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Note that, as we did in the previous example, we swallow possible errors when
 closing the streams, as there is little to do in such cases.</p>
@@ -642,7 +642,7 @@ them. Let’s work on that, we implement that functionality in another method
 that takes as input the <code class="highlighter-rouge">java.io.ServerSocket</code> instance that will listen for
 clients:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -669,7 +669,7 @@ clients:</p>
           <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">)</span>                  <span class="c1">// Looping back to the beginning
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>We invoke the <code class="highlighter-rouge">accept</code> method of <code class="highlighter-rouge">ServerSocket</code> and use <code class="highlighter-rouge">bracketCase</code> to define
 both the action that will make use of the resource (the client socket) and how
@@ -689,14 +689,14 @@ action, the <code class="highlighter-rouge">guarantee</code> call will close the
 <p>You may wonder if using <code class="highlighter-rouge">bracketCase</code> when we already have <code class="highlighter-rouge">guarantee</code> is not a
 bit overkill. We could have coded our loop like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">for</span> <span class="o">{</span>
   <span class="n">socket</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">.</span><span class="n">accept</span><span class="o">)</span>
   <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">echoProtocol</span><span class="o">(</span><span class="n">socket</span><span class="o">)</span>
               <span class="o">.</span><span class="n">guarantee</span><span class="o">(</span><span class="n">close</span><span class="o">(</span><span class="n">socket</span><span class="o">))</span>
               <span class="o">.</span><span class="n">start</span>
   <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">)</span>            
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>That code is way simpler, but it contains a bug: if there is a cancellation in
 the <code class="highlighter-rouge">flatMap</code> between <code class="highlighter-rouge">socket</code> and <code class="highlighter-rouge">echoProtocol</code> then <code class="highlighter-rouge">close(socket)</code> does not
@@ -715,7 +715,7 @@ about this in the <a href="#fibers-are-not-threads">Fibers are not threads!</a><
 <p>So, what do we miss now? Only the creation of the server socket of course,
 which we can already do in the <code class="highlighter-rouge">run</code> method of an <code class="highlighter-rouge">IOApp</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 
@@ -737,7 +737,7 @@ which we can already do in the <code class="highlighter-rouge">run</code> method
       <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Heed how this time we can use <code class="highlighter-rouge">bracket</code> right ahead, as there is a single
 resource to deal with and no action to be taken if the creation fails. Also
@@ -750,23 +750,23 @@ do not have to create our own.</p>
 
 <p>As before you can run in for example from the <code class="highlighter-rouge">sbt</code> console just by typing</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">EchoServerV1_Simple</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">&gt;</span> <span class="n">runMain</span> <span class="n">catsEffectTutorial</span><span class="o">.</span><span class="nc">EchoServerV1_Simple</span>
+</code></pre></div>
 
 <p>That will start the server on default port <code class="highlighter-rouge">5432</code>, you can also set any other
 port by passing it as argument. To test the server is properly running, you can
 connect to it using <code class="highlighter-rouge">telnet</code>. Here we connect, send <code class="highlighter-rouge">hi</code>, and the server replies
 with the same text. Finally we send an empty line to close the connection:</p>
 
-<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> telnet localhost 5432
-<span class="go">Trying 127.0.0.1...
+<div class="language-console highlighter-rouge"><pre class="codehilite"><code><span class="w">$ </span><span class="nc">telnet</span><span class="kv"> localhost 5432
+</span>Trying 127.0.0.1...
 Connected to localhost.
 Escape character is '^]'.
 hi
 hi
 
 Connection closed by foreign host.
-</span></code></pre></div></div>
+</code></pre></div>
 
 <p>You can connect several telnet sessions at the same time to verify that indeed
 our server can attend all of them simultaneously. Several… but not many, more
@@ -806,9 +806,18 @@ that message is received.</p>
 
 <p>Let’s first define a new method <code class="highlighter-rouge">server</code> that instantiates the flag, runs the
 <code class="highlighter-rouge">serve</code> method in its own fiber and waits on the flag to be set. Only when
-the flag is set the server fiber will be canceled.</p>
+the flag is set the server fiber will be canceled. The cancellation itself (the
+call to <code class="highlighter-rouge">fiber.cancel</code>) is also run in a separate fiber to prevent being
+blocked by it. This is not always needed, but the cancellation of actions
+defined by <code class="highlighter-rouge">bracket</code> or <code class="highlighter-rouge">bracketCase</code> will wait until all finalizers (release
+stage of bracket) are finished. The <code class="highlighter-rouge">F</code> created by our <code class="highlighter-rouge">serve</code> function is
+defined based on <code class="highlighter-rouge">bracketCase</code>, so if the action is blocked at any bracket stage
+(acquisition, usage or release), then the cancel call will be blocked too. And
+our bracket blocks as the <code class="highlighter-rouge">serverSocket.accept</code> call is blocking!. As a result,
+invoking <code class="highlighter-rouge">.cancel</code> will block our <code class="highlighter-rouge">server</code> function. To fix this we just execute
+the cancellation on its own fiber by running <code class="highlighter-rouge">.cancel.start</code>.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -823,15 +832,15 @@ the flag is set the server fiber will be canceled.</p>
     <span class="n">stopFlag</span>    <span class="k">&lt;-</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">empty</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
     <span class="n">serverFiber</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">).</span><span class="n">start</span> <span class="c1">// Server runs on its own Fiber
 </span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span>                       <span class="c1">// Blocked until 'stopFlag.put(())' is run
-</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span>                  <span class="c1">// Stopping server!
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span><span class="o">.</span><span class="n">start</span>            <span class="c1">// Stopping server!
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>As before, creating new fibers requires a <code class="highlighter-rouge">Concurrent[F]</code> in scope.</p>
 
 <p>We must also modify the main <code class="highlighter-rouge">run</code> method in <code class="highlighter-rouge">IOApp</code> so now it calls to <code class="highlighter-rouge">server</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 
@@ -853,13 +862,13 @@ the flag is set the server fiber will be canceled.</p>
       <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>So <code class="highlighter-rouge">run</code> calls <code class="highlighter-rouge">server</code> which in turn calls <code class="highlighter-rouge">serve</code>. Do we need to modify
 <code class="highlighter-rouge">serve</code> as well? Yes, as we need to pass the <code class="highlighter-rouge">stopFlag</code> to the <code class="highlighter-rouge">echoProtocol</code>
 method:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
@@ -889,14 +898,14 @@ method:</p>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>There is only one step missing, modifying <code class="highlighter-rouge">echoProtocol</code>. In fact, the only
 relevant changes are on its inner <code class="highlighter-rouge">loop</code> method. Now it will check whether the
 line received from the client is <code class="highlighter-rouge">STOP</code>, if so it will set the <code class="highlighter-rouge">stopFlag</code> to
 signal the server must be stopped, and the function will quit:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -911,14 +920,20 @@ signal the server must be stopped, and the function will quit:</p>
 </span>              <span class="k">case</span> <span class="k">_</span>      <span class="k">=&gt;</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">{</span> <span class="n">writer</span><span class="o">.</span><span class="n">write</span><span class="o">(</span><span class="n">line</span><span class="o">);</span> <span class="n">writer</span><span class="o">.</span><span class="n">newLine</span><span class="o">();</span> <span class="n">writer</span><span class="o">.</span><span class="n">flush</span><span class="o">()</span> <span class="o">}</span> <span class="o">&gt;&gt;</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="o">,</span> <span class="n">writer</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>
             <span class="o">}</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h4 id="echo-server-code-graceful-stop-version">Echo server code, graceful stop version</h4>
 <p>The code of the server able to react to stop events is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV2_GracefulStop.scala">here</a>.</p>
 
 <p>If you run the server coded above, open a telnet session against it and send an
-<code class="highlighter-rouge">STOP</code> message you will see how the server is properly terminated.</p>
+<code class="highlighter-rouge">STOP</code> message you will see how the server is properly terminated: the <code class="highlighter-rouge">server</code>
+function will cancel the fiber on <code class="highlighter-rouge">serve</code> and return, then <code class="highlighter-rouge">bracket</code> defined in
+our main <code class="highlighter-rouge">run</code> method will finalize the usage stage and relaese the server
+socket. This will make the <code class="highlighter-rouge">serverSocket.accept()</code> in the <code class="highlighter-rouge">serve</code> function to
+throw an exception that will be caught by the <code class="highlighter-rouge">bracketCase</code> of that function.
+Because <code class="highlighter-rouge">serve</code> was already canceled, and given how we defined the release stage
+of its <code class="highlighter-rouge">bracketCase</code>, the function will finish normally.</p>
 
 <h4 id="exercise-closing-client-connections-to-echo-server-on-shutdown">Exercise: closing client connections to echo server on shutdown</h4>
 <p>There is a catch yet in our server. If there are several clients connected,
@@ -948,7 +963,7 @@ client is ‘shutdown’. As <code class="highlighter-rouge">Fiber</code> instan
 instance just to wait for <code class="highlighter-rouge">stopFlag.read</code> and then forcing the client to stop.
 This is how the <code class="highlighter-rouge">serve</code> method will look like now with that change:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -978,7 +993,7 @@ This is how the <code class="highlighter-rouge">serve</code> method will look li
 </span>    <span class="k">_</span>      <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Here we close the client socket once the read on <code class="highlighter-rouge">stopFlag</code> unblocks. This will
 trigger an exception on the <code class="highlighter-rouge">reader.readLine</code> call. To capture and process the
@@ -988,7 +1003,7 @@ the exception captured. If some error is detected first the state of <code class
 is checked, and if it is set a graceful shutdown is assumed and no action is
 taken; otherwise the error is raised:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
@@ -1010,7 +1025,7 @@ taken; otherwise the error is raised:</p>
 </span>                 <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
              <span class="o">}</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Recall that we used <code class="highlighter-rouge">Resource</code> to instantiate both the <code class="highlighter-rouge">reader</code> and <code class="highlighter-rouge">writer</code>
 used by <code class="highlighter-rouge">loop</code>; following how we coded that resource, both that <code class="highlighter-rouge">reader</code> and
@@ -1020,7 +1035,7 @@ used by <code class="highlighter-rouge">loop</code>; following how we coded that
 of closing the socket straight away?</em>’ In fact this is perfectly possible, and
 it will have a similar effect:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -1050,7 +1065,7 @@ it will have a similar effect:</p>
 </span>    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">)</span>                   <span class="c1">// Looping back to the beginning
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>What is happening in this latter case? If you take a look again to
 <code class="highlighter-rouge">echoProtocol</code> you will see that the <code class="highlighter-rouge">F</code> returned by <code class="highlighter-rouge">echoProtocol</code> is the <code class="highlighter-rouge">F</code>
@@ -1072,7 +1087,7 @@ using <code class="highlighter-rouge">cancel</code> to handle fibers.</p>
 on shutdown, is available
 <a href="https://github.com/lrodero/cats-effect-tutorial/blob/master/src/main/scala/catsEffectTutorial/EchoServerV3_ClosingClientsOnShutdown.scala">here</a>.</p>
 
-<h3 id="fibers-are-not-threads"><code class="highlighter-rouge">Fiber</code>s are not threads!<a name="fibers-are-not-threads"></a></h3>
+<h3 id="fibers-are-not-threadsa-namefibers-are-not-threadsa"><code class="highlighter-rouge">Fiber</code>s are not threads!<a name="fibers-are-not-threads"></a></h3>
 
 <p>As stated before, fibers are like ‘light’ threads, meaning they can be used in a
 similar way than threads to create concurrent code. However, they are <em>not</em>
@@ -1105,18 +1120,16 @@ declare tasks that will be run in different thread pools: first task will be run
 by the thread pool of the <code class="highlighter-rouge">ExecutionContext</code> passed as parameter, the second
 task will be run in the default thread pool.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
-<span class="k">def</span> <span class="n">doHeavyStuffInADifferentThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">ContextShift:</span> <span class="kt">Sync</span><span class="o">](</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
-  <span class="k">val</span> <span class="n">csf</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+<span class="k">def</span> <span class="n">doHeavyStuffInADifferentThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">ContextShift:</span> <span class="kt">Sync</span><span class="o">](</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">csf</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">ec</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">)))</span> <span class="c1">// Swapping to thread pool of given ExecutionContext
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">evalOn</span><span class="o">(</span><span class="n">ec</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hi!"</span><span class="o">)))</span> <span class="c1">// Swapping to thread pool of given ExecutionContext
 </span>    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Welcome!"</span><span class="o">))</span> <span class="c1">// Running back in default thread pool
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-<span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h4 id="exercise-using-a-custom-thread-pool-in-echo-server">Exercise: using a custom thread pool in echo server</h4>
 <p>Given what we know so far, how could we solve the problem of the limited number
@@ -1131,21 +1144,19 @@ the server is stopped!</p>
 and execution context, and use it whenever we need to read input from some
 connected client. So the beginning of the <code class="highlighter-rouge">echoProtocol</code> function would look like:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">clientsExecutionContext</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
-
-  <span class="k">val</span> <span class="n">csf</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">def</span> <span class="n">echoProtocol</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">clientSocket</span><span class="k">:</span> <span class="kt">Socket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">clientsExecutionContext</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
 
   <span class="k">def</span> <span class="n">loop</span><span class="o">(</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
     <span class="k">for</span> <span class="o">{</span>
-      <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="n">csf</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">clientsExecutionContext</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">attempt</span><span class="o">)</span>
+      <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="nc">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">evalOn</span><span class="o">(</span><span class="n">clientsExecutionContext</span><span class="o">)(</span><span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">reader</span><span class="o">.</span><span class="n">readLine</span><span class="o">()).</span><span class="n">attempt</span><span class="o">)</span>
 <span class="c1">//    ...
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p>and… that is mostly it. Only pending change is to create the thread pool and
 execution context in the <code class="highlighter-rouge">server</code> function, which will be in charge also of
 shutting down the thread pool when the server finishes:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
@@ -1165,10 +1176,10 @@ shutting down the thread pool when the server finishes:</p>
     <span class="n">serverFiber</span> <span class="k">&lt;-</span> <span class="n">serve</span><span class="o">(</span><span class="n">serverSocket</span><span class="o">,</span> <span class="n">stopFlag</span><span class="o">).</span><span class="n">start</span>         <span class="c1">// Server runs on its own Fiber
 </span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">stopFlag</span><span class="o">.</span><span class="n">read</span>                               <span class="c1">// Blocked until 'stopFlag.put(())' is run
 </span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">delay</span><span class="o">(</span><span class="n">clientsThreadPool</span><span class="o">.</span><span class="n">shutdown</span><span class="o">())</span> <span class="c1">// Shutting down clients pool
-</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span>                          <span class="c1">// Stopping server
+</span>    <span class="k">_</span>           <span class="k">&lt;-</span> <span class="n">serverFiber</span><span class="o">.</span><span class="n">cancel</span><span class="o">.</span><span class="n">start</span>                    <span class="c1">// Stopping server
 </span>  <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Signatures of <code class="highlighter-rouge">serve</code> and of <code class="highlighter-rouge">echoProtocol</code> will have to be changed too to pass
 the execution context as parameter. Finally, we need an implicit
@@ -1192,7 +1203,7 @@ blocking code in our fabulous echo server. Unfortunately, <code class="highlight
 magically ‘unblock’ such code. Try this simple code snippet (<em>e.g.</em> in <code class="highlighter-rouge">sbt</code>
 console):</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.util.Either</span>
@@ -1207,7 +1218,7 @@ console):</p>
 </span><span class="o">}</span> <span class="k">yield</span><span class="o">()</span>
 
 <span class="n">delayed</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">unsafeRunSync</span><span class="o">()</span> <span class="c1">// a way to run an IO without IOApp
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p>You will notice that the code above still blocks, waiting for the <code class="highlighter-rouge">async</code> call
 to finish.</p>
@@ -1218,7 +1229,7 @@ code. Because <code class="highlighter-rouge">async</code> allows a different th
 modify the blocking read call inside the <code class="highlighter-rouge">loop</code> function of our server with
 something like:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">for</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">for</span> <span class="o">{</span>
   <span class="n">lineE</span> <span class="k">&lt;-</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">].</span><span class="n">async</span><span class="o">{</span> <span class="o">(</span><span class="n">cb</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">String</span><span class="o">]]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> 
              <span class="n">clientsExecutionContext</span><span class="o">.</span><span class="n">execute</span><span class="o">(</span><span class="k">new</span> <span class="nc">Runnable</span> <span class="o">{</span>
                <span class="k">override</span> <span class="k">def</span> <span class="n">run</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
@@ -1228,7 +1239,7 @@ something like:</p>
              <span class="o">})</span>
            <span class="o">}</span>
 <span class="c1">// ...           
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p>Note that the call <code class="highlighter-rouge">clientsExecutionContext.execute</code> will create a thread from
 that execution context, setting free the thread that was evaluating the <code class="highlighter-rouge">F</code>
@@ -1251,7 +1262,7 @@ modeled with <code class="highlighter-rouge">Future</code>s so they do not block
 our <code class="highlighter-rouge">F</code>, should we block on the <code class="highlighter-rouge">Future</code> waiting for the result? No! We can
 wrap the call in an <code class="highlighter-rouge">async</code> call like:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
 <span class="k">import</span> <span class="nn">scala.util._</span>
@@ -1265,7 +1276,7 @@ wrap the call in an <code class="highlighter-rouge">async</code> call like:</p>
     <span class="k">case</span> <span class="nc">Failure</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">e</span><span class="o">))</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>So, let’s say our new goal is to create an echo server that does not require a
 thread per connected socket to wait on the blocking <code class="highlighter-rouge">read()</code> method. If we use a

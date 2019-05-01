@@ -243,16 +243,16 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <span class="name">Resource</span><span class="result"> extends <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span></span>
+        <span class="name">Resource</span><span class="result"> extends <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span> with <span class="extype" name="cats.effect.internals.ResourcePlatform">ResourcePlatform</span></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.2.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.3.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span>, <span class="extype" name="cats.effect.ResourceInstances0">ResourceInstances0</span>, <span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
+          <div class="superTypes hiddenContent"><span class="extype" name="cats.effect.internals.ResourcePlatform">ResourcePlatform</span>, <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span>, <span class="extype" name="cats.effect.ResourceInstances0">ResourceInstances0</span>, <span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
         </div></div>
         
 
@@ -278,7 +278,7 @@
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="cats.effect.Resource"><span>Resource</span></li><li class="in" name="cats.effect.ResourceInstances"><span>ResourceInstances</span></li><li class="in" name="cats.effect.ResourceInstances0"><span>ResourceInstances0</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="cats.effect.Resource"><span>Resource</span></li><li class="in" name="cats.effect.internals.ResourcePlatform"><span>ResourcePlatform</span></li><li class="in" name="cats.effect.ResourceInstances"><span>ResourceInstances</span></li><li class="in" name="cats.effect.ResourceInstances0"><span>ResourceInstances0</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -462,6 +462,22 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="cats.effect.ResourceInstances#catsEffectLiftIOForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$1$]cats.effect.Resource[F,β$1$]]"></a><a id="catsEffectLiftIOForResource[F[_]](LiftIO[F],Applicative[F]):LiftIO[[β$1$]Resource[F,β$1$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource$.html#catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$1$]cats.effect.Resource[F,β$1$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catsEffectLiftIOForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F00">F00: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>, <span name="F10">F10: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>)</span><span class="result">: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[[β$1$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.&lt;refinement&gt;.Λ$.β$1$">β$1$</span>]]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances</dd></dl></div>
     </li><li name="cats.effect.ResourceInstances#catsEffectMonadErrorForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="catsEffectMonadErrorForResource[F[_],E](implicitF0:cats.MonadError[F,E]):cats.MonadError[[β$0$]cats.effect.Resource[F,β$0$],E]"></a><a id="catsEffectMonadErrorForResource[F[_],E](MonadError[F,E]):MonadError[[β$0$]Resource[F,β$0$],E]"></a>
       <span class="permalink">
@@ -479,9 +495,9 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances</dd></dl></div>
     </li><li name="cats.effect.ResourceInstances0#catsEffectMonadForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$1$]cats.effect.Resource[F,β$1$]]"></a><a id="catsEffectMonadForResource[F[_]](Monad[F]):Monad[[β$1$]Resource[F,β$1$]]"></a>
+      <a id="catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$2$]cats.effect.Resource[F,β$2$]]"></a><a id="catsEffectMonadForResource[F[_]](Monad[F]):Monad[[β$2$]Resource[F,β$2$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource$.html#catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$1$]cats.effect.Resource[F,β$1$]]" title="Permalink">
+      <a href="../../cats/effect/Resource$.html#catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$2$]cats.effect.Resource[F,β$2$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -490,7 +506,7 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsEffectMonadForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.Monad">Monad</span>[[β$1$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances0.&lt;refinement&gt;.Λ$.β$1$">β$1$</span>]]</span>
+        <span class="name">catsEffectMonadForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.Monad">Monad</span>[[β$2$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances0.&lt;refinement&gt;.Λ$.β$2$">β$2$</span>]]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances0</dd></dl></div>
@@ -644,6 +660,31 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
   Resource.fromAutoCloseable(F.delay {
     <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
   })</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the type of the effect</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of the autocloseable resource</p></dd><dt class="param">acquire</dt><dd class="cmt"><p>The effect with the resource to acquire.</p></dd><dt class="param">F</dt><dd class="cmt"><p>the effect type in which the resource was acquired and will be released</p></dd><dt>returns</dt><dd class="cmt"><p>a Resource that will automatically close after use</p></dd></dl></div>
+    </li><li name="cats.effect.internals.ResourcePlatform#fromDestroyable" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="fromDestroyable[F[_],A&lt;:javax.security.auth.Destroyable](acquire:F[A])(implicitF:cats.effect.Sync[F]):cats.effect.Resource[F,A]"></a><a id="fromDestroyable[F[_],A&lt;:Destroyable](F[A])(Sync[F]):Resource[F,A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource$.html#fromDestroyable[F[_],A&lt;:javax.security.auth.Destroyable](acquire:F[A])(implicitF:cats.effect.Sync[F]):cats.effect.Resource[F,A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromDestroyable</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A &lt;: <span class="extype" name="javax.security.auth.Destroyable">Destroyable</span></span>]</span><span class="params">(<span name="acquire">acquire: <span class="extype" name="cats.effect.internals.ResourcePlatform.fromDestroyable.F">F</span>[<span class="extype" name="cats.effect.internals.ResourcePlatform.fromDestroyable.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.internals.ResourcePlatform.fromDestroyable.F">F</span>]</span>)</span><span class="result">: <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.internals.ResourcePlatform.fromDestroyable.F">F</span>, <span class="extype" name="cats.effect.internals.ResourcePlatform.fromDestroyable.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Creates a <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a> by wrapping a Java
+<a href="https://docs.oracle.com/javase/8/docs/api/javax/security/auth/Destroyable.html" target="_blank">Destroyable</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Creates a <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a> by wrapping a Java
+<a href="https://docs.oracle.com/javase/8/docs/api/javax/security/auth/Destroyable.html" target="_blank">Destroyable</a>.</p><p>Example:</p><pre><span class="kw">import</span> java.security.KeyStore.PasswordProtection
+<span class="kw">import</span> cats.effect._
+<span class="kw">import</span> cats.implicits._
+
+<span class="kw">def</span> passwordProtection[F[_]](getPassword: F[<span class="std">Array</span>[<span class="std">Char</span>]])(<span class="kw">implicit</span> F: Sync[F]): Resource[F, PasswordProtection] =
+  Resource.fromDestroyable(
+    getPassword.map(<span class="kw">new</span> PasswordProtection(_))
+  )</pre></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the type of the effect</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of the destroyable resource</p></dd><dt class="param">acquire</dt><dd class="cmt"><p>The effect with the resource to acquire.</p></dd><dt class="param">F</dt><dd class="cmt"><p>the effect type in which the resource was acquired and will be released</p></dd><dt>returns</dt><dd class="cmt"><p>a Resource that will automatically destroy after use</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourcePlatform</dd></dl></div>
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
@@ -965,7 +1006,9 @@ the <code>cats.Monad</code> type class.</p>
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="cats.effect.ResourceInstances">
+        <div class="parent" name="cats.effect.internals.ResourcePlatform">
+              <h3>Inherited from <span class="extype" name="cats.effect.internals.ResourcePlatform">ResourcePlatform</span></h3>
+            </div><div class="parent" name="cats.effect.ResourceInstances">
               <h3>Inherited from <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span></h3>
             </div><div class="parent" name="cats.effect.ResourceInstances0">
               <h3>Inherited from <span class="extype" name="cats.effect.ResourceInstances0">ResourceInstances0</span></h3>

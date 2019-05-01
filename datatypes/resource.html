@@ -4,32 +4,42 @@
 
 <p>The <a href="../tutorial/tutorial.html#acquiring-and-releasing-resources">Acquiring and releasing <code class="highlighter-rouge">Resource</code>s</a> section of the tutorial provides some additional context and examples regarding <code class="highlighter-rouge">Resource</code>.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Bracket</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.Bracket</span>
 
 <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Resource</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">allocate</span><span class="k">:</span> <span class="kt">F</span><span class="o">[(</span><span class="kt">A</span>, <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])]</span>
-
-  <span class="k">def</span> <span class="n">use</span><span class="o">[</span><span class="kt">B</span>, <span class="kt">E</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Bracket</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">E</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">F</span><span class="o">.</span><span class="n">bracket</span><span class="o">(</span><span class="n">allocate</span><span class="o">)(</span><span class="n">a</span> <span class="k">=&gt;</span> <span class="n">f</span><span class="o">(</span><span class="n">a</span><span class="o">.</span><span class="n">_1</span><span class="o">))(</span><span class="k">_</span><span class="o">.</span><span class="n">_2</span><span class="o">)</span>
+  <span class="k">def</span> <span class="n">use</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="n">F</span><span class="o">[</span><span class="kt">B</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Bracket</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Throwable</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner use or release fails.</p>
 
 <p>You can lift any <code class="highlighter-rouge">F[A]</code> with an <code class="highlighter-rouge">Applicative</code> instance into a <code class="highlighter-rouge">Resource[F, A]</code> with a no-op release via <code class="highlighter-rouge">Resource.liftF</code>:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cats.effect.{IO, Resource}
+<div class="highlighter-rouge"><pre class="codehilite"><code>import cats.effect.{IO, Resource}
 import cats.implicits._
 
 val greet: String =&gt; IO[Unit] = x =&gt; IO(println("Hello " ++ x))
 
 Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
+</code></pre></div>
 
-</code></pre></div></div>
+<p>Note that resource acquisition cannot be canceled, so if you lift a long running <code class="highlighter-rouge">F[A]</code> into <code class="highlighter-rouge">Resource</code> and cancel the <code class="highlighter-rouge">use</code> call while it runs,
+the program will wait until that <code class="highlighter-rouge">F[A]</code> completes.</p>
+
+<p>For example, if you do this:</p>
+
+<div class="highlighter-rouge"><pre class="codehilite"><code>//latch to make sure we cancel the `use` after it's actually started
+Deferred[IO, Unit].flatMap { promise =&gt;
+  Resource.liftF(promise.complete(()) &gt;&gt; IO.never: IO[Unit])
+    .use(_ =&gt; IO.unit) race promise.get
+}
+</code></pre></div>
+
+<p>the program will never terminate.</p>
 
 <p>Moreover it’s possible to apply further effects to the wrapped resource without leaving the <code class="highlighter-rouge">Resource</code> context via <code class="highlighter-rouge">evalMap</code>:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cats.effect.{IO, Resource}
+<div class="highlighter-rouge"><pre class="codehilite"><code>import cats.effect.{IO, Resource}
 import cats.implicits._
 
 val acquire: IO[String] = IO(println("Acquire cats...")) *&gt; IO("cats")
@@ -41,10 +51,10 @@ val report: String =&gt; IO[String] = x =&gt;
 
 Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 
-</code></pre></div></div>
+</code></pre></div>
 <h3 id="example">Example</h3>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 
 <span class="k">def</span> <span class="n">mkResource</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
@@ -61,7 +71,7 @@ Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">outer</span><span class="o">,</span> <span class="n">inner</span><span class="o">)</span>
 
 <span class="n">r</span><span class="o">.</span><span class="n">use</span> <span class="o">{</span> <span class="k">case</span> <span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Using $a and $b"</span><span class="o">))</span> <span class="o">}.</span><span class="n">unsafeRunSync</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>If using an AutoCloseable create a resource without the need to specify how to close.</p>
 
@@ -69,18 +79,18 @@ Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 
 <h4 id="with-scalaiosource">With <code class="highlighter-rouge">scala.io.Source</code></h4>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 
 <span class="k">val</span> <span class="n">acquire</span> <span class="k">=</span> <span class="nc">IO</span> <span class="o">{</span>
   <span class="n">scala</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="nc">Source</span><span class="o">.</span><span class="n">fromString</span><span class="o">(</span><span class="s">"Hello world"</span><span class="o">)</span>
 <span class="o">}</span>
 
 <span class="nc">Resource</span><span class="o">.</span><span class="n">fromAutoCloseable</span><span class="o">(</span><span class="n">acquire</span><span class="o">).</span><span class="n">use</span><span class="o">(</span><span class="n">source</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">source</span><span class="o">.</span><span class="n">mkString</span><span class="o">))).</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h4 id="with-javaio-using-io">With <code class="highlighter-rouge">java.io</code> using IO</h4>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">java.io._</span>
 <span class="k">import</span> <span class="nn">collection.JavaConverters._</span>
 <span class="k">import</span> <span class="nn">cats.effect._</span>
 
@@ -97,11 +107,11 @@ Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 <span class="k">def</span> <span class="n">readLinesFromFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
     <span class="n">reader</span><span class="o">(</span><span class="n">file</span><span class="o">).</span><span class="n">use</span><span class="o">(</span><span class="n">readAllLines</span><span class="o">)</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <h4 id="a-javaio-example-agnostic-of-the-effect-type">A <code class="highlighter-rouge">java.io</code> example agnostic of the effect type</h4>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">java.io._</span>
 <span class="k">import</span> <span class="nn">cats.effect._</span>
 
 <span class="k">def</span> <span class="n">reader</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">BufferedReader</span><span class="o">]</span> <span class="k">=</span>
@@ -126,7 +136,7 @@ Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 <span class="k">def</span> <span class="n">dumpFile</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="n">dumpResource</span><span class="o">(</span><span class="n">reader</span><span class="o">(</span><span class="n">file</span><span class="o">))</span>
 
-</code></pre></div></div>
+</code></pre></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

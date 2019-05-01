@@ -2,13 +2,13 @@
 
 <p>A <code class="highlighter-rouge">Monad</code> that can describe asynchronous or synchronous computations that produce exactly one result.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">LiftIO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">LiftIO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="k">trait</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="nc">extends</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="k">with</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">async</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>This type class allows the modeling of data types that:</p>
 <ul>
@@ -21,8 +21,8 @@
 
 <p>Therefore the signature exposed by the <code class="highlighter-rouge">Async.async</code> builder is this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
+</code></pre></div>
 
 <p>N.B. such asynchronous processes are not cancelable. See the <code class="highlighter-rouge">Concurrent</code> alternative for that.</p>
 
@@ -32,20 +32,20 @@
 
 <p>In terms of types, normally asynchronous processes are represented as:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
+</code></pre></div>
 
 <p>This signature can be recognized in the “Observer pattern” described in the “Gang of Four”, although it should be noted that without an <code class="highlighter-rouge">onComplete</code> event (like in the Rx Observable pattern) you can’t detect completion in case this callback can be called zero or multiple times.</p>
 
 <p>Some abstractions allow for signaling an error condition (e.g. <code class="highlighter-rouge">MonadError</code> data types), so this would be a signature that’s closer to Scala’s <code class="highlighter-rouge">Future.onComplete</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="nc">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span>
+</code></pre></div>
 
 <p>And many times the abstractions built to deal with asynchronous tasks also provide a way to cancel such processes, to be used in race conditions in order to cleanup resources early:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Cancelable</span>
-</code></pre></div></div>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="o">(</span><span class="n">A</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Cancelable</span>
+</code></pre></div>
 
 <p>This is approximately the signature of JavaScript’s <code class="highlighter-rouge">setTimeout</code>, which will return a “task ID” that can be used to cancel it. N.B. this type class in particular is NOT describing cancelable async processes, see the <code class="highlighter-rouge">Concurrent</code> type class for that.</p>
 
@@ -53,7 +53,7 @@
 
 <p>The <code class="highlighter-rouge">async</code> method has an interesting signature that is nothing more than the representation of a callback-based API function. For example, consider the following example having an API that returns a <code class="highlighter-rouge">Future[String]</code> as a response:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Async</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Async</span><span class="o">}</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
@@ -72,7 +72,7 @@
  <span class="o">}</span>
 
 <span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>In the example above <code class="highlighter-rouge">ioa</code> will have a successful value <code class="highlighter-rouge">A</code> or it will be raise an error in the <code class="highlighter-rouge">IO</code> context.</p>
 

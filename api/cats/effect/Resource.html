@@ -279,10 +279,10 @@ Acquiring inner
 Using outer and inner
 Releasing inner
 Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data structure, an ADT, described by
-the following node types and that can be interpretted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
+the following node types and that can be interpreted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
-</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.2.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.3.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -512,6 +512,24 @@ resource.</p></div></div>
       
       <p class="shortcomment cmt">Applies an effectful transformation to the allocated resource.</p><div class="fullcomment"><div class="comment cmt"><p>Applies an effectful transformation to the allocated resource. Like a
 <code>flatMap</code> on <code>F[A]</code> while maintaining the resource context
+</p></div></div>
+    </li><li name="cats.effect.Resource#evalTap" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="evalTap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,A]"></a><a id="evalTap[B]((A)⇒F[B])(Applicative[F]):Resource[F,A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource.html#evalTap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">evalTap</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.evalTap.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.F">F</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Applies an effectful transformation to the allocated resource.</p><div class="fullcomment"><div class="comment cmt"><p>Applies an effectful transformation to the allocated resource. Like a
+<code>flatTap</code> on <code>F[A]</code> while maintaining the resource context
 </p></div></div>
     </li><li name="scala.AnyRef#finalize" visbl="prt" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="finalize():Unit"></a>

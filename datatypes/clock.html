@@ -24,7 +24,7 @@ without actual delays happening</li>
 
 <p>The interface looks like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.duration.TimeUnit</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">scala.concurrent.duration.TimeUnit</span>
 
 <span class="k">trait</span> <span class="nc">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
 
@@ -33,7 +33,7 @@ without actual delays happening</li>
   <span class="k">def</span> <span class="n">monotonic</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
   
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 <p>N.B. this is NOT a type class, meaning that there is no coherence restriction. 
 This is because the ability to inject custom implementations in time-based
@@ -41,7 +41,7 @@ logic is essential.</p>
 
 <p>Example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration.MILLISECONDS</span>
 
@@ -54,7 +54,7 @@ logic is essential.</p>
     <span class="n">finish</span> <span class="k">&lt;-</span> <span class="n">clock</span><span class="o">.</span><span class="n">monotonic</span><span class="o">(</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">result</span><span class="o">,</span> <span class="n">finish</span> <span class="o">-</span> <span class="n">start</span><span class="o">)</span>
 <span class="o">}</span>
-</code></pre></div></div>
+</code></pre></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>

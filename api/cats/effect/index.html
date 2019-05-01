@@ -246,7 +246,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.2.0/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.3.0/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -811,7 +811,7 @@ Acquiring inner
 Using outer and inner
 Releasing inner
 Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data structure, an ADT, described by
-the following node types and that can be interpretted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
+the following node types and that can be interpreted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
 </p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
@@ -1114,7 +1114,7 @@ requirement.
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="Resource$.html"><span class="name">Resource</span></a><span class="result"> extends <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span></span>
+        <a title="" href="Resource$.html"><span class="name">Resource</span></a><span class="result"> extends <span class="extype" name="cats.effect.ResourceInstances">ResourceInstances</span> with <span class="extype" name="cats.effect.internals.ResourcePlatform">ResourcePlatform</span></span>
       </span>
       
       

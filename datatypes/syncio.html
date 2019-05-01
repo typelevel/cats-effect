@@ -6,7 +6,7 @@
 
 <h2 id="constructing-syncio-values">Constructing SyncIO values</h2>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.SyncIO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.SyncIO</span>
 <span class="c1">// import cats.effect.SyncIO
 </span>
 <span class="k">def</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">str</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">str</span><span class="o">))</span>
@@ -14,7 +14,7 @@
 </span>
 <span class="nc">SyncIO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="s">"Cats!"</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">putStrLn</span><span class="o">).</span><span class="n">unsafeRunSync</span>
 <span class="c1">// Cats!
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p>There’s also <code class="highlighter-rouge">suspend</code> and <code class="highlighter-rouge">unit</code>, equivalent to the same operations defined in <code class="highlighter-rouge">IO</code> but with synchronicity guarantees.</p>
 
@@ -22,7 +22,7 @@
 
 <p><code class="highlighter-rouge">SyncIO</code> defines an <code class="highlighter-rouge">eval</code> method in its companion object to lift any <code class="highlighter-rouge">cats.Eval</code> value.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.Eval</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.Eval</span>
 <span class="c1">// import cats.Eval
 </span>
 <span class="k">val</span> <span class="n">eval</span> <span class="k">=</span> <span class="nc">Eval</span><span class="o">.</span><span class="n">now</span><span class="o">(</span><span class="s">"hey!"</span><span class="o">)</span>
@@ -30,22 +30,22 @@
 </span>
 <span class="nc">SyncIO</span><span class="o">.</span><span class="n">eval</span><span class="o">(</span><span class="n">eval</span><span class="o">).</span><span class="n">unsafeRunSync</span>
 <span class="c1">// res1: String = hey!
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 <p><code class="highlighter-rouge">SyncIO</code> also defines a <code class="highlighter-rouge">to[F]</code> method at the class level to lift your value into any <code class="highlighter-rouge">F</code> with a <code class="highlighter-rouge">LiftIO</code> instance available.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="c1">// import cats.effect.IO
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$700335225
+<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$1050953348
 </span>
 <span class="k">val</span> <span class="n">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">ioa</span><span class="o">.</span><span class="n">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// iob: cats.effect.IO[Unit] = IO$1931346950
+<span class="c1">// iob: cats.effect.IO[Unit] = IO$738564257
 </span>
 <span class="n">iob</span><span class="o">.</span><span class="n">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Hello world!
-</span></code></pre></div></div>
+</span></code></pre></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
