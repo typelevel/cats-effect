@@ -30,7 +30,7 @@ val CatsVersion = "2.0.0-M1"
 val ScalaTestVersion = "3.1.0-SNAP9"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP4"
 val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.11.1"
+val DisciplineVersion = "0.11.2-M1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
