@@ -963,7 +963,7 @@ of its `bracketCase`, the function will finish normally.
 
 #### Exercise: closing client connections to echo server on shutdown
 There is a catch yet in our server. If there are several clients connected,
-sending an `STOP` message will close the server's fiber and the one attending
+sending a `STOP` message will close the server's fiber and the one attending
 the client that sent the message. But the other fibers will keep running
 normally! It is like they were daemon threads. Arguably, we could expect that
 shutting down the server shall close _all_ connections. How could we do it?
@@ -979,7 +979,7 @@ consider taking some time looking for a solution yourself :) .
 
 #### Solution
 We could keep a list of active fibers serving client connections. It is
-doable, but cumbersome...  and not really needed at this point.
+doable, but cumbersome … and not really needed at this point.
 
 Think about it: we have a `stopFlag` that signals when the server must be
 stopped. When that flag is set we can assume we shall close all client
@@ -1134,7 +1134,7 @@ clients by sending an empty line (recall that makes the server to close that
 client session) then immediately one of the blocked clients will be active.
 
 It shall be clear from that experiment that fibers are run by thread pools. And
-that in our case, all our fibers share the same thread pool! `ContextShif[F]`
+that in our case, all our fibers share the same thread pool! `ContextShift[F]`
 is in charge of assigning threads to the fibers waiting to be run, each one
 with a pending `F` action. When using `IOApp` we get also the `ContextShift[IO]`
 that we need to run the fibers in our code. So there are our threads!
@@ -1145,8 +1145,8 @@ Cats-effect provides ways to use different `ContextShift`s (each with its own
 thread pool) when running `F` actions, and to swap which one should be used for
 each new `F` to ask to reschedule threads among the current active `F`
 instances _e.g._ for improved fairness etc. Code below shows an example of how to
-declare tasks that will be run in different thread pools: first task will be run
-by the thread pool of the `ExecutionContext` passed as parameter, the second
+declare tasks that will be run in different thread pools: the first task will be
+run by the thread pool of the `ExecutionContext` passed as parameter, the second
 task will be run in the default thread pool.
 
 ```scala
@@ -1164,7 +1164,7 @@ def doHeavyStuffInADifferentThreadPool[F[_]: ContextShift: Sync](implicit ec: Ex
 #### Exercise: using a custom thread pool in echo server
 Given what we know so far, how could we solve the problem of the limited number
 of clients attended in parallel in our echo server? Recall that in traditional
-servers we would make use of an specific thread pool for clients, able to resize
+servers we would make use of a specific thread pool for clients, able to resize
 itself by creating new threads if they are needed. You can get such a pool using
 `Executors.newCachedThreadPool()`. But take care of shutting the pool down when
 the server is stopped!
@@ -1215,8 +1215,8 @@ def server[F[_]: Concurrent: ContextShift](serverSocket: ServerSocket): F[ExitCo
 
 Signatures of `serve` and of `echoProtocol` will have to be changed too to pass
 the execution context as parameter. Finally, we need an implicit
-`ContextShift[F]` that will be carried by the functions signature. It is `IOApp`
-who provides the instance of `ContextShift[IO]` in the `run` method.
+`ContextShift[F]` that will be carried by the function's signature. It is `IOApp`
+which provides the instance of `ContextShift[IO]` in the `run` method.
 
 #### Echo server code, thread pool for clients version
 The version of our echo server using a thread pool is available
@@ -1225,10 +1225,10 @@ The version of our echo server using a thread pool is available
 ## Let's not forget about `async`
 
 The `async` functionality is another powerful capability of cats-effect we have
-not mentioned yet. It is provided by `Async` type class, that it allows to
+not mentioned yet. It is provided by `Async` type class, and it allows to
 describe `F` instances that may be terminated by a thread different than the
-one carrying the evaluation of that instance. Result will be returned by using
-a callback.
+one carrying the evaluation of that instance. The result will be returned by
+using a callback.
 
 Some of you may wonder if that could help us to solve the issue of having
 blocking code in our fabulous echo server. Unfortunately, `async` cannot
