@@ -12,4 +12,4 @@ Any questions, concerns, or moderation requests please contact a member of the p
 - Christopher Davenport [gitter](https://gitter.im/christopherdavenport) | [twitter](https://twitter.com/davenpcm) | [email](mailto:chris@christopherdavenport.tech)
 - Alexandru Nedelcu: [gitter](https://gitter.im/alexandru) | [twitter](https://twitter.com/alexelcu) | [email](mailto:coc@temp18.alexn.org)
 
-[Scala Code of Conduct]: https://www.scala-lang.org/conduct/
+[Scala Code of Conduct]: https://typelevel.org/code-of-conduct.html
