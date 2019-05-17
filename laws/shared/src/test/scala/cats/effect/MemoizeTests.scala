@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.implicits._
-import cats.effect.concurrent.Ref
+import cats.effect.concurrent.{Ref, Deferred}
 import scala.concurrent.duration._
 import scala.util.{Success}
 
@@ -92,4 +92,69 @@ class MemoizeTests extends BaseTestsSuite {
       Concurrent.memoize(fa).flatten <-> fa
     }
   }
+
+  testAsync("Memoized effects can be canceled") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val prog = for {
+      completed <- Ref[IO].of(false)
+      action = IO.sleep(200.millis) >> completed.set(true)
+      memoized <- Concurrent.memoize(action)
+      fiber <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber.cancel
+      res <- completed.get
+    } yield res
+
+    val result = prog.unsafeToFuture()
+    ec.tick(300.millis)
+    result.value shouldBe Some(Success(false))
+  }
+
+  testAsync("Running a memoized effect after it was previously canceled reruns it") { implicit ec =>
+    pending
+    implicit val cs = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val prog = for {
+      started <- Ref[IO].of(0)
+      completed <- Ref[IO].of(0)
+      action = started.update(_ + 1) >> timer.sleep(200.millis) >> completed.update(_ + 1)
+      memoized <- Concurrent.memoize(action)
+      fiber <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber.cancel
+      _ <- memoized.timeout(1.second)
+      v1 <- started.get
+      v2 <- completed.get
+    } yield v1 -> v2
+
+    val result = prog.unsafeToFuture()
+    ec.tick(500.millis)
+    result.value shouldBe Some(Success(2 -> 1))
+  }
+
+ testAsync("Attempting to cancel a memoized effect which is already bound more than once is a no-op") { implicit ec =>
+   pending
+   implicit val cs = ec.contextShift[IO]
+   implicit val timer = ec.timer[IO]
+
+   val prog = for {
+     condition <- Deferred[IO, Unit]
+     action = IO.sleep(200.millis) >> condition.complete(())
+     memoized <- Concurrent.memoize(action)
+     fiber1 <- memoized.start
+     _ <- IO.sleep(50.millis)
+     fiber2 <- memoized.start
+     _ <- IO.sleep(50.millis)
+     _ <- fiber1.cancel
+     v <- condition.get.timeout(1.second).as(true)
+   } yield  v
+
+   val result = prog.unsafeToFuture()
+   ec.tick(500.millis)
+   result.value shouldBe Some(Success(true))
+ }
 }
+
