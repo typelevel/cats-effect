@@ -113,7 +113,6 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Running a memoized effect after it was previously canceled reruns it") { implicit ec =>
-    pending
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -136,7 +135,6 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
  testAsync("Attempting to cancel a memoized effect which is already bound more than once is a no-op") { implicit ec =>
-   pending
    implicit val cs = ec.contextShift[IO]
    implicit val timer = ec.timer[IO]
 

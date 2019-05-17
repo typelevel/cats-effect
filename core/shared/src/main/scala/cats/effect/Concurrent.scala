@@ -24,6 +24,7 @@ import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.Callback.{rightUnit, successUnit}
 import cats.effect.internals.{CancelableF, IORunLoop}
 import cats.effect.internals.TrampolineEC.immediate
+import cats.effect.implicits._
 import cats.syntax.all._
 
 import scala.annotation.implicitNotFound
@@ -358,16 +359,43 @@ object Concurrent {
     * inner `F[A]` is bound the first time).
     *
     * Note: `start` can be used for eager memoization.
+    * 
+    * add extra semantics description for cancelation
+    * note that you can't really do much if `f` is canceled externally
     */
-  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] =
-    Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
+  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = // TODO 3-way ADT None, One, More?
+    Ref.of[F, Option[(Int, Deferred[F, Either[Throwable, A]])]](None).map { ref =>
       Deferred[F, Either[Throwable, A]].flatMap { d =>
         ref
           .modify {
             case None =>
-              Some(d) -> f.attempt.flatTap(d.complete)
-            case s @ Some(other) =>
-              s -> other.get
+              val newState = Some((1, d))
+              val action = f.attempt.flatTap(d.complete).start.bracketCase(
+                _ => d.get
+              ){
+                case (fiber, ExitCase.Canceled) => ref.modify {
+                  case Some((n, d)) if n > 1 => Some((n - 1, d)) -> ().pure[F]
+                  case Some((1, _)) => None -> fiber.cancel
+                  case _ => throw new Exception("Broken protocol")
+                }.flatten
+                case _ => ref.update {
+                  case Some((n, d)) if n > 1 => Some((n - 1, d))
+                  case st @ Some((1, _)) => st
+                  case _ => throw new Exception("Broken protocol")
+                }
+              }
+
+              newState -> action
+            case Some((subs, d)) =>
+              val newState = Some((subs + 1, d))
+              val action = d.get.guarantee {
+                ref.update {
+                  case Some((n, d)) if n > 1 => Some((n - 1, d))
+                  case _ => throw new Exception("Broken protocol")
+                }
+              }
+
+              newState -> action
           }
           .flatten
           .rethrow
