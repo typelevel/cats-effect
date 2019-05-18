@@ -356,52 +356,49 @@ object Concurrent {
   /**
     * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
     * bound, the effect `f` will be performed at most once (when the
-    * inner `F[A]` is bound the first time).
+     * inner `F[A]` is bound the first time).
     *
     * Note: `start` can be used for eager memoization.
     * 
     * add extra semantics description for cancelation
     * note that you can't really do much if `f` is canceled externally
     */
-  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = // TODO 3-way ADT None, One, More?
-    Ref.of[F, Option[(Int, Deferred[F, Either[Throwable, A]])]](None).map { ref =>
+  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
+    sealed trait State
+    case class Subs(n: Int) extends State
+    case object Done extends State
+
+    case class Fetch(state: State, result: Deferred[F, Either[Throwable, A]])
+
+    Ref[F].of(Option.empty[Fetch]).map { state =>
       Deferred[F, Either[Throwable, A]].flatMap { d =>
-        ref
-          .modify {
-            case None =>
-              val newState = Some((1, d))
-              val action = f.attempt.flatTap(d.complete).start.bracketCase(
+        state.modify {
+          case s @ Some(Fetch(Done, result)) =>
+            s -> result.get
+          case Some(Fetch(Subs(n), result)) =>
+            Some(Fetch(Subs(n + 1), result)) -> result.get.guarantee {
+              state.update {
+                case None => ??? // impossible
+                case s @ Some(Fetch(Done, result)) => s
+                case Some(Fetch(Subs(n), result)) => Some(Fetch(Subs(n - 1), result))
+              }
+            }
+          case None => Some(Fetch(Subs(0), d)) -> f.attempt.flatMap(d.complete).start.bracketCase(
                 _ => d.get
               ){
-                case (fiber, ExitCase.Canceled) => ref.modify {
-                  case Some((n, d)) if n > 1 => Some((n - 1, d)) -> ().pure[F]
-                  case Some((1, _)) => None -> fiber.cancel
-                  case _ => throw new Exception("Broken protocol")
-                }.flatten
-                case _ => ref.update {
-                  case Some((n, d)) if n > 1 => Some((n - 1, d))
-                  case st @ Some((1, _)) => st
-                  case _ => throw new Exception("Broken protocol")
-                }
-              }
-
-              newState -> action
-            case Some((subs, d)) =>
-              val newState = Some((subs + 1, d))
-              val action = d.get.guarantee {
-                ref.update {
-                  case Some((n, d)) if n > 1 => Some((n - 1, d))
-                  case _ => throw new Exception("Broken protocol")
-                }
-              }
-
-              newState -> action
+            case (fiber, exitCase) => state.modify {
+              case None | Some(Fetch(Done, _)) => ??? // impossible
+              case Some(Fetch(Subs(n), result)) =>
+                if (exitCase == ExitCase.Canceled && n == 0) None -> fiber.cancel
+                else Some(Fetch(Done, result)) -> F.unit
+            }.flatten
           }
+        }
           .flatten
           .rethrow
       }
     }
-
+  }
   /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
