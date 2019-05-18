@@ -134,10 +134,10 @@ class MemoizeTests extends BaseTestsSuite {
     result.value shouldBe Some(Success(2 -> 1))
   }
 
- testAsync("Attempting to cancel a memoized effect which is already bound more than once is a no-op") { implicit ec =>
+ testAsync("Attempting to cancel the first execution of a memoized effect which is bound more than once is a no-op") { implicit ec =>
    implicit val cs = ec.contextShift[IO]
    implicit val timer = ec.timer[IO]
-
+   
    val prog = for {
      condition <- Deferred[IO, Unit]
      action = IO.sleep(200.millis) >> condition.complete(())
@@ -147,6 +147,7 @@ class MemoizeTests extends BaseTestsSuite {
      fiber2 <- memoized.start
      _ <- IO.sleep(50.millis)
      _ <- fiber1.cancel
+     _ <- fiber2.join // Make sure no exceptions are swallowed by start
      v <- condition.get.timeout(1.second).as(true)
    } yield  v
 
@@ -154,5 +155,8 @@ class MemoizeTests extends BaseTestsSuite {
    ec.tick(500.millis)
    result.value shouldBe Some(Success(true))
  }
+
+  // start start cancel1 cancel2
+  // start start cancel2 cancel1
 }
 
