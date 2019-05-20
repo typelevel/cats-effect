@@ -93,7 +93,7 @@ class MemoizeTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("Memoized effects can be canceled") { implicit ec =>
+  testAsync("Memoized effects can be canceled when there are no active subscribers (1)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -104,11 +104,58 @@ class MemoizeTests extends BaseTestsSuite {
       fiber <- memoized.start
       _ <- IO.sleep(100.millis)
       _ <- fiber.cancel
+      _ <- IO.sleep(300.millis)
       res <- completed.get
     } yield res
 
     val result = prog.unsafeToFuture()
-    ec.tick(300.millis)
+    ec.tick(500.millis)
+    result.value shouldBe Some(Success(false))
+  }
+
+  testAsync("Memoized effects can be canceled when there are no active subscribers (2)") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val prog = for {
+      completed <- Ref[IO].of(false)
+      action = IO.sleep(300.millis) >> completed.set(true)
+      memoized <- Concurrent.memoize(action)
+      fiber1 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      fiber2 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber2.cancel
+      _ <- fiber1.cancel
+      _ <- IO.sleep(400.millis)
+      res <- completed.get
+    } yield res
+
+    val result = prog.unsafeToFuture()
+    ec.tick(600.millis)
+    result.value shouldBe Some(Success(false))
+  }
+
+    testAsync("Memoized effects can be canceled when there are no active subscribers (3)") { implicit ec =>
+    implicit val cs = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val prog = for {
+      completed <- Ref[IO].of(false)
+      action = IO.sleep(300.millis) >> completed.set(true)
+      memoized <- Concurrent.memoize(action)
+      fiber1 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      fiber2 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber1.cancel
+      _ <- fiber2.cancel
+      _ <- IO.sleep(400.millis)
+      res <- completed.get
+    } yield res
+
+    val result = prog.unsafeToFuture()
+    ec.tick(600.millis)
     result.value shouldBe Some(Success(false))
   }
 
@@ -134,7 +181,7 @@ class MemoizeTests extends BaseTestsSuite {
     result.value shouldBe Some(Success(2 -> 1))
   }
 
- testAsync("Attempting to cancel the first execution of a memoized effect which is bound more than once is a no-op") { implicit ec =>
+ testAsync("Attempting to cancel a memoized effect with active subscribers is a no-op") { implicit ec =>
    implicit val cs = ec.contextShift[IO]
    implicit val timer = ec.timer[IO]
    
@@ -155,8 +202,5 @@ class MemoizeTests extends BaseTestsSuite {
    ec.tick(500.millis)
    result.value shouldBe Some(Success(true))
  }
-
-  // start start cancel1 cancel2
-  // start start cancel2 cancel1
 }
 
