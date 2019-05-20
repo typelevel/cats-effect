@@ -210,10 +210,14 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case _ =>
+        case Async(_, _) =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          return suspendInAsync(currentIO.asInstanceOf[IO[A]], bFirst, bRest)
+          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
+        case _ =>
+          return Async { (conn, cb) =>
+            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+          }
       }
 
       if (hasUnboxed) {
@@ -234,8 +238,8 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendInAsync[A](
-    currentIO: IO[A],
+  private def suspendAsync[A](
+    currentIO: IO.Async[A],
     bFirst: Bind,
     bRest: CallStack): IO[A] = {
 

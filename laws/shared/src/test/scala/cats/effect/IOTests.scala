@@ -495,6 +495,11 @@ class IOTests extends BaseTestsSuite {
     io.unsafeRunSync() shouldEqual 2
   }
 
+  test("uncancelable with unsafeRunSync") {
+    val io = IO.pure(1).uncancelable
+    io.unsafeRunSync() shouldBe 1
+  }
+
   test("map is stack-safe for unsafeRunSync") {
     import IOPlatform.{fusionMaxStackDepth => max}
     val f = (x: Int) => x + 1
