@@ -51,7 +51,7 @@ In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
 when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or
 [Concurrent](../typeclasses/concurrent.html) data types such as [IO](../datatypes/io.html))
-and it thus works on top of Javascript as well.
+and it thus works on top of JavaScript as well.
 </p>
 
 ### Inspiration
