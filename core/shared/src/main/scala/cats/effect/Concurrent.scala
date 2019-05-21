@@ -354,66 +354,64 @@ object Concurrent {
     }
 
   /**
-    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
-    * bound, the effect `f` will be performed at most once (when the
-     * inner `F[A]` is bound the first time).
+    * Lazily memoizes `f`. Assuming no cancelation happens, the effect
+    * `f` will be performed at most once for every time the returned
+    * `F[F[A]]` is bound (when the inner `F[A]` is bound the first
+    * time).
     *
-    * Note: `start` can be used for eager memoization.
-    * 
-    * add extra semantics description for cancelation
-    * note that you can't really do much if `f` is canceled externally
+    * If you try to cancel an inner `F[A]`, `f` is only interrupted if
+    * there are no other active subscribers, whereas if there are, `f`
+    * keeps running in the background.
+    *
+    * If `f` is successfully canceled, the next time an inner `F[A]`
+    * is bound `f` will be restarted again. Note that this can mean
+    * the effects of `f` happen more than once.
+    *
+    * You can look at `Async.memoize` for a version of this function
+    * which does not allow cancelation.
     */
   def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
     sealed trait State
     case class Subs(n: Int) extends State
     case object Done extends State
 
-    case class Fetch(
-      state: State,
-      v: Deferred[F, Either[Throwable, A]],
-      stop: Deferred[F, F[Unit]]
-    )
+    case class Fetch(state: State, v: Deferred[F, Either[Throwable, A]], stop: Deferred[F, F[Unit]])
 
-    def state =
-      Ref[F].of(Option.empty[Fetch])
+    Ref[F].of(Option.empty[Fetch]).map { state =>
+      (Deferred[F, Either[Throwable, A]] product Deferred[F, F[Unit]]).flatMap {
+        case (v, stop) =>
+          def endState(ec: ExitCase[Throwable]) =
+            state.modify {
+              case None =>
+                throw new AssertionError("unreachable")
+              case s @ Some(Fetch(Done, _, _)) =>
+                s -> F.unit
+              case Some(Fetch(Subs(n), v, stop)) =>
+                if (ec == ExitCase.Canceled && n == 1)
+                  None -> stop.get.flatten
+                else if (ec == ExitCase.Canceled)
+                  Fetch(Subs(n - 1), v, stop).some -> F.unit
+                else
+                  Fetch(Done, v, stop).some -> F.unit
+            }.flatten
 
-    def deferreds =
-      (Deferred[F, Either[Throwable, A]], Deferred[F, F[Unit]]).tupled
+          def fetch =
+            f.attempt
+              .flatMap(v.complete)
+              .start
+              .flatMap(fiber => stop.complete(fiber.cancel))
 
-    state.map { state =>
-      deferreds.flatMap { case (v, stop) =>
-        def endState(ec: ExitCase[Throwable]) =
-          state.modify {
-            case None =>
-              ??? // unreachable
-            case s @ Some(Fetch(Done, _, _)) =>
-              s -> F.unit
-            case Some(Fetch(Subs(n), v, stop)) =>
-              if (ec == ExitCase.Canceled && n == 1)
-                None -> stop.get.flatten
-              else if (ec == ExitCase.Canceled)
-                Fetch(Subs(n - 1), v, stop).some -> F.unit
-              else
-                Fetch(Done, v, stop).some -> F.unit
-          }.flatten
-
-        def fetch =
-          f.attempt
-            .flatMap(v.complete)
-            .start
-            .flatMap(fiber => stop.complete(fiber.cancel))
-
-        state
-          .modify {
-            case s @ Some(Fetch(Done, v, _)) =>
-              s -> v.get
-            case Some(Fetch(Subs(n), v, stop)) =>
-              Fetch(Subs(n + 1), v, stop).some -> v.get.guaranteeCase(endState)
-            case None =>
-              Fetch(Subs(1), v, stop).some -> fetch.bracketCase(_ => v.get) { case (_, ec) => endState(ec) }
-          }
-          .flatten
-          .rethrow
+          state
+            .modify {
+              case s @ Some(Fetch(Done, v, _)) =>
+                s -> v.get
+              case Some(Fetch(Subs(n), v, stop)) =>
+                Fetch(Subs(n + 1), v, stop).some -> v.get.guaranteeCase(endState)
+              case None =>
+                Fetch(Subs(1), v, stop).some -> fetch.bracketCase(_ => v.get) { case (_, ec) => endState(ec) }
+            }
+            .flatten
+            .rethrow
       }
     }
   }
