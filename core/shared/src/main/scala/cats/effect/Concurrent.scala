@@ -368,37 +368,56 @@ object Concurrent {
     case class Subs(n: Int) extends State
     case object Done extends State
 
-    case class Fetch(state: State, result: Deferred[F, Either[Throwable, A]])
+    case class Fetch(
+      state: State,
+      v: Deferred[F, Either[Throwable, A]],
+      stop: Deferred[F, F[Unit]]
+    )
 
-    Ref[F].of(Option.empty[Fetch]).map { state =>
-      Deferred[F, Either[Throwable, A]].flatMap { d =>
-        state.modify {
-          case s @ Some(Fetch(Done, result)) =>
-            s -> result.get
-          case Some(Fetch(Subs(n), result)) =>
-            Some(Fetch(Subs(n + 1), result)) -> result.get.guarantee {
-              state.update {
-                case None => ??? // impossible
-                case s @ Some(Fetch(Done, result)) => s
-                case Some(Fetch(Subs(n), result)) => Some(Fetch(Subs(n - 1), result))
-              }
-            }
-          case None => Some(Fetch(Subs(0), d)) -> f.attempt.flatMap(d.complete).start.bracketCase(
-                _ => d.get
-              ){
-            case (fiber, exitCase) => state.modify {
-              case None | Some(Fetch(Done, _)) => ??? // impossible
-              case Some(Fetch(Subs(n), result)) =>
-                if (exitCase == ExitCase.Canceled && n == 0) None -> fiber.cancel
-                else Some(Fetch(Done, result)) -> F.unit
-            }.flatten
+    def state =
+      Ref[F].of(Option.empty[Fetch])
+
+    def deferreds =
+      (Deferred[F, Either[Throwable, A]], Deferred[F, F[Unit]]).tupled
+
+    state.map { state =>
+      deferreds.flatMap { case (v, stop) =>
+        def endState(ec: ExitCase[Throwable]) =
+          state.modify {
+            case None =>
+              ??? // unreachable
+            case s @ Some(Fetch(Done, _, _)) =>
+              s -> F.unit
+            case Some(Fetch(Subs(n), v, stop)) =>
+              if (ec == ExitCase.Canceled && n == 1)
+                None -> stop.get.flatten
+              else if (ec == ExitCase.Canceled)
+                Fetch(Subs(n - 1), v, stop).some -> F.unit
+              else
+                Fetch(Done, v, stop).some -> F.unit
+          }.flatten
+
+        def fetch =
+          f.attempt
+            .flatMap(v.complete)
+            .start
+            .flatMap(fiber => stop.complete(fiber.cancel))
+
+        state
+          .modify {
+            case s @ Some(Fetch(Done, v, _)) =>
+              s -> v.get
+            case Some(Fetch(Subs(n), v, stop)) =>
+              Fetch(Subs(n + 1), v, stop).some -> v.get.guaranteeCase(endState)
+            case None =>
+              Fetch(Subs(1), v, stop).some -> fetch.bracketCase(_ => v.get) { case (_, ec) => endState(ec) }
           }
-        }
           .flatten
           .rethrow
       }
     }
   }
+
   /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.

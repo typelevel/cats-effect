@@ -93,7 +93,7 @@ class MemoizeTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("Memoized effects can be canceled when there are no active subscribers (1)") { implicit ec =>
+  testAsync("Memoized effects can be canceled when there are no other active subscribers (1)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -113,7 +113,7 @@ class MemoizeTests extends BaseTestsSuite {
     result.value shouldBe Some(Success(false))
   }
 
-  testAsync("Memoized effects can be canceled when there are no active subscribers (2)") { implicit ec =>
+  testAsync("Memoized effects can be canceled when there are no other active subscribers (2)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -136,7 +136,7 @@ class MemoizeTests extends BaseTestsSuite {
     result.value shouldBe Some(Success(false))
   }
 
-    testAsync("Memoized effects can be canceled when there are no active subscribers (3)") { implicit ec =>
+    testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
