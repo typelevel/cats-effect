@@ -28,7 +28,7 @@ val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "0.16.0"
 val CatsVersion = "2.0.0-M1"
 val ScalaTestVersion = "3.1.0-SNAP10"
-val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP4"
+val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP5"
 val ScalaCheckVersion = "1.14.0"
 val DisciplineVersion = "0.11.2-M1"
 
