@@ -35,10 +35,11 @@ val DisciplineVersion = "0.11.2-M1"
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
-val commonSettings = Seq(
-  scalaVersion := "2.12.8",
+scalaVersion in ThisBuild := "2.12.8"
 
-  crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
+crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", "2.13.0-RC1")
+
+val commonSettings = Seq(
 
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
