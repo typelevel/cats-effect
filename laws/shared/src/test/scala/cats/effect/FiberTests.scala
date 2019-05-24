@@ -56,7 +56,7 @@ class FiberTests extends BaseTestsSuite {
     val fiberFinalisersInstalled = Promise[Unit]()
     val joinFinalisersInstalled = Promise[Unit]()
 
-    def waitUnlessInterrupted = IO.cancelable[Unit](cb => IO { fiberCanceled = true })
+    def waitUnlessInterrupted = IO.cancelable[Unit](_ => IO { fiberCanceled = true })
     def wait(p: Promise[Unit]) = IO.fromFuture(IO.pure(p.future))
     def signal(p: Promise[Unit]) = IO(p.success(()))
 

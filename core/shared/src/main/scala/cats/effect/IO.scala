@@ -342,7 +342,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def unsafeToFuture(): Future[A] = {
     val p = Promise[A]
-    unsafeRunAsync(_.fold(p.failure, p.success))
+    unsafeRunAsync { cb =>
+      cb.fold(p.failure, p.success)
+      ()
+    }
     p.future
   }
 

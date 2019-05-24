@@ -120,6 +120,7 @@ private[effect] object IORace {
             cb(Right(Left((a, IOStart.fiber[B](promiseR, connR)))))
           } else {
             promiseL.trySuccess(Right(a))
+            ()
           }
         case Left(err) =>
           if (active.getAndSet(false)) {
@@ -130,6 +131,7 @@ private[effect] object IORace {
             }
           } else {
             promiseL.trySuccess(Left(err))
+            ()
           }
       })
 
@@ -141,6 +143,7 @@ private[effect] object IORace {
             cb(Right(Right((IOStart.fiber[A](promiseL, connL), b))))
           } else {
             promiseR.trySuccess(Right(b))
+            ()
           }
 
         case Left(err) =>
@@ -152,6 +155,7 @@ private[effect] object IORace {
             }
           } else {
             promiseR.trySuccess(Left(err))
+            ()
           }
       })
     }

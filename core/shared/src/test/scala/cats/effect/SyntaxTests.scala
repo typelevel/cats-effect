@@ -21,7 +21,9 @@ import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
   def mock[A]: A = ???
-  def typed[A](a: A): Unit = ()
+  def typed[A](a: A): Unit = {
+    val _ = a
+  }
 
   def bracketSyntax[F[_]: Bracket[?[_], Throwable], A, B] = {
     val acquire     = mock[F[A]]

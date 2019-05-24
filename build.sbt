@@ -40,15 +40,6 @@ val commonSettings = Seq(
 
   crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0-RC1"),
 
-  scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-    case Some((2, n)) if n >= 13 =>
-      Seq(
-        "-Ymacro-annotations"
-      )
-  }.toList.flatten,
-
-  scalacOptions in (Compile, console) ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains),
-
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
 
@@ -67,6 +58,9 @@ val commonSettings = Seq(
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
   scalacOptions in (Compile, doc) ++=
     Opts.doc.title("cats-effect"),
+
+  scalacOptions in Test += "-Yrangepos",
+  scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
 
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
@@ -389,45 +383,6 @@ licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
 coursierUseSbtCredentials in ThisBuild := true
 coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
-
-// Adapted from Rob Norris' post at https://tpolecat.github.io/2014/04/11/scalac-flags.html
-scalacOptions in ThisBuild ++= Seq(
-  "-language:_",
-  "-deprecation",
-  "-encoding", "UTF-8", // yes, this is 2 args
-  "-feature",
-  "-unchecked",
-  "-Ywarn-dead-code"
-)
-
-scalacOptions in ThisBuild ++= (
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, v)) if v <= 12 => Seq(
-      "-Xfatal-warnings",
-      "-Yno-adapted-args",
-      "-Ypartial-unification"
-    )
-    case _ =>
-      Nil
-  }
-)
-
-scalacOptions in ThisBuild ++= {
-  CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((2, 12)) => Seq(
-      "-Ywarn-numeric-widen",
-      "-Ywarn-unused:imports",
-      "-Ywarn-unused:locals",
-      "-Ywarn-unused:patvars",
-      "-Ywarn-unused:privates",
-      "-Xlint:-missing-interpolator,-unused,_"
-    )
-    case _ =>
-      Seq("-Xlint:-missing-interpolator,_")
-  }
-}
-
-scalacOptions in Test += "-Yrangepos"
 
 enablePlugins(GitVersioning)
 

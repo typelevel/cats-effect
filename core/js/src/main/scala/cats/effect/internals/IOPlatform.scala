@@ -27,6 +27,7 @@ private[effect] object IOPlatform {
    * so all we can do is to throw an error.
    */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
+    val _ = limit // is used on the JVM
     val cb = new ResyncCallback[A]
     val cancel = ioa.unsafeRunCancelable(cb)
 

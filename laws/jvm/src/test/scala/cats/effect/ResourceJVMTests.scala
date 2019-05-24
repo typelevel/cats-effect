@@ -21,15 +21,15 @@ import javax.security.auth.Destroyable
 
 class ResourceJVMTests extends BaseTestsSuite {
   test("resource from Destroyable is auto destroyed") {
+    var destroyed = false
     val destroyable = new Destroyable {
-      var destroyed = false
       override def destroy(): Unit = destroyed = true
     }
 
     val result = Resource.fromDestroyable(IO(destroyable))
-      .use(source => IO.pure("Hello world")).unsafeRunSync()
+      .use(_ => IO.pure("Hello world")).unsafeRunSync()
 
     result shouldBe "Hello world"
-    destroyable.destroyed shouldBe true
+    destroyed shouldBe true
   }
 }

@@ -32,7 +32,8 @@ private[effect] object IOAppPlatform {
     }
   }
 
-  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]],  timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+    val _ = timer // is used on Scala.js
     val io = run(args.toList).redeem(
       e => {
         Logger.reportFailure(e)
@@ -56,5 +57,6 @@ private[effect] object IOAppPlatform {
         // Should block the thread until all finalizers are executed
         fiber.cancel.unsafeRunSync()
       }
+      ()
     }
 }

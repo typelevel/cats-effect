@@ -49,6 +49,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
         override def run() =
           cb(Right(Thread.currentThread().getName))
       }
+      ()
     }
 
     val test = for {
@@ -104,9 +105,8 @@ class IOJVMTests extends AnyFunSuite with Matchers {
   }
 
   test("long synchronous loops that are forked are cancelable") {
+    val thread = new AtomicReference[Thread](null)
     implicit val ec = new ExecutionContext {
-      val thread = new AtomicReference[Thread](null)
-
       def execute(runnable: Runnable): Unit = {
         val th = new Thread(runnable)
         if (!thread.compareAndSet(null, th))
@@ -132,14 +132,14 @@ class IOJVMTests extends AnyFunSuite with Matchers {
       // Cancelling
       c.unsafeRunSync()
       // Joining thread should succeed in case of cancelation
-      val th = ec.thread.get()
+      val th = thread.get()
       th.join(1000 * 10) // 10 seconds
 
       if (th.isAlive) {
         fail("thread is still active")
       }
     } finally {
-      val th = ec.thread.get()
+      val th = thread.get()
       if (th != null && th.isAlive)
         th.interrupt()
     }

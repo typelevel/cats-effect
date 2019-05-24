@@ -68,6 +68,7 @@ private[internals] object IOTimer {
 
   private def clearTimeout(task: js.Dynamic): Unit = {
     js.Dynamic.global.clearTimeout(task)
+    ()
   }
 
   private final class ScheduledTick(

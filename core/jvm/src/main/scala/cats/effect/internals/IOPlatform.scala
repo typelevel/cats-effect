@@ -41,6 +41,7 @@ private[effect] object IOPlatform {
       // synchronization is needed for visibility
       ref = a
       latch.releaseShared(1)
+      ()
     }
 
     limit match {
