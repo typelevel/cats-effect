@@ -25,19 +25,19 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.16.0"
-val CatsVersion = "2.0.0-M1"
-val ScalaTestVersion = "3.1.0-SNAP10"
-val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP4"
+val SimulacrumVersion = "0.17.0"
+val CatsVersion = "2.0.0-M2"
+val ScalaTestVersion = "3.1.0-SNAP11"
+val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP6"
 val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.11.2-M1"
+val DisciplineVersion = "0.12.0-M1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 scalaVersion in ThisBuild := "2.12.8"
 
-crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", "2.13.0-RC1")
+crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", "2.13.0-RC2")
 
 val commonSettings = Seq(
   scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
@@ -149,7 +149,7 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.0" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.1" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
@@ -245,7 +245,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
       "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
       "org.scalacheck"    %%% "scalacheck"               % ScalaCheckVersion              % Test,
-      "org.typelevel"     %%% "discipline"               % DisciplineVersion              % Test),
+      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineVersion              % Test),
 
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -276,10 +276,10 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-laws",
 
     libraryDependencies ++= Seq(
-      "org.typelevel"  %%% "cats-laws"  % CatsVersion,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline" % DisciplineVersion,
-      "org.scalatest"  %%% "scalatest"  % ScalaTestVersion % Test))
+      "org.typelevel"  %%% "cats-laws"            % CatsVersion,
+      "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
+      "org.typelevel"  %%% "discipline-scalatest" % DisciplineVersion,
+      "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(lawsMimaSettings))

@@ -14,7 +14,7 @@ matrix:
       scala: 2.12.8
       env: COVERAGE=
     - jdk: openjdk8
-      scala: 2.13.0-RC1
+      scala: 2.13.0-RC2
       env: COVERAGE=
     - jdk: openjdk11
       scala: 2.12.8

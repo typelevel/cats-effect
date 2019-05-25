@@ -20,8 +20,8 @@ import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
 import org.scalactic.source
 import org.scalatest.{Matchers, Tag}
-import org.scalatest.check.Checkers
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.discipline.Laws
 import org.typelevel.discipline.scalatest.Discipline
 
