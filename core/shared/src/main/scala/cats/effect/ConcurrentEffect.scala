@@ -93,7 +93,10 @@ object ConcurrentEffect {
 
     override def runCancelable[A](fa: EitherT[F, Throwable, A])
       (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[EitherT[F, Throwable, ?]]] =
-      F.runCancelable(fa.value)(cb.compose(_.right.flatMap(x => x))).map(EitherT.liftF(_)(F))
+      F.runCancelable(fa.value)(cb.compose(_ match {
+        case Right(x) => x
+        case left => left.asInstanceOf[Either[Throwable, A]]
+      })).map(EitherT.liftF(_)(F))
   }
 
   private[effect] trait WriterTConcurrentEffect[F[_], L]
@@ -106,6 +109,9 @@ object ConcurrentEffect {
 
     override def runCancelable[A](fa: WriterT[F, L, A])
       (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[WriterT[F, L, ?]]] =
-      F.runCancelable(fa.run)(cb.compose(_.right.map(_._2))).map(WriterT.liftF(_)(L, F))
+      F.runCancelable(fa.run)(cb.compose(_ match {
+        case Right(a) => Right(a._2)
+        case left => left.asInstanceOf[Either[Throwable, A]]
+      })).map(WriterT.liftF(_)(L, F))
   }
 }

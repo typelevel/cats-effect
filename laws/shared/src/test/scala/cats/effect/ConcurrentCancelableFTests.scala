@@ -121,7 +121,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     }
 
     val p = Promise[Unit]()
-    val cancel = task.unsafeRunCancelable(r => p.success(r.right.get))
+    val cancel = task.unsafeRunCancelable(r => p.success(r.valueOr(throw _)))
     cancel.unsafeRunAsyncAndForget()
 
     ec.tick()

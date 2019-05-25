@@ -24,7 +24,7 @@ import cats.implicits._
 import org.scalatest._
 import org.scalatest.funsuite.AsyncFunSuite
 
-class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
+class DeferredTests extends AsyncFunSuite with Matchers {
 
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: cats.effect.Timer[IO] = IO.timer(executionContext)
@@ -45,7 +45,7 @@ class DeferredTests extends AsyncFunSuite with Matchers with EitherValues {
       pc[Int].flatMap { p =>
         p.complete(0) *> p.complete(1).attempt product p.get
       }.unsafeToFuture.map { case (err, value) =>
-        err.left.value shouldBe an[IllegalStateException]
+        err.swap.toOption.get shouldBe an[IllegalStateException]
         value shouldBe 0
       }
     }

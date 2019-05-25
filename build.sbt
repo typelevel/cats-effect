@@ -40,6 +40,17 @@ scalaVersion in ThisBuild := "2.12.8"
 crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", "2.13.0-RC1")
 
 val commonSettings = Seq(
+  scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+    case Some((2, n)) if n >= 13 =>
+      // Necessary for simulacrum
+      Seq("-Ymacro-annotations")
+  }.toList.flatten,
+
+  scalacOptions --= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+    case Some((2, 11)) =>
+      // Falsely detects interpolation in @implicitNotFound
+      Seq("-Xlint:missing-interpolator")
+  }.toList.flatten,
 
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
@@ -54,16 +65,6 @@ val commonSettings = Seq(
 
   sources in (Compile, doc) :=
     (sources in (Compile, doc)).value,
-
-  scalacOptions --= {
-    CrossVersion.binaryScalaVersion(scalaVersion.value) match {
-      case "2.11" =>
-        // Falsely detects interpolation in @implicitNotFound
-        Seq("-Xlint:missing-interpolator")
-      case _ =>
-        Seq.empty
-    }
-  },
 
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),

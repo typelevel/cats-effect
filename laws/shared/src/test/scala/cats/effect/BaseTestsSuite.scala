@@ -40,7 +40,7 @@ class BaseTestsSuite extends AnyFunSuite with Matchers with Checkers with Discip
     val context = TestContext()
     val ruleSet = f(context)
 
-    for ((id, prop) ← ruleSet.all.properties)
+    for ((id, prop) <- ruleSet.all.properties)
       test(name + "." + id) {
         silenceSystemErr(check(prop))
       }
