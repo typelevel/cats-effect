@@ -136,7 +136,7 @@ class MemoizeTests extends BaseTestsSuite {
     result.value shouldBe Some(Success(false))
   }
 
-    testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
+  testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -178,7 +178,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(500.millis)
-    result.value shouldBe Some(Success(2 -> 1))
+    result.value shouldBe Some(Success((2, 1)))
   }
 
  testAsync("Attempting to cancel a memoized effect with active subscribers is a no-op") { implicit ec =>

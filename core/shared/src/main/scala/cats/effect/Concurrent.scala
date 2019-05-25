@@ -354,7 +354,7 @@ object Concurrent {
     }
 
   /**
-    * Lazily memoizes `f`. Assuming no cancelation happens, the effect
+    * Lazily memoizes `f`. Assuming no cancellation happens, the effect
     * `f` will be performed at most once for every time the returned
     * `F[F[A]]` is bound (when the inner `F[A]` is bound the first
     * time).
@@ -368,7 +368,7 @@ object Concurrent {
     * the effects of `f` happen more than once.
     *
     * You can look at `Async.memoize` for a version of this function
-    * which does not allow cancelation.
+    * which does not allow cancellation.
     */
   def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
     sealed trait State
