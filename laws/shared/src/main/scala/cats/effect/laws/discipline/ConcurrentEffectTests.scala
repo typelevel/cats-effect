@@ -59,7 +59,7 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
       val name = "concurrentEffect"
       val bases = Nil
       val parents = Seq(concurrent[A, B, C], effect[A, B, C])
-      val props = Seq(
+      val props = Seq[(String, Prop)](
         "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
         "runCancelable is synchronous" -> laws.runCancelableIsSynchronous[A],
         "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _),

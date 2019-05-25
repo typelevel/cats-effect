@@ -82,8 +82,12 @@ private[effect] object Callback {
    * Builds a callback from a standard Scala `Promise`.
    */
   def promise[A](p: Promise[A]): T[A] = {
-    case Right(a) => p.success(a)
-    case Left(e) => p.failure(e)
+    case Right(a) =>
+      p.success(a)
+      ()
+    case Left(e) =>
+      p.failure(e)
+      ()
   }
 
   /** Helpers async callbacks. */

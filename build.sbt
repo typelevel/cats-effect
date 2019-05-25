@@ -55,6 +55,16 @@ val commonSettings = Seq(
   sources in (Compile, doc) :=
     (sources in (Compile, doc)).value,
 
+  scalacOptions --= {
+    CrossVersion.binaryScalaVersion(scalaVersion.value) match {
+      case "2.11" =>
+        // Falsely detects interpolation in @implicitNotFound
+        Seq("-Xlint:missing-interpolator")
+      case _ =>
+        Seq.empty
+    }
+  },
+
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
   scalacOptions in (Compile, doc) ++=
