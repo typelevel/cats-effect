@@ -1,0 +1,6 @@
+-Xms512m
+-Xmx6g
+-XX:+UseG1GC
+-XX:ParallelGCThreads=2
+-XX:ConcGCThreads=1
+-XX:ReservedCodeCacheSize=512m
