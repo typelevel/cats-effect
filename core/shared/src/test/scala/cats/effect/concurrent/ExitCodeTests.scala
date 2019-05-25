@@ -19,8 +19,8 @@ package effect
 package concurrent
 
 import org.scalatest.Matchers
-import org.scalatest.check.Checkers
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.Checkers
 
 class ExitCodeTests extends AnyFunSuite with Matchers with Checkers {
   test("fromInt(i) == fromInt(i & 0xff)") {
