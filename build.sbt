@@ -35,10 +35,6 @@ val DisciplineVersion = "0.12.0-M1"
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
-scalaVersion in ThisBuild := "2.12.8"
-
-crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", "2.13.0-RC2")
-
 val commonSettings = Seq(
   scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
     case Some((2, n)) if n >= 13 =>
