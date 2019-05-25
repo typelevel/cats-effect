@@ -206,7 +206,11 @@ lazy val scalaJSSettings = Seq(
     val l = (baseDirectory in LocalRootProject).value.toURI.toString
     val g = s"https://raw.githubusercontent.com/typelevel/cats-effect/$versionOrHash/"
     s"-P:scalajs:mapSourceURI:$l->$g"
-  })
+  },
+
+  // Work around "dropping dependency on node with no phase object: mixin"
+  scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
+)
 
 lazy val skipOnPublishSettings = Seq(
   skip in publish := true,
