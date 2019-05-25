@@ -206,7 +206,10 @@ val mimaSettings = Seq(
       // Laws - https://github.com/typelevel/cats-effect/pull/473
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Bracket.onCancel"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Concurrent.continual"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Concurrent#Ops.continual")
     )
   })
 
