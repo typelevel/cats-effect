@@ -42,4 +42,7 @@ final class BracketOps[F[_], E, A](val self: F[A]) extends AnyVal {
 
   def uncancelable(implicit F: Bracket[F, E]): F[A] =
     F.uncancelable(self)
+
+  def onCancel(finalizer: F[Unit])(implicit F: Bracket[F, E]): F[A] =
+    F.onCancel(self)(finalizer)
 }

@@ -24,6 +24,7 @@ import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.Callback.{rightUnit, successUnit}
 import cats.effect.internals.{CancelableF, IORunLoop}
 import cats.effect.internals.TrampolineEC.immediate
+import cats.effect.implicits._
 import cats.syntax.all._
 
 import scala.annotation.implicitNotFound
@@ -303,6 +304,53 @@ trait Concurrent[F[_]] extends Async[F] {
    */
   override def liftIO[A](ioa: IO[A]): F[A] =
     Concurrent.liftIO(ioa)(this)
+
+  /**
+   * If no interruption happens during the execution of this method,
+   * it behaves like `.attempt.flatMap`.
+   *
+   * Unlike `.attempt.flatMap` however, in the presence of
+   * interruption this method offers the _continual guarantee_:
+   * `fa` is interruptible, but if it completes execution, the
+   * effects of `f` are guaranteed to execute.
+   * This does not hold for `attempt.flatMap` since interruption can
+   * happen in between `flatMap` steps.
+   *
+   * The typical use case for this function arises in the
+   * implementation of concurrent abstractions, where you have
+   * asynchronous operations waiting on some condition (which have to
+   * be interruptible), mixed with operations that modify some shared
+   * state if the condition holds true (which need to be guaranteed
+   * to happen or the state will be inconsistent).
+   *
+   * Note that for the use case above:
+   * - We cannot use:
+   * {{{
+   * waitingOp.bracket(..., modifyOp)
+   * }}}
+   * because it makes `waitingOp` uninterruptible.
+   *
+   * - We cannot use
+   * {{{
+   *  waitingOp.guaranteeCase {
+   *    case Success => modifyOp(???)
+   *    ...
+   * }}}
+   * if we need to use the result of `waitingOp`.
+   *
+   * - We cannot use
+   * {{{
+   *  waitingOp.attempt.flatMap(modifyOp)
+   * }}}
+   *  because it could be interrupted after `waitingOp` is done, but
+   *  before `modifyOp` executes.
+   *
+   * To access this implementation as a standalone function, you can
+   * use [[Concurrent$.continual Concurrent.continual]] in the
+   * companion object.
+   */
+  def continual[A, B](fa: F[A])(f: Either[Throwable, A] => F[B]): F[B] =
+    Concurrent.continual(fa)(f)(this)
 }
 
 
@@ -353,26 +401,67 @@ object Concurrent {
     }
 
   /**
-    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
-    * bound, the effect `f` will be performed at most once (when the
-    * inner `F[A]` is bound the first time).
+    * Lazily memoizes `f`. Assuming no cancelation happens, the effect
+    * `f` will be performed at most once for every time the returned
+    * `F[F[A]]` is bound (when the inner `F[A]` is bound the first
+    * time).
     *
-    * Note: `start` can be used for eager memoization.
+    * If you try to cancel an inner `F[A]`, `f` is only interrupted if
+    * there are no other active subscribers, whereas if there are, `f`
+    * keeps running in the background.
+    *
+    * If `f` is successfully canceled, the next time an inner `F[A]`
+    * is bound `f` will be restarted again. Note that this can mean
+    * the effects of `f` happen more than once.
+    *
+    * You can look at `Async.memoize` for a version of this function
+    * which does not allow cancelation.
     */
-  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] =
-    Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
-      Deferred[F, Either[Throwable, A]].flatMap { d =>
-        ref
-          .modify {
-            case None =>
-              Some(d) -> f.attempt.flatTap(d.complete)
-            case s @ Some(other) =>
-              s -> other.get
-          }
-          .flatten
-          .rethrow
+  def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
+    sealed trait State
+    case class Subs(n: Int) extends State
+    case object Done extends State
+
+    case class Fetch(state: State, v: Deferred[F, Either[Throwable, A]], stop: Deferred[F, F[Unit]])
+
+    Ref[F].of(Option.empty[Fetch]).map { state =>
+      (Deferred[F, Either[Throwable, A]] product Deferred[F, F[Unit]]).flatMap {
+        case (v, stop) =>
+          def endState(ec: ExitCase[Throwable]) =
+            state.modify {
+              case None =>
+                throw new AssertionError("unreachable")
+              case s @ Some(Fetch(Done, _, _)) =>
+                s -> F.unit
+              case Some(Fetch(Subs(n), v, stop)) =>
+                if (ec == ExitCase.Canceled && n == 1)
+                  None -> stop.get.flatten
+                else if (ec == ExitCase.Canceled)
+                  Fetch(Subs(n - 1), v, stop).some -> F.unit
+                else
+                  Fetch(Done, v, stop).some -> F.unit
+            }.flatten
+
+          def fetch =
+            f.attempt
+              .flatMap(v.complete)
+              .start
+              .flatMap(fiber => stop.complete(fiber.cancel))
+
+          state
+            .modify {
+              case s @ Some(Fetch(Done, v, _)) =>
+                s -> v.get
+              case Some(Fetch(Subs(n), v, stop)) =>
+                Fetch(Subs(n + 1), v, stop).some -> v.get.guaranteeCase(endState)
+              case None =>
+                Fetch(Subs(1), v, stop).some -> fetch.bracketCase(_ => v.get) { case (_, ec) => endState(ec) }
+            }
+            .flatten
+            .rethrow
       }
     }
+  }
 
   /**
    * Returns an effect that either completes with the result of the source within
@@ -472,6 +561,27 @@ object Concurrent {
     (implicit F: Concurrent[F]): F[A] = {
 
     CancelableF(k)
+  }
+
+  /**
+   * This is the default [[Concurrent.continual]] implementation.
+   */
+  def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])
+    (implicit F: Concurrent[F]): F[B] = {
+    import cats.effect.implicits._
+    import scala.util.control.NoStackTrace
+
+    Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
+      fa.start.bracket( fiber =>
+        fiber.join.guaranteeCase {
+          case ExitCase.Completed | ExitCase.Error(_) =>
+            (fiber.join.attempt.flatMap(f)).attempt.flatMap(r.complete)
+          case _ => fiber.cancel >>
+            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+        }.attempt
+      )(_ => r.get.void)
+      .flatMap(_ => r.get.rethrow)
+    }
   }
 
   /**

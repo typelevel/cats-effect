@@ -65,7 +65,9 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "uncancelable prevents Cancelled case" -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
         "acquire and release of bracket are uncancelable" -> forAll(laws.acquireAndReleaseAreUncancelable[A, B] _),
         "guarantee is derived from bracket" -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
-        "guaranteeCase is derived from bracketCase" -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _)
+        "guaranteeCase is derived from bracketCase" -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _),
+        "onCancel is derived from guaranteeCase" -> forAll(laws.onCancelIsDerivedFromGuaranteeCase[A] _)
+
       )
     }
   }
