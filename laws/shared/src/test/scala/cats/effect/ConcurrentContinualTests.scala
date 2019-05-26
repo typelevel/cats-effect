@@ -65,7 +65,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
   testAsync("Concurrent.continual behaves like flatMap on the happy path") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    val task = IO(1).continual(n => IO(n.right.get + 1)).map(_ + 1)
+    val task = IO(1).continual(n => IO(n.toOption.get + 1)).map(_ + 1)
 
     val f = task.unsafeToFuture()
     ec.tick()
@@ -76,7 +76,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     val ex = new Exception("boom")
-    val task = IO.raiseError[Unit](ex).continual(n => IO(n.left.get))
+    val task = IO.raiseError[Unit](ex).continual(n => IO(n.swap.toOption.get))
 
     val f = task.unsafeToFuture()
     ec.tick()
