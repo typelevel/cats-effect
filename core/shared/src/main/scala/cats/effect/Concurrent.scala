@@ -304,6 +304,53 @@ trait Concurrent[F[_]] extends Async[F] {
    */
   override def liftIO[A](ioa: IO[A]): F[A] =
     Concurrent.liftIO(ioa)(this)
+
+  /**
+   * If no interruption happens during the execution of this method,
+   * it behaves like `.attempt.flatMap`.
+   *
+   * Unlike `.attempt.flatMap` however, in the presence of
+   * interruption this method offers the _continual guarantee_:
+   * `fa` is interruptible, but if it completes execution, the
+   * effects of `f` are guaranteed to execute.
+   * This does not hold for `attempt.flatMap` since interruption can
+   * happen in between `flatMap` steps.
+   *
+   * The typical use case for this function arises in the
+   * implementation of concurrent abstractions, where you have
+   * asynchronous operations waiting on some condition (which have to
+   * be interruptible), mixed with operations that modify some shared
+   * state if the condition holds true (which need to be guaranteed
+   * to happen or the state will be inconsistent).
+   *
+   * Note that for the use case above:
+   * - We cannot use:
+   * {{{
+   * waitingOp.bracket(..., modifyOp)
+   * }}}
+   * because it makes `waitingOp` uninterruptible.
+   *
+   * - We cannot use
+   * {{{
+   *  waitingOp.guaranteeCase {
+   *    case Success => modifyOp(???)
+   *    ...
+   * }}}
+   * if we need to use the result of `waitingOp`.
+   *
+   * - We cannot use
+   * {{{
+   *  waitingOp.attempt.flatMap(modifyOp)
+   * }}}
+   *  because it could be interrupted after `waitingOp` is done, but
+   *  before `modifyOp` executes.
+   *
+   * To access this implementation as a standalone function, you can
+   * use [[Concurrent$.continual Concurrent.continual]] in the
+   * companion object.
+   */
+  def continual[A, B](fa: F[A])(f: Either[Throwable, A] => F[B]): F[B] =
+    Concurrent.continual(fa)(f)(this)
 }
 
 
@@ -514,6 +561,27 @@ object Concurrent {
     (implicit F: Concurrent[F]): F[A] = {
 
     CancelableF(k)
+  }
+
+  /**
+   * This is the default [[Concurrent.continual]] implementation.
+   */
+  def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])
+    (implicit F: Concurrent[F]): F[B] = {
+    import cats.effect.implicits._
+    import scala.util.control.NoStackTrace
+
+    Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
+      fa.start.bracket( fiber =>
+        fiber.join.guaranteeCase {
+          case ExitCase.Completed | ExitCase.Error(_) =>
+            (fiber.join.attempt.flatMap(f)).attempt.flatMap(r.complete)
+          case _ => fiber.cancel >>
+            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+        }.attempt
+      )(_ => r.get.void)
+      .flatMap(_ => r.get.rethrow)
+    }
   }
 
   /**

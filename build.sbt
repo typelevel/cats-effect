@@ -111,6 +111,11 @@ val commonSettings = Seq(
         <name>Alexandru Nedelcu</name>
         <url>https://alexn.org</url>
       </developer>
+     <developer>
+        <id>SystemFw</id>
+        <name>Fabio Labella</name>
+        <url>https://github.com/systemfw</url>
+      </developer>
     </developers>,
 
   homepage := Some(url("https://typelevel.org/cats-effect/")),
@@ -168,7 +173,10 @@ val mimaSettings = Seq(
       // Laws - https://github.com/typelevel/cats-effect/pull/473
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Bracket.onCancel"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Concurrent.continual"),
+      exclude[ReversedMissingMethodProblem]("cats.effect.Concurrent#Ops.continual")
     )
   })
 
