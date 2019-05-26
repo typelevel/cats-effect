@@ -254,18 +254,21 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("fromFuture works for values") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (a: Int, f: Int => Long) =>
       IO.fromFuture(IO(Future(f(a)))) <-> IO(f(a))
     }
   }
 
   testAsync("fromFuture works for successful completed futures") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (a: Int) =>
       IO.fromFuture(IO.pure(Future.successful(a))) <-> IO.pure(a)
     }
   }
 
   testAsync("fromFuture works for exceptions") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (ex: Throwable) =>
       val io = IO.fromFuture[Int](IO(Future(throw ex)))
       io <-> IO.raiseError[Int](ex)
@@ -273,12 +276,14 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("fromFuture works for failed completed futures") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (ex: Throwable) =>
       IO.fromFuture[Int](IO.pure(Future.failed(ex))) <-> IO.raiseError[Int](ex)
     }
   }
 
   testAsync("fromFuture protects against user code") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (ex: Throwable) =>
       val io = IO.fromFuture[Int](IO(throw ex))
       io <-> IO.raiseError[Int](ex)
@@ -286,6 +291,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("fromFuture suspends side-effects") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
       var effect = a
       val io1 = IO.fromFuture(IO(Future { effect = f(effect, a) }))

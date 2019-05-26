@@ -23,7 +23,7 @@ import org.scalatest._
 import org.scalatest.funsuite.AnyFunSuite
 import cats.syntax.all._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class IOJVMTests extends AnyFunSuite with Matchers {
@@ -143,5 +143,17 @@ class IOJVMTests extends AnyFunSuite with Matchers {
       if (th != null && th.isAlive)
         th.interrupt()
     }
+  }
+
+  test("fromFuture shifts continuation") {
+    import scala.concurrent.ExecutionContext.Implicits.global
+
+    implicit val CS: ContextShift[IO] = IO.contextShift(TestEC)
+
+    val ioa = IO.fromFuture(IO(Future(()))) >> IO {
+      Thread.currentThread().getName()
+    }
+
+    ioa.unsafeRunSync() shouldEqual ThreadName
   }
 }
