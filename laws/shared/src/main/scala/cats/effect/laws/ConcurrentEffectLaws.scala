@@ -33,7 +33,7 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
     fa1 <-> fa2
   }
 
-  def runCancelableIsSynchronous[A](fa: F[A]) = {
+  def runCancelableIsSynchronous[A] = {
     val lh = Deferred.uncancelable[F, Unit].flatMap { latch =>
       // Never ending task
       val ff = F.cancelable[A](_ => latch.complete(()))

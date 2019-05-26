@@ -20,9 +20,11 @@ import cats.effect.{Bracket, ExitCase}
 
 
 trait BracketSyntax {
-  // Bracket instance here is required to ensure correct inference for E
-  implicit def catsEffectSyntaxBracket[F[_], A, E](fa: F[A])(implicit bracket: Bracket[F, E]): BracketOps[F, E, A] =
+  implicit def catsEffectSyntaxBracket[F[_], A, E](fa: F[A])(implicit bracket: Bracket[F, E]): BracketOps[F, E, A] = {
+    // Bracket instance here is required to ensure correct inference for E
+    val _ = bracket
     new BracketOps[F, E, A](fa)
+  }
 }
 
 final class BracketOps[F[_], E, A](val self: F[A]) extends AnyVal {

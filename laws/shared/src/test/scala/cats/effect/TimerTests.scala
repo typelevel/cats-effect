@@ -86,7 +86,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
-      time should be <= t2.right.getOrElse(0L)
+      time should be <= t2.getOrElse(0L)
     }
   }
 
@@ -96,7 +96,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
 
     for (t2 <- io.value.unsafeToFuture()) yield {
       time should be > 0L
-      time should be <= t2.right.getOrElse(0L)
+      time should be <= t2.getOrElse(0L)
     }
   }
 
@@ -111,7 +111,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.right.getOrElse(0L) should be > 0L
+      r.getOrElse(0L) should be > 0L
     }
   }
 
@@ -119,7 +119,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[EitherTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.right.getOrElse(0) shouldBe 10
+      r.getOrElse(0) shouldBe 10
     }
   }
 

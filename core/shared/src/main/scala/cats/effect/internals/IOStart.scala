@@ -32,7 +32,8 @@ private[effect] object IOStart {
       // Starting the source `IO`, with a new connection, because its
       // cancellation is now decoupled from our current one
       val conn2 = IOConnection()
-      IORunLoop.startCancelable(IOForkedStart(fa, cs), conn2, p.success)
+      val cb0 = { ea: Either[Throwable, A] => p.success(ea); () }
+      IORunLoop.startCancelable(IOForkedStart(fa, cs), conn2, cb0)
 
       cb(Right(fiber(p, conn2)))
     }

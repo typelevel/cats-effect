@@ -11,10 +11,11 @@ matrix:
       scala: 2.11.12
       env: COVERAGE=
     - jdk: openjdk8
-      scala: 2.12.8
-      env: COVERAGE=
-    - jdk: openjdk8
       scala: 2.13.0-RC2
+      env: COVERAGE=
+    # We want the latest stable Scala last so sbt-travisci makes it the default
+    - jdk: openjdk8
+      scala: 2.12.8
       env: COVERAGE=
     - jdk: openjdk11
       scala: 2.12.8

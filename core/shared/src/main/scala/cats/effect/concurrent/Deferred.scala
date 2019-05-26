@@ -261,7 +261,7 @@ object Deferred {
       F.delay(p.future.value.flatMap(_.toOption))
 
     def complete(a: A): F[Unit] =
-      F.map(asyncBoundary)(_ => p.success(a))
+      F.map(asyncBoundary) { _ => p.success(a); () }
 
     private[this] val asyncBoundary =
       F.async[Unit](cb => cb(Callback.rightUnit))

@@ -47,7 +47,10 @@ private[internals] final class IOTimer private (
         // Race condition test
         if (!conn.isCanceled) {
           val f = sc.schedule(new ShiftTick(conn, cb, ec), timespan.length, timespan.unit)
-          ref.complete(IO(f.cancel(false)))
+          ref.complete(IO {
+            f.cancel(false)
+            ()
+          })
         } else {
           ref.complete(IO.unit)
         }

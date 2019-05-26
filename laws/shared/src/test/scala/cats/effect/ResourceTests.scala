@@ -75,16 +75,16 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   test("resource from AutoCloseable is auto closed") {
+    var closed = false
     val autoCloseable = new AutoCloseable {
-      var closed = false
       override def close(): Unit = closed = true
     }
 
     val result = Resource.fromAutoCloseable(IO(autoCloseable))
-      .use(source => IO.pure("Hello world")).unsafeRunSync()
+      .use(_ => IO.pure("Hello world")).unsafeRunSync()
 
     result shouldBe "Hello world"
-    autoCloseable.closed shouldBe true
+    closed shouldBe true
   }
 
   testAsync("liftF") { implicit ec =>
@@ -173,7 +173,7 @@ class ResourceTests extends BaseTestsSuite {
 
   test("mapK should preserve ExitCode-specific behaviour") {
     val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
-      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli { i: Int => fa }
+      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
 
     def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
@@ -196,7 +196,7 @@ class ResourceTests extends BaseTestsSuite {
     clean1.get() shouldBe false
 
     val (clean2, res2) = sideEffectyResource
-    res2.mapK(takeAnInteger).use(_ => Kleisli {i: Int => IO.raiseError[Unit](new Throwable("oh no"))}).run(0).attempt.unsafeRunSync()
+    res2.mapK(takeAnInteger).use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no")))).run(0).attempt.unsafeRunSync()
     clean2.get() shouldBe false
   }
 
@@ -217,8 +217,9 @@ class ResourceTests extends BaseTestsSuite {
     val prog = for {
       res <- (release *> resource).allocated
       (_, close) = res
-      releaseAfterF <- IO(released.get() shouldBe false)
-      _ <- close >> IO(released.get() shouldBe true)
+      _ <- IO(released.get() shouldBe false)
+      _ <- close
+      _ <- IO(released.get() shouldBe true)
     } yield ()
 
     prog.unsafeRunSync
@@ -231,7 +232,7 @@ class ResourceTests extends BaseTestsSuite {
       override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
     }
     val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
-      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli { i: Int => fa }
+      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
     val plusOne = Kleisli {i: Int => IO { i + 1 }}
     val plusOneResource = Resource.liftF(plusOne)
@@ -242,8 +243,9 @@ class ResourceTests extends BaseTestsSuite {
     val prog = for {
       res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
       (_, close) = res
-      releaseAfterF <- IO(released.get() shouldBe false)
-      _ <- close >> IO(released.get() shouldBe true)
+      _ <- IO(released.get() shouldBe false)
+      _ <- close
+      _ <- IO(released.get() shouldBe true)
     } yield ()
 
     prog.unsafeRunSync

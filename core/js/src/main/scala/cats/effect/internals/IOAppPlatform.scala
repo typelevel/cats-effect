@@ -82,7 +82,7 @@ private[effect] object IOAppPlatform {
     def handler(code: Int) = () =>
       fiber.cancel.unsafeRunAsync { result =>
         result.swap.foreach(Logger.reportFailure)
-        IO(sys.exit(code + 128))
+        sys.exit(code + 128)
       }
 
     IO {
@@ -91,6 +91,7 @@ private[effect] object IOAppPlatform {
         process.on("SIGHUP", handler(1))
         process.on("SIGINT", handler(2))
         process.on("SIGTERM", handler(15))
+        ()
       }
     }
   }

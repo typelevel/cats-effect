@@ -149,11 +149,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
-    F.race(fa, F.never[A]).map(_.left.getOrElse(default)) <-> fa
+    F.race(fa, F.never[A]).map(_.swap.getOrElse(default)) <-> fa
   }
 
   def raceMirrorsRightWinner[A](fa: F[A], default: A) = {
-    F.race(F.never[A], fa).map(_.right.getOrElse(default)) <-> fa
+    F.race(F.never[A], fa).map(_.getOrElse(default)) <-> fa
   }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
