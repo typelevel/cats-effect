@@ -2,7 +2,7 @@
 
 <p>A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously.</p>
 
-<p><code class="highlighter-rouge">SyncIO</code> is similar to <a href="./io.html">IO</a>, but does not support asynchronous computations. Consequently, a <code class="highlighter-rouge">SyncIO</code> can be run synchronously to obtain a result via <code class="highlighter-rouge">unsafeRunSync</code>. This is unlike <code class="highlighter-rouge">IO#unsafeRunSync</code>, which cannot be safely called in general doing so on the JVM blocks the calling thread while the async part of the computation is run and doing so on Scala.JS throws an exception upon encountering an async boundary.</p>
+<p><code class="highlighter-rouge">SyncIO</code> is similar to <a href="./io.html">IO</a>, but does not support asynchronous computations. Consequently, a <code class="highlighter-rouge">SyncIO</code> can be run synchronously to obtain a result via <code class="highlighter-rouge">unsafeRunSync</code>. This is unlike <code class="highlighter-rouge">IO#unsafeRunSync</code>, which cannot be safely called in general. Doing so on the JVM blocks the calling thread while the async part of the computation is run and doing so on Scala.JS throws an exception upon encountering an async boundary.</p>
 
 <h2 id="constructing-syncio-values">Constructing SyncIO values</h2>
 
@@ -38,10 +38,10 @@
 <span class="c1">// import cats.effect.IO
 </span>
 <span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$1046175942
+<span class="c1">// ioa: cats.effect.SyncIO[Unit] = SyncIO$1550906193
 </span>
 <span class="k">val</span> <span class="n">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">ioa</span><span class="o">.</span><span class="n">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
-<span class="c1">// iob: cats.effect.IO[Unit] = IO$1789092050
+<span class="c1">// iob: cats.effect.IO[Unit] = IO$514066032
 </span>
 <span class="n">iob</span><span class="o">.</span><span class="n">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Hello world!

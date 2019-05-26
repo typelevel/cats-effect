@@ -937,7 +937,7 @@ of its <code class="highlighter-rouge">bracketCase</code>, the function will fin
 
 <h4 id="exercise-closing-client-connections-to-echo-server-on-shutdown">Exercise: closing client connections to echo server on shutdown</h4>
 <p>There is a catch yet in our server. If there are several clients connected,
-sending an <code class="highlighter-rouge">STOP</code> message will close the server’s fiber and the one attending
+sending a <code class="highlighter-rouge">STOP</code> message will close the server’s fiber and the one attending
 the client that sent the message. But the other fibers will keep running
 normally! It is like they were daemon threads. Arguably, we could expect that
 shutting down the server shall close <em>all</em> connections. How could we do it?
@@ -953,7 +953,7 @@ consider taking some time looking for a solution yourself :) .</p>
 
 <h4 id="solution">Solution</h4>
 <p>We could keep a list of active fibers serving client connections. It is
-doable, but cumbersome…  and not really needed at this point.</p>
+doable, but cumbersome … and not really needed at this point.</p>
 
 <p>Think about it: we have a <code class="highlighter-rouge">stopFlag</code> that signals when the server must be
 stopped. When that flag is set we can assume we shall close all client
@@ -1105,7 +1105,7 @@ clients by sending an empty line (recall that makes the server to close that
 client session) then immediately one of the blocked clients will be active.</p>
 
 <p>It shall be clear from that experiment that fibers are run by thread pools. And
-that in our case, all our fibers share the same thread pool! <code class="highlighter-rouge">ContextShif[F]</code>
+that in our case, all our fibers share the same thread pool! <code class="highlighter-rouge">ContextShift[F]</code>
 is in charge of assigning threads to the fibers waiting to be run, each one
 with a pending <code class="highlighter-rouge">F</code> action. When using <code class="highlighter-rouge">IOApp</code> we get also the <code class="highlighter-rouge">ContextShift[IO]</code>
 that we need to run the fibers in our code. So there are our threads!</p>
@@ -1116,8 +1116,8 @@ that we need to run the fibers in our code. So there are our threads!</p>
 thread pool) when running <code class="highlighter-rouge">F</code> actions, and to swap which one should be used for
 each new <code class="highlighter-rouge">F</code> to ask to reschedule threads among the current active <code class="highlighter-rouge">F</code>
 instances <em>e.g.</em> for improved fairness etc. Code below shows an example of how to
-declare tasks that will be run in different thread pools: first task will be run
-by the thread pool of the <code class="highlighter-rouge">ExecutionContext</code> passed as parameter, the second
+declare tasks that will be run in different thread pools: the first task will be
+run by the thread pool of the <code class="highlighter-rouge">ExecutionContext</code> passed as parameter, the second
 task will be run in the default thread pool.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
@@ -1134,7 +1134,7 @@ task will be run in the default thread pool.</p>
 <h4 id="exercise-using-a-custom-thread-pool-in-echo-server">Exercise: using a custom thread pool in echo server</h4>
 <p>Given what we know so far, how could we solve the problem of the limited number
 of clients attended in parallel in our echo server? Recall that in traditional
-servers we would make use of an specific thread pool for clients, able to resize
+servers we would make use of a specific thread pool for clients, able to resize
 itself by creating new threads if they are needed. You can get such a pool using
 <code class="highlighter-rouge">Executors.newCachedThreadPool()</code>. But take care of shutting the pool down when
 the server is stopped!</p>
@@ -1183,8 +1183,8 @@ shutting down the thread pool when the server finishes:</p>
 
 <p>Signatures of <code class="highlighter-rouge">serve</code> and of <code class="highlighter-rouge">echoProtocol</code> will have to be changed too to pass
 the execution context as parameter. Finally, we need an implicit
-<code class="highlighter-rouge">ContextShift[F]</code> that will be carried by the functions signature. It is <code class="highlighter-rouge">IOApp</code>
-who provides the instance of <code class="highlighter-rouge">ContextShift[IO]</code> in the <code class="highlighter-rouge">run</code> method.</p>
+<code class="highlighter-rouge">ContextShift[F]</code> that will be carried by the function’s signature. It is <code class="highlighter-rouge">IOApp</code>
+which provides the instance of <code class="highlighter-rouge">ContextShift[IO]</code> in the <code class="highlighter-rouge">run</code> method.</p>
 
 <h4 id="echo-server-code-thread-pool-for-clients-version">Echo server code, thread pool for clients version</h4>
 <p>The version of our echo server using a thread pool is available
@@ -1193,10 +1193,10 @@ who provides the instance of <code class="highlighter-rouge">ContextShift[IO]</c
 <h2 id="lets-not-forget-about-async">Let’s not forget about <code class="highlighter-rouge">async</code></h2>
 
 <p>The <code class="highlighter-rouge">async</code> functionality is another powerful capability of cats-effect we have
-not mentioned yet. It is provided by <code class="highlighter-rouge">Async</code> type class, that it allows to
+not mentioned yet. It is provided by <code class="highlighter-rouge">Async</code> type class, and it allows to
 describe <code class="highlighter-rouge">F</code> instances that may be terminated by a thread different than the
-one carrying the evaluation of that instance. Result will be returned by using
-a callback.</p>
+one carrying the evaluation of that instance. The result will be returned by
+using a callback.</p>
 
 <p>Some of you may wonder if that could help us to solve the issue of having
 blocking code in our fabulous echo server. Unfortunately, <code class="highlighter-rouge">async</code> cannot

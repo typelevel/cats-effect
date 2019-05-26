@@ -250,7 +250,7 @@
       
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p>A monad that can suspend the execution of side effects
 in the <code>F[_]</code> context.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v1.3.1/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M2/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -2076,6 +2076,33 @@ for the acquisition and release of resources.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Bracket#onCancel" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="onCancel[A](fa:F[A])(finalizer:F[Unit]):F[A]"></a><a id="onCancel[A](F[A])(F[Unit]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Sync.html#onCancel[A](fa:F[A])(finalizer:F[Unit]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">onCancel</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.onCancel.A">A</span>]</span>)</span><span class="params">(<span name="finalizer">finalizer: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Sync.F">F</span>[<span class="extype" name="cats.effect.Bracket.onCancel.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Executes the given <code>finalizer</code> when the source is canceled.</p><div class="fullcomment"><div class="comment cmt"><p>Executes the given <code>finalizer</code> when the source is canceled.</p><p>The typical use case for this function arises in the
+implementation of concurrent abstractions, which generally
+consist of operations that perform asynchronous waiting after
+concurrently modifying some state: in case the user asks for
+cancelation, we want to interrupt the waiting operation, and
+restore the state to its previous value.</p><pre>waitingOp.onCancel(restoreState)</pre><p>A direct use of <code>bracket</code> is not a good fit for this case as it
+would make the waiting action uncancelable.</p><p>NOTE: This function handles interruption only, you need to take
+care of the success and error case elsewhere in your code
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a></dd><dt>See also</dt><dd><span class="cmt"><p><a href="Bracket.html#guaranteeCase[A](fa:F[A])(finalizer:cats.effect.ExitCase[E]=&gt;F[Unit]):F[A]" class="extmbr" name="cats.effect.Bracket#guaranteeCase">guaranteeCase</a> for the version that can discriminate
+     between termination conditions</p></span><span class="cmt"><p><a href="Bracket.html#bracket[A,B](acquire:F[A])(use:A=&gt;F[B])(release:A=&gt;F[Unit]):F[B]" class="extmbr" name="cats.effect.Bracket#bracket">bracket</a> for the more general operation</p></span><span class="cmt"><p><a href="Concurrent$.html#continual[F[_],A,B](fa:F[A])(f:scala.util.Either[Throwable,A]=&gt;F[B])(implicitF:cats.effect.Concurrent[F]):F[B]" class="extmbr" name="cats.effect.Concurrent#continual">Concurrent.continual</a> when you have a use case similar to
+     the cancel/restore example above, but require access to the
+     result of <code>F[A]</code></p></span></dd></dl></div>
     </li><li name="cats.ApplicativeError#onError" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="onError[A](fa:F[A])(pf:PartialFunction[E,F[Unit]]):F[A]"></a><a id="onError[A](F[A])(PartialFunction[Throwable,F[Unit]]):F[A]"></a>
       <span class="permalink">

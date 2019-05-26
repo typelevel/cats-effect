@@ -23,20 +23,6 @@ val greet: String =&gt; IO[Unit] = x =&gt; IO(println("Hello " ++ x))
 Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
 </code></pre></div></div>
 
-<p>Note that resource acquisition cannot be canceled, so if you lift a long running <code class="highlighter-rouge">F[A]</code> into <code class="highlighter-rouge">Resource</code> and cancel the <code class="highlighter-rouge">use</code> call while it runs,
-the program will wait until that <code class="highlighter-rouge">F[A]</code> completes.</p>
-
-<p>For example, if you do this:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>//latch to make sure we cancel the `use` after it's actually started
-Deferred[IO, Unit].flatMap { promise =&gt;
-  Resource.liftF(promise.complete(()) &gt;&gt; IO.never: IO[Unit])
-    .use(_ =&gt; IO.unit) race promise.get
-}
-</code></pre></div></div>
-
-<p>the program will never terminate.</p>
-
 <p>Moreover it’s possible to apply further effects to the wrapped resource without leaving the <code class="highlighter-rouge">Resource</code> context via <code class="highlighter-rouge">evalMap</code>:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>import cats.effect.{IO, Resource}
