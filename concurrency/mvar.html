@@ -144,6 +144,13 @@ a new event.</p>
       <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">sum</span><span class="o">)</span> <span class="c1">// we are done!
 </span>  <span class="o">}</span>
 
+<span class="c1">// ContextShift required for
+// 1) MVar.empty
+// 2) IO.start
+// for ContextShift documentation see https://typelevel.org/cats-effect/datatypes/contextshift.html
+</span><span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="nc">Implicits</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
 <span class="k">for</span> <span class="o">{</span>
   <span class="n">channel</span> <span class="k">&lt;-</span> <span class="nc">MVar</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">empty</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Int</span><span class="o">]]</span>
   <span class="n">count</span> <span class="k">=</span> <span class="mi">100000</span>

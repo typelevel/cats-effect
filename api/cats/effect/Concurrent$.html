@@ -248,7 +248,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M2/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -784,7 +784,7 @@ interruptibility of the given <code>IO</code> value.</p><p>This is the default <
         <span class="name">memoize</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="f">f: <span class="extype" name="cats.effect.Concurrent.memoize.F">F</span>[<span class="extype" name="cats.effect.Concurrent.memoize.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.memoize.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.memoize.F">F</span>[<span class="extype" name="cats.effect.Concurrent.memoize.F">F</span>[<span class="extype" name="cats.effect.Concurrent.memoize.A">A</span>]]</span>
       </span>
       
-      <p class="shortcomment cmt">Lazily memoizes <code>f</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Lazily memoizes <code>f</code>. Assuming no cancelation happens, the effect
+      <p class="shortcomment cmt">Lazily memoizes <code>f</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Lazily memoizes <code>f</code>. Assuming no cancellation happens, the effect
 <code>f</code> will be performed at most once for every time the returned
 <code>F[F[A]]</code> is bound (when the inner <code>F[A]</code> is bound the first
 time).</p><p>If you try to cancel an inner <code>F[A]</code>, <code>f</code> is only interrupted if
@@ -792,7 +792,7 @@ there are no other active subscribers, whereas if there are, <code>f</code>
 keeps running in the background.</p><p>If <code>f</code> is successfully canceled, the next time an inner <code>F[A]</code>
 is bound <code>f</code> will be restarted again. Note that this can mean
 the effects of <code>f</code> happen more than once.</p><p>You can look at <code>Async.memoize</code> for a version of this function
-which does not allow cancelation.
+which does not allow cancellation.
 </p></div></div>
     </li><li name="scala.AnyRef#ne" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ne(x$1:AnyRef):Boolean"></a><a id="ne(AnyRef):Boolean"></a>
