@@ -25,12 +25,12 @@ organizationName in ThisBuild := "Typelevel"
 startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.17.0"
-val CatsVersion = "2.0.0-M2"
-val ScalaTestVersion = "3.1.0-SNAP11"
-val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP6"
+val SimulacrumVersion = "0.18.0"
+val CatsVersion = "2.0.0-M3"
+val ScalaTestVersion = "3.1.0-SNAP12"
+val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP7"
 val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.12.0-M1"
+val DisciplineVersion = "0.12.0-M2"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -150,7 +150,7 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.1" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.2" cross CrossVersion.binary)
 )
 
 val mimaSettings = Seq(
