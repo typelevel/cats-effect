@@ -4,12 +4,12 @@
 
 > For when purity just isn't impure enough.
 
-This project aims to provide a standard `IO` type ([doc](https://typelevel.org/cats-effect/datatypes/io.html) / [api](https://typelevel.org/cats-effect/api/cats/effect/IO.html)) for the [Cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types.  This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind.  Critically, this means two things:
+This project aims to provide a standard `IO` type ([doc](https://typelevel.org/cats-effect/datatypes/io.html) / [api](https://typelevel.org/cats-effect/api/cats/effect/IO.html)) for the [Cats](http://typelevel.org/cats/) ecosystem, as well as a set of typeclasses (and associated laws!) which characterize general effect types. This project was *explicitly* designed with the constraints of the JVM and of JavaScript in mind. Critically, this means two things:
 
 - Manages both synchronous *and* asynchronous (callback-driven) effects
 - Compatible with a single-threaded runtime
 
-In this way, `IO` is more similar to common `Task` implementations than it is to the classic `scalaz.effect.IO` or even Haskell's `IO`, both of which are purely synchronous in nature.  As Haskell's runtime uses green threading, a synchronous `IO` (and the requisite thread blocking) makes a lot of sense.  With Scala though, we're either on a runtime with native threads (the JVM) or only a single thread (JavaScript), meaning that asynchronous effects are every bit as important as synchronous ones.
+In this way, `IO` is more similar to common `Task` implementations than it is to the classic `scalaz.effect.IO` or even Haskell's `IO`, both of which are purely synchronous in nature. As Haskell's runtime uses green threading, a synchronous `IO` (and the requisite thread blocking) makes a lot of sense. With Scala though, we're either on a runtime with native threads (the JVM) or only a single thread (JavaScript), meaning that asynchronous effects are every bit as important as synchronous ones.
 
 ## Usage
 
@@ -24,19 +24,19 @@ See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob
 libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.1"
 ```
 
-Cats Effect relies on improved type inference and needs partial unification enabled as described in the cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
+Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
 
-If your project uses Scala.js, replace the double-`%` with a triple.  Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
+If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
 
 Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0-RC3, as well as Scala.js 0.6.x. Version 2.0.0-M3 has been cross-built for 2.13.0-RC3 and depends upon cats-core version 2.x.
 
-The most current snapshot (or major release) can be found in the maven badge at the top of this readme.  If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
+The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
-Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases.  You should *absolutely* be doing this!  It takes five minutes and eliminates the need to trust a third-party with your classpath.
+Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases. You should *absolutely* be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.
 
 ### Laws
 
-The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric).  It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
+The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "1.3.1" % "test"
@@ -88,9 +88,9 @@ These are some of the projects that provide high-level functions on top of `cats
 
 ## Development
 
-We use the standard pull request driven github workflow.  Pull requests are always welcome, even if it's for something as minor as a whitespace tweak!  If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to master.  Ideally, someone other than yourself will merge and push your PR to master.  However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general cats community), you may merge your own PR in the interest of moving forward with important efforts.  Please don't abuse this policy.
+We use the standard pull request driven github workflow. Pull requests are always welcome, even if it's for something as minor as a whitespace tweak! If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to master. Ideally, someone other than yourself will merge and push your PR to master. However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don't abuse this policy.
 
-Do *not* rebase commits that have been PR'd!  That history doesn't belong to you anymore, and it is not yours to rewrite.  This goes for maintainers and contributors alike.  Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not.  Just don't rebase something that's already out there unless you've *explicitly* marked it as a work in progress (e.g. `[WIP]`) in some clear and unambiguous way.
+Do *not* rebase commits that have been PR'd! That history doesn't belong to you anymore, and it is not yours to rewrite. This goes for maintainers and contributors alike. Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not. Just don't rebase something that's already out there unless you've *explicitly* marked it as a work in progress (e.g. `[WIP]`) in some clear and unambiguous way.
 
 cats-effect is a [Typelevel](http://typelevel.org/) project. This means we embrace pure, typeful, functional programming, and provide a safe and friendly environment for teaching, learning, and contributing as described in the [Code of Conduct].
 
@@ -108,7 +108,7 @@ install jekyll`.
 
 Start a local server by navigating to `site/target/site`, then run `jekyll
 serve`. Finally point your browser at
-[http://localhost:4000/cats-effect/](http://localhost:4000/cats-effect/).  Any
+[http://localhost:4000/cats-effect/](http://localhost:4000/cats-effect/). Any
 changes should be picked up immediately when you re-run `sbt
 microsite/makeMicrosite`.
 

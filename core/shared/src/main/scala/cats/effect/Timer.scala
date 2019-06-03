@@ -47,7 +47,7 @@ import scala.concurrent.duration.FiniteDuration
 * import Timer[${F}] from your effects library
 * if using IO, use cats.effect.IOApp or build one with cats.effect.IO.timer
 """)
-trait Timer[F[_]]  {
+trait Timer[F[_]] {
   /**
    * Returns a [[Clock]] instance associated with this timer
    * that can provide the current time and do time measurements.

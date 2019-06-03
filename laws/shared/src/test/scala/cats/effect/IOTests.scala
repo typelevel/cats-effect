@@ -1008,7 +1008,7 @@ object IOTests {
       ref.tailRecM(a)(f)
     def runAsync[A](fa: IO[A])(cb: (Either[Throwable, A]) => IO[Unit]): SyncIO[Unit] =
       ref.runAsync(fa)(cb)
-    def suspend[A](thunk: =>IO[A]): IO[A] =
+    def suspend[A](thunk: => IO[A]): IO[A] =
       ref.suspend(thunk)
     def bracketCase[A, B](acquire: IO[A])
       (use: A => IO[B])
