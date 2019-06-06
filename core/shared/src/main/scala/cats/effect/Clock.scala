@@ -123,7 +123,7 @@ trait Clock[F[_]] {
   def monotonic(unit: TimeUnit): F[Long]
 }
 
-object Clock  {
+object Clock {
   def apply[F[_]](implicit ev: Clock[F]) = ev
 
   /**

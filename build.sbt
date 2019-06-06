@@ -360,8 +360,8 @@ lazy val microsite = project.in(file("site"))
   .dependsOn(coreJVM, lawsJVM)
 
 /*
- * Compatibility version.  Use this to declare what version with
- * which `master` remains in compatibility.  This is literally
+ * Compatibility version. Use this to declare what version with
+ * which `master` remains in compatibility. This is literally
  * backwards from how -SNAPSHOT versioning works, but it avoids
  * the need to pre-declare (before work is done) what kind of
  * compatibility properties the next version will have (i.e. major
@@ -385,9 +385,9 @@ lazy val microsite = project.in(file("site"))
  *
  * The value of BaseVersion starts at 0.1 and remains there until
  * compatibility with the 0.1 line is lost, which happens just
- * prior to the release of 0.2.  Then the base version again remains
+ * prior to the release of 0.2. Then the base version again remains
  * 0.2-compatible until that compatibility is broken, with the major
- * version bump of 1.0.  Again, this is all to avoid pre-committing
+ * version bump of 1.0. Again, this is all to avoid pre-committing
  * to a major/minor bump before the work is done (see: Scala 2.8).
  */
 val BaseVersion = "2.0.0"
