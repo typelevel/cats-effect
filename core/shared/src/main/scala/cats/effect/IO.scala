@@ -1201,7 +1201,7 @@ object IO extends IOInstances {
    * @see [[IO#unsafeToFuture]]
    */
   def fromFuture[A](iof: IO[Future[A]])(implicit cs: ContextShift[IO]): IO[A] =
-    iof.flatMap(IOFromFuture.apply).flatMap(a => cs.shift.map(_ => a))
+    iof.flatMap(IOFromFuture.apply).guarantee(cs.shift)
 
   /**
    * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising
