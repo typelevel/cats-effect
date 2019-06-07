@@ -48,8 +48,11 @@ private[effect] object IOAppPlatform {
 
   // both lazily initiated on JVM platform to prevent
   // warm-up of underlying default EC's for code that does not require concurrency
-  def defaultTimer: Timer[IO] = IOTimer.global
-  def defaultContextShift: ContextShift[IO] = IOContextShift.global
+  def defaultTimer: Timer[IO] =
+    IOTimer(PoolUtils.ioAppGlobal)
+
+  def defaultContextShift: ContextShift[IO] =
+    IOContextShift(PoolUtils.ioAppGlobal)
 
   private def installHook(fiber: Fiber[IO, Int]): IO[Unit] =
     IO {

@@ -41,7 +41,7 @@ private[effect] object IOContextShift {
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)
 
-  /** Global instance, used in `IOApp`. */
+  /** Global instance, used in `IOApp` on JavaScript (see: PoolUtils for the JVM semantics). */
   lazy val global: ContextShift[IO] =
     apply(ExecutionContext.Implicits.global)
 }
