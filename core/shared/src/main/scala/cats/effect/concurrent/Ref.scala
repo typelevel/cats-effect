@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import cats.effect.concurrent.Ref.TransformedRef
 import cats.instances.tuple._
 import cats.instances.function._
+import cats.syntax.functor._
 
 import scala.annotation.tailrec
 
@@ -280,5 +281,35 @@ object Ref {
       trans(F.compose[(A, ?)].compose[A => ?].map(underlying.access)(trans(_)))
   }
 
-}
+  implicit def catsInvariantForRef[F[_]: Functor]: Invariant[Ref[F, ?]] =
+    new Invariant[Ref[F, ?]] {
+      override def imap[A, B](fa: Ref[F, A])(f: A => B)(g: B => A): Ref[F, B] =
+        new Ref[F, B] {
+          override val get: F[B] = fa.get.map(f)
+          override def set(a: B): F[Unit] = fa.set(g(a))
+          override def getAndSet(a: B): F[B] = fa.getAndSet(g(a)).map(f)
+          override val access: F[(B, B => F[Boolean])] = fa.access.map {
+            case (state, mod) =>
+              (f(state), b => mod(g(b)))
+          }
+          override def tryUpdate(f2: B => B): F[Boolean] =
+            fa.tryUpdate(g compose f2 compose f)
+          override def tryModify[C](f2: B => (B, C)): F[Option[C]] =
+            fa.tryModify { a =>
+              val (b, c) = f2(f(a))
+              (g(b), c)
+            }
+          override def update(f2: B => B): F[Unit] =
+            fa.update(g compose f2 compose f)
+          override def modify[C](f2: B => (B, C)): F[C] = fa.modify { a =>
+            val (b, c) = f2(f(a))
+            (g(b), c)
+          }
+          override def tryModifyState[C](state: State[B, C]): F[Option[C]] =
+            fa.tryModifyState(state.dimap(f)(g))
+          override def modifyState[C](state: State[B, C]): F[C] =
+            fa.modifyState(state.dimap(f)(g))
+        }
+    }
 
+}
