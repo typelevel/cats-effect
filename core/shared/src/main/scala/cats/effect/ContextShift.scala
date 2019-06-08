@@ -57,6 +57,8 @@ trait ContextShift[F[_]] {
    * The primary use case for this method is executing blocking code on a
    * dedicated execution context.
    *
+   * See [[Blocker]], which provides a newtype for blocking execution contexts.
+   *
    * @param ec Execution context where the evaluation has to be scheduled
    * @param fa  Computation to evaluate using `ec`
    */

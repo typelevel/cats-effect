@@ -10,3 +10,4 @@ benchmarks/results
 .java-version
 .DS_Store
 .metals
+.bloop

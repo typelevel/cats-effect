@@ -103,3 +103,35 @@ object MyApp extends IOApp {
   }
 }
 ```
+
+## Blocker
+
+`Blocker` provides an `ExecutionContext` that is intended for executing blocking tasks and integrates directly with `ContextShift`. The previous example with `Blocker` looks like this:
+
+```tut:silent
+import scala.concurrent.ExecutionContext
+import cats.effect._
+
+def readName[F[_]: Sync: ContextShift](blocker: Blocker): F[String] = 
+  // Blocking operation, executed on special thread-pool
+  blocker.delay {
+    println("Enter your name: ")
+    scala.io.StdIn.readLine()
+  }
+
+object MyApp extends IOApp {
+
+  def run(args: List[String]) = {
+    val name = Blocker[IO].use { blocker =>
+      readName[IO](blocker)
+    }
+    
+    for {
+      n <- name
+      _ <- IO(println(s"Hello, $n!"))
+    } yield ExitCode.Success
+  }
+}
+```
+
+In this version, `Blocker` was passed as an argument to `readName` to ensure the constructed task is never used on a non-blocking execution context.
