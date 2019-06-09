@@ -64,10 +64,16 @@ object Blocker {
       implicit F: Sync[F]): Resource[F, Blocker] =
     Resource
       .make(makeExecutorService)(ec => F.delay { ec.shutdownNow(); () })
-      .map(es => unsafeFromExecutionContext(ExecutionContext.fromExecutorService(es)))
+      .map(es => unsafeFromExecutorService(es))
 
   /**
-   * Creates a block that delegates to the supplied execution context.
+   * Creates a blocker that delegates to the supplied executor service.
+   */
+  def unsafeFromExecutorService(es: ExecutorService): Blocker =
+    unsafeFromExecutionContext(ExecutionContext.fromExecutorService(es))
+
+  /**
+   * Creates a blocker that delegates to the supplied execution context.
    * 
    * This must not be used with general purpose contexts like
    * `scala.concurrent.ExecutionContext.Implicits.global'.
