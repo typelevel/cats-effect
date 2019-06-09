@@ -17,8 +17,10 @@
 package cats
 package effect
 
+import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory}
+import cats.data.NonEmptyList
 
 /**
  * An execution context that is safe to use for blocking operations.
@@ -59,18 +61,28 @@ object Blocker {
    * Creates a blocker backed by the `ExecutorService` returned by the
    * supplied task. The executor service is shut down upon finalization
    * of the returned resource.
+   * 
+   * If there are pending tasks in the thread pool at time the returned
+   * `Blocker` is finalized, the finalizer fails with a `Blocker.OutstandingTasksAtShutdown` 
+   * exception.
    */
-  def fromExecutorService[F[_]](makeExecutorService: F[ExecutorService])(
-      implicit F: Sync[F]): Resource[F, Blocker] =
-    Resource
-      .make(makeExecutorService)(ec => F.delay { ec.shutdownNow(); () })
-      .map(es => unsafeFromExecutorService(es))
+  def fromExecutorService[F[_]](makeExecutorService: F[ExecutorService])(implicit F: Sync[F]): Resource[F, Blocker] =
+    Resource.make(makeExecutorService) { ec =>
+        val tasks = F.delay {
+          val tasks = ec.shutdownNow().asScala.toList
+          NonEmptyList.fromList(tasks)
+        }
+        F.flatMap(tasks) {
+          case Some(t) => F.raiseError(new OutstandingTasksAtShutdown(t))
+          case None => F.unit
+        }
+    }.map(es => wrapExecutorService(es))
 
   /**
    * Creates a blocker that delegates to the supplied executor service.
    */
-  def unsafeFromExecutorService(es: ExecutorService): Blocker =
-    unsafeFromExecutionContext(ExecutionContext.fromExecutorService(es))
+  def wrapExecutorService(es: ExecutorService): Blocker =
+    wrapExecutionContext(ExecutionContext.fromExecutorService(es))
 
   /**
    * Creates a blocker that delegates to the supplied execution context.
@@ -78,5 +90,8 @@ object Blocker {
    * This must not be used with general purpose contexts like
    * `scala.concurrent.ExecutionContext.Implicits.global'.
    */
-  def unsafeFromExecutionContext(ec: ExecutionContext): Blocker = new Blocker(ec)
+  def wrapExecutionContext(ec: ExecutionContext): Blocker = new Blocker(ec)
+
+  /** Thrown if there are tasks queued in the thread pool at the time a `Blocker` is finalized. */
+  final class OutstandingTasksAtShutdown(val tasks: NonEmptyList[Runnable]) extends IllegalStateException("There were outstanding tasks at time of shutdown of the thread pool")
 }
