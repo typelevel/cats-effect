@@ -50,7 +50,7 @@ The above will never print "done", block a thread (unless `.unsafeRunSync` is ru
 
 ### Logical thread
 
-An JVM Thread, this is what we create with `new Thread()`. It is possible to create many logical threads.
+A JVM Thread, this is what we create with `new Thread()`. It is possible to create many logical threads.
 
 ### Native thread
 
