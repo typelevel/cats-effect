@@ -16,14 +16,18 @@
 
 package cats.effect.syntax
 
-import scala.concurrent.duration.FiniteDuration
+import cats.{Parallel, Traverse}
 
+import scala.concurrent.duration.FiniteDuration
 import cats.effect.{Concurrent, Timer}
 
 
 trait ConcurrentSyntax extends Concurrent.ToConcurrentOps {
   implicit def catsEffectSyntaxConcurrent[F[_], A](fa: F[A]): ConcurrentOps[F, A] =
     new ConcurrentOps[F, A](fa)
+
+  implicit def catsEffectSyntaxConcurrentObj[F[_]](F: Concurrent[F]): ConcurrentObjOps[F] =
+    new ConcurrentObjOps[F](F)
 }
 
 final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
@@ -32,4 +36,19 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
     Concurrent.timeoutTo(self, duration, fallback)
+}
+
+final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal {
+
+  /**
+    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+    */
+  def parTraverseN[T[_], G[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(implicit T: Traverse[T], P: Parallel[F, G]): F[T[B]] =
+    Concurrent.parTraverseN(n)(ta)(f)(T, F, P)
+
+  /**
+    * Like `Parallel.parSequence`, but limits the degree of parallelism.
+    */
+  def parSequenceN[T[_], G[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F, G]): F[T[A]] =
+    Concurrent.parSequenceN(n)(tma)(T, F, P)
 }

@@ -42,17 +42,17 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[A]](acquire.guaranteeCase(finalCase))
   }
 
-  def asyncSyntax[T[_]: Traverse, M[_], F[_], A, B](implicit M: Async[M], P: Parallel[M, F]) = {
+  def asyncSyntax[T[_]: Traverse, F[_], G[_], A, B](implicit F: Async[F], P: Parallel[F, G]) = {
     val n = mock[Long]
     val ta = mock[T[A]]
-    val f = mock[A => M[B]]
-    val tma = mock[T[M[A]]]
+    val f = mock[A => F[B]]
+    val tma = mock[T[F[A]]]
 
-    typed[M[T[B]]](M.parTraverseN(n)(ta)(f))
-    typed[M[T[A]]](M.parSequenceN(n)(tma))
+    typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
+    typed[F[T[A]]](F.parSequenceN(n)(tma))
   }
 
-  def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
+  def concurrentSyntax[T[_]: Traverse, F[_], G[_], A, B](implicit F: Concurrent[F], P: Parallel[F, G], timer: Timer[F]) = {
     val fa  = mock[F[A]]
     val fa2 = mock[F[A]]
     val fb  = mock[F[B]]
@@ -62,6 +62,14 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]](fa.racePair(fb))
     typed[F[A]](fa.timeout(1.second))
     typed[F[A]](fa.timeoutTo(1.second, fa2))
+
+    val n = mock[Long]
+    val ta = mock[T[A]]
+    val f = mock[A => F[B]]
+    val tma = mock[T[F[A]]]
+
+    typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
+    typed[F[T[A]]](F.parSequenceN(n)(tma))
   }
   
   def effectSyntax[F[_]: Effect, A] = {
