@@ -48,26 +48,18 @@ IO.never *> IO(println("done"))
 
 The above will never print "done", block a thread (unless `.unsafeRunSync` is run on it), or consume CPU after its creation.
 
-### Logical thread
-
-A JVM Thread, this is what we create with `new Thread()`. It is possible to create many logical threads.
-
-### Native thread
-
-An operating system thread.  This is an extremely scarce resource, usually equal to the number of processor cores.
-
 ## Threads
 
 ### Threading (on JVM)
 
-Threads in JVM map 1:1 to the operating system's native threads. It doesn't mean we cannot have more logical threads
-in our programs, but if we have 4 cores we can execute up to 4 threads at the same time.
+Threads in JVM map 1:1 to the operating system's native threads. Calling `new Thread()` also creates an operating system thread.
+We can create many of them (as long as we can fit them in the memory) but we can only execute 1 per core at the given time. 
 Others have to wait for their turn.
 
 If we try to run too many threads at once we will suffer because of many **context switches**.
 Before any thread can start doing real work, the OS needs to store state of earlier task and restore the state
 for the current one. This cleanup has nontrivial cost. The most efficient situation for CPU-bound tasks
-is when we execute as many logical threads as the number of available native threads.
+is when we execute as many threads as the number of available cores because we can avoid this overhead.
 
 For the above reasons, synchronous execution can have better throughput than parallel execution. If you parallelize it
 too much, it won't make your code magically faster.  The overhead of creating or switching threads is often greater than the speedup, so make sure to benchmark.
@@ -242,7 +234,9 @@ prog.unsafeRunSync()
 
 Now it will keep printing both `1` and `2` but neither `11` nor `22`. What changed?
 Those thread pools are independent and interleave because of thread scheduling done by the operating system.
-Let's get it right:
+Basically the thread pool decides which task gets a thread to run but OS decided what is actually running on the CPU.
+
+Let's introduce asynchronous boundaries:
 
 ```scala
 def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
