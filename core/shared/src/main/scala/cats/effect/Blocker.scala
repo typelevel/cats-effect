@@ -31,20 +31,20 @@ import cats.data.NonEmptyList
  *
  * Instances of this class should *not* be passed implicitly.
  */
-final class Blocker private (val context: ExecutionContext) {
+final class Blocker private (val blockingContext: ExecutionContext) {
 
   /**
    * Like `Sync#delay` but the supplied thunk is evaluated on the blocking
    * execution context.
    */
   def delay[F[_], A](thunk: => A)(implicit F: Sync[F], cs: ContextShift[F]): F[A] =
-    eval(F.delay(thunk))
+    evalOn(F.delay(thunk))
 
   /**
    * Evaluates the supplied task on the blocking execution context via `evalOn`.
    */
-  def eval[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
-    cs.evalOn(context)(fa)
+  def evalOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
+    cs.evalOn(blockingContext)(fa)
 }
 
 object Blocker {
@@ -54,7 +54,11 @@ object Blocker {
    */
   def apply[F[_]](implicit F: Sync[F]): Resource[F, Blocker] =
     fromExecutorService(F.delay(Executors.newCachedThreadPool(new ThreadFactory {
-      def newThread(r: Runnable) = new Thread(r, "cats-effect-blocker")
+      def newThread(r: Runnable) = {
+        val t = new Thread(r, "cats-effect-blocker")
+        t.setDaemon(true)
+        t
+      }
     })))
 
   /**
@@ -69,20 +73,24 @@ object Blocker {
   def fromExecutorService[F[_]](makeExecutorService: F[ExecutorService])(implicit F: Sync[F]): Resource[F, Blocker] =
     Resource.make(makeExecutorService) { ec =>
         val tasks = F.delay {
-          val tasks = ec.shutdownNow().asScala.toList
-          NonEmptyList.fromList(tasks)
+          val tasks = ec.shutdownNow()
+          val b = List.newBuilder[Runnable]
+          val itr = tasks.iterator
+          while (itr.hasNext)
+            b += itr.next
+          NonEmptyList.fromList(b.result)
         }
         F.flatMap(tasks) {
           case Some(t) => F.raiseError(new OutstandingTasksAtShutdown(t))
           case None => F.unit
         }
-    }.map(es => wrapExecutorService(es))
+    }.map(es => liftExecutorService(es))
 
   /**
    * Creates a blocker that delegates to the supplied executor service.
    */
-  def wrapExecutorService(es: ExecutorService): Blocker =
-    wrapExecutionContext(ExecutionContext.fromExecutorService(es))
+  def liftExecutorService(es: ExecutorService): Blocker =
+    liftExecutionContext(ExecutionContext.fromExecutorService(es))
 
   /**
    * Creates a blocker that delegates to the supplied execution context.
@@ -90,7 +98,7 @@ object Blocker {
    * This must not be used with general purpose contexts like
    * `scala.concurrent.ExecutionContext.Implicits.global'.
    */
-  def wrapExecutionContext(ec: ExecutionContext): Blocker = new Blocker(ec)
+  def liftExecutionContext(ec: ExecutionContext): Blocker = new Blocker(ec)
 
   /** Thrown if there are tasks queued in the thread pool at the time a `Blocker` is finalized. */
   final class OutstandingTasksAtShutdown(val tasks: NonEmptyList[Runnable]) extends IllegalStateException("There were outstanding tasks at time of shutdown of the thread pool")

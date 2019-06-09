@@ -125,7 +125,7 @@ object MyApp extends IOApp {
     val name = Blocker[IO].use { blocker =>
       readName[IO](blocker)
     }
-    
+
     for {
       n <- name
       _ <- IO(println(s"Hello, $n!"))
