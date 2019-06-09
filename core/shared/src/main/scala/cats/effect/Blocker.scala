@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory}
 import cats.data.NonEmptyList
