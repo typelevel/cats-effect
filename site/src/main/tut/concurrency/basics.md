@@ -234,7 +234,7 @@ prog.unsafeRunSync()
 
 Now it will keep printing both `1` and `2` but neither `11` nor `22`. What changed?
 Those thread pools are independent and interleave because of thread scheduling done by the operating system.
-Basically the thread pool decides which task gets a thread to run but OS decided what is actually running on the CPU.
+Basically, the thread pool decides which task gets a thread to run but the OS decides what is actually evaluating on the CPU.
 
 Let's introduce asynchronous boundaries:
 
