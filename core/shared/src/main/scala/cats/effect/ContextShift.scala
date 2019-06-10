@@ -68,10 +68,9 @@ trait ContextShift[F[_]] {
    * back to the default execution environment of `F` at the completion of `fa`,
    * regardless of success or failure.
    *
-   * The primary use case for this method is executing blocking code on a
-   * dedicated execution context, though it can also be used with libraries
-   * that require execution on a specific execution context. For the blocking
-   * use case, consider using the `evalOn(blocker)` overload instead.
+   * The primary use case for this method is executing code on a
+   * specific execution context. To execute blocking code, consider using
+   * the `evalOn(blocker)` overload instead.
    *
    * @param ec Execution context where the evaluation has to be scheduled
    * @param fa  Computation to evaluate using `ec`
