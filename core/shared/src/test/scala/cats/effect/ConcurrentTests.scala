@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.Eq
 import cats.effect.concurrent.Ref
+import cats.effect.implicits._
 import cats.implicits._
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AsyncFunSuite
@@ -39,10 +40,35 @@ class ConcurrentTests extends AsyncFunSuite with Matchers {
 
   private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture
 
-  test("parSequenceN") {
+  test("F.parTraverseN(n)(collection)(f)") {
     val finalValue = 100
     val r = Ref.unsafe[IO, Int](0)
-    val modifies = Concurrent.parSequenceN(3)(List.fill(finalValue)(IO.shift *> r.update(_ + 1)))
+    val list = List.range(0, finalValue)
+    val modifies = implicitly[Concurrent[IO]].parTraverseN(3)(list)(_ => IO.shift *> r.update(_ + 1))
+    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+  }
+
+  test("collection.parTraverseN(n)(f)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val list = List.range(0, finalValue)
+    val modifies = list.parTraverseN(3)(_ => IO.shift *> r.update(_ + 1))
+    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+  }
+
+  test("F.parSequenceN(n)(collection)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val list = List.fill(finalValue)(IO.shift *> r.update(_ + 1))
+    val modifies = implicitly[Concurrent[IO]].parSequenceN(3)(list)
+    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+  }
+
+  test("collection.parSequenceN(n)") {
+    val finalValue = 100
+    val r = Ref.unsafe[IO, Int](0)
+    val list = List.fill(finalValue)(IO.shift *> r.update(_ + 1))
+    val modifies = list.parSequenceN(3)
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
   }
 
