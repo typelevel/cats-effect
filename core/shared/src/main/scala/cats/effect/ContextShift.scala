@@ -50,14 +50,28 @@ trait ContextShift[F[_]] {
   def shift: F[Unit]
 
   /**
-   * Evaluates `fa` on the supplied execution context and shifts evaluation
+   * Evaluates `fa` on the supplied blocker and shifts evaluation
    * back to the default execution environment of `F` at the completion of `fa`,
    * regardless of success or failure.
    *
    * The primary use case for this method is executing blocking code on a
    * dedicated execution context.
    *
-   * See [[Blocker]], which provides a newtype for blocking execution contexts.
+   * @param blocker blocker where the evaluation has to be scheduled
+   * @param fa  Computation to evaluate using `blocker`
+   */
+  def evalOn[A](blocker: Blocker)(fa: F[A]): F[A] =
+    evalOn(blocker.blockingContext)(fa)
+
+  /**
+   * Evaluates `fa` on the supplied execution context and shifts evaluation
+   * back to the default execution environment of `F` at the completion of `fa`,
+   * regardless of success or failure.
+   *
+   * The primary use case for this method is executing blocking code on a
+   * dedicated execution context, though it can also be used with libraries
+   * that require execution on a specific execution context. For the blocking
+   * use case, consider using the `evalOn(blocker)` overload instead.
    *
    * @param ec Execution context where the evaluation has to be scheduled
    * @param fa  Computation to evaluate using `ec`

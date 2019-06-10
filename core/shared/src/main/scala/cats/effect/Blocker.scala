@@ -43,7 +43,7 @@ final class Blocker private (val blockingContext: ExecutionContext) {
    * Evaluates the supplied task on the blocking execution context via `evalOn`.
    */
   def evalOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
-    cs.evalOn(blockingContext)(fa)
+    cs.evalOn(this)(fa)
 }
 
 object Blocker {
