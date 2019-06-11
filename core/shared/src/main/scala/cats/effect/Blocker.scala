@@ -30,19 +30,19 @@ import cats.effect.internals.BlockerPlatform
  *
  * Instances of this class should *not* be passed implicitly.
  */
-final class Blocker private (val blockingContext: ExecutionContext) {
+final class Blocker private (val blockingContext: ExecutionContext) extends AnyVal {
 
   /**
    * Like `Sync#delay` but the supplied thunk is evaluated on the blocking
    * execution context.
    */
   def delay[F[_], A](thunk: => A)(implicit F: Sync[F], cs: ContextShift[F]): F[A] =
-    evalOn(F.delay(thunk))
+    blockOn(F.delay(thunk))
 
   /**
-   * Evaluates the supplied task on the blocking execution context via `evalOn`.
+   * Evaluates the supplied task on the blocking execution context via `blockOn`.
    */
-  def evalOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
+  def blockOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
     cs.evalOn(this.blockingContext)(fa)
 }
 

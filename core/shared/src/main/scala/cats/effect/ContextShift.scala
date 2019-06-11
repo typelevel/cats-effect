@@ -56,7 +56,7 @@ trait ContextShift[F[_]] {
    *
    * The primary use case for this method is executing code on a
    * specific execution context. To execute blocking code, consider using
-   * the `evalOn(blocker)` overload instead.
+   * the `blockOn(blocker)` method instead.
    *
    * @param ec Execution context where the evaluation has to be scheduled
    * @param fa  Computation to evaluate using `ec`
