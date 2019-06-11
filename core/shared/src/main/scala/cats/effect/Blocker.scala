@@ -40,7 +40,7 @@ final class Blocker private (val blockingContext: ExecutionContext) extends AnyV
     blockOn(F.delay(thunk))
 
   /**
-   * Evaluates the supplied task on the blocking execution context via `evalOn`.
+   * Evaluates the supplied task on the blocking execution context via `blockOn`.
    */
   def blockOn[F[_], A](fa: F[A])(implicit cs: ContextShift[F]): F[A] =
     cs.blockOn(this)(fa)
