@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.arrow.FunctionK
 import cats.effect.internals._
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
@@ -845,10 +844,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       final override val monad: Monad[IO] =
         ioConcurrentEffect(cs)
 
-      final override val sequential: IO.Par ~> IO =
-        new FunctionK[IO.Par, IO] { def apply[A](fa: IO.Par[A]): IO[A] = IO.Par.unwrap(fa) }
-      final override val parallel: IO ~> IO.Par =
-        new FunctionK[IO, IO.Par] { def apply[A](fa: IO[A]): IO.Par[A] = IO.Par(fa) }
+      final override val sequential: IO.Par ~> IO = λ[IO.Par ~> IO](IO.Par.unwrap(_))
+
+      final override val parallel: IO ~> IO.Par = λ[IO ~> IO.Par](IO.Par(_))
+
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
