@@ -880,9 +880,9 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *
  *         {{{
  *           import cats.effect.{IO, ContextShift}
- *           import scala.concurrent.ExecutionContext.Implicits.global
  *
- *           val contextShift = IO.contextShift(global)
+ *           val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(...))
+ *           val contextShift = IO.contextShift(ec)
  *         }}}
  *
  *         For example we can introduce an asynchronous
