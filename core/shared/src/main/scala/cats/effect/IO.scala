@@ -1203,6 +1203,10 @@ object IO extends IOInstances {
   def fromFuture[A](iof: IO[Future[A]])(implicit cs: ContextShift[IO]): IO[A] =
     iof.flatMap(IOFromFuture.apply).guarantee(cs.shift)
 
+  @deprecated("Use the variant that takes an implicit ContextShift.", "2.0.0")
+  private[effect] def fromFuture[A](iof: IO[Future[A]]): IO[A] =
+    iof.flatMap(IOFromFuture.apply)
+
   /**
    * Lifts an `Either[Throwable, A]` into the `IO[A]` context, raising
    * the throwable if it exists.
