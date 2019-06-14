@@ -52,6 +52,11 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
    * in `F`.
    */
   def delay[A](thunk: => A): F[A] = suspend(pure(thunk))
+
+  /**
+    * Alias for `delay` that lifts any by-name parameter into the `F` context.
+    */
+  def apply[A](thunk: => A): F[A] = delay(thunk)
 }
 
 object Sync {
