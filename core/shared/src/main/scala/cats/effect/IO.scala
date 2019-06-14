@@ -1204,7 +1204,7 @@ object IO extends IOInstances {
     iof.flatMap(IOFromFuture.apply).guarantee(cs.shift)
 
   @deprecated("Use the variant that takes an implicit ContextShift.", "2.0.0")
-  private[effect] def fromFuture[A](iof: IO[Future[A]]): IO[A] =
+  private[IO] def fromFuture[A](iof: IO[Future[A]]): IO[A] =
     iof.flatMap(IOFromFuture.apply)
 
   /**

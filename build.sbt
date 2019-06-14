@@ -157,7 +157,8 @@ val mimaSettings = Seq(
   mimaPreviousArtifacts := {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 13)) => Set.empty
-      case _ => Set(organization.value %% name.value % "1.0.0")
+      case Some((2, 12)) => Set(organization.value %% name.value % "1.0.0")
+      case _             => Set.empty
     }
   },
   mimaBinaryIssueFilters ++= {
