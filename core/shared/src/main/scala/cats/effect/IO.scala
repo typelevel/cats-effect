@@ -906,7 +906,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *
  *           IO.shift *> task
  *           // equivalent to
- *           implicitly[ContextShift[IO]].shift *> task
+ *           ContextShift[IO].shift *> task
  *         }}}
  *
  *         Or we can specify an asynchronous boundary ''after'' the
