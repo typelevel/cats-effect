@@ -862,17 +862,51 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 }
 
 /**
- * @define shiftDesc For example we can introduce an asynchronous
+ * @define shiftDesc Note there are 2 overloads of the `IO.shift` function:
+ *
+ *         - One that takes a `ContextShift` that manages the
+ *           thread-pool used to trigger async boundaries.
+ *         - Another that takes a Scala `ExecutionContext` as the
+ *           thread-pool.
+ *
+ *         Please use the former by default and use the latter
+ *         only for fine-grained control over the thread pool in
+ *         use.
+ *
+ *         By default, Cats Effect can provide instance of
+ *         `ContextShift[IO]` that manages thread-pools, but
+ *         only if there’s an `ExecutionContext` in scope or
+ *         if `IOApp` is used:
+ *
+ *         {{{
+ *           import cats.effect.{IO, ContextShift}
+ *           import scala.concurrent.ExecutionContext.Implicits.global
+ *
+ *           val contextShift = IO.contextShift(global)
+ *         }}}
+ *
+ *         For example we can introduce an asynchronous
  *         boundary in the `flatMap` chain before a certain task:
+ *         {{{
+ *           val task = IO(println("task"))
+ *
+ *           IO.shift(contextShift).flatMap(_ => task)
+ *         }}}
+ *
+ *         Note that the ContextShift value is taken implicitly
+ *         from the context so you can just do this:
+ *
  *         {{{
  *           IO.shift.flatMap(_ => task)
  *         }}}
  *
  *         Or using Cats syntax:
  *         {{{
- *           import cats.syntax.all._
+ *           import cats.syntax.apply._
  *
  *           IO.shift *> task
+ *           // equivalent to
+ *           implicitly[ContextShift[IO]].shift *> task
  *         }}}
  *
  *         Or we can specify an asynchronous boundary ''after'' the
@@ -884,6 +918,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *         Or using Cats syntax:
  *         {{{
  *           task <* IO.shift
+ *           // equivalent to
+ *          task <* implicitly[ContextShift[IO]].shift
  *         }}}
  *
  *         Example of where this might be useful:
@@ -951,13 +987,13 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *          - preventing an overflow of the call stack in the case of
  *            improperly constructed `async` actions
  *
- *         Note there are 2 overloads of this function:
+ *          Note there are 2 overloads of this function:
  *
  *          - one that takes an [[Timer]] ([[IO.shift(implicit* link]])
  *          - one that takes a Scala `ExecutionContext` ([[IO.shift(ec* link]])
  *
- *         Use the former by default, use the later for fine grained
- *         control over the thread pool used.
+ *          Use the former by default, use the later for fine grained
+ *          control over the thread pool used.
  */
 object IO extends IOInstances {
 
@@ -1227,9 +1263,6 @@ object IO extends IOInstances {
    * Asynchronous boundary described as an effectful `IO`, managed
    * by the provided [[ContextShift]].
    *
-   * This operation can be used in `flatMap` chains to "shift" the
-   * continuation of the run-loop to another thread or call stack.
-   *
    * $shiftDesc
    *
    * @param cs is the [[ContextShift]] that's managing the thread-pool
@@ -1241,9 +1274,6 @@ object IO extends IOInstances {
   /**
    * Asynchronous boundary described as an effectful `IO`, managed
    * by the provided Scala `ExecutionContext`.
-   *
-   * This operation can be used in `flatMap` chains to "shift" the
-   * continuation of the run-loop to another thread or call stack.
    *
    * $shiftDesc
    *
