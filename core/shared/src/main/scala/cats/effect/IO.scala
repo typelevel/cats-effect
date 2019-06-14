@@ -919,7 +919,7 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
  *         {{{
  *           task <* IO.shift
  *           // equivalent to
- *          task <* implicitly[ContextShift[IO]].shift
+ *          task <* ContextShift[IO].shift
  *         }}}
  *
  *         Example of where this might be useful:
