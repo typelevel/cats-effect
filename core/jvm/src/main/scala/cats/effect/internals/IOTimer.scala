@@ -67,8 +67,8 @@ private[internals] object IOTimer {
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     new IOTimer(ec, sc)
 
-  private[internals] lazy val scheduler: ScheduledExecutorService =
-    Executors.newScheduledThreadPool(2, new ThreadFactory {
+  private[internals] lazy val scheduler: ScheduledExecutorService = {
+    val tp = Executors.newScheduledThreadPool(2, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
         th.setName(s"cats-effect-scheduler-${th.getId}")
@@ -76,6 +76,9 @@ private[internals] object IOTimer {
         th
       }
     })
+    tp.setRemoveOnCancelPolicy(true)
+    tp
+  }
 
   private final class ShiftTick(
     conn: IOConnection,
