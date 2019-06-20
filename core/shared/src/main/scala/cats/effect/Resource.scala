@@ -326,6 +326,12 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.suspend(fa.map(a => Resource.pure(a)))
 
   /**
+   * Lifts an applicative into a resource as a `FunctionK`.  The resource has a no-op release.
+   */
+  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, ?] =
+    λ[F ~> Resource[F, ?]](Resource.liftF(_))
+
+  /**
     * Creates a [[Resource]] by wrapping a Java
     * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
     *
