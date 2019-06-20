@@ -115,6 +115,12 @@ class ResourceTests extends BaseTestsSuite {
     res.value shouldBe Some(Success(ExitCase.Canceled))
   }
 
+  testAsync("liftF(fa) <-> liftK.apply(fa)") { implicit ec =>
+    check { (fa: IO[String], f: String => IO[Int]) =>
+      Resource.liftF(fa).use(f) <-> Resource.liftK[IO].apply(fa).use(f)
+    }
+  }
+
   testAsync("evalMap") { implicit ec =>
     check { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
