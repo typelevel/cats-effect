@@ -19,7 +19,7 @@ package cats.effect
 import cats.syntax.apply._
 import cats.syntax.applicative._
 import cats.syntax.flatMap._
-import cats.{Applicative, Apply, Monoid, Semigroup, ~>}
+import cats.{Alternative, Applicative, Apply, Monoid, Semigroup, ~>}
 
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
@@ -98,7 +98,11 @@ object Fiber extends FiberInstances {
 
 private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
 
-  implicit def fiberApplicative[F[_]](implicit F: Concurrent[F]): Applicative[Fiber[F, ?]] = new Applicative[Fiber[F, ?]] {
+  private case object Empty extends RuntimeException("Empty")
+
+  implicit def fiberAlternative[F[_]](implicit F: Concurrent[F]): Alternative[Fiber[F, ?]] = new Alternative[Fiber[F, ?]] {
+    private def cancelBoth[A,  B](f1: Fiber[F, A], f2: Fiber[F, B]) = F.map2(f1.cancel, f2.cancel)((_, _) => ())
+
     final override def pure[A](x: A): Fiber[F, A] =
       Fiber(F.pure(x), F.unit)
     final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
@@ -111,7 +115,7 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
           case Left((a, fiberB)) => (a.pure[F], fiberB.join).mapN(f)
           case Right((fiberA, b)) => (fiberA.join, b.pure[F]).mapN(f)
         },
-        F.map2(fa.cancel, fb.cancel)((_, _) => ()))
+        cancelBoth(fa, fb))
     }
     final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
       map2(fa, fb)((_, _))
@@ -119,6 +123,20 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
       Fiber(F.map(fa.join)(f), fa.cancel)
     final override val unit: Fiber[F, Unit] =
       Fiber(F.unit, F.unit)
+
+    final override def empty[A] = Fiber(F.raiseError(Empty), F.unit)
+    final override def combineK[A](x: Fiber[F, A], y: Fiber[F, A]) = {
+      val fa = F.attempt(x.join)
+      val fb = F.attempt(y.join)
+      Fiber(
+        F.racePair(fa, fb).flatMap {
+          case Left((Left(ex), fiberB))  => F.adaptError(F.rethrow(fiberB.join)) { case Empty => ex }
+          case Left((Right(a), fiberB))  => F.map(fiberB.cancel)(_ => a)
+          case Right((fiberA, Left(ey))) => F.adaptError(F.rethrow(fiberA.join)) { case Empty => ey }
+          case Right((fiberA, Right(b))) => F.map(fiberA.cancel)(_ => b)
+        },
+        cancelBoth(x, y))
+    }
   }
 
   implicit def fiberMonoid[F[_]: Concurrent, M[_], A: Monoid]: Monoid[Fiber[F, A]] =
