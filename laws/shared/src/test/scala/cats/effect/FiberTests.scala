@@ -20,7 +20,7 @@ package effect
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.kernel.laws.discipline.{MonoidTests, SemigroupTests}
-import cats.laws.discipline.ApplicativeTests
+import cats.laws.discipline.AlternativeTests
 import org.scalacheck.{Arbitrary, Cogen}
 
 import scala.concurrent.Promise
@@ -35,8 +35,8 @@ class FiberTests extends BaseTestsSuite {
 
   checkAllAsync("Fiber[IO, ?]", implicit ec => {
     implicit val cs = ec.contextShift[IO]
-    ApplicativeTests[Fiber[IO, ?]].applicative[Int, Int, Int]
-  })
+    AlternativeTests[Fiber[IO, ?]].alternative[Int, Int, Int]
+  }, deterministic = true)
 
   checkAllAsync("Fiber[IO, ?]", implicit ec => {
     implicit val cs = ec.contextShift[IO]
