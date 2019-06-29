@@ -19,7 +19,7 @@ package effect
 
 import simulacrum._
 
-import cats.data.{EitherT, IorT, Kleisli, OptionT, StateT, WriterT}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, StateT, WriterT, ReaderWriterStateT}
 
 import scala.annotation.implicitNotFound
 
@@ -80,6 +80,13 @@ object LiftIO {
   implicit def catsIorTLiftIO[F[_]: LiftIO: Applicative, L]: LiftIO[IorT[F, L, ?]] =
     new IorTLiftIO[F, L] { def F = LiftIO[F]; def FA = Applicative[F] }
 
+  /**
+    * [[LiftIO]] instance built for `cats.data.ReaderWriterStateT` values initialized
+    * with any `F` data type that also implements `LiftIO`.
+    */
+  implicit def catsReaderWriterStateTLiftIO[F[_]: LiftIO: Applicative, E, L: Monoid, S]: LiftIO[ReaderWriterStateT[F, E, L, S, ?]] =
+    new ReaderWriterStateTLiftIO[F, E, L, S] { def F = LiftIO[F]; def FA = Applicative[F]; def L = Monoid[L] }
+
   private[effect] trait EitherTLiftIO[F[_], L] extends LiftIO[EitherT[F, L, ?]] {
     protected implicit def F: LiftIO[F]
     protected def FF: Functor[F]
@@ -127,4 +134,14 @@ object LiftIO {
     override def liftIO[A](ioa: IO[A]): IorT[F, L, A] =
       IorT.liftF(F.liftIO(ioa))(FA)
   }
+
+  private[effect] trait ReaderWriterStateTLiftIO[F[_], E, L, S] extends LiftIO[ReaderWriterStateT[F, E, L, S, ?]] {
+    protected implicit def F: LiftIO[F]
+    protected implicit def L: Monoid[L]
+    protected def FA: Applicative[F]
+
+    override def liftIO[A](ioa: IO[A]): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT.liftF(F.liftIO(ioa))(FA, L)
+  }
+
 }

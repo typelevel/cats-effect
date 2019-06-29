@@ -98,6 +98,13 @@ object Sync {
   implicit def catsIorTSync[F[_]: Sync, L: Semigroup]: Sync[IorT[F, L, ?]] =
     new IorTSync[F, L] { def F = Sync[F]; def L = Semigroup[L] }
 
+  /**
+    * [[Sync]] instance built for `cats.data.ReaderWriterStateT` values initialized
+    * with any `F` data type that also implements `Sync`.
+    */
+  implicit def catsReaderWriteStateTSync[F[_]: Sync, E, L: Monoid, S]: Sync[ReaderWriterStateT[F, E, L, S, ?]] =
+    new ReaderWriterStateTSync[F, E, L, S] { def F = Sync[F]; def L = Monoid[L] }
+
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
     protected implicit def F: Sync[F]
 
@@ -350,5 +357,51 @@ object Sync {
 
     override def uncancelable[A](fa: IorT[F, L, A]): IorT[F, L, A] =
       IorT(F.uncancelable(fa.value))
+  }
+
+  private[effect] trait ReaderWriterStateTSync[F[_], E, L, S] extends Sync[ReaderWriterStateT[F, E, L, S, ?]] {
+    protected implicit def F: Sync[F]
+    protected implicit def L: Monoid[L]
+
+    def pure[A](x: A): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT.pure(x)
+
+    def handleErrorWith[A](fa: ReaderWriterStateT[F, E, L, S, A])(f: Throwable => ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT((e, s) => F.handleErrorWith(fa.run(e, s))(f.andThen(_.run(e, s))))
+
+    def raiseError[A](e: Throwable): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT.liftF(F.raiseError(e))
+
+    def bracketCase[A, B](acquire: ReaderWriterStateT[F, E, L, S, A])
+                         (use: A => ReaderWriterStateT[F, E, L, S, B])
+                         (release: (A, ExitCase[Throwable]) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, B] =
+      ReaderWriterStateT.liftF(Ref[F].of[(L, Option[S])]((L.empty, None))).flatMap { ref =>
+        ReaderWriterStateT { (e, startS) =>
+          F.bracketCase(acquire.run(e, startS)) { case (_, s, a) =>
+            use(a).run(e, s).flatTap { case (l, s, _) => ref.set((l, Some(s))) }
+          } {
+            case ((_, oldS, a), ExitCase.Completed) =>
+              ref.get.map(_._2.getOrElse(oldS))
+                .flatMap(s => release(a, ExitCase.Completed).run(e, s))
+                .flatMap { case (l, s, _) => ref.set((l, Some(s))) }
+            case ((_, s, a), ec) =>
+              release(a, ec).run(e, s).void
+          }.flatMap { case (l, s, b) =>
+            ref.get.map { case (l2, s2) => (l |+| l2, s2.getOrElse(s), b) }
+          }
+        }
+      }
+
+    def flatMap[A, B](fa: ReaderWriterStateT[F, E, L, S, A])(f: A => ReaderWriterStateT[F, E, L, S, B]): ReaderWriterStateT[F, E, L, S, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => ReaderWriterStateT[F, E, L, S, Either[A, B]]): ReaderWriterStateT[F, E, L, S, B] =
+      IndexedReaderWriterStateT.catsDataMonadForRWST[F, E, L, S].tailRecM(a)(f)
+
+    def suspend[A](thunk: => ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT((e, s) => F.suspend(thunk.run(e, s)))
+
+    override def uncancelable[A](fa: ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT((e, s) => F.uncancelable(fa.run(e, s)))
   }
 }
