@@ -377,8 +377,8 @@ object Sync {
                          (release: (A, ExitCase[Throwable]) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, B] =
       ReaderWriterStateT.liftF(Ref[F].of[(L, Option[S])]((L.empty, None))).flatMap { ref =>
         ReaderWriterStateT { (e, startS) =>
-          F.bracketCase(acquire.run(e, startS)) { case (_, s, a) =>
-            use(a).run(e, s).flatTap { case (l, s, _) => ref.set((l, Some(s))) }
+          F.bracketCase(acquire.run(e, startS)) { case (l, s, a) =>
+            ReaderWriterStateT.pure[F, E, L, S, A](a).tell(l).flatMap(use).run(e, s).flatTap { case (l, s, _) => ref.set((l, Some(s))) }
           } {
             case ((_, oldS, a), ExitCase.Completed) =>
               ref.get.map(_._2.getOrElse(oldS))
