@@ -31,7 +31,7 @@ trait ContextShift[F[_]] {
 }
 ```
 
-N.B. this is NOT a type class, meaning that there is no coherence restriction. 
+Important: this is NOT a type class, meaning that there is no coherence restriction. 
 This is because the ability to customize the thread-pool used for `shift` is 
 essential on top of the JVM at least.
 

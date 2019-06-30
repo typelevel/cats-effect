@@ -22,7 +22,7 @@ This type class allows the modeling of data types that:
 - Can emit one result on completion.
 - Can end in error
 
-N.B. on the "one result" signaling, this is not an "exactly once" requirement. At this point streaming types can implement `Async` and such an "exactly once" requirement is only clear in `Effect`.
+Important: on the "one result" signaling, this is not an "exactly once" requirement. At this point streaming types can implement `Async` and such an "exactly once" requirement is only clear in `Effect`.
 
 Therefore the signature exposed by the `Async.async` builder is this:
 
@@ -30,7 +30,7 @@ Therefore the signature exposed by the `Async.async` builder is this:
 (Either[Throwable, A] => Unit) => Unit
 ```
 
-N.B. such asynchronous processes are not cancelable. See the `Concurrent` alternative for that.
+Important: such asynchronous processes are not cancelable. See the `Concurrent` alternative for that.
 
 ### On Asynchrony
 
@@ -56,7 +56,7 @@ And many times the abstractions built to deal with asynchronous tasks also provi
 (A => Unit) => Cancelable
 ```
 
-This is approximately the signature of JavaScript's `setTimeout`, which will return a "task ID" that can be used to cancel it. N.B. this type class in particular is NOT describing cancelable async processes, see the `Concurrent` type class for that.
+This is approximately the signature of JavaScript's `setTimeout`, which will return a "task ID" that can be used to cancel it. Important: this type class in particular is NOT describing cancelable async processes, see the `Concurrent` type class for that.
 
 ### async
 

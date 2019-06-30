@@ -249,7 +249,7 @@ So it is similar with `IO.async`, but in that registration function
 the user is expected to provide an `IO[Unit]` that captures the
 required cancellation logic.
 
-N.B. cancellation is the ability to interrupt an `IO` task before
+Important: cancellation is the ability to interrupt an `IO` task before
 completion, possibly releasing any acquired resources, useful in race
 conditions to prevent leaks.
 
@@ -402,7 +402,7 @@ def sleep(d: FiniteDuration)
 }
 ```
 
-N.B. if you don't specify cancellation logic for a task, then the task
+Important: if you don't specify cancellation logic for a task, then the task
 is NOT cancelable. So for example, using Java's blocking I/O still:
 
 ```tut:silent
