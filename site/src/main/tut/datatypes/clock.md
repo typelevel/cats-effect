@@ -38,7 +38,7 @@ trait Clock[F[_]] {
 }
 ```
 
-N.B. this is NOT a type class, meaning that there is no coherence restriction. 
+Important: this is NOT a type class, meaning that there is no coherence restriction. 
 This is because the ability to inject custom implementations in time-based
 logic is essential.
 
