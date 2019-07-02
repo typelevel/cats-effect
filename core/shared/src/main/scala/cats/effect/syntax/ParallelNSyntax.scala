@@ -20,8 +20,6 @@ import cats.effect.Concurrent
 import cats.effect.implicits._
 import cats.{Monad, Parallel, Traverse}
 
-import scala.language.{higherKinds, implicitConversions}
-
 trait ParallelNSyntax {
 
   implicit final def catsSyntaxParallelTraverseNConcurrent[T[_]: Traverse, A](ta: T[A]): ParallelTraversableNConcurrentOps[T, A] =
