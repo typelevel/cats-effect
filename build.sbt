@@ -178,7 +178,8 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
     )
-  })
+  },
+  mimaFailOnNoPrevious := false)
 
 // We broke binary compatibily for laws in 2.0
 val lawsMimaSettings = mimaSettings ++ Seq(
