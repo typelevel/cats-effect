@@ -97,17 +97,25 @@ object Fiber extends FiberInstances {
 }
 
 private[effect] abstract class FiberInstances extends FiberLowPriorityInstances {
+  implicit def fiberAlternative[F[_]](implicit F: Concurrent[F]): Alternative[Fiber[F, ?]] = new FiberAlternative[F]
+
+  implicit def fiberMonoid[F[_]: Concurrent, M[_], A: Monoid]: Monoid[Fiber[F, A]] =
+    Applicative.monoid[Fiber[F, ?], A]
+}
+
+private[effect] abstract class FiberLowPriorityInstances {
+  implicit def fiberSemigroup[F[_]: Concurrent, A: Semigroup]: Semigroup[Fiber[F, A]] =
+    Apply.semigroup[Fiber[F, ?], A]
+
+  implicit def fiberApplicative[F[_]](implicit F: Concurrent[F]): Applicative[Fiber[F, ?]] = new FiberAlternative[F]
 
   private case object Empty extends RuntimeException("Empty")
-
-  implicit def fiberAlternative[F[_]](implicit F: Concurrent[F]): Alternative[Fiber[F, ?]] = new Alternative[Fiber[F, ?]] {
+  protected final class FiberAlternative[F[_]](implicit F: Concurrent[F]) extends Alternative[Fiber[F, ?]] {
     private def cancelBoth[A,  B](f1: Fiber[F, A], f2: Fiber[F, B]) = F.map2(f1.cancel, f2.cancel)((_, _) => ())
 
-    final override def pure[A](x: A): Fiber[F, A] =
-      Fiber(F.pure(x), F.unit)
-    final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
-      map2(ff, fa)(_(_))
-    final override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] = {
+    override def pure[A](x: A): Fiber[F, A] = Fiber(F.pure(x), F.unit)
+    override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] = map2(ff, fa)(_(_))
+    override def map2[A, B, Z](fa: Fiber[F, A], fb: Fiber[F, B])(f: (A, B) => Z): Fiber[F, Z] = {
       val fa2 = F.guaranteeCase(fa.join) { case ExitCase.Error(_) => fb.cancel; case _ => F.unit }
       val fb2 = F.guaranteeCase(fb.join) { case ExitCase.Error(_) => fa.cancel; case _ => F.unit }
       Fiber(
@@ -117,15 +125,12 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
         },
         cancelBoth(fa, fb))
     }
-    final override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] =
-      map2(fa, fb)((_, _))
-    final override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] =
-      Fiber(F.map(fa.join)(f), fa.cancel)
-    final override val unit: Fiber[F, Unit] =
-      Fiber(F.unit, F.unit)
+    override def product[A, B](fa: Fiber[F, A], fb: Fiber[F, B]): Fiber[F, (A, B)] = map2(fa, fb)((_, _))
+    override def map[A, B](fa: Fiber[F, A])(f: A => B): Fiber[F, B] = Fiber(F.map(fa.join)(f), fa.cancel)
+    override val unit: Fiber[F, Unit] = Fiber(F.unit, F.unit)
 
-    final override def empty[A] = Fiber(F.raiseError(Empty), F.unit)
-    final override def combineK[A](x: Fiber[F, A], y: Fiber[F, A]) = {
+    override def empty[A] = Fiber(F.raiseError(Empty), F.unit)
+    override def combineK[A](x: Fiber[F, A], y: Fiber[F, A]) = {
       val fa = F.attempt(x.join)
       val fb = F.attempt(y.join)
       Fiber(
@@ -138,12 +143,4 @@ private[effect] abstract class FiberInstances extends FiberLowPriorityInstances 
         cancelBoth(x, y))
     }
   }
-
-  implicit def fiberMonoid[F[_]: Concurrent, M[_], A: Monoid]: Monoid[Fiber[F, A]] =
-    Applicative.monoid[Fiber[F, ?], A]
-}
-
-private[effect] abstract class FiberLowPriorityInstances {
-  implicit def fiberSemigroup[F[_]: Concurrent, A: Semigroup]: Semigroup[Fiber[F, A]] =
-    Apply.semigroup[Fiber[F, ?], A]
 }
