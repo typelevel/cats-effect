@@ -36,8 +36,8 @@ class BaseTestsSuite extends AnyFunSuite with Matchers with Checkers with Discip
     test(name, tags:_*)(silenceSystemErr(f(TestContext())))(pos)
   }
 
-  def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
-    val context = TestContext()
+  def checkAllAsync(name: String, f: TestContext => Laws#RuleSet, deterministic: Boolean = false): Unit = {
+    val context = TestContext(deterministic)
     val ruleSet = f(context)
 
     for ((id, prop) <- ruleSet.all.properties)

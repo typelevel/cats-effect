@@ -125,13 +125,13 @@ import scala.util.control.NonFatal
  *   assert(f.value == Some(Success(2))
  * }}}
  */
-final class TestContext private () extends ExecutionContext { self =>
+final class TestContext private (deterministic: Boolean) extends ExecutionContext { self =>
   import TestContext.{State, Task}
 
   private[this] var stateRef = State(
     lastID = 0,
     clock = Duration.Zero,
-    tasks = SortedSet.empty[Task],
+    tasks = SortedSet.empty[Task](Task.ordering(if (deterministic) Task.lifo else Task.fifo)),
     lastReportedFailure = None
   )
 
@@ -305,12 +305,11 @@ final class TestContext private () extends ExecutionContext { self =>
   private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>
-        val firstTick = value.runsAt
-        val forExecution = {
+        val forExecution = if (deterministic) value else  {
+          val firstTick = value.runsAt
           val arr = current.tasks.iterator.takeWhile(_.runsAt == firstTick).take(10).toArray
           arr(Random.nextInt(arr.length))
         }
-
         val remaining = current.tasks - forExecution
         Some((forExecution, remaining))
 
@@ -334,8 +333,8 @@ final class TestContext private () extends ExecutionContext { self =>
 
 object TestContext {
   /** Builder for [[TestContext]] instances. */
-  def apply(): TestContext =
-    new TestContext
+  def apply(deterministic: Boolean = false): TestContext =
+    new TestContext(deterministic)
 
   /** Used internally by [[TestContext]], represents the internal
    * state used for task scheduling and execution.
@@ -390,17 +389,16 @@ object TestContext {
    * Internal API — defines ordering for [[Task]], to be used by `SortedSet`.
    */
   private[TestContext] object Task {
-    implicit val ordering: Ordering[Task] =
-      new Ordering[Task] {
-        val longOrd = implicitly[Ordering[Long]]
+    val fifo = implicitly[Ordering[Long]]
+    val lifo = fifo.reverse
 
-        def compare(x: Task, y: Task): Int =
-          x.runsAt.compare(y.runsAt) match {
-            case nonZero if nonZero != 0 =>
-              nonZero
-            case _ =>
-              longOrd.compare(x.id, y.id)
-          }
+    def ordering(longOrd: Ordering[Long]): Ordering[Task] = new Ordering[Task] {
+      override def compare(x: Task, y: Task) = x.runsAt.compare(y.runsAt) match {
+        case nonZero if nonZero != 0 =>
+          nonZero
+        case _ =>
+          longOrd.compare(x.id, y.id)
       }
+    }
   }
 }
