@@ -501,10 +501,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * corrupted data.
    *
    * For those cases you might want to do synchronization (e.g. usage
-   * of locks and semaphores) and you might want to use [[
-   
-   
-   ]],
+   * of locks and semaphores) and you might want to use [[bracketCase]],
    * the version that allows you to differentiate between normal
    * termination and cancellation.
    *
