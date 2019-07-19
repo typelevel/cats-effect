@@ -150,7 +150,9 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary),
+
+  mimaFailOnNoPrevious := false
 )
 
 val mimaSettings = Seq(
@@ -178,8 +180,7 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
     )
-  },
-  mimaFailOnNoPrevious := false)
+  })
 
 // We broke binary compatibily for laws in 2.0
 val lawsMimaSettings = mimaSettings ++ Seq(
@@ -231,6 +232,7 @@ lazy val sharedSourcesSettings = Seq(
   })
 
 lazy val root = project.in(file("."))
+  .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(skipOnPublishSettings)
