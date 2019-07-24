@@ -750,6 +750,24 @@ private[effect] abstract class IOParallelNewtype
       final override def unit: IO.Par[Unit] =
         par(IO.unit)
     }
+
+  case object Empty extends RuntimeException("Empty")
+  private[effect] def ioParMonoidK(implicit cs: ContextShift[IO]): MonoidK[IO.Par] = new MonoidK[IO.Par] {
+    import IO.Par.{unwrap, apply => par}
+    override def empty[A] = par(IO.raiseError(Empty))
+
+    private def rethrow[A](io: IO[Either[Throwable, A]], onEmpty: Throwable): IO[A] = io.flatMap(_.fold(IO.raiseError, IO.pure)).handleErrorWith {
+      case Empty => IO.raiseError(onEmpty)
+      case otherwise => IO.raiseError(otherwise)
+    }
+    override def combineK[A](x: IO.Par[A], y: IO.Par[A]) = par(IO.racePair(unwrap(x).attempt, unwrap(y).attempt).flatMap {
+      case Left((Left(ex), fiberY))  => rethrow(fiberY.join, ex)
+      case Left((Right(a), fiberY))  => fiberY.cancel.map(_ => a)
+      case Right((fiberX, Left(ey))) => rethrow(fiberX.join, ey)
+      case Right((fiberX, Right(a))) => fiberX.cancel.map(_ => a)
+    })
+  }
+
 }
 
 private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype {
@@ -858,6 +876,8 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
     final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
       ApplicativeError[IO, Throwable].handleErrorWith(a)(_ => b)
   }
+
+  implicit def parMonoidK(implicit cs: ContextShift[IO]): MonoidK[IO.Par] = ioParMonoidK
 }
 
 /**
