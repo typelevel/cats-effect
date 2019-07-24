@@ -51,6 +51,7 @@ val program: IO[Unit] =
 program.unsafeRunSync()
 //=> hey!
 //=> hey!
+()
 ```
 
 The above example prints "hey!" twice, as the effect re-runs each time
@@ -1223,6 +1224,7 @@ program.unsafeRunSync()
 //=> Running ioB
 //=> Running ioC
 //=> Running ioA
+()
 ```
 
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:
@@ -1241,6 +1243,7 @@ parFailure.unsafeRunSync()
 //=> ioB was canceled!
 //=> java.lang.Exception: boom
 //=>  ... 43 elided
+()
 ```
 
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
