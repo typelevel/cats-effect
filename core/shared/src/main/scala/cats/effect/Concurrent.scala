@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.data._
-import cats.effect.concurrent.{Deferred, Ref}
+import cats.effect.concurrent.{Deferred, Ref, Semaphore}
 import cats.effect.ExitCase.Canceled
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.internals.Callback.{rightUnit, successUnit}
@@ -514,6 +514,47 @@ object Concurrent {
     (implicit F: Concurrent[F]): F[A] = {
 
     CancelableF(k)
+  }
+
+  /**
+    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+    */
+  def parTraverseN[T[_]: Traverse, M[_], F[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Concurrent[M], P: Parallel[M, F]): M[T[B]] =
+    for {
+      semaphore <- Semaphore(n)(M)
+      tb <- ta.parTraverse { a =>
+        semaphore.withPermit(f(a))
+      }
+    } yield tb
+
+  /**
+    * Like `Parallel.parSequence`, but limits the degree of parallelism.
+    */
+  def parSequenceN[T[_]: Traverse, M[_], F[_], A](n: Long)(tma: T[M[A]])(implicit M: Concurrent[M], P: Parallel[M, F]): M[T[A]] =
+    for {
+      semaphore <- Semaphore(n)(M)
+      mta <- tma.map(semaphore.withPermit).parSequence
+    } yield mta
+
+  /**
+   * This is the default [[Concurrent.continual]] implementation.
+   */
+  def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])
+    (implicit F: Concurrent[F]): F[B] = {
+    import cats.effect.implicits._
+    import scala.util.control.NoStackTrace
+
+    Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
+      fa.start.bracket( fiber =>
+        fiber.join.guaranteeCase {
+          case ExitCase.Completed | ExitCase.Error(_) =>
+            (fiber.join.attempt.flatMap(f)).attempt.flatMap(r.complete)
+          case _ => fiber.cancel >>
+            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+        }.attempt
+      )(_ => r.get.void)
+      .flatMap(_ => r.get.rethrow)
+    }
   }
 
   /**

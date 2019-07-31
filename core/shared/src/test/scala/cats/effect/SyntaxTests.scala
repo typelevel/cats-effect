@@ -16,7 +16,9 @@
 
 package cats.effect
 
+import cats.Traverse
 import cats.effect.syntax.AllCatsEffectSyntax
+
 import scala.concurrent.duration._
 
 object SyntaxTests extends AllCatsEffectSyntax {
@@ -38,7 +40,7 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[A]](acquire.guaranteeCase(finalCase))
   }
 
-  def concurrentSyntax[F[_]: Concurrent, A, B](implicit timer: Timer[F]) = {
+  def concurrentSyntax[T[_]: Traverse, F[_], G[_], A, B](implicit F: Concurrent[F], timer: Timer[F]) = {
     val fa  = mock[F[A]]
     val fa2 = mock[F[A]]
     val fb  = mock[F[B]]
