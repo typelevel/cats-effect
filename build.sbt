@@ -150,7 +150,9 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary),
+
+  mimaFailOnNoPrevious := false
 )
 
 val mimaSettings = Seq(
@@ -176,7 +178,9 @@ val mimaSettings = Seq(
       // Laws - https://github.com/typelevel/cats-effect/pull/473
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
+      // Static forwarder not generated. We tried. - https://github.com/typelevel/cats-effect/pull/584
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
     )
   })
 
@@ -230,6 +234,7 @@ lazy val sharedSourcesSettings = Seq(
   })
 
 lazy val root = project.in(file("."))
+  .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(skipOnPublishSettings)
