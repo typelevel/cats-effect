@@ -124,7 +124,7 @@ final class MLock(mvar: MVar[IO, Unit]) {
 
 object MLock {
   def apply(): IO[MLock] =
-    MVar[IO].empty[Unit].map(ref => new MLock(ref))
+    MVar[IO].of(()).map(ref => new MLock(ref))
 }
 ```
 
