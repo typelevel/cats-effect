@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -248,7 +252,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -463,9 +467,9 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li name="cats.effect.ResourceInstances#catsEffectLiftIOForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$1$]cats.effect.Resource[F,β$1$]]"></a><a id="catsEffectLiftIOForResource[F[_]](LiftIO[F],Applicative[F]):LiftIO[[β$1$]Resource[F,β$1$]]"></a>
+      <a id="catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$4$]cats.effect.Resource[F,β$4$]]"></a><a id="catsEffectLiftIOForResource[F[_]](LiftIO[F],Applicative[F]):LiftIO[[β$4$]Resource[F,β$4$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource$.html#catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$1$]cats.effect.Resource[F,β$1$]]" title="Permalink">
+      <a href="../../cats/effect/Resource$.html#catsEffectLiftIOForResource[F[_]](implicitF00:cats.effect.LiftIO[F],implicitF10:cats.Applicative[F]):cats.effect.LiftIO[[β$4$]cats.effect.Resource[F,β$4$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -474,14 +478,14 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsEffectLiftIOForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F00">F00: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>, <span name="F10">F10: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>)</span><span class="result">: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[[β$1$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.&lt;refinement&gt;.Λ$.β$1$">β$1$</span>]]</span>
+        <span class="name">catsEffectLiftIOForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F00">F00: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>, <span name="F10">F10: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>]</span>)</span><span class="result">: <a href="LiftIO.html" class="extype" name="cats.effect.LiftIO">LiftIO</a>[[β$4$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectLiftIOForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.&lt;refinement&gt;.Λ$.β$4$">β$4$</span>]]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances</dd></dl></div>
     </li><li name="cats.effect.ResourceInstances#catsEffectMonadErrorForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsEffectMonadErrorForResource[F[_],E](implicitF0:cats.MonadError[F,E]):cats.MonadError[[β$0$]cats.effect.Resource[F,β$0$],E]"></a><a id="catsEffectMonadErrorForResource[F[_],E](MonadError[F,E]):MonadError[[β$0$]Resource[F,β$0$],E]"></a>
+      <a id="catsEffectMonadErrorForResource[F[_],E](implicitF0:cats.MonadError[F,E]):cats.MonadError[[β$3$]cats.effect.Resource[F,β$3$],E]"></a><a id="catsEffectMonadErrorForResource[F[_],E](MonadError[F,E]):MonadError[[β$3$]Resource[F,β$3$],E]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource$.html#catsEffectMonadErrorForResource[F[_],E](implicitF0:cats.MonadError[F,E]):cats.MonadError[[β$0$]cats.effect.Resource[F,β$0$],E]" title="Permalink">
+      <a href="../../cats/effect/Resource$.html#catsEffectMonadErrorForResource[F[_],E](implicitF0:cats.MonadError[F,E]):cats.MonadError[[β$3$]cats.effect.Resource[F,β$3$],E]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -490,14 +494,14 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsEffectMonadErrorForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="E">E</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.E">E</span>]</span>)</span><span class="result">: <span class="extype" name="cats.MonadError">MonadError</span>[[β$0$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.&lt;refinement&gt;.Λ$.β$0$">β$0$</span>], <span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.E">E</span>]</span>
+        <span class="name">catsEffectMonadErrorForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="E">E</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.MonadError">MonadError</span>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.E">E</span>]</span>)</span><span class="result">: <span class="extype" name="cats.MonadError">MonadError</span>[[β$3$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances.&lt;refinement&gt;.Λ$.β$3$">β$3$</span>], <span class="extype" name="cats.effect.ResourceInstances.catsEffectMonadErrorForResource.E">E</span>]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances</dd></dl></div>
     </li><li name="cats.effect.ResourceInstances0#catsEffectMonadForResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$2$]cats.effect.Resource[F,β$2$]]"></a><a id="catsEffectMonadForResource[F[_]](Monad[F]):Monad[[β$2$]Resource[F,β$2$]]"></a>
+      <a id="catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$5$]cats.effect.Resource[F,β$5$]]"></a><a id="catsEffectMonadForResource[F[_]](Monad[F]):Monad[[β$5$]Resource[F,β$5$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource$.html#catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$2$]cats.effect.Resource[F,β$2$]]" title="Permalink">
+      <a href="../../cats/effect/Resource$.html#catsEffectMonadForResource[F[_]](implicitF0:cats.Monad[F]):cats.Monad[[β$5$]cats.effect.Resource[F,β$5$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -506,7 +510,7 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">catsEffectMonadForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.Monad">Monad</span>[[β$2$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances0.&lt;refinement&gt;.Λ$.β$2$">β$2$</span>]]</span>
+        <span class="name">catsEffectMonadForResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F0">F0: <span class="extype" name="cats.Monad">Monad</span>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.Monad">Monad</span>[[β$5$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.ResourceInstances0.catsEffectMonadForResource.F">F</span>, <span class="extype" name="cats.effect.ResourceInstances0.&lt;refinement&gt;.Λ$.β$5$">β$5$</span>]]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ResourceInstances0</dd></dl></div>
@@ -756,6 +760,23 @@ that is able to distinguish between <a href="ExitCase.html" class="extype" name=
       
       <p class="shortcomment cmt">Lifts an applicative into a resource.</p><div class="fullcomment"><div class="comment cmt"><p>Lifts an applicative into a resource.  The resource has a no-op release.
 </p></div><dl class="paramcmts block"><dt class="param">fa</dt><dd class="cmt"><p>the value to lift into a resource</p></dd></dl></div>
+    </li><li name="cats.effect.Resource#liftK" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="liftK[F[_]](implicitF:cats.Applicative[F]):F~&gt;[β$0$]cats.effect.Resource[F,β$0$]"></a><a id="liftK[F[_]](Applicative[F]):~&gt;[F,[β$0$]Resource[F,β$0$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource$.html#liftK[F[_]](implicitF:cats.Applicative[F]):F~&gt;[β$0$]cats.effect.Resource[F,β$0$]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">liftK</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.liftK.F">F</span>]</span>)</span><span class="result">: <a href="../index.html#~&gt;[F[_],G[_]]=cats.arrow.FunctionK[F,G]" class="extmbr" name="cats.~&gt;">~&gt;</a>[<span class="extype" name="cats.effect.Resource.liftK.F">F</span>, [β$0$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.liftK.F">F</span>, <span class="extype" name="cats.effect.Resource.&lt;refinement&gt;.Λ$.β$0$">β$0$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Lifts an applicative into a resource as a <code>FunctionK</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Lifts an applicative into a resource as a <code>FunctionK</code>.  The resource has a no-op release.
+</p></div></div>
     </li><li name="cats.effect.Resource#make" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="make[F[_],A](acquire:F[A])(release:A=&gt;F[Unit])(implicitF:cats.Functor[F]):cats.effect.Resource[F,A]"></a><a id="make[F[_],A](F[A])((A)⇒F[Unit])(Functor[F]):Resource[F,A]"></a>
       <span class="permalink">

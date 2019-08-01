@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -282,7 +286,7 @@ Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data stru
 the following node types and that can be interpreted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
-</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>

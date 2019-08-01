@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -248,7 +252,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -700,9 +704,9 @@ instances will be converted into thunk-less <code>IO</code> (i.e. eager
       <p class="shortcomment cmt">Lifts an <code>Either[Throwable, A]</code> into the <code>IO[A]</code> context, raising
 the throwable if it exists.</p>
     </li><li name="cats.effect.IO#fromFuture" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="fromFuture[A](iof:cats.effect.IO[scala.concurrent.Future[A]]):cats.effect.IO[A]"></a><a id="fromFuture[A](IO[Future[A]]):IO[A]"></a>
+      <a id="fromFuture[A](iof:cats.effect.IO[scala.concurrent.Future[A]])(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]"></a><a id="fromFuture[A](IO[Future[A]])(ContextShift[IO]):IO[A]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/IO$.html#fromFuture[A](iof:cats.effect.IO[scala.concurrent.Future[A]]):cats.effect.IO[A]" title="Permalink">
+      <a href="../../cats/effect/IO$.html#fromFuture[A](iof:cats.effect.IO[scala.concurrent.Future[A]])(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -711,7 +715,7 @@ the throwable if it exists.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">fromFuture</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="iof">iof: <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.concurrent.Future">Future</span>[<span class="extype" name="cats.effect.IO.fromFuture.A">A</span>]]</span>)</span><span class="result">: <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.fromFuture.A">A</span>]</span>
+        <span class="name">fromFuture</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="iof">iof: <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.concurrent.Future">Future</span>[<span class="extype" name="cats.effect.IO.fromFuture.A">A</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="IO.html" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.fromFuture.A">A</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Constructs an <code>IO</code> which evaluates the given <code>Future</code> and
@@ -1111,12 +1115,28 @@ method.
       
       <p class="shortcomment cmt">Asynchronous boundary described as an effectful <code>IO</code>, managed
 by the provided Scala <code>ExecutionContext</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Asynchronous boundary described as an effectful <code>IO</code>, managed
-by the provided Scala <code>ExecutionContext</code>.</p><p>This operation can be used in <code>flatMap</code> chains to &quot;shift&quot; the
-continuation of the run-loop to another thread or call stack.</p><p>For example we can introduce an asynchronous
-        boundary in the <code>flatMap</code> chain before a certain task:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.all._
+by the provided Scala <code>ExecutionContext</code>.</p><p>Note there are 2 overloads of the <code>IO.shift</code> function:</p><ul><li>One that takes a <code>ContextShift</code> that manages the
+          thread-pool used to trigger async boundaries.</li><li>Another that takes a Scala <code>ExecutionContext</code> as the
+          thread-pool.</li></ul><p>        Please use the former by default and use the latter
+        only for fine-grained control over the thread pool in
+        use.</p><p>        By default, Cats Effect can provide instance of
+        <code>ContextShift[IO]</code> that manages thread-pools, but
+        only if there’s an <code>ExecutionContext</code> in scope or
+        if <code>IOApp</code> is used:</p><pre><span class="kw">import</span> cats.effect.{IO, ContextShift}
 
-IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
-        evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre>task &lt;* IO.shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
+<span class="kw">val</span> ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(...))
+<span class="kw">val</span> contextShift = IO.contextShift(ec)</pre><p>        For example we can introduce an asynchronous
+        boundary in the <code>flatMap</code> chain before a certain task:</p><pre><span class="kw">val</span> task = IO(println(<span class="lit">"task"</span>))
+
+IO.shift(contextShift).flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Note that the ContextShift value is taken implicitly
+        from the context so you can just do this:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.apply._
+
+IO.shift *&gt; task
+<span class="cmt">// equivalent to</span>
+ContextShift[IO].shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
+        evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre> task &lt;* IO.shift
+ <span class="cmt">// equivalent to</span>
+task &lt;* ContextShift[IO].shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
   _ <span class="kw">&lt;-</span> IO.shift(BlockingIO)
   bytes <span class="kw">&lt;-</span> readFileUsingJavaIO(file)
   _ <span class="kw">&lt;-</span> IO.shift(DefaultPool)
@@ -1159,8 +1179,8 @@ IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <
         a <code>StackOverflowError</code>.</p><p>        Thus, this function has four important use cases:</p><ul><li>shifting blocking actions off of the main compute pool,</li><li>defensively re-shifting asynchronous continuations back
            to the main compute pool</li><li>yielding control to some underlying pool for fairness
            reasons, and</li><li>preventing an overflow of the call stack in the case of
-           improperly constructed <code>async</code> actions</li></ul><p>        Note there are 2 overloads of this function:</p><ul><li>one that takes an <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> (<a href="#shift(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li><li>one that takes a Scala <code>ExecutionContext</code> (<a href="#shift(ec:scala.concurrent.ExecutionContext):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li></ul><p>        Use the former by default, use the later for fine grained
-        control over the thread pool used.
+           improperly constructed <code>async</code> actions</li></ul><p>         Note there are 2 overloads of this function:</p><ul><li>one that takes an <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> (<a href="#shift(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li><li>one that takes a Scala <code>ExecutionContext</code> (<a href="#shift(ec:scala.concurrent.ExecutionContext):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li></ul><p>         Use the former by default, use the later for fine grained
+         control over the thread pool used.
 </p></div><dl class="paramcmts block"><dt class="param">ec</dt><dd class="cmt"><p>is the Scala <code>ExecutionContext</code> that's managing the
        thread-pool used to trigger this async boundary</p></dd></dl></div>
     </li><li name="cats.effect.IO#shift" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
@@ -1180,12 +1200,28 @@ IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <
       
       <p class="shortcomment cmt">Asynchronous boundary described as an effectful <code>IO</code>, managed
 by the provided <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>.</p><div class="fullcomment"><div class="comment cmt"><p>Asynchronous boundary described as an effectful <code>IO</code>, managed
-by the provided <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>.</p><p>This operation can be used in <code>flatMap</code> chains to &quot;shift&quot; the
-continuation of the run-loop to another thread or call stack.</p><p>For example we can introduce an asynchronous
-        boundary in the <code>flatMap</code> chain before a certain task:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.all._
+by the provided <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>.</p><p>Note there are 2 overloads of the <code>IO.shift</code> function:</p><ul><li>One that takes a <code>ContextShift</code> that manages the
+          thread-pool used to trigger async boundaries.</li><li>Another that takes a Scala <code>ExecutionContext</code> as the
+          thread-pool.</li></ul><p>        Please use the former by default and use the latter
+        only for fine-grained control over the thread pool in
+        use.</p><p>        By default, Cats Effect can provide instance of
+        <code>ContextShift[IO]</code> that manages thread-pools, but
+        only if there’s an <code>ExecutionContext</code> in scope or
+        if <code>IOApp</code> is used:</p><pre><span class="kw">import</span> cats.effect.{IO, ContextShift}
 
-IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
-        evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre>task &lt;* IO.shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
+<span class="kw">val</span> ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(...))
+<span class="kw">val</span> contextShift = IO.contextShift(ec)</pre><p>        For example we can introduce an asynchronous
+        boundary in the <code>flatMap</code> chain before a certain task:</p><pre><span class="kw">val</span> task = IO(println(<span class="lit">"task"</span>))
+
+IO.shift(contextShift).flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Note that the ContextShift value is taken implicitly
+        from the context so you can just do this:</p><pre>IO.shift.flatMap(_ <span class="kw">=&gt;</span> task)</pre><p>        Or using Cats syntax:</p><pre><span class="kw">import</span> cats.syntax.apply._
+
+IO.shift *&gt; task
+<span class="cmt">// equivalent to</span>
+ContextShift[IO].shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <i>after</i> the
+        evaluation of a certain task:</p><pre>task.flatMap(a <span class="kw">=&gt;</span> IO.shift.map(_ <span class="kw">=&gt;</span> a))</pre><p>        Or using Cats syntax:</p><pre> task &lt;* IO.shift
+ <span class="cmt">// equivalent to</span>
+task &lt;* ContextShift[IO].shift</pre><p>        Example of where this might be useful:</p><pre><span class="kw">for</span> {
   _ <span class="kw">&lt;-</span> IO.shift(BlockingIO)
   bytes <span class="kw">&lt;-</span> readFileUsingJavaIO(file)
   _ <span class="kw">&lt;-</span> IO.shift(DefaultPool)
@@ -1228,8 +1264,8 @@ IO.shift *&gt; task</pre><p>        Or we can specify an asynchronous boundary <
         a <code>StackOverflowError</code>.</p><p>        Thus, this function has four important use cases:</p><ul><li>shifting blocking actions off of the main compute pool,</li><li>defensively re-shifting asynchronous continuations back
            to the main compute pool</li><li>yielding control to some underlying pool for fairness
            reasons, and</li><li>preventing an overflow of the call stack in the case of
-           improperly constructed <code>async</code> actions</li></ul><p>        Note there are 2 overloads of this function:</p><ul><li>one that takes an <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> (<a href="#shift(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li><li>one that takes a Scala <code>ExecutionContext</code> (<a href="#shift(ec:scala.concurrent.ExecutionContext):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li></ul><p>        Use the former by default, use the later for fine grained
-        control over the thread pool used.
+           improperly constructed <code>async</code> actions</li></ul><p>         Note there are 2 overloads of this function:</p><ul><li>one that takes an <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> (<a href="#shift(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li><li>one that takes a Scala <code>ExecutionContext</code> (<a href="#shift(ec:scala.concurrent.ExecutionContext):cats.effect.IO[Unit]" class="extmbr" name="cats.effect.IO#shift">link</a>)</li></ul><p>         Use the former by default, use the later for fine grained
+         control over the thread pool used.
 </p></div><dl class="paramcmts block"><dt class="param">cs</dt><dd class="cmt"><p>is the <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> that's managing the thread-pool
        used to trigger this async boundary</p></dd></dl></div>
     </li><li name="cats.effect.IO#sleep" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">

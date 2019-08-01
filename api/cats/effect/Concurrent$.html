@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -248,7 +252,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/Concurrent.scala" target="_blank">Concurrent.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -519,9 +523,9 @@ cancelable tasks.
        completion, returning an effect that's going to be evaluated to a
        cancellation token</p></dd></dl></div>
     </li><li name="cats.effect.Concurrent#catsEitherTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsEitherTConcurrent[F[_],L](implicitevidence$1:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTConcurrent[F[_],L](Concurrent[F]):Concurrent[[γ$0$]EitherT[F,L,γ$0$]]"></a>
+      <a id="catsEitherTConcurrent[F[_],L](implicitevidence$3:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTConcurrent[F[_],L](Concurrent[F]):Concurrent[[γ$0$]EitherT[F,L,γ$0$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsEitherTConcurrent[F[_],L](implicitevidence$1:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsEitherTConcurrent[F[_],L](implicitevidence$3:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -536,9 +540,9 @@ cancelable tasks.
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.EitherT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="cats.effect.Concurrent#catsIorTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsIorTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]"></a><a id="catsIorTConcurrent[F[_],L](Concurrent[F],Semigroup[L]):Concurrent[[γ$4$]IorT[F,L,γ$4$]]"></a>
+      <a id="catsIorTConcurrent[F[_],L](implicitevidence$8:cats.effect.Concurrent[F],implicitevidence$9:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]"></a><a id="catsIorTConcurrent[F[_],L](Concurrent[F],Semigroup[L]):Concurrent[[γ$4$]IorT[F,L,γ$4$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsIorTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]" title="Permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsIorTConcurrent[F[_],L](implicitevidence$8:cats.effect.Concurrent[F],implicitevidence$9:cats.Semigroup[L]):cats.effect.Concurrent[[γ$4$]cats.data.IorT[F,L,γ$4$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -553,9 +557,9 @@ with any <code>F</code> data type that also implements <code>Concurrent</code>.<
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.IorT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="cats.effect.Concurrent#catsKleisliConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsKleisliConcurrent[F[_],R](implicitevidence$3:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$2$]cats.data.Kleisli[F,R,γ$2$]]"></a><a id="catsKleisliConcurrent[F[_],R](Concurrent[F]):Concurrent[[γ$2$]Kleisli[F,R,γ$2$]]"></a>
+      <a id="catsKleisliConcurrent[F[_],R](implicitevidence$5:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$2$]cats.data.Kleisli[F,R,γ$2$]]"></a><a id="catsKleisliConcurrent[F[_],R](Concurrent[F]):Concurrent[[γ$2$]Kleisli[F,R,γ$2$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsKleisliConcurrent[F[_],R](implicitevidence$3:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$2$]cats.data.Kleisli[F,R,γ$2$]]" title="Permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsKleisliConcurrent[F[_],R](implicitevidence$5:cats.effect.Concurrent[F]):cats.effect.Concurrent[[γ$2$]cats.data.Kleisli[F,R,γ$2$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -570,9 +574,9 @@ with any <code>F</code> data type that also implements <code>Concurrent</code>.<
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.Kleisli</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="cats.effect.Concurrent#catsOptionTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsOptionTConcurrent[F[_]](implicitevidence$2:cats.effect.Concurrent[F]):cats.effect.Concurrent[[β$1$]cats.data.OptionT[F,β$1$]]"></a><a id="catsOptionTConcurrent[F[_]](Concurrent[F]):Concurrent[[β$1$]OptionT[F,β$1$]]"></a>
+      <a id="catsOptionTConcurrent[F[_]](implicitevidence$4:cats.effect.Concurrent[F]):cats.effect.Concurrent[[β$1$]cats.data.OptionT[F,β$1$]]"></a><a id="catsOptionTConcurrent[F[_]](Concurrent[F]):Concurrent[[β$1$]OptionT[F,β$1$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsOptionTConcurrent[F[_]](implicitevidence$2:cats.effect.Concurrent[F]):cats.effect.Concurrent[[β$1$]cats.data.OptionT[F,β$1$]]" title="Permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsOptionTConcurrent[F[_]](implicitevidence$4:cats.effect.Concurrent[F]):cats.effect.Concurrent[[β$1$]cats.data.OptionT[F,β$1$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -587,9 +591,9 @@ with any <code>F</code> data type that also implements <code>Concurrent</code>.<
       <p class="shortcomment cmt"><a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> instance built for <code>cats.data.OptionT</code> values initialized
 with any <code>F</code> data type that also implements <code>Concurrent</code>.</p>
     </li><li name="cats.effect.Concurrent#catsWriterTConcurrent" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
+      <a id="catsWriterTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTConcurrent[F[_],L](Concurrent[F],Monoid[L]):Concurrent[[γ$3$]WriterT[F,L,γ$3$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$4:cats.effect.Concurrent[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
+      <a href="../../cats/effect/Concurrent$.html#catsWriterTConcurrent[F[_],L](implicitevidence$6:cats.effect.Concurrent[F],implicitevidence$7:cats.Monoid[L]):cats.effect.Concurrent[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -848,6 +852,38 @@ which does not allow cancellation.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Concurrent#parSequenceN" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="parSequenceN[T[_],M[_],F[_],A](n:Long)(tma:T[M[A]])(implicitevidence$2:cats.Traverse[T],implicitM:cats.effect.Concurrent[M],implicitP:cats.Parallel[M,F]):M[T[A]]"></a><a id="parSequenceN[T[_],M[_],F[_],A](Long)(T[M[A]])(Traverse[T],Concurrent[M],Parallel[M,F]):M[T[A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#parSequenceN[T[_],M[_],F[_],A](n:Long)(tma:T[M[A]])(implicitevidence$2:cats.Traverse[T],implicitM:cats.effect.Concurrent[M],implicitP:cats.Parallel[M,F]):M[T[A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parSequenceN</span><span class="tparams">[<span name="T">T<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span name="tma">tma: <span class="extype" name="cats.effect.Concurrent.parSequenceN.T">T</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.M">M</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.A">A</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <span class="extype" name="cats.Traverse">Traverse</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.T">T</span>]</span>, <span name="M">M: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.M">M</span>]</span>, <span name="P">P: <span class="extype" name="cats.Parallel">Parallel</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.M">M</span>, <span class="extype" name="cats.effect.Concurrent.parSequenceN.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.parSequenceN.M">M</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.T">T</span>[<span class="extype" name="cats.effect.Concurrent.parSequenceN.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <code>Parallel.parSequence</code>, but limits the degree of parallelism.</p>
+    </li><li name="cats.effect.Concurrent#parTraverseN" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="parTraverseN[T[_],M[_],F[_],A,B](n:Long)(ta:T[A])(f:A=&gt;M[B])(implicitevidence$1:cats.Traverse[T],implicitM:cats.effect.Concurrent[M],implicitP:cats.Parallel[M,F]):M[T[B]]"></a><a id="parTraverseN[T[_],M[_],F[_],A,B](Long)(T[A])((A)⇒M[B])(Traverse[T],Concurrent[M],Parallel[M,F]):M[T[B]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Concurrent$.html#parTraverseN[T[_],M[_],F[_],A,B](n:Long)(ta:T[A])(f:A=&gt;M[B])(implicitevidence$1:cats.Traverse[T],implicitM:cats.effect.Concurrent[M],implicitP:cats.Parallel[M,F]):M[T[B]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parTraverseN</span><span class="tparams">[<span name="T">T<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span name="ta">ta: <span class="extype" name="cats.effect.Concurrent.parTraverseN.T">T</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.A">A</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Concurrent.parTraverseN.A">A</span>) ⇒ <span class="extype" name="cats.effect.Concurrent.parTraverseN.M">M</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <span class="extype" name="cats.Traverse">Traverse</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.T">T</span>]</span>, <span name="M">M: <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.M">M</span>]</span>, <span name="P">P: <span class="extype" name="cats.Parallel">Parallel</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.M">M</span>, <span class="extype" name="cats.effect.Concurrent.parTraverseN.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Concurrent.parTraverseN.M">M</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.T">T</span>[<span class="extype" name="cats.effect.Concurrent.parTraverseN.B">B</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <code>Parallel.parTraverse</code>, but limits the degree of parallelism.</p>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">

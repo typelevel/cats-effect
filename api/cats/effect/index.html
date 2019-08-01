@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -246,7 +250,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -340,6 +344,25 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Blocker" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="BlockerextendsAnyVal"></a><a id="Blocker:Blocker"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#BlockerextendsAnyVal" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">class</span>
+      </span>
+      <span class="symbol">
+        <a title="An execution context that is safe to use for blocking operations." href="Blocker.html"><span class="name">Blocker</span></a><span class="result"> extends <span class="extype" name="scala.AnyVal">AnyVal</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">An execution context that is safe to use for blocking operations.</p><div class="fullcomment"><div class="comment cmt"><p>An execution context that is safe to use for blocking operations.</p><p>Used in conjunction with <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>, this type allows us to write functions
+that require a special <code>ExecutionContext</code> for evaluation, while discouraging the
+use of a shared, general purpose pool (e.g. the global context).</p><p>Instances of this class should *not* be passed implicitly.
+</p></div></div>
     </li><li name="cats.effect.Bracket" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="Bracket[F[_],E]extendsMonadError[F,E]"></a><a id="Bracket[F[_],E]:Bracket[F,E]"></a>
       <span class="permalink">
@@ -856,7 +879,7 @@ computations. Consequently, a <code>SyncIO</code> can be run synchronously
 to obtain a result via <code>unsafeRunSync</code>. This is unlike
 <code>IO#unsafeRunSync</code>, which cannot be safely called in general --
 doing so on the JVM blocks the calling thread while the
-async part of the computation is run and doing so on Scala.JS
+async part of the computation is run and doing so on Scala.js
 throws an exception upon encountering an async boundary.
 </p></div></div>
     </li><li name="cats.effect.Timer" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
@@ -907,6 +930,22 @@ requirement.
       </span>
       <span class="symbol">
         <a title="" href="Async$.html"><span class="name">Async</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="cats.effect.Blocker" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Blocker"></a><a id="Blocker:Blocker"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/index.html#Blocker" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="Blocker$.html"><span class="name">Blocker</span></a><span class="result"> extends <span class="extype" name="cats.effect.internals.BlockerPlatform">BlockerPlatform</span></span>
       </span>
       
       

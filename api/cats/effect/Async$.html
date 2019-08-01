@@ -155,6 +155,10 @@
                         <a class="trait" href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result."></a>
                         <a href="Async.html" title="A monad that can describe asynchronous or synchronous computations that produce exactly one result.">Async</a>
                       </li><li class="current-entities indented2">
+                        <a class="object" href="Blocker$.html" title=""></a>
+                        <a class="class" href="Blocker.html" title="An execution context that is safe to use for blocking operations."></a>
+                        <a href="Blocker.html" title="An execution context that is safe to use for blocking operations.">Blocker</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Bracket$.html" title=""></a>
                         <a class="trait" href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption."></a>
                         <a href="Bracket.html" title="An extension of MonadError exposing the bracket operation, a generalized abstracted pattern of safe resource acquisition and release in the face of errors or interruption.">Bracket</a>
@@ -248,7 +252,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M3/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -440,9 +444,9 @@
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li name="cats.effect.Async#catsEitherTAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsEitherTAsync[F[_],L](implicitevidence$1:cats.effect.Async[F]):cats.effect.Async[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTAsync[F[_],L](Async[F]):Async[[γ$0$]EitherT[F,L,γ$0$]]"></a>
+      <a id="catsEitherTAsync[F[_],L](implicitevidence$3:cats.effect.Async[F]):cats.effect.Async[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="catsEitherTAsync[F[_],L](Async[F]):Async[[γ$0$]EitherT[F,L,γ$0$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsEitherTAsync[F[_],L](implicitevidence$1:cats.effect.Async[F]):cats.effect.Async[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsEitherTAsync[F[_],L](implicitevidence$3:cats.effect.Async[F]):cats.effect.Async[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -457,9 +461,9 @@
       <p class="shortcomment cmt"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a> instance built for <code>cats.data.EitherT</code> values initialized
 with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </li><li name="cats.effect.Async#catsIorTAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsIorTAsync[F[_],L](implicitevidence$7:cats.effect.Async[F],implicitevidence$8:cats.Semigroup[L]):cats.effect.Async[[γ$5$]cats.data.IorT[F,L,γ$5$]]"></a><a id="catsIorTAsync[F[_],L](Async[F],Semigroup[L]):Async[[γ$5$]IorT[F,L,γ$5$]]"></a>
+      <a id="catsIorTAsync[F[_],L](implicitevidence$9:cats.effect.Async[F],implicitevidence$10:cats.Semigroup[L]):cats.effect.Async[[γ$5$]cats.data.IorT[F,L,γ$5$]]"></a><a id="catsIorTAsync[F[_],L](Async[F],Semigroup[L]):Async[[γ$5$]IorT[F,L,γ$5$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsIorTAsync[F[_],L](implicitevidence$7:cats.effect.Async[F],implicitevidence$8:cats.Semigroup[L]):cats.effect.Async[[γ$5$]cats.data.IorT[F,L,γ$5$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsIorTAsync[F[_],L](implicitevidence$9:cats.effect.Async[F],implicitevidence$10:cats.Semigroup[L]):cats.effect.Async[[γ$5$]cats.data.IorT[F,L,γ$5$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -474,9 +478,9 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       <p class="shortcomment cmt"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a> instance built for <code>cats.data.IorT</code> values initialized
 with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </li><li name="cats.effect.Async#catsKleisliAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsKleisliAsync[F[_],R](implicitevidence$6:cats.effect.Async[F]):cats.effect.Async[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]"></a><a id="catsKleisliAsync[F[_],R](Async[F]):Async[[γ$4$]Kleisli[F,R,γ$4$]]"></a>
+      <a id="catsKleisliAsync[F[_],R](implicitevidence$8:cats.effect.Async[F]):cats.effect.Async[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]"></a><a id="catsKleisliAsync[F[_],R](Async[F]):Async[[γ$4$]Kleisli[F,R,γ$4$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsKleisliAsync[F[_],R](implicitevidence$6:cats.effect.Async[F]):cats.effect.Async[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsKleisliAsync[F[_],R](implicitevidence$8:cats.effect.Async[F]):cats.effect.Async[[γ$4$]cats.data.Kleisli[F,R,γ$4$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -491,9 +495,9 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       <p class="shortcomment cmt"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a> instance built for <code>cats.data.Kleisli</code> values initialized
 with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </li><li name="cats.effect.Async#catsOptionTAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsOptionTAsync[F[_]](implicitevidence$2:cats.effect.Async[F]):cats.effect.Async[[β$1$]cats.data.OptionT[F,β$1$]]"></a><a id="catsOptionTAsync[F[_]](Async[F]):Async[[β$1$]OptionT[F,β$1$]]"></a>
+      <a id="catsOptionTAsync[F[_]](implicitevidence$4:cats.effect.Async[F]):cats.effect.Async[[β$1$]cats.data.OptionT[F,β$1$]]"></a><a id="catsOptionTAsync[F[_]](Async[F]):Async[[β$1$]OptionT[F,β$1$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsOptionTAsync[F[_]](implicitevidence$2:cats.effect.Async[F]):cats.effect.Async[[β$1$]cats.data.OptionT[F,β$1$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsOptionTAsync[F[_]](implicitevidence$4:cats.effect.Async[F]):cats.effect.Async[[β$1$]cats.data.OptionT[F,β$1$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -508,9 +512,9 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       <p class="shortcomment cmt"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a> instance built for <code>cats.data.OptionT</code> values initialized
 with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </li><li name="cats.effect.Async#catsStateTAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsStateTAsync[F[_],S](implicitevidence$3:cats.effect.Async[F]):cats.effect.Async[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]"></a><a id="catsStateTAsync[F[_],S](Async[F]):Async[[γ$2$]IndexedStateT[F,S,S,γ$2$]]"></a>
+      <a id="catsStateTAsync[F[_],S](implicitevidence$5:cats.effect.Async[F]):cats.effect.Async[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]"></a><a id="catsStateTAsync[F[_],S](Async[F]):Async[[γ$2$]IndexedStateT[F,S,S,γ$2$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsStateTAsync[F[_],S](implicitevidence$3:cats.effect.Async[F]):cats.effect.Async[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsStateTAsync[F[_],S](implicitevidence$5:cats.effect.Async[F]):cats.effect.Async[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -525,9 +529,9 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
       <p class="shortcomment cmt"><a href="Async.html" class="extype" name="cats.effect.Async">Async</a> instance built for <code>cats.data.StateT</code> values initialized
 with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </li><li name="cats.effect.Async#catsWriterTAsync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="catsWriterTAsync[F[_],L](implicitevidence$4:cats.effect.Async[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Async[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTAsync[F[_],L](Async[F],Monoid[L]):Async[[γ$3$]WriterT[F,L,γ$3$]]"></a>
+      <a id="catsWriterTAsync[F[_],L](implicitevidence$6:cats.effect.Async[F],implicitevidence$7:cats.Monoid[L]):cats.effect.Async[[γ$3$]cats.data.WriterT[F,L,γ$3$]]"></a><a id="catsWriterTAsync[F[_],L](Async[F],Monoid[L]):Async[[γ$3$]WriterT[F,L,γ$3$]]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Async$.html#catsWriterTAsync[F[_],L](implicitevidence$4:cats.effect.Async[F],implicitevidence$5:cats.Monoid[L]):cats.effect.Async[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
+      <a href="../../cats/effect/Async$.html#catsWriterTAsync[F[_],L](implicitevidence$6:cats.effect.Async[F],implicitevidence$7:cats.Monoid[L]):cats.effect.Async[[γ$3$]cats.data.WriterT[F,L,γ$3$]]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -619,6 +623,22 @@ with any <code>F</code> data type that also implements <code>Async</code>.</p>
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Async#fromFuture" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="fromFuture[F[_],A](fa:F[scala.concurrent.Future[A]])(implicitF:cats.effect.Async[F],implicitcs:cats.effect.ContextShift[F]):F[A]"></a><a id="fromFuture[F[_],A](F[Future[A]])(Async[F],ContextShift[F]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async$.html#fromFuture[F[_],A](fa:F[scala.concurrent.Future[A]])(implicitF:cats.effect.Async[F],implicitcs:cats.effect.ContextShift[F]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromFuture</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.fromFuture.F">F</span>[<span class="extype" name="scala.concurrent.Future">Future</span>[<span class="extype" name="cats.effect.Async.fromFuture.A">A</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.fromFuture.F">F</span>]</span>, <span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<span class="extype" name="cats.effect.Async.fromFuture.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.fromFuture.F">F</span>[<span class="extype" name="cats.effect.Async.fromFuture.A">A</span>]</span>
+      </span>
+      
+      
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
@@ -764,6 +784,38 @@ Use <code>Concurrent.memoize</code> if you need that.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Async#parSequenceN" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="parSequenceN[T[_],M[_],F[_],A](n:Long)(tma:T[M[A]])(implicitevidence$2:cats.Traverse[T],implicitM:cats.effect.Async[M],implicitP:cats.Parallel[M,F]):M[T[A]]"></a><a id="parSequenceN[T[_],M[_],F[_],A](Long)(T[M[A]])(Traverse[T],Async[M],Parallel[M,F]):M[T[A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async$.html#parSequenceN[T[_],M[_],F[_],A](n:Long)(tma:T[M[A]])(implicitevidence$2:cats.Traverse[T],implicitM:cats.effect.Async[M],implicitP:cats.Parallel[M,F]):M[T[A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parSequenceN</span><span class="tparams">[<span name="T">T<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span name="tma">tma: <span class="extype" name="cats.effect.Async.parSequenceN.T">T</span>[<span class="extype" name="cats.effect.Async.parSequenceN.M">M</span>[<span class="extype" name="cats.effect.Async.parSequenceN.A">A</span>]]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <span class="extype" name="cats.Traverse">Traverse</span>[<span class="extype" name="cats.effect.Async.parSequenceN.T">T</span>]</span>, <span name="M">M: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.parSequenceN.M">M</span>]</span>, <span name="P">P: <span class="extype" name="cats.Parallel">Parallel</span>[<span class="extype" name="cats.effect.Async.parSequenceN.M">M</span>, <span class="extype" name="cats.effect.Async.parSequenceN.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.parSequenceN.M">M</span>[<span class="extype" name="cats.effect.Async.parSequenceN.T">T</span>[<span class="extype" name="cats.effect.Async.parSequenceN.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <code>Parallel.parSequence</code>, but limits the degree of parallelism.</p>
+    </li><li name="cats.effect.Async#parTraverseN" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="parTraverseN[T[_],M[_],F[_],A,B](n:Long)(ta:T[A])(f:A=&gt;M[B])(implicitevidence$1:cats.Traverse[T],implicitM:cats.effect.Async[M],implicitP:cats.Parallel[M,F]):M[T[B]]"></a><a id="parTraverseN[T[_],M[_],F[_],A,B](Long)(T[A])((A)⇒M[B])(Traverse[T],Async[M],Parallel[M,F]):M[T[B]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async$.html#parTraverseN[T[_],M[_],F[_],A,B](n:Long)(ta:T[A])(f:A=&gt;M[B])(implicitevidence$1:cats.Traverse[T],implicitM:cats.effect.Async[M],implicitP:cats.Parallel[M,F]):M[T[B]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parTraverseN</span><span class="tparams">[<span name="T">T<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="M">M<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="n">n: <span class="extype" name="scala.Long">Long</span></span>)</span><span class="params">(<span name="ta">ta: <span class="extype" name="cats.effect.Async.parTraverseN.T">T</span>[<span class="extype" name="cats.effect.Async.parTraverseN.A">A</span>]</span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Async.parTraverseN.A">A</span>) ⇒ <span class="extype" name="cats.effect.Async.parTraverseN.M">M</span>[<span class="extype" name="cats.effect.Async.parTraverseN.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <span class="extype" name="cats.Traverse">Traverse</span>[<span class="extype" name="cats.effect.Async.parTraverseN.T">T</span>]</span>, <span name="M">M: <a href="Async.html" class="extype" name="cats.effect.Async">Async</a>[<span class="extype" name="cats.effect.Async.parTraverseN.M">M</span>]</span>, <span name="P">P: <span class="extype" name="cats.Parallel">Parallel</span>[<span class="extype" name="cats.effect.Async.parTraverseN.M">M</span>, <span class="extype" name="cats.effect.Async.parTraverseN.F">F</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.parTraverseN.M">M</span>[<span class="extype" name="cats.effect.Async.parTraverseN.T">T</span>[<span class="extype" name="cats.effect.Async.parTraverseN.B">B</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <code>Parallel.parTraverse</code>, but limits the degree of parallelism.</p>
     </li><li name="cats.effect.Async#shift" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="shift[F[_]](ec:scala.concurrent.ExecutionContext)(implicitF:cats.effect.Async[F]):F[Unit]"></a><a id="shift[F[_]](ExecutionContext)(Async[F]):F[Unit]"></a>
       <span class="permalink">
