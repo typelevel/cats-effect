@@ -30,7 +30,7 @@ val CatsVersion = "2.0.0-RC1"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
 val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.12.0-M3"
+val DisciplineScalatestVersion = "1.0.0-M1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -252,7 +252,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
       "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
       "org.scalacheck"    %%% "scalacheck"               % ScalaCheckVersion              % Test,
-      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineVersion              % Test),
+      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineScalatestVersion     % Test),
 
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -285,7 +285,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"            % CatsVersion,
       "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline-scalatest" % DisciplineVersion,
+      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion,
       "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
