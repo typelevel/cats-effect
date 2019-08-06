@@ -17,11 +17,12 @@
 package cats.effect
 package internals
 
-import java.util.concurrent.{ScheduledExecutorService, ScheduledThreadPoolExecutor, ThreadFactory}
+import java.util.concurrent.{ScheduledExecutorService, ScheduledThreadPoolExecutor, ThreadFactory, TimeUnit}
 import cats.effect.internals.Callback.T
 import cats.effect.internals.IOShift.Tick
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.util.Try
 
 /**
  * Internal API — JVM specific implementation of a `Timer[IO]`.
@@ -67,8 +68,19 @@ private[internals] object IOTimer {
   def apply(ec: ExecutionContext, sc: ScheduledExecutorService): Timer[IO] =
     new IOTimer(ec, sc)
 
-  private[internals] lazy val scheduler: ScheduledExecutorService = {
-    val tp = new ScheduledThreadPoolExecutor(2, new ThreadFactory {
+  private[internals] lazy val scheduler: ScheduledExecutorService =
+    mkGlobalScheduler(sys.props)
+
+  private[internals] def mkGlobalScheduler(props: collection.Map[String, String]): ScheduledThreadPoolExecutor = {
+    val corePoolSize = props.get("cats.effect.global_scheduler.threads.core_pool_size")
+      .flatMap(s => Try(s.toInt).toOption)
+      .filter(_ > 0)
+      .getOrElse(2)
+    val keepAliveTime = props.get("cats.effect.global_scheduler.keep_alive_time_ms")
+      .flatMap(s => Try(s.toLong).toOption)
+      .filter(_ > 0L)
+
+    val tp = new ScheduledThreadPoolExecutor(corePoolSize, new ThreadFactory {
       def newThread(r: Runnable): Thread = {
         val th = new Thread(r)
         th.setName(s"cats-effect-scheduler-${th.getId}")
@@ -76,11 +88,15 @@ private[internals] object IOTimer {
         th
       }
     })
+    keepAliveTime.foreach { timeout =>
+      // Call in this order or it throws!
+      tp.setKeepAliveTime(timeout, TimeUnit.MILLISECONDS)
+      tp.allowCoreThreadTimeOut(true)
+    }
     tp.setRemoveOnCancelPolicy(true)
     tp
   }
   
-
   private final class ShiftTick(
     conn: IOConnection,
     cb: Either[Throwable, Unit] => Unit,
