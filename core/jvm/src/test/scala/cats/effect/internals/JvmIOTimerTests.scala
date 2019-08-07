@@ -41,19 +41,19 @@ class JvmIOTimerTests extends AnyFunSuite with Matchers {
   }
 
   test("global scheduler: custom core pool size") {
-    withScheduler(Map("cats.effect.global_scheduler.threads.corePoolSize" -> "3")) { s =>
+    withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "3")) { s =>
       s.getCorePoolSize shouldBe 3
     }
   }
 
   test("global scheduler: invalid core pool size") {
-    withScheduler(Map("cats.effect.global_scheduler.threads.corePoolSize" -> "-1")) { s =>
+    withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "-1")) { s =>
       s.getCorePoolSize shouldBe 2
     }
   }
 
   test("global scheduler: malformed core pool size") {
-    withScheduler(Map("cats.effect.global_scheduler.threads.corePoolSize" -> "banana")) { s =>
+    withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "banana")) { s =>
       s.getCorePoolSize shouldBe 2
     }
   }
