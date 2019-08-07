@@ -252,7 +252,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-RC1/core/shared/src/main/scala/cats/effect/Sync.scala" target="_blank">Sync.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -510,6 +510,23 @@ with any <code>F</code> data type that also implements <code>Sync</code>.</p>
       </span>
       
       <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.OptionT</code> values initialized
+with any <code>F</code> data type that also implements <code>Sync</code>.</p>
+    </li><li name="cats.effect.Sync#catsReaderWriteStateTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="catsReaderWriteStateTSync[F[_],E,L,S](implicitevidence$9:cats.effect.Sync[F],implicitevidence$10:cats.Monoid[L]):cats.effect.Sync[[ε$6$]cats.data.IndexedReaderWriterStateT[F,E,L,S,S,ε$6$]]"></a><a id="catsReaderWriteStateTSync[F[_],E,L,S](Sync[F],Monoid[L]):Sync[[ε$6$]IndexedReaderWriterStateT[F,E,L,S,S,ε$6$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Sync$.html#catsReaderWriteStateTSync[F[_],E,L,S](implicitevidence$9:cats.effect.Sync[F],implicitevidence$10:cats.Monoid[L]):cats.effect.Sync[[ε$6$]cats.data.IndexedReaderWriterStateT[F,E,L,S,S,ε$6$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catsReaderWriteStateTSync</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="E">E</span>, <span name="L">L</span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.F">F</span>]</span>, <span name="arg1">arg1: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.L">L</span>]</span>)</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[[ε$6$]<span class="extype" name="cats.data.IndexedReaderWriterStateT">IndexedReaderWriterStateT</span>[<span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.F">F</span>, <span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.E">E</span>, <span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.L">L</span>, <span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.catsReaderWriteStateTSync.S">S</span>, <span class="extype" name="cats.effect.Sync.&lt;refinement&gt;.Λ$.ε$6$">ε$6$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt"><a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a> instance built for <code>cats.data.ReaderWriterStateT</code> values initialized
 with any <code>F</code> data type that also implements <code>Sync</code>.</p>
     </li><li name="cats.effect.Sync#catsStateTSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="catsStateTSync[F[_],S](implicitevidence$3:cats.effect.Sync[F]):cats.effect.Sync[[γ$2$]cats.data.IndexedStateT[F,S,S,γ$2$]]"></a><a id="catsStateTSync[F[_],S](Sync[F]):Sync[[γ$2$]IndexedStateT[F,S,S,γ$2$]]"></a>

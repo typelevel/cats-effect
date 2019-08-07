@@ -18,18 +18,18 @@
 
 <p>This is NOT a typeclass, as it does not have the coherence requirement.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.Clock</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Clock</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration.</span><span class="o">{</span><span class="nc">FiniteDuration</span><span class="o">,</span> <span class="nc">TimeUnit</span><span class="o">}</span>
 
 <span class="k">trait</span> <span class="nc">Timer</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">clock</span><span class="k">:</span> <span class="kt">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">duration</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>As mentioned in the <code class="highlighter-rouge">IO</code> documentation, there’s a default instance of <code class="highlighter-rouge">Timer[IO]</code> available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
 
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">Clock</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -56,7 +56,18 @@
       <span class="nc">IO</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">))</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
+
+<h2 id="configuring-the-global-scheduler">Configuring the global Scheduler</h2>
+
+<p>The one-argument overload of <code class="highlighter-rouge">IO.timer</code> lazily instantiates a global <code class="highlighter-rouge">ScheduledExecutorService</code>, which is never shut down.  This is fine for most applications, but leaks threads when the class is repeatedly loaded in the same JVM, as is common in testing. The global scheduler can be configured with the following system properties:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">cats.effect.global_scheduler.threads.core_pool_size</code>: sets the core pool size of the global scheduler. Defaults to <code class="highlighter-rouge">2</code>.</li>
+  <li><code class="highlighter-rouge">cats.effect.global_scheduler.keep_alive_time_ms</code>: allows the global scheduler’s core threads to timeout and terminate when idle. <code class="highlighter-rouge">0</code> keeps the threads from timing out. Defaults to <code class="highlighter-rouge">0</code>. Value is in milliseconds.</li>
+</ul>
+
+<p>These properties only apply on the JVM.</p>
 
 <p>Also see these related data types:</p>
 

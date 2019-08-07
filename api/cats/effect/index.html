@@ -250,7 +250,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-M5/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0-RC1/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -898,7 +898,7 @@ throws an exception upon encountering an async boundary.
       </span>
       
       <p class="shortcomment cmt">Timer is a scheduler of tasks.</p><div class="fullcomment"><div class="comment cmt"><p>Timer is a scheduler of tasks.</p><p>This is the purely functional equivalent of:</p><ul><li>Java's
-   <a href="https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html" target="_blank">ScheduledExecutorService</a></li><li>JavaScript's
+   <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html" target="_blank">ScheduledExecutorService</a></li><li>JavaScript's
    <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout" target="_blank">setTimeout</a>.</li></ul><p>It provides:</p><ol class="decimal"><li>the ability to get the current time</li><li>ability to delay the execution of a task with a specified time duration</li></ol><p>It does all of that in an <code>F</code> monadic context that can suspend
 side effects and is capable of asynchronous execution (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>).</p><p>This is NOT a type class, as it does not have the coherence
 requirement.

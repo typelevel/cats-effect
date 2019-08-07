@@ -4,13 +4,13 @@
 
 <p>An asynchronous, concurrent mutable reference.</p>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Ref</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Ref</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
   <span class="k">def</span> <span class="n">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">set</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="k">def</span> <span class="n">modify</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="o">(</span><span class="n">A</span><span class="o">,</span> <span class="n">B</span><span class="o">))</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
   <span class="c1">// ... and more
 </span><span class="o">}</span>
-</code></pre></div>
+</code></pre></div></div>
 
 <p>Provides safe concurrent access and modification of its content, but no functionality for synchronisation, which is instead handled by <code class="highlighter-rouge">Deferred</code>.</p>
 
@@ -24,15 +24,15 @@
 
 <p>The workers will concurrently run and modify the value of the Ref so this is one possible outcome showing “#worker » currentCount”:</p>
 
-<div class="highlighter-rouge"><pre class="codehilite"><code>#2 &gt;&gt; 0
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#2 &gt;&gt; 0
 #1 &gt;&gt; 0
 #3 &gt;&gt; 0
 #1 &gt;&gt; 0
 #3 &gt;&gt; 2
 #2 &gt;&gt; 1
-</code></pre></div>
+</code></pre></div></div>
 
-<div class="language-scala highlighter-rouge"><pre class="codehilite"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Ref</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -66,7 +66,7 @@
              <span class="n">w3</span><span class="o">.</span><span class="n">start</span>
            <span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
-</code></pre></div>
+</code></pre></div></div>
 
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
