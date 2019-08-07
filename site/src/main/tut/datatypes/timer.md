@@ -62,6 +62,15 @@ final class MyTimer(ec: ExecutionContext, sc: ScheduledExecutorService) extends 
 }
 ```
 
+## Configuring the global Scheduler
+
+The one-argument overload of `IO.timer` lazily instantiates a global `ScheduledExecutorService`, which is never shut down.  This is fine for most applications, but leaks threads when the class is repeatedly loaded in the same JVM, as is common in testing. The global scheduler can be configured with the following system properties:
+
+* `cats.effect.global_scheduler.threads.core_pool_size`: sets the core pool size of the global scheduler. Defaults to `2`.
+* `cats.effect.global_scheduler.keep_alive_time_ms`: allows the global scheduler's core threads to timeout and terminate when idle. `0` keeps the threads from timing out. Defaults to `0`. Value is in milliseconds.
+
+These properties only apply on the JVM.
+
 Also see these related data types:
 
 - [Clock](./clock.html): for time measurements and getting the current clock
