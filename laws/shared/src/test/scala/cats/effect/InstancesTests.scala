@@ -93,9 +93,22 @@ class InstancesTests extends BaseTestsSuite {
       BracketTests[IorT[IO, Int, ?], Throwable].bracketTrans[Ior[Int, ?], Int, Int](fromIor)
     })
 
-  implicit def keisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
+  checkAllAsync("ReaderWriterStateT[IO, S, ?]",
+    implicit ec =>
+      AsyncTests[ReaderWriterStateT[IO, Int, Int, Int, ?]].async[Int, Int, Int])
+
+  checkAllAsync("ReaderWriterStateT[IO, S, ?]",
+    implicit ec => {
+      val fromReaderWriterState = λ[ReaderWriterState[Int, Int, Int, ?] ~> ReaderWriterStateT[IO, Int, Int, Int, ?]](st => ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value)))
+      BracketTests[ReaderWriterStateT[IO, Int, Int, Int, ?], Throwable].bracketTrans[ReaderWriterState[Int, Int, Int, ?], Int, Int](fromReaderWriterState)
+    })
+
+  implicit def kleisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
     Eq.by(_.run(Monoid[R].empty))
 
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
+
+  implicit def readerWriterStateTEq[F[_]: Monad, E: Monoid, L, S: Monoid, A](implicit FLSA: Eq[F[(L, S, A)]]): Eq[ReaderWriterStateT[F, E, L, S, A]] =
+    Eq.by(_.run(Monoid[E].empty, Monoid[S].empty))
 }

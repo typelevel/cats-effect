@@ -398,6 +398,13 @@ object Async {
   implicit def catsIorTAsync[F[_]: Async, L: Semigroup]: Async[IorT[F, L, ?]] =
     new IorTAsync[F, L] { def F = Async[F]; def L = Semigroup[L] }
 
+  /**
+    * [[Async]] instance built for `cats.data.ReaderWriterStateT` values initialized
+    * with any `F` data type that also implements `Async`.
+    */
+  implicit def ReaderWriterStateTAsync[F[_]: Async, E, L: Monoid, S]: Async[ReaderWriterStateT[F, E, L, S, ?]] =
+    new ReaderWriterStateTAsync[F, E, L, S] { def F = Async[F]; def L = Monoid[L] }
+
   private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
     with Sync.EitherTSync[F, L]
     with LiftIO.EitherTLiftIO[F, L] {
@@ -479,5 +486,19 @@ object Async {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): IorT[F, L, A] =
       IorT.liftF(F.async(k))
+  }
+
+  private[effect] trait ReaderWriterStateTAsync[F[_], E, L, S] extends Async[ReaderWriterStateT[F, E, L, S, ?]]
+    with LiftIO.ReaderWriterStateTLiftIO[F, E, L, S]
+    with Sync.ReaderWriterStateTSync[F, E, L, S] {
+
+    override implicit protected def F: Async[F]
+    protected def FA = F
+
+    override def asyncF[A](k: (Either[Throwable, A] => Unit) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT((e, s) => F.map(F.asyncF((cb: Either[Throwable, A] => Unit) => F.as(k(cb).run(e, s), ())))(a => (L.empty, s, a)))
+
+    override def async[A](k: (Either[Throwable, A] => Unit) => Unit): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT.liftF(F.async(k))
   }
 }
