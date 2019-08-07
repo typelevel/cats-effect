@@ -26,11 +26,11 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "0.19.0"
-val CatsVersion = "2.0.0-M4"
+val CatsVersion = "2.0.0-RC1"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
 val ScalaCheckVersion = "1.14.0"
-val DisciplineVersion = "0.12.0-M3"
+val DisciplineScalatestVersion = "1.0.0-M1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -150,7 +150,9 @@ val commonSettings = Seq(
     }).transform(node).head
   },
 
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary)
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary),
+
+  mimaFailOnNoPrevious := false
 )
 
 val mimaSettings = Seq(
@@ -176,7 +178,9 @@ val mimaSettings = Seq(
       // Laws - https://github.com/typelevel/cats-effect/pull/473
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.AsyncLaws.repeatedAsyncFEvaluationNotMemoized"),
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.BracketLaws.bracketPropagatesTransformerEffects"),
-      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans")
+      exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
+      // Static forwarder not generated. We tried. - https://github.com/typelevel/cats-effect/pull/584
+      exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
     )
   })
 
@@ -230,6 +234,7 @@ lazy val sharedSourcesSettings = Seq(
   })
 
 lazy val root = project.in(file("."))
+  .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(skipOnPublishSettings)
@@ -247,7 +252,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
       "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
       "org.scalacheck"    %%% "scalacheck"               % ScalaCheckVersion              % Test,
-      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineVersion              % Test),
+      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineScalatestVersion     % Test),
 
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -280,7 +285,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"            % CatsVersion,
       "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline-scalatest" % DisciplineVersion,
+      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion,
       "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))

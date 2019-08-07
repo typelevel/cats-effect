@@ -569,8 +569,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *
    * @param release is a function that gets called after `use`
    *        terminates, either normally or in error, or if it gets
-   *        canceled, receiving as input the resource that needs that
-   *        needs release, along with the result of `use`
+   *        canceled, receiving as input the resource that needs
+   *        release, along with the result of `use`
    *        (cancellation, error or successful result)
    */
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =

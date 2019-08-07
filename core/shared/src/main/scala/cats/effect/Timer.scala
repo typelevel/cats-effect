@@ -28,7 +28,7 @@ import scala.concurrent.duration.FiniteDuration
  * This is the purely functional equivalent of:
  *
  *  - Java's
- *    [[https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html ScheduledExecutorService]]
+ *    [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ScheduledExecutorService.html ScheduledExecutorService]]
  *  - JavaScript's
  *    [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
  *

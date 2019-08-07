@@ -51,6 +51,7 @@ val program: IO[Unit] =
 program.unsafeRunSync()
 //=> hey!
 //=> hey!
+()
 ```
 
 The above example prints "hey!" twice, as the effect re-runs each time
@@ -249,7 +250,7 @@ So it is similar with `IO.async`, but in that registration function
 the user is expected to provide an `IO[Unit]` that captures the
 required cancellation logic.
 
-N.B. cancellation is the ability to interrupt an `IO` task before
+Important: cancellation is the ability to interrupt an `IO` task before
 completion, possibly releasing any acquired resources, useful in race
 conditions to prevent leaks.
 
@@ -402,7 +403,7 @@ def sleep(d: FiniteDuration)
 }
 ```
 
-N.B. if you don't specify cancellation logic for a task, then the task
+Important: if you don't specify cancellation logic for a task, then the task
 is NOT cancelable. So for example, using Java's blocking I/O still:
 
 ```tut:silent
@@ -1223,6 +1224,7 @@ program.unsafeRunSync()
 //=> Running ioB
 //=> Running ioC
 //=> Running ioA
+()
 ```
 
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:
@@ -1241,6 +1243,7 @@ parFailure.unsafeRunSync()
 //=> ioB was canceled!
 //=> java.lang.Exception: boom
 //=>  ... 43 elided
+()
 ```
 
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:

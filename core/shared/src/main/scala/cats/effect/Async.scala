@@ -23,10 +23,11 @@ import cats.data._
 import cats.effect.IO.{Delay, Pure, RaiseError}
 import cats.effect.concurrent.{Deferred, Ref, Semaphore}
 import cats.effect.internals.{Callback, IORunLoop}
+import cats.effect.internals.TrampolineEC.immediate
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.ExecutionContext
-import scala.util.Either
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Either, Failure, Success}
 
 /**
  * A monad that can describe asynchronous or synchronous computations
@@ -275,6 +276,22 @@ object Async {
         def run(): Unit = cb(Callback.rightUnit)
       })
     }
+
+  def fromFuture[F[_], A](fa: F[Future[A]])(implicit F: Async[F], cs: ContextShift[F]): F[A] =
+    F.guarantee(fa.flatMap(f => f.value match {
+      case Some(result) =>
+        result match {
+          case Success(a) => F.pure(a)
+          case Failure(e) => F.raiseError[A](e)
+        }
+      case _ =>
+        F.async[A] { cb =>
+          f.onComplete(r => cb(r match {
+            case Success(a) => Right(a)
+            case Failure(e) => Left(e)
+          }))(immediate)
+        }
+    }))(cs.shift)
 
   /**
    * Lifts any `IO` value into any data type implementing [[Async]].
