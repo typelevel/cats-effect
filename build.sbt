@@ -30,6 +30,7 @@ val CatsVersion = "2.0.0-RC1"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
 val ScalaCheckVersion = "1.14.0"
+val DisciplineCoreVersion = "1.0.0"
 val DisciplineScalatestVersion = "1.0.0-M1"
 
 addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
@@ -285,7 +286,8 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel"  %%% "cats-laws"            % CatsVersion,
       "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion,
+      "org.typelevel"  %%% "discipline-core"      % DisciplineCoreVersion,
+      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
       "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test))
 
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
