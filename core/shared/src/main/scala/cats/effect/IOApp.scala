@@ -63,7 +63,7 @@ trait IOApp {
    * The main method that runs the `IO` returned by [[run]] and exits
    * the app with the resulting code on completion.
    */
-  def main(args: Array[String]): Unit =
+  final def main(args: Array[String]): Unit =
     IOAppPlatform.main(args, Eval.later(contextShift), Eval.later(timer))(run)
 
   /**
