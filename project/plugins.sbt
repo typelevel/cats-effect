@@ -1,6 +1,6 @@
 addSbtPlugin("com.dwijnand"              % "sbt-travisci"             % "1.2.0")
 addSbtPlugin("io.crashbox"               % "sbt-gpg"                  % "0.2.0")
-addSbtPlugin("com.typesafe"              % "sbt-mima-plugin"          % "0.5.0")
+addSbtPlugin("com.typesafe"              % "sbt-mima-plugin"          % "0.6.0")
 addSbtPlugin("com.typesafe.sbt"          % "sbt-git"                  % "1.0.0")
 addSbtPlugin("de.heikoseeberger"         % "sbt-header"               % "5.2.0")
 addSbtPlugin("io.get-coursier"           % "sbt-coursier"             % "1.0.3")
