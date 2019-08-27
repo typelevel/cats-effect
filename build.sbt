@@ -182,6 +182,9 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
       // Static forwarder not generated. We tried. - https://github.com/typelevel/cats-effect/pull/584
       exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
+      // Incompatible signatures should not cause linking problems.
+      exclude[IncompatibleSignatureProblem]("cats.effect.IO.ioParallel"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel"),
     )
   })
 
