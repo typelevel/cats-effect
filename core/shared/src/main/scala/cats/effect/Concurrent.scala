@@ -587,7 +587,7 @@ object Concurrent {
   /**
     * Like `Parallel.parTraverse`, but limits the degree of parallelism.
     */
-  def parTraverseN[T[_]: Traverse, M[_], F[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Concurrent[M], P: Parallel[M, F]): M[T[B]] =
+  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Concurrent[M], P: Parallel[M]): M[T[B]] =
     for {
       semaphore <- Semaphore(n)(M)
       tb <- ta.parTraverse { a =>
@@ -598,7 +598,7 @@ object Concurrent {
   /**
     * Like `Parallel.parSequence`, but limits the degree of parallelism.
     */
-  def parSequenceN[T[_]: Traverse, M[_], F[_], A](n: Long)(tma: T[M[A]])(implicit M: Concurrent[M], P: Parallel[M, F]): M[T[A]] =
+  def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Concurrent[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore(n)(M)
       mta <- tma.map(semaphore.withPermit).parSequence

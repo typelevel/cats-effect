@@ -339,7 +339,7 @@ object Async {
   /**
     * Like `Parallel.parTraverse`, but limits the degree of parallelism.
     */
-  def parTraverseN[T[_]: Traverse, M[_], F[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Async[M], P: Parallel[M, F]): M[T[B]] =
+  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Async[M], P: Parallel[M]): M[T[B]] =
     for {
       semaphore <- Semaphore.uncancelable(n)(M)
       tb <- ta.parTraverse { a =>
@@ -350,7 +350,7 @@ object Async {
   /**
     * Like `Parallel.parSequence`, but limits the degree of parallelism.
     */
-  def parSequenceN[T[_]: Traverse, M[_], F[_], A](n: Long)(tma: T[M[A]])(implicit M: Async[M], P: Parallel[M, F]): M[T[A]] =
+  def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Async[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore.uncancelable(n)(M)
       mta <- tma.map(semaphore.withPermit).parSequence

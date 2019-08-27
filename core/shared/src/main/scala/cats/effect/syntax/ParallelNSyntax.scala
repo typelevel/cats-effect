@@ -33,12 +33,12 @@ trait ParallelNSyntax {
 
 final class ParallelSequenceNConcurrentOps[T[_], M[_], A](private val tma: T[M[A]]) extends AnyVal {
 
-  def parSequenceN[F[_]](n: Long)(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M, F]): M[T[A]] =
+  def parSequenceN(n: Long)(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M]): M[T[A]] =
     M.parSequenceN(n)(tma)
 }
 
 final class ParallelTraversableNConcurrentOps[T[_], A](private val ta: T[A]) extends AnyVal {
 
-  def parTraverseN[M[_], F[_], B](n: Long)(f: A => M[B])(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M, F]): M[T[B]] =
+  def parTraverseN[M[_], B](n: Long)(f: A => M[B])(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M]): M[T[B]] =
     M.parTraverseN(n)(ta)(f)
 }

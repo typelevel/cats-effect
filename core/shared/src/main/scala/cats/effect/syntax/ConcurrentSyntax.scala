@@ -43,12 +43,12 @@ final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal 
   /**
     * Like `Parallel.parTraverse`, but limits the degree of parallelism.
     */
-  def parTraverseN[T[_], G[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(implicit T: Traverse[T], P: Parallel[F, G]): F[T[B]] =
+  def parTraverseN[T[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(implicit T: Traverse[T], P: Parallel[F]): F[T[B]] =
     Concurrent.parTraverseN(n)(ta)(f)(T, F, P)
 
   /**
     * Like `Parallel.parSequence`, but limits the degree of parallelism.
     */
-  def parSequenceN[T[_], G[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F, G]): F[T[A]] =
+  def parSequenceN[T[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F]): F[T[A]] =
     Concurrent.parSequenceN(n)(tma)(T, F, P)
 }

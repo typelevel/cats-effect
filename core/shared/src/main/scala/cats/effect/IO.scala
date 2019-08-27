@@ -837,8 +837,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
       final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
     }
 
-  implicit def ioParallel(implicit cs: ContextShift[IO]): Parallel[IO, IO.Par] =
-    new Parallel[IO, IO.Par] {
+  implicit def ioParallel(implicit cs: ContextShift[IO]): Parallel.Aux[IO, IO.Par] =
+    new Parallel[IO] {
+      type F[x] = IO.Par[x]
+
       final override val applicative: Applicative[IO.Par] =
         parApplicative(cs)
       final override val monad: Monad[IO] =

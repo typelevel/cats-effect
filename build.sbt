@@ -26,7 +26,7 @@ startYear in ThisBuild := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "0.19.0"
-val CatsVersion = "2.0.0-RC1"
+val CatsVersion = "2.0.0-RC2"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
 val ScalaCheckVersion = "1.14.0"
@@ -182,6 +182,9 @@ val mimaSettings = Seq(
       exclude[ReversedMissingMethodProblem]("cats.effect.laws.discipline.BracketTests.bracketTrans"),
       // Static forwarder not generated. We tried. - https://github.com/typelevel/cats-effect/pull/584
       exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
+      // Incompatible signatures should not cause linking problems.
+      exclude[IncompatibleSignatureProblem]("cats.effect.IO.ioParallel"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel"),
     )
   })
 
