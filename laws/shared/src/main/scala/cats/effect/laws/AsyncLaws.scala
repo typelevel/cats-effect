@@ -97,7 +97,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
       // to run and set the promise.
       F.asyncF[Unit](cb => F.delay(cb(Right(()))) *> br.attempt.as(())) *> promise.get
     }
-    lh <-> F.pure(b)
+    lh <-> fa.attempt.as(b)
   }
 }
 
