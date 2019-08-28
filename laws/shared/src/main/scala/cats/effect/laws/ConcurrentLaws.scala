@@ -57,14 +57,12 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   }
 
   def asyncCancelableReceivesCancelSignal[A](a: A) = {
-    import cats.effect.internals.IOFromFuture
-
     val lh = for {
       release <- Deferred.uncancelable[F, A]
       latch    = Promise[Unit]()
       async    = F.cancelable[Unit] { _ => latch.success(()); release.complete(a) }
       fiber   <- F.start(async)
-      _       <- F.liftIO(IO(IOFromFuture(latch.future)).flatten)
+      _       <- Async.fromFuture(F.pure(latch.future))
       _       <- F.start(fiber.cancel)
       result  <- release.get
     } yield result
