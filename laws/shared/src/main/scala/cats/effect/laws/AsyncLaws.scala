@@ -19,10 +19,8 @@ package effect
 package laws
 
 import cats.effect.ExitCase.{Completed, Error}
-import cats.effect.concurrent.Deferred
 import cats.implicits._
 import cats.laws._
-
 import scala.util.Either
 
 trait AsyncLaws[F[_]] extends SyncLaws[F] {
@@ -85,17 +83,13 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 
   def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {
-    val lh = F.asyncF[Unit] { cb =>
-      val task = F.bracketCase(F.pure(cb)) { _ =>
-        fa
+    val lh = F.asyncF[B] { cb =>
+      F.bracketCase(F.pure(cb)) { _ =>
+        fa.as(())
       } {
-        case (cb, Completed | Error(_)) => F.delay(cb(b))
-        case _ => F.unit
+        case (cb, Completed | Error(_)) => F.delay(cb(Right(b)))
+        case _ =>  F.unit
       }
-      // Ignoring errors, even if the `asyncF` task is completed at
-      // the point where the error is generated, but it might be logged,
-      // or do other nasty things, depending on implementation
-      task.attempt.as(())
     }
     lh <-> F.pure(b)
   }
