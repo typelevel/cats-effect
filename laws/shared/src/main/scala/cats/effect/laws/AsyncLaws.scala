@@ -85,17 +85,17 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 
   def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {
-    val lh = Deferred.uncancelable[F, B].flatMap { promise =>
-      val br = F.bracketCase(F.delay(promise)) { _ =>
+    val lh = F.asyncF[Unit] { cb =>
+      val task = F.bracketCase(F.pure(cb)) { _ =>
         fa
       } {
-        case (r, Completed | Error(_)) => r.complete(b)
+        case (cb, Completed | Error(_)) => F.delay(cb(b))
         case _ => F.unit
       }
-      // Start and forget
-      // we attempt br because even if fa fails, we expect the release function
-      // to run and set the promise.
-      F.asyncF[Unit](cb => F.delay(cb(Right(()))) *> br.attempt.as(())) *> promise.get
+      // Ignoring errors, even if the `asyncF` task is completed at
+      // the point where the error is generated, but it might be logged,
+      // or do other nasty things, depending on implementation
+      task.attempt.as(())
     }
     lh <-> F.pure(b)
   }
