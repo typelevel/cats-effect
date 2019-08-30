@@ -76,7 +76,7 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           default ++ Seq(
             "never is derived from async" -> Prop.lzy(laws.neverIsDerivedFromAsync[A]),
             "asyncF raiseError is never" -> forAll(laws.asyncFRaiseErrorIsNever[A] _),
-            "asyncF ignored callback is never" -> forAll(laws.asyncFIgnoredCallbackIsNever[A] _),
+            "asyncF ignored callback is never" -> forAll(laws.asyncFIgnoredCallbackIsNever[A] _)
           )
         else
           default
