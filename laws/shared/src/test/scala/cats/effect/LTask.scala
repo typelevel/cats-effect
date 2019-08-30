@@ -24,6 +24,7 @@ import cats.syntax.flatMap._
 import cats.syntax.functor._
 
 import scala.concurrent.{ExecutionContext, ExecutionException, Future, Promise}
+import scala.util.control.NonFatal
 import scala.util.{Either, Left, Right}
 
 /**
@@ -64,15 +65,23 @@ object LTask {
       def async[A](k: (Either[Throwable, A] => Unit) => Unit): LTask[A] =
         LTask { _ =>
           val p = Promise[A]()
-          k(r => p.tryComplete(Conversions.toTry(r)))
-          p.future
+          try {
+            k(r => p.tryComplete(Conversions.toTry(r)))
+            p.future
+          } catch {
+            case NonFatal(e) => Future.failed(e)
+          }
         }
 
       def asyncF[A](k: (Either[Throwable, A] => Unit) => LTask[Unit]): LTask[A] =
         LTask { implicit ec =>
           val p = Promise[A]()
-          k(r => p.tryComplete(Conversions.toTry(r))).run(ec)
-          p.future
+          try {
+            k(r => p.tryComplete(Conversions.toTry(r))).run(ec)
+            p.future
+          } catch {
+            case NonFatal(e) => Future.failed(e)
+          }
         }
 
       def runAsync[A](fa: LTask[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
