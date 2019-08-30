@@ -87,6 +87,9 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def asyncFIgnoredCallbackIsNever[A](fa: F[Unit]) =
     F.never[A] <-> F.asyncF[A](_ => fa)
 
+  def asyncFTerminationIsOptional[A](a: A) =
+    F.asyncF[A](k => F.delay(k(Right(a))) *> F.never) <-> F.pure(a)
+
   def asyncThrowIsRaiseError[A](e: Throwable) =
     F.async[A](_ => throw e) <-> F.raiseError(e)
 

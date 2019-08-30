@@ -67,7 +67,8 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           "async can be derived from asyncF" -> forAll(laws.asyncCanBeDerivedFromAsyncF[A] _),
           "bracket release is called on Completed or Error" -> forAll(laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _),
           "async throw is raiseError" -> forAll(laws.asyncThrowIsRaiseError[A] _),
-          "asyncF throw is raiseError" -> forAll(laws.asyncFThrowIsRaiseError[A] _)
+          "asyncF throw is raiseError" -> forAll(laws.asyncFThrowIsRaiseError[A] _),
+          "don't wait for asyncF to complete" -> forAll(laws.asyncFTerminationIsOptional[A] _)
         )
 
         // Activating the tests that detect non-termination only if allowed by Params,
