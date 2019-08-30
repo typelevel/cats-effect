@@ -81,6 +81,18 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A]( _ => ())
 
+  def asyncFRaiseErrorIsNever[A](e: Throwable) =
+    F.never[A] <-> F.asyncF[A](_ => F.raiseError(e))
+
+  def asyncFIgnoredCallbackIsNever[A](fa: F[Unit]) =
+    F.never[A] <-> F.asyncF[A](_ => fa)
+
+  def asyncThrowIsRaiseError[A](e: Throwable) =
+    F.async[A](_ => throw e) <-> F.raiseError(e)
+
+  def asyncFThrowIsRaiseError[A](e: Throwable) =
+    F.asyncF[A](_ => throw e) <-> F.raiseError(e)
+
   def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 

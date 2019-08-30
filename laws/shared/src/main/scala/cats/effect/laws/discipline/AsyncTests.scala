@@ -65,13 +65,18 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           "repeated asyncF evaluation not memoized" -> forAll(laws.repeatedAsyncFEvaluationNotMemoized[A] _),
           "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _),
           "async can be derived from asyncF" -> forAll(laws.asyncCanBeDerivedFromAsyncF[A] _),
-          "bracket release is called on Completed or Error" -> forAll(laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _))
+          "bracket release is called on Completed or Error" -> forAll(laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _),
+          "async throw is raiseError" -> forAll(laws.asyncThrowIsRaiseError[A] _),
+          "asyncF throw is raiseError" -> forAll(laws.asyncFThrowIsRaiseError[A] _)
+        )
 
         // Activating the tests that detect non-termination only if allowed by Params,
         // because such tests might not be reasonable depending on evaluation model
         if (params.allowNonTerminationLaws)
           default ++ Seq(
-            "never is derived from async" -> Prop.lzy(laws.neverIsDerivedFromAsync[A])
+            "never is derived from async" -> Prop.lzy(laws.neverIsDerivedFromAsync[A]),
+            "asyncF raiseError is never" -> forAll(laws.asyncFRaiseErrorIsNever[A] _),
+            "asyncF ignored callback is never" -> forAll(laws.asyncFIgnoredCallbackIsNever[A] _),
           )
         else
           default
