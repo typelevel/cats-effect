@@ -85,6 +85,7 @@ These are some of the projects that provide high-level functions on top of `cats
 | [Linebacker](https://christopherdavenport.github.io/linebacker/) | Thread Pool Management for Scala: Enabling functional blocking where needed |
 | [Log4cats](https://christopherdavenport.github.io/log4cats/) | Functional Logging |
 | [Cats STM](https://timwspence.github.io/cats-stm/) | Software Transactional Memory for Cats Effect |
+| [Mau](https://github.com/kailuowang/mau) | A tiny library for an auto polling `Ref` |
 
 ## Development
 
