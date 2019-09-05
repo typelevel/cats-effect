@@ -16,11 +16,7 @@
 
 package cats.effect.syntax
 
-trait AllCatsEffectSyntax
-  extends BracketSyntax
-  with AsyncSyntax
-  with ConcurrentSyntax
-  with EffectSyntax
-  with ConcurrentEffectSyntax
-  with ParallelNSyntax
-  with SyncEffectSyntax
+import cats.effect.SyncEffect
+
+
+trait SyncEffectSyntax extends SyncEffect.ToSyncEffectOps

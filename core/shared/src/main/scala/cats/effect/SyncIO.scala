@@ -375,11 +375,14 @@ object SyncIO extends SyncIOInstances {
 }
 
 private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstances {
-  implicit val syncIoSync: Sync[SyncIO] = new Sync[SyncIO] with StackSafeMonad[SyncIO] {
+  implicit val syncIoSync: SyncEffect[SyncIO] = new SyncEffect[SyncIO] with StackSafeMonad[SyncIO] {
     final override def pure[A](a: A): SyncIO[A] =
       SyncIO.pure(a)
     final override def unit: SyncIO[Unit] =
       SyncIO.unit
+
+    final override def to[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
+      G.delay(fa.unsafeRunSync())
 
     final override def map[A, B](fa: SyncIO[A])(f: A => B): SyncIO[B] =
       fa.map(f)
