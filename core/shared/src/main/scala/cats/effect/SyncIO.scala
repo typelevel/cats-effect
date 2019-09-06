@@ -375,50 +375,14 @@ object SyncIO extends SyncIOInstances {
 }
 
 private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstances {
-  implicit val syncIoSync: SyncEffect[SyncIO] = new SyncEffect[SyncIO] with StackSafeMonad[SyncIO] {
-    final override def pure[A](a: A): SyncIO[A] =
-      SyncIO.pure(a)
-    final override def unit: SyncIO[Unit] =
-      SyncIO.unit
 
+  implicit val syncIOsyncEffect: SyncEffect[SyncIO] = new SyncIOSync with SyncEffect[SyncIO] {
     final override def to[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
       G.delay(fa.unsafeRunSync())
-
-    final override def map[A, B](fa: SyncIO[A])(f: A => B): SyncIO[B] =
-      fa.map(f)
-    final override def flatMap[A, B](ioa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
-      ioa.flatMap(f)
-
-    final override def attempt[A](ioa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
-      ioa.attempt
-    final override def handleErrorWith[A](ioa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
-      ioa.handleErrorWith(f)
-    final override def raiseError[A](e: Throwable): SyncIO[A] =
-      SyncIO.raiseError(e)
-
-    final override def bracket[A, B](acquire: SyncIO[A])
-      (use: A => SyncIO[B])
-      (release: A => SyncIO[Unit]): SyncIO[B] =
-      acquire.bracket(use)(release)
-
-    final override def uncancelable[A](task: SyncIO[A]): SyncIO[A] =
-      task
-
-    final override def bracketCase[A, B](acquire: SyncIO[A])
-      (use: A => SyncIO[B])
-      (release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
-      acquire.bracketCase(use)(release)
-
-    final override def guarantee[A](fa: SyncIO[A])(finalizer: SyncIO[Unit]): SyncIO[A] =
-      fa.guarantee(finalizer)
-    final override def guaranteeCase[A](fa: SyncIO[A])(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
-      fa.guaranteeCase(finalizer)
-
-    final override def delay[A](thunk: => A): SyncIO[A] =
-      SyncIO(thunk)
-    final override def suspend[A](thunk: => SyncIO[A]): SyncIO[A] =
-      SyncIO.suspend(thunk)
   }
+
+  @deprecated("Signature changed to return SyncEffect", "2.0.0")
+  val syncIoSync: Sync[SyncIO] = new SyncIOSync {}
 
   implicit def syncIoMonoid[A: Monoid]: Monoid[SyncIO[A]] = new SyncIOSemigroup[A] with Monoid[SyncIO[A]] {
     def empty: SyncIO[A] = SyncIO.pure(Monoid[A].empty)
@@ -437,4 +401,46 @@ private[effect] abstract class SyncIOLowPriorityInstances {
   }
 
   implicit def syncIoSemigroup[A: Semigroup]: Semigroup[SyncIO[A]] = new SyncIOSemigroup[A]
+}
+
+private[effect] abstract class SyncIOSync extends Sync[SyncIO] with StackSafeMonad[SyncIO] {
+  final override def pure[A](a: A): SyncIO[A] =
+    SyncIO.pure(a)
+  final override def unit: SyncIO[Unit] =
+    SyncIO.unit
+
+  final override def map[A, B](fa: SyncIO[A])(f: A => B): SyncIO[B] =
+    fa.map(f)
+  final override def flatMap[A, B](ioa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
+    ioa.flatMap(f)
+
+  final override def attempt[A](ioa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
+    ioa.attempt
+  final override def handleErrorWith[A](ioa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
+    ioa.handleErrorWith(f)
+  final override def raiseError[A](e: Throwable): SyncIO[A] =
+    SyncIO.raiseError(e)
+
+  final override def bracket[A, B](acquire: SyncIO[A])
+    (use: A => SyncIO[B])
+    (release: A => SyncIO[Unit]): SyncIO[B] =
+    acquire.bracket(use)(release)
+
+  final override def uncancelable[A](task: SyncIO[A]): SyncIO[A] =
+    task
+
+  final override def bracketCase[A, B](acquire: SyncIO[A])
+    (use: A => SyncIO[B])
+    (release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
+    acquire.bracketCase(use)(release)
+
+  final override def guarantee[A](fa: SyncIO[A])(finalizer: SyncIO[Unit]): SyncIO[A] =
+    fa.guarantee(finalizer)
+  final override def guaranteeCase[A](fa: SyncIO[A])(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
+    fa.guaranteeCase(finalizer)
+
+  final override def delay[A](thunk: => A): SyncIO[A] =
+    SyncIO(thunk)
+  final override def suspend[A](thunk: => SyncIO[A]): SyncIO[A] =
+    SyncIO.suspend(thunk)
 }
