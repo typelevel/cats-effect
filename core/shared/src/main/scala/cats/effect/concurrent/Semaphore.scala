@@ -18,7 +18,6 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.ExitCase
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
