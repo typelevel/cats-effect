@@ -33,7 +33,7 @@ val ScalaCheckVersion = "1.14.2"
 val DisciplineCoreVersion = "1.0.0"
 val DisciplineScalatestVersion = "1.0.0-M1"
 
-addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
+addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
