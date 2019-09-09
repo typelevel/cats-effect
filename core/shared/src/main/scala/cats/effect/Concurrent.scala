@@ -575,7 +575,7 @@ object Concurrent {
       fa.start.bracket( fiber =>
         fiber.join.guaranteeCase {
           case ExitCase.Completed | ExitCase.Error(_) =>
-            (fiber.join.attempt.flatMap(f)).attempt.flatMap(r.complete)
+            fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
           case _ => fiber.cancel >>
             r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
         }.attempt

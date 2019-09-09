@@ -71,7 +71,7 @@ private[effect] trait IOAppCompanionPlatform {
 
     /**
      * The main execution context for this app, provided by
-     * [[executionContextResoruce]].  Outside `run`, this context will
+     * [[executionContextResource]].  Outside `run`, this context will
      * reject all tasks.
      */
     protected final def executionContext: ExecutionContext =
