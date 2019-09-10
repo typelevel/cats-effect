@@ -50,7 +50,10 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO", implicit ec => {
     implicit val cs = ec.contextShift[IO]
-    ParallelTests[IO, IO.Par].parallel[Int, Int]
+
+    // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+    val module = ParallelTests[IO]
+    module.parallel[Int, Int]
   })
 
   checkAllAsync("IO(Effect defaults)", implicit ec => {
