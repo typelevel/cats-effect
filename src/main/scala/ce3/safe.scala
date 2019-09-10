@@ -1,0 +1,69 @@
+/*
+ * Copyright 2019 Daniel Spiewak
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package ce3
+
+import cats.{Monad, MonadError, Traverse}
+
+// represents the type Bracket | Region
+sealed trait Safe[F[_], E] extends MonadError[F, E] {
+  // inverts the contravariance, allowing a lawful bracket without discussing cancelation until Concurrent
+  type Case[A]
+
+  implicit def CaseInstance: MonadError[Case, E] with Traverse[Case]
+}
+
+trait Bracket[F[_], E] extends Safe[F, E] {
+
+  def bracketCase[A, B](
+      acquire: F[A])(
+      use: A => F[B])(
+      release: (A, Case[B]) => F[Unit])
+      : F[B]
+
+  def bracket[A, B](
+      acquire: F[A])(
+      use: A => F[B])(
+      release: A => F[Unit])
+      : F[B] =
+    bracketCase(acquire)(use)((a, _) => release(a))
+}
+
+object Bracket {
+  type Aux[F[_], E, Case0[_]] = Bracket[F, E] { type Case[A] = Case0[A] }
+  type Aux2[F[_], E, Case0[_, _]] = Bracket[F, E] { type Case[A] = Case0[E, A] }
+}
+
+trait Region[R[_[_], _], F[_], E] extends Safe[R[F, ?], E] {
+
+  def openCase[A](acquire: F[A])(release: (A, Case[_]) => F[Unit]): R[F, A]
+
+  def open[A](acquire: F[A])(release: A => F[Unit]): R[F, A] =
+    openCase(acquire)((a, _) => release(a))
+
+  def liftF[A](fa: F[A]): R[F, A]
+
+  // this is analogous to *>, but with more constrained laws (closing the resource scope)
+  def supersede[B](rfa: R[F, _], rfb: R[F, B]): R[F, B]
+
+  // this is analogous to void, but it closes the resource scope
+  def close(rfa: R[F, _]): R[F, Unit] = supersede(rfa, unit)
+}
+
+object Region {
+  type Aux[R[_[_], _], F[_], E, Case0[_]] = Region[R, F, E] { type Case[A] = Case0[A] }
+  type Aux2[R[_[_], _], F[_], E, Case0[_, _]] = Region[R, F, E] { type Case[A] = Case0[E, A] }
+}

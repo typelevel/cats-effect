@@ -1,0 +1,28 @@
+sudo: false
+language: scala
+
+branches:
+  except:
+    - /^v\d+\.\d+\.\d+$/      # don't redundantly build tags
+
+scala:
+  - 2.13.0
+
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION ci
+
+before_cache:
+  - find $HOME/.sbt -name "*.lock" -type f -delete
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -type f -delete
+
+env:
+  global:
+    - COURSIER_PROGRESS=0
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.coursier/cache
+    - $HOME/.sbt
+
+jdk: openjdk8
