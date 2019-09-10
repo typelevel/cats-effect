@@ -20,15 +20,15 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import sbtcrossproject.crossProject
 
-organization in ThisBuild := "org.typelevel"
-organizationName in ThisBuild := "Typelevel"
-startYear in ThisBuild := Some(2017)
+ThisBuild / organization := "org.typelevel"
+ThisBuild / organizationName := "Typelevel"
+ThisBuild / startYear := Some(2017)
 
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "0.19.0"
-val CatsVersion = "2.0.0-RC3"
+val CatsVersion = "2.0.0"
 val ScalaTestVersion = "3.1.0-SNAP13"
-val ScalaTestPlusScalaCheckVersion = "3.1.0.0-RC2"
+val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
 val ScalaCheckVersion = "1.14.0"
 val DisciplineCoreVersion = "1.0.0"
 val DisciplineScalatestVersion = "1.0.0-M1"
@@ -403,14 +403,14 @@ lazy val microsite = project.in(file("site"))
  */
 val BaseVersion = "2.0.0"
 
-licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
+ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
 /***********************************************************************\
                       Boilerplate below these lines
 \***********************************************************************/
 
-coursierUseSbtCredentials in ThisBuild := true
-coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
+ThisBuild / coursierUseSbtCredentials := true
+ThisBuild / coursierChecksums := Nil      // workaround for nexus sync bugs
 
 enablePlugins(GitVersioning)
 
