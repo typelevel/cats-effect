@@ -168,7 +168,7 @@ object playground {
           }
         } yield back
 
-        def yielding: PureIO[E, Unit] = unit
+        def surrender: PureIO[E, Unit] = unit
 
         def flatMap[A, B](fa: PureIO[E, A])(f: A => PureIO[E, B]): PureIO[E, B] =
           fa.flatMap(f)

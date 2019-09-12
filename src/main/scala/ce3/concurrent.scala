@@ -48,8 +48,8 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   // produces an effect which is already canceled (and doesn't introduce an async boundary)
   def canceled[A]: F[A]
 
-  // introduces a fairness boundary by yielding control to the underlying dispatcher
-  def yielding: F[Unit]
+  // introduces a fairness boundary by yielding (surrendering) control to the underlying dispatcher
+  def surrender: F[Unit]
 
   def racePair[A, B](fa: F[A], fb: F[B]): F[Either[(A, Fiber[F, E, B]), (Fiber[F, E, A], B)]]
 }
