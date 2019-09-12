@@ -57,10 +57,13 @@ trait Region[R[_[_], _], F[_], E] extends Safe[R[F, ?], E] {
   def liftF[A](fa: F[A]): R[F, A]
 
   // this is analogous to *>, but with more constrained laws (closing the resource scope)
-  def supersede[B](rfa: R[F, _], rfb: R[F, B]): R[F, B]
+  def supersededBy[B](rfa: R[F, _], rfb: R[F, B]): R[F, B]
+
+  //todo probably should remove one or the other
+  def supersede[B](rfb: R[F, B], rfa: R[F, _]): R[F, B] = supersededBy(rfa, rfb)
 
   // this is analogous to void, but it closes the resource scope
-  def close(rfa: R[F, _]): R[F, Unit] = supersede(rfa, unit)
+  def close(rfa: R[F, _]): R[F, Unit] = supersededBy(rfa, unit)
 }
 
 object Region {
