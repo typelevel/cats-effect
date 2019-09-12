@@ -56,7 +56,7 @@ class PureCancelableSpec extends Specification with Discipline {
     }
 
   implicit def arbEitherK[F[_], G[_], A](implicit efa: Arbitrary[Either[F[A], G[A]]]): Arbitrary[EitherK[F, G, A]] =
-    Arbitrary(efa.map(EitherK(_)))
+    Arbitrary(efa.arbitrary.map(EitherK(_)))
 
   def genStateFDispatch[A: Arbitrary]: Gen[StateF[Dispatch, A]] = ???
 
@@ -71,6 +71,12 @@ class PureCancelableSpec extends Specification with Discipline {
       Gen.const(ExitCase.Canceled),
       Arbitrary.arbitrary[E].map(ExitCase.Errored(_)),
       Arbitrary.arbitrary[A].map(ExitCase.Completed(_)))
+
+  implicit def cogenExitCase[E: Cogen, A: Cogen]: Cogen[ExitCase[E, A]] = Cogen[Option[Either[E, A]]].contramap {
+    case ExitCase.Canceled => None
+    case ExitCase.Completed(a) => Some(Right(a))
+    case ExitCase.Errored(e) => Some(Left(e))
+  }
 
   // copied from FreeSuite
   def headOptionU = λ[List ~> Option](_.headOption)
@@ -95,8 +101,7 @@ class PureCancelableSpec extends Specification with Discipline {
   implicit def freeArbitrary[F[_], A](implicit F: Arbitrary[F[A]], A: Arbitrary[A]): Arbitrary[Free[F, A]] =
     Arbitrary(freeGen[F, A](4))
 
-  implicit def freeEq[S[_]: Monad, A](implicit SA: Eq[S[A]]): Eq[Free[S, A]] =
-    Eq.by(_.runM(identity))
+  implicit def pureIOEq[E: Eq, A: Eq]: Eq[PureIO[E, A]] = Eq.by(PureIO.run(_))
 
   implicit def freeShow[S[_]: Monad, A](implicit SA: Show[S[A]]): Show[Free[S, A]] =
     SA.contramap((fsa: Free[S, A]) => fsa.runM(identity))
