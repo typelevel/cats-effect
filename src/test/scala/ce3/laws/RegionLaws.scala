@@ -33,10 +33,10 @@ trait RegionLaws[R[_[_], _], F[_], E] extends MonadErrorLaws[R[F, ?], E] {
   import F.CaseInstance
 
   def regionEmptyBracketPure[A, B](acq: F[A], fb: F[B], release: (A, F.Case[_]) => F[Unit]) =
-    F.supersede(F.openCase(acq)(release), F.liftF(fb)) <-> F.liftF(B.bracketCase(acq)(B.pure(_))(release) *> fb)
+    F.supersededBy(F.openCase(acq)(release), F.liftF(fb)) <-> F.liftF(B.bracketCase(acq)(B.pure(_))(release) *> fb)
 
   def regionNested[A, B, C](fa: F[A], f: A => F[B], fc: F[C], releaseA: (A, F.Case[_]) => F[Unit], releaseB: (B, F.Case[_]) => F[Unit]) =
-    F.supersede(F.openCase(fa)(releaseA).flatMap(a => F.openCase(f(a))(releaseB)), F.liftF(fc)) <-> F.liftF(B.bracketCase(fa)(a => B.bracketCase(f(a))(B.pure(_))(releaseB))(releaseA) *> fc)
+    F.supersededBy(F.openCase(fa)(releaseA).flatMap(a => F.openCase(f(a))(releaseB)), F.liftF(fc)) <-> F.liftF(B.bracketCase(fa)(a => B.bracketCase(f(a))(B.pure(_))(releaseB))(releaseA) *> fc)
 
   def regionExtend[A, B](fa: F[A], f: A => F[B], release: A => F[Unit]) =
     F.open(fa)(release).flatMap(f.andThen(F.liftF(_))) <-> F.liftF(B.bracket(fa)(f)(release))
