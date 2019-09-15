@@ -16,11 +16,11 @@
 
 package ce3
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
+trait SyncEffect[F[_]] extends Sync[F] {
 
   def to[G[_]]: PartiallyApplied[G]
 
   trait PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A]
+    def apply[A](fa: F[A])(implicit G: Sync[G]): G[A]
   }
 }
