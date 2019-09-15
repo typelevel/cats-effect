@@ -19,6 +19,7 @@ package ce3
 // TODO names ("Managed" conflicts with ZIO, but honestly it's a better name for this than Resource or IsoRegion)
 trait Managed[R[_[_], _], F[_]] extends Async[R[F, ?]] with Region[R, F, Throwable] {
 
+  // this is annoying asymmetric with Effect due to the kinds involved
   def to[S[_[_], _]]: PartiallyApplied[S]
 
   trait PartiallyApplied[S[_[_], _]] {

@@ -16,11 +16,8 @@
 
 package ce3
 
+import cats.~>
+
 trait SyncEffect[F[_]] extends Sync[F] {
-
-  def to[G[_]]: PartiallyApplied[G]
-
-  trait PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G]): G[A]
-  }
+  def to[G[_]: Sync]: F ~> G
 }

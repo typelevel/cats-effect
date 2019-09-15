@@ -16,11 +16,8 @@
 
 package ce3
 
+import cats.~>
+
 trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
-
-  def to[G[_]]: PartiallyApplied[G]
-
-  trait PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A]
-  }
+  def to[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
 }
