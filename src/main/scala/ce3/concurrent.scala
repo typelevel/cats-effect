@@ -43,7 +43,8 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   def cancelable[A](fa: F[A]): F[A]
 
   // uncancelable(fa) <-> bracket(fa)(_.pure)(_ => unit)
-  def uncancelable[A](fa: F[A]): F[A]
+  def uncancelable[A](fa: F[A]): F[A] =
+    bracket(fa)(_ => unit[F])(_ => unit[F])
 
   // produces an effect which is already canceled (and doesn't introduce an async boundary)
   def canceled[A]: F[A]
