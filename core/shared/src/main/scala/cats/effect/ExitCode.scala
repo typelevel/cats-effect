@@ -22,9 +22,10 @@ package effect
  *
  * `code` is constrained to a range from 0 to 255, inclusive.
  */
-sealed abstract case class ExitCode private (val code: Int)
+sealed abstract case class ExitCode private (code: Int)
 
 object ExitCode {
+
   /**
    * Creates an `ExitCode`.
    *
@@ -34,5 +35,5 @@ object ExitCode {
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
 
   val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode = ExitCode(1)
+  val Error: ExitCode   = ExitCode(1)
 }

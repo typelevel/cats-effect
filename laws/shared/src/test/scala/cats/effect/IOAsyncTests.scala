@@ -35,16 +35,15 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
   implicit val cs: ContextShift[IO] =
     IO.contextShift(executionContext)
 
-  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])
-    (implicit pos: Position): Future[Assertion] = {
+  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])(implicit pos: Position): Future[Assertion] = {
 
-    val effect = Promise[Int]()
+    val effect  = Promise[Int]()
     val attempt = Promise[Try[Int]]()
     effect.future.onComplete(attempt.success)
 
     val io = source.runAsync {
       case Right(a) => IO(effect.success(a))
-      case Left(e) => IO(effect.failure(e))
+      case Left(e)  => IO(effect.failure(e))
     }
 
     for (_ <- io.toIO.unsafeToFuture(); v <- attempt.future) yield {

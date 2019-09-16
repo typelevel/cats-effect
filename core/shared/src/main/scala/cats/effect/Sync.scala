@@ -29,6 +29,7 @@ import cats.instances.tuple._
  */
 @typeclass(excludeParents = List("Defer"))
 trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
+
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -39,10 +40,10 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
   def suspend[A](thunk: => F[A]): F[A]
 
   /**
-    * Alias for `suspend` that suspends the evaluation of
-    * an `F` reference and implements `cats.Defer` typeclass.
-    */
-  override final def defer[A](fa: => F[A]): F[A] = suspend(fa)
+   * Alias for `suspend` that suspends the evaluation of
+   * an `F` reference and implements `cats.Defer` typeclass.
+   */
+  final override def defer[A](fa: => F[A]): F[A] = suspend(fa)
 
   /**
    * Lifts any by-name parameter into the `F` context.
@@ -92,21 +93,21 @@ object Sync {
     new KleisliSync[F, R] { def F = Sync[F] }
 
   /**
-    * [[Sync]] instance built for `cats.data.IorT` values initialized
-    * with any `F` data type that also implements `Sync`.
-    */
+   * [[Sync]] instance built for `cats.data.IorT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsIorTSync[F[_]: Sync, L: Semigroup]: Sync[IorT[F, L, ?]] =
     new IorTSync[F, L] { def F = Sync[F]; def L = Semigroup[L] }
 
   /**
-    * [[Sync]] instance built for `cats.data.ReaderWriterStateT` values initialized
-    * with any `F` data type that also implements `Sync`.
-    */
+   * [[Sync]] instance built for `cats.data.ReaderWriterStateT` values initialized
+   * with any `F` data type that also implements `Sync`.
+   */
   implicit def catsReaderWriteStateTSync[F[_]: Sync, E, L: Monoid, S]: Sync[ReaderWriterStateT[F, E, L, S, ?]] =
     new ReaderWriterStateTSync[F, E, L, S] { def F = Sync[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
-    protected implicit def F: Sync[F]
+    implicit protected def F: Sync[F]
 
     def pure[A](x: A): EitherT[F, L, A] =
       EitherT.pure(x)
@@ -117,30 +118,29 @@ object Sync {
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
       EitherT.liftF(F.raiseError(e))
 
-    def bracketCase[A, B](acquire: EitherT[F, L, A])
-      (use: A => EitherT[F, L, B])
-      (release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] = {
-
+    def bracketCase[A, B](
+      acquire: EitherT[F, L, A]
+    )(use: A => EitherT[F, L, B])(release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
       EitherT.liftF(Ref.of[F, Option[L]](None)).flatMap { ref =>
-          EitherT(
-            F.bracketCase(acquire.value) {
-              case Right(a) => use(a).value
+        EitherT(
+          F.bracketCase(acquire.value) {
+              case Right(a)    => use(a).value
               case l @ Left(_) => F.pure(l.rightCast[B])
             } {
               case (Left(_), _) => F.unit //Nothing to release
               case (Right(a), ExitCase.Completed) =>
                 release(a, ExitCase.Completed).value.flatMap {
-                  case Left(l) => ref.set(Some(l))
+                  case Left(l)  => ref.set(Some(l))
                   case Right(_) => F.unit
                 }
               case (Right(a), res) => release(a, res).value.void
-            }.flatMap[Either[L, B]] {
-              case r @ Right(_) => ref.get.map(_.fold(r: Either[L, B])(Either.left[L, B]))
-              case l @ Left(_) => F.pure(l)
             }
-          )
+            .flatMap[Either[L, B]] {
+              case r @ Right(_) => ref.get.map(_.fold(r: Either[L, B])(Either.left[L, B]))
+              case l @ Left(_)  => F.pure(l)
+            }
+        )
       }
-    }
 
     def flatMap[A, B](fa: EitherT[F, L, A])(f: A => EitherT[F, L, B]): EitherT[F, L, B] =
       fa.flatMap(f)
@@ -156,7 +156,7 @@ object Sync {
   }
 
   private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
-    protected implicit def F: Sync[F]
+    implicit protected def F: Sync[F]
 
     def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
 
@@ -166,31 +166,30 @@ object Sync {
     def raiseError[A](e: Throwable): OptionT[F, A] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
 
-    def bracketCase[A, B](acquire: OptionT[F, A])
-      (use: A => OptionT[F, B])
-      (release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] = {
-
+    def bracketCase[A, B](
+      acquire: OptionT[F, A]
+    )(use: A => OptionT[F, B])(release: (A, ExitCase[Throwable]) => OptionT[F, Unit]): OptionT[F, B] =
       //Boolean represents if release returned None
       OptionT.liftF(Ref.of[F, Boolean](false)).flatMap { ref =>
         OptionT(
           F.bracketCase(acquire.value) {
-            case Some(a) => use(a).value
-            case None => F.pure(Option.empty[B])
-          } {
-            case (None, _) => F.unit //Nothing to release
-            case (Some(a), ExitCase.Completed) =>
-              release(a, ExitCase.Completed).value.flatMap {
-                case None => ref.set(true)
-                case Some(_) => F.unit
-              }
-            case (Some(a), res) => release(a, res).value.void
-          }.flatMap[Option[B]] {
-            case s @ Some(_) => ref.get.map(b => if (b) None else s)
-            case None => F.pure(None)
-          }
+              case Some(a) => use(a).value
+              case None    => F.pure(Option.empty[B])
+            } {
+              case (None, _) => F.unit //Nothing to release
+              case (Some(a), ExitCase.Completed) =>
+                release(a, ExitCase.Completed).value.flatMap {
+                  case None    => ref.set(true)
+                  case Some(_) => F.unit
+                }
+              case (Some(a), res) => release(a, res).value.void
+            }
+            .flatMap[Option[B]] {
+              case s @ Some(_) => ref.get.map(b => if (b) None else s)
+              case None        => F.pure(None)
+            }
         )
       }
-    }
 
     def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
       fa.flatMap(f)
@@ -206,7 +205,7 @@ object Sync {
   }
 
   private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
-    protected implicit def F: Sync[F]
+    implicit protected def F: Sync[F]
 
     def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
 
@@ -216,22 +215,26 @@ object Sync {
     def raiseError[A](e: Throwable): StateT[F, S, A] =
       StateT.liftF(F.raiseError(e))
 
-    def bracketCase[A, B](acquire: StateT[F, S, A])
-      (use: A => StateT[F, S, B])
-      (release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] =
-        StateT.liftF(Ref.of[F, Option[S]](None)).flatMap { ref =>
-          StateT { startS =>
-            F.bracketCase[(S, A), (S, B)](acquire.run(startS)) { case (s, a) =>
-              use(a).run(s).flatTap { case (s, _) => ref.set(Some(s)) }
+    def bracketCase[A, B](
+      acquire: StateT[F, S, A]
+    )(use: A => StateT[F, S, B])(release: (A, ExitCase[Throwable]) => StateT[F, S, Unit]): StateT[F, S, B] =
+      StateT.liftF(Ref.of[F, Option[S]](None)).flatMap { ref =>
+        StateT { startS =>
+          F.bracketCase[(S, A), (S, B)](acquire.run(startS)) {
+              case (s, a) =>
+                use(a).run(s).flatTap { case (s, _) => ref.set(Some(s)) }
             } {
               case ((oldS, a), ExitCase.Completed) =>
-                ref.get.map(_.getOrElse(oldS))
-                  .flatMap(s => release(a, ExitCase.Completed).runS(s)).flatMap(s => ref.set(Some(s)))
+                ref.get
+                  .map(_.getOrElse(oldS))
+                  .flatMap(s => release(a, ExitCase.Completed).runS(s))
+                  .flatMap(s => ref.set(Some(s)))
               case ((s, a), br) =>
                 release(a, br).run(s).void
-            }.flatMap { case (s, b) => ref.get.map(_.getOrElse(s)).tupleRight(b) }
-          }
+            }
+            .flatMap { case (s, b) => ref.get.map(_.getOrElse(s)).tupleRight(b) }
         }
+      }
 
     override def uncancelable[A](fa: StateT[F, S, A]): StateT[F, S, A] =
       fa.transformF(F.uncancelable)
@@ -248,8 +251,8 @@ object Sync {
   }
 
   private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
-    protected implicit def F: Sync[F]
-    protected implicit def L: Monoid[L]
+    implicit protected def F: Sync[F]
+    implicit protected def L: Monoid[L]
 
     def pure[A](x: A): WriterT[F, L, A] = WriterT.value(x)
 
@@ -259,24 +262,25 @@ object Sync {
     def raiseError[A](e: Throwable): WriterT[F, L, A] =
       WriterT.catsDataMonadErrorForWriterT[F, L, Throwable].raiseError(e)
 
-    def bracketCase[A, B](acquire: WriterT[F, L, A])
-      (use: A => WriterT[F, L, B])
-      (release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
-        WriterT(
-          Ref[F].of(L.empty).flatMap { ref =>
-            F.bracketCase(acquire.run) { la =>
+    def bracketCase[A, B](
+      acquire: WriterT[F, L, A]
+    )(use: A => WriterT[F, L, B])(release: (A, ExitCase[Throwable]) => WriterT[F, L, Unit]): WriterT[F, L, B] =
+      WriterT(
+        Ref[F].of(L.empty).flatMap { ref =>
+          F.bracketCase(acquire.run) { la =>
               WriterT(la.pure[F]).flatMap(use).run
-            } { case ((_, a), ec) =>
-              val r = release(a, ec).run
-              if (ec == ExitCase.Completed)
-                r.flatMap { case (l, _) => ref.set(l) }
-              else
-                r.void
-            }.flatMap { lb =>
+            } {
+              case ((_, a), ec) =>
+                val r = release(a, ec).run
+                if (ec == ExitCase.Completed)
+                  r.flatMap { case (l, _) => ref.set(l) } else
+                  r.void
+            }
+            .flatMap { lb =>
               ref.get.map(l => lb.leftMap(_ |+| l))
             }
-          }
-        )
+        }
+      )
 
     override def uncancelable[A](fa: WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(F.uncancelable(fa.run))
@@ -291,28 +295,34 @@ object Sync {
       WriterT(F.suspend(thunk.run))
   }
 
-  private[effect] abstract class KleisliSync[F[_], R]
-    extends Bracket.KleisliBracket[F, R, Throwable]
-    with Sync[Kleisli[F, R, ?]] {
+  abstract private[effect] class KleisliSync[F[_], R]
+      extends Bracket.KleisliBracket[F, R, Throwable]
+      with Sync[Kleisli[F, R, ?]] {
 
-    protected implicit override def F: Sync[F]
+    implicit override protected def F: Sync[F]
 
     override def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli { r => F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r))) }
+      Kleisli { r =>
+        F.suspend(F.handleErrorWith(fa.run(r))(e => f(e).run(r)))
+      }
 
     override def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
-      Kleisli { r => F.suspend(fa.run(r).flatMap(f.andThen(_.run(r)))) }
+      Kleisli { r =>
+        F.suspend(fa.run(r).flatMap(f.andThen(_.run(r))))
+      }
 
     def suspend[A](thunk: => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli(r => F.suspend(thunk.run(r)))
 
     override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli { r => F.suspend(F.uncancelable(fa.run(r))) }
+      Kleisli { r =>
+        F.suspend(F.uncancelable(fa.run(r)))
+      }
   }
 
   private[effect] trait IorTSync[F[_], L] extends Sync[IorT[F, L, ?]] {
-    protected implicit def F: Sync[F]
-    protected implicit def L: Semigroup[L]
+    implicit protected def F: Sync[F]
+    implicit protected def L: Semigroup[L]
 
     def pure[A](x: A): IorT[F, L, A] =
       IorT.pure(x)
@@ -323,27 +333,27 @@ object Sync {
     def raiseError[A](e: Throwable): IorT[F, L, A] =
       IorT.liftF(F.raiseError(e))
 
-    def bracketCase[A, B](acquire: IorT[F, L, A])
-                         (use: A => IorT[F, L, B])
-                         (release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] =
+    def bracketCase[A, B](
+      acquire: IorT[F, L, A]
+    )(use: A => IorT[F, L, B])(release: (A, ExitCase[Throwable]) => IorT[F, L, Unit]): IorT[F, L, B] =
       IorT.liftF(Ref[F].of(().rightIor[L])).flatMapF { ref =>
         F.bracketCase(acquire.value) { ia =>
-          IorT.fromIor[F](ia).flatMap(use).value
-        } { (ia, ec) =>
-          ia.toOption.fold(F.unit) { a =>
-            val r = release(a, ec).value
-            if (ec == ExitCase.Completed)
-              r flatMap {
-                case Ior.Right(_) => F.unit
-                case other => ref.set(other.void)
-              }
-            else
-              r.void
+            IorT.fromIor[F](ia).flatMap(use).value
+          } { (ia, ec) =>
+            ia.toOption.fold(F.unit) { a =>
+              val r = release(a, ec).value
+              if (ec == ExitCase.Completed)
+                r.flatMap {
+                  case Ior.Right(_) => F.unit
+                  case other        => ref.set(other.void)
+                } else
+                r.void
+            }
           }
-        }.flatMap {
-          case l @ Ior.Left(_) => F.pure(l)
-          case other => ref.get.map(other <* _)
-        }
+          .flatMap {
+            case l @ Ior.Left(_) => F.pure(l)
+            case other           => ref.get.map(other <* _)
+          }
       }
 
     def flatMap[A, B](fa: IorT[F, L, A])(f: A => IorT[F, L, B]): IorT[F, L, B] =
@@ -360,39 +370,49 @@ object Sync {
   }
 
   private[effect] trait ReaderWriterStateTSync[F[_], E, L, S] extends Sync[ReaderWriterStateT[F, E, L, S, ?]] {
-    protected implicit def F: Sync[F]
-    protected implicit def L: Monoid[L]
+    implicit protected def F: Sync[F]
+    implicit protected def L: Monoid[L]
 
     def pure[A](x: A): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.pure(x)
 
-    def handleErrorWith[A](fa: ReaderWriterStateT[F, E, L, S, A])(f: Throwable => ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
+    def handleErrorWith[A](
+      fa: ReaderWriterStateT[F, E, L, S, A]
+    )(f: Throwable => ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT((e, s) => F.handleErrorWith(fa.run(e, s))(f.andThen(_.run(e, s))))
 
     def raiseError[A](e: Throwable): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.liftF(F.raiseError(e))
 
-    def bracketCase[A, B](acquire: ReaderWriterStateT[F, E, L, S, A])
-                         (use: A => ReaderWriterStateT[F, E, L, S, B])
-                         (release: (A, ExitCase[Throwable]) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, B] =
+    def bracketCase[A, B](acquire: ReaderWriterStateT[F, E, L, S, A])(
+      use: A => ReaderWriterStateT[F, E, L, S, B]
+    )(release: (A, ExitCase[Throwable]) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, B] =
       ReaderWriterStateT.liftF(Ref[F].of[(L, Option[S])]((L.empty, None))).flatMap { ref =>
         ReaderWriterStateT { (e, startS) =>
-          F.bracketCase(acquire.run(e, startS)) { case (l, s, a) =>
-            ReaderWriterStateT.pure[F, E, L, S, A](a).tell(l).flatMap(use).run(e, s).flatTap { case (l, s, _) => ref.set((l, Some(s))) }
-          } {
-            case ((_, oldS, a), ExitCase.Completed) =>
-              ref.get.map(_._2.getOrElse(oldS))
-                .flatMap(s => release(a, ExitCase.Completed).run(e, s))
-                .flatMap { case (l, s, _) => ref.set((l, Some(s))) }
-            case ((_, s, a), ec) =>
-              release(a, ec).run(e, s).void
-          }.flatMap { case (l, s, b) =>
-            ref.get.map { case (l2, s2) => (l |+| l2, s2.getOrElse(s), b) }
-          }
+          F.bracketCase(acquire.run(e, startS)) {
+              case (l, s, a) =>
+                ReaderWriterStateT.pure[F, E, L, S, A](a).tell(l).flatMap(use).run(e, s).flatTap {
+                  case (l, s, _) => ref.set((l, Some(s)))
+                }
+            } {
+              case ((_, oldS, a), ExitCase.Completed) =>
+                ref.get
+                  .map(_._2.getOrElse(oldS))
+                  .flatMap(s => release(a, ExitCase.Completed).run(e, s))
+                  .flatMap { case (l, s, _) => ref.set((l, Some(s))) }
+              case ((_, s, a), ec) =>
+                release(a, ec).run(e, s).void
+            }
+            .flatMap {
+              case (l, s, b) =>
+                ref.get.map { case (l2, s2) => (l |+| l2, s2.getOrElse(s), b) }
+            }
         }
       }
 
-    def flatMap[A, B](fa: ReaderWriterStateT[F, E, L, S, A])(f: A => ReaderWriterStateT[F, E, L, S, B]): ReaderWriterStateT[F, E, L, S, B] =
+    def flatMap[A, B](
+      fa: ReaderWriterStateT[F, E, L, S, A]
+    )(f: A => ReaderWriterStateT[F, E, L, S, B]): ReaderWriterStateT[F, E, L, S, B] =
       fa.flatMap(f)
 
     def tailRecM[A, B](a: A)(f: A => ReaderWriterStateT[F, E, L, S, Either[A, B]]): ReaderWriterStateT[F, E, L, S, B] =

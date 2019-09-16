@@ -29,66 +29,65 @@ import Prop.forAll
 trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
   def laws: BracketLaws[F, E]
 
-  def bracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      ArbE: Arbitrary[E],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      CogenE: Cogen[E],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqE: Eq[E],
-      EqFEitherEU: Eq[F[Either[E, Unit]]],
-      EqFEitherEA: Eq[F[Either[E, A]]],
-      EqEitherTFEA: Eq[EitherT[F, E, A]],
-      EqFABC: Eq[F[(A, B, C)]],
-      EqFInt: Eq[F[Int]],
-      iso: Isomorphisms[F]): RuleSet = {
+  def bracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                    ArbFA: Arbitrary[F[A]],
+                                                                    ArbFB: Arbitrary[F[B]],
+                                                                    ArbFC: Arbitrary[F[C]],
+                                                                    ArbFU: Arbitrary[F[Unit]],
+                                                                    ArbFAtoB: Arbitrary[F[A => B]],
+                                                                    ArbFBtoC: Arbitrary[F[B => C]],
+                                                                    ArbE: Arbitrary[E],
+                                                                    CogenA: Cogen[A],
+                                                                    CogenB: Cogen[B],
+                                                                    CogenC: Cogen[C],
+                                                                    CogenE: Cogen[E],
+                                                                    EqFA: Eq[F[A]],
+                                                                    EqFB: Eq[F[B]],
+                                                                    EqFC: Eq[F[C]],
+                                                                    EqE: Eq[E],
+                                                                    EqFEitherEU: Eq[F[Either[E, Unit]]],
+                                                                    EqFEitherEA: Eq[F[Either[E, A]]],
+                                                                    EqEitherTFEA: Eq[EitherT[F, E, A]],
+                                                                    EqFABC: Eq[F[(A, B, C)]],
+                                                                    EqFInt: Eq[F[Int]],
+                                                                    iso: Isomorphisms[F]): RuleSet =
     new RuleSet {
-      val name = "bracket"
-      val bases = Nil
+      val name    = "bracket"
+      val bases   = Nil
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
         "bracketCase with pure unit on release is eqv to map" -> forAll(laws.bracketCaseWithPureUnitIsEqvMap[A, B] _),
-        "bracketCase with failure in acquisition remains failure" -> forAll(laws.bracketCaseFailureInAcquisitionRemainsFailure[A, B] _),
-        "bracketCase with pure unit on release is eqv to uncancelable(..).flatMap" -> forAll(laws.bracketCaseWithPureUnitIsUncancelable[A, B] _),
-        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
-        "uncancelable prevents Cancelled case" -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
+        "bracketCase with failure in acquisition remains failure" -> forAll(
+          laws.bracketCaseFailureInAcquisitionRemainsFailure[A, B] _
+        ),
+        "bracketCase with pure unit on release is eqv to uncancelable(..).flatMap" -> forAll(
+          laws.bracketCaseWithPureUnitIsUncancelable[A, B] _
+        ),
+        "bracket is derived from bracketCase"             -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
+        "uncancelable prevents Cancelled case"            -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
         "acquire and release of bracket are uncancelable" -> forAll(laws.acquireAndReleaseAreUncancelable[A, B] _),
-        "guarantee is derived from bracket" -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
-        "guaranteeCase is derived from bracketCase" -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _),
-        "onCancel is derived from guaranteeCase" -> forAll(laws.onCancelIsDerivedFromGuaranteeCase[A] _)
-
+        "guarantee is derived from bracket"               -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
+        "guaranteeCase is derived from bracketCase"       -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _),
+        "onCancel is derived from guaranteeCase"          -> forAll(laws.onCancelIsDerivedFromGuaranteeCase[A] _)
       )
     }
-  }
 
-  def bracketTrans[M[_], A: Arbitrary: Eq, B: Arbitrary: Eq](fromM: M ~> F)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbMU: Arbitrary[M[Unit]],
-      CogenA: Cogen[A],
-      EqFB: Eq[F[B]]): RuleSet = {
+  def bracketTrans[M[_], A: Arbitrary: Eq, B: Arbitrary: Eq](fromM: M ~> F)(implicit
+                                                                            ArbFA: Arbitrary[F[A]],
+                                                                            ArbFB: Arbitrary[F[B]],
+                                                                            ArbMU: Arbitrary[M[Unit]],
+                                                                            CogenA: Cogen[A],
+                                                                            EqFB: Eq[F[B]]): RuleSet =
     new RuleSet {
-      val name = "bracket"
-      val bases = Nil
+      val name    = "bracket"
+      val bases   = Nil
       val parents = Nil
 
       val props = Seq(
         "bracket propagates transformer effects" -> forAll(laws.bracketPropagatesTransformerEffects[M, A, B](fromM) _)
       )
     }
-  }
 }
 
 object BracketTests {

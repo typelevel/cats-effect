@@ -39,11 +39,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
       cause.printStackTrace()
   }
 
-  implicit val cs = IO.contextShift(context)
+  implicit val cs               = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {
-    service = Executors.newFixedThreadPool(parallelism,
+    service = Executors.newFixedThreadPool(
+      parallelism,
       new ThreadFactory {
         private[this] val index = new AtomicLong(0)
         def newThread(r: Runnable): Thread = {
@@ -52,7 +53,8 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
           th.setDaemon(false)
           th
         }
-      })
+      }
+    )
   }
 
   after {
@@ -61,9 +63,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
   }
 
   // ----------------------------------------------------------------------------
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val isCI       = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
-  val timeout = if (isCI) 30.seconds else 10.seconds
+  val timeout    = if (isCI) 30.seconds else 10.seconds
 
   def cleanupOnError[A](task: IO[A], f: Fiber[IO, _]) =
     task.guaranteeCase {
@@ -85,12 +87,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
         } yield ()
 
       val task = for {
-        df    <- cats.effect.concurrent.Deferred[IO, Unit]
-        fb    <- get(df).start
-        _     <- IO(Thread.currentThread().getName shouldBe name)
-        _     <- df.complete(())
-        _     <- IO(Thread.currentThread().getName shouldBe name)
-        _     <- fb.join
+        df <- cats.effect.concurrent.Deferred[IO, Unit]
+        fb <- get(df).start
+        _  <- IO(Thread.currentThread().getName shouldBe name)
+        _  <- df.complete(())
+        _  <- IO(Thread.currentThread().getName shouldBe name)
+        _  <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -123,10 +125,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
   test("Deferred (concurrent) — issue #380: with cooperative light async boundaries") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
         d     <- Deferred[IO, Unit]
@@ -145,10 +146,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
   test("Deferred (concurrent) — issue #380: with cooperative full async boundaries") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
         d     <- Deferred[IO, Unit]
@@ -174,10 +174,10 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
       try {
         val task = for {
-          df    <- cats.effect.concurrent.Deferred.uncancelable[IO, Unit]
-          f     <- (df.get *> unit.foreverM).start
-          _     <- df.complete(())
-          _     <- f.cancel
+          df <- cats.effect.concurrent.Deferred.uncancelable[IO, Unit]
+          f  <- (df.get *> unit.foreverM).start
+          _  <- df.complete(())
+          _  <- f.cancel
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -189,10 +189,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
   test("Deferred (async) — issue #380: with cooperative light async boundaries") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
         d     <- Deferred.uncancelable[IO, Unit]
@@ -210,10 +209,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
   test("Deferred (async) — issue #380: with cooperative full async boundaries") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
         d     <- Deferred.uncancelable[IO, Unit]

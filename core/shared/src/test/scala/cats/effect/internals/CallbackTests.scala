@@ -39,9 +39,9 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("Callback.async references should be stack safe") {
-    var result = Option.empty[Either[Throwable, Int]]
+    var result           = Option.empty[Either[Throwable, Int]]
     val r: Callback[Int] = r => { result = Some(r) }
-    val count = if (IOPlatform.isJVM) 100000 else 10000
+    val count            = if (IOPlatform.isJVM) 100000 else 10000
 
     val f = (0 until count).foldLeft(r)((acc, _) => Callback.async(acc.andThen(_ => ())))
     f(Right(1))
@@ -50,11 +50,11 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
   test("Callback.async pops Connection if provided") {
     val conn = IOConnection()
-    val ref = IO(())
+    val ref  = IO(())
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
-    val cb = Callback.async(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
+    val cb     = Callback.async(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
     result shouldBe None
 
     cb(Right(100))
@@ -63,9 +63,9 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("Callback.asyncIdempotent should be stack safe") {
-    var result = Option.empty[Either[Throwable, Int]]
+    var result           = Option.empty[Either[Throwable, Int]]
     val r: Callback[Int] = r => { result = Some(r) }
-    val count = if (IOPlatform.isJVM) 100000 else 10000
+    val count            = if (IOPlatform.isJVM) 100000 else 10000
 
     val f = (0 until count).foldLeft(r)((acc, _) => Callback.asyncIdempotent(null, acc.andThen(_ => ())))
     f(Right(1))
@@ -74,11 +74,11 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
   test("Callback.asyncIdempotent pops Connection if provided") {
     val conn = IOConnection()
-    val ref = IO(())
+    val ref  = IO(())
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
-    val cb = Callback.asyncIdempotent(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
+    val cb     = Callback.asyncIdempotent(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
     result shouldBe None
 
     cb(Right(100))
@@ -87,9 +87,9 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("Callback.asyncIdempotent can only be called once") {
-    var effect = 0
+    var effect             = 0
     val ref: Callback[Int] = { case Right(n) => effect += n; case Left(e) => throw e }
-    val safe = Callback.asyncIdempotent(null, ref)
+    val safe               = Callback.asyncIdempotent(null, ref)
 
     safe(Right(100))
     safe(Right(100))
@@ -98,9 +98,9 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("Callback.asyncIdempotent reports error") {
-    var input = Option.empty[Either[Throwable, Int]]
+    var input              = Option.empty[Either[Throwable, Int]]
     val ref: Callback[Int] = r => { input = Some(r) }
-    val safe = Callback.asyncIdempotent(null, ref)
+    val safe               = Callback.asyncIdempotent(null, ref)
 
     val dummy1 = new RuntimeException("dummy1")
     val dummy2 = new RuntimeException("dummy2")
@@ -114,7 +114,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
   test("Callback.Extensions.async(cb)") {
     var result = Option.empty[Either[Throwable, Int]]
-    val cb = (r: Either[Throwable, Int]) => { result = Some(r) }
+    val cb     = (r: Either[Throwable, Int]) => { result = Some(r) }
 
     cb.async(Right(100))
     result shouldBe Some(Right(100))

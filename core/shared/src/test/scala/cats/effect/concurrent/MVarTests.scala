@@ -34,14 +34,14 @@ class MVarConcurrentTests extends BaseMVarTests {
   test("put is cancelable") {
     val task = for {
       mVar <- init(0)
-      _  <- mVar.put(1).start
-      p2 <- mVar.put(2).start
-      _  <- mVar.put(3).start
-      _  <- IO.sleep(10.millis) // Give put callbacks a chance to register
-      _  <- p2.cancel
-      _  <- mVar.take
-      r1 <- mVar.take
-      r3 <- mVar.take
+      _    <- mVar.put(1).start
+      p2   <- mVar.put(2).start
+      _    <- mVar.put(3).start
+      _    <- IO.sleep(10.millis) // Give put callbacks a chance to register
+      _    <- p2.cancel
+      _    <- mVar.take
+      r1   <- mVar.take
+      r3   <- mVar.take
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -52,15 +52,15 @@ class MVarConcurrentTests extends BaseMVarTests {
   test("take is cancelable") {
     val task = for {
       mVar <- empty[Int]
-      t1 <- mVar.take.start
-      t2 <- mVar.take.start
-      t3 <- mVar.take.start
-      _  <- IO.sleep(10.millis) // Give take callbacks a chance to register
-      _  <- t2.cancel
-      _  <- mVar.put(1)
-      _  <- mVar.put(3)
-      r1 <- t1.join
-      r3 <- t3.join
+      t1   <- mVar.take.start
+      t2   <- mVar.take.start
+      t3   <- mVar.take.start
+      _    <- IO.sleep(10.millis) // Give take callbacks a chance to register
+      _    <- t2.cancel
+      _    <- mVar.put(1)
+      _    <- mVar.put(3)
+      r1   <- t1.join
+      r3   <- t3.join
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -70,12 +70,12 @@ class MVarConcurrentTests extends BaseMVarTests {
 
   test("read is cancelable") {
     val task = for {
-      mVar <- MVar[IO].empty[Int]
+      mVar     <- MVar[IO].empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.read.flatMap(finished.complete).start
-      _  <- IO.sleep(10.millis) // Give read callback a chance to register
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
+      fiber    <- mVar.read.flatMap(finished.complete).start
+      _        <- IO.sleep(10.millis) // Give read callback a chance to register
+      _        <- fiber.cancel
+      _        <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> IO.pure(0)
       v <- IO.race(finished.get, fallback)
     } yield v
@@ -107,13 +107,13 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("empty; put; take; put; take") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       isE1 <- av.isEmpty
-      _  <- av.put(10)
+      _    <- av.put(10)
       isE2 <- av.isEmpty
-      r1 <- av.take
-      _  <- av.put(20)
-      r2 <- av.take
+      r1   <- av.take
+      _    <- av.put(20)
+      r2   <- av.take
     } yield (isE1, isE2, r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -123,15 +123,15 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       isE1 <- av.isEmpty
-      p1 <- av.tryPut(10)
-      p2 <- av.tryPut(11)
+      p1   <- av.tryPut(10)
+      p2   <- av.tryPut(11)
       isE2 <- av.isEmpty
-      r1 <- av.tryTake
-      r2 <- av.tryTake
-      _  <- av.put(20)
-      r3 <- av.take
+      r1   <- av.tryTake
+      r2   <- av.tryTake
+      _    <- av.put(20)
+      r3   <- av.take
     } yield (isE1, p1, p2, isE2, r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
@@ -148,7 +148,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       _  <- av.put(20)
       r1 <- f1.join
       r2 <- f2.join
-    } yield Set(r1,r2)
+    } yield Set(r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
       r shouldBe Set(10, 20)
@@ -195,11 +195,11 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("initial; take; put; take") {
     val task = for {
-      av <- init(10)
+      av  <- init(10)
       isE <- av.isEmpty
-      r1 <- av.take
-      _  <- av.put(20)
-      r2 <- av.take
+      r1  <- av.take
+      _   <- av.put(20)
+      r2  <- av.take
     } yield (isE, r1, r2)
 
     for (v <- task.unsafeToFuture()) yield {
@@ -207,10 +207,9 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     }
   }
 
-
   test("initial; read; take") {
     val task = for {
-      av <- init(10)
+      av   <- init(10)
       read <- av.read
       take <- av.take
     } yield read + take
@@ -222,10 +221,10 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("empty; read; put") {
     val task = for {
-      av <- empty[Int]
+      av   <- empty[Int]
       read <- av.read.start
-      _ <- av.put(10)
-      r <- read.join
+      _    <- av.put(10)
+      r    <- read.join
     } yield r
 
     for (v <- task.unsafeToFuture()) yield {
@@ -270,8 +269,8 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       // Ensure they run in parallel
       producerFiber <- (IO.shift *> producer(channel, (0 until count).toList)).start
       consumerFiber <- (IO.shift *> consumer(channel, 0L)).start
-      _   <- producerFiber.join
-      sum <- consumerFiber.join
+      _             <- producerFiber.join
+      sum           <- consumerFiber.join
     } yield sum
 
     // Evaluate
@@ -296,14 +295,14 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
     def exec(channel: Channel[Int]): IO[Long] = {
       val consumerTask = consumer(channel, 0L)
-      val tasks = for (i <- 0 until count) yield channel.put(Some(i))
+      val tasks        = for (i <- 0 until count) yield channel.put(Some(i))
       val producerTask = tasks.toList.parSequence.flatMap(_ => channel.put(None))
 
       for {
         f1 <- producerTask.start
         f2 <- consumerTask.start
-        _ <- f1.join
-        r <- f2.join
+        _  <- f1.join
+        r  <- f2.join
       } yield r
     }
 
@@ -315,13 +314,14 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("take/put test is stack safe") {
     def loop(n: Int, acc: Int)(ch: MVar[IO, Int]): IO[Int] =
-      if (n <= 0) IO.pure(acc) else
+      if (n <= 0) IO.pure(acc)
+      else
         ch.take.flatMap { x =>
           ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch))
         }
 
     val count = if (Platform.isJvm) 10000 else 5000
-    val task = init(1).flatMap(loop(count, 0))
+    val task  = init(1).flatMap(loop(count, 0))
 
     for (r <- task.unsafeToFuture()) yield {
       r shouldBe count
@@ -331,20 +331,18 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   def testStackSequential(channel: MVar[IO, Int]): (Int, IO[Int], IO[Unit]) = {
     val count = if (Platform.isJvm) 10000 else 5000
 
-    def readLoop(n: Int, acc: Int): IO[Int] = {
+    def readLoop(n: Int, acc: Int): IO[Int] =
       if (n > 0)
         channel.read *>
           channel.take.flatMap(_ => readLoop(n - 1, acc + 1))
       else
         IO.pure(acc)
-    }
 
-    def writeLoop(n: Int): IO[Unit] = {
+    def writeLoop(n: Int): IO[Unit] =
       if (n > 0)
         channel.put(1).flatMap(_ => writeLoop(n - 1))
       else
         IO.pure(())
-    }
 
     (count, readLoop(count, 0), writeLoop(count))
   }
@@ -367,8 +365,8 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
       fr <- reads.start
-      _ <- writes
-      r <- fr.join
+      _  <- writes
+      r  <- fr.join
     } yield r == count
 
     for (r <- task.unsafeToFuture()) yield {
@@ -380,14 +378,17 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     val count = if (Platform.isJvm) 10000 else 1000
     val task = for {
       mVar <- empty[Int]
-      ref <- Ref[IO].of(0)
-      takes = (0 until count).map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.update(_ + x))).toList.parSequence
+      ref  <- Ref[IO].of(0)
+      takes = (0 until count)
+        .map(_ => IO.shift *> mVar.read.map2(mVar.take)(_ + _).flatMap(x => ref.update(_ + x)))
+        .toList
+        .parSequence
       puts = (0 until count).map(_ => IO.shift *> mVar.put(1)).toList.parSequence
       fiber1 <- takes.start
       fiber2 <- puts.start
-      _ <- fiber1.join
-      _ <- fiber2.join
-      r <- ref.get
+      _      <- fiber1.join
+      _      <- fiber2.join
+      r      <- ref.get
     } yield r
 
     for (r <- task.unsafeToFuture()) yield {

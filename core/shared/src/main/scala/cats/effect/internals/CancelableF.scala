@@ -21,12 +21,11 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.Either
 
 private[effect] object CancelableF {
+
   /**
    * Implementation for [[Concurrent.cancelableF]].
    */
-  def apply[F[_], A](k: (Either[Throwable, A] => Unit) => F[CancelToken[F]])
-    (implicit F: Concurrent[F]): F[A] = {
-
+  def apply[F[_], A](k: (Either[Throwable, A] => Unit) => F[CancelToken[F]])(implicit F: Concurrent[F]): F[A] =
     F.asyncF { cb =>
       val state = new AtomicReference[Either[Throwable, Unit] => Unit](null)
       val cb1 = (a: Either[Throwable, A]) => {
@@ -53,9 +52,8 @@ private[effect] object CancelableF {
       } { (token, e) =>
         e match {
           case ExitCase.Canceled => token
-          case _ => F.unit
+          case _                 => F.unit
         }
       }
     }
-  }
 }

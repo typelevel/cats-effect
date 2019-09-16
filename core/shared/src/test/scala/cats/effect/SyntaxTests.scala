@@ -43,9 +43,9 @@ object SyntaxTests extends AllCatsEffectSyntax {
   }
 
   def asyncSyntax[T[_]: Traverse, F[_], A, B](implicit F: Async[F], P: Parallel[F]) = {
-    val n = mock[Long]
-    val ta = mock[T[A]]
-    val f = mock[A => F[B]]
+    val n   = mock[Long]
+    val ta  = mock[T[A]]
+    val f   = mock[A => F[B]]
     val tma = mock[T[F[A]]]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
@@ -63,15 +63,15 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[A]](fa.timeout(1.second))
     typed[F[A]](fa.timeoutTo(1.second, fa2))
 
-    val n = mock[Long]
-    val ta = mock[T[A]]
-    val f = mock[A => F[B]]
+    val n   = mock[Long]
+    val ta  = mock[T[A]]
+    val f   = mock[A => F[B]]
     val tma = mock[T[F[A]]]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
     typed[F[T[A]]](F.parSequenceN(n)(tma))
   }
-  
+
   def effectSyntax[F[_]: Effect, A] = {
     val fa = mock[F[A]]
     val cb = mock[Either[Throwable, A] => IO[Unit]]

@@ -65,7 +65,7 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("pushAll(stack)") {
-    val stack = new ArrayStack[Int]()
+    val stack  = new ArrayStack[Int]()
     val stack2 = new ArrayStack[Int]()
 
     for (i <- 0 until 100) stack2.push(i)
@@ -84,7 +84,7 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("pushAll(iterable)") {
-    val stack = new ArrayStack[Int]()
+    val stack    = new ArrayStack[Int]()
     val expected = (0 until 100).toList
     stack.pushAll(expected)
 
@@ -100,7 +100,7 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("iterator") {
-    val stack = new ArrayStack[Int]()
+    val stack    = new ArrayStack[Int]()
     val expected = (0 until 100).toList
     for (i <- expected) stack.push(i)
     stack.iteratorReversed.toList shouldBe expected.reverse

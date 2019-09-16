@@ -166,13 +166,13 @@ final class TestContext private () extends ExecutionContext { self =>
     }
 
   /**
-    * Derives a `cats.effect.ContextShift` from this `TestContext`, for any data
-    * type that has a `LiftIO` and `MonadError` instance.
-    *
-    * Example:
-    *
-    * $timerExample
-    */
+   * Derives a `cats.effect.ContextShift` from this `TestContext`, for any data
+   * type that has a `LiftIO` and `MonadError` instance.
+   *
+   * Example:
+   *
+   * $timerExample
+   */
   def contextShift[F[_]](implicit F: Async[F]): ContextShift[F] =
     new ContextShift[F] {
       def tick(cb: Either[Throwable, Unit] => Unit): Runnable =
@@ -241,7 +241,8 @@ final class TestContext private () extends ExecutionContext { self =>
       case Some((head, rest)) =>
         stateRef = current.copy(tasks = rest)
         // execute task
-        try head.task.run() catch { case NonFatal(ex) => reportFailure(ex) }
+        try head.task.run()
+        catch { case NonFatal(ex) => reportFailure(ex) }
         true
       case None =>
         false
@@ -281,7 +282,7 @@ final class TestContext private () extends ExecutionContext { self =>
    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     val targetTime = this.stateRef.clock + time
-    var hasTasks = true
+    var hasTasks   = true
 
     while (hasTasks) synchronized {
       val current = this.stateRef
@@ -290,7 +291,8 @@ final class TestContext private () extends ExecutionContext { self =>
         case Some((head, rest)) =>
           stateRef = current.copy(clock = head.runsAt, tasks = rest)
           // execute task
-          try head.task.run() catch {
+          try head.task.run()
+          catch {
             case ex if NonFatal(ex) =>
               reportFailure(ex)
           }
@@ -302,7 +304,7 @@ final class TestContext private () extends ExecutionContext { self =>
     }
   }
 
-  private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] = {
+  private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>
         val firstTick = value.runsAt
@@ -317,7 +319,6 @@ final class TestContext private () extends ExecutionContext { self =>
       case None =>
         None
     }
-  }
 
   private def cancelTask(t: Task): Unit = synchronized {
     stateRef = stateRef.copy(tasks = stateRef.tasks - t)
@@ -325,7 +326,7 @@ final class TestContext private () extends ExecutionContext { self =>
 
   private def schedule(delay: FiniteDuration, r: Runnable): CancelToken[IO] =
     synchronized {
-      val current: State = stateRef
+      val current: State         = stateRef
       val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
       stateRef = newState
       cancelable
@@ -333,6 +334,7 @@ final class TestContext private () extends ExecutionContext { self =>
 }
 
 object TestContext {
+
   /** Builder for [[TestContext]] instances. */
   def apply(): TestContext =
     new TestContext
@@ -340,43 +342,41 @@ object TestContext {
   /** Used internally by [[TestContext]], represents the internal
    * state used for task scheduling and execution.
    */
-  final case class State(
-    lastID: Long,
-    clock: FiniteDuration,
-    tasks: SortedSet[Task],
-    lastReportedFailure: Option[Throwable]) {
+  final case class State(lastID: Long,
+                         clock: FiniteDuration,
+                         tasks: SortedSet[Task],
+                         lastReportedFailure: Option[Throwable]) {
 
     // $COVERAGE-OFF$
-    assert(
-      !tasks.headOption.exists(_.runsAt < clock),
-      "The runsAt for any task must never be in the past")
+    assert(!tasks.headOption.exists(_.runsAt < clock), "The runsAt for any task must never be in the past")
     // $COVERAGE-ON$
 
     /**
      * Returns a new state with the runnable scheduled for execution.
      */
-    private[TestContext]
-    def execute(runnable: Runnable): State = {
+    private[TestContext] def execute(runnable: Runnable): State = {
       val newID = lastID + 1
-      val task = Task(newID, runnable, clock)
+      val task  = Task(newID, runnable, clock)
       copy(lastID = newID, tasks = tasks + task)
     }
 
     /**
      * Returns a new state with a scheduled task included.
      */
-    private[TestContext]
-    def scheduleOnce(delay: FiniteDuration, r: Runnable, cancelTask: Task => Unit): (CancelToken[IO], State) = {
-      val d = if (delay >= Duration.Zero) delay else Duration.Zero
+    private[TestContext] def scheduleOnce(delay: FiniteDuration,
+                                          r: Runnable,
+                                          cancelTask: Task => Unit): (CancelToken[IO], State) = {
+      val d     = if (delay >= Duration.Zero) delay else Duration.Zero
       val newID = lastID + 1
 
-      val task = Task(newID, r, this.clock + d)
+      val task       = Task(newID, r, this.clock + d)
       val cancelable = IO(cancelTask(task))
 
-      (cancelable, copy(
-        lastID = newID,
-        tasks = tasks + task
-      ))
+      (cancelable,
+       copy(
+         lastID = newID,
+         tasks = tasks + task
+       ))
     }
   }
 

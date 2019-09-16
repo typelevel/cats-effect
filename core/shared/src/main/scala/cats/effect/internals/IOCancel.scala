@@ -20,6 +20,7 @@ package internals
 import cats.effect.IO.ContextSwitch
 
 private[effect] object IOCancel {
+
   /** Implementation for `IO.uncancelable`. */
   def uncancelable[A](fa: IO[A]): IO[A] =
     ContextSwitch(fa, makeUncancelable, disableUncancelable)

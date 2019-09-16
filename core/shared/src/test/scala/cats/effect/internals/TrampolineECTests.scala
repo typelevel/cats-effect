@@ -90,8 +90,8 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("thrown exceptions should get logged to System.err (immediate)") {
-    val dummy1 = new RuntimeException("dummy1")
-    val dummy2 = new RuntimeException("dummy2")
+    val dummy1  = new RuntimeException("dummy1")
+    val dummy2  = new RuntimeException("dummy2")
     var effects = 0
 
     val output = catchSystemErr {

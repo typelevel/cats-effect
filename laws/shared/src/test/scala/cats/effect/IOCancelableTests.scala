@@ -78,7 +78,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
     val task = (IO.shift *> IO.cancelBoundary *> IO(1)).start.flatMap(_.join)
 
-    val p = Promise[Int]()
+    val p      = Promise[Int]()
     val cancel = task.unsafeRunCancelable(Callback.promise(p))
     ec.state.tasks.isEmpty shouldBe false
 
@@ -96,7 +96,7 @@ class IOCancelableTests extends BaseTestsSuite {
       IO.sleep(3.seconds) *> IO(p1.success(()))
     }
 
-    val p2 = Promise[Unit]()
+    val p2    = Promise[Unit]()
     val token = io.unsafeRunCancelable(r => p2.complete(Conversions.toTry(r)))
 
     ec.tick()
@@ -143,7 +143,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
   testAsync("nested brackets are sequenced") { ec =>
     implicit val timer = ec.timer[IO]
-    val atom = new AtomicInteger(0)
+    val atom           = new AtomicInteger(0)
 
     val io =
       IO(1).bracket { _ =>
@@ -164,9 +164,9 @@ class IOCancelableTests extends BaseTestsSuite {
         }
       }
 
-    val p = Promise[Unit]()
+    val p     = Promise[Unit]()
     val token = io.unsafeRunCancelable(r => p.complete(Conversions.toTry(r)))
-    val f = token.unsafeToFuture()
+    val f     = token.unsafeToFuture()
 
     ec.tick()
     f.value shouldBe None
@@ -196,7 +196,9 @@ class IOCancelableTests extends BaseTestsSuite {
     val io =
       IO(1).bracket { _ =>
         IO(2).bracket { _ =>
-          IO(3).bracket(_ => IO.never: IO[Unit]) { _ => IO.raiseError(dummy3) }
+          IO(3).bracket(_ => IO.never: IO[Unit]) { _ =>
+            IO.raiseError(dummy3)
+          }
         } { _ =>
           IO.raiseError(dummy2)
         }
@@ -204,7 +206,7 @@ class IOCancelableTests extends BaseTestsSuite {
         IO.raiseError(dummy1)
       }
 
-    val p = Promise[Unit]()
+    val p      = Promise[Unit]()
     val sysErr = new ByteArrayOutputStream()
 
     val f = catchSystemErrInto(sysErr) {
@@ -227,7 +229,7 @@ class IOCancelableTests extends BaseTestsSuite {
     implicit val timer = ec.timer[IO]
 
     val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
-        .bracket(_ => IO.unit)(_ => IO.unit)
+      .bracket(_ => IO.unit)(_ => IO.unit)
 
     val cancelToken = io.unsafeRunCancelable(_ => ())
 

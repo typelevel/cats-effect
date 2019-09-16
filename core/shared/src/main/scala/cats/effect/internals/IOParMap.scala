@@ -22,30 +22,28 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.control.NonFatal
 
 private[effect] object IOParMap {
+
   /**
    * Implementation for `parMap2`.
    */
-  def apply[A, B, C](cs: ContextShift[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] = {
+  def apply[A, B, C](cs: ContextShift[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
     IO.Async(
       new IOForkedStart[C] {
-        def apply(conn: IOConnection, cb: Callback.T[C]) = {
+        def apply(conn: IOConnection, cb: Callback.T[C]) =
           // For preventing stack-overflow errors; using a
           // trampolined execution context, so no thread forks
-          TrampolineEC.immediate.execute(
-            new ParMapRunnable(cs, fa, fb, f, conn, cb))
-        }
+          TrampolineEC.immediate.execute(new ParMapRunnable(cs, fa, fb, f, conn, cb))
       },
-      trampolineAfter = true)
-  }
+      trampolineAfter = true
+    )
 
-  private final class ParMapRunnable[A, B, C](
-    cs: ContextShift[IO],
-    fa: IO[A],
-    fb: IO[B],
-    f: (A, B) => C,
-    conn: IOConnection,
-    cb: Callback.T[C])
-    extends Runnable {
+  final private class ParMapRunnable[A, B, C](cs: ContextShift[IO],
+                                              fa: IO[A],
+                                              fb: IO[B],
+                                              f: (A, B) => C,
+                                              conn: IOConnection,
+                                              cb: Callback.T[C])
+      extends Runnable {
 
     /**
      * State synchronized by an atomic reference. Possible values:
@@ -62,7 +60,7 @@ private[effect] object IOParMap {
 
     /** Callback for the left task. */
     private def callbackA(connB: IOConnection): Callback.T[A] = {
-      case Left(e) => sendError(connB, e)
+      case Left(e)  => sendError(connB, e)
       case Right(a) =>
         // Using Java 8 platform intrinsics
         state.getAndSet(Left(a)) match {
@@ -70,16 +68,16 @@ private[effect] object IOParMap {
           case Right(b) =>
             complete(a, b.asInstanceOf[B])
           case _: Throwable => ()
-          case left =>
+          case left         =>
             // $COVERAGE-OFF$
             throw new IllegalStateException(s"parMap: $left")
-            // $COVERAGE-ON$
+          // $COVERAGE-ON$
         }
     }
 
     /** Callback for the right task. */
     def callbackB(connA: IOConnection): Callback.T[B] = {
-      case Left(e) => sendError(connA, e)
+      case Left(e)  => sendError(connA, e)
       case Right(b) =>
         // Using Java 8 platform intrinsics
         state.getAndSet(Right(b)) match {
@@ -87,21 +85,24 @@ private[effect] object IOParMap {
           case Left(a) =>
             complete(a.asInstanceOf[A], b)
           case _: Throwable => ()
-          case right =>
+          case right        =>
             // $COVERAGE-OFF$
             throw new IllegalStateException(s"parMap: $right")
-            // $COVERAGE-ON$
+          // $COVERAGE-ON$
         }
     }
 
     /** Called when both results are ready. */
     def complete(a: A, b: B): Unit = {
       conn.pop()
-      cb(try Right(f(a, b)) catch { case NonFatal(e) => Left(e) })
+      cb(
+        try Right(f(a, b))
+        catch { case NonFatal(e) => Left(e) }
+      )
     }
 
     /** Called when an error is generated. */
-    private def sendError(other: IOConnection, e: Throwable): Unit = {
+    private def sendError(other: IOConnection, e: Throwable): Unit =
       state.getAndSet(e) match {
         case _: Throwable =>
           Logger.reportFailure(e)
@@ -119,7 +120,6 @@ private[effect] object IOParMap {
             }))
           }
       }
-    }
 
     def run(): Unit = {
       val connA = IOConnection()

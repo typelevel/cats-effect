@@ -21,10 +21,10 @@ import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError,
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
-  private type Current = IO[Any]
-  private type Bind = Any => IO[Any]
+  private type Current   = IO[Any]
+  private type Bind      = Any => IO[Any]
   private type CallStack = ArrayStack[Bind]
-  private type Callback = Either[Throwable, Any] => Unit
+  private type Callback  = Either[Throwable, Any] => Unit
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
@@ -53,18 +53,19 @@ private[effect] object IORunLoop {
     cb: Either[Throwable, Any] => Unit,
     rcbRef: RestartCallback,
     bFirstRef: Bind,
-    bRestRef: CallStack): Unit = {
+    bRestRef: CallStack
+  ): Unit = {
 
     var currentIO: Current = source
     // Can change on a context switch
-    var conn: IOConnection = cancelable
-    var bFirst: Bind = bFirstRef
-    var bRest: CallStack = bRestRef
+    var conn: IOConnection   = cancelable
+    var bFirst: Bind         = bFirstRef
+    var bRest: CallStack     = bRestRef
     var rcb: RestartCallback = rcbRef
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
-    var unboxed: AnyRef = null
+    var unboxed: AnyRef     = null
     // For auto-cancellation
     var currentIndex = 0
 
@@ -87,12 +88,14 @@ private[effect] object IORunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             currentIO = null
-          } catch { case NonFatal(e) =>
-            currentIO = RaiseError(e)
+          } catch {
+            case NonFatal(e) =>
+              currentIO = RaiseError(e)
           }
 
         case Suspend(thunk) =>
-          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
+          currentIO = try thunk()
+          catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -100,7 +103,8 @@ private[effect] object IORunLoop {
               cb(Left(ex))
               return
             case bind =>
-              val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
+              val fa = try bind.recover(ex)
+              catch { case NonFatal(e) => RaiseError(e) }
               bFirst = null
               currentIO = fa
           }
@@ -136,7 +140,8 @@ private[effect] object IORunLoop {
             cb(Right(unboxed))
             return
           case bind =>
-            val fa = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
+            val fa = try bind(unboxed)
+            catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -159,12 +164,12 @@ private[effect] object IORunLoop {
    */
   def step[A](source: IO[A]): IO[A] = {
     var currentIO: Current = source
-    var bFirst: Bind = null
-    var bRest: CallStack = null
+    var bFirst: Bind       = null
+    var bRest: CallStack   = null
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
-    var unboxed: AnyRef = null
+    var unboxed: AnyRef     = null
 
     do {
       currentIO match {
@@ -185,19 +190,23 @@ private[effect] object IORunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             currentIO = null
-          } catch { case NonFatal(e) =>
-            currentIO = RaiseError(e)
+          } catch {
+            case NonFatal(e) =>
+              currentIO = RaiseError(e)
           }
 
         case Suspend(thunk) =>
-          currentIO = try thunk() catch { case NonFatal(ex) => RaiseError(ex) }
+          currentIO = try {
+            thunk()
+          } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
             case bind =>
-              val fa = try bind.recover(ex) catch { case NonFatal(e) => RaiseError(e) }
+              val fa = try bind.recover(ex)
+              catch { case NonFatal(e) => RaiseError(e) }
               bFirst = null
               currentIO = fa
           }
@@ -226,7 +235,8 @@ private[effect] object IORunLoop {
             return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
-            currentIO = try bind(unboxed) catch { case NonFatal(ex) => RaiseError(ex) }
+            currentIO = try bind(unboxed)
+            catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -238,21 +248,15 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](
-    currentIO: IO.Async[A],
-    bFirst: Bind,
-    bRest: CallStack): IO[A] = {
-
+  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack): IO[A] =
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
     // the loop with the collected stack
     if (bFirst != null || (bRest != null && !bRest.isEmpty))
       Async { (conn, cb) =>
         loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
-      }
-    else
+      } else
       currentIO
-  }
 
   /**
    * Pops the next bind function from the stack, but filters out
@@ -281,11 +285,12 @@ private[effect] object IORunLoop {
    * Finds a [[IOFrame]] capable of handling errors in our bind
    * call-stack, invoked after a `RaiseError` is observed.
    */
-  private def findErrorHandler(bFirst: Bind, bRest: CallStack): IOFrame[Any, IO[Any]] = {
+  private def findErrorHandler(bFirst: Bind, bRest: CallStack): IOFrame[Any, IO[Any]] =
     bFirst match {
       case ref: IOFrame[Any, IO[Any]] @unchecked => ref
       case _ =>
-        if (bRest eq null) null else {
+        if (bRest eq null) null
+        else {
           do {
             val ref = bRest.pop()
             if (ref eq null)
@@ -298,7 +303,6 @@ private[effect] object IORunLoop {
           // $COVERAGE-ON$
         }
     }
-  }
 
   /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]
@@ -313,24 +317,22 @@ private[effect] object IORunLoop {
    * It's an ugly, mutable implementation.
    * For internal use only, here be dragons!
    */
-  private final class RestartCallback(connInit: IOConnection, cb: Callback)
-    extends Callback with Runnable {
+  final private class RestartCallback(connInit: IOConnection, cb: Callback) extends Callback with Runnable {
 
     import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch
     private[this] var conn: IOConnection = connInit
-    private[this] var canCall = false
-    private[this] var trampolineAfter = false
-    private[this] var bFirst: Bind = _
-    private[this] var bRest: CallStack = _
+    private[this] var canCall            = false
+    private[this] var trampolineAfter    = false
+    private[this] var bFirst: Bind       = _
+    private[this] var bRest: CallStack   = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
 
-    def contextSwitch(conn: IOConnection): Unit = {
+    def contextSwitch(conn: IOConnection): Unit =
       this.conn = conn
-    }
 
     def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
       canCall = true
@@ -344,7 +346,7 @@ private[effect] object IORunLoop {
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
       // Allow GC to collect
       val bFirst = this.bFirst
-      val bRest = this.bRest
+      val bRest  = this.bRest
       this.bFirst = null
       this.bRest = null
 
@@ -378,10 +380,10 @@ private[effect] object IORunLoop {
       }
   }
 
-  private final class RestoreContext(
+  final private class RestoreContext(
     old: IOConnection,
-    restore: (Any, Throwable, IOConnection, IOConnection) => IOConnection)
-    extends IOFrame[Any, IO[Any]] {
+    restore: (Any, Throwable, IOConnection, IOConnection) => IOConnection
+  ) extends IOFrame[Any, IO[Any]] {
 
     def apply(a: Any): IO[Any] =
       ContextSwitch(Pure(a), current => restore(a, null, old, current), null)

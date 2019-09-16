@@ -33,7 +33,6 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
-
 class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => {
     implicit val cs = ec.contextShift[IO]
@@ -48,24 +47,30 @@ class IOTests extends BaseTestsSuite {
     CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
   })
 
-  checkAllAsync("IO", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+  checkAllAsync(
+    "IO",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
 
-    // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-    val module = ParallelTests[IO]
-    module.parallel[Int, Int]
-  })
+      // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+      val module = ParallelTests[IO]
+      module.parallel[Int, Int]
+    }
+  )
 
   checkAllAsync("IO(Effect defaults)", implicit ec => {
     implicit val ioEffect = IOTests.ioEffectDefaults
     EffectTests[IO].effect[Int, Int, Int]
   })
 
-  checkAllAsync("IO(ConcurrentEffect defaults)", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
-    implicit val ioConcurrent = IOTests.ioConcurrentEffectDefaults(ec)
-    ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
-  })
+  checkAllAsync(
+    "IO(ConcurrentEffect defaults)",
+    implicit ec => {
+      implicit val cs           = ec.contextShift[IO]
+      implicit val ioConcurrent = IOTests.ioConcurrentEffectDefaults(ec)
+      ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
+    }
+  )
 
   testAsync("IO.Par's applicative instance is different") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
@@ -95,7 +100,9 @@ class IOTests extends BaseTestsSuite {
 
     var effect: Option[Either[Throwable, Int]] = None
     val sysErr = catchSystemErr {
-      io.unsafeRunAsync { v => effect = Some(v) }
+      io.unsafeRunAsync { v =>
+        effect = Some(v)
+      }
       ec.tick()
     }
 
@@ -119,14 +126,14 @@ class IOTests extends BaseTestsSuite {
   }
 
   test("unsafeToFuture can yield immediate failed future") {
-    val dummy = new RuntimeException("dummy")
+    val dummy    = new RuntimeException("dummy")
     val expected = IO.raiseError(dummy).unsafeToFuture()
     expected.value shouldEqual Some(Failure(dummy))
   }
 
   test("fromEither handles Throwable in Left Projection") {
     case object Foo extends Exception
-    val e : Either[Throwable, Nothing] = Left(Foo)
+    val e: Either[Throwable, Nothing] = Left(Foo)
 
     IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
       case Left(Foo) => ()
@@ -135,7 +142,7 @@ class IOTests extends BaseTestsSuite {
 
   test("fromEither handles a Value in Right Projection") {
     case class Foo(x: Int)
-    val e : Either[Throwable, Foo] = Right(Foo(1))
+    val e: Either[Throwable, Foo] = Right(Foo(1))
 
     IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
       case Right(Foo(_)) => ()
@@ -144,7 +151,7 @@ class IOTests extends BaseTestsSuite {
 
   test("fromTry handles Failure") {
     case object Foo extends Exception
-    val t : Try[Nothing] = Failure(Foo)
+    val t: Try[Nothing] = Failure(Foo)
 
     IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
       case Left(Foo) => ()
@@ -153,7 +160,7 @@ class IOTests extends BaseTestsSuite {
 
   test("fromTry handles Success") {
     case class Foo(x: Int)
-    val t : Try[Foo] = Success(Foo(1))
+    val t: Try[Foo] = Success(Foo(1))
 
     IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
       case Right(Foo(_)) => ()
@@ -180,7 +187,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("shift works for failure (via Timer)") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    val dummy = new RuntimeException("dummy")
+    val dummy       = new RuntimeException("dummy")
 
     val expected = IO.shift.flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
     expected.value shouldEqual None
@@ -210,7 +217,7 @@ class IOTests extends BaseTestsSuite {
     implicit val timer = ec.timer[IO]
 
     val io = IO.sleep(10.seconds) *> IO(1 + 1)
-    val f = io.unsafeToFuture()
+    val f  = io.unsafeToFuture()
 
     ec.tick()
     f.value shouldEqual None
@@ -240,7 +247,9 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("IO.async protects against thrown exceptions") { implicit ec =>
     val dummy = new RuntimeException("dummy")
-    val io = IO.async[Int] { _ => throw dummy }
+    val io = IO.async[Int] { _ =>
+      throw dummy
+    }
     val f = io.unsafeToFuture()
 
     ec.tick()
@@ -248,9 +257,9 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.async does not break referential transparency") { implicit ec =>
-    val io = IO.async[Int](_(Right(10)))
+    val io  = IO.async[Int](_(Right(10)))
     val sum = for (a <- io; b <- io; c <- io) yield a + b + c
-    val f = sum.unsafeToFuture()
+    val f   = sum.unsafeToFuture()
 
     ec.tick()
     f.value shouldEqual Some(Success(30))
@@ -297,8 +306,8 @@ class IOTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = IO.contextShift(ec)
     check { (a: Int, f: (Int, Int) => Int, g: (Int, Int) => Int) =>
       var effect = a
-      val io1 = IO.fromFuture(IO(Future { effect = f(effect, a) }))
-      val io2 = IO.fromFuture(IO(Future { effect = g(effect, a) }))
+      val io1    = IO.fromFuture(IO(Future { effect = f(effect, a) }))
+      val io2    = IO.fromFuture(IO(Future { effect = g(effect, a) }))
 
       io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
     }
@@ -325,7 +334,7 @@ class IOTests extends BaseTestsSuite {
     val loop = (0 until count).foldLeft(IO(0)) { (acc, _) =>
       acc.attempt.flatMap {
         case Right(x) => IO.pure(x + 1)
-        case Left(e) => IO.raiseError(e)
+        case Left(e)  => IO.raiseError(e)
       }
     }
 
@@ -339,7 +348,7 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = IO[Int](throw dummy).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -350,7 +359,7 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = IO[Int](throw dummy).flatMap(IO.pure).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -361,7 +370,7 @@ class IOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = IO[Int](throw dummy).map(x => x).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -379,7 +388,7 @@ class IOTests extends BaseTestsSuite {
 
     val io = source.attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -397,7 +406,7 @@ class IOTests extends BaseTestsSuite {
 
     val io = source.flatMap(IO.pure).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -415,7 +424,7 @@ class IOTests extends BaseTestsSuite {
 
     val io = source.attempt.flatMap {
       case Left(`dummy`) => IO.pure(100)
-      case _ => IO.pure(0)
+      case _             => IO.pure(0)
     }
 
     val f = io.unsafeToFuture(); ec.tick()
@@ -429,7 +438,9 @@ class IOTests extends BaseTestsSuite {
     }
 
   testAsync("io.to[IO] <-> io") { implicit ec =>
-    check { (io: IO[Int]) => io.to[IO] <-> io }
+    check { (io: IO[Int]) =>
+      io.to[IO] <-> io
+    }
   }
 
   testAsync("sync.to[IO] is stack-safe") { implicit ec =>
@@ -475,7 +486,7 @@ class IOTests extends BaseTestsSuite {
   test("unsafeRunTimed throws for raiseError") {
     class DummyException extends RuntimeException("dummy")
     val dummy = new DummyException
-    val err = IO.raiseError(dummy)
+    val err   = IO.raiseError(dummy)
     intercept[DummyException] { err.unsafeRunTimed(Duration.Inf) }
   }
 
@@ -486,12 +497,12 @@ class IOTests extends BaseTestsSuite {
 
   test("unsafeRunTimed loop protects against user error in flatMap") {
     val dummy = new RuntimeException("dummy")
-    val io = IO(1).flatMap(_ => throw dummy).attempt
+    val io    = IO(1).flatMap(_ => throw dummy).attempt
     io.unsafeRunSync() shouldEqual Left(dummy)
   }
 
   test("unsafeRunTimed loop protects against user error in handleError") {
-    val F = implicitly[Sync[IO]]
+    val F      = implicitly[Sync[IO]]
     val dummy1 = new RuntimeException("dummy1")
     val dummy2 = new RuntimeException("dummy2")
 
@@ -511,7 +522,7 @@ class IOTests extends BaseTestsSuite {
 
   test("map is stack-safe for unsafeRunSync") {
     import IOPlatform.{fusionMaxStackDepth => max}
-    val f = (x: Int) => x + 1
+    val f  = (x: Int) => x + 1
     val io = (0 until (max * 10000)).foldLeft(IO(0))((acc, _) => acc.map(f))
 
     io.unsafeRunSync() shouldEqual max * 10000
@@ -524,7 +535,7 @@ class IOTests extends BaseTestsSuite {
     val io2 = IO.shift *> IO.pure(2)
 
     val io3 = (io1, io2).parMapN(_ + _)
-    val f = io3.unsafeToFuture()
+    val f   = io3.unsafeToFuture()
     ec.tick()
     f.value shouldEqual Some(Success(3))
   }
@@ -533,17 +544,17 @@ class IOTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     val dummy = new RuntimeException("dummy")
-    val io1 = IO.shift *> IO.pure(1)
-    val io2 = IO.shift *> IO.raiseError[Int](dummy)
+    val io1   = IO.shift *> IO.pure(1)
+    val io2   = IO.shift *> IO.raiseError[Int](dummy)
 
     val io3 = (io1, io2).parMapN(_ + _)
-    val f1 = io3.unsafeToFuture()
+    val f1  = io3.unsafeToFuture()
 
     ec.tick()
     f1.value shouldEqual Some(Failure(dummy))
 
     val io4 = (io2, io1).parMapN(_ + _)
-    val f2 = io4.unsafeToFuture()
+    val f2  = io4.unsafeToFuture()
 
     ec.tick()
     f2.value shouldEqual Some(Failure(dummy))
@@ -563,7 +574,7 @@ class IOTests extends BaseTestsSuite {
       val f1 = io3.unsafeToFuture()
       ec.tick()
       val exc = f1.value.get.failed.get
-      exc should (be (dummy1) or be (dummy2))
+      exc should (be(dummy1).or(be(dummy2)))
     }
   }
 
@@ -571,7 +582,7 @@ class IOTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     val count = if (IOPlatform.isJVM) 100000 else 5000
-    val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
+    val io    = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
 
     val f = io.unsafeToFuture()
     ec.tick(1.day)
@@ -581,11 +592,13 @@ class IOTests extends BaseTestsSuite {
   testAsync("parMap2 cancels first, when second terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy = new RuntimeException("dummy")
+    val dummy       = new RuntimeException("dummy")
     var wasCanceled = false
 
     val latch = Promise[Unit]()
-    val io1 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
@@ -598,12 +611,14 @@ class IOTests extends BaseTestsSuite {
   testAsync("parMap2 cancels second, when first terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy = new RuntimeException("dummy")
+    val dummy       = new RuntimeException("dummy")
     var wasCanceled = false
 
     val latch = Promise[Unit]()
-    val io1 = IO.shift *> IO.raiseError[Int](dummy)
-    val io2 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1   = IO.shift *> IO.raiseError[Int](dummy)
+    val io2 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
 
     val f = (io1, io2).parMapN((_, _) => ()).unsafeToFuture()
     ec.tick()
@@ -616,10 +631,12 @@ class IOTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     var wasCanceled = false
-    val p = Promise[Int]()
+    val p           = Promise[Int]()
 
     val latch = Promise[Unit]()
-    val io1 = IO.shift *> IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1 = IO.shift *> IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
     val cancel = io1.unsafeRunCancelable(Callback.promise(p))
 
     cancel.unsafeRunSync()
@@ -655,9 +672,8 @@ class IOTests extends BaseTestsSuite {
     }
   }
 
-
   testAsync("IO.timeout can mirror the source") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs    = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     check { (ioa: IO[Int]) =>
@@ -666,7 +682,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.timeout can end in timeout") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs    = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val task = for {
@@ -681,13 +697,14 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe None
 
     ec.tick(1.second)
-    f.value.get.failed.get shouldBe an [TimeoutException]
+    f.value.get.failed.get shouldBe an[TimeoutException]
   }
 
   test("bracket signals the error in use") {
     val e = new RuntimeException("error in use")
 
-    val r = IO.unit.bracket(_ => IO.raiseError(e))(_ => IO.unit)
+    val r = IO.unit
+      .bracket(_ => IO.raiseError(e))(_ => IO.unit)
       .attempt
       .unsafeRunSync()
 
@@ -698,7 +715,8 @@ class IOTests extends BaseTestsSuite {
   test("bracket signals the error in release") {
     val e = new RuntimeException("error in release")
 
-    val r = IO.unit.bracket(_ => IO.unit)(_ => IO.raiseError(e))
+    val r = IO.unit
+      .bracket(_ => IO.unit)(_ => IO.raiseError(e))
       .attempt
       .unsafeRunSync()
 
@@ -712,9 +730,12 @@ class IOTests extends BaseTestsSuite {
 
     var r: Option[Either[Throwable, Nothing]] = None
     val sysErr = catchSystemErr {
-      r = Some(IO.unit.bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
+      r = Some(
+        IO.unit
+          .bracket(_ => IO.raiseError(e1))(_ => IO.raiseError(e2))
           .attempt
-          .unsafeRunSync())
+          .unsafeRunSync()
+      )
     }
 
     r shouldEqual Some(Left(e1))
@@ -725,7 +746,7 @@ class IOTests extends BaseTestsSuite {
 
   test("unsafeRunSync works for bracket") {
     var effect = 0
-    val io = IO(1).bracket(x => IO(x + 1))(_ => IO { effect += 1 })
+    val io     = IO(1).bracket(x => IO(x + 1))(_ => IO { effect += 1 })
     io.unsafeRunSync() shouldBe 2
     effect shouldBe 1
   }
@@ -740,12 +761,15 @@ class IOTests extends BaseTestsSuite {
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
-    val init = IO.never : IO[Int]
+    val init  = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)((acc,t) => IO.racePair(acc,t).map {
-      case Left((l, _)) => l
-      case Right((_, r)) => r
-    })
+    val sum = tasks.foldLeft(init)(
+      (acc, t) =>
+        IO.racePair(acc, t).map {
+          case Left((l, _))  => l
+          case Right((_, r)) => r
+        }
+    )
 
     val f = sum.unsafeToFuture()
     ec.tick()
@@ -757,12 +781,15 @@ class IOTests extends BaseTestsSuite {
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
-    val init = IO.never : IO[Int]
+    val init  = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)((acc, t) => IO.racePair(acc,t).map {
-      case Left((l, _)) => l
-      case Right((_, r)) => r
-    })
+    val sum = tasks.foldLeft(init)(
+      (acc, t) =>
+        IO.racePair(acc, t).map {
+          case Left((l, _))  => l
+          case Right((_, r)) => r
+        }
+    )
 
     val f = sum.unsafeToFuture()
     ec.tick()
@@ -773,17 +800,21 @@ class IOTests extends BaseTestsSuite {
     implicit val contextShift = ec.contextShift[IO]
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
-    val p = Promise[Int]()
+    val p     = Promise[Int]()
 
-    val tasks = (0 until count).map(_ => IO.never : IO[Int])
-    val all = tasks.foldLeft(IO.never : IO[Int])((acc, t) => IO.racePair(acc,t).flatMap {
-      case Left((l, fr)) => fr.cancel.map(_ => l)
-      case Right((fl, r)) => fl.cancel.map(_ => r)
-    })
+    val tasks = (0 until count).map(_ => IO.never: IO[Int])
+    val all = tasks.foldLeft(IO.never: IO[Int])(
+      (acc, t) =>
+        IO.racePair(acc, t).flatMap {
+          case Left((l, fr))  => fr.cancel.map(_ => l)
+          case Right((fl, r)) => fl.cancel.map(_ => r)
+        }
+    )
 
-    val f = IO.racePair(IO.fromFuture(IO.pure(p.future)), all)
+    val f = IO
+      .racePair(IO.fromFuture(IO.pure(p.future)), all)
       .flatMap {
-        case Left((l, fr)) => fr.cancel.map(_ => l)
+        case Left((l, fr))  => fr.cancel.map(_ => l)
         case Right((fl, r)) => fl.cancel.map(_ => r)
       }
       .unsafeToFuture()
@@ -798,9 +829,10 @@ class IOTests extends BaseTestsSuite {
   testAsync("racePair avoids extraneous async boundaries") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
 
-    val f = IO.racePair(IO.shift *> IO(1), IO.shift *> IO(1))
+    val f = IO
+      .racePair(IO.shift *> IO(1), IO.shift *> IO(1))
       .flatMap {
-        case Left((l, fiber)) => fiber.join.map(_ + l)
+        case Left((l, fiber))  => fiber.join.map(_ + l)
         case Right((fiber, r)) => fiber.join.map(_ + r)
       }
       .unsafeToFuture()
@@ -817,12 +849,15 @@ class IOTests extends BaseTestsSuite {
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
-    val init = IO.never : IO[Int]
+    val init  = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)((acc,t) => IO.race(acc,t).map {
-      case Left(l) => l
-      case Right(r) => r
-    })
+    val sum = tasks.foldLeft(init)(
+      (acc, t) =>
+        IO.race(acc, t).map {
+          case Left(l)  => l
+          case Right(r) => r
+        }
+    )
 
     val f = sum.unsafeToFuture()
     ec.tick()
@@ -834,12 +869,15 @@ class IOTests extends BaseTestsSuite {
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
-    val init = IO.never : IO[Int]
+    val init  = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)((acc,t) => IO.race(acc,t).map {
-      case Left(l) => l
-      case Right(r) => r
-    })
+    val sum = tasks.foldLeft(init)(
+      (acc, t) =>
+        IO.race(acc, t).map {
+          case Left(l)  => l
+          case Right(r) => r
+        }
+    )
 
     val f = sum.unsafeToFuture()
     ec.tick()
@@ -850,15 +888,19 @@ class IOTests extends BaseTestsSuite {
     implicit val contextShift = ec.contextShift[IO]
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
-    val p = Promise[Int]()
+    val p     = Promise[Int]()
 
-    val tasks = (0 until count).map(_ => IO.never : IO[Int])
-    val all = tasks.foldLeft(IO.never : IO[Int])((acc,t) => IO.race(acc,t).map {
-      case Left(l) => l
-      case Right(r) => r
-    })
+    val tasks = (0 until count).map(_ => IO.never: IO[Int])
+    val all = tasks.foldLeft(IO.never: IO[Int])(
+      (acc, t) =>
+        IO.race(acc, t).map {
+          case Left(l)  => l
+          case Right(r) => r
+        }
+    )
 
-    val f = IO.race(IO.fromFuture(IO.pure(p.future)), all)
+    val f = IO
+      .race(IO.fromFuture(IO.pure(p.future)), all)
       .map { case Left(l) => l; case Right(r) => r }
       .unsafeToFuture()
 
@@ -872,7 +914,8 @@ class IOTests extends BaseTestsSuite {
   testAsync("race forks execution") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
 
-    val f = IO.race(IO(1), IO(1))
+    val f = IO
+      .race(IO(1), IO(1))
       .map { case Left(l) => l; case Right(r) => r }
       .unsafeToFuture()
 
@@ -888,7 +931,8 @@ class IOTests extends BaseTestsSuite {
   testAsync("race avoids extraneous async boundaries") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
 
-    val f = IO.race(IO.shift *> IO(1), IO.shift *> IO(1))
+    val f = IO
+      .race(IO.shift *> IO(1), IO.shift *> IO(1))
       .map { case Left(l) => l; case Right(r) => r }
       .unsafeToFuture()
 
@@ -908,7 +952,7 @@ class IOTests extends BaseTestsSuite {
     val tasks = (0 until count).map(_ => IO(1))
 
     val sum = tasks.foldLeft(IO(0))((acc, t) => (acc, t).parMapN(_ + _))
-    val f = sum.unsafeToFuture()
+    val f   = sum.unsafeToFuture()
     ec.tick()
     f.value shouldBe Some(Success(count))
   }
@@ -918,11 +962,11 @@ class IOTests extends BaseTestsSuite {
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val tasks = (0 until count).map(_ => IO.never: IO[Int])
-    val all = tasks.foldLeft(IO.pure(0))((acc, t) => (acc, t).parMapN(_ + _))
+    val all   = tasks.foldLeft(IO.pure(0))((acc, t) => (acc, t).parMapN(_ + _))
 
-    val p = Promise[Int]()
+    val p      = Promise[Int]()
     val cancel = all.unsafeRunCancelable(Callback.promise(p))
-    val f = p.future
+    val f      = p.future
 
     ec.tick()
     cancel.unsafeRunSync()
@@ -981,6 +1025,7 @@ class IOTests extends BaseTestsSuite {
 }
 
 object IOTests {
+
   /** Implementation for testing default methods. */
   val ioEffectDefaults = new IODefaults
 
@@ -988,7 +1033,7 @@ object IOTests {
   def ioConcurrentEffectDefaults(implicit ec: ExecutionContext) =
     new IODefaults with ConcurrentEffect[IO] {
       implicit val cs: ContextShift[IO] = IO.contextShift(ec)
-      override protected val ref = implicitly[ConcurrentEffect[IO]]
+      override protected val ref        = implicitly[ConcurrentEffect[IO]]
 
       def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
         fa.runCancelable(cb)
@@ -1019,9 +1064,7 @@ object IOTests {
       ref.runAsync(fa)(cb)
     def suspend[A](thunk: => IO[A]): IO[A] =
       ref.suspend(thunk)
-    def bracketCase[A, B](acquire: IO[A])
-      (use: A => IO[B])
-      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       ref.bracketCase(acquire)(use)(release)
   }
 }

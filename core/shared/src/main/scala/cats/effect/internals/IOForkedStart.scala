@@ -29,9 +29,10 @@ import scala.annotation.tailrec
  * is that the injected callback MUST BE called after a full
  * asynchronous boundary.
  */
-private[effect] abstract class IOForkedStart[+A] extends Start[A]
+abstract private[effect] class IOForkedStart[+A] extends Start[A]
 
 private[effect] object IOForkedStart {
+
   /**
    * Given a task, returns one that has a guaranteed
    * logical fork on execution.
@@ -49,15 +50,14 @@ private[effect] object IOForkedStart {
    * Returns `true` if the given task is known to fork execution,
    * or `false` otherwise.
    */
-  @tailrec def detect(task: IO[_], limit: Int = 8): Boolean = {
+  @tailrec def detect(task: IO[_], limit: Int = 8): Boolean =
     if (limit > 0) task match {
-      case IO.Async(k, _) => k.isInstanceOf[IOForkedStart[_]]
-      case IO.Bind(other, _) => detect(other, limit - 1)
-      case IO.Map(other, _, _) => detect(other, limit - 1)
+      case IO.Async(k, _)                => k.isInstanceOf[IOForkedStart[_]]
+      case IO.Bind(other, _)             => detect(other, limit - 1)
+      case IO.Map(other, _, _)           => detect(other, limit - 1)
       case IO.ContextSwitch(other, _, _) => detect(other, limit - 1)
-      case _ => false
+      case _                             => false
     } else {
       false
     }
-  }
 }

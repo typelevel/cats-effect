@@ -39,7 +39,7 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelablePreventsCanceledCase[A](fa: F[A], onCancel: F[Unit], onFinish: F[Unit]) =
     F.uncancelable(F.bracketCase(F.unit)(_ => fa) {
       case (_, ExitCase.Canceled) => onCancel
-      case _ => onFinish
+      case _                      => onFinish
     }) <-> F.uncancelable(F.guarantee(fa)(onFinish))
 
   def acquireAndReleaseAreUncancelable[A, B](fa: F[A], use: A => F[B], release: A => F[Unit]) =
@@ -53,13 +53,15 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def onCancelIsDerivedFromGuaranteeCase[A](fa: F[A], finalizer: F[Unit]) =
     F.onCancel(fa)(finalizer) <-> F.guaranteeCase(fa) {
-      case ExitCase.Canceled => finalizer
+      case ExitCase.Canceled                      => finalizer
       case ExitCase.Completed | ExitCase.Error(_) => F.unit
     }
 
   // If MT[_[_], _] is a monad transformer, M[_] is its precursor monad, G[_] is a base (effect) monad such that
   // F[α] = MT[G, α], `fromM` lifts M to F purely wrt to G, and `release` does no G effects, then:
-  def bracketPropagatesTransformerEffects[M[_], A, B](fromM: M ~> F)(acquire: F[A], use: A => F[B], release: A => M[Unit]) =
+  def bracketPropagatesTransformerEffects[M[_], A, B](
+    fromM: M ~> F
+  )(acquire: F[A], use: A => F[B], release: A => M[Unit]) =
     F.bracket(acquire)(a => use(a))(a => fromM(release(a))) <->
       F.flatMap(acquire)(a => F.flatMap(use(a))(b => F.as(fromM(release(a)), b)))
 }

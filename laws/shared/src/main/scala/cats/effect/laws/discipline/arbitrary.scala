@@ -36,7 +36,7 @@ object arbitrary {
   implicit def catsEffectLawsArbitraryForIOParallel[A: Arbitrary: Cogen]: Arbitrary[IO.Par[A]] =
     Arbitrary(catsEffectLawsArbitraryForIO[A].arbitrary.map(Par.apply))
 
-  def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] = {
+  def genIO[A: Arbitrary: Cogen]: Gen[IO[A]] =
     Gen.frequency(
       1 -> genPure[A].map(_.toIO),
       1 -> genApply[A].map(_.toIO),
@@ -47,16 +47,11 @@ object arbitrary {
       1 -> genCancelable[A],
       1 -> getMapOne[A],
       1 -> getMapTwo[A],
-      2 -> genFlatMap[A])
-  }
+      2 -> genFlatMap[A]
+    )
 
-  def genSyncIO[A: Arbitrary: Cogen]: Gen[SyncIO[A]] = {
-    Gen.frequency(
-      5 -> genPure[A],
-      5 -> genApply[A],
-      1 -> genFail[A],
-      5 -> genBindSuspend[A])
-  }
+  def genSyncIO[A: Arbitrary: Cogen]: Gen[SyncIO[A]] =
+    Gen.frequency(5 -> genPure[A], 5 -> genApply[A], 1 -> genFail[A], 5 -> genBindSuspend[A])
 
   def genPure[A: Arbitrary]: Gen[SyncIO[A]] =
     getArbitrary[A].map(SyncIO.pure)
@@ -88,47 +83,52 @@ object arbitrary {
   def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f <- getArbitrary[A => IO[A]]
+      f   <- getArbitrary[A => IO[A]]
     } yield ioa.flatMap(f)
 
   def getMapOne[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f <- getArbitrary[A => A]
+      f   <- getArbitrary[A => A]
     } yield ioa.map(f)
 
   def getMapTwo[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f1 <- getArbitrary[A => A]
-      f2 <- getArbitrary[A => A]
+      f1  <- getArbitrary[A => A]
+      f2  <- getArbitrary[A => A]
     } yield ioa.map(f1).map(f2)
 
   implicit def catsEffectLawsCogenForIO[A](implicit cga: Cogen[A]): Cogen[IO[A]] =
     Cogen { (seed, io) =>
       IORunLoop.step(io) match {
         case IO.Pure(a) => cga.perturb(seed, a)
-        case _ => seed
+        case _          => seed
       }
     }
 
   implicit def catsEffectLawsCogenForExitCase[E](implicit cge: Cogen[E]): Cogen[ExitCase[E]] =
     Cogen { (seed, e) =>
       e match {
-        case ExitCase.Completed => seed
+        case ExitCase.Completed  => seed
         case ExitCase.Error(err) => cge.perturb(seed, err)
-        case ExitCase.Canceled => seed.next
+        case ExitCase.Canceled   => seed.next
       }
     }
 
-  implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Applicative[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+  implicit def catsEffectLawsArbitraryForResource[F[_], A](implicit F: Applicative[F],
+                                                           AFA: Arbitrary[F[A]],
+                                                           AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
-  def genResource[F[_], A](implicit F: Applicative[F], AFA: Arbitrary[F[A]], AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
-    def genAllocate: Gen[Resource[F, A]] = for {
-      alloc <- getArbitrary[F[A]]
-      dispose <- getArbitrary[F[Unit]]
-    } yield Resource(F.map(alloc)(a => a -> dispose))
+  def genResource[F[_], A](implicit F: Applicative[F],
+                           AFA: Arbitrary[F[A]],
+                           AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+    def genAllocate: Gen[Resource[F, A]] =
+      for {
+        alloc   <- getArbitrary[F[A]]
+        dispose <- getArbitrary[F[Unit]]
+      } yield Resource(F.map(alloc)(a => a -> dispose))
 
     def genBind: Gen[Resource[F, A]] =
       genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))

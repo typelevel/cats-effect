@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid, ~>}
+import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -43,6 +43,7 @@ import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 * create a Clock[${F}] instance with Clock.create
 """)
 trait Clock[F[_]] {
+
   /**
    * Returns the current time, as a Unix timestamp (number of time units
    * since the Unix epoch), suspended in `F[_]`.
@@ -188,7 +189,9 @@ object Clock {
    * Derives a [[Clock]] instance for `cats.data.WriterT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], clock: Clock[F]): Clock[WriterT[F, L, ?]] =
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F],
+                                      L: Monoid[L],
+                                      clock: Clock[F]): Clock[WriterT[F, L, ?]] =
     new Clock[WriterT[F, L, ?]] {
       def realTime(unit: TimeUnit): WriterT[F, L, Long] =
         WriterT.liftF(clock.realTime(unit))
@@ -211,9 +214,9 @@ object Clock {
     }
 
   /**
-    * Derives a [[Clock]] instance for `cats.data.IorT`,
-    * given we have one for `F[_]`.
-    */
+   * Derives a [[Clock]] instance for `cats.data.IorT`,
+   * given we have one for `F[_]`.
+   */
   implicit def deriveIorT[F[_], L](implicit F: Applicative[F], clock: Clock[F]): Clock[IorT[F, L, ?]] =
     new Clock[IorT[F, L, ?]] {
       def realTime(unit: TimeUnit): IorT[F, L, Long] =
@@ -224,11 +227,12 @@ object Clock {
     }
 
   implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+
     /**
      * Modify the context `F` using transformation `f`.
      */
     def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
-      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
+      def realTime(unit: TimeUnit): G[Long]  = f(self.realTime(unit))
       def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
     }
   }

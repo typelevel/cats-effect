@@ -22,13 +22,14 @@ import scala.collection.immutable.LongMap
 
 /**
  * A Map which tracks the insertion order of entries, so that entries may be
- * traversed in the order they were inserted.  Alternative to `ListMap` that 
+ * traversed in the order they were inserted.  Alternative to `ListMap` that
  * has better asymptotic performance at the cost of more memory usage.
  */
 private[effect] class LinkedMap[K, +V](
   val entries: Map[K, (V, Long)],
   private[this] val insertionOrder: LongMap[K],
-  private[this] val nextId: Long) {
+  private[this] val nextId: Long
+) {
 
   /** Returns `true` if this map is empty, or `false` otherwise. */
   def isEmpty: Boolean =

@@ -18,5 +18,4 @@ package cats.effect.syntax
 
 import cats.effect.Effect
 
-
 trait EffectSyntax extends Effect.ToEffectOps

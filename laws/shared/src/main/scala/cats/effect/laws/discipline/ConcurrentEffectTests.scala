@@ -53,19 +53,19 @@ trait ConcurrentEffectTests[F[_]] extends ConcurrentTests[F] with EffectTests[F]
     EqIOU: Eq[IO[Unit]],
     EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
     iso: Isomorphisms[F],
-    params: Parameters): RuleSet = {
-
+    params: Parameters
+  ): RuleSet =
     new RuleSet {
-      val name = "concurrentEffect"
-      val bases = Nil
+      val name    = "concurrentEffect"
+      val bases   = Nil
       val parents = Seq(concurrent[A, B, C], effect[A, B, C])
       val props = Seq[(String, Prop)](
-        "runAsync runCancelable coherence" -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
-        "runCancelable is synchronous" -> laws.runCancelableIsSynchronous[A],
+        "runAsync runCancelable coherence"                -> forAll(laws.runAsyncRunCancelableCoherence[A] _),
+        "runCancelable is synchronous"                    -> laws.runCancelableIsSynchronous[A],
         "runCancelable start.flatMap(_.cancel) coherence" -> forAll(laws.runCancelableStartCancelCoherence[A] _),
-        "toIO is consistent with runCancelable" -> forAll(laws.toIORunCancelableConsistency[A] _))
+        "toIO is consistent with runCancelable"           -> forAll(laws.toIORunCancelableConsistency[A] _)
+      )
     }
-  }
 }
 
 object ConcurrentEffectTests {

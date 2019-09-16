@@ -26,8 +26,10 @@ class ResourceJVMTests extends BaseTestsSuite {
       override def destroy(): Unit = destroyed = true
     }
 
-    val result = Resource.fromDestroyable(IO(destroyable))
-      .use(_ => IO.pure("Hello world")).unsafeRunSync()
+    val result = Resource
+      .fromDestroyable(IO(destroyable))
+      .use(_ => IO.pure("Hello world"))
+      .unsafeRunSync()
 
     result shouldBe "Hello world"
     destroyed shouldBe true

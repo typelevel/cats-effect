@@ -19,6 +19,4 @@ package effect
 
 import cats.effect.syntax.AllCatsEffectSyntax
 
-
-package object implicits
-  extends AllCatsEffectSyntax
+package object implicits extends AllCatsEffectSyntax

@@ -22,9 +22,9 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class IOConnectionTests extends AnyFunSuite with Matchers {
   test("initial push") {
-    var effect = 0
+    var effect  = 0
     val initial = IO(effect += 1)
-    val c = IOConnection()
+    val c       = IOConnection()
     c.push(initial)
     c.cancel.unsafeRunSync()
     effect shouldBe 1
@@ -33,9 +33,9 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
   }
 
   test("cancels after being canceled") {
-    var effect = 0
+    var effect  = 0
     val initial = IO(effect += 1)
-    val c = IOConnection()
+    val c       = IOConnection()
     c.push(initial)
 
     c.cancel.unsafeRunSync()
@@ -44,12 +44,12 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     c.cancel.unsafeRunSync()
     effect shouldBe 1
 
-    c push initial
+    c.push(initial)
     effect shouldBe 2
   }
 
   test("push two, pop one") {
-    var effect = 0
+    var effect   = 0
     val initial1 = IO(effect += 1)
     val initial2 = IO(effect += 2)
 
@@ -64,8 +64,8 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
 
   test("cancel the second time is a no-op") {
     var effect = 0
-    val bc = IO(effect += 1)
-    val c = IOConnection()
+    val bc     = IO(effect += 1)
+    val c      = IOConnection()
     c.push(bc)
 
     c.cancel.unsafeRunSync()
@@ -75,7 +75,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
   }
 
   test("push two, pop two") {
-    var effect = 0
+    var effect   = 0
     val initial1 = IO(effect += 1)
     val initial2 = IO(effect += 2)
 
@@ -88,7 +88,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
 
     effect shouldBe 0
   }
-  
+
   test("uncancelable returns same reference") {
     val ref1 = IOConnection.uncancelable
     val ref2 = IOConnection.uncancelable
@@ -115,7 +115,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     ref.cancel.unsafeRunSync()
 
     var effect = 0
-    val c = IO(effect += 1)
+    val c      = IO(effect += 1)
     ref.push(c)
     effect shouldBe 0
   }

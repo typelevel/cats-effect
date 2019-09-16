@@ -43,7 +43,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
   test("shift contiguous prefix and suffix, but not interfix") {
     val name: IO[String] = IO { Thread.currentThread().getName }
 
-    val aname: IO[String] = IO async { cb =>
+    val aname: IO[String] = IO.async { cb =>
       new Thread {
         start()
         override def run() =
@@ -53,12 +53,12 @@ class IOJVMTests extends AnyFunSuite with Matchers {
     }
 
     val test = for {
-      _ <- IO.shift(TestEC)
+      _  <- IO.shift(TestEC)
       n1 <- name
       n2 <- name
       n3 <- aname
       n4 <- name
-      _ <- IO.shift(TestEC)
+      _  <- IO.shift(TestEC)
       n5 <- name
       n6 <- name
     } yield (n1, n2, n3, n4, n5, n6)
@@ -67,8 +67,8 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
     n1 shouldEqual ThreadName
     n2 shouldEqual ThreadName
-    n3 should not equal ThreadName
-    n4 should not equal ThreadName
+    (n3 should not).equal(ThreadName)
+    (n4 should not).equal(ThreadName)
     n5 shouldEqual ThreadName
     n6 shouldEqual ThreadName
   }
@@ -82,10 +82,10 @@ class IOJVMTests extends AnyFunSuite with Matchers {
   }
 
   test("unsafeRunTimed times-out on unending IO") {
-    val never = IO.async[Int](_ => ())
-    val start = System.currentTimeMillis()
+    val never    = IO.async[Int](_ => ())
+    val start    = System.currentTimeMillis()
     val received = never.unsafeRunTimed(100.millis)
-    val elapsed = System.currentTimeMillis() - start
+    val elapsed  = System.currentTimeMillis() - start
 
     received shouldEqual None
     assert(elapsed >= 100)
@@ -118,14 +118,14 @@ class IOJVMTests extends AnyFunSuite with Matchers {
     }
 
     try {
-      val latch = new java.util.concurrent.CountDownLatch(1)
+      val latch           = new java.util.concurrent.CountDownLatch(1)
       def loop(): IO[Int] = IO.suspend(loop())
 
       implicit val ctx = IO.contextShift(ec)
-      val task = IO.shift *> IO(latch.countDown()) *> loop()
+      val task         = IO.shift *> IO(latch.countDown()) *> loop()
       val c = task.unsafeRunCancelable {
         case Left(e) => e.printStackTrace()
-        case _ => ()
+        case _       => ()
       }
 
       latch.await(10, TimeUnit.SECONDS)

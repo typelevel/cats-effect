@@ -18,5 +18,4 @@ package cats.effect.syntax
 
 import cats.effect.ConcurrentEffect
 
-
 trait ConcurrentEffectSyntax extends ConcurrentEffect.ToConcurrentEffectOps
