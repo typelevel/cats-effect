@@ -31,16 +31,16 @@ trait SyncEffect[F[_]] extends Sync[F] {
    * Convert to any other type that implements `Sync`.
    */
   def to[G[_], A](fa: F[A])(implicit G: Sync[G]): G[A]
+
+  /**
+   * [[SyncEffect.to]] as a natural transformation.
+   */
+  def toK[G[_]](implicit G: Sync[G]): F ~> G = new (F ~> G) {
+    def apply[A](fa: F[A]): G[A] = to[G, A](fa)
+  }
 }
 
 object SyncEffect {
-
-  /**
-    * [[SyncEffect.to]] as a natural transformation.
-    */
-  def toK[F[_], G[_]](implicit F: SyncEffect[F], G: Sync[G]): F ~> G = new (F ~> G) {
-    def apply[A](fa: F[A]): G[A] = F.to[G, A](fa)
-  }
 
   /**
    * [[SyncEffect]] instance built for `cats.data.EitherT` values initialized
