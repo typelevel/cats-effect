@@ -175,7 +175,11 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    *        along with the result of `use` (error or successful result)
    */
   def bracketCase[B](use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
-    new SyncIO(toIO.bracketCase(a => use(a).toIO)((a, ec) => release(a, ec).toIO))
+    flatMap { a => use(a).attempt.flatMap {
+        case Left(t) => release(a, ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t))
+        case Right(b) => release(a, ExitCase.Completed).map(_ => b)
+      }
+    }
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -232,7 +236,10 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * @see [[bracketCase]] for the more general operation
    */
   def guaranteeCase(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
-    new SyncIO(toIO.guaranteeCase(ec => finalizer(ec).toIO))
+    attempt.flatMap {
+      case Left(t) => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t))
+      case Right(a) => finalizer(ExitCase.Completed).map(_ => a)
+    }
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
