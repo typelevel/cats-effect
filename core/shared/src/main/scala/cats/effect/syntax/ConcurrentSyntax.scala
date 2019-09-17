@@ -20,6 +20,7 @@ import cats.{Parallel, Traverse}
 
 import scala.concurrent.duration.FiniteDuration
 import cats.effect.{Concurrent, Timer}
+import cats.effect.Resource
 
 trait ConcurrentSyntax extends Concurrent.ToConcurrentOps {
   implicit def catsEffectSyntaxConcurrent[F[_], A](fa: F[A]): ConcurrentOps[F, A] =
@@ -35,6 +36,41 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
     Concurrent.timeoutTo(self, duration, fallback)
+
+  /**
+   * Returns a resource that will start execution of this effect in the background.
+   *
+   * In case the resource is closed while this effect is still running (e.g. due to a failure in `use`),
+   * the background action will be canceled.
+   *
+   * A basic example with IO:
+   *
+   * {{{
+   *   val longProcess = (IO.sleep(5.seconds) *> IO(println("Ping!"))).foreverM
+   *
+   *   val srv: Resource[IO, ServerBinding[IO]] = for {
+   *     _ <- longProcess.background
+   *     server <- server.run
+   *   } yield server
+   *
+   *   val application = srv.use(binding => IO(println("Bound to " + binding)) *> IO.never)
+   * }}}
+   *
+   * Here, we are starting a background process as part of the application's startup.
+   * Afterwards, we initialize a server. Then, we use that server forever using `IO.never`.
+   * This will ensure we never close the server resource unless somebody cancels the whole `application` action.
+   *
+   * If at some point of using the resource you want to wait for the result of the background action,
+   * you can do so by sequencing the value inside the resource.
+   *
+   * This will start the background process, wait 5 seconds, and cancel it in case it takes longer than that.
+   * Note: this pattern is exactly what [[cats.effect.Concurrent#timeout]] does in a more concise and less error-prone way.
+   *
+   * {{{
+   *   longProcess.background.use(await => IO.sleep(5.seconds) *> await)
+   * }}}
+  */
+  def background(implicit F: Concurrent[F]): Resource[F, F[A]] = Resource.make(F.start(self))(_.cancel).map(_.join)
 }
 
 final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal {

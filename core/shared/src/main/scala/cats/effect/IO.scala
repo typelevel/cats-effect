@@ -382,33 +382,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
    * the background action will be canceled.
    *
-   *
-   * A basic example:
-   *
-   * {{{
-   *   val longProcess = (IO.sleep(5.seconds) *> IO(println("Ping!"))).foreverM
-   *
-   *   val srv: Resource[IO, ServerBinding[IO]] = for {
-   *     _ <- longProcess.background
-   *     server <- server.run
-   *   } yield server
-   *
-   *   val application = srv.use(binding => IO(println("Bound to " + binding)) *> IO.never)
-   * }}}
-   *
-   * Here, we are starting a background process as part of the application's startup.
-   * Afterwards, we initialize a server. Then, we use that server forever using `IO.never`.
-   * This will ensure we never close the server resource unless somebody cancels the whole `application` action.
-   *
-   * If at some point of using the resulting resource you want to wait for the result of the background action,
-   * you can do so by sequencing the value inside the resource.
-   *
-   * This will start the background process, wait 5 seconds, and cancel it in case it takes longer than that.
-   * Note: this pattern is exactly what [[timeout]] does in a more concise and less error-prone way.
-   *
-   * {{{
-   *   longProcess.background.use(await => IO.sleep(5.seconds) *> await)
-   * }}}
+   * @see [[cats.effect.syntax.ConcurrentOps#background]]
   */
   final def background(implicit cs: ContextShift[IO]): Resource[IO, IO[A @uncheckedVariance]] =
     Resource.make(start)(_.cancel).map(_.join)
