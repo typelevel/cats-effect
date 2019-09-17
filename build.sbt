@@ -190,7 +190,7 @@ val mimaSettings = Seq(
   })
 
 val lawsMimaSettings = mimaSettings ++ Seq(
-  // We broke binary compatibily for laws in 2.0
+  // We broke binary compatibility for laws in 2.0
   mimaPreviousArtifacts := Set(organization.value %% name.value % "2.0.0")
 )
 
