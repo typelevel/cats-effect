@@ -178,7 +178,8 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    *        along with the result of `use` (error or successful result)
    */
   def bracketCase[B](use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
-    flatMap { a => use(a).redeemWith(
+    flatMap { a =>
+      use(a).redeemWith(
         t => release(a, ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
         b => release(a, ExitCase.Completed).map(_ => b)
       )
@@ -239,8 +240,10 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    * @see [[bracketCase]] for the more general operation
    */
   def guaranteeCase(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
-    redeemWith(t => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
-      a => finalizer(ExitCase.Completed).map(_ => a))
+    redeemWith(
+      t => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
+      a => finalizer(ExitCase.Completed).map(_ => a)
+    )
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
