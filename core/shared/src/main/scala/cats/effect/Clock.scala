@@ -232,7 +232,7 @@ object Clock {
      * Modify the context `F` using transformation `f`.
      */
     def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
-      def realTime(unit: TimeUnit): G[Long]  = f(self.realTime(unit))
+      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
       def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
     }
   }

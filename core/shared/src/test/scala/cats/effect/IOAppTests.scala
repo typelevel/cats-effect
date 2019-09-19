@@ -54,6 +54,6 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
   }
 
   implicit override def executionContext: ExecutionContext = TrampolineEC.immediate
-  implicit val timer: Timer[IO]                            = IO.timer(executionContext)
-  implicit val cs: ContextShift[IO]                        = IO.contextShift(executionContext)
+  implicit val timer: Timer[IO] = IO.timer(executionContext)
+  implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 }

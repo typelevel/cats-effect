@@ -255,11 +255,11 @@ object MVar {
 
   final private[concurrent] class TransformedMVar[F[_], G[_], A](underlying: MVar[F, A], trans: F ~> G)
       extends MVar[G, A] {
-    override def isEmpty: G[Boolean]      = trans(underlying.isEmpty)
-    override def put(a: A): G[Unit]       = trans(underlying.put(a))
+    override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
+    override def put(a: A): G[Unit] = trans(underlying.put(a))
     override def tryPut(a: A): G[Boolean] = trans(underlying.tryPut(a))
-    override def take: G[A]               = trans(underlying.take)
-    override def tryTake: G[Option[A]]    = trans(underlying.tryTake)
-    override def read: G[A]               = trans(underlying.read)
+    override def take: G[A] = trans(underlying.take)
+    override def tryTake: G[Option[A]] = trans(underlying.tryTake)
+    override def read: G[A] = trans(underlying.read)
   }
 }

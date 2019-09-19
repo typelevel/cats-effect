@@ -83,20 +83,20 @@ object arbitrary {
   def genFlatMap[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f   <- getArbitrary[A => IO[A]]
+      f <- getArbitrary[A => IO[A]]
     } yield ioa.flatMap(f)
 
   def getMapOne[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f   <- getArbitrary[A => A]
+      f <- getArbitrary[A => A]
     } yield ioa.map(f)
 
   def getMapTwo[A: Arbitrary: Cogen]: Gen[IO[A]] =
     for {
       ioa <- getArbitrary[IO[A]]
-      f1  <- getArbitrary[A => A]
-      f2  <- getArbitrary[A => A]
+      f1 <- getArbitrary[A => A]
+      f2 <- getArbitrary[A => A]
     } yield ioa.map(f1).map(f2)
 
   implicit def catsEffectLawsCogenForIO[A](implicit cga: Cogen[A]): Cogen[IO[A]] =
@@ -126,7 +126,7 @@ object arbitrary {
                            AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
     def genAllocate: Gen[Resource[F, A]] =
       for {
-        alloc   <- getArbitrary[F[A]]
+        alloc <- getArbitrary[F[A]]
         dispose <- getArbitrary[F[Unit]]
       } yield Resource(F.map(alloc)(a => a -> dispose))
 

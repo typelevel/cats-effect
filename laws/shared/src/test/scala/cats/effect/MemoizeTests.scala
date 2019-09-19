@@ -29,7 +29,7 @@ import cats.laws.discipline._
 class MemoizeTests extends BaseTestsSuite {
   testAsync("Concurrent.memoize does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    val timer       = ec.timer[IO]
+    val timer = ec.timer[IO]
 
     val prog = for {
       ref <- Ref.of[IO, Int](0)
@@ -54,9 +54,9 @@ class MemoizeTests extends BaseTestsSuite {
         ns -> ns
       }
       memoized <- Concurrent.memoize(action)
-      x        <- memoized
-      y        <- memoized
-      v        <- ref.get
+      x <- memoized
+      y <- memoized
+      v <- ref.get
     } yield (x, y, v)
 
     val result = prog.unsafeToFuture()
@@ -67,7 +67,7 @@ class MemoizeTests extends BaseTestsSuite {
   testAsync("Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)") {
     implicit ec =>
       implicit val cs = ec.contextShift[IO]
-      val timer       = ec.timer[IO]
+      val timer = ec.timer[IO]
 
       val prog = for {
         ref <- Ref.of[IO, Int](0)
@@ -76,10 +76,10 @@ class MemoizeTests extends BaseTestsSuite {
           ns -> ns
         }
         memoized <- Concurrent.memoize(action)
-        _        <- memoized.start
-        x        <- memoized
-        _        <- timer.sleep(100.millis)
-        v        <- ref.get
+        _ <- memoized.start
+        x <- memoized
+        _ <- timer.sleep(100.millis)
+        v <- ref.get
       } yield x -> v
 
       val result = prog.unsafeToFuture()
@@ -95,18 +95,18 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (1)") { implicit ec =>
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
       action = IO.sleep(200.millis) >> completed.set(true)
       memoized <- Concurrent.memoize(action)
-      fiber    <- memoized.start
-      _        <- IO.sleep(100.millis)
-      _        <- fiber.cancel
-      _        <- IO.sleep(300.millis)
-      res      <- completed.get
+      fiber <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber.cancel
+      _ <- IO.sleep(300.millis)
+      res <- completed.get
     } yield res
 
     val result = prog.unsafeToFuture()
@@ -115,21 +115,21 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (2)") { implicit ec =>
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
       action = IO.sleep(300.millis) >> completed.set(true)
       memoized <- Concurrent.memoize(action)
-      fiber1   <- memoized.start
-      _        <- IO.sleep(100.millis)
-      fiber2   <- memoized.start
-      _        <- IO.sleep(100.millis)
-      _        <- fiber2.cancel
-      _        <- fiber1.cancel
-      _        <- IO.sleep(400.millis)
-      res      <- completed.get
+      fiber1 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      fiber2 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber2.cancel
+      _ <- fiber1.cancel
+      _ <- IO.sleep(400.millis)
+      res <- completed.get
     } yield res
 
     val result = prog.unsafeToFuture()
@@ -138,21 +138,21 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
       action = IO.sleep(300.millis) >> completed.set(true)
       memoized <- Concurrent.memoize(action)
-      fiber1   <- memoized.start
-      _        <- IO.sleep(100.millis)
-      fiber2   <- memoized.start
-      _        <- IO.sleep(100.millis)
-      _        <- fiber1.cancel
-      _        <- fiber2.cancel
-      _        <- IO.sleep(400.millis)
-      res      <- completed.get
+      fiber1 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      fiber2 <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber1.cancel
+      _ <- fiber2.cancel
+      _ <- IO.sleep(400.millis)
+      res <- completed.get
     } yield res
 
     val result = prog.unsafeToFuture()
@@ -161,20 +161,20 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Running a memoized effect after it was previously canceled reruns it") { implicit ec =>
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val prog = for {
-      started   <- Ref[IO].of(0)
+      started <- Ref[IO].of(0)
       completed <- Ref[IO].of(0)
       action = started.update(_ + 1) >> timer.sleep(200.millis) >> completed.update(_ + 1)
       memoized <- Concurrent.memoize(action)
-      fiber    <- memoized.start
-      _        <- IO.sleep(100.millis)
-      _        <- fiber.cancel
-      _        <- memoized.timeout(1.second)
-      v1       <- started.get
-      v2       <- completed.get
+      fiber <- memoized.start
+      _ <- IO.sleep(100.millis)
+      _ <- fiber.cancel
+      _ <- memoized.timeout(1.second)
+      v1 <- started.get
+      v2 <- completed.get
     } yield v1 -> v2
 
     val result = prog.unsafeToFuture()
@@ -183,20 +183,20 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Attempting to cancel a memoized effect with active subscribers is a no-op") { implicit ec =>
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     val prog = for {
       condition <- Deferred[IO, Unit]
       action = IO.sleep(200.millis) >> condition.complete(())
       memoized <- Concurrent.memoize(action)
-      fiber1   <- memoized.start
-      _        <- IO.sleep(50.millis)
-      fiber2   <- memoized.start
-      _        <- IO.sleep(50.millis)
-      _        <- fiber1.cancel
-      _        <- fiber2.join // Make sure no exceptions are swallowed by start
-      v        <- condition.get.timeout(1.second).as(true)
+      fiber1 <- memoized.start
+      _ <- IO.sleep(50.millis)
+      fiber2 <- memoized.start
+      _ <- IO.sleep(50.millis)
+      _ <- fiber1.cancel
+      _ <- fiber2.join // Make sure no exceptions are swallowed by start
+      v <- condition.get.timeout(1.second).as(true)
     } yield v
 
     val result = prog.unsafeToFuture()

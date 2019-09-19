@@ -28,12 +28,12 @@ object SyntaxTests extends AllCatsEffectSyntax {
   }
 
   def bracketSyntax[F[_]: Bracket[?[_], Throwable], A, B] = {
-    val acquire     = mock[F[A]]
-    val use         = mock[A => F[B]]
+    val acquire = mock[F[A]]
+    val use = mock[A => F[B]]
     val releaseCase = mock[(A, ExitCase[Throwable]) => F[Unit]]
-    val release     = mock[A => F[Unit]]
-    val finalizer   = mock[F[Unit]]
-    val finalCase   = mock[ExitCase[Throwable] => F[Unit]]
+    val release = mock[A => F[Unit]]
+    val finalizer = mock[F[Unit]]
+    val finalCase = mock[ExitCase[Throwable] => F[Unit]]
 
     typed[F[A]](acquire.uncancelable)
     typed[F[B]](acquire.bracket(use)(release))
@@ -43,9 +43,9 @@ object SyntaxTests extends AllCatsEffectSyntax {
   }
 
   def asyncSyntax[T[_]: Traverse, F[_], A, B](implicit F: Async[F], P: Parallel[F]) = {
-    val n   = mock[Long]
-    val ta  = mock[T[A]]
-    val f   = mock[A => F[B]]
+    val n = mock[Long]
+    val ta = mock[T[A]]
+    val f = mock[A => F[B]]
     val tma = mock[T[F[A]]]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))
@@ -53,9 +53,9 @@ object SyntaxTests extends AllCatsEffectSyntax {
   }
 
   def concurrentSyntax[T[_]: Traverse, F[_], A, B](implicit F: Concurrent[F], P: Parallel[F], timer: Timer[F]) = {
-    val fa  = mock[F[A]]
+    val fa = mock[F[A]]
     val fa2 = mock[F[A]]
-    val fb  = mock[F[B]]
+    val fb = mock[F[B]]
 
     typed[F[Fiber[F, A]]](fa.start)
     typed[F[Either[A, B]]](fa.race(fb))
@@ -63,9 +63,9 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[A]](fa.timeout(1.second))
     typed[F[A]](fa.timeoutTo(1.second, fa2))
 
-    val n   = mock[Long]
-    val ta  = mock[T[A]]
-    val f   = mock[A => F[B]]
+    val n = mock[Long]
+    val ta = mock[T[A]]
+    val f = mock[A => F[B]]
     val tma = mock[T[F[A]]]
 
     typed[F[T[B]]](F.parTraverseN(n)(ta)(f))

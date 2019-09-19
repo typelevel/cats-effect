@@ -64,9 +64,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       async = F.cancelable[Unit] { _ =>
         latch.success(()); release.complete(a)
       }
-      fiber  <- F.start(async)
-      _      <- Async.fromFuture(F.pure(latch.future))
-      _      <- F.start(fiber.cancel)
+      fiber <- F.start(async)
+      _ <- Async.fromFuture(F.pure(latch.future))
+      _ <- F.start(fiber.cancel)
       result <- release.get
     } yield result
 
@@ -81,9 +81,9 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
         F.bracket(acquire.complete(()))(_ => F.never[Unit])(_ => release.complete(a))
       }
       fiber <- F.start(task)
-      _     <- acquire.get
-      _     <- F.start(fiber.cancel)
-      a     <- release.get
+      _ <- acquire.get
+      _ <- F.start(fiber.cancel)
+      a <- release.get
     } yield a
 
     lh <-> F.pure(a)
@@ -118,15 +118,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def acquireIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar  <- MVar[F].of(a1)
+        mVar <- MVar[F].of(a1)
         latch <- Deferred.uncancelable[F, Unit]
         task = F.bracket(latch.complete(()) *> mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
-        _     <- latch.get
-        _     <- F.start(fiber.cancel)
-        _     <- contextShift.shift
-        _     <- mVar.take
-        out   <- mVar.take
+        _ <- latch.get
+        _ <- F.start(fiber.cancel)
+        _ <- contextShift.shift
+        _ <- mVar.take
+        out <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
@@ -135,15 +135,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def releaseIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar  <- MVar[F].of(a1)
+        mVar <- MVar[F].of(a1)
         latch <- Deferred.uncancelable[F, Unit]
         task = F.bracket(latch.complete(()))(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
-        _     <- latch.get
-        _     <- F.start(fiber.cancel)
-        _     <- contextShift.shift
-        _     <- mVar.take
-        out   <- mVar.take
+        _ <- latch.get
+        _ <- F.start(fiber.cancel)
+        _ <- contextShift.shift
+        _ <- mVar.take
+        out <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
@@ -157,10 +157,10 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
     val received = for {
-      s      <- Semaphore[F](0L)
+      s <- Semaphore[F](0L)
       effect <- Deferred.uncancelable[F, B]
       winner = s.acquire *> F.async[A](_(r))
-      loser  = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
+      loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
       race = if (leftWinner) F.race(winner, loser)
       else F.race(loser, winner)
 
@@ -171,15 +171,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def raceCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      s  <- Semaphore[F](0L)
+      s <- Semaphore[F](0L)
       pa <- Deferred.uncancelable[F, A]
       loserA = F.bracket(s.release)(_ => F.never[A])(_ => pa.complete(a))
       pb <- Deferred.uncancelable[F, B]
       loserB = F.bracket(s.release)(_ => F.never[B])(_ => pb.complete(b))
       race <- F.start(F.race(loserA, loserB))
-      _    <- s.acquireN(2L) *> F.start(race.cancel)
-      a    <- pa.get
-      b    <- pb.get
+      _ <- s.acquireN(2L) *> F.start(race.cancel)
+      a <- pa.get
+      b <- pb.get
     } yield f(a, b)
 
     fc <-> F.pure(f(a, b))
@@ -211,10 +211,10 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def racePairCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
     val received: F[B] = for {
-      s      <- Semaphore[F](0L)
+      s <- Semaphore[F](0L)
       effect <- Deferred.uncancelable[F, B]
       winner = s.acquire *> F.async[A](_(r))
-      loser  = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
+      loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
       race = if (leftWinner) F.racePair(winner, loser)
       else F.racePair(loser, winner)
 
@@ -255,15 +255,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
 
   def racePairCancelsBoth[A, B, C](a: A, b: B, f: (A, B) => C) = {
     val fc = for {
-      s  <- Semaphore[F](0L)
+      s <- Semaphore[F](0L)
       pa <- Deferred.uncancelable[F, A]
       loserA = F.bracket(s.release)(_ => F.never[A])(_ => pa.complete(a))
       pb <- Deferred.uncancelable[F, B]
       loserB = F.bracket(s.release)(_ => F.never[B])(_ => pb.complete(b))
       race <- F.start(F.racePair(loserA, loserB))
-      _    <- s.acquireN(2L) *> race.cancel
-      a    <- pa.get
-      b    <- pb.get
+      _ <- s.acquireN(2L) *> race.cancel
+      a <- pa.get
+      b <- pb.get
     } yield f(a, b)
 
     fc <-> F.pure(f(a, b))
@@ -272,15 +272,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def actionConcurrentWithPureValueIsJustAction[A](fa: F[A], a: A) =
     (for {
       fiber <- F.start(a.pure)
-      x     <- fa
-      _     <- fiber.join
+      x <- fa
+      _ <- fiber.join
     } yield x) <-> fa
 }
 
 object ConcurrentLaws {
   def apply[F[_]](implicit F0: Concurrent[F], contextShift0: ContextShift[F]): ConcurrentLaws[F] =
     new ConcurrentLaws[F] {
-      val F            = F0
+      val F = F0
       val contextShift = contextShift0
     }
 }

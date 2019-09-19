@@ -28,7 +28,7 @@ import scala.concurrent.ExecutionContext
  */
 private[internals] class Trampoline(underlying: ExecutionContext) {
   private[this] var immediateQueue = new ArrayStack[Runnable]()
-  private[this] var withinLoop     = false
+  private[this] var withinLoop = false
 
   def startLoop(runnable: Runnable): Unit = {
     withinLoop = true

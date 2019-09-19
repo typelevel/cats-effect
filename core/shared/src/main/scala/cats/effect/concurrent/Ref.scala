@@ -227,9 +227,9 @@ object Ref {
     def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
 
     def access: F[(A, A => F[Boolean])] = F.delay {
-      val snapshot      = ar.get
+      val snapshot = ar.get
       val hasBeenCalled = new AtomicBoolean(false)
-      def setter        = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
+      def setter = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
       (snapshot, setter)
     }
 
@@ -237,7 +237,7 @@ object Ref {
       F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
     def tryModify[B](f: A => (A, B)): F[Option[B]] = F.delay {
-      val c      = ar.get
+      val c = ar.get
       val (u, b) = f(c)
       if (ar.compareAndSet(c, u)) Some(b)
       else None
@@ -249,7 +249,7 @@ object Ref {
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec
       def spin: B = {
-        val c      = ar.get
+        val c = ar.get
         val (u, b) = f(c)
         if (!ar.compareAndSet(c, u)) spin
         else b
@@ -271,15 +271,15 @@ object Ref {
   final private[concurrent] class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)(
     implicit F: Functor[F]
   ) extends Ref[G, A] {
-    override def get: G[A]                                           = trans(underlying.get)
-    override def set(a: A): G[Unit]                                  = trans(underlying.set(a))
-    override def getAndSet(a: A): G[A]                               = trans(underlying.getAndSet(a))
-    override def tryUpdate(f: A => A): G[Boolean]                    = trans(underlying.tryUpdate(f))
-    override def tryModify[B](f: A => (A, B)): G[Option[B]]          = trans(underlying.tryModify(f))
-    override def update(f: A => A): G[Unit]                          = trans(underlying.update(f))
-    override def modify[B](f: A => (A, B)): G[B]                     = trans(underlying.modify(f))
+    override def get: G[A] = trans(underlying.get)
+    override def set(a: A): G[Unit] = trans(underlying.set(a))
+    override def getAndSet(a: A): G[A] = trans(underlying.getAndSet(a))
+    override def tryUpdate(f: A => A): G[Boolean] = trans(underlying.tryUpdate(f))
+    override def tryModify[B](f: A => (A, B)): G[Option[B]] = trans(underlying.tryModify(f))
+    override def update(f: A => A): G[Unit] = trans(underlying.update(f))
+    override def modify[B](f: A => (A, B)): G[B] = trans(underlying.modify(f))
     override def tryModifyState[B](state: State[A, B]): G[Option[B]] = trans(underlying.tryModifyState(state))
-    override def modifyState[B](state: State[A, B]): G[B]            = trans(underlying.modifyState(state))
+    override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
 
     override def access: G[(A, A => G[Boolean])] =
       trans(F.compose[(A, ?)].compose[A => ?].map(underlying.access)(trans(_)))
@@ -289,8 +289,8 @@ object Ref {
     new Invariant[Ref[F, ?]] {
       override def imap[A, B](fa: Ref[F, A])(f: A => B)(g: B => A): Ref[F, B] =
         new Ref[F, B] {
-          override val get: F[B]             = fa.get.map(f)
-          override def set(a: B): F[Unit]    = fa.set(g(a))
+          override val get: F[B] = fa.get.map(f)
+          override def set(a: B): F[Unit] = fa.set(g(a))
           override def getAndSet(a: B): F[B] = fa.getAndSet(g(a)).map(f)
           override val access: F[(B, B => F[Boolean])] =
             fa.access.map(_.bimap(f, _.compose(g)))

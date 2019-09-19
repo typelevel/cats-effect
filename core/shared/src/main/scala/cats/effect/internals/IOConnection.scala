@@ -97,11 +97,11 @@ private[effect] object IOConnection {
     new Uncancelable
 
   final private class Uncancelable extends IOConnection {
-    def cancel                                             = IO.unit
-    def isCanceled: Boolean                                = false
-    def push(token: CancelToken[IO]): Unit                 = ()
-    def pop(): CancelToken[IO]                             = IO.unit
-    def tryReactivate(): Boolean                           = true
+    def cancel = IO.unit
+    def isCanceled: Boolean = false
+    def push(token: CancelToken[IO]): Unit = ()
+    def pop(): CancelToken[IO] = IO.unit
+    def tryReactivate(): Boolean = true
     def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
   }
 

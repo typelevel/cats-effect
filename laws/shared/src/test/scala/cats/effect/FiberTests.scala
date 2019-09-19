@@ -51,13 +51,13 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Canceling join does not cancel the source fiber") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    var fiberCanceled            = false
-    var joinCanceled             = false
+    var fiberCanceled = false
+    var joinCanceled = false
     val fiberFinalisersInstalled = Promise[Unit]()
-    val joinFinalisersInstalled  = Promise[Unit]()
+    val joinFinalisersInstalled = Promise[Unit]()
 
-    def waitUnlessInterrupted    = IO.cancelable[Unit](_ => IO { fiberCanceled = true })
-    def wait(p: Promise[Unit])   = IO.fromFuture(IO.pure(p.future))
+    def waitUnlessInterrupted = IO.cancelable[Unit](_ => IO { fiberCanceled = true })
+    def wait(p: Promise[Unit]) = IO.fromFuture(IO.pure(p.future))
     def signal(p: Promise[Unit]) = IO(p.success(()))
 
     val fa = for {
@@ -85,7 +85,7 @@ class FiberTests extends BaseTestsSuite {
 
   testAsync("Applicative[Fiber[IO, ?].map2 preserves both cancelation tokens") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
-    var canceled    = 0
+    var canceled = 0
 
     // Needs latches due to IO being auto-cancelable at async boundaries
     val latch1 = Promise[Unit]()
@@ -101,9 +101,9 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch1.future))
-        _      <- IO.fromFuture(IO.pure(latch2.future))
-        _      <- fiber1.map2(fiber2)(_ + _).cancel
+        _ <- IO.fromFuture(IO.pure(latch1.future))
+        _ <- IO.fromFuture(IO.pure(latch2.future))
+        _ <- fiber1.map2(fiber2)(_ + _).cancel
       } yield fiber2.join
 
     f.unsafeToFuture()
@@ -114,7 +114,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Applicative[Fiber[IO, ?].map2 cancels first, when second terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     // Needs latch due to auto-cancellation behavior
@@ -128,8 +128,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- fiber1.map2(fiber2)(_ + _).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- fiber1.map2(fiber2)(_ + _).join
       } yield io
 
     val f = io.unsafeToFuture()
@@ -141,7 +141,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Applicative[Fiber[IO, ?].map2 cancels second, when first terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
@@ -155,8 +155,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- fiber1.map2(fiber2)(_ + _).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- fiber1.map2(fiber2)(_ + _).join
       } yield io
 
     f.unsafeToFuture()
@@ -167,7 +167,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Monoid[Fiber[IO, ?].combine cancels first, when second terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     // Needs latch due to auto-cancellation behavior
@@ -181,8 +181,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- fiber1.combine(fiber2).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- fiber1.combine(fiber2).join
       } yield io
 
     f.unsafeToFuture()
@@ -193,7 +193,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Monoid[Fiber[IO, ?].combine cancels second, when first terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
@@ -207,8 +207,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- fiber1.combine(fiber2).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- fiber1.combine(fiber2).join
       } yield io
 
     f.unsafeToFuture()
@@ -219,7 +219,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Semigroup[Fiber[IO, ?].combine cancels first, when second terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     // Needs latch due to auto-cancellation behavior
@@ -233,8 +233,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
       } yield io
 
     f.unsafeToFuture()
@@ -245,7 +245,7 @@ class FiberTests extends BaseTestsSuite {
   testAsync("Semigroup[Fiber[IO, ?].combine cancels second, when first terminates in error") { implicit ec =>
     implicit val cs = ec.contextShift[IO]
 
-    val dummy       = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled = false
 
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
@@ -259,8 +259,8 @@ class FiberTests extends BaseTestsSuite {
       for {
         fiber1 <- io1.start
         fiber2 <- io2.start
-        _      <- IO.fromFuture(IO.pure(latch.future))
-        io     <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
+        _ <- IO.fromFuture(IO.pure(latch.future))
+        io <- Fiber.fiberSemigroup[IO, Int].combine(fiber1, fiber2).join
       } yield io
 
     f.unsafeToFuture()

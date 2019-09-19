@@ -98,7 +98,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("liftF - interruption") { implicit ec =>
     implicit val timer = ec.timer[IO]
-    implicit val ctx   = ec.contextShift[IO]
+    implicit val ctx = ec.contextShift[IO]
 
     def p =
       Deferred[IO, ExitCase[Throwable]]
@@ -229,7 +229,7 @@ class ResourceTests extends BaseTestsSuite {
 
   test("allocate does not release until close is invoked") {
     val released = new java.util.concurrent.atomic.AtomicBoolean(false)
-    val release  = Resource.make(IO.unit)(_ => IO(released.set(true)))
+    val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
     val resource = Resource.liftF(IO.unit)
 
     val prog = for {
@@ -257,7 +257,7 @@ class ResourceTests extends BaseTestsSuite {
     }
     val plusOneResource = Resource.liftF(plusOne)
 
-    val release  = Resource.make(IO.unit)(_ => IO(released.set(true)))
+    val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
     val resource = Resource.liftF(IO.unit)
 
     val prog = for {
@@ -273,7 +273,7 @@ class ResourceTests extends BaseTestsSuite {
 
   test("safe attempt suspended resource") {
     val exception = new Exception("boom!")
-    val suspend   = Resource.suspend[IO, Int](IO.raiseError(exception))
+    val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
   }
 }

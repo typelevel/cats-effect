@@ -93,7 +93,7 @@ object Fiber extends FiberInstances {
      */
     def mapK[G[_]](f: F ~> G): Fiber[G, A] = new Fiber[G, A] {
       def cancel: CancelToken[G] = f(self.cancel)
-      def join: G[A]             = f(self.join)
+      def join: G[A] = f(self.join)
     }
   }
 }

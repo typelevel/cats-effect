@@ -35,5 +35,5 @@ object ExitCode {
   def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
 
   val Success: ExitCode = ExitCode(0)
-  val Error: ExitCode   = ExitCode(1)
+  val Error: ExitCode = ExitCode(1)
 }

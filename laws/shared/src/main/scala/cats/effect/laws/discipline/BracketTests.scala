@@ -52,8 +52,8 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
                                                                     EqFInt: Eq[F[Int]],
                                                                     iso: Isomorphisms[F]): RuleSet =
     new RuleSet {
-      val name    = "bracket"
-      val bases   = Nil
+      val name = "bracket"
+      val bases = Nil
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
@@ -64,12 +64,12 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "bracketCase with pure unit on release is eqv to uncancelable(..).flatMap" -> forAll(
           laws.bracketCaseWithPureUnitIsUncancelable[A, B] _
         ),
-        "bracket is derived from bracketCase"             -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
-        "uncancelable prevents Cancelled case"            -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
+        "bracket is derived from bracketCase" -> forAll(laws.bracketIsDerivedFromBracketCase[A, B] _),
+        "uncancelable prevents Cancelled case" -> forAll(laws.uncancelablePreventsCanceledCase[A] _),
         "acquire and release of bracket are uncancelable" -> forAll(laws.acquireAndReleaseAreUncancelable[A, B] _),
-        "guarantee is derived from bracket"               -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
-        "guaranteeCase is derived from bracketCase"       -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _),
-        "onCancel is derived from guaranteeCase"          -> forAll(laws.onCancelIsDerivedFromGuaranteeCase[A] _)
+        "guarantee is derived from bracket" -> forAll(laws.guaranteeIsDerivedFromBracket[A] _),
+        "guaranteeCase is derived from bracketCase" -> forAll(laws.guaranteeCaseIsDerivedFromBracketCase[A] _),
+        "onCancel is derived from guaranteeCase" -> forAll(laws.onCancelIsDerivedFromGuaranteeCase[A] _)
       )
     }
 
@@ -80,8 +80,8 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
                                                                             CogenA: Cogen[A],
                                                                             EqFB: Eq[F[B]]): RuleSet =
     new RuleSet {
-      val name    = "bracket"
-      val bases   = Nil
+      val name = "bracket"
+      val bases = Nil
       val parents = Nil
 
       val props = Seq(

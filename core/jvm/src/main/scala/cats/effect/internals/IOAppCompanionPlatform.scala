@@ -134,7 +134,7 @@ private[effect] trait IOAppCompanionPlatform {
     Resource.liftF(SyncIO(IOTimer.scheduler))
 
   final private class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
-    val timer: Timer[IO]               = IO.timer(executionContext, scheduler)
+    val timer: Timer[IO] = IO.timer(executionContext, scheduler)
     val contextShift: ContextShift[IO] = IO.contextShift(executionContext)
   }
 

@@ -44,7 +44,7 @@ class TestContextTests extends BaseTestsSuite {
   }
 
   testAsync("reportFailure") { ec =>
-    val dummy  = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var effect = false
 
     ec.execute(new Runnable {
@@ -142,7 +142,7 @@ class TestContextTests extends BaseTestsSuite {
   testAsync("timer.sleep") { ec =>
     val timer = ec.timer[IO]
     val delay = timer.sleep(10.seconds).map(_ => 1)
-    val f     = delay.unsafeToFuture()
+    val f = delay.unsafeToFuture()
 
     ec.tick()
     assert(f.value === None)

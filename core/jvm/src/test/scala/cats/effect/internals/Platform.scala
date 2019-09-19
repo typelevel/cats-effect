@@ -18,5 +18,5 @@ package cats.effect.internals
 
 private[effect] object Platform {
   final val isJvm = true
-  final val isJs  = false
+  final val isJs = false
 }

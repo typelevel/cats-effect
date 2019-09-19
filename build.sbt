@@ -24,14 +24,14 @@ ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
 
-val CompileTime                    = config("CompileTime").hide
-val SimulacrumVersion              = "1.0.0"
-val CatsVersion                    = "2.0.0"
-val ScalaTestVersion               = "3.1.0-SNAP13"
+val CompileTime = config("CompileTime").hide
+val SimulacrumVersion = "1.0.0"
+val CatsVersion = "2.0.0"
+val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
-val ScalaCheckVersion              = "1.14.2"
-val DisciplineCoreVersion          = "1.0.0"
-val DisciplineScalatestVersion     = "1.0.0-M1"
+val ScalaCheckVersion = "1.14.2"
+val DisciplineCoreVersion = "1.0.0"
+val DisciplineScalatestVersion = "1.0.0-M1"
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -245,13 +245,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "cats-effect",
     libraryDependencies ++= Seq(
-      "org.typelevel"        %%% "cats-core"                % CatsVersion,
-      "org.typelevel" %%% "simulacrum"               % SimulacrumVersion % CompileTime,
-      "org.typelevel"        %%% "cats-laws"                % CatsVersion % Test,
-      "org.scalatest"        %%% "scalatest"                % ScalaTestVersion % Test,
-      "org.scalatestplus"    %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
-      "org.scalacheck"       %%% "scalacheck"               % ScalaCheckVersion % Test,
-      "org.typelevel"        %%% "discipline-scalatest"     % DisciplineScalatestVersion % Test
+      "org.typelevel" %%% "cats-core" % CatsVersion,
+      "org.typelevel" %%% "simulacrum" % SimulacrumVersion % CompileTime,
+      "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
+      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test,
+      "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     ),
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -273,7 +273,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val coreJVM = core.jvm
-lazy val coreJS  = core.js
+lazy val coreJS = core.js
 
 lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .in(file("laws"))
@@ -282,11 +282,11 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .settings(
     name := "cats-effect-laws",
     libraryDependencies ++= Seq(
-      "org.typelevel"  %%% "cats-laws"            % CatsVersion,
-      "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline-core"      % DisciplineCoreVersion,
-      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
-      "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test
+      "org.typelevel" %%% "cats-laws" % CatsVersion,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      "org.typelevel" %%% "discipline-core" % DisciplineCoreVersion,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
+      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test
     )
   )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
@@ -296,7 +296,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val lawsJVM = laws.jvm
-lazy val lawsJS  = laws.js
+lazy val lawsJS = laws.js
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
@@ -329,14 +329,14 @@ lazy val siteSettings = Seq(
   micrositeFooterText := None,
   micrositeHighlightTheme := "atom-one-light",
   micrositePalette := Map(
-    "brand-primary"   -> "#3e5b95",
+    "brand-primary" -> "#3e5b95",
     "brand-secondary" -> "#294066",
-    "brand-tertiary"  -> "#2d5799",
-    "gray-dark"       -> "#49494B",
-    "gray"            -> "#7B7B7E",
-    "gray-light"      -> "#E5E5E6",
-    "gray-lighter"    -> "#F4F3F4",
-    "white-color"     -> "#FFFFFF"
+    "brand-tertiary" -> "#2d5799",
+    "gray-dark" -> "#49494B",
+    "gray" -> "#7B7B7E",
+    "gray-light" -> "#E5E5E6",
+    "gray-lighter" -> "#F4F3F4",
+    "white-color" -> "#FFFFFF"
   ),
   micrositeExtraMdFiles := Map(
     file("README.md") -> ExtraMdFileConfig(

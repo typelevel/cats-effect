@@ -53,20 +53,20 @@ trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
                                                                  iso: Isomorphisms[F],
                                                                  params: Parameters): RuleSet =
     new RuleSet {
-      val name    = "sync"
-      val bases   = Nil
+      val name = "sync"
+      val bases = Nil
       val parents = Seq(bracket[A, B, C])
 
       val props = Seq(
-        "delay constant is pure"                  -> forAll(laws.delayConstantIsPure[A] _),
-        "suspend constant is pure join"           -> forAll(laws.suspendConstantIsPureJoin[A] _),
-        "throw in delay is raiseError"            -> forAll(laws.delayThrowIsRaiseError[A] _),
-        "throw in suspend is raiseError"          -> forAll(laws.suspendThrowIsRaiseError[A] _),
-        "unsequenced delay is no-op"              -> forAll(laws.unsequencedDelayIsNoop[A] _),
-        "repeated sync evaluation not memoized"   -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _),
+        "delay constant is pure" -> forAll(laws.delayConstantIsPure[A] _),
+        "suspend constant is pure join" -> forAll(laws.suspendConstantIsPureJoin[A] _),
+        "throw in delay is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
+        "throw in suspend is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
+        "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
+        "repeated sync evaluation not memoized" -> forAll(laws.repeatedSyncEvaluationNotMemoized[A] _),
         "propagate errors through bind (suspend)" -> forAll(laws.propagateErrorsThroughBindSuspend[A] _),
-        "bind suspends evaluation"                -> forAll(laws.bindSuspendsEvaluation[A] _),
-        "map suspends evaluation"                 -> forAll(laws.mapSuspendsEvaluation[A] _),
+        "bind suspends evaluation" -> forAll(laws.bindSuspendsEvaluation[A] _),
+        "map suspends evaluation" -> forAll(laws.mapSuspendsEvaluation[A] _),
         "stack-safe on left-associated binds" -> Prop.lzy(
           laws.stackSafetyOnRepeatedLeftBinds(params.stackSafeIterationsCount)
         ),

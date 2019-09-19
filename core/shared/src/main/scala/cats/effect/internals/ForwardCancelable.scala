@@ -94,10 +94,10 @@ private[effect] object ForwardCancelable {
   sealed abstract private class State
 
   final private case class Empty(stack: List[Callback.T[Unit]]) extends State
-  final private case class Active(token: CancelToken[IO])       extends State
+  final private case class Active(token: CancelToken[IO]) extends State
 
-  private val init: State               = Empty(Nil)
-  private val finished: State           = Active(IO.unit)
+  private val init: State = Empty(Nil)
+  private val finished: State = Active(IO.unit)
   private val context: ExecutionContext = immediate
 
   private def execute(token: CancelToken[IO], stack: List[Callback.T[Unit]]): Unit =

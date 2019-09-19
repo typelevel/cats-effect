@@ -116,7 +116,7 @@ object LTask {
         acquire: LTask[A]
       )(use: A => LTask[B])(release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] =
         for {
-          a   <- acquire
+          a <- acquire
           etb <- attempt(use(a))
           _ <- release(a, etb match {
             case Left(e)  => ExitCase.error[Throwable](e)

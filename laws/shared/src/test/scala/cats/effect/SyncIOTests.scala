@@ -154,7 +154,7 @@ class SyncIOTests extends BaseTestsSuite {
 
   test("map is stack-safe for unsafeRunSync") {
     import IOPlatform.{fusionMaxStackDepth => max}
-    val f  = (x: Int) => x + 1
+    val f = (x: Int) => x + 1
     val io = (0 until (max * 10000)).foldLeft(SyncIO(0))((acc, _) => acc.map(f))
 
     io.unsafeRunSync() shouldEqual max * 10000
@@ -186,7 +186,7 @@ class SyncIOTests extends BaseTestsSuite {
 
   test("unsafeRunSync works for bracket") {
     var effect = 0
-    val io     = SyncIO(1).bracket(x => SyncIO(x + 1))(_ => SyncIO { effect += 1 })
+    val io = SyncIO(1).bracket(x => SyncIO(x + 1))(_ => SyncIO { effect += 1 })
     io.unsafeRunSync() shouldBe 2
     effect shouldBe 1
   }

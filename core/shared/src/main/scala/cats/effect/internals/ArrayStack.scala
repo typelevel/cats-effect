@@ -30,8 +30,8 @@ final private[internals] class ArrayStack[A] private (
 ) extends Serializable { self =>
 
   private[this] val modulo = chunkSize - 1
-  private[this] var array  = initialArray
-  private[this] var index  = initialIndex
+  private[this] var array = initialArray
+  private[this] var index = initialIndex
 
   def this(chunkSize: Int) = this(new Array[AnyRef](chunkSize), chunkSize, 0)
   def this() = this(8)

@@ -829,7 +829,7 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override def runCancelable[A](fa: IO[A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[IO]] =
         fa.runCancelable(cb)
 
-      final override def toIO[A](fa: IO[A]): IO[A]    = fa
+      final override def toIO[A](fa: IO[A]): IO[A] = fa
       final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
     }
 

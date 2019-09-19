@@ -107,7 +107,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
       cause.printStackTrace()
   }
 
-  implicit val cs               = IO.contextShift(context)
+  implicit val cs = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {
@@ -132,9 +132,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   // ----------------------------------------------------------------------------
 
-  val isCI       = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
-  val timeout    = if (isCI) 30.seconds else 10.seconds
+  val timeout = if (isCI) 30.seconds else 10.seconds
 
   def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]]
   def allocateUncancelable: IO[MVar[IO, Unit]]
@@ -157,10 +157,10 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
       val task = for {
         df <- allocate
         fb <- get(df).start
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- release(df)
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- fb.join
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- release(df)
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -176,11 +176,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocate
+          df <- allocate
           latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _     <- latch.get
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _ <- latch.get
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -201,7 +201,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         val task = for {
           df <- allocate
           fb <- (acquire(df) *> unit.foreverM).start
-          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -218,11 +218,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- allocate
+        d <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -238,9 +238,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- allocate
+        d <- allocate
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _  <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -256,11 +256,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- allocate
+        d <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -276,9 +276,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- allocate
+        d <- allocate
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -296,11 +296,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocateUncancelable
+          df <- allocateUncancelable
           latch <- Deferred[IO, Unit]
-          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _     <- latch.get
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _ <- latch.get
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -321,7 +321,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         val task = for {
           df <- allocateUncancelable
           fb <- (acquire(df) *> unit.foreverM).start
-          _  <- release(df).timeout(timeout).guarantee(fb.cancel)
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -338,11 +338,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- allocateUncancelable
+        d <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -358,9 +358,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- allocateUncancelable
+        d <- allocateUncancelable
         fb <- (acquire(d) *> foreverAsync(0)).start
-        _  <- release(d).timeout(timeout).guarantee(fb.cancel)
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -376,11 +376,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- allocateUncancelable
+        d <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

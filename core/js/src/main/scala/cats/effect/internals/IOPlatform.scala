@@ -28,8 +28,8 @@ private[effect] object IOPlatform {
    * so all we can do is to throw an error.
    */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
-    val _      = limit // is used on the JVM
-    val cb     = new ResyncCallback[A]
+    val _ = limit // is used on the JVM
+    val cb = new ResyncCallback[A]
     val cancel = ioa.unsafeRunCancelable(cb)
 
     cb.value match {
@@ -63,7 +63,7 @@ private[effect] object IOPlatform {
    */
   final private class ResyncCallback[A] extends (Either[Throwable, A] => Unit) {
 
-    var isActive                    = true
+    var isActive = true
     var value: Either[Throwable, A] = _
 
     def apply(value: Either[Throwable, A]): Unit =

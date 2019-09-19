@@ -131,7 +131,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
           }
         } else {
           val ((ax, awaitPut), xs) = queue.dequeue
-          val update               = WaitForTake(ax, xs)
+          val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
             F.map(lightAsyncBoundary) { _ =>
               awaitPut(rightUnit)
@@ -161,7 +161,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
           }
         } else {
           val ((ax, awaitPut), xs) = queue.dequeue
-          val update               = WaitForTake(ax, xs)
+          val update = WaitForTake(ax, xs)
           if (stateRef.compareAndSet(current, update)) {
             // Complete the `put` request waiting on a notification
             F.map(lightAsyncBoundary) { _ =>
@@ -245,7 +245,7 @@ private[effect] object MVarAsync {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref        = WaitForPut[Any](Queue.empty, Queue.empty)
+    private[this] val ref = WaitForPut[Any](Queue.empty, Queue.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, Queue.empty)
 
     /** `Empty` state, reusing the same instance. */

@@ -98,7 +98,7 @@ private[effect] object IOBracket {
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
         def run(): Unit = {
-          val frame  = new EnsureReleaseFrame[A](release)
+          val frame = new EnsureReleaseFrame[A](release)
           val onNext = source.flatMap(frame)
           // Registering our cancelable token ensures that in case
           // cancellation is detected, `release` gets called

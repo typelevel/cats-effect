@@ -97,10 +97,10 @@ private[effect] object IORace {
     val start: Start[Pair[A, B]] = (conn, cb) => {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
-      val connL    = IOConnection()
+      val connL = IOConnection()
       val promiseL = Promise[Either[Throwable, A]]()
       // Cancelable connection for the right value
-      val connR    = IOConnection()
+      val connR = IOConnection()
       val promiseR = Promise[Either[Throwable, B]]()
 
       // Registers both for cancellation — gets popped right

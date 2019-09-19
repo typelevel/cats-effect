@@ -362,7 +362,7 @@ object Async {
   def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Async[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore.uncancelable(n)(M)
-      mta       <- tma.map(semaphore.withPermit).parSequence
+      mta <- tma.map(semaphore.withPermit).parSequence
     } yield mta
 
   /**

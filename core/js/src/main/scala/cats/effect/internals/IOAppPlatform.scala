@@ -81,7 +81,7 @@ private[effect] object IOAppPlatform {
       .start(contextShift.value)
   }
 
-  val defaultTimer: Timer[IO]               = IOTimer.global
+  val defaultTimer: Timer[IO] = IOTimer.global
   val defaultContextShift: ContextShift[IO] = IOContextShift.global
 
   private def installHandler(fiber: Fiber[IO, Int]): IO[Unit] = {

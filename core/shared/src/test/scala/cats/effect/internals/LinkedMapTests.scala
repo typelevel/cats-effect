@@ -28,7 +28,7 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
   }
 
   test("inserting entries") {
-    val ns  = (0 until 10).toList
+    val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
 
     map.isEmpty shouldBe false
@@ -37,10 +37,10 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
   }
 
   test("dequeueing entries") {
-    val ns  = (0 until 10).toList
+    val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
 
-    var n   = 0
+    var n = 0
     var acc = map
     while (!acc.isEmpty) {
       val res = acc.dequeue
@@ -53,9 +53,9 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
   }
 
   test("removing entry") {
-    val ns  = (0 until 10).toList
+    val ns = (0 until 10).toList
     val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
-    val n   = 2
+    val n = 2
 
     assert(map.keys.exists(_ == n))
     assert(map.values.exists(_ == n))

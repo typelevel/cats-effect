@@ -34,7 +34,7 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("cancelAll catches error from one reference") {
-    val dummy        = new RuntimeException("dummy")
+    val dummy = new RuntimeException("dummy")
     var wasCanceled1 = false
     var wasCanceled2 = false
 
@@ -55,8 +55,8 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("cancelAll catches the first error and logs the rest") {
-    val dummy1       = new RuntimeException("dummy1")
-    val dummy2       = new RuntimeException("dummy2")
+    val dummy1 = new RuntimeException("dummy1")
+    val dummy2 = new RuntimeException("dummy2")
     var wasCanceled1 = false
     var wasCanceled2 = false
 

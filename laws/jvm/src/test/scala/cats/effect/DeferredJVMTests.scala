@@ -39,7 +39,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
       cause.printStackTrace()
   }
 
-  implicit val cs               = IO.contextShift(context)
+  implicit val cs = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {
@@ -63,9 +63,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
   }
 
   // ----------------------------------------------------------------------------
-  val isCI       = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
-  val timeout    = if (isCI) 30.seconds else 10.seconds
+  val timeout = if (isCI) 30.seconds else 10.seconds
 
   def cleanupOnError[A](task: IO[A], f: Fiber[IO, _]) =
     task.guaranteeCase {
@@ -89,10 +89,10 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
       val task = for {
         df <- cats.effect.concurrent.Deferred[IO, Unit]
         fb <- get(df).start
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- df.complete(())
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- fb.join
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- df.complete(())
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -108,12 +108,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
 
       try {
         val task = for {
-          df    <- cats.effect.concurrent.Deferred[IO, Unit]
+          df <- cats.effect.concurrent.Deferred[IO, Unit]
           latch <- Deferred[IO, Unit]
-          fb    <- (latch.complete(()) *> df.get *> unit.foreverM).start
-          _     <- latch.get
-          _     <- cleanupOnError(df.complete(()).timeout(timeout), fb)
-          _     <- fb.cancel
+          fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
+          _ <- latch.get
+          _ <- cleanupOnError(df.complete(()).timeout(timeout), fb)
+          _ <- fb.cancel
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -130,12 +130,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Deferred[IO, Unit]
+        d <- Deferred[IO, Unit]
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- cleanupOnError(d.complete(()).timeout(timeout), fb)
-        _     <- fb.cancel
+        fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- cleanupOnError(d.complete(()).timeout(timeout), fb)
+        _ <- fb.cancel
       } yield true
     }
 
@@ -151,12 +151,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Deferred[IO, Unit]
+        d <- Deferred[IO, Unit]
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- cleanupOnError(d.complete(()).timeout(timeout), fb)
-        _     <- fb.cancel
+        fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- cleanupOnError(d.complete(()).timeout(timeout), fb)
+        _ <- fb.cancel
       } yield true
     }
 
@@ -175,9 +175,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
       try {
         val task = for {
           df <- cats.effect.concurrent.Deferred.uncancelable[IO, Unit]
-          f  <- (df.get *> unit.foreverM).start
-          _  <- df.complete(())
-          _  <- f.cancel
+          f <- (df.get *> unit.foreverM).start
+          _ <- df.complete(())
+          _ <- f.cancel
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -194,11 +194,11 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Deferred.uncancelable[IO, Unit]
+        d <- Deferred.uncancelable[IO, Unit]
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.complete(()).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.complete(()).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -214,11 +214,11 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends AnyFunSuite with M
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Deferred.uncancelable[IO, Unit]
+        d <- Deferred.uncancelable[IO, Unit]
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.complete(()).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 

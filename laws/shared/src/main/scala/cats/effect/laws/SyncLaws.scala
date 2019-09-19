@@ -38,18 +38,18 @@ trait SyncLaws[F[_]] extends BracketLaws[F, Throwable] with DeferLaws[F] {
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) =
     F.suspend {
-      var cur    = a
+      var cur = a
       val change = F.delay { cur = f(cur) }
-      val _      = change
+      val _ = change
 
       F.delay(cur)
     } <-> F.pure(a)
 
   def repeatedSyncEvaluationNotMemoized[A](a: A, f: A => A) =
     F.suspend {
-      var cur    = a
+      var cur = a
       val change = F.delay { cur = f(cur) }
-      val read   = F.delay(cur)
+      val read = F.delay(cur)
 
       change *> change *> read
     } <-> F.pure(f(f(a)))

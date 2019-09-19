@@ -49,8 +49,8 @@ private[effect] trait BlockerPlatform {
       .make(makeExecutorService) { ec =>
         val tasks = F.delay {
           val tasks = ec.shutdownNow()
-          val b     = List.newBuilder[Runnable]
-          val itr   = tasks.iterator
+          val b = List.newBuilder[Runnable]
+          val itr = tasks.iterator
           while (itr.hasNext) b += itr.next
           NonEmptyList.fromList(b.result)
         }

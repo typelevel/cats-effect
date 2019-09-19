@@ -41,7 +41,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
       cause.printStackTrace()
   }
 
-  implicit val cs               = IO.contextShift(context)
+  implicit val cs = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {
@@ -65,9 +65,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
   }
 
   // ----------------------------------------------------------------------------
-  val isCI       = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 10000
-  val timeout    = if (isCI) 30.seconds else 10.seconds
+  val timeout = if (isCI) 30.seconds else 10.seconds
 
   test("Semaphore (concurrent) — issue #380: producer keeps its thread, consumer stays forked") {
     for (_ <- 0 until iterations) {
@@ -83,10 +83,10 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
       val task = for {
         df <- cats.effect.concurrent.Semaphore[IO](0)
         fb <- get(df).start
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- df.release
-        _  <- IO(Thread.currentThread().getName shouldBe name)
-        _  <- fb.join
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- df.release
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- fb.join
       } yield ()
 
       val dt = 10.seconds
@@ -103,11 +103,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
 
       try {
         val task = for {
-          df    <- Semaphore[IO](0)
+          df <- Semaphore[IO](0)
           latch <- Deferred[IO, Unit]
-          fb    <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
-          _     <- latch.get
-          _     <- df.release.timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
+          _ <- latch.get
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -128,7 +128,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         val task = for {
           df <- Semaphore[IO](0)
           fb <- (df.acquire *> unit.foreverM).start
-          _  <- df.release.timeout(timeout).guarantee(fb.cancel)
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -145,11 +145,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Semaphore[IO](0)
+        d <- Semaphore[IO](0)
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -165,9 +165,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- Semaphore[IO](0)
+        d <- Semaphore[IO](0)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -183,11 +183,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Semaphore[IO](0)
+        d <- Semaphore[IO](0)
         latch <- Deferred[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -203,9 +203,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- Semaphore[IO](0)
+        d <- Semaphore[IO](0)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -223,11 +223,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
 
       try {
         val task = for {
-          df    <- Semaphore.uncancelable[IO](0)
+          df <- Semaphore.uncancelable[IO](0)
           latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
-          _     <- latch.get
-          _     <- df.release.timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> df.acquire *> unit.foreverM).start
+          _ <- latch.get
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -248,7 +248,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         val task = for {
           df <- Semaphore.uncancelable[IO](0)
           fb <- (df.acquire *> unit.foreverM).start
-          _  <- df.release.timeout(timeout).guarantee(fb.cancel)
+          _ <- df.release.timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -265,11 +265,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Semaphore.uncancelable[IO](0)
+        d <- Semaphore.uncancelable[IO](0)
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -285,9 +285,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- Semaphore.uncancelable[IO](0)
+        d <- Semaphore.uncancelable[IO](0)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -303,11 +303,11 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d     <- Semaphore.uncancelable[IO](0)
+        d <- Semaphore.uncancelable[IO](0)
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- d.release.timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> d.acquire *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -323,9 +323,9 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         else IO.unit >> foreverAsync(i + 1)
 
       for {
-        d  <- Semaphore.uncancelable[IO](0)
+        d <- Semaphore.uncancelable[IO](0)
         fb <- (d.acquire *> foreverAsync(0)).start
-        _  <- d.release.timeout(timeout).guarantee(fb.cancel)
+        _ <- d.release.timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

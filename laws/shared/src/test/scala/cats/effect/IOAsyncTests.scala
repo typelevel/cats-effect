@@ -37,7 +37,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
 
   def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])(implicit pos: Position): Future[Assertion] = {
 
-    val effect  = Promise[Int]()
+    val effect = Promise[Int]()
     val attempt = Promise[Try[Int]]()
     effect.future.onComplete(attempt.success)
 

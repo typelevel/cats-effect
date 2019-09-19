@@ -21,10 +21,10 @@ import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError,
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
-  private type Current   = IO[Any]
-  private type Bind      = Any => IO[Any]
+  private type Current = IO[Any]
+  private type Bind = Any => IO[Any]
   private type CallStack = ArrayStack[Bind]
-  private type Callback  = Either[Throwable, Any] => Unit
+  private type Callback = Either[Throwable, Any] => Unit
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
@@ -58,14 +58,14 @@ private[effect] object IORunLoop {
 
     var currentIO: Current = source
     // Can change on a context switch
-    var conn: IOConnection   = cancelable
-    var bFirst: Bind         = bFirstRef
-    var bRest: CallStack     = bRestRef
+    var conn: IOConnection = cancelable
+    var bFirst: Bind = bFirstRef
+    var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
-    var unboxed: AnyRef     = null
+    var unboxed: AnyRef = null
     // For auto-cancellation
     var currentIndex = 0
 
@@ -164,12 +164,12 @@ private[effect] object IORunLoop {
    */
   def step[A](source: IO[A]): IO[A] = {
     var currentIO: Current = source
-    var bFirst: Bind       = null
-    var bRest: CallStack   = null
+    var bFirst: Bind = null
+    var bRest: CallStack = null
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
-    var unboxed: AnyRef     = null
+    var unboxed: AnyRef = null
 
     do {
       currentIO match {
@@ -323,10 +323,10 @@ private[effect] object IORunLoop {
 
     // can change on a ContextSwitch
     private[this] var conn: IOConnection = connInit
-    private[this] var canCall            = false
-    private[this] var trampolineAfter    = false
-    private[this] var bFirst: Bind       = _
-    private[this] var bRest: CallStack   = _
+    private[this] var canCall = false
+    private[this] var trampolineAfter = false
+    private[this] var bFirst: Bind = _
+    private[this] var bRest: CallStack = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -346,7 +346,7 @@ private[effect] object IORunLoop {
     private[this] def signal(either: Either[Throwable, Any]): Unit = {
       // Allow GC to collect
       val bFirst = this.bFirst
-      val bRest  = this.bRest
+      val bRest = this.bRest
       this.bFirst = null
       this.bRest = null
 

@@ -55,17 +55,17 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
                                                                    iso: Isomorphisms[F],
                                                                    params: Parameters): RuleSet =
     new RuleSet {
-      val name    = "effect"
-      val bases   = Nil
+      val name = "effect"
+      val bases = Nil
       val parents = Seq(async[A, B, C])
       val props = Seq(
-        "runAsync pure produces right IO"      -> forAll(laws.runAsyncPureProducesRightIO[A] _),
+        "runAsync pure produces right IO" -> forAll(laws.runAsyncPureProducesRightIO[A] _),
         "runAsync raiseError produces left IO" -> forAll(laws.runAsyncRaiseErrorProducesLeftIO[A] _),
-        "runAsync ignores error in handler"    -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
-        "repeated callback ignored"            -> forAll(laws.repeatedCallbackIgnored[A] _),
-        "toIO is the inverse of liftIO"        -> forAll(laws.toIOinverseOfLiftIO[A] _),
-        "toIO is consistent with runAsync"     -> forAll(laws.toIORunAsyncConsistency[A] _),
-        "toIO stack safety"                    -> forAll(laws.toIOStackSafety[A](params.stackSafeIterationsCount) _)
+        "runAsync ignores error in handler" -> forAll(laws.runAsyncIgnoresErrorInHandler[A] _),
+        "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
+        "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _),
+        "toIO is consistent with runAsync" -> forAll(laws.toIORunAsyncConsistency[A] _),
+        "toIO stack safety" -> forAll(laws.toIOStackSafety[A](params.stackSafeIterationsCount) _)
       )
     }
 }

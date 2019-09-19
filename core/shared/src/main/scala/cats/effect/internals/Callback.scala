@@ -127,9 +127,9 @@ private[effect] object Callback {
       extends (Either[Throwable, A] => Unit)
       with Runnable {
 
-    private[this] val canCall                     = new AtomicBoolean(true)
+    private[this] val canCall = new AtomicBoolean(true)
     private[this] var value: Either[Throwable, A] = _
-    def run(): Unit                               = cb(value)
+    def run(): Unit = cb(value)
 
     def apply(value: Either[Throwable, A]): Unit =
       if (canCall.getAndSet(false)) {

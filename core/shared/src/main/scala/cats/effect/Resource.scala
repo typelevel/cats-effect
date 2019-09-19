@@ -513,8 +513,8 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
 
   def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
     for {
-      x  <- rx
-      y  <- ry
+      x <- rx
+      y <- ry
       xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
     } yield xy
 }

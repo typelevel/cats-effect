@@ -49,7 +49,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF can delay callback") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs = ec.contextShift[IO]
-    val timer       = ec.timer[IO]
+    val timer = ec.timer[IO]
 
     val task = Concurrent.cancelableF[IO, Int] { cb =>
       val task = timer.sleep(1.second) *> IO(cb(Right(10)))
@@ -71,7 +71,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF can delay task execution") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs = ec.contextShift[IO]
-    val timer       = ec.timer[IO]
+    val timer = ec.timer[IO]
 
     val complete = Promise[Unit]()
     val task = Concurrent.cancelableF[IO, Int] { cb =>
@@ -92,16 +92,16 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     val task = for {
-      d     <- MVar.empty[IO, Unit]
+      d <- MVar.empty[IO, Unit]
       latch <- Deferred[IO, Unit]
       task = Concurrent.cancelableF[IO, Unit] { _ =>
         cs.shift *> latch.complete(()) *> IO(d.put(()))
       }
       fiber <- task.start
-      _     <- latch.get
-      r     <- d.tryTake
-      _     <- fiber.cancel
-      _     <- d.take
+      _ <- latch.get
+      r <- d.tryTake
+      _ <- fiber.cancel
+      _ <- d.take
     } yield {
       r shouldBe None
     }
@@ -114,7 +114,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF executes generated task uninterruptedly") { implicit ec =>
     import scala.concurrent.duration._
 
-    implicit val cs    = ec.contextShift[IO]
+    implicit val cs = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
     var effect = 0
@@ -122,7 +122,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
       IO.sleep(1.second) *> IO(effect += 1) *> IO(cb(Right(()))) *> IO(IO.unit)
     }
 
-    val p      = Promise[Unit]()
+    val p = Promise[Unit]()
     val cancel = task.unsafeRunCancelable(r => p.success(r.valueOr(throw _)))
     cancel.unsafeRunAsyncAndForget()
 

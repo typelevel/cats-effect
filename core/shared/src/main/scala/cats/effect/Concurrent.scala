@@ -422,7 +422,7 @@ object Concurrent {
   def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
     sealed trait State
     case class Subs(n: Int) extends State
-    case object Done        extends State
+    case object Done extends State
 
     case class Fetch(state: State, v: Deferred[F, Either[Throwable, A]], stop: Deferred[F, F[Unit]])
 
@@ -602,7 +602,7 @@ object Concurrent {
   def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Concurrent[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore(n)(M)
-      mta       <- tma.map(semaphore.withPermit).parSequence
+      mta <- tma.map(semaphore.withPermit).parSequence
     } yield mta
 
   /**
@@ -825,7 +825,7 @@ object Concurrent {
     F.asyncF[A] { cb =>
       // For back-pressuring bracketCase until the callback gets called.
       // Need to work with `Promise` due to the callback being side-effecting.
-      val latch  = Promise[Unit]()
+      val latch = Promise[Unit]()
       val latchF = F.async[Unit](cb => latch.future.onComplete(_ => cb(rightUnit))(immediate))
       // Side-effecting call; unfreezes latch in order to allow bracket to finish
       val token = k { result =>

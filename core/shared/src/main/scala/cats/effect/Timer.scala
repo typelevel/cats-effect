@@ -161,7 +161,7 @@ object Timer {
      * Modify the context `F` using transformation `f`.
      */
     def mapK[G[_]](f: F ~> G): Timer[G] = new Timer[G] {
-      val clock: Clock[G]                          = self.clock.mapK(f)
+      val clock: Clock[G] = self.clock.mapK(f)
       def sleep(duration: FiniteDuration): G[Unit] = f(self.sleep(duration))
     }
   }

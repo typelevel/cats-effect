@@ -239,7 +239,7 @@ object Semaphore {
                 case Left(waiting) =>
                   // just figure out how many to strip from waiting queue,
                   // but don't run anything here inside the modify
-                  var m        = n
+                  var m = n
                   var waiting2 = waiting
                   while (waiting2.nonEmpty && m > 0) {
                     val (k, gate) = waiting2.head
@@ -300,11 +300,11 @@ object Semaphore {
     trans: F ~> G,
     inverse: G ~> F
   ) extends Semaphore[G] {
-    override def available: G[Long]               = trans(underlying.available)
-    override def count: G[Long]                   = trans(underlying.count)
-    override def acquireN(n: Long): G[Unit]       = trans(underlying.acquireN(n))
+    override def available: G[Long] = trans(underlying.available)
+    override def count: G[Long] = trans(underlying.count)
+    override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))
     override def tryAcquireN(n: Long): G[Boolean] = trans(underlying.tryAcquireN(n))
-    override def releaseN(n: Long): G[Unit]       = trans(underlying.releaseN(n))
-    override def withPermit[A](t: G[A]): G[A]     = trans(underlying.withPermit(inverse(t)))
+    override def releaseN(n: Long): G[Unit] = trans(underlying.releaseN(n))
+    override def withPermit[A](t: G[A]): G[A] = trans(underlying.withPermit(inverse(t)))
   }
 }

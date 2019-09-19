@@ -157,7 +157,7 @@ object Deferred {
 
   sealed abstract private class State[A]
   private object State {
-    final case class Set[A](a: A)                                extends State[A]
+    final case class Set[A](a: A) extends State[A]
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
   }
 
@@ -233,7 +233,7 @@ object Deferred {
       }
 
     private def notifyReadersLoop(a: A, r: Iterable[A => Unit]): F[Unit] = {
-      var acc    = F.unit
+      var acc = F.unit
       val cursor = r.iterator
       while (cursor.hasNext) {
         val next = cursor.next()
@@ -270,7 +270,7 @@ object Deferred {
 
   final private class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G)
       extends Deferred[G, A] {
-    override def get: G[A]               = trans(underlying.get)
+    override def get: G[A] = trans(underlying.get)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
 }

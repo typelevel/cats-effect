@@ -48,20 +48,20 @@ private[effect] object IOFrame {
   final class ErrorHandler[A](fe: Throwable => IO[A]) extends IOFrame[A, IO[A]] {
 
     def recover(e: Throwable): IO[A] = fe(e)
-    def apply(a: A): IO[A]           = IO.pure(a)
+    def apply(a: A): IO[A] = IO.pure(a)
   }
 
   /** Used by [[IO.redeem]]. */
   final class Redeem[A, B](fe: Throwable => B, fs: A => B) extends IOFrame[A, IO[B]] {
 
-    def apply(a: A): IO[B]           = IO.pure(fs(a))
+    def apply(a: A): IO[B] = IO.pure(fs(a))
     def recover(e: Throwable): IO[B] = IO.pure(fe(e))
   }
 
   /** Used by [[IO.redeemWith]]. */
   final class RedeemWith[A, B](fe: Throwable => IO[B], fs: A => IO[B]) extends IOFrame[A, IO[B]] {
 
-    def apply(a: A): IO[B]           = fs(a)
+    def apply(a: A): IO[B] = fs(a)
     def recover(e: Throwable): IO[B] = fe(e)
   }
 }

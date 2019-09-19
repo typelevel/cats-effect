@@ -32,9 +32,9 @@ trait TestUtils {
    */
   def silenceSystemErr[A](thunk: => A): A = synchronized {
     // Silencing System.err
-    val oldErr    = System.err
+    val oldErr = System.err
     val outStream = new ByteArrayOutputStream()
-    val fakeErr   = new PrintStream(outStream)
+    val fakeErr = new PrintStream(outStream)
     System.setErr(fakeErr)
     try {
       val result = thunk
@@ -64,7 +64,7 @@ trait TestUtils {
    * Catches `System.err` output into `outStream`, for testing purposes.
    */
   def catchSystemErrInto[T](outStream: OutputStream)(thunk: => T): T = synchronized {
-    val oldErr  = System.err
+    val oldErr = System.err
     val fakeErr = new PrintStream(outStream)
     System.setErr(fakeErr)
     try {

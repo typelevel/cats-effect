@@ -33,7 +33,7 @@ private[effect] object IOPlatform {
    * executing other queued tasks first.
    */
   def unsafeResync[A](ioa: IO[A], limit: Duration): Option[A] = {
-    val latch                     = new OneShotLatch
+    val latch = new OneShotLatch
     var ref: Either[Throwable, A] = null
 
     ioa.unsafeRunAsync { a =>

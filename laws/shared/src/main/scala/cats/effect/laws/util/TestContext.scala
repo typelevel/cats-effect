@@ -282,7 +282,7 @@ final class TestContext private () extends ExecutionContext { self =>
    */
   def tick(time: FiniteDuration = Duration.Zero): Unit = {
     val targetTime = this.stateRef.clock + time
-    var hasTasks   = true
+    var hasTasks = true
 
     while (hasTasks) synchronized {
       val current = this.stateRef
@@ -326,7 +326,7 @@ final class TestContext private () extends ExecutionContext { self =>
 
   private def schedule(delay: FiniteDuration, r: Runnable): CancelToken[IO] =
     synchronized {
-      val current: State         = stateRef
+      val current: State = stateRef
       val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
       stateRef = newState
       cancelable
@@ -356,7 +356,7 @@ object TestContext {
      */
     private[TestContext] def execute(runnable: Runnable): State = {
       val newID = lastID + 1
-      val task  = Task(newID, runnable, clock)
+      val task = Task(newID, runnable, clock)
       copy(lastID = newID, tasks = tasks + task)
     }
 
@@ -366,10 +366,10 @@ object TestContext {
     private[TestContext] def scheduleOnce(delay: FiniteDuration,
                                           r: Runnable,
                                           cancelTask: Task => Unit): (CancelToken[IO], State) = {
-      val d     = if (delay >= Duration.Zero) delay else Duration.Zero
+      val d = if (delay >= Duration.Zero) delay else Duration.Zero
       val newID = lastID + 1
 
-      val task       = Task(newID, r, this.clock + d)
+      val task = Task(newID, r, this.clock + d)
       val cancelable = IO(cancelTask(task))
 
       (cancelable,
