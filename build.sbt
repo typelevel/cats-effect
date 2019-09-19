@@ -29,7 +29,7 @@ val SimulacrumVersion = "0.19.0"
 val CatsVersion = "2.0.0"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
-val ScalaCheckVersion = "1.14.0"
+val ScalaCheckVersion = "1.14.1"
 val DisciplineCoreVersion = "1.0.0"
 val DisciplineScalatestVersion = "1.0.0-M1"
 
