@@ -409,9 +409,6 @@ ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/"))
                       Boilerplate below these lines
 \***********************************************************************/
 
-ThisBuild / coursierUseSbtCredentials := true
-ThisBuild / coursierChecksums := Nil      // workaround for nexus sync bugs
-
 enablePlugins(GitVersioning)
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
