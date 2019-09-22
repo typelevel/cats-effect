@@ -159,9 +159,10 @@ val commonSettings = Seq(
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => Set.empty
-      case Some((2, 12)) => Set(organization.value %% name.value % "1.0.0")
-      case _             => Set.empty
+      //2.11 has some incompatibilities in core in 2.0.0, 2.13 didn't have a release before
+      case Some((2, 11) | (2, 13)) => Set(organization.value %% name.value % "2.0.0")
+      case Some((2, 12))           => Set(organization.value %% name.value % "1.0.0")
+      case _                       => Set.empty
     }
   },
   mimaBinaryIssueFilters ++= {
@@ -188,10 +189,9 @@ val mimaSettings = Seq(
     )
   })
 
-// We broke binary compatibily for laws in 2.0
 val lawsMimaSettings = mimaSettings ++ Seq(
-  // TODO: set to 2.0.0 after release
-  mimaPreviousArtifacts := Set.empty
+  // We broke binary compatibility for laws in 2.0
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "2.0.0")
 )
 
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
