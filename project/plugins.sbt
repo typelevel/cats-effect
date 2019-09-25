@@ -8,5 +8,5 @@ addSbtPlugin("org.scala-js"              % "sbt-scalajs"              % "0.6.29"
 addSbtPlugin("org.scoverage"             % "sbt-scoverage"            % "1.6.0")
 addSbtPlugin("org.xerial.sbt"            % "sbt-sonatype"             % "3.7")
 addSbtPlugin("pl.project13.scala"        % "sbt-jmh"                  % "0.3.7")
-addSbtPlugin("com.47deg"                 % "sbt-microsites"           % "0.9.4")
+addSbtPlugin("com.47deg"                 % "sbt-microsites"           % "0.9.6")
 addSbtPlugin("org.portable-scala"        % "sbt-scalajs-crossproject" % "0.6.1")
