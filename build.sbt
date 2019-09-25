@@ -25,7 +25,7 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.19.0"
+val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.0.0"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
@@ -250,7 +250,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
 
     libraryDependencies ++= Seq(
       "org.typelevel"        %%% "cats-core"  % CatsVersion,
-      "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
+      "org.typelevel" %%% "simulacrum" % SimulacrumVersion % CompileTime,
 
       "org.typelevel"     %%% "cats-laws"                % CatsVersion                    % Test,
       "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
