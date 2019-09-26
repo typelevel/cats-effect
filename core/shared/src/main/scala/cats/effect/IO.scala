@@ -371,7 +371,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
    *
-   * Also see [[startResource]] for a safer alternative.
+   * Also see [[background]] for a safer alternative.
    */
   final def start(implicit cs: ContextShift[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
     IOStart(cs, this)
