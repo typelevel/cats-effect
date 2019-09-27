@@ -96,20 +96,20 @@ abstract class Semaphore[F[_]] {
   def withPermit[A](t: F[A]): F[A]
 
   /**
-    * Modify the context `F` using natural isomorphism  `f` with `g`.
-    */
+   * Modify the context `F` using natural isomorphism  `f` with `g`.
+   */
   def imapK[G[_]](f: F ~> G, g: G ~> F): Semaphore[G] =
     new TransformedSemaphore(this, f, g)
 }
 
 object Semaphore {
+
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] = {
+  def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new ConcurrentSemaphore(stateRef))
-  }
 
   /**
    * Like [[apply]] but only requires an `Async` constraint in exchange for the various
@@ -121,10 +121,9 @@ object Semaphore {
    * require cancellation or in cases in which an `F[_]` data type
    * that does not support cancellation is used.
    */
-  def uncancelable[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] = {
+  def uncancelable[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
-  }
 
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
@@ -151,57 +150,61 @@ object Semaphore {
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
-  private abstract class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
+  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
     private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(())
 
-    def count = state.get.map(count_)
+    def count: F[Long] = state.get.map(count_)
 
     private def count_(s: State[F]): Long = s match {
-      case Left(waiting) => -waiting.map(_._1).sum
+      case Left(waiting)    => -waiting.map(_._1).sum
       case Right(available) => available
     }
 
-    def acquireN(n: Long) = F.bracketCase(acquireNInternal(n)) { case (g, _) => g } {
+    def acquireN(n: Long): F[Unit] = F.bracketCase(acquireNInternal(n)) { case (g, _) => g } {
       case ((_, c), ExitCase.Canceled) => c
-      case _ => F.unit
+      case _                           => F.unit
     }
 
-    def acquireNInternal(n: Long) = {
+    def acquireNInternal(n: Long): F[(F[Unit], F[Unit])] =
       assertNonNegative[F](n) *> {
         if (n == 0) F.pure((F.unit, F.unit))
-        else mkGate.flatMap { gate =>
-          state
-            .modify { old =>
-              val u = old match {
-                case Left(waiting) => Left(waiting :+ (n -> gate))
-                case Right(m) =>
-                  if (n <= m) Right(m - n)
-                  else Left(Queue((n - m) -> gate))
+        else {
+          mkGate.flatMap { gate =>
+            state
+              .modify { old =>
+                val u = old match {
+                  case Left(waiting) => Left(waiting :+ (n -> gate))
+                  case Right(m) =>
+                    if (n <= m) Right(m - n)
+                    else Left(Queue((n - m) -> gate))
+                }
+                (u, u)
               }
-              (u, u)
-            }
-            .map {
-              case Left(waiting) =>
-                val cleanup = state.modify {
-                  case Left(waiting) =>
-                    waiting.find(_._2 eq gate).map(_._1) match {
-                      case None => (Left(waiting), releaseN(n))
-                      case Some(m) => (Left(waiting.filterNot(_._2 eq gate)), releaseN(n - m))
-                    }
-                  case Right(m) => (Right(m + n), F.unit)
-                }.flatten
-                val entry = waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
-                entry._2.get -> cleanup
+              .map {
+                case Left(waiting) =>
+                  val cleanup = state.modify {
+                    case Left(waiting) =>
+                      waiting.find(_._2 eq gate).map(_._1) match {
+                        case None    => (Left(waiting), releaseN(n))
+                        case Some(m) => (Left(waiting.filterNot(_._2 eq gate)), releaseN(n - m))
+                      }
+                    case Right(m) => (Right(m + n), F.unit)
+                  }.flatten
 
-              case Right(_) => F.unit -> releaseN(n)
-            }
+                  val entry =
+                    waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
+
+                  entry._2.get -> cleanup
+
+                case Right(_) => F.unit -> releaseN(n)
+              }
+          }
         }
       }
-    }
 
-    def tryAcquireN(n: Long) = {
+    def tryAcquireN(n: Long): F[Boolean] =
       assertNonNegative[F](n) *> {
         if (n == 0) F.pure(true)
         else
@@ -213,19 +216,20 @@ object Semaphore {
               }
               (u, (old, u))
             }
-            .map { case (previous, now) =>
-              now match {
-                case Left(_) => false
-                case Right(n) => previous match {
+            .map {
+              case (previous, now) =>
+                now match {
                   case Left(_) => false
-                  case Right(m) => n != m
+                  case Right(n) =>
+                    previous match {
+                      case Left(_)  => false
+                      case Right(m) => n != m
+                    }
                 }
-              }
             }
       }
-    }
 
-    def releaseN(n: Long) = {
+    def releaseN(n: Long): F[Unit] =
       assertNonNegative[F](n) *> {
         if (n == 0) F.unit
         else
@@ -253,24 +257,24 @@ object Semaphore {
               }
               (u, (old, u))
             }
-            .flatMap { case (previous, now) =>
-              // invariant: count_(now) == count_(previous) + n
-              previous match {
-                case Left(waiting) =>
-                  // now compare old and new sizes to figure out which actions to run
-                  val newSize = now match {
-                    case Left(w) => w.size
-                    case Right(_) => 0
-                  }
-                  val released = waiting.size - newSize
-                  waiting.take(released).foldRight(F.unit) { (hd, tl) =>
-                    open(hd._2) *> tl
-                  }
-                case Right(_) => F.unit
-              }
+            .flatMap {
+              case (previous, now) =>
+                // invariant: count_(now) == count_(previous) + n
+                previous match {
+                  case Left(waiting) =>
+                    // now compare old and new sizes to figure out which actions to run
+                    val newSize = now match {
+                      case Left(w)  => w.size
+                      case Right(_) => 0
+                    }
+                    val released = waiting.size - newSize
+                    waiting.take(released).foldRight(F.unit) { (hd, tl) =>
+                      open(hd._2) *> tl
+                    }
+                  case Right(_) => F.unit
+                }
             }
       }
-    }
 
     def available: F[Long] = state.get.map {
       case Left(_)  => 0
@@ -281,15 +285,21 @@ object Semaphore {
       F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
   }
 
-  private final class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F]) extends AbstractSemaphore(state) {
+  final private class ConcurrentSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
+      extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  private final class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F]) extends AbstractSemaphore(state) {
+  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F])
+      extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred.uncancelable[F, Unit]
   }
 
-  private[concurrent] final class TransformedSemaphore[F[_], G[_]](underlying: Semaphore[F], trans: F ~> G, inverse: G ~> F) extends Semaphore[G]{
+  final private[concurrent] class TransformedSemaphore[F[_], G[_]](
+    underlying: Semaphore[F],
+    trans: F ~> G,
+    inverse: G ~> F
+  ) extends Semaphore[G] {
     override def available: G[Long] = trans(underlying.available)
     override def count: G[Long] = trans(underlying.count)
     override def acquireN(n: Long): G[Unit] = trans(underlying.acquireN(n))

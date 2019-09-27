@@ -92,14 +92,16 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     implicit val cs = ec.contextShift[IO]
 
     val task = for {
-      d     <- MVar.empty[IO, Unit]
+      d <- MVar.empty[IO, Unit]
       latch <- Deferred[IO, Unit]
-      task   = Concurrent.cancelableF[IO, Unit] { _ => cs.shift *> latch.complete(()) *> IO(d.put(())) }
+      task = Concurrent.cancelableF[IO, Unit] { _ =>
+        cs.shift *> latch.complete(()) *> IO(d.put(()))
+      }
       fiber <- task.start
-      _     <- latch.get
-      r     <- d.tryTake
-      _     <- fiber.cancel
-      _     <- d.take
+      _ <- latch.get
+      r <- d.tryTake
+      _ <- fiber.cancel
+      _ <- d.take
     } yield {
       r shouldBe None
     }

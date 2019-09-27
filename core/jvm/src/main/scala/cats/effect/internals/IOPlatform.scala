@@ -23,6 +23,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Either, Try}
 
 private[effect] object IOPlatform {
+
   /**
    * JVM-specific function that blocks for the result of an IO task.
    *
@@ -35,7 +36,7 @@ private[effect] object IOPlatform {
     val latch = new OneShotLatch
     var ref: Either[Throwable, A] = null
 
-    ioa unsafeRunAsync { a =>
+    ioa.unsafeRunAsync { a =>
       // Reading from `ref` happens after the block on `latch` is
       // over, there's a happens-before relationship, so no extra
       // synchronization is needed for visibility
@@ -56,13 +57,13 @@ private[effect] object IOPlatform {
     }
 
     ref match {
-      case null => None
+      case null     => None
       case Right(a) => Some(a)
       case Left(ex) => throw ex
     }
   }
 
-  private final class OneShotLatch extends AbstractQueuedSynchronizer {
+  final private class OneShotLatch extends AbstractQueuedSynchronizer {
     override protected def tryAcquireShared(ignored: Int): Int =
       if (getState != 0) 1 else -1
 

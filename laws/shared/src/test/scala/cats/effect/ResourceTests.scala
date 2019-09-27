@@ -43,8 +43,9 @@ class ResourceTests extends BaseTestsSuite {
   test("releases resources in reverse order of acquisition") {
     check { as: List[(Int, Either[Throwable, Unit])] =>
       var released: List[Int] = Nil
-      val r = as.traverse { case (a, e) =>
-        Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
       }
       r.use(IO.pure).attempt.unsafeRunSync()
       released <-> as.map(_._1)
@@ -58,7 +59,7 @@ class ResourceTests extends BaseTestsSuite {
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
         Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
       }
-      (observe(rx) combine observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+      observe(rx).combine(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
     }
   }
@@ -69,7 +70,7 @@ class ResourceTests extends BaseTestsSuite {
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
         Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
       }
-      (observe(rx) combineK observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+      observe(rx).combineK(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
     }
   }
@@ -80,8 +81,10 @@ class ResourceTests extends BaseTestsSuite {
       override def close(): Unit = closed = true
     }
 
-    val result = Resource.fromAutoCloseable(IO(autoCloseable))
-      .use(_ => IO.pure("Hello world")).unsafeRunSync()
+    val result = Resource
+      .fromAutoCloseable(IO(autoCloseable))
+      .use(_ => IO.pure("Hello world"))
+      .unsafeRunSync()
 
     result shouldBe "Hello world"
     closed shouldBe true
@@ -97,16 +100,19 @@ class ResourceTests extends BaseTestsSuite {
     implicit val timer = ec.timer[IO]
     implicit val ctx = ec.contextShift[IO]
 
-    def p = Deferred[IO, ExitCase[Throwable]].flatMap { stop =>
-      val r = Resource
-        .liftF(IO.never: IO[Int])
-        .use(IO.pure)
-        .guaranteeCase(stop.complete)
+    def p =
+      Deferred[IO, ExitCase[Throwable]]
+        .flatMap { stop =>
+          val r = Resource
+            .liftF(IO.never: IO[Int])
+            .use(IO.pure)
+            .guaranteeCase(stop.complete)
 
-      r.start.flatMap { fiber =>
-        timer.sleep(200.millis) >> fiber.cancel >> stop.get
-      }
-    }.timeout(2.seconds)
+          r.start.flatMap { fiber =>
+            timer.sleep(200.millis) >> fiber.cancel >> stop.get
+          }
+        }
+        .timeout(2.seconds)
 
     val res = p.unsafeToFuture
 
@@ -185,9 +191,10 @@ class ResourceTests extends BaseTestsSuite {
     def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
       val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
       val res = Resource.makeCase(IO.unit) {
-        case (_, ExitCase.Completed) => IO {
-          cleanExit.set(true)
-        }
+        case (_, ExitCase.Completed) =>
+          IO {
+            cleanExit.set(true)
+          }
         case _ => IO.unit
       }
       (cleanExit, res)
@@ -202,7 +209,12 @@ class ResourceTests extends BaseTestsSuite {
     clean1.get() shouldBe false
 
     val (clean2, res2) = sideEffectyResource
-    res2.mapK(takeAnInteger).use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no")))).run(0).attempt.unsafeRunSync()
+    res2
+      .mapK(takeAnInteger)
+      .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
+      .run(0)
+      .attempt
+      .unsafeRunSync()
     clean2.get() shouldBe false
   }
 
@@ -240,7 +252,9 @@ class ResourceTests extends BaseTestsSuite {
     val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
-    val plusOne = Kleisli {i: Int => IO { i + 1 }}
+    val plusOne = Kleisli { i: Int =>
+      IO { i + 1 }
+    }
     val plusOneResource = Resource.liftF(plusOne)
 
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))

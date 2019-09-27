@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monad, Monoid, ~>}
+import cats.{~>, Applicative, Functor, Monad, Monoid}
 import cats.data._
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext
@@ -38,6 +38,7 @@ import scala.concurrent.ExecutionContext
 * if using IO, use cats.effect.IOApp or build one with cats.effect.IO.contextShift
 """)
 trait ContextShift[F[_]] {
+
   /**
    * Asynchronous boundary described as an effectful `F[_]` that
    * can be used in `flatMap` chains to "shift" the continuation
@@ -82,8 +83,8 @@ object ContextShift {
   def apply[F[_]](implicit ev: ContextShift[F]): ContextShift[F] = ev
 
   /**
-    * `evalOn` as a natural transformation.
-    */
+   * `evalOn` as a natural transformation.
+   */
   def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F = λ[F ~> F](cs.evalOn(ec)(_))
 
   /**
@@ -116,7 +117,9 @@ object ContextShift {
    * Derives a [[ContextShift]] instance for `cats.data.WriterT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], cs: ContextShift[F]): ContextShift[WriterT[F, L, ?]] =
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F],
+                                      L: Monoid[L],
+                                      cs: ContextShift[F]): ContextShift[WriterT[F, L, ?]] =
     new ContextShift[WriterT[F, L, ?]] {
       def shift: WriterT[F, L, Unit] =
         WriterT.liftF(cs.shift)
@@ -152,9 +155,9 @@ object ContextShift {
     }
 
   /**
-    * Derives a [[ContextShift]] instance for `cats.data.IorT`,
-    * given we have one for `F[_]`.
-    */
+   * Derives a [[ContextShift]] instance for `cats.data.IorT`,
+   * given we have one for `F[_]`.
+   */
   implicit def deriveIorT[F[_], L](implicit F: Applicative[F], cs: ContextShift[F]): ContextShift[IorT[F, L, ?]] =
     new ContextShift[IorT[F, L, ?]] {
       def shift: IorT[F, L, Unit] =

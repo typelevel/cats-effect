@@ -22,7 +22,9 @@ import cats.{Monad, Parallel, Traverse}
 
 trait ParallelNSyntax {
 
-  implicit final def catsSyntaxParallelTraverseNConcurrent[T[_]: Traverse, A](ta: T[A]): ParallelTraversableNConcurrentOps[T, A] =
+  implicit final def catsSyntaxParallelTraverseNConcurrent[T[_]: Traverse, A](
+    ta: T[A]
+  ): ParallelTraversableNConcurrentOps[T, A] =
     new ParallelTraversableNConcurrentOps[T, A](ta)
 
   implicit final def catsSyntaxParallelSequenceNConcurrent[T[_]: Traverse, M[_]: Monad, A](

@@ -48,7 +48,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    * performs side effects and throws exceptions. You should ideally
    * only call this function *once*, at the very end of your program.
    */
-  def unsafeRunSync(): A = io.unsafeRunSync
+  def unsafeRunSync(): A = io.unsafeRunSync()
 
   /**
    * Functor map on `SyncIO`. Given a mapping function, it transforms the
@@ -69,7 +69,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    * (e.g. one action to be executed before another one).
    *
    * Any exceptions thrown within the function will be caught and
-   * sequenced in to the result `SyncIO[B].
+   * sequenced in to the result `SyncIO[B]`.
    */
   def flatMap[B](f: A => SyncIO[B]): SyncIO[B] = new SyncIO(io.flatMap(a => f(a).io))
 
@@ -178,7 +178,8 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    *        along with the result of `use` (error or successful result)
    */
   def bracketCase[B](use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
-    flatMap { a => use(a).redeemWith(
+    flatMap { a =>
+      use(a).redeemWith(
         t => release(a, ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
         b => release(a, ExitCase.Completed).map(_ => b)
       )
@@ -239,8 +240,10 @@ final class SyncIO[+A] private (private val io: IO[A]) {
    * @see [[bracketCase]] for the more general operation
    */
   def guaranteeCase(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
-    redeemWith(t => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
-      a => finalizer(ExitCase.Completed).map(_ => a))
+    redeemWith(
+      t => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
+      a => finalizer(ExitCase.Completed).map(_ => a)
+    )
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
@@ -310,9 +313,9 @@ final class SyncIO[+A] private (private val io: IO[A]) {
     new SyncIO(io.redeemWith(t => recover(t).io, a => bind(a).io))
 
   override def toString: String = io match {
-    case IO.Pure(a) => s"SyncIO($a)"
+    case IO.Pure(a)       => s"SyncIO($a)"
     case IO.RaiseError(e) => s"SyncIO(throw $e)"
-    case _ => "SyncIO$" + System.identityHashCode(this)
+    case _                => "SyncIO$" + System.identityHashCode(this)
   }
 }
 
@@ -382,7 +385,7 @@ object SyncIO extends SyncIOInstances {
   def fromEither[A](e: Either[Throwable, A]): SyncIO[A] = new SyncIO(IO.fromEither(e))
 }
 
-private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstances {
+abstract private[effect] class SyncIOInstances extends SyncIOLowPriorityInstances {
   implicit val syncIoSync: Sync[SyncIO] = new Sync[SyncIO] with StackSafeMonad[SyncIO] {
     final override def pure[A](a: A): SyncIO[A] =
       SyncIO.pure(a)
@@ -401,17 +404,15 @@ private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstance
     final override def raiseError[A](e: Throwable): SyncIO[A] =
       SyncIO.raiseError(e)
 
-    final override def bracket[A, B](acquire: SyncIO[A])
-      (use: A => SyncIO[B])
-      (release: A => SyncIO[Unit]): SyncIO[B] =
+    final override def bracket[A, B](acquire: SyncIO[A])(use: A => SyncIO[B])(release: A => SyncIO[Unit]): SyncIO[B] =
       acquire.bracket(use)(release)
 
     final override def uncancelable[A](task: SyncIO[A]): SyncIO[A] =
       task
 
-    final override def bracketCase[A, B](acquire: SyncIO[A])
-      (use: A => SyncIO[B])
-      (release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
+    final override def bracketCase[A, B](
+      acquire: SyncIO[A]
+    )(use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
       acquire.bracketCase(use)(release)
 
     final override def guarantee[A](fa: SyncIO[A])(finalizer: SyncIO[Unit]): SyncIO[A] =
@@ -435,9 +436,9 @@ private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstance
   }
 }
 
-private[effect] abstract class SyncIOLowPriorityInstances {
+abstract private[effect] class SyncIOLowPriorityInstances {
   private[effect] class SyncIOSemigroup[A: Semigroup] extends Semigroup[SyncIO[A]] {
-    def combine(sioa1: SyncIO[A], sioa2: SyncIO[A]) =
+    def combine(sioa1: SyncIO[A], sioa2: SyncIO[A]): SyncIO[A] =
       sioa1.flatMap(a1 => sioa2.map(a2 => Semigroup[A].combine(a1, a2)))
   }
 

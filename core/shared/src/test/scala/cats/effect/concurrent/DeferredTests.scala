@@ -36,18 +36,25 @@ class DeferredTests extends AsyncFunSuite with Matchers {
   def tests(label: String, pc: DeferredConstructor): Unit = {
 
     test(s"$label - complete") {
-      pc[Int].flatMap { p =>
-        p.complete(0) *> p.get
-      }.unsafeToFuture.map(_ shouldBe 0)
+      pc[Int]
+        .flatMap { p =>
+          p.complete(0) *> p.get
+        }
+        .unsafeToFuture
+        .map(_ shouldBe 0)
     }
 
     test(s"$label - complete is only successful once") {
-      pc[Int].flatMap { p =>
-        p.complete(0) *> p.complete(1).attempt product p.get
-      }.unsafeToFuture.map { case (err, value) =>
-        err.swap.toOption.get shouldBe an[IllegalStateException]
-        value shouldBe 0
-      }
+      pc[Int]
+        .flatMap { p =>
+          (p.complete(0) *> p.complete(1).attempt).product(p.get)
+        }
+        .unsafeToFuture
+        .map {
+          case (err, value) =>
+            err.swap.toOption.get shouldBe an[IllegalStateException]
+            value shouldBe 0
+        }
     }
 
     test(s"$label - get blocks until set") {
@@ -65,12 +72,12 @@ class DeferredTests extends AsyncFunSuite with Matchers {
   }
 
   def tryableTests(label: String, pc: TryableDeferredConstructor): Unit = {
-    test(s"$label - tryGet returns None for unset Deferred"){
+    test(s"$label - tryGet returns None for unset Deferred") {
       pc[Unit].flatMap(_.tryGet).unsafeToFuture.map(_ shouldBe None)
     }
 
-    test(s"$label - tryGet returns Some() for set Deferred"){
-      val op = for{
+    test(s"$label - tryGet returns Some() for set Deferred") {
+      val op = for {
         d <- pc[Unit]
         _ <- d.complete(())
         result <- d.tryGet
@@ -90,16 +97,16 @@ class DeferredTests extends AsyncFunSuite with Matchers {
 
   private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
     for {
-        r <- Ref[IO].of(Option.empty[Int])
-        p <- pc
-        fiber <- p.get.start
-        _ <- fiber.cancel
-        _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
-        _ <- timer.sleep(100.millis)
-        _ <- p.complete(42)
-        _ <- timer.sleep(100.millis)
-        result <- r.get
-      } yield result
+      r <- Ref[IO].of(Option.empty[Int])
+      p <- pc
+      fiber <- p.get.start
+      _ <- fiber.cancel
+      _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
+      _ <- timer.sleep(100.millis)
+      _ <- p.complete(42)
+      _ <- timer.sleep(100.millis)
+      result <- r.get
+    } yield result
 
   test("concurrent - get - cancel before forcing") {
     cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
@@ -107,10 +114,9 @@ class DeferredTests extends AsyncFunSuite with Matchers {
 
   test("issue #380: complete doesn't block, test #1") {
     def execute(times: Int): IO[Assertion] = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       val task = for {
         d <- Deferred[IO, Unit]

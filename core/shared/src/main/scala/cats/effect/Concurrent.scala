@@ -197,6 +197,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
+
   /**
    * Start concurrent execution of the source suspended in
    * the `F` context.
@@ -233,7 +234,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * See [[race]] for a simpler version that cancels the loser
    * immediately.
    */
-  def racePair[A,B](fa: F[A], fb: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
+  def racePair[A, B](fa: F[A], fb: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]]
 
   /**
    * Run two tasks concurrently and return the first to finish,
@@ -249,7 +250,7 @@ trait Concurrent[F[_]] extends Async[F] {
    */
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, fiberB)) => map(fiberB.cancel)(_ => Left(a))
+      case Left((a, fiberB))  => map(fiberB.cancel)(_ => Left(a))
       case Right((fiberA, b)) => map(fiberA.cancel)(_ => Right(b))
     }
 
@@ -353,8 +354,8 @@ trait Concurrent[F[_]] extends Async[F] {
     Concurrent.continual(fa)(f)(this)
 }
 
-
 object Concurrent {
+
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].
    *
@@ -365,13 +366,13 @@ object Concurrent {
    */
   def liftIO[F[_], A](ioa: IO[A])(implicit F: Concurrent[F]): F[A] =
     ioa match {
-      case Pure(a) => F.pure(a)
+      case Pure(a)       => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk) => F.delay(thunk())
+      case Delay(thunk)  => F.delay(thunk())
       case _ =>
         F.suspend {
           IORunLoop.step(ioa) match {
-            case Pure(a) => F.pure(a)
+            case Pure(a)       => F.pure(a)
             case RaiseError(e) => F.raiseError(e)
             case async =>
               F.cancelable(cb => liftIO(async.unsafeRunCancelable(cb))(F))
@@ -394,29 +395,30 @@ object Concurrent {
    * @param fallback is the task evaluated after the duration has passed and
    *        the source canceled
    */
-  def timeoutTo[F[_], A](fa: F[A], duration: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F], timer: Timer[F]): F[A] =
-    F.race(fa, timer.sleep(duration)) flatMap {
-      case Left(a) => F.pure(a)
+  def timeoutTo[F[_], A](fa: F[A], duration: FiniteDuration, fallback: F[A])(implicit F: Concurrent[F],
+                                                                             timer: Timer[F]): F[A] =
+    F.race(fa, timer.sleep(duration)).flatMap {
+      case Left(a)  => F.pure(a)
       case Right(_) => fallback
     }
 
   /**
-    * Lazily memoizes `f`. Assuming no cancellation happens, the effect
-    * `f` will be performed at most once for every time the returned
-    * `F[F[A]]` is bound (when the inner `F[A]` is bound the first
-    * time).
-    *
-    * If you try to cancel an inner `F[A]`, `f` is only interrupted if
-    * there are no other active subscribers, whereas if there are, `f`
-    * keeps running in the background.
-    *
-    * If `f` is successfully canceled, the next time an inner `F[A]`
-    * is bound `f` will be restarted again. Note that this can mean
-    * the effects of `f` happen more than once.
-    *
-    * You can look at `Async.memoize` for a version of this function
-    * which does not allow cancellation.
-    */
+   * Lazily memoizes `f`. Assuming no cancellation happens, the effect
+   * `f` will be performed at most once for every time the returned
+   * `F[F[A]]` is bound (when the inner `F[A]` is bound the first
+   * time).
+   *
+   * If you try to cancel an inner `F[A]`, `f` is only interrupted if
+   * there are no other active subscribers, whereas if there are, `f`
+   * keeps running in the background.
+   *
+   * If `f` is successfully canceled, the next time an inner `F[A]`
+   * is bound `f` will be restarted again. Note that this can mean
+   * the effects of `f` happen more than once.
+   *
+   * You can look at `Async.memoize` for a version of this function
+   * which does not allow cancellation.
+   */
   def memoize[F[_], A](f: F[A])(implicit F: Concurrent[F]): F[F[A]] = {
     sealed trait State
     case class Subs(n: Int) extends State
@@ -425,7 +427,7 @@ object Concurrent {
     case class Fetch(state: State, v: Deferred[F, Either[Throwable, A]], stop: Deferred[F, F[Unit]])
 
     Ref[F].of(Option.empty[Fetch]).map { state =>
-      (Deferred[F, Either[Throwable, A]] product Deferred[F, F[Unit]]).flatMap {
+      Deferred[F, Either[Throwable, A]].product(Deferred[F, F[Unit]]).flatMap {
         case (v, stop) =>
           def endState(ec: ExitCase[Throwable]) =
             state.modify {
@@ -557,37 +559,36 @@ object Concurrent {
    *        completion, returning an effect that's going to be evaluated to a
    *        cancellation token
    */
-  def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[CancelToken[F]])
-    (implicit F: Concurrent[F]): F[A] = {
-
+  def cancelableF[F[_], A](k: (Either[Throwable, A] => Unit) => F[CancelToken[F]])(implicit F: Concurrent[F]): F[A] =
     CancelableF(k)
-  }
 
   /**
    * This is the default [[Concurrent.continual]] implementation.
    */
-  def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])
-    (implicit F: Concurrent[F]): F[B] = {
+  def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])(implicit F: Concurrent[F]): F[B] = {
     import cats.effect.implicits._
     import scala.util.control.NoStackTrace
 
     Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
-      fa.start.bracket( fiber =>
-        fiber.join.guaranteeCase {
-          case ExitCase.Completed | ExitCase.Error(_) =>
-            fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
-          case _ => fiber.cancel >>
-            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
-        }.attempt
-      )(_ => r.get.void)
-      .flatMap(_ => r.get.rethrow)
+      fa.start
+        .bracket { fiber =>
+          fiber.join.guaranteeCase {
+            case ExitCase.Completed | ExitCase.Error(_) =>
+              fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
+            case _ =>
+              fiber.cancel >>
+                r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+          }.attempt
+        }(_ => r.get.void)
+        .flatMap(_ => r.get.rethrow)
     }
   }
 
   /**
-    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-    */
-  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Concurrent[M], P: Parallel[M]): M[T[B]] =
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Concurrent[M],
+                                                                                P: Parallel[M]): M[T[B]] =
     for {
       semaphore <- Semaphore(n)(M)
       tb <- ta.parTraverse { a =>
@@ -596,8 +597,8 @@ object Concurrent {
     } yield tb
 
   /**
-    * Like `Parallel.parSequence`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
   def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Concurrent[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore(n)(M)
@@ -633,16 +634,15 @@ object Concurrent {
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
   /**
-    * [[Concurrent]] instance built for `cats.data.IorT` values initialized
-    * with any `F` data type that also implements `Concurrent`.
-    */
+   * [[Concurrent]] instance built for `cats.data.IorT` values initialized
+   * with any `F` data type that also implements `Concurrent`.
+   */
   implicit def catsIorTConcurrent[F[_]: Concurrent, L: Semigroup]: Concurrent[IorT[F, L, ?]] =
     new IorTConcurrent[F, L] { def F = Concurrent[F]; def L = Semigroup[L] }
 
-  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L]
-    with Concurrent[EitherT[F, L, ?]] {
+  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L] with Concurrent[EitherT[F, L, ?]] {
 
-    override protected implicit def F: Concurrent[F]
+    implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
     // Needed to drive static checks, otherwise the
@@ -655,7 +655,8 @@ object Concurrent {
     override def start[A](fa: EitherT[F, L, A]) =
       EitherT.liftF(F.start(fa.value).map(fiberT))
 
-    override def racePair[A, B](fa: EitherT[F, L, A], fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: EitherT[F, L, A],
+                                fb: EitherT[F, L, B]): EitherT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       EitherT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -677,10 +678,9 @@ object Concurrent {
       Fiber(EitherT(fiber.join), EitherT.liftF(fiber.cancel))
   }
 
-  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F]
-    with Concurrent[OptionT[F, ?]] {
+  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F] with Concurrent[OptionT[F, ?]] {
 
-    override protected implicit def F: Concurrent[F]
+    implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
     // Needed to drive static checks, otherwise the
@@ -693,7 +693,8 @@ object Concurrent {
     override def start[A](fa: OptionT[F, A]) =
       OptionT.liftF(F.start(fa.value).map(fiberT))
 
-    override def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: OptionT[F, A],
+                                fb: OptionT[F, B]): OptionT[F, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       OptionT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -715,11 +716,9 @@ object Concurrent {
       Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
   }
 
+  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L] with Concurrent[WriterT[F, L, ?]] {
 
-  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L]
-    with Concurrent[WriterT[F, L, ?]] {
-
-    override protected implicit def F: Concurrent[F]
+    implicit override protected def F: Concurrent[F]
     override protected def FA = F
 
     // Needed to drive static checks, otherwise the
@@ -734,7 +733,8 @@ object Concurrent {
         (L.empty, fiberT[A](fiber))
       })
 
-    override def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: WriterT[F, L, A],
+                                fb: WriterT[F, L, B]): WriterT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       WriterT(F.racePair(fa.run, fb.run).map {
         case Left(((l, value), fiber)) =>
           (l, Left((value, fiberT(fiber))))
@@ -746,11 +746,11 @@ object Concurrent {
       Fiber(WriterT(fiber.join), WriterT.liftF(fiber.cancel))
   }
 
-  private[effect] abstract class KleisliConcurrent[F[_], R]
-    extends Async.KleisliAsync[F, R]
-    with Concurrent[Kleisli[F, R, ?]] {
+  abstract private[effect] class KleisliConcurrent[F[_], R]
+      extends Async.KleisliAsync[F, R]
+      with Concurrent[Kleisli[F, R, ?]] {
 
-    override protected implicit def F: Concurrent[F]
+    implicit override protected def F: Concurrent[F]
     // Needed to drive static checks, otherwise the
     // compiler can choke on type inference :-(
     type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
@@ -764,7 +764,7 @@ object Concurrent {
     override def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]) =
       Kleisli { r =>
         F.racePair(fa.run(r), fb.run(r)).map {
-          case Left((a, fiber)) => Left((a, fiberT[B](fiber)))
+          case Left((a, fiber))  => Left((a, fiberT[B](fiber)))
           case Right((fiber, b)) => Right((fiberT[A](fiber), b))
         }
       }
@@ -773,10 +773,9 @@ object Concurrent {
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
   }
 
-  private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L]
-    with Concurrent[IorT[F, L, ?]] {
+  private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L] with Concurrent[IorT[F, L, ?]] {
 
-    override protected implicit def F: Concurrent[F]
+    implicit override protected def F: Concurrent[F]
     override protected def FA = F
 
     // Needed to drive static checks, otherwise the
@@ -789,7 +788,8 @@ object Concurrent {
     override def start[A](fa: IorT[F, L, A]) =
       IorT.liftF(F.start(fa.value).map(fiberT))
 
-    override def racePair[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
+    override def racePair[A, B](fa: IorT[F, L, A],
+                                fb: IorT[F, L, B]): IorT[F, L, Either[(A, Fiber[B]), (Fiber[A], B)]] =
       IorT(F.racePair(fa.value, fb.value).flatMap {
         case Left((value, fiberB)) =>
           value match {
@@ -819,9 +819,9 @@ object Concurrent {
    * Internal API — Cancelable builder derived from
    * [[Async.asyncF]] and [[Bracket.bracketCase]].
    */
-  private def defaultCancelable[F[_], A](k: (Either[Throwable, A] => Unit) => CancelToken[F])
-    (implicit F: Async[F]): F[A] = {
-
+  private def defaultCancelable[F[_], A](
+    k: (Either[Throwable, A] => Unit) => CancelToken[F]
+  )(implicit F: Async[F]): F[A] =
     F.asyncF[A] { cb =>
       // For back-pressuring bracketCase until the callback gets called.
       // Need to work with `Promise` due to the callback being side-effecting.
@@ -834,8 +834,7 @@ object Concurrent {
       }
       F.bracketCase(F.pure(token))(_ => latchF) {
         case (cancel, Canceled) => cancel
-        case _ => F.unit
+        case _                  => F.unit
       }
     }
-  }
 }

@@ -19,15 +19,24 @@ package internals
 
 import java.util.{Collection, Collections, List}
 import java.util.concurrent.atomic.AtomicReference
-import java.util.concurrent.{Callable, Future, RejectedExecutionException, ScheduledFuture, TimeUnit, ScheduledExecutorService}
+import java.util.concurrent.{
+  Callable,
+  Future,
+  RejectedExecutionException,
+  ScheduledExecutorService,
+  ScheduledFuture,
+  TimeUnit
+}
 import scala.concurrent.ExecutionContext
 
 private[effect] trait IOAppCompanionPlatform {
+
   /**
    * Supports customization of the execution context and scheduler
    * used by an [[IOApp]]
    */
   trait WithContext extends IOApp {
+
     /**
      * Provides an execution context for this app to use as its main
      * thread pool.  This execution context is used by the implicit
@@ -74,7 +83,7 @@ private[effect] trait IOAppCompanionPlatform {
      * [[executionContextResource]].  Outside `run`, this context will
      * reject all tasks.
      */
-    protected final def executionContext: ExecutionContext =
+    final protected def executionContext: ExecutionContext =
       currentContext.get().executionContext
 
     /**
@@ -82,21 +91,21 @@ private[effect] trait IOAppCompanionPlatform {
      * [[schedulerResource]].  Outside `run`, this scheduler will
      * reject all tasks.
      */
-    protected final def scheduler: ScheduledExecutorService =
+    final protected def scheduler: ScheduledExecutorService =
       currentContext.get().scheduler
 
     /**
      * The default [[ContextShift]] for this app.  Based on
      * [[executionContext]].
      */
-    override protected final implicit def contextShift: ContextShift[IO] =
+    implicit final override protected def contextShift: ContextShift[IO] =
       currentContext.get().contextShift
 
     /**
      * The default [[Timer]] for this app.  Based on [[executionContext]]
      * and [[scheduler]].
      */
-    override protected final implicit def timer: Timer[IO] =
+    implicit final override protected def timer: Timer[IO] =
       currentContext.get().timer
 
     /**
@@ -105,7 +114,7 @@ private[effect] trait IOAppCompanionPlatform {
      * blocked until both resources are fully released, permitting a
      * graceful shutdown of the application.
      */
-    override final def main(args: Array[String]): Unit = synchronized {
+    final override def main(args: Array[String]): Unit = synchronized {
       val mainIO = executionContextResource.use { ec =>
         schedulerResource.use { sc =>
           val init = SyncIO {
@@ -124,7 +133,7 @@ private[effect] trait IOAppCompanionPlatform {
   private[this] val defaultScheduler: Resource[SyncIO, ScheduledExecutorService] =
     Resource.liftF(SyncIO(IOTimer.scheduler))
 
-  private final class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
+  final private class Context(val executionContext: ExecutionContext, val scheduler: ScheduledExecutorService) {
     val timer: Timer[IO] = IO.timer(executionContext, scheduler)
     val contextShift: ContextShift[IO] = IO.contextShift(executionContext)
   }
@@ -194,7 +203,6 @@ private[effect] trait IOAppCompanionPlatform {
 
   private[this] val currentContext = new AtomicReference(ClosedContext)
 
-  private def reject(): Nothing = {
+  private def reject(): Nothing =
     throw new RejectedExecutionException("IOApp and its thread pools are shutdown")
-  }
 }

@@ -29,6 +29,7 @@ import scala.util.{Failure, Left, Right, Success}
  * compatibility.
  */
 private[effect] trait IOBinaryCompat[+A] { self: IO[A] =>
+
   /**
    * DEPRECATED — signature changed to using [[LiftIO]], to make it more
    * generic.
@@ -37,14 +38,14 @@ private[effect] trait IOBinaryCompat[+A] { self: IO[A] =>
    * until 1.0 — when it will be removed completely.
    */
   @deprecated("Signature changed to require LiftIO", "0.10")
-  private[internals] def to[F[_]](F: effect.Async[F]): F[A @uncheckedVariance] = {
+  private[internals] def to[F[_]](F: effect.Async[F]): F[A @uncheckedVariance] =
     // $COVERAGE-OFF$
     effect.Async.liftIO(self)(F)
-    // $COVERAGE-ON$
-  }
+  // $COVERAGE-ON$
 }
 
 private[effect] trait IOCompanionBinaryCompat {
+
   /**
    * DEPRECATED — the `ec` parameter is gone.
    *
@@ -52,18 +53,17 @@ private[effect] trait IOCompanionBinaryCompat {
    * until 1.0 — when it will be removed completely.
    */
   @deprecated("ExecutionContext parameter is being removed", "0.10")
-  private[internals] def fromFuture[A](iof: IO[Future[A]])
-    (implicit ec: ExecutionContext): IO[A] = {
-
+  private[internals] def fromFuture[A](iof: IO[Future[A]])(implicit ec: ExecutionContext): IO[A] =
     // $COVERAGE-OFF$
     iof.flatMap { f =>
       IO.async { cb =>
-        f.onComplete(r => cb(r match {
-          case Success(a) => Right(a)
-          case Failure(e) => Left(e)
-        }))
+        f.onComplete { r =>
+          cb(r match {
+            case Success(a) => Right(a)
+            case Failure(e) => Left(e)
+          })
+        }
       }
     }
-    // $COVERAGE-ON$
-  }
+  // $COVERAGE-ON$
 }

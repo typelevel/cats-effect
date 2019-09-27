@@ -16,11 +16,12 @@
 
 package cats.effect.internals
 
-import cats.effect.{Fiber, IO, ContextShift}
+import cats.effect.{ContextShift, Fiber, IO}
 import cats.implicits._
 import scala.concurrent.Promise
 
 private[effect] object IOStart {
+
   /**
    * Implementation for `IO.start`.
    */
@@ -32,7 +33,10 @@ private[effect] object IOStart {
       // Starting the source `IO`, with a new connection, because its
       // cancellation is now decoupled from our current one
       val conn2 = IOConnection()
-      val cb0 = { ea: Either[Throwable, A] => p.success(ea); () }
+      val cb0 = { ea: Either[Throwable, A] =>
+        p.success(ea)
+        ()
+      }
       IORunLoop.startCancelable(IOForkedStart(fa, cs), conn2, cb0)
 
       cb(Right(fiber(p, conn2)))

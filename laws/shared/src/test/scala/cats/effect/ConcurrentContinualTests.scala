@@ -40,7 +40,6 @@ class ConcurrentContinualTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(true))
   }
 
-
   testAsync("Concurrent.continual backpressures on finalizers") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs = ec.contextShift[IO]
@@ -103,7 +102,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
       IO.unit
         .continual(_ => (IO.sleep(2.second) >> completed.set(true)))
         .timeout(1.second)
-        .attempt >> completed.get 
+        .attempt >> completed.get
     }
 
     val f = task.unsafeToFuture()

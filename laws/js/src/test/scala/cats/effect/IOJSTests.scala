@@ -43,8 +43,7 @@ class IOJSTests extends AsyncFunSuite with Matchers {
       try {
         delayed(100.millis)(10).unsafeRunSync()
         fail("Expected UnsupportedOperationException")
-      }
-      catch {
+      } catch {
         case _: UnsupportedOperationException =>
           succeed
       }

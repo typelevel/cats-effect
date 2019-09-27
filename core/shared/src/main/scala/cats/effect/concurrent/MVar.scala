@@ -53,6 +53,7 @@ import cats.~>
  * by `scalaz.concurrent.MVar`.
  */
 abstract class MVar[F[_], A] {
+
   /**
    * Returns `true` if the `MVar` is empty and can receive a `put`, or
    * `false` otherwise.
@@ -100,6 +101,7 @@ abstract class MVar[F[_], A] {
    * @return an Option holding the current value, None means it was empty
    */
   def tryTake: F[Option[A]]
+
   /**
    * Tries reading the current value, or blocks (asynchronously)
    * until there is a value available.
@@ -112,14 +114,15 @@ abstract class MVar[F[_], A] {
   def read: F[A]
 
   /**
-    * Modify the context `F` using transformation `f`.
-    */
+   * Modify the context `F` using transformation `f`.
+   */
   def mapK[G[_]](f: F ~> G): MVar[G, A] =
     new TransformedMVar(this, f)
 }
 
 /** Builders for [[MVar]]. */
 object MVar {
+
   /**
    * Builds an [[MVar]] value for `F` data types that are [[Concurrent]].
    *
@@ -232,6 +235,7 @@ object MVar {
    * Returned by the [[apply]] builder.
    */
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
+
     /**
      * Builds an `MVar` with an initial value.
      *
@@ -249,7 +253,8 @@ object MVar {
       MVar.empty(F)
   }
 
-  private[concurrent] final class TransformedMVar[F[_], G[_], A](underlying: MVar[F, A], trans: F ~> G) extends MVar[G, A]{
+  final private[concurrent] class TransformedMVar[F[_], G[_], A](underlying: MVar[F, A], trans: F ~> G)
+      extends MVar[G, A] {
     override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
     override def put(a: A): G[Unit] = trans(underlying.put(a))
     override def tryPut(a: A): G[Boolean] = trans(underlying.tryPut(a))

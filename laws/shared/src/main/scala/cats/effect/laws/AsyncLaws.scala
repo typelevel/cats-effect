@@ -34,44 +34,47 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def asyncLeftIsRaiseError[A](e: Throwable) =
     F.async[A](_(Left(e))) <-> F.raiseError(e)
 
-  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
-    var cur = a
+  def repeatedAsyncEvaluationNotMemoized[A](a: A, f: A => A) =
+    F.suspend {
+      var cur = a
 
-    val change: F[Unit] = F.async { cb =>
-      cur = f(cur)
-      cb(Right(()))
-    }
+      val change: F[Unit] = F.async { cb =>
+        cur = f(cur)
+        cb(Right(()))
+      }
 
-    val read: F[A] = F.delay(cur)
+      val read: F[A] = F.delay(cur)
 
-    change *> change *> read
-  } <-> F.pure(f(f(a)))
+      change *> change *> read
+    } <-> F.pure(f(f(a)))
 
-  def repeatedAsyncFEvaluationNotMemoized[A](a: A, f: A => A) = F.suspend {
-    var cur = a
+  def repeatedAsyncFEvaluationNotMemoized[A](a: A, f: A => A) =
+    F.suspend {
+      var cur = a
 
-    val change: F[Unit] = F.asyncF { cb =>
-      cur = f(cur)
-      F.delay(cb(Right(())))
-    }
+      val change: F[Unit] = F.asyncF { cb =>
+        cur = f(cur)
+        F.delay(cb(Right(())))
+      }
 
-    val read: F[A] = F.delay(cur)
+      val read: F[A] = F.delay(cur)
 
-    change *> change *> read
-  } <-> F.pure(f(f(a)))
+      change *> change *> read
+    } <-> F.pure(f(f(a)))
 
-  def repeatedCallbackIgnored[A](a: A, f: A => A) = F.suspend {
-    var cur = a
-    val change = F.delay { cur = f(cur) }
-    val readResult = F.delay { cur }
+  def repeatedCallbackIgnored[A](a: A, f: A => A) =
+    F.suspend {
+      var cur = a
+      val change = F.delay { cur = f(cur) }
+      val readResult = F.delay { cur }
 
-    val double: F[Unit] = F.async { cb =>
-      cb(Right(()))
-      cb(Right(()))
-    }
+      val double: F[Unit] = F.async { cb =>
+        cb(Right(()))
+        cb(Right(()))
+      }
 
-    double *> change *> readResult
-  } <-> F.delay(f(a))
+      double *> change *> readResult
+    } <-> F.delay(f(a))
 
   def propagateErrorsThroughBindAsync[A](t: Throwable) = {
     val fa = F.attempt(F.async[A](_(Left(t))).flatMap(x => F.pure(x)))
@@ -79,7 +82,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   }
 
   def neverIsDerivedFromAsync[A] =
-    F.never[A] <-> F.async[A]( _ => ())
+    F.never[A] <-> F.async[A](_ => ())
 
   def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
@@ -90,7 +93,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
         fa
       } {
         case (r, Completed | Error(_)) => r.complete(b)
-        case _ => F.unit
+        case _                         => F.unit
       }
       // Start and forget
       // we attempt br because even if fa fails, we expect the release function

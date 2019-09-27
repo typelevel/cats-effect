@@ -30,23 +30,26 @@ private[internals] object PoolUtils {
     // lower-bound of 2 to prevent pathological deadlocks on virtual machines
     val bound = math.max(2, Runtime.getRuntime().availableProcessors())
 
-    val executor = Executors.newFixedThreadPool(bound, new ThreadFactory {
-      val ctr = new AtomicInteger(0)
-      def newThread(r: Runnable): Thread = {
-        val back = new Thread(r)
-        back.setName(s"ioapp-compute-${ctr.getAndIncrement()}")
-        back.setDaemon(true)
-        back
+    val executor = Executors.newFixedThreadPool(
+      bound,
+      new ThreadFactory {
+        val ctr = new AtomicInteger(0)
+        def newThread(r: Runnable): Thread = {
+          val back = new Thread(r)
+          back.setName(s"ioapp-compute-${ctr.getAndIncrement()}")
+          back.setDaemon(true)
+          back
+        }
       }
-    })
+    )
 
     exitOnFatal(ExecutionContext.fromExecutor(executor))
   }
 
   def exitOnFatal(ec: ExecutionContext): ExecutionContext = new ExecutionContext {
-    def execute(r: Runnable): Unit = {
+    def execute(r: Runnable): Unit =
       ec.execute(new Runnable {
-        def run(): Unit = {
+        def run(): Unit =
           try {
             r.run()
           } catch {
@@ -58,9 +61,7 @@ private[internals] object PoolUtils {
               t.printStackTrace()
               System.exit(1)
           }
-        }
       })
-    }
 
     def reportFailure(t: Throwable): Unit =
       ec.reportFailure(t)

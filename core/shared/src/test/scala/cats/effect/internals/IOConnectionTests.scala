@@ -44,7 +44,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     c.cancel.unsafeRunSync()
     effect shouldBe 1
 
-    c push initial
+    c.push(initial)
     effect shouldBe 2
   }
 
@@ -88,7 +88,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
 
     effect shouldBe 0
   }
-  
+
   test("uncancelable returns same reference") {
     val ref1 = IOConnection.uncancelable
     val ref2 = IOConnection.uncancelable

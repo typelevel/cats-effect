@@ -25,7 +25,6 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 
-
 class SyncIOTests extends BaseTestsSuite {
   checkAllAsync("SyncIO", _ => SyncTests[SyncIO].sync[Int, Int, Int])
   checkAllAsync("SyncIO", _ => MonoidTests[SyncIO[Int]].monoid)
@@ -51,7 +50,7 @@ class SyncIOTests extends BaseTestsSuite {
 
   test("fromEither handles Throwable in Left Projection") {
     case object Foo extends Exception
-    val e : Either[Throwable, Nothing] = Left(Foo)
+    val e: Either[Throwable, Nothing] = Left(Foo)
 
     SyncIO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
       case Left(Foo) => ()
@@ -60,7 +59,7 @@ class SyncIOTests extends BaseTestsSuite {
 
   test("fromEither handles a Value in Right Projection") {
     case class Foo(x: Int)
-    val e : Either[Throwable, Foo] = Right(Foo(1))
+    val e: Either[Throwable, Foo] = Right(Foo(1))
 
     SyncIO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
       case Right(Foo(_)) => ()
@@ -86,7 +85,7 @@ class SyncIOTests extends BaseTestsSuite {
     val loop = (0 until count).foldLeft(SyncIO(0)) { (acc, _) =>
       acc.attempt.flatMap {
         case Right(x) => SyncIO.pure(x + 1)
-        case Left(e) => SyncIO.raiseError(e)
+        case Left(e)  => SyncIO.raiseError(e)
       }
     }
 
@@ -98,7 +97,7 @@ class SyncIOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = SyncIO[Int](throw dummy).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val value = io.unsafeRunSync()
@@ -109,7 +108,7 @@ class SyncIOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = SyncIO[Int](throw dummy).flatMap(SyncIO.pure).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val value = io.unsafeRunSync()
@@ -120,7 +119,7 @@ class SyncIOTests extends BaseTestsSuite {
     val dummy = new RuntimeException("dummy")
     val io = SyncIO[Int](throw dummy).map(x => x).attempt.map {
       case Left(`dummy`) => 100
-      case _ => 0
+      case _             => 0
     }
 
     val value = io.unsafeRunSync()
@@ -128,7 +127,9 @@ class SyncIOTests extends BaseTestsSuite {
   }
 
   testAsync("io.to[IO] <-> io.toIO") { implicit ec =>
-    check { (io: SyncIO[Int]) => io.to[IO] <-> io.toIO }
+    check { (io: SyncIO[Int]) =>
+      io.to[IO] <-> io.toIO
+    }
   }
 
   testAsync("io.attempt.to[IO] <-> io.toIO.attempt") { implicit ec =>

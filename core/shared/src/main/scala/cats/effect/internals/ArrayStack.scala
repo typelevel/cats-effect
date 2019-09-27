@@ -23,11 +23,11 @@ package cats.effect.internals
  *
  * INTERNAL API.
  */
-private[internals] final class ArrayStack[A] private (
+final private[internals] class ArrayStack[A] private (
   initialArray: Array[AnyRef],
   chunkSize: Int,
-  initialIndex: Int)
-  extends Serializable { self =>
+  initialIndex: Int
+) extends Serializable { self =>
 
   private[this] val modulo = chunkSize - 1
   private[this] var array = initialArray
@@ -54,19 +54,16 @@ private[internals] final class ArrayStack[A] private (
   }
 
   /** Pushes an entire iterator on the stack. */
-  def pushAll(cursor: Iterator[A]): Unit = {
+  def pushAll(cursor: Iterator[A]): Unit =
     while (cursor.hasNext) push(cursor.next())
-  }
 
   /** Pushes an entire iterable on the stack. */
-  def pushAll(seq: Iterable[A]): Unit = {
+  def pushAll(seq: Iterable[A]): Unit =
     pushAll(seq.iterator)
-  }
 
   /** Pushes the contents of another stack on this stack. */
-  def pushAll(stack: ArrayStack[A]): Unit = {
+  def pushAll(stack: ArrayStack[A]): Unit =
     pushAll(stack.iteratorReversed)
-  }
 
   /** Pops an item from the stack (in LIFO order).
    *
@@ -94,9 +91,8 @@ private[internals] final class ArrayStack[A] private (
       private[this] var array = self.array
       private[this] var index = self.index
 
-      def hasNext: Boolean = {
+      def hasNext: Boolean =
         index > 0 || (array(0) ne null)
-      }
 
       def next(): A = {
         if (index == 0) {

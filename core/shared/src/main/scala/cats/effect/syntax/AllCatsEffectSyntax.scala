@@ -17,9 +17,9 @@
 package cats.effect.syntax
 
 trait AllCatsEffectSyntax
-  extends BracketSyntax
-  with AsyncSyntax
-  with ConcurrentSyntax
-  with EffectSyntax
-  with ConcurrentEffectSyntax
-  with ParallelNSyntax
+    extends BracketSyntax
+    with AsyncSyntax
+    with ConcurrentSyntax
+    with EffectSyntax
+    with ConcurrentEffectSyntax
+    with ParallelNSyntax

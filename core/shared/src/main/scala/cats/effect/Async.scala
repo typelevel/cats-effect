@@ -101,6 +101,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
+
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
@@ -249,13 +250,14 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
     Async.liftIO(ioa)(this)
 
   /**
-    * Returns a non-terminating `F[_]`, that never completes
-    * with a result, being equivalent to `async(_ => ())`
-    */
+   * Returns a non-terminating `F[_]`, that never completes
+   * with a result, being equivalent to `async(_ => ())`
+   */
   def never[A]: F[A] = async(_ => ())
 }
 
 object Async {
+
   /**
    * Returns an non-terminating `F[_]`, that never completes
    * with a result, being equivalent with `async(_ => ())`.
@@ -278,20 +280,26 @@ object Async {
     }
 
   def fromFuture[F[_], A](fa: F[Future[A]])(implicit F: Async[F], cs: ContextShift[F]): F[A] =
-    F.guarantee(fa.flatMap(f => f.value match {
-      case Some(result) =>
-        result match {
-          case Success(a) => F.pure(a)
-          case Failure(e) => F.raiseError[A](e)
+    F.guarantee(
+      fa.flatMap { f =>
+        f.value match {
+          case Some(result) =>
+            result match {
+              case Success(a) => F.pure(a)
+              case Failure(e) => F.raiseError[A](e)
+            }
+          case _ =>
+            F.async[A] { cb =>
+              f.onComplete { r =>
+                cb(r match {
+                  case Success(a) => Right(a)
+                  case Failure(e) => Left(e)
+                })
+              }(immediate)
+            }
         }
-      case _ =>
-        F.async[A] { cb =>
-          f.onComplete(r => cb(r match {
-            case Success(a) => Right(a)
-            case Failure(e) => Left(e)
-          }))(immediate)
-        }
-    }))(cs.shift)
+      }
+    )(cs.shift)
 
   /**
    * Lifts any `IO` value into any data type implementing [[Async]].
@@ -300,27 +308,27 @@ object Async {
    */
   def liftIO[F[_], A](io: IO[A])(implicit F: Async[F]): F[A] =
     io match {
-      case Pure(a) => F.pure(a)
+      case Pure(a)       => F.pure(a)
       case RaiseError(e) => F.raiseError(e)
-      case Delay(thunk) => F.delay(thunk())
+      case Delay(thunk)  => F.delay(thunk())
       case _ =>
         F.suspend {
           IORunLoop.step(io) match {
-            case Pure(a) => F.pure(a)
+            case Pure(a)       => F.pure(a)
             case RaiseError(e) => F.raiseError(e)
-            case async => F.async(async.unsafeRunAsync)
+            case async         => F.async(async.unsafeRunAsync)
           }
         }
     }
 
   /**
-    * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
-    * bound, the effect `f` will be performed at most once (when the
-    * inner `F[A]` is bound the first time).
-    *
-    * Note: This version of `memoize` does not support interruption.
-    * Use `Concurrent.memoize` if you need that.
-    */
+   * Lazily memoizes `f`. For every time the returned `F[F[A]]` is
+   * bound, the effect `f` will be performed at most once (when the
+   * inner `F[A]` is bound the first time).
+   *
+   * Note: This version of `memoize` does not support interruption.
+   * Use `Concurrent.memoize` if you need that.
+   */
   def memoize[F[_], A](f: F[A])(implicit F: Async[F]): F[F[A]] =
     Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map { ref =>
       Deferred.uncancelable[F, Either[Throwable, A]].flatMap { d =>
@@ -337,19 +345,20 @@ object Async {
     }
 
   /**
-    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-    */
-  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Async[M], P: Parallel[M]): M[T[B]] =
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
+  def parTraverseN[T[_]: Traverse, M[_], A, B](n: Long)(ta: T[A])(f: A => M[B])(implicit M: Async[M],
+                                                                                P: Parallel[M]): M[T[B]] =
     for {
       semaphore <- Semaphore.uncancelable(n)(M)
       tb <- ta.parTraverse { a =>
-          semaphore.withPermit(f(a))
-        }
+        semaphore.withPermit(f(a))
+      }
     } yield tb
 
   /**
-    * Like `Parallel.parSequence`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
   def parSequenceN[T[_]: Traverse, M[_], A](n: Long)(tma: T[M[A]])(implicit M: Async[M], P: Parallel[M]): M[T[A]] =
     for {
       semaphore <- Semaphore.uncancelable(n)(M)
@@ -392,24 +401,25 @@ object Async {
     new KleisliAsync[F, R] { def F = Async[F]; }
 
   /**
-    * [[Async]] instance built for `cats.data.IorT` values initialized
-    * with any `F` data type that also implements `Async`.
-    */
+   * [[Async]] instance built for `cats.data.IorT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def catsIorTAsync[F[_]: Async, L: Semigroup]: Async[IorT[F, L, ?]] =
     new IorTAsync[F, L] { def F = Async[F]; def L = Semigroup[L] }
 
   /**
-    * [[Async]] instance built for `cats.data.ReaderWriterStateT` values initialized
-    * with any `F` data type that also implements `Async`.
-    */
+   * [[Async]] instance built for `cats.data.ReaderWriterStateT` values initialized
+   * with any `F` data type that also implements `Async`.
+   */
   implicit def ReaderWriterStateTAsync[F[_]: Async, E, L: Monoid, S]: Async[ReaderWriterStateT[F, E, L, S, ?]] =
     new ReaderWriterStateTAsync[F, E, L, S] { def F = Async[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTAsync[F[_], L] extends Async[EitherT[F, L, ?]]
-    with Sync.EitherTSync[F, L]
-    with LiftIO.EitherTLiftIO[F, L] {
+  private[effect] trait EitherTAsync[F[_], L]
+      extends Async[EitherT[F, L, ?]]
+      with Sync.EitherTSync[F, L]
+      with LiftIO.EitherTLiftIO[F, L] {
 
-    override implicit protected def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FF = F
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => EitherT[F, L, Unit]): EitherT[F, L, A] =
@@ -419,11 +429,12 @@ object Async {
       EitherT.liftF(F.async(k))
   }
 
-  private[effect] trait OptionTAsync[F[_]] extends Async[OptionT[F, ?]]
-    with Sync.OptionTSync[F]
-    with LiftIO.OptionTLiftIO[F] {
+  private[effect] trait OptionTAsync[F[_]]
+      extends Async[OptionT[F, ?]]
+      with Sync.OptionTSync[F]
+      with LiftIO.OptionTLiftIO[F] {
 
-    override protected implicit def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FF = F
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => OptionT[F, Unit]): OptionT[F, A] =
@@ -433,11 +444,12 @@ object Async {
       OptionT.liftF(F.async(k))
   }
 
-  private[effect] trait StateTAsync[F[_], S] extends Async[StateT[F, S, ?]]
-    with Sync.StateTSync[F, S]
-    with LiftIO.StateTLiftIO[F, S] {
+  private[effect] trait StateTAsync[F[_], S]
+      extends Async[StateT[F, S, ?]]
+      with Sync.StateTSync[F, S]
+      with LiftIO.StateTLiftIO[F, S] {
 
-    override protected implicit def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FA = F
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => StateT[F, S, Unit]): StateT[F, S, A] =
@@ -447,11 +459,12 @@ object Async {
       StateT.liftF(F.async(k))
   }
 
-  private[effect] trait WriterTAsync[F[_], L] extends Async[WriterT[F, L, ?]]
-    with Sync.WriterTSync[F, L]
-    with LiftIO.WriterTLiftIO[F, L] {
+  private[effect] trait WriterTAsync[F[_], L]
+      extends Async[WriterT[F, L, ?]]
+      with Sync.WriterTSync[F, L]
+      with LiftIO.WriterTLiftIO[F, L] {
 
-    override protected implicit def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FA = F
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => WriterT[F, L, Unit]): WriterT[F, L, A] =
@@ -461,11 +474,9 @@ object Async {
       WriterT.liftF(F.async(k))(L, FA)
   }
 
-  private[effect] abstract class KleisliAsync[F[_], R]
-    extends Sync.KleisliSync[F, R]
-    with Async[Kleisli[F, R, ?]] {
+  abstract private[effect] class KleisliAsync[F[_], R] extends Sync.KleisliSync[F, R] with Async[Kleisli[F, R, ?]] {
 
-    override protected implicit def F: Async[F]
+    implicit override protected def F: Async[F]
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
       Kleisli(a => F.asyncF(cb => k(cb).run(a)))
@@ -474,11 +485,12 @@ object Async {
       Kleisli.liftF(F.async(k))
   }
 
-  private[effect] trait IorTAsync[F[_], L] extends Async[IorT[F, L, ?]]
-    with Sync.IorTSync[F, L]
-    with LiftIO.IorTLiftIO[F, L] {
+  private[effect] trait IorTAsync[F[_], L]
+      extends Async[IorT[F, L, ?]]
+      with Sync.IorTSync[F, L]
+      with LiftIO.IorTLiftIO[F, L] {
 
-    override implicit protected def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FA = F
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => IorT[F, L, Unit]): IorT[F, L, A] =
@@ -488,15 +500,20 @@ object Async {
       IorT.liftF(F.async(k))
   }
 
-  private[effect] trait ReaderWriterStateTAsync[F[_], E, L, S] extends Async[ReaderWriterStateT[F, E, L, S, ?]]
-    with LiftIO.ReaderWriterStateTLiftIO[F, E, L, S]
-    with Sync.ReaderWriterStateTSync[F, E, L, S] {
+  private[effect] trait ReaderWriterStateTAsync[F[_], E, L, S]
+      extends Async[ReaderWriterStateT[F, E, L, S, ?]]
+      with LiftIO.ReaderWriterStateTLiftIO[F, E, L, S]
+      with Sync.ReaderWriterStateTSync[F, E, L, S] {
 
-    override implicit protected def F: Async[F]
+    implicit override protected def F: Async[F]
     protected def FA = F
 
-    override def asyncF[A](k: (Either[Throwable, A] => Unit) => ReaderWriterStateT[F, E, L, S, Unit]): ReaderWriterStateT[F, E, L, S, A] =
-      ReaderWriterStateT((e, s) => F.map(F.asyncF((cb: Either[Throwable, A] => Unit) => F.as(k(cb).run(e, s), ())))(a => (L.empty, s, a)))
+    override def asyncF[A](
+      k: (Either[Throwable, A] => Unit) => ReaderWriterStateT[F, E, L, S, Unit]
+    ): ReaderWriterStateT[F, E, L, S, A] =
+      ReaderWriterStateT(
+        (e, s) => F.map(F.asyncF((cb: Either[Throwable, A] => Unit) => F.as(k(cb).run(e, s), ())))(a => (L.empty, s, a))
+      )
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.liftF(F.async(k))

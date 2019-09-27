@@ -34,8 +34,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
   type OptionTIO[A] = OptionT[IO, A]
   type WriterTIO[A] = WriterT[IO, Int, A]
   type KleisliIO[A] = Kleisli[IO, Int, A]
-  type StateTIO[A]  = StateT[IO, Int, A]
-  type IorTIO[A]    = IorT[IO, Int, A]
+  type StateTIO[A] = StateT[IO, Int, A]
+  type IorTIO[A] = IorT[IO, Int, A]
 
   test("Timer[IO].clock.realTime") {
     val time = System.currentTimeMillis()
@@ -78,7 +78,6 @@ class TimerTests extends AsyncFunSuite with Matchers {
       r shouldBe 10
     }
   }
-
 
   test("Timer[EitherT].clock.realTime") {
     val time = System.currentTimeMillis()

@@ -37,7 +37,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       // What we're actually testing
       bracketed = F.bracketCase(F.pure(a))(a => startLatch.complete(a) *> F.never[A]) {
         case (r, ExitCase.Canceled) => exitLatch.complete(r)
-        case (_, _) => F.unit
+        case (_, _)                 => F.unit
       }
       // Forked execution, allowing us to cancel it later
       fiber <- F.start(bracketed)
@@ -52,26 +52,29 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     received <-> F.pure(f(a, a))
   }
 
-  def asyncCancelableCoherence[A](r: Either[Throwable, A]) = {
-    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb => cb(r); F.unit }
-  }
+  def asyncCancelableCoherence[A](r: Either[Throwable, A]) =
+    F.async[A](cb => cb(r)) <-> F.cancelable[A] { cb =>
+      cb(r); F.unit
+    }
 
   def asyncCancelableReceivesCancelSignal[A](a: A) = {
     val lh = for {
       release <- Deferred.uncancelable[F, A]
-      latch    = Promise[Unit]()
-      async    = F.cancelable[Unit] { _ => latch.success(()); release.complete(a) }
-      fiber   <- F.start(async)
-      _       <- Async.fromFuture(F.pure(latch.future))
-      _       <- F.start(fiber.cancel)
-      result  <- release.get
+      latch = Promise[Unit]()
+      async = F.cancelable[Unit] { _ =>
+        latch.success(()); release.complete(a)
+      }
+      fiber <- F.start(async)
+      _ <- Async.fromFuture(F.pure(latch.future))
+      _ <- F.start(fiber.cancel)
+      result <- release.get
     } yield result
 
     lh <-> F.pure(a)
   }
 
   def asyncFRegisterCanBeCancelled[A](a: A) = {
-    val lh =  for {
+    val lh = for {
       release <- Deferred[F, A]
       acquire <- Deferred[F, Unit]
       task = F.asyncF[Unit] { _ =>
@@ -97,13 +100,11 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     lh <-> F.pure(a)
   }
 
-  def startCancelIsUnit[A](fa: F[A]) = {
+  def startCancelIsUnit[A](fa: F[A]) =
     F.start(fa).flatMap(_.cancel) <-> F.unit
-  }
 
-  def uncancelableMirrorsSource[A](fa: F[A]) = {
+  def uncancelableMirrorsSource[A](fa: F[A]) =
     F.uncancelable(fa) <-> fa
-  }
 
   def uncancelablePreventsCancelation[A](a: A) = {
     val lh = Deferred.uncancelable[F, A].flatMap { p =>
@@ -117,15 +118,15 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def acquireIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar  <- MVar[F].of(a1)
+        mVar <- MVar[F].of(a1)
         latch <- Deferred.uncancelable[F, Unit]
-        task   = F.bracket(latch.complete(()) *> mVar.put(a2))(_ => F.never[A])(_ => F.unit)
+        task = F.bracket(latch.complete(()) *> mVar.put(a2))(_ => F.never[A])(_ => F.unit)
         fiber <- F.start(task)
-        _     <- latch.get
-        _     <- F.start(fiber.cancel)
-        _     <- contextShift.shift
-        _     <- mVar.take
-        out   <- mVar.take
+        _ <- latch.get
+        _ <- F.start(fiber.cancel)
+        _ <- contextShift.shift
+        _ <- mVar.take
+        out <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
@@ -134,27 +135,25 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
   def releaseIsNotCancelable[A](a1: A, a2: A) = {
     val lh =
       for {
-        mVar  <- MVar[F].of(a1)
+        mVar <- MVar[F].of(a1)
         latch <- Deferred.uncancelable[F, Unit]
-        task   = F.bracket(latch.complete(()))(_ => F.never[A])(_ => mVar.put(a2))
+        task = F.bracket(latch.complete(()))(_ => F.never[A])(_ => mVar.put(a2))
         fiber <- F.start(task)
-        _     <- latch.get
-        _     <- F.start(fiber.cancel)
-        _     <- contextShift.shift
-        _     <- mVar.take
-        out   <- mVar.take
+        _ <- latch.get
+        _ <- F.start(fiber.cancel)
+        _ <- contextShift.shift
+        _ <- mVar.take
+        out <- mVar.take
       } yield out
 
     lh <-> F.pure(a2)
   }
 
-  def raceMirrorsLeftWinner[A](fa: F[A], default: A) = {
+  def raceMirrorsLeftWinner[A](fa: F[A], default: A) =
     F.race(fa, F.never[A]).map(_.swap.getOrElse(default)) <-> fa
-  }
 
-  def raceMirrorsRightWinner[A](fa: F[A], default: A) = {
+  def raceMirrorsRightWinner[A](fa: F[A], default: A) =
     F.race(F.never[A], fa).map(_.getOrElse(default)) <-> fa
-  }
 
   def raceCancelsLoser[A, B](r: Either[Throwable, A], leftWinner: Boolean, b: B) = {
     val received = for {
@@ -162,9 +161,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       effect <- Deferred.uncancelable[F, B]
       winner = s.acquire *> F.async[A](_(r))
       loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
-      race =
-        if (leftWinner) F.race(winner, loser)
-        else F.race(loser, winner)
+      race = if (leftWinner) F.race(winner, loser)
+      else F.race(loser, winner)
 
       b <- F.attempt(race) *> effect.get
     } yield b
@@ -217,9 +215,8 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
       effect <- Deferred.uncancelable[F, B]
       winner = s.acquire *> F.async[A](_(r))
       loser = F.bracket(s.release)(_ => F.never[A])(_ => effect.complete(b))
-      race =
-        if (leftWinner) F.racePair(winner, loser)
-        else F.racePair(loser, winner)
+      race = if (leftWinner) F.racePair(winner, loser)
+      else F.racePair(loser, winner)
 
       b <- F.attempt(race).flatMap {
         case Right(Left((_, fiber))) =>
@@ -272,16 +269,18 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     fc <-> F.pure(f(a, b))
   }
 
-  def actionConcurrentWithPureValueIsJustAction[A](fa: F[A], a: A) = (for {
-    fiber <- F.start(a.pure)
-    x <- fa
-    _ <- fiber.join
-  } yield x) <-> fa
+  def actionConcurrentWithPureValueIsJustAction[A](fa: F[A], a: A) =
+    (for {
+      fiber <- F.start(a.pure)
+      x <- fa
+      _ <- fiber.join
+    } yield x) <-> fa
 }
 
 object ConcurrentLaws {
-  def apply[F[_]](implicit F0: Concurrent[F], contextShift0: ContextShift[F]): ConcurrentLaws[F] = new ConcurrentLaws[F] {
-    val F = F0
-    val contextShift = contextShift0
-  }
+  def apply[F[_]](implicit F0: Concurrent[F], contextShift0: ContextShift[F]): ConcurrentLaws[F] =
+    new ConcurrentLaws[F] {
+      val F = F0
+      val contextShift = contextShift0
+    }
 }

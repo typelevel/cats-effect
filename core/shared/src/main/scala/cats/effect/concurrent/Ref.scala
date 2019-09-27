@@ -121,13 +121,14 @@ abstract class Ref[F[_], A] {
   def modifyState[B](state: State[A, B]): F[B]
 
   /**
-    * Modify the context `F` using transformation `f`.
-    */
+   * Modify the context `F` using transformation `f`.
+   */
   def mapK[G[_]](f: F ~> G)(implicit F: Functor[F]): Ref[G, A] =
     new TransformedRef(this, f)
 }
 
 object Ref {
+
   /**
    * Builds a `Ref` value for data types that are [[Sync]]
    *
@@ -208,6 +209,7 @@ object Ref {
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
 
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
+
     /**
      * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
      *
@@ -216,7 +218,7 @@ object Ref {
     def of[A](a: A): F[Ref[F, A]] = Ref.of(a)(F)
   }
 
-  private final class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
+  final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
 
     def get: F[A] = F.delay(ar.get)
 
@@ -266,8 +268,9 @@ object Ref {
     }
   }
 
-  private[concurrent] final class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)
-    (implicit F: Functor[F]) extends Ref[G, A]{
+  final private[concurrent] class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)(
+    implicit F: Functor[F]
+  ) extends Ref[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def set(a: A): G[Unit] = trans(underlying.set(a))
     override def getAndSet(a: A): G[A] = trans(underlying.getAndSet(a))
@@ -289,20 +292,16 @@ object Ref {
           override val get: F[B] = fa.get.map(f)
           override def set(a: B): F[Unit] = fa.set(g(a))
           override def getAndSet(a: B): F[B] = fa.getAndSet(g(a)).map(f)
-          override val access: F[(B, B => F[Boolean])] = fa.access.map {
-            _.bimap(f, _ compose g)
-          }
+          override val access: F[(B, B => F[Boolean])] =
+            fa.access.map(_.bimap(f, _.compose(g)))
           override def tryUpdate(f2: B => B): F[Boolean] =
-            fa.tryUpdate(g compose f2 compose f)
+            fa.tryUpdate(g.compose(f2).compose(f))
           override def tryModify[C](f2: B => (B, C)): F[Option[C]] =
-            fa.tryModify (
-              f2.compose(f).map(_.leftMap(g))
-            )
+            fa.tryModify(f2.compose(f).map(_.leftMap(g)))
           override def update(f2: B => B): F[Unit] =
-            fa.update(g compose f2 compose f)
-          override def modify[C](f2: B => (B, C)): F[C] = fa.modify (
-            f2.compose(f).map(_.leftMap(g))
-          )
+            fa.update(g.compose(f2).compose(f))
+          override def modify[C](f2: B => (B, C)): F[C] =
+            fa.modify(f2.compose(f).map(_.leftMap(g)))
           override def tryModifyState[C](state: State[B, C]): F[Option[C]] =
             fa.tryModifyState(state.dimap(f)(g))
           override def modifyState[C](state: State[B, C]): F[C] =

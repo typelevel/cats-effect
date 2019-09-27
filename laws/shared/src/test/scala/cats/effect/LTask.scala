@@ -32,9 +32,12 @@ import scala.util.{Either, Left, Right}
 case class LTask[A](run: ExecutionContext => Future[A])
 
 object LTask {
+
   /** For testing laws with ScalaCheck. */
   implicit def arbitrary[A](implicit A: Arbitrary[IO[A]]): Arbitrary[LTask[A]] =
-    Arbitrary(A.arbitrary.map { io => LTask(_ => io.unsafeToFuture()) })
+    Arbitrary(A.arbitrary.map { io =>
+      LTask(_ => io.unsafeToFuture())
+    })
 
   /** For testing laws with ScalaCheck. */
   implicit def cogenForLTask[A]: Cogen[LTask[A]] =
@@ -59,7 +62,9 @@ object LTask {
       def raiseError[A](e: Throwable): LTask[A] =
         LTask(_ => Future.failed(e))
       def suspend[A](thunk: => LTask[A]): LTask[A] =
-        LTask { implicit ec => Future.successful(()).flatMap(_ => thunk.run(ec)) }
+        LTask { implicit ec =>
+          Future.successful(()).flatMap(_ => thunk.run(ec))
+        }
 
       def async[A](k: (Either[Throwable, A] => Unit) => Unit): LTask[A] =
         LTask { _ =>
@@ -83,13 +88,15 @@ object LTask {
       def flatMap[A, B](fa: LTask[A])(f: A => LTask[B]): LTask[B] =
         LTask { implicit ec =>
           Future.successful(()).flatMap { _ =>
-            fa.run(ec).flatMap { a => f(a).run(ec) }
+            fa.run(ec).flatMap { a =>
+              f(a).run(ec)
+            }
           }
         }
 
       def tailRecM[A, B](a: A)(f: A => LTask[Either[A, B]]): LTask[B] =
         flatMap(f(a)) {
-          case Left(a) => tailRecM(a)(f)
+          case Left(a)  => tailRecM(a)(f)
           case Right(b) => pure(b)
         }
 
@@ -105,16 +112,17 @@ object LTask {
           }
         }
 
-      def bracketCase[A, B](acquire: LTask[A])
-          (use: A => LTask[B])
-          (release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] = for {
-        a <- acquire
-        etb <- attempt(use(a))
-        _ <- release(a, etb match {
-          case Left(e) => ExitCase.error[Throwable](e)
-          case Right(_) => ExitCase.complete
-        })
-        b <- rethrow(pure(etb))
-      } yield b
+      def bracketCase[A, B](
+        acquire: LTask[A]
+      )(use: A => LTask[B])(release: (A, ExitCase[Throwable]) => LTask[Unit]): LTask[B] =
+        for {
+          a <- acquire
+          etb <- attempt(use(a))
+          _ <- release(a, etb match {
+            case Left(e)  => ExitCase.error[Throwable](e)
+            case Right(_) => ExitCase.complete
+          })
+          b <- rethrow(pure(etb))
+        } yield b
     }
 }

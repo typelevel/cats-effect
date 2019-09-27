@@ -28,8 +28,12 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
   implicit def F: ConcurrentEffect[F]
 
   def runAsyncRunCancelableCoherence[A](fa: F[A]) = {
-    val fa1 = IO.async[A] { cb => F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync() }
-    val fa2 = IO.cancelable[A] { cb => F.toIO(F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync()) }
+    val fa1 = IO.async[A] { cb =>
+      F.runAsync(fa)(r => IO(cb(r))).unsafeRunSync()
+    }
+    val fa2 = IO.cancelable[A] { cb =>
+      F.toIO(F.runCancelable(fa)(r => IO(cb(r))).unsafeRunSync())
+    }
     fa1 <-> fa2
   }
 
@@ -37,7 +41,9 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
     val lh = Deferred.uncancelable[F, Unit].flatMap { latch =>
       val spawned = Promise[Unit]()
       // Never ending task
-      val ff = F.cancelable[A] { _ =>  spawned.success(()); latch.complete(()) }
+      val ff = F.cancelable[A] { _ =>
+        spawned.success(()); latch.complete(())
+      }
       // Execute, then cancel
       val token = F.delay(F.runCancelable(ff)(_ => IO.unit).unsafeRunSync()).flatMap { cancel =>
         // Waiting for the task to start before cancelling it
@@ -52,26 +58,28 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
     // Cancellation via runCancelable
     val f1: F[A] = for {
       effect1 <- Deferred.uncancelable[F, A]
-      latch   <- F.delay(Promise[Unit]())
-      never    = F.cancelable[A] { _ => latch.success(()); effect1.complete(a) }
-      cancel  <- F.liftIO(F.runCancelable(never)(_ => IO.unit).toIO)
+      latch <- F.delay(Promise[Unit]())
+      never = F.cancelable[A] { _ =>
+        latch.success(()); effect1.complete(a)
+      }
+      cancel <- F.liftIO(F.runCancelable(never)(_ => IO.unit).toIO)
       // Waiting for the task to start before cancelling it
-      _       <- Async.fromFuture(F.pure(latch.future))   // TODO get rid of this, IO, and Future here
-      _       <- cancel
-      result  <- effect1.get
+      _ <- Async.fromFuture(F.pure(latch.future)) // TODO get rid of this, IO, and Future here
+      _ <- cancel
+      result <- effect1.get
     } yield result
 
     // Cancellation via start.flatMap(_.cancel)
     val f2: F[A] = for {
       effect2 <- Deferred.uncancelable[F, A]
       // Using a latch to ensure that the task started
-      latch   <- Deferred.uncancelable[F, Unit]
-      never   =  F.bracket(latch.complete(()))(_ => F.never[Unit])(_ => effect2.complete(a))
-      fiber   <- F.start(never)
+      latch <- Deferred.uncancelable[F, Unit]
+      never = F.bracket(latch.complete(()))(_ => F.never[Unit])(_ => effect2.complete(a))
+      fiber <- F.start(never)
       // Waiting for the task to start before cancelling it
-      _       <- latch.get
-      _       <- F.start(fiber.cancel)
-      result  <- effect2.get
+      _ <- latch.get
+      _ <- F.start(fiber.cancel)
+      result <- effect2.get
     } yield result
 
     f1 <-> f2
@@ -82,8 +90,9 @@ trait ConcurrentEffectLaws[F[_]] extends ConcurrentLaws[F] with EffectLaws[F] {
 }
 
 object ConcurrentEffectLaws {
-  def apply[F[_]](implicit F0: ConcurrentEffect[F], contextShift0: ContextShift[F]): ConcurrentEffectLaws[F] = new ConcurrentEffectLaws[F] {
-    val F = F0
-    val contextShift = contextShift0
-  }
+  def apply[F[_]](implicit F0: ConcurrentEffect[F], contextShift0: ContextShift[F]): ConcurrentEffectLaws[F] =
+    new ConcurrentEffectLaws[F] {
+      val F = F0
+      val contextShift = contextShift0
+    }
 }

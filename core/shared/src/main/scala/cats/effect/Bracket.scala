@@ -31,6 +31,7 @@ import cats.data.Kleisli
  *         resource and that will provide the final result
  */
 trait Bracket[F[_], E] extends MonadError[F, E] {
+
   /**
    * A generalized version of [[bracket]] which uses [[ExitCase]]
    * to distinguish between different exit cases when releasing
@@ -44,8 +45,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *        this function leads to undefined behavior since it's
    *        left to the implementation.
    */
-  def bracketCase[A, B](acquire: F[A])(use: A => F[B])
-    (release: (A, ExitCase[E]) => F[Unit]): F[B]
+  def bracketCase[A, B](acquire: F[A])(use: A => F[B])(release: (A, ExitCase[E]) => F[Unit]): F[B]
 
   /**
    * Operation meant for specifying tasks with safe resource
@@ -62,9 +62,8 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    *        its exit condition. Throwing inside this function
    *        is undefined behavior since it's left to the implementation.
    */
-  def bracket[A, B](acquire: F[A])(use: A => F[B])
-    (release: A => F[Unit]): F[B] =
-      bracketCase(acquire)(use)((a, _) => release(a))
+  def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
+    bracketCase(acquire)(use)((a, _) => release(a))
 
   /**
    * Operation meant for ensuring a given task continues execution even
@@ -163,7 +162,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
    */
   def onCancel[A](fa: F[A])(finalizer: F[Unit]): F[A] =
     guaranteeCase(fa) {
-      case ExitCase.Canceled => finalizer
+      case ExitCase.Canceled                      => finalizer
       case ExitCase.Completed | ExitCase.Error(_) => unit
     }
 }
@@ -184,6 +183,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
 sealed abstract class ExitCase[+E] extends Product with Serializable
 
 object ExitCase {
+
   /**
    * An [[ExitCase]] that signals successful completion.
    *
@@ -234,7 +234,7 @@ object ExitCase {
    */
   def attempt[E, A](value: Either[E, A]): ExitCase[E] =
     value match {
-      case Left(e) => ExitCase.error(e)
+      case Left(e)  => ExitCase.error(e)
       case Right(_) => ExitCase.complete
     }
 }
@@ -250,13 +250,13 @@ object Bracket {
   implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, ?], E] =
     new KleisliBracket[F, R, E] { def F = ev }
 
-  private[effect] abstract class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, ?], E] {
+  abstract private[effect] class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, ?], E] {
 
-    protected implicit def F: Bracket[F, E]
+    implicit protected def F: Bracket[F, E]
 
     // NB: preferably we'd inherit things from `cats.data.KleisliApplicativeError`,
     // but we can't, because it's `private[data]`, so we have to delegate.
-    private[this] final val kleisliMonadError: MonadError[Kleisli[F, R, ?], E] =
+    final private[this] val kleisliMonadError: MonadError[Kleisli[F, R, ?], E] =
       Kleisli.catsDataMonadErrorForKleisli
 
     def pure[A](x: A): Kleisli[F, R, A] =
@@ -274,18 +274,18 @@ object Bracket {
     def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
       kleisliMonadError.tailRecM(a)(f)
 
-    def bracketCase[A, B](acquire: Kleisli[F, R, A])
-      (use: A => Kleisli[F, R, B])
-      (release: (A, ExitCase[E]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] = {
-
+    def bracketCase[A, B](
+      acquire: Kleisli[F, R, A]
+    )(use: A => Kleisli[F, R, B])(release: (A, ExitCase[E]) => Kleisli[F, R, Unit]): Kleisli[F, R, B] =
       Kleisli { r =>
         F.bracketCase(acquire.run(r))(a => use(a).run(r)) { (a, br) =>
           release(a, br).run(r)
         }
       }
-    }
 
     override def uncancelable[A](fa: Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli { r => F.uncancelable(fa.run(r)) }
+      Kleisli { r =>
+        F.uncancelable(fa.run(r))
+      }
   }
 }

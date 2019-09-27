@@ -196,7 +196,9 @@ class IOCancelableTests extends BaseTestsSuite {
     val io =
       IO(1).bracket { _ =>
         IO(2).bracket { _ =>
-          IO(3).bracket(_ => IO.never: IO[Unit]) { _ => IO.raiseError(dummy3) }
+          IO(3).bracket(_ => IO.never: IO[Unit]) { _ =>
+            IO.raiseError(dummy3)
+          }
         } { _ =>
           IO.raiseError(dummy2)
         }
@@ -227,7 +229,7 @@ class IOCancelableTests extends BaseTestsSuite {
     implicit val timer = ec.timer[IO]
 
     val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
-        .bracket(_ => IO.unit)(_ => IO.unit)
+      .bracket(_ => IO.unit)(_ => IO.unit)
 
     val cancelToken = io.unsafeRunCancelable(_ => ())
 

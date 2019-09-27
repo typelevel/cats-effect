@@ -136,4 +136,3 @@ class RefTests extends AsyncFunSuite with Matchers {
     run(op.map(_ shouldBe true))
   }
 }
- 

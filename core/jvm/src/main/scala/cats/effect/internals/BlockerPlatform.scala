@@ -39,26 +39,27 @@ private[effect] trait BlockerPlatform {
    * Creates a blocker backed by the `ExecutorService` returned by the
    * supplied task. The executor service is shut down upon finalization
    * of the returned resource.
-   * 
+   *
    * If there are pending tasks in the thread pool at time the returned
-   * `Blocker` is finalized, the finalizer fails with a `Blocker.OutstandingTasksAtShutdown` 
+   * `Blocker` is finalized, the finalizer fails with a `Blocker.OutstandingTasksAtShutdown`
    * exception.
    */
   def fromExecutorService[F[_]](makeExecutorService: F[ExecutorService])(implicit F: Sync[F]): Resource[F, Blocker] =
-    Resource.make(makeExecutorService) { ec =>
+    Resource
+      .make(makeExecutorService) { ec =>
         val tasks = F.delay {
           val tasks = ec.shutdownNow()
           val b = List.newBuilder[Runnable]
           val itr = tasks.iterator
-          while (itr.hasNext)
-            b += itr.next
+          while (itr.hasNext) b += itr.next
           NonEmptyList.fromList(b.result)
         }
         F.flatMap(tasks) {
           case Some(t) => F.raiseError(new OutstandingTasksAtShutdown(t))
-          case None => F.unit
+          case None    => F.unit
         }
-    }.map(es => liftExecutorService(es))
+      }
+      .map(es => liftExecutorService(es))
 
   /**
    * Creates a blocker that delegates to the supplied executor service.
@@ -68,12 +69,13 @@ private[effect] trait BlockerPlatform {
 
   /**
    * Creates a blocker that delegates to the supplied execution context.
-   * 
+   *
    * This must not be used with general purpose contexts like
    * `scala.concurrent.ExecutionContext.Implicits.global`.
    */
   def liftExecutionContext(ec: ExecutionContext): Blocker
 
   /** Thrown if there are tasks queued in the thread pool at the time a `Blocker` is finalized. */
-  final class OutstandingTasksAtShutdown(val tasks: NonEmptyList[Runnable]) extends IllegalStateException("There were outstanding tasks at time of shutdown of the thread pool")
+  final class OutstandingTasksAtShutdown(val tasks: NonEmptyList[Runnable])
+      extends IllegalStateException("There were outstanding tasks at time of shutdown of the thread pool")
 }

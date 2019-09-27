@@ -26,9 +26,8 @@ import scala.collection.immutable.Queue
 /**
  * [[MVar]] implementation for [[Async]] data types.
  */
-private[effect] final class MVarAsync[F[_], A] private (
-  initial: MVarAsync.State[A])(implicit F: Async[F])
-  extends MVar[F, A] {
+final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State[A])(implicit F: Async[F])
+    extends MVar[F, A] {
 
   import MVarAsync._
 
@@ -51,7 +50,7 @@ private[effect] final class MVarAsync[F[_], A] private (
   val take: F[A] =
     F.flatMap(tryTake) {
       case Some(a) => F.pure(a)
-      case None => F.asyncF(unsafeTake)
+      case None    => F.asyncF(unsafeTake)
     }
 
   def read: F[A] =
@@ -60,20 +59,21 @@ private[effect] final class MVarAsync[F[_], A] private (
   def isEmpty: F[Boolean] =
     F.delay {
       stateRef.get match {
-        case WaitForPut(_, _) => true
+        case WaitForPut(_, _)  => true
         case WaitForTake(_, _) => false
       }
     }
 
   @tailrec
-  private def unsafeTryPut(a: A): F[Boolean] = {
+  private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
       case WaitForTake(_, _) => F.pure(false)
 
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
         val update: State[A] =
-          if (takes.isEmpty) State(a) else {
+          if (takes.isEmpty) State(a)
+          else {
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
@@ -82,14 +82,12 @@ private[effect] final class MVarAsync[F[_], A] private (
 
         if (!stateRef.compareAndSet(current, update)) {
           unsafeTryPut(a) // retry
-        }
-        else if ((first ne null) || reads.nonEmpty) {
+        } else if ((first ne null) || reads.nonEmpty) {
           streamPutAndReads(a, reads, first)
         } else {
           F.pure(true)
         }
     }
-  }
 
   @tailrec
   private def unsafePut(a: A)(onPut: Listener[Unit]): F[Unit] =
@@ -105,7 +103,8 @@ private[effect] final class MVarAsync[F[_], A] private (
       case current @ WaitForPut(reads, takes) =>
         var first: Listener[A] = null
         val update: State[A] =
-          if (takes.isEmpty) State(a) else {
+          if (takes.isEmpty) State(a)
+          else {
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
@@ -213,8 +212,7 @@ private[effect] final class MVarAsync[F[_], A] private (
 
   private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): Unit = {
     val cursor = listeners.iterator
-    while (cursor.hasNext)
-      cursor.next().apply(value)
+    while (cursor.hasNext) cursor.next().apply(value)
   }
 
   private[this] val lightAsyncBoundary = {
@@ -227,6 +225,7 @@ private[effect] final class MVarAsync[F[_], A] private (
 }
 
 private[effect] object MVarAsync {
+
   /** Builds an [[MVarAsync]] instance with an `initial` value. */
   def apply[F[_], A](initial: A)(implicit F: Async[F]): MVar[F, A] =
     new MVarAsync[F, A](State(initial))
@@ -242,12 +241,13 @@ private[effect] object MVarAsync {
   private type Listener[-A] = Either[Nothing, A] => Unit
 
   /** ADT modelling the internal state of `MVar`. */
-  private sealed trait State[A]
+  sealed private trait State[A]
 
   /** Private [[State]] builders.*/
   private object State {
     private[this] val ref = WaitForPut[Any](Queue.empty, Queue.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, Queue.empty)
+
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
   }
@@ -260,8 +260,7 @@ private[effect] object MVarAsync {
    * @param takes are the rest of the requests waiting in line,
    *        if more than one `take` requests were registered
    */
-  private final case class WaitForPut[A](reads: Queue[Listener[A]], takes: Queue[Listener[A]])
-    extends State[A]
+  final private case class WaitForPut[A](reads: Queue[Listener[A]], takes: Queue[Listener[A]]) extends State[A]
 
   /**
    * `MVarAsync` state signaling it has one or more values enqueued,
@@ -273,7 +272,5 @@ private[effect] object MVarAsync {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  private final case class WaitForTake[A](value: A, puts: Queue[(A, Listener[Unit])])
-    extends State[A]
+  final private case class WaitForTake[A](value: A, puts: Queue[(A, Listener[Unit])]) extends State[A]
 }
-

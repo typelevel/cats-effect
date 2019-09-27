@@ -27,35 +27,33 @@ import org.scalacheck._, Prop.forAll
 trait EffectTests[F[_]] extends AsyncTests[F] {
   def laws: EffectLaws[F]
 
-  def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbT: Arbitrary[Throwable],
-    ArgIOA: Arbitrary[IO[A]],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenC: Cogen[C],
-    CogenT: Cogen[Throwable],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqT: Eq[Throwable],
-    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
-    EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    EqIOU: Eq[IO[Unit]],
-    EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
-    EqIOA: Eq[IO[A]],
-    iso: Isomorphisms[F],
-    params: Parameters): RuleSet = {
-
+  def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                   ArbFA: Arbitrary[F[A]],
+                                                                   ArbFB: Arbitrary[F[B]],
+                                                                   ArbFC: Arbitrary[F[C]],
+                                                                   ArbFU: Arbitrary[F[Unit]],
+                                                                   ArbFAtoB: Arbitrary[F[A => B]],
+                                                                   ArbFBtoC: Arbitrary[F[B => C]],
+                                                                   ArbT: Arbitrary[Throwable],
+                                                                   ArgIOA: Arbitrary[IO[A]],
+                                                                   CogenA: Cogen[A],
+                                                                   CogenB: Cogen[B],
+                                                                   CogenC: Cogen[C],
+                                                                   CogenT: Cogen[Throwable],
+                                                                   EqFA: Eq[F[A]],
+                                                                   EqFB: Eq[F[B]],
+                                                                   EqFC: Eq[F[C]],
+                                                                   EqFU: Eq[F[Unit]],
+                                                                   EqT: Eq[Throwable],
+                                                                   EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
+                                                                   EqFEitherTA: Eq[F[Either[Throwable, A]]],
+                                                                   EqFABC: Eq[F[(A, B, C)]],
+                                                                   EqFInt: Eq[F[Int]],
+                                                                   EqIOU: Eq[IO[Unit]],
+                                                                   EqIOEitherTA: Eq[IO[Either[Throwable, A]]],
+                                                                   EqIOA: Eq[IO[A]],
+                                                                   iso: Isomorphisms[F],
+                                                                   params: Parameters): RuleSet =
     new RuleSet {
       val name = "effect"
       val bases = Nil
@@ -67,9 +65,9 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
         "repeated callback ignored" -> forAll(laws.repeatedCallbackIgnored[A] _),
         "toIO is the inverse of liftIO" -> forAll(laws.toIOinverseOfLiftIO[A] _),
         "toIO is consistent with runAsync" -> forAll(laws.toIORunAsyncConsistency[A] _),
-        "toIO stack safety" -> forAll(laws.toIOStackSafety[A](params.stackSafeIterationsCount) _))
+        "toIO stack safety" -> forAll(laws.toIOStackSafety[A](params.stackSafeIterationsCount) _)
+      )
     }
-  }
 }
 
 object EffectTests {
