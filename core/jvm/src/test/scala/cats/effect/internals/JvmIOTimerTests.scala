@@ -19,7 +19,7 @@ package internals
 
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.control.NonFatal

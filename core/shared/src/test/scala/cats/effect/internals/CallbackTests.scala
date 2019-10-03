@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.internals.Callback.{Extensions, T => Callback}
 

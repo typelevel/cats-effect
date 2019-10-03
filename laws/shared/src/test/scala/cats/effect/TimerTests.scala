@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.implicits._
 import cats.data._
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
 import scala.concurrent.ExecutionContext

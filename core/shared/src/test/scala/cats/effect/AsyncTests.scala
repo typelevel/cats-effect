@@ -22,7 +22,8 @@ import cats.effect.implicits._
 import cats.implicits._
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.{Matchers, Succeeded}
+import org.scalatest.Succeeded
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

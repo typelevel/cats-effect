@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
 final class LinkedMapTests extends AnyFunSuite with Matchers {
