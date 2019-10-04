@@ -19,9 +19,8 @@ trait Fiber[F[_], A] {
 
 For example a `Fiber` value is the result of evaluating `IO.start`:
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.{Fiber, IO}
-import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 // Needed for `start`
@@ -33,8 +32,15 @@ val fiber: IO[Fiber[IO, Unit]] = io.start
 
 Usage example:
 
-```tut:silent
-val launchMissiles = IO.raiseError(new Exception("boom!"))
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
+import cats.syntax.apply._
+
+import scala.concurrent.ExecutionContext
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
+val launchMissiles: IO[Unit] = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
 
 for {

@@ -8,9 +8,9 @@ scaladoc: "#cats.effect.Resource"
 
 Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance.
 
-The [Acquiring and releasing `Resource`s](../tutorial/tutorial.html#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
+The [Acquiring and releasing `Resource`s](../tutorial/tutorial.md#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.Bracket
 
 abstract class Resource[F[_], A] {
@@ -22,9 +22,8 @@ Nested resources are released in reverse order of acquisition. Outer resources a
 
 You can lift any `F[A]` with an `Applicative` instance into a `Resource[F, A]` with a no-op release via `Resource.liftF`:
 
-```
+```scala mdoc:reset
 import cats.effect.{IO, Resource}
-import cats.implicits._
 
 val greet: String => IO[Unit] = x => IO(println("Hello " ++ x))
 
@@ -33,23 +32,23 @@ Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
 
 Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `evalMap`:
 
-```
+```scala mdoc:reset
 import cats.effect.{IO, Resource}
 import cats.implicits._
 
 val acquire: IO[String] = IO(println("Acquire cats...")) *> IO("cats")
-val release: String => IO[Unit] = x => IO(println("...release everything"))
+val release: String => IO[Unit] = _ => IO(println("...release everything"))
 val addDogs: String => IO[String] = x =>
   IO(println("...more animals...")) *> IO.pure(x ++ " and dogs")
 val report: String => IO[String] = x =>
   IO(println("...produce weather report...")) *> IO("It's raining " ++ x)
 
 Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
-
 ```
+
 ### Example
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect.{IO, Resource}
 import cats.implicits._
 
@@ -75,7 +74,7 @@ If using an AutoCloseable create a resource without the need to specify how to c
 
 #### With `scala.io.Source`
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect._
 
 val acquire = IO {
@@ -87,7 +86,7 @@ Resource.fromAutoCloseable(acquire).use(source => IO(println(source.mkString))).
 
 #### With `java.io` using IO
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.io._
 import collection.JavaConverters._
 import cats.effect._
@@ -109,7 +108,7 @@ def readLinesFromFile(file: File): IO[List[String]] = {
 
 #### A `java.io` example agnostic of the effect type
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.io._
 import cats.effect._
 

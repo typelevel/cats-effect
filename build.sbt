@@ -345,8 +345,10 @@ lazy val siteSettings = Seq(
       Map("section" -> "home", "position" -> "0")
     )
   ),
-  fork in tut := true,
-  scalacOptions in Tut ~= (_.filterNot(
+  micrositeCompilingDocsTool := WithMdoc,
+  mdocIn := (sourceDirectory in Compile).value / "mdoc",
+  fork in mdoc := true,
+  scalacOptions in mdoc ~= (_.filterNot(
     Set(
       "-Xfatal-warnings",
       "-Ywarn-numeric-widen",
@@ -365,8 +367,7 @@ lazy val siteSettings = Seq(
 
 lazy val microsite = project
   .in(file("site"))
-  .enablePlugins(MicrositesPlugin)
-  .enablePlugins(SiteScaladocPlugin)
+  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(siteSettings)
   .dependsOn(coreJVM, lawsJVM)

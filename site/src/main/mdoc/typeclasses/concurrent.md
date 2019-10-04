@@ -17,8 +17,8 @@ Due to these restrictions, this type class also affords to describe a `Concurren
 
 Without cancellation being baked in, we couldn't afford to do it.
 
-```tut:silent
-import cats.effect.{Async, Fiber, IO, CancelToken}
+```scala mdoc:silent
+import cats.effect.{Async, Fiber, CancelToken}
 
 trait Concurrent[F[_]] extends Async[F] {
   def start[A](fa: F[A]): F[Fiber[F, A]]

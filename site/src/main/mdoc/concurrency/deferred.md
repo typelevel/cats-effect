@@ -13,7 +13,7 @@ A purely functional synchronization primitive which represents a single value wh
 
 When created, a `Deferred` is empty. It can then be completed exactly once, and never be made empty again.
 
-```tut:silent
+```scala mdoc:silent
 abstract class Deferred[F[_], A] {
   def get: F[A]
   def complete(a: A): F[Unit]
@@ -44,7 +44,7 @@ Whenever you are in a scenario when many processes can modify the same value but
 
 Two processes will try to complete at the same time but only one will succeed, completing the deferred primitive exactly once. The loser one will raise an error when trying to complete a deferred already completed and automatically be canceled by the `IO.race` mechanism, that’s why we call attempt on the evaluation.
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect.IO
 import cats.effect.concurrent.Deferred
 import cats.implicits._
@@ -79,7 +79,7 @@ However `Deferred` can also work with `Async` data types, or
 in situations where the cancelable behavior isn't desirable.
 To do so you can use the `uncancelable` builder:
 
-```tut:silent
+```scala mdoc:silent
 Deferred.uncancelable[IO, Int]
 ```
 

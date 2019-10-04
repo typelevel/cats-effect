@@ -20,9 +20,9 @@ It does all of that in an `F[_]` monadic context that can suspend side effects a
 
 This is NOT a typeclass, as it does not have the coherence requirement.
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.Clock
-import scala.concurrent.duration.{FiniteDuration, TimeUnit}
+import scala.concurrent.duration.FiniteDuration
 
 trait Timer[F[_]] {
   def clock: Clock[F]
@@ -32,10 +32,11 @@ trait Timer[F[_]] {
 
 As mentioned in the `IO` documentation, there's a default instance of `Timer[IO]` available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:
 
-```tut:reset:silent
+```scala mdoc:reset:silent
 import java.util.concurrent.ScheduledExecutorService
 
 import cats.effect.{IO, Timer, Clock}
+import cats.syntax.functor._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -57,7 +58,7 @@ final class MyTimer(ec: ExecutionContext, sc: ScheduledExecutorService) extends 
         })
       }
       val f = sc.schedule(tick, timespan.length, timespan.unit)
-      IO(f.cancel(false))
+      IO(f.cancel(false)).void
     }
 }
 ```
@@ -73,5 +74,5 @@ These properties only apply on the JVM.
 
 Also see these related data types:
 
-- [Clock](./clock.html): for time measurements and getting the current clock
-- [ContextShift](./contextshift.html): the pure equivalent of an `ExecutionContext`
+- [Clock](./clock.md): for time measurements and getting the current clock
+- [ContextShift](./contextshift.md): the pure equivalent of an `ExecutionContext`

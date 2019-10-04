@@ -20,7 +20,7 @@ or other actions that are problematic.
   
 The interface looks like this:
 
-```tut:silent
+```scala mdoc:silent
 import scala.concurrent.ExecutionContext
 
 trait ContextShift[F[_]] {
@@ -43,7 +43,7 @@ For example, say we wanted to ensure that the current thread
 isn't occupied forever on long running operations, we could do
 something like this:
 
-```tut:reset:silent
+```scala mdoc:reset:silent
 import cats.effect._
 import cats.implicits._
 
@@ -70,7 +70,7 @@ The `evalOn` operation is about executing a side effectful operation on
 a specific `ExecutionContext`, but then "return" to the "default"
 thread-pool or run-loop for the bind continuation.
 
-```tut:silent
+```scala mdoc:silent
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 import cats.effect._
@@ -108,8 +108,7 @@ object MyApp extends IOApp {
 
 `Blocker` provides an `ExecutionContext` that is intended for executing blocking tasks and integrates directly with `ContextShift`. The previous example with `Blocker` looks like this:
 
-```tut:silent
-import scala.concurrent.ExecutionContext
+```scala mdoc:reset:silent
 import cats.effect._
 
 def readName[F[_]: Sync: ContextShift](blocker: Blocker): F[String] = 

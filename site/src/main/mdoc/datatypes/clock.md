@@ -26,7 +26,7 @@ The reason for providing this data type is two-fold:
   
 The interface looks like this:
 
-```tut:silent
+```scala mdoc:silent
 import scala.concurrent.duration.TimeUnit
 
 trait Clock[F[_]] {
@@ -44,7 +44,7 @@ logic is essential.
 
 Example:
 
-```tut:reset:silent
+```scala mdoc:reset:silent
 import cats.effect._
 import cats.implicits._
 import scala.concurrent.duration.MILLISECONDS

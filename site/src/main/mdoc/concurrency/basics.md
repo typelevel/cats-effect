@@ -117,7 +117,7 @@ pool for blocking operations. This way they won't interfere with CPU-bound part 
 `cats.effect.IO` and `monix.eval.Task` provide `shift` operator which can switch computation to different thread pool.
 If you need to execute blocking operation and come back consider using `ContextShift.evalOn` which is meant for this use case:
 
-```tut:silent
+```scala mdoc:silent
 import java.util.concurrent.Executors
 import cats.effect.{ContextShift, IO}
 import scala.concurrent.ExecutionContext
@@ -154,7 +154,7 @@ with this model.
 
 ## Thread Scheduling
 Working with `cats.effect.IO` you should notice a lot of calls to `IO.shift`, described
-in [Thread Shifting section in `IO` documentation](./../datatypes/io.html#thread-shifting)
+in [Thread Shifting section in `IO` documentation](./../datatypes/io.md#thread-shifting)
 
 This function allows to shift computation to different thread pool or simply send it to current `ExecutionContext`
 to schedule it again. This is often called introducing **asynchronous boundary**.
@@ -181,10 +181,9 @@ we can decide when we yield to other threads from the same pool by calling `shif
 Calling `IO.shift` schedules the work again, so if there are other `IO`s waiting to execute, they can have their chance.
 Allowing different threads to advance their work is called **fairness**. Let's illustrate this:
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.util.concurrent.Executors
 import cats.effect.{ContextShift, Fiber, IO}
-import cats.syntax.apply._
 import scala.concurrent.ExecutionContext
 
 val ecOne = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
@@ -200,12 +199,12 @@ def infiniteIO(id: Int)(cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
 }
 ```
 
-We have two single threaded `ExecutionContexts` (wrapped in [ContextShift](./../datatypes/contextshift.html))
+We have two single threaded `ExecutionContexts` (wrapped in [ContextShift](./../datatypes/contextshift.md))
 and a function that will run `IO`, forever printing its identifier.
 Note `repeat.start` and return type of `IO[Fiber[IO, Unit]]` which means that we run this computation in the background.
 It will run on thread pool provided by `cs`, which we will pass explicitly:
 
-```scala
+```scala mdoc:compile-only
 val prog =
   for {
     _ <- infiniteIO(1)(csOne)
@@ -220,8 +219,8 @@ completion before it can schedule the other one.
 
 How about two thread pools?
 
-```scala
-val prog =
+```scala mdoc:compile-only
+val program =
   for {
     _ <- infiniteIO(1)(csOne)
     _ <- infiniteIO(11)(csOne)
@@ -229,7 +228,7 @@ val prog =
     _ <- infiniteIO(22)(csTwo)
   } yield ()
 
-prog.unsafeRunSync()
+program.unsafeRunSync()
 ```
 
 Now it will keep printing both `1` and `2` but neither `11` nor `22`. What changed?
@@ -238,7 +237,18 @@ Basically, the thread pool decides which task gets a thread to run but the OS de
 
 Let's introduce asynchronous boundaries:
 
-```scala
+```scala mdoc:compile-only
+import java.util.concurrent.Executors
+import cats.effect.{ContextShift, Fiber, IO}
+import cats.syntax.apply._
+import scala.concurrent.ExecutionContext
+
+val ecOne = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+val ecTwo = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+
+val csOne: ContextShift[IO] = IO.contextShift(ecOne)
+val csTwo: ContextShift[IO] = IO.contextShift(ecTwo)
+
 def infiniteIO(id: Int)(implicit cs: ContextShift[IO]): IO[Fiber[IO, Unit]] = {
   def repeat: IO[Unit] = IO(println(id)).flatMap(_ => IO.shift *> repeat)
 

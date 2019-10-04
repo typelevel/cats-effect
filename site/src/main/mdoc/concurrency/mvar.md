@@ -12,7 +12,7 @@ scaladoc: "#cats.effect.concurrent.MVar"
 An `MVar` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
-```tut:silent
+```scala
 abstract class MVar[F[_], A] {
   def put(a: A): F[Unit]
   def take: F[A]
@@ -68,7 +68,7 @@ except that there's no actual thread blocking involved and it is powered by data
 
 ## Use-case: Synchronized Mutable Variables
 
-```tut:invisible
+```scala mdoc:invisible
 import cats.effect.laws.util.TestContext
 import cats.effect.IO
 
@@ -76,10 +76,9 @@ implicit val ec = TestContext()
 implicit val cs = IO.contextShift(ec)
 ```
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect._
 import cats.effect.concurrent._
-import cats.syntax.all._
 
 def sum(state: MVar[IO, Int], list: List[Int]): IO[Int] =
   list match {
@@ -110,7 +109,7 @@ this sample to be *safe*, then we need extra synchronization.
 The `take` operation can act as "acquire" and `put` can act as the "release".
 Let's do it:
 
-```tut:silent
+```scala mdoc:silent
 final class MLock(mvar: MVar[IO, Unit]) {
   def acquire: IO[Unit] =
     mvar.take
@@ -137,7 +136,10 @@ But we also need some back-pressure, so we need to wait on the
 consumer to consume the last event before being able to generate
 a new event.
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect._
+import cats.effect.concurrent._
+
 // Signaling option, because we need to detect completion
 type Channel[A] = MVar[IO, Option[A]]
 

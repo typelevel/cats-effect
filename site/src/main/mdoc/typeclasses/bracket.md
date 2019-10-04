@@ -13,7 +13,7 @@ acquisition and release in the face of errors or interruption.
 Important note, throwing in `release` function is undefined since the behavior is left to the
 concrete implementations (ex. cats-effect `Bracket[IO]`, Monix `Bracket[Task]` or ZIO).
 
-```tut:silent
+```scala mdoc:silent
 import cats.MonadError
 
 sealed abstract class ExitCase[+E]
