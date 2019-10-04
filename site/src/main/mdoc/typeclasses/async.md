@@ -8,9 +8,8 @@ scaladoc: "#cats.effect.Async"
 
 A `Monad` that can describe asynchronous or synchronous computations that produce exactly one result.
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.{LiftIO, Sync}
-import scala.concurrent.ExecutionContext
 
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): F[A]
@@ -62,12 +61,11 @@ This is approximately the signature of JavaScript's `setTimeout`, which will ret
 
 The `async` method has an interesting signature that is nothing more than the representation of a callback-based API function. For example, consider the following example having an API that returns a `Future[String]` as a response:
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect.{IO, Async}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.{Success, Failure}
 
 val apiCall = Future.successful("I come from the Future!")
 

@@ -12,7 +12,7 @@ In addition to the algebras of `Concurrent` and `Effect`, instances must also im
 
 *Note this is the safe and generic version of `IO.unsafeRunCancelable`*.
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.{Concurrent, Effect, IO, CancelToken, SyncIO}
 
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
@@ -20,9 +20,9 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
 }
 ```
 
-This `runCancelable` operation actually mirrors the `cancelable` builder in [Concurrent](./concurrent.html). With the `runCancelable` and `cancelable` pair one is then able to convert between `ConcurrentEffect` data types:
+This `runCancelable` operation actually mirrors the `cancelable` builder in [Concurrent](./concurrent.md). With the `runCancelable` and `cancelable` pair one is then able to convert between `ConcurrentEffect` data types:
 
-```tut:reset:silent
+```scala mdoc:reset:silent
 import cats.effect._
 
 def convert[F[_], G[_], A](fa: F[A])

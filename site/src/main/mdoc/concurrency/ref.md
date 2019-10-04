@@ -11,7 +11,7 @@ scaladoc: "#cats.effect.concurrent.Ref"
 
 An asynchronous, concurrent mutable reference.
 
-```tut:silent
+```scala mdoc:silent
 abstract class Ref[F[_], A] {
   def get: F[A]
   def set(a: A): F[Unit]
@@ -41,7 +41,7 @@ The workers will concurrently run and modify the value of the Ref so this is one
 #2 >> 1
 ```
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref
 import cats.implicits._

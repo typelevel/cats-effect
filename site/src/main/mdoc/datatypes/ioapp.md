@@ -7,7 +7,7 @@ scaladoc: "#cats.effect.IOApp"
 ---
 
 `IOApp` is a safe application type that describes a `main` 
-which executes a [cats.effect.IO](./io.html), as an entry point to 
+which executes a [cats.effect.IO](./io.md), as an entry point to 
 a pure FP program.
 
 <nav role="navigation" id="toc"></nav>
@@ -18,7 +18,7 @@ Currently in order to specify an entry point to a Java application,
 which executes a pure FP program (with side effects suspended and
 described by `IO`), you have to do something like this:
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect._
 import cats.syntax.all._
 import scala.concurrent.duration._
@@ -29,7 +29,7 @@ object Main {
   implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
   
   def program(args: List[String]): IO[Unit] =
-    IO.sleep(1.second) *> IO(println("Hello world!"))
+    IO.sleep(1.second) *> IO(println(s"Hello world!. Args $args"))
     
   def main(args: Array[String]): Unit =
     program(args.toList).unsafeRunSync
@@ -42,7 +42,7 @@ That's dirty, error prone and doesn't work on top of JavaScript.
 
 You can now use `cats.effect.IOApp` to describe pure programs:
 
-```tut:reset:silent
+```scala mdoc:reset:silent
 import cats.effect._
 import cats.syntax.all._
 
@@ -89,7 +89,7 @@ and safely release any resources.
 
 For example:
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect.ExitCase.Canceled
 import cats.effect._
 import cats.syntax.all._
@@ -134,14 +134,14 @@ for working with `Concurrent` and thus for getting the
 `ConcurrentEffect` necessary to evaluate an `IO`. It also needs a
 `Timer[IO]` in scope for utilities such as `IO.sleep` and `timeout`.
  
-[ContextShift](../datatypes/contextshift.html) and
-[Timer](../datatypes/timer.html) are provided by the environment and
+[ContextShift](../datatypes/contextshift.md) and
+[Timer](../datatypes/timer.md) are provided by the environment and
 in this case the environment is the `IOApp`. Monix's
 [Task](https://monix.io/docs/3x/eval/task.html) however has global
 `ContextShift[Task]` and `Timer[Task]` always in scope and doesn't
 need them, but it does need a
 [Scheduler](https://monix.io/docs/3x/execution/scheduler.html) to be
-available for the necessary [Effect](effect.html) instance. And both
+available for the necessary [Effect](../typeclasses/effect.md) instance. And both
 Cats-Effect's `IO` and Monix's `Task` are cancelable, in which case it
 is desirable for the `IOApp` / `TaskApp` to install shutdown handlers
 to execute in case of interruption, however our type classes can also
@@ -155,7 +155,7 @@ for its needs. For example Monix's `Task` comes with its own `TaskApp`.
 That said `IOApp` can be used for any `F[_]`, because any `Effect`
 or `ConcurrentEffect` can be converted to `IO`. Example:
 
-```tut:silent
+```scala mdoc:reset:silent
 import cats.effect._
 import cats.data.EitherT
 
