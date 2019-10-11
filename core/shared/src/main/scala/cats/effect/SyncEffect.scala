@@ -30,13 +30,13 @@ trait SyncEffect[F[_]] extends Sync[F] {
   /**
    * Convert to any other type that implements `Sync`.
    */
-  def to[G[_], A](fa: F[A])(implicit G: Sync[G]): G[A]
+  def runSync[G[_], A](fa: F[A])(implicit G: Sync[G]): G[A]
 
   /**
-   * [[SyncEffect.to]] as a natural transformation.
+   * [[SyncEffect.runSync]] as a natural transformation.
    */
-  def toK[G[_]](implicit G: Sync[G]): F ~> G = new (F ~> G) {
-    def apply[A](fa: F[A]): G[A] = to[G, A](fa)
+  def runSyncK[G[_]](implicit G: Sync[G]): F ~> G = new (F ~> G) {
+    def apply[A](fa: F[A]): G[A] = runSync[G, A](fa)
   }
 }
 
@@ -61,8 +61,8 @@ object SyncEffect {
 
     protected def F: SyncEffect[F]
 
-    def to[G[_], A](fa: EitherT[F, Throwable, A])(implicit G: Sync[G]): G[A] =
-      F.to(F.rethrow(fa.value))
+    def runSync[G[_], A](fa: EitherT[F, Throwable, A])(implicit G: Sync[G]): G[A] =
+      F.runSync(F.rethrow(fa.value))
   }
 
   private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, ?]]
@@ -71,7 +71,7 @@ object SyncEffect {
     protected def F: SyncEffect[F]
     protected def L: Monoid[L]
 
-    def to[G[_], A](fa: WriterT[F, L, A])(implicit G: Sync[G]): G[A] =
-      F.to(F.map(fa.run)(_._2))
+    def runSync[G[_], A](fa: WriterT[F, L, A])(implicit G: Sync[G]): G[A] =
+      F.runSync(F.map(fa.run)(_._2))
   }
 }

@@ -377,7 +377,7 @@ object SyncIO extends SyncIOInstances {
 private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstances {
 
   implicit val syncIOsyncEffect: SyncEffect[SyncIO] = new SyncIOSync with SyncEffect[SyncIO] {
-    final override def to[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
+    final override def runSync[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
       G.delay(fa.unsafeRunSync())
   }
 
