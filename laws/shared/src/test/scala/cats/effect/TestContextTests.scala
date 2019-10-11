@@ -22,16 +22,18 @@ import scala.util.{Failure, Success}
 
 class TestContextTests extends BaseTestsSuite {
   testAsync("recursive loop") { implicit ec =>
-    def loop(n: Int, sum: Long): Future[Long] = {
-      if (n <= 0) Future(sum) else {
+    def loop(n: Int, sum: Long): Future[Long] =
+      if (n <= 0) Future(sum)
+      else {
         val f1 = Future(n - 1)
         val f2 = Future(sum + n)
 
         f1.flatMap { newN =>
-          f2.flatMap { newSum => loop(newN, newSum) }
+          f2.flatMap { newSum =>
+            loop(newN, newSum)
+          }
         }
       }
-    }
 
     val n = 10000
     val f = loop(n, 0)
@@ -154,12 +156,12 @@ class TestContextTests extends BaseTestsSuite {
   }
 
   testAsync("timer.sleep is cancelable") { ec =>
-    def callback[A](p: Promise[A]): (Either[Throwable, A] => Unit) =
-      r => p.complete(
-        r match {
-          case Left(e) => Failure(e)
-          case Right(a) => Success(a)
-        })
+    def callback[A](p: Promise[A]): (Either[Throwable, A] => Unit) = r => {
+      p.complete(r match {
+        case Left(e)  => Failure(e)
+        case Right(a) => Success(a)
+      })
+    }
 
     val timer = ec.timer[IO]
     val delay = timer.sleep(10.seconds).map(_ => 1)

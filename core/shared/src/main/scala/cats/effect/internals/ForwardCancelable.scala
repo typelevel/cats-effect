@@ -29,7 +29,7 @@ import scala.util.control.NonFatal
  *
  * Used in the implementation of `bracket`, see [[IOBracket]].
  */
-private[effect] final class ForwardCancelable private () {
+final private[effect] class ForwardCancelable private () {
   import ForwardCancelable._
 
   private[this] val state = new AtomicReference[State](init)
@@ -73,9 +73,10 @@ private[effect] final class ForwardCancelable private () {
 }
 
 private[effect] object ForwardCancelable {
+
   /**
-    * Builds reference.
-    */
+   * Builds reference.
+   */
   def apply(): ForwardCancelable =
     new ForwardCancelable
 
@@ -90,12 +91,10 @@ private[effect] object ForwardCancelable {
    *  - on `cancel`, if the state was [[Active]], or if it was [[Empty]],
    *    regardless, the state transitions to `Active(IO.unit)`, aka [[finished]]
    */
-  private sealed abstract class State
+  sealed abstract private class State
 
-  private final case class Empty(stack: List[Callback.T[Unit]])
-    extends State
-  private final case class Active(token: CancelToken[IO])
-    extends State
+  final private case class Empty(stack: List[Callback.T[Unit]]) extends State
+  final private case class Active(token: CancelToken[IO]) extends State
 
   private val init: State = Empty(Nil)
   private val finished: State = Active(IO.unit)
@@ -106,7 +105,9 @@ private[effect] object ForwardCancelable {
       def run(): Unit =
         token.unsafeRunAsync { r =>
           for (cb <- stack)
-            try { cb(r) } catch {
+            try {
+              cb(r)
+            } catch {
               // $COVERAGE-OFF$
               case NonFatal(e) => Logger.reportFailure(e)
               // $COVERAGE-ON$

@@ -26,82 +26,91 @@ import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
 
-  checkAllAsync("StateT[IO, S, ?]",
-    implicit ec =>
-      AsyncTests[StateT[IO, Int, ?]].async[Int, Int, Int])
+  checkAllAsync("StateT[IO, S, ?]", implicit ec => AsyncTests[StateT[IO, Int, ?]].async[Int, Int, Int])
 
-  checkAllAsync("StateT[IO, S, ?]",
+  checkAllAsync(
+    "StateT[IO, S, ?]",
     implicit ec => {
       val fromState = λ[State[Int, ?] ~> StateT[IO, Int, ?]](st => StateT(s => IO.pure(st.run(s).value)))
       BracketTests[StateT[IO, Int, ?], Throwable].bracketTrans[State[Int, ?], Int, Int](fromState)
-    })
+    }
+  )
 
-  checkAllAsync("OptionT[IO, ?]",
-    implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int]
-    })
+  checkAllAsync("OptionT[IO, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    ConcurrentTests[OptionT[IO, ?]].concurrent[Int, Int, Int]
+  })
 
-  checkAllAsync("OptionT[IO, ?]",
+  checkAllAsync(
+    "OptionT[IO, ?]",
     implicit ec => {
       val fromOption = λ[Option ~> OptionT[IO, ?]](OptionT.fromOption(_))
       BracketTests[OptionT[IO, ?], Throwable].bracketTrans[Option, Int, Int](fromOption)
-    })
+    }
+  )
 
-  checkAllAsync("Kleisli[IO, ?]",
-    implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int]
-    })
+  checkAllAsync("Kleisli[IO, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    ConcurrentTests[Kleisli[IO, Int, ?]].concurrent[Int, Int, Int]
+  })
 
-  checkAllAsync("Kleisli[IO, ?]",
-    implicit ec => BracketTests[Kleisli[IO, Int, ?], Throwable].bracket[Int, Int, Int])
+  checkAllAsync("Kleisli[IO, ?]", implicit ec => BracketTests[Kleisli[IO, Int, ?], Throwable].bracket[Int, Int, Int])
 
-  checkAllAsync("EitherT[IO, Throwable, ?]",
+  checkAllAsync(
+    "EitherT[IO, Throwable, ?]",
     implicit ec => {
       implicit val cs = ec.contextShift[IO]
       ConcurrentEffectTests[EitherT[IO, Throwable, ?]].concurrentEffect[Int, Int, Int]
-    })
+    }
+  )
 
-  checkAllAsync("EitherT[IO, Throwable, ?]",
+  checkAllAsync(
+    "EitherT[IO, Throwable, ?]",
     implicit ec => {
       val fromEither = λ[Either[Throwable, ?] ~> EitherT[IO, Throwable, ?]](EitherT.fromEither(_))
       BracketTests[EitherT[IO, Throwable, ?], Throwable].bracketTrans[Either[Throwable, ?], Int, Int](fromEither)
-    })
+    }
+  )
 
-  checkAllAsync("WriterT[IO, Int, ?]",
-    implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
-    })
+  checkAllAsync("WriterT[IO, Int, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    ConcurrentEffectTests[WriterT[IO, Int, ?]].concurrentEffect[Int, Int, Int]
+  })
 
-  checkAllAsync("WriterT[IO, Int, ?]",
+  checkAllAsync(
+    "WriterT[IO, Int, ?]",
     implicit ec => {
       val fromWriter = λ[Writer[Int, ?] ~> WriterT[IO, Int, ?]](w => WriterT(IO.pure(w.run)))
       BracketTests[WriterT[IO, Int, ?], Throwable].bracketTrans[Writer[Int, ?], Int, Int](fromWriter)
-    })
+    }
+  )
 
-  checkAllAsync("IorT[IO, Int, ?]",
-    implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      ConcurrentTests[IorT[IO, Int, ?]].concurrent[Int, Int, Int]
-    })
+  checkAllAsync("IorT[IO, Int, ?]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    ConcurrentTests[IorT[IO, Int, ?]].concurrent[Int, Int, Int]
+  })
 
-  checkAllAsync("IorT[IO, Int, ?]",
+  checkAllAsync(
+    "IorT[IO, Int, ?]",
     implicit ec => {
       val fromIor = λ[Ior[Int, ?] ~> IorT[IO, Int, ?]](IorT.fromIor(_))
       BracketTests[IorT[IO, Int, ?], Throwable].bracketTrans[Ior[Int, ?], Int, Int](fromIor)
-    })
+    }
+  )
 
   checkAllAsync("ReaderWriterStateT[IO, S, ?]",
-    implicit ec =>
-      AsyncTests[ReaderWriterStateT[IO, Int, Int, Int, ?]].async[Int, Int, Int])
+                implicit ec => AsyncTests[ReaderWriterStateT[IO, Int, Int, Int, ?]].async[Int, Int, Int])
 
-  checkAllAsync("ReaderWriterStateT[IO, S, ?]",
+  checkAllAsync(
+    "ReaderWriterStateT[IO, S, ?]",
     implicit ec => {
-      val fromReaderWriterState = λ[ReaderWriterState[Int, Int, Int, ?] ~> ReaderWriterStateT[IO, Int, Int, Int, ?]](st => ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value)))
-      BracketTests[ReaderWriterStateT[IO, Int, Int, Int, ?], Throwable].bracketTrans[ReaderWriterState[Int, Int, Int, ?], Int, Int](fromReaderWriterState)
-    })
+      val fromReaderWriterState = λ[ReaderWriterState[Int, Int, Int, ?] ~> ReaderWriterStateT[IO, Int, Int, Int, ?]](
+        st => ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value))
+      )
+      BracketTests[ReaderWriterStateT[IO, Int, Int, Int, ?], Throwable]
+        .bracketTrans[ReaderWriterState[Int, Int, Int, ?], Int, Int](fromReaderWriterState)
+    }
+  )
 
   implicit def kleisliEq[F[_], R: Monoid, A](implicit FA: Eq[F[A]]): Eq[Kleisli[F, R, A]] =
     Eq.by(_.run(Monoid[R].empty))
@@ -109,6 +118,8 @@ class InstancesTests extends BaseTestsSuite {
   implicit def stateTEq[F[_]: FlatMap, S: Monoid, A](implicit FSA: Eq[F[(S, A)]]): Eq[StateT[F, S, A]] =
     Eq.by[StateT[F, S, A], F[(S, A)]](state => state.run(Monoid[S].empty))
 
-  implicit def readerWriterStateTEq[F[_]: Monad, E: Monoid, L, S: Monoid, A](implicit FLSA: Eq[F[(L, S, A)]]): Eq[ReaderWriterStateT[F, E, L, S, A]] =
+  implicit def readerWriterStateTEq[F[_]: Monad, E: Monoid, L, S: Monoid, A](
+    implicit FLSA: Eq[F[(L, S, A)]]
+  ): Eq[ReaderWriterStateT[F, E, L, S, A]] =
     Eq.by(_.run(Monoid[E].empty, Monoid[S].empty))
 }

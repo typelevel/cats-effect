@@ -29,6 +29,7 @@ import scala.util.{Failure, Success}
  * asynchronous execution.
  */
 trait TestInstances {
+
   /**
    * Defines equality for `IO` references that can
    * get interpreted by means of a [[TestContext]].
@@ -40,9 +41,9 @@ trait TestInstances {
     }
 
   /**
-    * Defines equality for `IO.Par` references that can
-    * get interpreted by means of a [[TestContext]].
-    */
+   * Defines equality for `IO.Par` references that can
+   * get interpreted by means of a [[TestContext]].
+   */
   implicit def eqIOPar[A](implicit A: Eq[A], ec: TestContext): Eq[IO.Par[A]] =
     new Eq[IO.Par[A]] {
       import IO.Par.unwrap
@@ -66,12 +67,12 @@ trait TestInstances {
           case Some(Success(a)) =>
             y.value match {
               case Some(Success(b)) => A.eqv(a, b)
-              case _ => false
+              case _                => false
             }
           case Some(Failure(ex)) =>
             y.value match {
               case Some(Failure(ey)) => eqThrowable.eqv(ex, ey)
-              case _ => false
+              case _                 => false
             }
         }
       }
@@ -79,14 +80,13 @@ trait TestInstances {
 
   implicit val eqThrowable: Eq[Throwable] =
     new Eq[Throwable] {
-      def eqv(x: Throwable, y: Throwable): Boolean = {
+      def eqv(x: Throwable, y: Throwable): Boolean =
         // All exceptions are non-terminating and given exceptions
         // aren't values (being mutable, they implement reference
         // equality), then we can't really test them reliably,
         // especially due to race conditions or outside logic
         // that wraps them (e.g. ExecutionException)
         (x ne null) == (y ne null)
-      }
     }
 
   /**

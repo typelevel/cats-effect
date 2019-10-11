@@ -37,11 +37,12 @@ private[effect] object Callback {
   private val reportRef = (r: Either[Throwable, _]) =>
     r match {
       case Left(e) => Logger.reportFailure(e)
-      case _ => ()
+      case _       => ()
     }
 
   /** Reusable `Right(())` reference. */
   val rightUnit = Right(())
+
   /** Reusable `Success(())` reference. */
   val successUnit = Success(())
 
@@ -58,14 +59,14 @@ private[effect] object Callback {
    * Also pops the `Connection` just before triggering
    * the underlying callback.
    */
-  def async[A](conn: IOConnection, cb: T[A]): T[A] =
-    value => immediate.execute(
-      new Runnable {
-        def run(): Unit = {
-          if (conn ne null) conn.pop()
-          cb(value)
-        }
-      })
+  def async[A](conn: IOConnection, cb: T[A]): T[A] = { value =>
+    immediate.execute(new Runnable {
+      def run(): Unit = {
+        if (conn ne null) conn.pop()
+        cb(value)
+      }
+    })
+  }
 
   /**
    * Callback wrapper used in `IO.async` that:
@@ -92,6 +93,7 @@ private[effect] object Callback {
 
   /** Helpers async callbacks. */
   implicit final class Extensions[-A](val self: T[A]) extends AnyVal {
+
     /**
      * Executes the source callback with a light (trampolined) async
      * boundary, meant to protect against stack overflows.
@@ -121,25 +123,24 @@ private[effect] object Callback {
       }
   }
 
-  private final class AsyncIdempotentCallback[-A](
-    conn: IOConnection,
-    cb: Either[Throwable, A] => Unit)
-    extends (Either[Throwable, A] => Unit) with Runnable {
+  final private class AsyncIdempotentCallback[-A](conn: IOConnection, cb: Either[Throwable, A] => Unit)
+      extends (Either[Throwable, A] => Unit)
+      with Runnable {
 
     private[this] val canCall = new AtomicBoolean(true)
     private[this] var value: Either[Throwable, A] = _
     def run(): Unit = cb(value)
 
-    def apply(value: Either[Throwable, A]): Unit = {
+    def apply(value: Either[Throwable, A]): Unit =
       if (canCall.getAndSet(false)) {
         if (conn ne null) conn.pop()
         this.value = value
         immediate.execute(this)
-      } else value match {
-        case Right(_) => ()
-        case Left(e) =>
-          Logger.reportFailure(e)
-      }
-    }
+      } else
+        value match {
+          case Right(_) => ()
+          case Left(e) =>
+            Logger.reportFailure(e)
+        }
   }
 }

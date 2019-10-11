@@ -32,7 +32,10 @@ import scala.annotation.unchecked.uncheckedVariance
  * async part of the computation is run and doing so on Scala.js
  * throws an exception upon encountering an async boundary.
  */
-final class SyncIO[+A] private (val toIO: IO[A]) {
+final class SyncIO[+A] private (private val io: IO[A]) {
+
+  def toIO: IO[A] =
+    IO(io.unsafeRunSync())
 
   /**
    * Produces the result by running the encapsulated effects as impure
@@ -45,7 +48,7 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * performs side effects and throws exceptions. You should ideally
    * only call this function *once*, at the very end of your program.
    */
-  def unsafeRunSync(): A = toIO.unsafeRunSync
+  def unsafeRunSync(): A = io.unsafeRunSync()
 
   /**
    * Functor map on `SyncIO`. Given a mapping function, it transforms the
@@ -54,7 +57,7 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * Any exceptions thrown within the function will be caught and
    * sequenced in to the result `SyncIO[B]`.
    */
-  def map[B](f: A => B): SyncIO[B] = new SyncIO(toIO.map(f))
+  def map[B](f: A => B): SyncIO[B] = new SyncIO(io.map(f))
 
   /**
    * Monadic bind on `SyncIO`, used for sequentially composing two `SyncIO`
@@ -66,9 +69,9 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * (e.g. one action to be executed before another one).
    *
    * Any exceptions thrown within the function will be caught and
-   * sequenced in to the result `SyncIO[B].
+   * sequenced in to the result `SyncIO[B]`.
    */
-  def flatMap[B](f: A => SyncIO[B]): SyncIO[B] = new SyncIO(toIO.flatMap(a => f(a).toIO))
+  def flatMap[B](f: A => SyncIO[B]): SyncIO[B] = new SyncIO(io.flatMap(a => f(a).io))
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -83,14 +86,14 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    *
    * @see [[SyncIO.raiseError]]
    */
-  def attempt: SyncIO[Either[Throwable, A]] = new SyncIO(toIO.attempt)
+  def attempt: SyncIO[Either[Throwable, A]] = new SyncIO(io.attempt)
 
   /**
    * Converts the source `IO` into any `F` type that implements
    * the [[LiftIO]] type class.
    */
   def to[F[_]](implicit F: LiftIO[F]): F[A @uncheckedVariance] =
-    F.liftIO(toIO)
+    F.liftIO(io)
 
   /**
    * Returns a `SyncIO` action that treats the source task as the
@@ -175,7 +178,12 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    *        along with the result of `use` (error or successful result)
    */
   def bracketCase[B](use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
-    new SyncIO(toIO.bracketCase(a => use(a).toIO)((a, ec) => release(a, ec).toIO))
+    flatMap { a =>
+      use(a).redeemWith(
+        t => release(a, ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
+        b => release(a, ExitCase.Completed).map(_ => b)
+      )
+    }
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -232,7 +240,10 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * @see [[bracketCase]] for the more general operation
    */
   def guaranteeCase(finalizer: ExitCase[Throwable] => SyncIO[Unit]): SyncIO[A] =
-    new SyncIO(toIO.guaranteeCase(ec => finalizer(ec).toIO))
+    redeemWith(
+      t => finalizer(ExitCase.Error(t)).flatMap(_ => SyncIO.raiseError(t)),
+      a => finalizer(ExitCase.Completed).map(_ => a)
+    )
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
@@ -241,7 +252,7 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[AA >: A](f: Throwable => SyncIO[AA]): SyncIO[AA] =
-    new SyncIO(toIO.handleErrorWith(t => f(t).toIO))
+    new SyncIO(io.handleErrorWith(t => f(t).io))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -267,7 +278,7 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    *        in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): SyncIO[B] =
-    new SyncIO(toIO.redeem(recover, map))
+    new SyncIO(io.redeem(recover, map))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -299,12 +310,12 @@ final class SyncIO[+A] private (val toIO: IO[A]) {
    *        in case of success
    */
   def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
-    new SyncIO(toIO.redeemWith(t => recover(t).toIO, a => bind(a).toIO))
+    new SyncIO(io.redeemWith(t => recover(t).io, a => bind(a).io))
 
-  override def toString: String = toIO match {
-    case IO.Pure(a) => s"SyncIO($a)"
+  override def toString: String = io match {
+    case IO.Pure(a)       => s"SyncIO($a)"
     case IO.RaiseError(e) => s"SyncIO(throw $e)"
-    case _ => "SyncIO$" + System.identityHashCode(this)
+    case _                => "SyncIO$" + System.identityHashCode(this)
   }
 }
 
@@ -374,14 +385,15 @@ object SyncIO extends SyncIOInstances {
   def fromEither[A](e: Either[Throwable, A]): SyncIO[A] = new SyncIO(IO.fromEither(e))
 }
 
-private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstances {
+abstract private[effect] class SyncIOInstances extends SyncIOLowPriorityInstances {
 
   implicit val syncIOsyncEffect: SyncEffect[SyncIO] = new SyncIOSync with SyncEffect[SyncIO] {
     final override def runSync[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
       G.delay(fa.unsafeRunSync())
+
   }
 
-  @deprecated("Signature changed to return SyncEffect", "2.0.0")
+  @deprecated("Signature changed to return SyncEffect", "2.1.0")
   val syncIoSync: Sync[SyncIO] = new SyncIOSync {}
 
   implicit def syncIoMonoid[A: Monoid]: Monoid[SyncIO[A]] = new SyncIOSemigroup[A] with Monoid[SyncIO[A]] {
@@ -394,16 +406,16 @@ private[effect] abstract class SyncIOInstances extends SyncIOLowPriorityInstance
   }
 }
 
-private[effect] abstract class SyncIOLowPriorityInstances {
+abstract private[effect] class SyncIOLowPriorityInstances {
   private[effect] class SyncIOSemigroup[A: Semigroup] extends Semigroup[SyncIO[A]] {
-    def combine(sioa1: SyncIO[A], sioa2: SyncIO[A]) =
+    def combine(sioa1: SyncIO[A], sioa2: SyncIO[A]): SyncIO[A] =
       sioa1.flatMap(a1 => sioa2.map(a2 => Semigroup[A].combine(a1, a2)))
   }
 
   implicit def syncIoSemigroup[A: Semigroup]: Semigroup[SyncIO[A]] = new SyncIOSemigroup[A]
 }
 
-private[effect] abstract class SyncIOSync extends Sync[SyncIO] with StackSafeMonad[SyncIO] {
+abstract private[effect] class SyncIOSync extends Sync[SyncIO] with StackSafeMonad[SyncIO] {
   final override def pure[A](a: A): SyncIO[A] =
     SyncIO.pure(a)
   final override def unit: SyncIO[Unit] =
@@ -421,17 +433,15 @@ private[effect] abstract class SyncIOSync extends Sync[SyncIO] with StackSafeMon
   final override def raiseError[A](e: Throwable): SyncIO[A] =
     SyncIO.raiseError(e)
 
-  final override def bracket[A, B](acquire: SyncIO[A])
-    (use: A => SyncIO[B])
-    (release: A => SyncIO[Unit]): SyncIO[B] =
+  final override def bracket[A, B](acquire: SyncIO[A])(use: A => SyncIO[B])(release: A => SyncIO[Unit]): SyncIO[B] =
     acquire.bracket(use)(release)
 
   final override def uncancelable[A](task: SyncIO[A]): SyncIO[A] =
     task
 
-  final override def bracketCase[A, B](acquire: SyncIO[A])
-    (use: A => SyncIO[B])
-    (release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
+  final override def bracketCase[A, B](
+    acquire: SyncIO[A]
+  )(use: A => SyncIO[B])(release: (A, ExitCase[Throwable]) => SyncIO[Unit]): SyncIO[B] =
     acquire.bracketCase(use)(release)
 
   final override def guarantee[A](fa: SyncIO[A])(finalizer: SyncIO[Unit]): SyncIO[A] =

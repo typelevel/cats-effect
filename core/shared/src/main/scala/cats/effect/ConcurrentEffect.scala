@@ -40,6 +40,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
+
   /**
    * Evaluates `F[_]` with the ability to cancel it.
    *
@@ -61,6 +62,7 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
 }
 
 object ConcurrentEffect {
+
   /**
    * [[ConcurrentEffect.toIO]] default implementation, derived from
    * [[ConcurrentEffect.runCancelable]].
@@ -85,27 +87,29 @@ object ConcurrentEffect {
     new WriterTConcurrentEffect[F, L] { def F = ConcurrentEffect[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTConcurrentEffect[F[_]]
-    extends ConcurrentEffect[EitherT[F, Throwable, ?]]
-    with Concurrent.EitherTConcurrent[F, Throwable]
-    with Effect.EitherTEffect[F] {
+      extends ConcurrentEffect[EitherT[F, Throwable, ?]]
+      with Concurrent.EitherTConcurrent[F, Throwable]
+      with Effect.EitherTEffect[F] {
 
     protected def F: ConcurrentEffect[F]
 
-    override def runCancelable[A](fa: EitherT[F, Throwable, A])
-      (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[EitherT[F, Throwable, ?]]] =
+    override def runCancelable[A](
+      fa: EitherT[F, Throwable, A]
+    )(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[EitherT[F, Throwable, ?]]] =
       F.runCancelable(fa.value)(cb.compose(_.flatMap(x => x))).map(EitherT.liftF(_)(F))
   }
 
   private[effect] trait WriterTConcurrentEffect[F[_], L]
-    extends ConcurrentEffect[WriterT[F, L, ?]]
-    with Concurrent.WriterTConcurrent[F, L]
-    with Effect.WriterTEffect[F, L] {
+      extends ConcurrentEffect[WriterT[F, L, ?]]
+      with Concurrent.WriterTConcurrent[F, L]
+      with Effect.WriterTEffect[F, L] {
 
     protected def F: ConcurrentEffect[F]
     protected def L: Monoid[L]
 
-    override def runCancelable[A](fa: WriterT[F, L, A])
-      (cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[WriterT[F, L, ?]]] =
+    override def runCancelable[A](
+      fa: WriterT[F, L, A]
+    )(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[WriterT[F, L, ?]]] =
       F.runCancelable(fa.run)(cb.compose(_.map(_._2))).map(WriterT.liftF(_)(L, F))
   }
 }

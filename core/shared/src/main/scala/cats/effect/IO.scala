@@ -318,14 +318,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
-      case Pure(a) => Some(a)
+      case Pure(a)       => Some(a)
       case RaiseError(e) => throw e
       case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
         // $COVERAGE-OFF$
         throw new AssertionError("unreachable")
-        // $COVERAGE-ON$
+      // $COVERAGE-ON$
     }
 
   /**
@@ -411,8 +411,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        [[IO.race race]], needed because IO's `race` operation automatically
    *        forks the involved tasks
    */
-  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])
-    (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A2] =
+  final def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2])(implicit timer: Timer[IO],
+                                                                           cs: ContextShift[IO]): IO[A2] =
     Concurrent.timeoutTo(this, duration, fallback)
 
   /**
@@ -434,8 +434,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        [[IO.race race]], needed because IO's `race` operation automatically
    *        forks the involved tasks
    */
-  final def timeout(duration: FiniteDuration)
-    (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] =
+  final def timeout(duration: FiniteDuration)(implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] =
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
@@ -703,15 +702,13 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
 
   override def toString: String = this match {
-    case Pure(a) => s"IO($a)"
+    case Pure(a)       => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
-    case _ => "IO$" + System.identityHashCode(this)
+    case _             => "IO$" + System.identityHashCode(this)
   }
 }
 
-private[effect] abstract class IOParallelNewtype
-  extends internals.IOTimerRef
-     with internals.IOCompanionBinaryCompat {
+abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
 
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
@@ -752,7 +749,7 @@ private[effect] abstract class IOParallelNewtype
     }
 }
 
-private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype {
+abstract private[effect] class IOLowPriorityInstances extends IOParallelNewtype {
   implicit def parApplicative(implicit cs: ContextShift[IO]): Applicative[IO.Par] = ioParCommutativeApplicative
 
   private[effect] class IOSemigroup[A: Semigroup] extends Semigroup[IO[A]] {
@@ -782,17 +779,15 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
     final override def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    final override def bracket[A, B](acquire: IO[A])
-      (use: A => IO[B])
-      (release: A => IO[Unit]): IO[B] =
+    final override def bracket[A, B](acquire: IO[A])(use: A => IO[B])(release: A => IO[Unit]): IO[B] =
       acquire.bracket(use)(release)
 
     final override def uncancelable[A](task: IO[A]): IO[A] =
       task.uncancelable
 
-    final override def bracketCase[A, B](acquire: IO[A])
-      (use: A => IO[B])
-      (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+    final override def bracketCase[A, B](
+      acquire: IO[A]
+    )(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
     final override def guarantee[A](fa: IO[A])(finalizer: IO[Unit]): IO[A] =
@@ -817,8 +812,9 @@ private[effect] abstract class IOLowPriorityInstances extends IOParallelNewtype 
   }
 }
 
-private[effect] abstract class IOInstances extends IOLowPriorityInstances {
-  implicit def parCommutativeApplicative(implicit cs: ContextShift[IO]): CommutativeApplicative[IO.Par] = ioParCommutativeApplicative
+abstract private[effect] class IOInstances extends IOLowPriorityInstances {
+  implicit def parCommutativeApplicative(implicit cs: ContextShift[IO]): CommutativeApplicative[IO.Par] =
+    ioParCommutativeApplicative
 
   implicit def ioConcurrentEffect(implicit cs: ContextShift[IO]): ConcurrentEffect[IO] =
     new IOEffect with ConcurrentEffect[IO] {
@@ -999,10 +995,10 @@ private[effect] abstract class IOInstances extends IOLowPriorityInstances {
 object IO extends IOInstances {
 
   /**
-    * Suspends a synchronous side effect in `IO`.
-    *
-    * Alias for `IO.delay(body)`.
-    */
+   * Suspends a synchronous side effect in `IO`.
+   *
+   * Alias for `IO.delay(body)`.
+   */
   def apply[A](body: => A): IO[A] =
     delay(body)
 
@@ -1099,7 +1095,8 @@ object IO extends IOInstances {
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     Async { (_, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
-      try k(cb2) catch { case NonFatal(t) => cb2(Left(t)) }
+      try k(cb2)
+      catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
   /**
@@ -1134,7 +1131,9 @@ object IO extends IOInstances {
       conn.push(conn2.cancel)
       // The callback handles "conn.pop()"
       val cb2 = Callback.asyncIdempotent(conn, cb)
-      val fa = try k(cb2) catch { case NonFatal(t) => IO(cb2(Left(t))) }
+      val fa =
+        try k(cb2)
+        catch { case NonFatal(t) => IO(cb2(Left(t))) }
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
@@ -1187,10 +1186,13 @@ object IO extends IOInstances {
       // is executed — note that `isCanceled` is visible here due to `push`
       if (!conn.isCanceled)
         ref.complete(
-          try k(cb2) catch { case NonFatal(t) =>
-            cb2(Left(t))
-            IO.unit
-          })
+          try k(cb2)
+          catch {
+            case NonFatal(t) =>
+              cb2(Left(t))
+              IO.unit
+          }
+        )
       else
         ref.complete(IO.unit)
     }
@@ -1250,7 +1252,7 @@ object IO extends IOInstances {
    */
   def fromEither[A](e: Either[Throwable, A]): IO[A] =
     e match {
-      case Right(a) => pure(a)
+      case Right(a)  => pure(a)
       case Left(err) => raiseError(err)
     }
 
@@ -1260,7 +1262,7 @@ object IO extends IOInstances {
    */
   def fromTry[A](t: Try[A]): IO[A] =
     t match {
-      case Success(a) => pure(a)
+      case Success(a)   => pure(a)
       case Failure(err) => raiseError(err)
     }
 
@@ -1417,7 +1419,10 @@ object IO extends IOInstances {
    * @param cs is an implicit requirement needed because
    *        `race` automatically forks the involved tasks
    */
-  def racePair[A, B](lh: IO[A], rh: IO[B])(implicit cs: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
+  def racePair[A, B](
+    lh: IO[A],
+    rh: IO[B]
+  )(implicit cs: ContextShift[IO]): IO[Either[(A, Fiber[IO, B]), (Fiber[IO, A], B)]] =
     IORace.pair(cs, lh, rh)
 
   /**
@@ -1437,28 +1442,22 @@ object IO extends IOInstances {
   /* IO's internal encoding: */
 
   /** Corresponds to [[IO.pure]]. */
-  private[effect] final case class Pure[+A](a: A)
-    extends IO[A]
+  final private[effect] case class Pure[+A](a: A) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
-  private[effect] final case class Delay[+A](thunk: () => A)
-    extends IO[A]
+  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
-  private[effect] final case class RaiseError(e: Throwable)
-    extends IO[Nothing]
+  final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
 
   /** Corresponds to [[IO.suspend]]. */
-  private[effect] final case class Suspend[+A](thunk: () => IO[A])
-    extends IO[A]
+  final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  private[effect] final case class Bind[E, +A](source: IO[E], f: E => IO[A])
-    extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  private[effect] final case class Map[E, +A](source: IO[E], f: E => A, index: Int)
-    extends IO[A] with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
 
     override def apply(value: E): IO[A] =
       new Pure(f(value))
@@ -1478,10 +1477,10 @@ object IO extends IOInstances {
    *        on calling the callback for transmitting the
    *        signal downstream
    */
-  private[effect] final case class Async[+A](
-    k: (IOConnection, Either[Throwable, A]  => Unit) => Unit,
-    trampolineAfter: Boolean = false)
-    extends IO[A]
+  final private[effect] case class Async[+A](
+    k: (IOConnection, Either[Throwable, A] => Unit) => Unit,
+    trampolineAfter: Boolean = false
+  ) extends IO[A]
 
   /**
    * An internal state for that optimizes changes to
@@ -1490,11 +1489,11 @@ object IO extends IOInstances {
    * [[IO.uncancelable]] is optimized via `ContextSwitch`
    * and we could express `bracket` in terms of it as well.
    */
-  private[effect] final case class ContextSwitch[A](
+  final private[effect] case class ContextSwitch[A](
     source: IO[A],
     modify: IOConnection => IOConnection,
-    restore: (A, Throwable, IOConnection, IOConnection) => IOConnection)
-    extends IO[A]
+    restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
+  ) extends IO[A]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 

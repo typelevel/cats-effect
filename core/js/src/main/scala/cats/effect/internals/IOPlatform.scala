@@ -21,6 +21,7 @@ import cats.effect.IO
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
+
   /**
    * Javascript specific function that should block for the result
    * of an IO task, unfortunately blocking is not possible for JS,
@@ -33,14 +34,14 @@ private[effect] object IOPlatform {
 
     cb.value match {
       case Right(a) => Some(a)
-      case Left(e) => throw e
-      case null =>
+      case Left(e)  => throw e
+      case null     =>
         // Triggering cancellation first
         cb.isActive = false
         cancel.unsafeRunAsyncAndForget()
         throw new UnsupportedOperationException(
-          "cannot synchronously await result on JavaScript; " +
-          "use runAsync or unsafeRunAsync")
+          "cannot synchronously await result on JavaScript; use runAsync or unsafeRunAsync"
+        )
     }
   }
 
@@ -54,26 +55,25 @@ private[effect] object IOPlatform {
   final val fusionMaxStackDepth = 31
 
   /** Returns `true` if the underlying platform is the JVM,
-    * `false` if it's JavaScript. */
+   * `false` if it's JavaScript. */
   final val isJVM = false
 
   /**
    * Internal — used in the implementation of [[unsafeResync]].
    */
-  private final class ResyncCallback[A]
-    extends (Either[Throwable, A] => Unit) {
+  final private class ResyncCallback[A] extends (Either[Throwable, A] => Unit) {
 
     var isActive = true
     var value: Either[Throwable, A] = _
 
-    def apply(value: Either[Throwable, A]): Unit = {
+    def apply(value: Either[Throwable, A]): Unit =
       if (isActive) {
         isActive = false
         this.value = value
-      } else value match {
-        case Left(e) => Logger.reportFailure(e)
-        case _ => ()
-      }
-    }
+      } else
+        value match {
+          case Left(e) => Logger.reportFailure(e)
+          case _       => ()
+        }
   }
 }

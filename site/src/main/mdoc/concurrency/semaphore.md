@@ -11,7 +11,7 @@ scaladoc: "#cats.effect.concurrent.Semaphore"
 
 A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.
 
-```tut:silent
+```scala
 abstract class Semaphore[F[_]] {
   def available: F[Long]
   def acquire: F[Unit]
@@ -57,8 +57,7 @@ This means when `R1` and `R2` requested the availability it was one and `R2` was
 
 Once `R2` was done `R1` started processing immediately showing no availability. Once `R1` was done `R3` started processing immediately showing no availability. Finally, `R3` was done showing an availability of one once again.
 
-```tut:silent
-import cats.Parallel
+```scala mdoc:reset:silent
 import cats.effect.{Concurrent, IO, Timer}
 import cats.effect.concurrent.Semaphore
 import cats.implicits._

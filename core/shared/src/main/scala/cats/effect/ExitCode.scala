@@ -22,9 +22,10 @@ package effect
  *
  * `code` is constrained to a range from 0 to 255, inclusive.
  */
-sealed abstract case class ExitCode private (val code: Int)
+sealed abstract case class ExitCode private (code: Int)
 
 object ExitCode {
+
   /**
    * Creates an `ExitCode`.
    *

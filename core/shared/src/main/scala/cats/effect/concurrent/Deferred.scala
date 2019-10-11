@@ -49,12 +49,12 @@ import scala.util.{Failure, Success}
  * blocked by the implementation.
  */
 abstract class Deferred[F[_], A] {
+
   /**
    * Obtains the value of the `Deferred`, or waits until it has been completed.
    * The returned value may be canceled.
    */
   def get: F[A]
-
 
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies
@@ -83,7 +83,8 @@ abstract class Deferred[F[_], A] {
     new TransformedDeferred(this, f)
 }
 
-abstract class TryableDeferred[F[_], A] extends Deferred[F, A]{
+abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
+
   /**
    * Obtains the current value of the `Deferred`, or None if it hasn't completed.
    */
@@ -152,17 +153,16 @@ object Deferred {
   private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
     new UncancelableDeferred[F, A](Promise[A]())
 
+  final private class Id
 
-  private final class Id
-
-  private sealed abstract class State[A]
+  sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
   }
 
-  private final class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
-    extends TryableDeferred[F, A] {
+  final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
+      extends TryableDeferred[F, A] {
 
     def get: F[A] =
       F.suspend {
@@ -187,9 +187,9 @@ object Deferred {
       }
 
     def tryGet: F[Option[A]] =
-      F.delay{
+      F.delay {
         ref.get match {
-          case State.Set(a) => Some(a)
+          case State.Set(a)   => Some(a)
           case State.Unset(_) => None
         }
       }
@@ -211,9 +211,8 @@ object Deferred {
       id
     }
 
-    def complete(a: A): F[Unit] = {
+    def complete(a: A): F[Unit] =
       F.suspend(unsafeComplete(a))
-    }
 
     @tailrec
     private def unsafeComplete(a: A): F[Unit] =
@@ -247,7 +246,7 @@ object Deferred {
     private[this] val mapUnit = (_: Any) => ()
   }
 
-  private final class UncancelableDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends TryableDeferred[F, A] {
+  final private class UncancelableDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends TryableDeferred[F, A] {
     def get: F[A] =
       F.async { cb =>
         implicit val ec: ExecutionContext = TrampolineEC.immediate
@@ -261,13 +260,16 @@ object Deferred {
       F.delay(p.future.value.flatMap(_.toOption))
 
     def complete(a: A): F[Unit] =
-      F.map(asyncBoundary) { _ => p.success(a); () }
+      F.map(asyncBoundary) { _ =>
+        p.success(a); ()
+      }
 
     private[this] val asyncBoundary =
       F.async[Unit](cb => cb(Callback.rightUnit))
   }
 
-  private final class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G) extends Deferred[G, A]{
+  final private class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G)
+      extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }

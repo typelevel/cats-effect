@@ -17,6 +17,7 @@
 package cats.effect
 
 package object internals {
+
   /**
    * Handy alias for the registration functions of [[IO.Async]].
    */

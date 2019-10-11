@@ -20,7 +20,6 @@ import scala.util.control.NonFatal
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
-
 /**
  * Trampoline implementation, meant to be stored in a `ThreadLocal`.
  * See `TrampolineEC`.
@@ -33,22 +32,21 @@ private[internals] class Trampoline(underlying: ExecutionContext) {
 
   def startLoop(runnable: Runnable): Unit = {
     withinLoop = true
-    try immediateLoop(runnable) finally {
+    try immediateLoop(runnable)
+    finally {
       withinLoop = false
     }
   }
 
-  final def execute(runnable: Runnable): Unit = {
+  final def execute(runnable: Runnable): Unit =
     if (!withinLoop) {
       startLoop(runnable)
     } else {
       immediateQueue.push(runnable)
     }
-  }
 
-  protected final def forkTheRest(): Unit = {
-    final class ResumeRun(head: Runnable, rest: ArrayStack[Runnable])
-      extends Runnable {
+  final protected def forkTheRest(): Unit = {
+    final class ResumeRun(head: Runnable, rest: ArrayStack[Runnable]) extends Runnable {
 
       def run(): Unit = {
         immediateQueue.pushAll(rest)
@@ -65,7 +63,7 @@ private[internals] class Trampoline(underlying: ExecutionContext) {
   }
 
   @tailrec
-  private final def immediateLoop(task: Runnable): Unit = {
+  final private def immediateLoop(task: Runnable): Unit = {
     try {
       task.run()
     } catch {

@@ -24,13 +24,11 @@ import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
+
   /**
    * Implementation for `IO.bracketCase`.
    */
-  def apply[A, B](acquire: IO[A])
-    (use: A => IO[B])
-    (release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
-
+  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
     IO.Async { (conn, cb) =>
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
@@ -46,16 +44,16 @@ private[effect] object IOBracket {
         deferredRelease.complete(IO.unit)
       }
     }
-  }
 
   // Internals of `IO.bracketCase`.
-  private final class BracketStart[A, B](
+  final private class BracketStart[A, B](
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
     deferredRelease: ForwardCancelable,
-    cb: Callback.T[B])
-    extends (Either[Throwable, A] => Unit) with Runnable {
+    cb: Callback.T[B]
+  ) extends (Either[Throwable, A] => Unit)
+      with Runnable {
 
     // This runnable is a dirty optimization to avoid some memory allocations;
     // This class switches from being a Callback to a Runnable, but relies on
@@ -76,7 +74,8 @@ private[effect] object IOBracket {
       case Right(a) =>
         val frame = new BracketReleaseFrame[A, B](a, release)
         val onNext = {
-          val fb = try use(a) catch { case NonFatal(e) => IO.raiseError(e) }
+          val fb = try use(a)
+          catch { case NonFatal(e) => IO.raiseError(e) }
           fb.flatMap(frame)
         }
         // Registering our cancelable token ensures that in case
@@ -94,7 +93,7 @@ private[effect] object IOBracket {
   /**
    * Implementation for `IO.guaranteeCase`.
    */
-  def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] = {
+  def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] =
     IO.Async { (conn, cb) =>
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
@@ -113,26 +112,22 @@ private[effect] object IOBracket {
         }
       })
     }
-  }
 
-  private final class BracketReleaseFrame[A, B](
-    a: A,
-    releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
-    extends BaseReleaseFrame[A, B] {
+  final private class BracketReleaseFrame[A, B](a: A, releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
+      extends BaseReleaseFrame[A, B] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(a, c)
   }
 
-  private final class EnsureReleaseFrame[A](
-    releaseFn: ExitCase[Throwable] => IO[Unit])
-    extends BaseReleaseFrame[Unit, A] {
+  final private class EnsureReleaseFrame[A](releaseFn: ExitCase[Throwable] => IO[Unit])
+      extends BaseReleaseFrame[Unit, A] {
 
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(c)
   }
 
-  private abstract class BaseReleaseFrame[A, B] extends IOFrame[B, IO[B]] {
+  abstract private class BaseReleaseFrame[A, B] extends IOFrame[B, IO[B]] {
     // Guard used for thread-safety, to ensure the idempotency
     // of the release; otherwise `release` can be called twice
     private[this] val waitsForResult = new AtomicBoolean(true)
@@ -150,25 +145,22 @@ private[effect] object IOBracket {
     final val cancel: CancelToken[IO] =
       applyRelease(ExitCase.Canceled).uncancelable
 
-    final def recover(e: Throwable): IO[B] = {
+    final def recover(e: Throwable): IO[B] =
       // Unregistering cancel token, otherwise we can have a memory leak;
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
       ContextSwitch(applyRelease(ExitCase.error(e)), makeUncancelable, disableUncancelableAndPop)
         .flatMap(new ReleaseRecover(e))
-    }
 
-    final def apply(b: B): IO[B] = {
+    final def apply(b: B): IO[B] =
       // Unregistering cancel token, otherwise we can have a memory leak
       // N.B. conn.pop() happens after the evaluation of `release`, because
       // otherwise we might have a conflict with the auto-cancellation logic
       ContextSwitch(applyRelease(ExitCase.complete), makeUncancelable, disableUncancelableAndPop)
         .map(_ => b)
-    }
   }
 
-  private final class ReleaseRecover(e: Throwable)
-    extends IOFrame[Unit, IO[Nothing]] {
+  final private class ReleaseRecover(e: Throwable) extends IOFrame[Unit, IO[Nothing]] {
 
     def recover(e2: Throwable): IO[Nothing] = {
       // Logging the error somewhere, because exceptions

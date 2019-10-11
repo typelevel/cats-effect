@@ -22,7 +22,7 @@ classes and do not tie our code to `IO`.
 This tutorial assumes certain familiarity with functional programming. It is
 also a good idea to read cats-effect documentation prior to starting this
 tutorial, at least the [excellent documentation about `IO` data
-type](../datatypes/io.html).
+type](../datatypes/io.md).
 
 Please read this tutorial as training material, not as a best-practices
 document. As you gain more experience with cats-effect, probably you will find
@@ -313,14 +313,14 @@ cancellation happens _while_ the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
 being closed by another thread. For more info about this problem see [Gotcha:
 Cancellation is a concurrent
-action](../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action) in
+action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
 cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
 that ensures that no stream will be closed while the `IO` returned by
 `transfer` is being evaluated.  Cats-effect provides several constructs for
 controlling concurrency, for this case we will use a
-[_semaphore_](../concurrency/semaphore.html). A semaphore has a number of
+[_semaphore_](../concurrency/semaphore.md). A semaphore has a number of
 permits, its method `.acquire` 'blocks' if no permit is available until
 `release` is called on the same semaphore. It is important to remark that
 _there is no actual thread being really blocked_, the thread that finds the
@@ -392,7 +392,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.html#building-cancelable-io-tasks) of `IO` documentation
+tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
 explains how to create such cancelable `IO` instances (besides calling
 `Resource.use`, as we have done for our code).
 
@@ -713,7 +713,7 @@ for {
               .guarantee(close(socket))
               .start
   _      <- serve(serverSocket)            
-}
+} yield ()
 ```
 
 That code is way simpler, but it contains a bug: if there is a cancellation in

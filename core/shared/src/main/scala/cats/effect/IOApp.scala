@@ -52,6 +52,7 @@ import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
  * }}}
  */
 trait IOApp {
+
   /**
    * Produces the `IO` to be run as an app.
    *
@@ -76,7 +77,7 @@ trait IOApp {
    * thread-pool on top of the JVM, or to customize the run-loop on
    * top of JavaScript.
    */
-  protected implicit def contextShift: ContextShift[IO] =
+  implicit protected def contextShift: ContextShift[IO] =
     IOAppPlatform.defaultContextShift
 
   /**
@@ -93,7 +94,7 @@ trait IOApp {
    * On top of JavaScript the default timer will simply use the standard
    * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
    */
-  protected implicit def timer: Timer[IO] =
+  implicit protected def timer: Timer[IO] =
     IOAppPlatform.defaultTimer
 }
 

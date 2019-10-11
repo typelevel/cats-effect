@@ -43,7 +43,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
   test("shift contiguous prefix and suffix, but not interfix") {
     val name: IO[String] = IO { Thread.currentThread().getName }
 
-    val aname: IO[String] = IO async { cb =>
+    val aname: IO[String] = IO.async { cb =>
       new Thread {
         start()
         override def run() =
@@ -67,8 +67,8 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
     n1 shouldEqual ThreadName
     n2 shouldEqual ThreadName
-    n3 should not equal ThreadName
-    n4 should not equal ThreadName
+    (n3 should not).equal(ThreadName)
+    (n4 should not).equal(ThreadName)
     n5 shouldEqual ThreadName
     n6 shouldEqual ThreadName
   }
@@ -125,7 +125,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
       val task = IO.shift *> IO(latch.countDown()) *> loop()
       val c = task.unsafeRunCancelable {
         case Left(e) => e.printStackTrace()
-        case _ => ()
+        case _       => ()
       }
 
       latch.await(10, TimeUnit.SECONDS)

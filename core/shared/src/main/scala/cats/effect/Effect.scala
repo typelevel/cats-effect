@@ -64,6 +64,7 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 object Effect {
+
   /**
    * [[Effect.toIO]] default implementation, derived from [[Effect.runAsync]].
    */
@@ -73,8 +74,8 @@ object Effect {
     }
 
   /**
-    * [[Effect.toIO]] as a natural transformation.
-    */
+   * [[Effect.toIO]] as a natural transformation.
+   */
   def toIOK[F[_]](implicit F: Effect[F]): F ~> IO = λ[F ~> IO](F.toIO(_))
 
   /**
@@ -91,8 +92,9 @@ object Effect {
   implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
     new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTEffect[F[_]] extends Effect[EitherT[F, Throwable, ?]]
-    with Async.EitherTAsync[F, Throwable] {
+  private[effect] trait EitherTEffect[F[_]]
+      extends Effect[EitherT[F, Throwable, ?]]
+      with Async.EitherTAsync[F, Throwable] {
 
     protected def F: Effect[F]
 
@@ -103,8 +105,7 @@ object Effect {
       F.toIO(F.rethrow(fa.value))
   }
 
-  private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]]
-    with Async.WriterTAsync[F, L] {
+  private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] {
 
     protected def F: Effect[F]
     protected def L: Monoid[L]

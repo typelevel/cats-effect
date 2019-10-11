@@ -23,9 +23,8 @@ import cats.laws._
 trait SyncEffectLaws[F[_]] extends SyncLaws[F] {
   implicit def F: SyncEffect[F]
 
-  def toSyncIOAndBackIsIdentity[A](fa: F[A]) = {
-    SyncEffect[SyncIO].to[F, A](F.to[SyncIO, A](fa)) <-> fa
-  }
+  def toSyncIOAndBackIsIdentity[A](fa: F[A]) =
+    SyncEffect[SyncIO].runSync[F, A](F.runSync[SyncIO, A](fa)) <-> fa
 }
 
 object SyncEffectLaws {

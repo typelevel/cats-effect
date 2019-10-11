@@ -27,8 +27,8 @@ class ContextShiftTests extends BaseTestsSuite {
   type OptionTIO[A] = OptionT[IO, A]
   type WriterTIO[A] = WriterT[IO, Int, A]
   type KleisliIO[A] = Kleisli[IO, Int, A]
-  type StateTIO[A]  = StateT[IO, Int, A]
-  type IorTIO[A]    = IorT[IO, Int, A]
+  type StateTIO[A] = StateT[IO, Int, A]
+  type IorTIO[A] = IorT[IO, Int, A]
 
   testAsync("ContextShift[IO].shift") { ec =>
     implicit val cs = ec.contextShift[IO]

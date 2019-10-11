@@ -17,10 +17,10 @@
 package cats.effect.syntax
 
 trait AllCatsEffectSyntax
-  extends BracketSyntax
-  with AsyncSyntax
-  with ConcurrentSyntax
-  with EffectSyntax
-  with ConcurrentEffectSyntax
-  with ParallelNSyntax
-  with SyncEffectSyntax
+    extends BracketSyntax
+    with AsyncSyntax
+    with ConcurrentSyntax
+    with EffectSyntax
+    with ConcurrentEffectSyntax
+    with ParallelNSyntax
+    with SyncEffectSyntax

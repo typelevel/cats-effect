@@ -37,7 +37,7 @@ overhead is minimal (and no leaks), and also that a single effect may
 be run multiple times in a referentially-transparent manner. For
 example:
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.IO
 
 val ioa = IO { println("hey!") }
@@ -100,7 +100,7 @@ This doesn't work with `Future`, but works with `IO` and this ability is essenti
 can safely call `flatMap` in a recursive function of arbitrary depth,
 without fear of blowing the stack:
 
-```tut:silent
+```scala mdoc:silent
 def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
   IO(a + b).flatMap { b2 =>
     if (n > 0) 
@@ -125,7 +125,7 @@ You can lift pure values into `IO`, yielding `IO` values that are
 "already evaluated", the following function being defined on IO's 
 companion:
 
-```tut:silent
+```scala mdoc:silent
 def pure[A](a: A): IO[A] = ???
 ```
 
@@ -135,7 +135,7 @@ For example we can lift a number (pure value) into `IO` and compose it
 with another `IO` that wraps a side a effect in a safe manner, as
 nothing is going to be executed:
 
-```tut:silent
+```scala mdoc:silent
 IO.pure(25).flatMap(n => IO(println(s"Number is: $n")))
 ```
 
@@ -143,7 +143,7 @@ It should be obvious that `IO.pure` cannot suspend side effects, because
 `IO.pure` is eagerly evaluated, with the given parameter being passed
 by value, so don't do this:
 
-```tut:silent
+```scala mdoc:silent
 IO.pure(println("THIS IS WRONG!"))
 ```
 
@@ -155,7 +155,7 @@ intention.
 reference that you can use when an `IO[Unit]` value is required, but
 you don't need to trigger any other side effects:
 
-```tut:silent
+```scala mdoc:silent
 val unit: IO[Unit] = IO.pure(())
 ```
 
@@ -170,7 +170,7 @@ It's probably the most used builder and the equivalent of
 `Sync[IO].delay`, describing `IO` operations that can be evaluated
 immediately, on the current thread and call-stack:
 
-```tut:silent
+```scala
 def apply[A](body: => A): IO[A] = ???
 ```
 
@@ -180,7 +180,7 @@ Note the given parameter is passed ''by name'', its execution being
 An example would be reading / writing from / to the console, which on
 top of the JVM uses blocking I/O, so their execution is immediate:
 
-```tut:silent
+```scala mdoc:silent
 def putStrlLn(value: String) = IO(println(value))
 val readLn = IO(scala.io.StdIn.readLine)
 ```
@@ -188,7 +188,7 @@ val readLn = IO(scala.io.StdIn.readLine)
 And then we can use that to model interactions with the console in a
 purely functional way:
 
-```tut:silent
+```scala mdoc:silent
 for {
   _ <- putStrlLn("What's your name?")
   n <- readLn
@@ -202,11 +202,11 @@ for {
 `IO.cancelable` builders.
 
 `IO.async` is the operation that complies with the laws of
-`Async#async` (see [Async](../typeclasses/async.html)) and can
+`Async#async` (see [Async](../typeclasses/async.md)) and can
 describe simple asynchronous processes that cannot be canceled,
 its signature being:
 
-```tut:silent
+```scala
 def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = ???
 ```
 
@@ -220,7 +220,7 @@ For example, you don't need to convert Scala's `Future`, because you
 already have a conversion operation defined in `IO.fromFuture`,
 however the code for converting a `Future` would be straightforward:
 
-```tut:silent
+```scala mdoc:silent
 import scala.concurrent.{Future, ExecutionContext}
 import scala.util.{Success, Failure}
 
@@ -239,10 +239,10 @@ def convert[A](fa: => Future[A])(implicit ec: ExecutionContext): IO[A] =
 
 For building cancelable `IO` tasks you need to use the
 `IO.cancelable` builder, this being compliant with
-`Concurrent#cancelable` (see [Concurrent](../typeclasses/concurrent.html)) 
+`Concurrent#cancelable` (see [Concurrent](../typeclasses/concurrent.md)) 
 and has this signature:
 
-```tut:silent
+```scala mdoc:silent
 def cancelable[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = ???
 ```
 
@@ -258,8 +258,9 @@ As example suppose we want to describe a `sleep` operation that
 depends on Java's `ScheduledExecutorService`, delaying a tick for a
 certain time duration:
 
-```tut:silent
+```scala mdoc:silent
 import java.util.concurrent.ScheduledExecutorService
+import cats.syntax.functor._
 import scala.concurrent.duration._
 
 def delayedTick(d: FiniteDuration)
@@ -271,7 +272,7 @@ def delayedTick(d: FiniteDuration)
     
     // Returning the cancellation token needed to cancel 
     // the scheduling and release resources early
-    IO(f.cancel(false))
+    IO(f.cancel(false)).void
   }
 }
 ```
@@ -286,7 +287,7 @@ More on dealing with ''cancellation'' below.
 `IO.never` represents a non-terminating `IO` defined in terms of
 `async`, useful as shortcut and as a reusable reference:
 
-```tut:silent
+```scala mdoc:silent
 val never: IO[Nothing] = IO.async(_ => ())
 ```
 
@@ -312,7 +313,9 @@ So it is useful for suspending effects, but that defers the completion
 of the returned `IO` to some other reference. It's also useful for
 modeling stack safe, tail recursive loops:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+
 def fib(n: Int, a: Long, b: Long): IO[Long] =
   IO.suspend {
     if (n > 0)
@@ -332,9 +335,9 @@ We could describe this function using Scala's `@tailrec` mechanism,
 however by using `IO` we can also preserve fairness by inserting
 asynchronous boundaries:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect._
 import cats.implicits._
-import cats.effect.ContextShift
 
 def fib(n: Int, a: Long, b: Long)(implicit cs: ContextShift[IO]): IO[Long] =
   IO.suspend {
@@ -390,7 +393,14 @@ Cancelable `IO` tasks can be described via the `IO.cancelable`
 builder. The `delayedTick` example making use of the Java's
 `ScheduledExecutorService` was already given above, but to recap:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.util.concurrent.ScheduledExecutorService
+
+import cats.effect.IO
+import cats.syntax.functor._
+
+import scala.concurrent.duration.FiniteDuration
+
 def sleep(d: FiniteDuration)
   (implicit sc: ScheduledExecutorService): IO[Unit] = {
 
@@ -398,7 +408,7 @@ def sleep(d: FiniteDuration)
     val r = new Runnable { def run() = cb(Right(())) }
     val f = sc.schedule(r, d.length, d.unit)
     // Returning a function that can cancel our scheduling
-    IO(f.cancel(false))
+    IO(f.cancel(false)).void
   }
 }
 ```
@@ -406,8 +416,12 @@ def sleep(d: FiniteDuration)
 Important: if you don't specify cancellation logic for a task, then the task
 is NOT cancelable. So for example, using Java's blocking I/O still:
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.io._
+
+import cats.effect.IO
+
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 def unsafeFileToString(file: File) = {
@@ -457,15 +471,24 @@ But there's a lot of flexibility in what can be done, including here.
 We could simply introduce a variable that changes to `false`, to be
 observed in that `while` loop:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
+
+import cats.effect.IO
+import cats.syntax.functor._
+
+import scala.concurrent.ExecutionContext
+import scala.io.Source
+import scala.util.control.NonFatal
 
 def unsafeFileToString(file: File, isActive: AtomicBoolean) = {
   val sc = new StringBuilder
-  // ...
+  val linesIterator = Source.fromFile(file).getLines()
   var hasNext = true
-  while (hasNext && isActive.get) { 
-    ??? 
+  while (hasNext && isActive.get) {
+    sc.append(linesIterator.next)
+    hasNext = linesIterator.hasNext
   }
   sc.toString
 }
@@ -484,7 +507,7 @@ def readFile(file: File)(implicit ec: ExecutionContext) =
       }
     })    
     // On cancel, signal it
-    IO(isActive.set(false))
+    IO(isActive.set(false)).void
   }
 ```
 
@@ -493,7 +516,15 @@ def readFile(file: File)(implicit ec: ExecutionContext) =
 This is not always obvious, not from the above examples, but you might
 be tempted to do something like this:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io._
+
+import cats.effect.IO
+import cats.syntax.functor._
+
+import scala.concurrent.ExecutionContext
+import scala.util.control.NonFatal
+
 def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
   IO.cancelable[String] { cb =>
     ec.execute(() => cb(
@@ -501,7 +532,7 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
       catch { case NonFatal(e) => Left(e) }))
       
     // Cancellation logic is not thread-safe!
-    IO(in.close())
+    IO(in.close()).void
   }
 ```
 
@@ -517,7 +548,16 @@ not at the cost of data corruption.
 Therefore the user needs to handle thread safety concerns. So here's
 one way of doing it:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io._
+import java.util.concurrent.atomic.AtomicBoolean
+
+import cats.effect.IO
+import cats.syntax.functor._
+
+import scala.util.control.NonFatal
+import scala.concurrent.ExecutionContext
+
 def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
   IO.cancelable[String] { cb =>
     val isActive = new AtomicBoolean(true)
@@ -535,7 +575,7 @@ def readLine(in: BufferedReader)(implicit ec: ExecutionContext) =
       // Thread-safe gate
       if (isActive.getAndSet(false))
         in.close()
-    }
+    }.void
   }
 ```
 
@@ -567,20 +607,23 @@ being available via `IO#start`, the operation that's compliant with
 def start: IO[Fiber[IO, A]]
 ```
 
-Returned is a [Fiber](./fiber.html). You can think of fibers as being
+Returned is a [Fiber](./fiber.md). You can think of fibers as being
 lightweight threads, a fiber being the pure and light equivalent of a
 thread that can be either joined (via `join`) or interrupted (via
 `cancel`).
 
 Example:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
+import cats.syntax.apply._
+
 import scala.concurrent.ExecutionContext
 
 // Needed for IO.start to do a logical thread fork
 implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-val launchMissiles = IO.raiseError(new Exception("boom!"))
+val launchMissiles: IO[Unit] = IO.raiseError(new Exception("boom!"))
 val runToBunker = IO(println("To the bunker!!!"))
 
 for {
@@ -591,9 +634,7 @@ for {
     fiber.cancel *> IO.raiseError(error)
   }
   aftermath <- fiber.join
-} yield {
-  aftermath
-}
+} yield aftermath
 ```
 
 Implementation notes:
@@ -611,8 +652,12 @@ unsafe version).
 Example relying on the side-effecting `unsafeRunCancelable` and note
 this kind of code is impure and should be used with care:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+import cats.syntax.apply._
+
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 // Needed for `sleep`
 implicit val timer = IO.timer(ExecutionContext.global)
@@ -629,11 +674,12 @@ cancel.unsafeRunSync()
 ```
 
 The `runCancelable` alternative is the operation that's compliant with
-the laws of [ConcurrentEffect](../typeclasses/concurrent-effect.html).
+the laws of [ConcurrentEffect](../typeclasses/concurrent-effect.md).
 Same idea, only the actual execution is suspended in `SyncIO`:
 
-```tut:silent
+```scala mdoc:silent
 import cats.effect.SyncIO
+import cats.syntax.flatMap._
 
 val pureResult: SyncIO[IO[Unit]] = io.runCancelable { r => 
   IO(println(s"Done: $r"))
@@ -641,7 +687,7 @@ val pureResult: SyncIO[IO[Unit]] = io.runCancelable { r =>
 
 // On evaluation, this will first execute the source, then it 
 // will cancel it, because it makes perfect sense :-)
-val cancel = pureResult.toIO.flatten
+pureResult.toIO.flatten
 ```
 
 ### uncancelable marker
@@ -649,7 +695,16 @@ val cancel = pureResult.toIO.flatten
 Given a cancelable `IO`, we can turn it into an `IO` that cannot be
 canceled:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+import cats.syntax.apply._
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+// Needed for `sleep`
+implicit val timer = IO.timer(ExecutionContext.global)
+
 // Our reference from above
 val io: IO[Unit] = IO.sleep(10.seconds) *> IO(println("Hello!"))
 
@@ -663,7 +718,7 @@ what this operation does — cancelable IOs are by definition not atomic
 and in certain cases we need to make them atomic.
 
 This law is compliant with the laws of `Concurrent#uncancelable` (see
-[Concurrent](../typeclasses/concurrent.html)).
+[Concurrent](../typeclasses/concurrent.md)).
 
 ### IO.cancelBoundary
 
@@ -674,7 +729,10 @@ continuation to keep executing in case cancellation happened.
 This operation is very similar to `IO.shift`, as it can be dropped in
 `flatMap` chains in order to make such long loops cancelable:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+import cats.syntax.apply._
+
 def fib(n: Int, a: Long, b: Long): IO[Long] =
   IO.suspend {
     if (n <= 0) IO.pure(a) else {
@@ -717,13 +775,13 @@ def racePair[A, B](lh: IO[A], rh: IO[B])
 ```
 
 The simple version, `IO.race`, will cancel the loser immediately,
-whereas the second version gives you a [Fiber](./fiber.html), letting
+whereas the second version gives you a [Fiber](./fiber.md), letting
 you decide what to do next.
 
 So `race` can be derived with `racePair` like so:
 
-```tut:silent
-import cats.effect._
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
 
 def race[A, B](lh: IO[A], rh: IO[B])
   (implicit cs: ContextShift[IO]): IO[Either[A, B]] = {
@@ -739,8 +797,11 @@ def race[A, B](lh: IO[A], rh: IO[B])
 
 Using `race` we could implement a "timeout" operation:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, Timer, IO}
+
 import scala.concurrent.CancellationException
+import scala.concurrent.duration.FiniteDuration
 
 def timeoutTo[A](fa: IO[A], after: FiniteDuration, fallback: IO[A])
   (implicit timer: Timer[IO], cs: ContextShift[IO]): IO[A] = {
@@ -812,7 +873,7 @@ In mainstream imperative languages you usually have `try / finally`
 statements at disposal for acquisition and safe release of resources.
 Pattern goes like this:
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.io._
 
 def javaReadFirstLine(file: File): String = {
@@ -844,14 +905,19 @@ It does have problems like:
 
 Via the `bracket` operation we can easily describe the above:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io._
+
+import cats.effect.IO
+import cats.syntax.functor._
+
 def readFirstLine(file: File): IO[String] =
   IO(new BufferedReader(new FileReader(file))).bracket { in =>
     // Usage (the try block)
     IO(in.readLine())
   } { in =>
     // Releasing the reader (the finally block)
-    IO(in.close())
+    IO(in.close()).void
   }
 ```
 
@@ -870,7 +936,17 @@ Notes:
 Of special consideration is that `bracket` calls the `release` action
 on cancellation as well. Consider this sample:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io._
+
+import cats.effect.{ContextShift, IO}
+import cats.syntax.apply._
+import cats.syntax.functor._
+
+import scala.concurrent.ExecutionContext
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
 def readFile(file: File): IO[String] = {
   // Opens file with an asynchronous boundary before it, 
   // ensuring that processing doesn't block the "current thread"
@@ -892,7 +968,7 @@ def readFile(file: File): IO[String] = {
     // Releasing the reader (the finally block)
     // This is problematic if the resulting `IO` can get 
     // canceled, because it can lead to data corruption
-    IO(in.close())
+    IO(in.close()).void
   }
 }
 ```
@@ -906,7 +982,17 @@ calling `io.close()` concurrently with that loop
 can lead to data corruption. Depending on use-case synchronization
 might be needed to prevent it: 
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io._
+
+import cats.effect.{ContextShift, IO}
+import cats.syntax.apply._
+import cats.syntax.functor._
+
+import scala.concurrent.ExecutionContext
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
 def readFile(file: File): IO[String] = {
   // Opens file with an asynchronous boundary before it, 
   // ensuring that processing doesn't block the "current thread"
@@ -941,7 +1027,7 @@ def readFile(file: File): IO[String] = {
           isCanceled = true
           in.close()
         }
-      }
+      }.void
     }
   }
 }
@@ -958,7 +1044,9 @@ an `ExitCase` in `release` in order to distinguish between:
 
 Usage sample:
 
-```tut:silent
+```scala mdoc:reset:silent
+import java.io.BufferedReader
+import cats.effect.IO
 import cats.effect.ExitCase.{Completed, Error, Canceled}
 
 def readLine(in: BufferedReader): IO[String] =
@@ -997,7 +1085,8 @@ There are two useful operations defined in the `IO` companion object to lift bot
 
 Constructs an `IO` which evaluates the given `Future` and produces either a result or a failure. It is defined as follow:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
 import scala.concurrent.Future
 
 def fromFuture[A](iof: IO[Future[A]]): IO[A] = ???
@@ -1007,8 +1096,14 @@ Because `Future` eagerly evaluates, as well as because it memoizes, this functio
 
 Lazy evaluation, equivalent with by-name parameters:
 
-```tut:silent
-import scala.concurrent.ExecutionContext.Implicits.global
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
+
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import ExecutionContext.Implicits.global
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
 IO.fromFuture(IO {
   Future(println("I come from the Future!"))
@@ -1017,7 +1112,7 @@ IO.fromFuture(IO {
 
 Eager evaluation:
 
-```tut:silent
+```scala mdoc:silent
 val f = Future.successful("I come from the Future!")
 
 IO.fromFuture(IO.pure(f))
@@ -1027,7 +1122,9 @@ IO.fromFuture(IO.pure(f))
 
 Lifts an `Either[Throwable, A]` into the `IO[A]` context raising the throwable if it exists.
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+
 def fromEither[A](e: Either[Throwable, A]): IO[A] = e.fold(IO.raiseError, IO.pure)
 ```
 
@@ -1039,8 +1136,10 @@ Since there is an instance of `MonadError[IO, Throwable]` available in Cats Effe
 
 Constructs an `IO` which sequences the specified exception.
 
-```tut:book:nofail
-val boom = IO.raiseError(new Exception("boom"))
+```scala
+import cats.effect.IO
+
+val boom: IO[Unit] = IO.raiseError(new Exception("boom"))
 boom.unsafeRunSync()
 ```
 
@@ -1048,7 +1147,10 @@ boom.unsafeRunSync()
 
 Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the `catch` clause in `try`/`catch`, being the inverse of `IO.raiseError`. Example:
 
-```tut:book
+```scala mdoc:reset:silent
+import cats.effect.IO
+
+val boom: IO[Unit] = IO.raiseError(new Exception("boom"))
 boom.attempt.unsafeRunSync()
 ```
 
@@ -1060,9 +1162,10 @@ With `IO` you can easily model a loop that retries evaluation until success or s
 
 For example here's a way to implement retries with exponential back-off:
 
-```tut:silent
-import cats.effect._
-import cats.syntax.all._
+```scala mdoc:reset:silent
+import cats.effect.{IO, Timer}
+import cats.syntax.apply._
+
 import scala.concurrent.duration._
 
 def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: Int)
@@ -1085,24 +1188,24 @@ def retryWithBackoff[A](ioa: IO[A], initialDelay: FiniteDuration, maxRetries: In
 
 Note there are 2 overloads of the `IO.shift` function:
 
-- One that takes a [ContextShift](./contextshift.html) that manages the thread-pool used to trigger async boundaries.
+- One that takes a [ContextShift](./contextshift.md) that manages the thread-pool used to trigger async boundaries.
 - Another that takes a Scala `ExecutionContext` as the thread-pool.
 
 Please use the former by default and use the latter only for fine-grained control over the thread pool in use.
 
 By default, `Cats Effect` can provide instance of `ContextShift[IO]` that manages thread-pools,
-but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.html) is used:
+but only if there's an `ExecutionContext` in scope or if [IOApp](./ioapp.md) is used:
 
-```tut:silent
-import cats.effect.{IO, ContextShift}
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
 import scala.concurrent.ExecutionContext.Implicits.global
 
-val contextShift = IO.contextShift(global)
+implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
 ```
 
 We can introduce an asynchronous boundary in the `flatMap` chain before a certain task:
 
-```tut:silent
+```scala mdoc:silent
 val task = IO(println("task"))
 
 IO.shift(contextShift).flatMap(_ => task)
@@ -1110,13 +1213,13 @@ IO.shift(contextShift).flatMap(_ => task)
 
 Note that the `ContextShift` value is taken implicitly from the context so you can just do this:
 
-```tut:silent
+```scala mdoc:silent
 IO.shift.flatMap(_ => task)
 ```
 
 Or using `Cats` syntax:
 
-```tut:silent
+```scala mdoc:silent
 import cats.syntax.apply._
 
 IO.shift *> task
@@ -1126,13 +1229,13 @@ implicitly[ContextShift[IO]].shift *> task
 
 Or we can specify an asynchronous boundary "after" the evaluation of a certain task:
 
-```tut:silent
+```scala mdoc:silent
 task.flatMap(a => IO.shift.map(_ => a))
 ```
 
 Or using `Cats` syntax:
 
-```tut:silent
+```scala mdoc:silent
 task <* IO.shift
 // equivalent to
 task <* implicitly[ContextShift[IO]].shift
@@ -1140,9 +1243,10 @@ task <* implicitly[ContextShift[IO]].shift
 
 Example of where this might be useful:
 
-```tut:silent
+```scala mdoc:reset:silent
 import java.util.concurrent.Executors
 
+import cats.effect.IO
 import scala.concurrent.ExecutionContext
 
 val cachedThreadPool = Executors.newCachedThreadPool()
@@ -1154,7 +1258,7 @@ val ioa: IO[Unit] =
     _     <- IO(println("Enter your name: "))
     _     <- IO.shift(BlockingFileIO)
     name  <- IO(scala.io.StdIn.readLine())
-    _     <- IO.shift
+    _     <- IO.shift(Main)
     _     <- IO(println(s"Welcome $name!"))
     _     <- IO(cachedThreadPool.shutdown())
   } yield ()
@@ -1164,7 +1268,12 @@ We start by asking the user to enter its name and next we thread-shift to the `B
 
 Another somewhat less common application of `shift` is to reset the thread stack and yield control back to the underlying pool. For example:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
+import scala.concurrent.ExecutionContext
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
 lazy val doStuff = IO(println("stuff"))
 
 lazy val repeat: IO[Unit] =
@@ -1185,7 +1294,9 @@ Thus, this function has four important use cases:
 
 `IO` is trampolined for all `synchronous` and `asynchronous` joins. This means that you can safely call `flatMap` in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.IO
+
 def signal[A](a: A): IO[A] = IO.async(_(Right(a)))
 
 def loop(n: Int): IO[Int] =
@@ -1199,25 +1310,28 @@ def loop(n: Int): IO[Int] =
 Since the introduction of the [Parallel](https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala) typeclasss in the Cats library and its `IO` instance, it became possible to execute two or more given `IO`s in parallel.
 
 Note: all parallel operations require an implicit `ContextShift[IO]` in scope
-(see [ContextShift](./contextshift.html)). You have a `ContextShift` in scope if:
+(see [ContextShift](./contextshift.md)). You have a `ContextShift` in scope if:
 
-1. via usage of [IOApp](./ioapp.html) that gives you a `ContextShift` by default
+1. via usage of [IOApp](./ioapp.md) that gives you a `ContextShift` by default
 2. the user provides a custom `ContextShift`, which can be created using `IO.contextShift(executionContext)`
 
 ### parMapN
 
 It has the potential to run an arbitrary number of `IO`s in parallel, and it allows you to apply a function to the result (as in `map`). It finishes processing when all the `IO`s are completed, either successfully or with a failure. For example:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
 import cats.implicits._
+
 import scala.concurrent.ExecutionContext
-import cats.effect.ContextShift
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
 val ioA = IO(println("Running ioA"))
 val ioB = IO(println("Running ioB"))
 val ioC = IO(println("Running ioC"))
 
-// make sure that you have an implicit ContextShift[IO] in scope. We created one earlier in this document.
+// make sure that you have an implicit ContextShift[IO] in scope. 
 val program = (ioA, ioB, ioC).parMapN { (_, _, _) => () }
 
 program.unsafeRunSync()
@@ -1229,17 +1343,26 @@ program.unsafeRunSync()
 
 If any of the `IO`s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:
 
-```tut:silent:nofail
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, ExitCase, IO}
+import cats.implicits._
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+implicit val timer = IO.timer(ExecutionContext.global)
+
 val a = IO.raiseError[Unit](new Exception("boom")) <* IO(println("Running ioA"))
 val b = (IO.sleep(1.second) *> IO(println("Running ioB")))
   .guaranteeCase {
-    case Canceled => IO(println("ioB was canceled!"))
+    case ExitCase.Canceled => IO(println("ioB was canceled!"))
     case _ => IO.unit
   }
 
 val parFailure = (a, b).parMapN { (_, _) => () }
 
-parFailure.unsafeRunSync()
+parFailure.attempt.unsafeRunSync()
 //=> ioB was canceled!
 //=> java.lang.Exception: boom
 //=>  ... 43 elided
@@ -1248,7 +1371,16 @@ parFailure.unsafeRunSync()
 
 If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via `parMapN` will not wait for 10 seconds before emitting the error:
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, Timer, IO}
+import cats.implicits._
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+
 val ioA = IO.sleep(10.seconds) *> IO(println("Delayed!"))
 val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
@@ -1259,8 +1391,16 @@ val ioB = IO.raiseError[Unit](new Exception("dummy"))
 
 If you have a list of IO, and you want a single IO with the result list you can use `parSequence` which executes the IO tasks in parallel.
 
-```tut:silent
-import cats._, cats.data._, cats.syntax.all._, cats.effect.IO
+```scala mdoc:reset:silent
+import cats.data.NonEmptyList
+import cats.effect.{ContextShift, Timer, IO}
+import cats.syntax.parallel._
+
+import scala.concurrent.ExecutionContext 
+
+// Needed for IO.start to do a logical thread fork
+implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
 
 val anIO = IO(1)
 
@@ -1276,7 +1416,17 @@ There is also `cats.Traverse.sequence` which does this synchronously.
 
 If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use `parTraverse` to run the steps in parallel.
 
-```tut:silent
+```scala mdoc:reset:silent
+import cats.data.NonEmptyList
+import cats.effect.{ContextShift, Timer, IO}
+import cats.syntax.parallel._
+
+import scala.concurrent.ExecutionContext 
+
+// Needed for IO.start to do a logical thread fork
+implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+
 val results = NonEmptyList.of(1, 2, 3).parTraverse { i =>
   IO(i)
 }
@@ -1296,7 +1446,7 @@ If any component of the computation is asynchronous, the current thread will blo
 
 Any exceptions raised within the effect will be re-thrown during evaluation.
 
-```tut:book
+```scala mdoc
 IO(println("Sync!")).unsafeRunSync()
 ```
 
@@ -1306,7 +1456,7 @@ Passes the result of the encapsulated effects to the given callback by running t
 
 Any exceptions raised within the effect will be passed to the callback in the `Either`. The callback will be invoked at most *once*. Note that it is very possible to construct an `IO` which never returns while still never blocking a thread, and attempting to evaluate that `IO` with this method will result in a situation where the callback is *never* invoked.
 
-```tut:book
+```scala mdoc
 IO(println("Async!")).unsafeRunAsync(_ => ())
 ```
 
@@ -1314,7 +1464,7 @@ IO(println("Async!")).unsafeRunAsync(_ => ())
 
 Evaluates the source `IO`, passing the result of the encapsulated effects to the given callback. Note that this has the potential to be interrupted.
 
-```tut:book
+```scala mdoc
 IO(println("Potentially cancelable!")).unsafeRunCancelable(_ => ())
 ```
 
@@ -1330,7 +1480,7 @@ As soon as an async blocking limit is hit, evaluation "immediately" aborts and `
 
 Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://github.com/functional-streams-for-scala/fs2) or [Monix](https://monix.io/)).
 
-```tut:silent
+```scala mdoc:silent
 import scala.concurrent.duration._
 
 IO(println("Timed!")).unsafeRunTimed(5.seconds)
@@ -1342,7 +1492,7 @@ Evaluates the effect and produces the result in a `Future`.
 
 This is similar to `unsafeRunAsync` in that it evaluates the `IO` as a side effect in a non-blocking fashion, but uses a `Future` rather than an explicit callback.  This function should really only be used if interoperating with legacy code which uses Scala futures.
 
-```tut:silent
+```scala mdoc:silent
 IO("Gimme a Future!").unsafeToFuture()
 ```
 
@@ -1384,13 +1534,13 @@ which is compositional with other programs. `IO` values compose.
 When using `map` or `flatMap` it is not recommended to pass a side effectful function, as mapping functions should also be pure.
 So this should be avoided:
 
-```tut:silent
+```scala mdoc:silent
 IO.pure(123).map(n => println(s"NOT RECOMMENDED! $n"))
 ```
 
 This too should be avoided, because the side effect is not suspended in the returned `IO` value:
 
-```tut:silent
+```scala mdoc:silent
 IO.pure(123).flatMap { n =>
   println(s"NOT RECOMMENDED! $n")
   IO.unit
@@ -1399,7 +1549,7 @@ IO.pure(123).flatMap { n =>
 
 The correct approach would be this:
 
-```tut:silent
+```scala mdoc:silent
 IO.pure(123).flatMap { n =>
   // Properly suspending the side effect
   IO(println(s"RECOMMENDED! $n"))

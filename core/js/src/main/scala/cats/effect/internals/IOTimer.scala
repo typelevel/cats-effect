@@ -27,11 +27,10 @@ import scala.scalajs.js
  *
  * Deferring to JavaScript's own `setTimeout` for `sleep`.
  */
-private[internals] final class IOTimer(ec: ExecutionContext)
-  extends Timer[IO] {
+final private[internals] class IOTimer(ec: ExecutionContext) extends Timer[IO] {
 
-  import IOTimer.{ScheduledTick, setTimeout, clearTimeout}
-  val clock : Clock[IO] = Clock.create[IO]
+  import IOTimer.{clearTimeout, setTimeout, ScheduledTick}
+  val clock: Clock[IO] = Clock.create[IO]
 
   def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -48,18 +47,19 @@ private[internals] final class IOTimer(ec: ExecutionContext)
  * Internal API
  */
 private[internals] object IOTimer {
+
   /**
    * Globally available implementation.
    */
-  val global: Timer[IO] = new IOTimer(
-    new ExecutionContext {
-      def execute(r: Runnable): Unit =
-        try { r.run() }
-        catch { case e: Throwable => e.printStackTrace() }
+  val global: Timer[IO] = new IOTimer(new ExecutionContext {
+    def execute(r: Runnable): Unit =
+      try {
+        r.run()
+      } catch { case e: Throwable => e.printStackTrace() }
 
-      def reportFailure(e: Throwable): Unit =
-        e.printStackTrace()
-    })
+    def reportFailure(e: Throwable): Unit =
+      e.printStackTrace()
+  })
 
   private def setTimeout(delayMillis: Long, ec: ExecutionContext, r: Runnable): js.Dynamic = {
     val lambda: js.Function = () => ec.execute(r)
@@ -71,10 +71,7 @@ private[internals] object IOTimer {
     ()
   }
 
-  private final class ScheduledTick(
-    conn: IOConnection,
-    cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
+  final private class ScheduledTick(conn: IOConnection, cb: Either[Throwable, Unit] => Unit) extends Runnable {
 
     def run(): Unit = {
       conn.pop()

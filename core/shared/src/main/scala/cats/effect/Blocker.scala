@@ -50,9 +50,9 @@ object Blocker extends BlockerPlatform {
 
   /**
    * Creates a blocker that delegates to the supplied execution context.
-   * 
+   *
    * This must not be used with general purpose contexts like
-   * `scala.concurrent.ExecutionContext.Implicits.global'.
+   * `scala.concurrent.ExecutionContext.Implicits.global`.
    */
   def liftExecutionContext(ec: ExecutionContext): Blocker = new Blocker(ec)
 }

@@ -27,32 +27,30 @@ import org.scalacheck._, Prop.forAll
 trait AsyncTests[F[_]] extends SyncTests[F] {
   def laws: AsyncLaws[F]
 
-  def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbT: Arbitrary[Throwable],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenC: Cogen[C],
-    CogenT: Cogen[Throwable],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqT: Eq[Throwable],
-    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
-    EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    iso: Isomorphisms[F],
-    params: Parameters): RuleSet = {
-
+  def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                  ArbFA: Arbitrary[F[A]],
+                                                                  ArbFB: Arbitrary[F[B]],
+                                                                  ArbFC: Arbitrary[F[C]],
+                                                                  ArbFU: Arbitrary[F[Unit]],
+                                                                  ArbFAtoB: Arbitrary[F[A => B]],
+                                                                  ArbFBtoC: Arbitrary[F[B => C]],
+                                                                  ArbT: Arbitrary[Throwable],
+                                                                  CogenA: Cogen[A],
+                                                                  CogenB: Cogen[B],
+                                                                  CogenC: Cogen[C],
+                                                                  CogenT: Cogen[Throwable],
+                                                                  EqFA: Eq[F[A]],
+                                                                  EqFB: Eq[F[B]],
+                                                                  EqFC: Eq[F[C]],
+                                                                  EqFU: Eq[F[Unit]],
+                                                                  EqT: Eq[Throwable],
+                                                                  EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
+                                                                  EqFEitherTA: Eq[F[Either[Throwable, A]]],
+                                                                  EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
+                                                                  EqFABC: Eq[F[(A, B, C)]],
+                                                                  EqFInt: Eq[F[Int]],
+                                                                  iso: Isomorphisms[F],
+                                                                  params: Parameters): RuleSet =
     new RuleSet {
       val name = "async"
       val bases = Nil
@@ -65,7 +63,10 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           "repeated asyncF evaluation not memoized" -> forAll(laws.repeatedAsyncFEvaluationNotMemoized[A] _),
           "propagate errors through bind (async)" -> forAll(laws.propagateErrorsThroughBindAsync[A] _),
           "async can be derived from asyncF" -> forAll(laws.asyncCanBeDerivedFromAsyncF[A] _),
-          "bracket release is called on Completed or Error" -> forAll(laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _))
+          "bracket release is called on Completed or Error" -> forAll(
+            laws.bracketReleaseIsCalledOnCompletedOrError[A, B] _
+          )
+        )
 
         // Activating the tests that detect non-termination only if allowed by Params,
         // because such tests might not be reasonable depending on evaluation model
@@ -77,7 +78,6 @@ trait AsyncTests[F[_]] extends SyncTests[F] {
           default
       }
     }
-  }
 }
 
 object AsyncTests {

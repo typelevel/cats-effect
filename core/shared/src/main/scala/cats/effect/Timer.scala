@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Functor, Monoid, ~>}
+import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
 import scala.annotation.implicitNotFound
@@ -48,6 +48,7 @@ import scala.concurrent.duration.FiniteDuration
 * if using IO, use cats.effect.IOApp or build one with cats.effect.IO.timer
 """)
 trait Timer[F[_]] {
+
   /**
    * Returns a [[Clock]] instance associated with this timer
    * that can provide the current time and do time measurements.
@@ -108,7 +109,9 @@ object Timer {
    * Derives a [[Timer]] instance for `cats.data.WriterT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F], L: Monoid[L], timer: Timer[F]): Timer[WriterT[F, L, ?]] =
+  implicit def deriveWriterT[F[_], L](implicit F: Applicative[F],
+                                      L: Monoid[L],
+                                      timer: Timer[F]): Timer[WriterT[F, L, ?]] =
     new Timer[WriterT[F, L, ?]] {
       val clock: Clock[WriterT[F, L, ?]] = Clock.deriveWriterT
 
@@ -141,9 +144,9 @@ object Timer {
     }
 
   /**
-    * Derives a [[Timer]] instance for `cats.data.IorT`,
-    * given we have one for `F[_]`.
-    */
+   * Derives a [[Timer]] instance for `cats.data.IorT`,
+   * given we have one for `F[_]`.
+   */
   implicit def deriveIorT[F[_], L](implicit F: Applicative[F], timer: Timer[F]): Timer[IorT[F, L, ?]] =
     new Timer[IorT[F, L, ?]] {
       val clock: Clock[IorT[F, L, ?]] = Clock.deriveIorT
@@ -152,7 +155,8 @@ object Timer {
         IorT.liftF(timer.sleep(duration))
     }
 
-  implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal{
+  implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal {
+
     /**
      * Modify the context `F` using transformation `f`.
      */

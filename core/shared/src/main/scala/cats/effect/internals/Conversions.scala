@@ -26,7 +26,7 @@ private[effect] object Conversions {
   def toTry[A](a: Either[Throwable, A]): Try[A] =
     a match {
       case Right(r) => Success(r)
-      case Left(l) => Failure(l)
+      case Left(l)  => Failure(l)
     }
 
   def toEither[A](a: Try[A]): Either[Throwable, A] =

@@ -20,83 +20,79 @@ import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import sbtcrossproject.crossProject
 
-organization in ThisBuild := "org.typelevel"
-organizationName in ThisBuild := "Typelevel"
-startYear in ThisBuild := Some(2017)
+ThisBuild / organization := "org.typelevel"
+ThisBuild / organizationName := "Typelevel"
+ThisBuild / startYear := Some(2017)
 
 val CompileTime = config("CompileTime").hide
-val SimulacrumVersion = "0.19.0"
-val CatsVersion = "2.0.0-RC2"
+val SimulacrumVersion = "1.0.0"
+val CatsVersion = "2.0.0"
 val ScalaTestVersion = "3.1.0-SNAP13"
 val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
-val ScalaCheckVersion = "1.14.0"
-val DisciplineCoreVersion = "1.0.0"
+val ScalaCheckVersion = "1.14.2"
+val DisciplineCoreVersion = "1.0.1"
 val DisciplineScalatestVersion = "1.0.0-M1"
 
-addCommandAlias("ci", ";test ;mimaReportBinaryIssues; doc")
+addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
-  scalacOptions ++= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-    case Some((2, n)) if n >= 13 =>
-      // Necessary for simulacrum
-      Seq("-Ymacro-annotations")
-  }.toList.flatten,
-
-  scalacOptions --= PartialFunction.condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-    case Some((2, 11)) =>
-      // Falsely detects interpolation in @implicitNotFound
-      Seq("-Xlint:missing-interpolator")
-  }.toList.flatten,
-
+  scalacOptions ++= PartialFunction
+    .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+      case Some((2, n)) if n >= 13 =>
+        // Necessary for simulacrum
+        Seq("-Ymacro-annotations")
+    }
+    .toList
+    .flatten,
+  scalacOptions --= PartialFunction
+    .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
+      case Some((2, 11)) =>
+        // Falsely detects interpolation in @implicitNotFound
+        Seq("-Xlint:missing-interpolator")
+    }
+    .toList
+    .flatten,
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
 
-    val path = if (isSnapshot)
-      scmInfo.value.get.browseUrl + "/blob/" + git.gitHeadCommit.value.get + "€{FILE_PATH}.scala"
-    else
-      scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
+    val path =
+      if (isSnapshot)
+        scmInfo.value.get.browseUrl + "/blob/" + git.gitHeadCommit.value.get + "€{FILE_PATH}.scala"
+      else
+        scmInfo.value.get.browseUrl + "/blob/v" + version.value + "€{FILE_PATH}.scala"
 
     Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
   },
-
-  sources in (Compile, doc) :=
-    (sources in (Compile, doc)).value,
-
+  sources in (Compile, doc) := (sources in (Compile, doc)).value,
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
   scalacOptions in (Compile, doc) ++=
     Opts.doc.title("cats-effect"),
-
   scalacOptions in Test += "-Yrangepos",
   scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
-
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
   parallelExecution in IntegrationTest := false,
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
-
   // credit: https://github.com/typelevel/cats/pull/1638
   ivyConfigurations += CompileTime,
   unmanagedClasspath in Compile ++= update.value.select(configurationFilter("CompileTime")),
-
   logBuffered in Test := false,
-
-  isSnapshot := version.value endsWith "SNAPSHOT",      // so… sonatype doesn't like git hash snapshots
-
+  isSnapshot := version.value.endsWith("SNAPSHOT"), // so… sonatype doesn't like git hash snapshots
   publishTo := Some(
     if (isSnapshot.value)
       Opts.resolver.sonatypeSnapshots
     else
-      Opts.resolver.sonatypeStaging),
-
+      Opts.resolver.sonatypeStaging
+  ),
   publishMavenStyle := true,
-  pomIncludeRepository := { _ => false },
-
+  pomIncludeRepository := { _ =>
+    false
+  },
   sonatypeProfileName := organization.value,
-
   pomExtra :=
     <developers>
       <developer>
@@ -120,48 +116,49 @@ val commonSettings = Seq(
         <url>https://github.com/systemfw</url>
       </developer>
     </developers>,
-
   homepage := Some(url("https://typelevel.org/cats-effect/")),
   scmInfo := Some(ScmInfo(url("https://github.com/typelevel/cats-effect"), "git@github.com:typelevel/cats-effect.git")),
-  headerLicense := Some(HeaderLicense.Custom(
-    """|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
-       |
-       |Licensed under the Apache License, Version 2.0 (the "License");
-       |you may not use this file except in compliance with the License.
-       |You may obtain a copy of the License at
-       |
-       |    http://www.apache.org/licenses/LICENSE-2.0
-       |
-       |Unless required by applicable law or agreed to in writing, software
-       |distributed under the License is distributed on an "AS IS" BASIS,
-       |WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-       |See the License for the specific language governing permissions and
-       |limitations under the License."""
-      .stripMargin)),
-
+  headerLicense := Some(
+    HeaderLicense.Custom(
+      """|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
+         |
+         |Licensed under the Apache License, Version 2.0 (the "License");
+         |you may not use this file except in compliance with the License.
+         |You may obtain a copy of the License at
+         |
+         |    http://www.apache.org/licenses/LICENSE-2.0
+         |
+         |Unless required by applicable law or agreed to in writing, software
+         |distributed under the License is distributed on an "AS IS" BASIS,
+         |WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+         |See the License for the specific language governing permissions and
+         |limitations under the License.""".stripMargin
+    )
+  ),
   // For evicting Scoverage out of the generated POM
   // See: https://github.com/scoverage/sbt-scoverage/issues/153
   pomPostProcess := { (node: xml.Node) =>
     new RuleTransformer(new RewriteRule {
       override def transform(node: xml.Node): Seq[xml.Node] = node match {
         case e: Elem
-          if e.label == "dependency" && e.child.exists(child => child.label == "groupId" && child.text == "org.scoverage") => Nil
+            if e.label == "dependency" && e.child
+              .exists(child => child.label == "groupId" && child.text == "org.scoverage") =>
+          Nil
         case _ => Seq(node)
       }
     }).transform(node).head
   },
-
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.10.3" cross CrossVersion.binary),
-
+  addCompilerPlugin(("org.typelevel" % "kind-projector" % "0.10.3").cross(CrossVersion.binary)),
   mimaFailOnNoPrevious := false
 )
 
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 13)) => Set.empty
-      case Some((2, 12)) => Set(organization.value %% name.value % "1.0.0")
-      case _             => Set.empty
+      //2.11 has some incompatibilities in core in 2.0.0, 2.13 didn't have a release before
+      case Some((2, 11) | (2, 13)) => Set(organization.value %% name.value % "2.0.0")
+      case Some((2, 12))           => Set(organization.value %% name.value % "1.0.0")
+      case _                       => Set.empty
     }
   },
   mimaBinaryIssueFilters ++= {
@@ -184,26 +181,28 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
       // Incompatible signatures should not cause linking problems.
       exclude[IncompatibleSignatureProblem]("cats.effect.IO.ioParallel"),
-      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel")
     )
-  })
+  }
+)
 
-// We broke binary compatibily for laws in 2.0
 val lawsMimaSettings = mimaSettings ++ Seq(
-  // TODO: set to 2.0.0 after release
-  mimaPreviousArtifacts := Set.empty
+  // We broke binary compatibility for laws in 2.0
+  mimaPreviousArtifacts := Set(organization.value %% name.value % "2.0.0")
 )
 
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
-def profile: Project => Project = pr => cmdlineProfile match {
-  case "coverage" => pr
-  case _ => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-}
+def profile: Project => Project =
+  pr => {
+    cmdlineProfile match {
+      case "coverage" => pr
+      case _          => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
+    }
+  }
 
 lazy val scalaJSSettings = Seq(
   coverageExcludedFiles := ".*",
-
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
     val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
@@ -217,17 +216,12 @@ lazy val scalaJSSettings = Seq(
     val g = s"https://raw.githubusercontent.com/typelevel/cats-effect/$versionOrHash/"
     s"-P:scalajs:mapSourceURI:$l->$g"
   },
-
   // Work around "dropping dependency on node with no phase object: mixin"
-  scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
+  scalacOptions in (Compile, doc) -= "-Xfatal-warnings"
 )
 
-lazy val skipOnPublishSettings = Seq(
-  skip in publish := true,
-  publish := (()),
-  publishLocal := (()),
-  publishArtifact := false,
-  publishTo := None)
+lazy val skipOnPublishSettings =
+  Seq(skip in publish := true, publish := (()), publishLocal := (()), publishArtifact := false, publishTo := None)
 
 lazy val sharedSourcesSettings = Seq(
   unmanagedSourceDirectories in Compile += {
@@ -235,41 +229,43 @@ lazy val sharedSourcesSettings = Seq(
   },
   unmanagedSourceDirectories in Test += {
     baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
-  })
+  }
+)
 
-lazy val root = project.in(file("."))
+lazy val root = project
+  .in(file("."))
   .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
   .configure(profile)
   .settings(skipOnPublishSettings)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
+lazy val core = crossProject(JSPlatform, JVMPlatform)
+  .in(file("core"))
   .settings(commonSettings: _*)
   .settings(
     name := "cats-effect",
-
     libraryDependencies ++= Seq(
-      "org.typelevel"        %%% "cats-core"  % CatsVersion,
-      "com.github.mpilquist" %%% "simulacrum" % SimulacrumVersion % CompileTime,
-
-      "org.typelevel"     %%% "cats-laws"                % CatsVersion                    % Test,
-      "org.scalatest"     %%% "scalatest"                % ScalaTestVersion               % Test,
+      "org.typelevel" %%% "cats-core" % CatsVersion,
+      "org.typelevel" %%% "simulacrum" % SimulacrumVersion % CompileTime,
+      "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
+      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test,
       "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
-      "org.scalacheck"    %%% "scalacheck"               % ScalaCheckVersion              % Test,
-      "org.typelevel"     %%% "discipline-scalatest"     % DisciplineScalatestVersion     % Test),
-
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+    ),
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, v)) if v <= 12 =>
           Seq(
-            compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+            compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full))
           )
         case _ =>
           // if scala 2.13.0-M4 or later, macro annotations merged into scala-reflect
           // https://github.com/scala/scala/pull/6606
           Nil
       }
-    })
+    }
+  )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
@@ -285,14 +281,14 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings: _*)
   .settings(
     name := "cats-effect-laws",
-
     libraryDependencies ++= Seq(
-      "org.typelevel"  %%% "cats-laws"            % CatsVersion,
-      "org.scalacheck" %%% "scalacheck"           % ScalaCheckVersion,
-      "org.typelevel"  %%% "discipline-core"      % DisciplineCoreVersion,
-      "org.typelevel"  %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
-      "org.scalatest"  %%% "scalatest"            % ScalaTestVersion % Test))
-
+      "org.typelevel" %%% "cats-laws" % CatsVersion,
+      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
+      "org.typelevel" %%% "discipline-core" % DisciplineCoreVersion,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
+      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test
+    )
+  )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(lawsMimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
@@ -302,18 +298,20 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
 
-lazy val benchmarksPrev = project.in(file("benchmarks/vPrev"))
+lazy val benchmarksPrev = project
+  .in(file("benchmarks/vPrev"))
   .configure(profile)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC")
-  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
+  .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
-lazy val benchmarksNext = project.in(file("benchmarks/vNext"))
+lazy val benchmarksNext = project
+  .in(file("benchmarks/vNext"))
   .configure(profile)
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
-  .settings(scalacOptions ~= (_ filterNot Set("-Xfatal-warnings", "-Ywarn-unused-import").contains))
+  .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
 lazy val docsMappingsAPIDir =
@@ -338,7 +336,8 @@ lazy val siteSettings = Seq(
     "gray" -> "#7B7B7E",
     "gray-light" -> "#E5E5E6",
     "gray-lighter" -> "#F4F3F4",
-    "white-color" -> "#FFFFFF"),
+    "white-color" -> "#FFFFFF"
+  ),
   micrositeExtraMdFiles := Map(
     file("README.md") -> ExtraMdFileConfig(
       "index.md",
@@ -346,26 +345,29 @@ lazy val siteSettings = Seq(
       Map("section" -> "home", "position" -> "0")
     )
   ),
-  fork in tut := true,
-
-  scalacOptions in Tut ~= (_ filterNot Set(
-    "-Xfatal-warnings",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-unused:imports",
-    "-Ywarn-unused:locals",
-    "-Ywarn-unused:patvars",
-    "-Ywarn-unused:privates",
-    "-Ywarn-numeric-widen",
-    "-Ywarn-dead-code",
-    "-Xlint:-missing-interpolator,_").contains),
-
+  micrositeCompilingDocsTool := WithMdoc,
+  mdocIn := (sourceDirectory in Compile).value / "mdoc",
+  fork in mdoc := true,
+  scalacOptions in mdoc ~= (_.filterNot(
+    Set(
+      "-Xfatal-warnings",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-unused:imports",
+      "-Ywarn-unused:locals",
+      "-Ywarn-unused:patvars",
+      "-Ywarn-unused:privates",
+      "-Ywarn-numeric-widen",
+      "-Ywarn-dead-code",
+      "-Xlint:-missing-interpolator,_"
+    ).contains
+  )),
   docsMappingsAPIDir := "api",
   addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
 
-lazy val microsite = project.in(file("site"))
-  .enablePlugins(MicrositesPlugin)
-  .enablePlugins(SiteScaladocPlugin)
+lazy val microsite = project
+  .in(file("site"))
+  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(siteSettings)
   .dependsOn(coreJVM, lawsJVM)
@@ -403,15 +405,11 @@ lazy val microsite = project.in(file("site"))
  */
 val BaseVersion = "2.0.0"
 
-licenses in ThisBuild += ("Apache-2.0", url("http://www.apache.org/licenses/"))
+ThisBuild / licenses += ("Apache-2.0", url("http://www.apache.org/licenses/"))
 
 /***********************************************************************\
                       Boilerplate below these lines
 \***********************************************************************/
-
-coursierUseSbtCredentials in ThisBuild := true
-coursierChecksums in ThisBuild := Nil      // workaround for nexus sync bugs
-
 enablePlugins(GitVersioning)
 
 val ReleaseTag = """^v(\d+\.\d+(?:\.\d+(?:[-.]\w+)?)?)$""".r
@@ -420,13 +418,13 @@ git.baseVersion := BaseVersion
 
 git.gitTagToVersionNumber := {
   case ReleaseTag(v) => Some(v)
-  case _ => None
+  case _             => None
 }
 
 git.formattedShaVersion := {
   val suffix = git.makeUncommittedSignifierSuffix(git.gitUncommittedChanges.value, git.uncommittedSignifier.value)
 
-  git.gitHeadCommit.value map { _.substring(0, 7) } map { sha =>
+  git.gitHeadCommit.value.map(_.substring(0, 7)).map { sha =>
     git.baseVersion.value + "-" + sha + suffix
   }
 }

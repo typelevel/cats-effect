@@ -21,6 +21,7 @@ import cats.effect.IO
 import scala.concurrent.ExecutionContext
 
 private[effect] object IOShift {
+
   /** Implementation for `IO.shift`. */
   def apply(ec: ExecutionContext): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -29,10 +30,9 @@ private[effect] object IOShift {
     })
 
   def shiftOn[A](cs: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-     IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
+    IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
 
-  private[internals] final class Tick(cb: Either[Throwable, Unit] => Unit)
-    extends Runnable {
+  final private[internals] class Tick(cb: Either[Throwable, Unit] => Unit) extends Runnable {
     def run() = cb(Callback.rightUnit)
   }
 }

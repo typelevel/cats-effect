@@ -22,6 +22,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Left, Right, Success}
 
 private[effect] object IOFromFuture {
+
   /**
    * Implementation for `IO.fromFuture`.
    */
@@ -34,10 +35,12 @@ private[effect] object IOFromFuture {
         }
       case _ =>
         IO.async { cb =>
-          f.onComplete(r => cb(r match {
-            case Success(a) => Right(a)
-            case Failure(e) => Left(e)
-          }))(immediate)
+          f.onComplete { r =>
+            cb(r match {
+              case Success(a) => Right(a)
+              case Failure(e) => Left(e)
+            })
+          }(immediate)
         }
     }
 }

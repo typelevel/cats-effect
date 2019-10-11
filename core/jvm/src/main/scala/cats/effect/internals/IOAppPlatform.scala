@@ -20,7 +20,9 @@ package internals
 
 private[effect] object IOAppPlatform {
 
-  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): Unit = {
+  def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
+    run: List[String] => IO[ExitCode]
+  ): Unit = {
     val code = mainFiber(args, contextShift, timer)(run).flatMap(_.join).unsafeRunSync()
     if (code == 0) {
       // Return naturally from main. This allows any non-daemon
@@ -32,14 +34,14 @@ private[effect] object IOAppPlatform {
     }
   }
 
-  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(run: List[String] => IO[ExitCode]): IO[Fiber[IO, Int]] = {
+  def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
+    run: List[String] => IO[ExitCode]
+  ): IO[Fiber[IO, Int]] = {
     val _ = timer // is used on Scala.js
-    val io = run(args.toList).redeem(
-      e => {
-        Logger.reportFailure(e)
-        ExitCode.Error.code
-      },
-      r => r.code)
+    val io = run(args.toList).redeem(e => {
+      Logger.reportFailure(e)
+      ExitCode.Error.code
+    }, r => r.code)
 
     io.start(contextShift.value).flatMap { fiber =>
       installHook(fiber).map(_ => fiber)

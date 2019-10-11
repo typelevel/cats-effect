@@ -31,16 +31,13 @@ import cats.effect.internals.IOPlatform
  *        is to block the thread with a timeout, then that makes tests
  *        really hard to evaluate, so it's best if they are disabled
  */
-final case class Parameters(
-  stackSafeIterationsCount: Int,
-  allowNonTerminationLaws: Boolean)
+final case class Parameters(stackSafeIterationsCount: Int, allowNonTerminationLaws: Boolean)
 
 object Parameters {
+
   /** Default parameters. */
   implicit val default: Parameters =
-    Parameters(
-      allowNonTerminationLaws = true,
-      stackSafeIterationsCount = {
-        if (IOPlatform.isJVM) 10000 else 100
-      })
+    Parameters(allowNonTerminationLaws = true, stackSafeIterationsCount = {
+      if (IOPlatform.isJVM) 10000 else 100
+    })
 }

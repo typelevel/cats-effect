@@ -56,8 +56,9 @@ object SyncEffect {
   implicit def catsWriterTSyncEffect[F[_]: SyncEffect, L: Monoid]: SyncEffect[WriterT[F, L, ?]] =
     new WriterTSyncEffect[F, L] { def F = SyncEffect[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTSyncEffect[F[_]] extends SyncEffect[EitherT[F, Throwable, ?]]
-    with Sync.EitherTSync[F, Throwable] {
+  private[effect] trait EitherTSyncEffect[F[_]]
+      extends SyncEffect[EitherT[F, Throwable, ?]]
+      with Sync.EitherTSync[F, Throwable] {
 
     protected def F: SyncEffect[F]
 
@@ -65,8 +66,7 @@ object SyncEffect {
       F.runSync(F.rethrow(fa.value))
   }
 
-  private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, ?]]
-    with Sync.WriterTSync[F, L] {
+  private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, ?]] with Sync.WriterTSync[F, L] {
 
     protected def F: SyncEffect[F]
     protected def L: Monoid[L]

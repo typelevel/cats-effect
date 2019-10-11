@@ -15,20 +15,19 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 
 Versions of Cats Effect:
 
-- Stable: `1.3.1`
-- Unstable `2.0.0-M3`
+- Stable: `2.0.0`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.1"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0"
 ```
 
 Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
 
-If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 1.x.
+If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0-RC3, as well as Scala.js 0.6.x. Version 2.0.0-M3 has been cross-built for 2.13.0-RC3 and depends upon cats-core version 2.x.
+Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0, as well as Scala.js 0.6.x.
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
@@ -39,7 +38,7 @@ Please see [this document](https://github.com/typelevel/cats-effect/blob/master/
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "1.3.1" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.0.0" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
@@ -86,6 +85,8 @@ These are some of the projects that provide high-level functions on top of `cats
 | [Log4cats](https://christopherdavenport.github.io/log4cats/) | Functional Logging |
 | [Cats STM](https://timwspence.github.io/cats-stm/) | Software Transactional Memory for Cats Effect |
 | [Mau](https://github.com/kailuowang/mau) | A tiny library for an auto polling `Ref` |
+| [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing) | Experimental integration between cats-effect and testing frameworks |
+| [graphite4s](https://github.com/YannMoisan/graphite4s) | lightweight graphite client |
 
 ## Development
 

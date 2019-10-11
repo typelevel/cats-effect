@@ -111,7 +111,8 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {
-    service = Executors.newFixedThreadPool(parallelism,
+    service = Executors.newFixedThreadPool(
+      parallelism,
       new ThreadFactory {
         private[this] val index = new AtomicLong(0)
         def newThread(r: Runnable): Thread = {
@@ -120,7 +121,8 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
           th.setDaemon(false)
           th
         }
-      })
+      }
+    )
   }
 
   after {
@@ -153,12 +155,12 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         } yield ()
 
       val task = for {
-        df    <- allocate
-        fb    <- get(df).start
-        _     <- IO(Thread.currentThread().getName shouldBe name)
-        _     <- release(df)
-        _     <- IO(Thread.currentThread().getName shouldBe name)
-        _     <- fb.join
+        df <- allocate
+        fb <- get(df).start
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- release(df)
+        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- fb.join
       } yield ()
 
       assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -174,11 +176,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocate
+          df <- allocate
           latch <- Deferred.uncancelable[IO, Unit]
-          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _     <- latch.get
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _ <- latch.get
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -197,9 +199,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocate
-          fb    <- (acquire(df) *> unit.foreverM).start
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          df <- allocate
+          fb <- (acquire(df) *> unit.foreverM).start
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -211,17 +213,16 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (concurrent) — issue #380: with cooperative light async boundaries; with latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocate
+        d <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -232,15 +233,14 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (concurrent) — issue #380: with cooperative light async boundaries; without latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocate
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(5.seconds).guarantee(fb.cancel)
+        d <- allocate
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _ <- release(d).timeout(5.seconds).guarantee(fb.cancel)
       } yield true
     }
 
@@ -251,17 +251,16 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (concurrent) — issue #380: with cooperative full async boundaries; with latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocate
+        d <- allocate
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -272,15 +271,14 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (concurrent) — issue #380: with cooperative full async boundaries; without latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocate
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        d <- allocate
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -298,11 +296,11 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocateUncancelable
+          df <- allocateUncancelable
           latch <- Deferred[IO, Unit]
-          fb    <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
-          _     <- latch.get
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          fb <- (latch.complete(()) *> acquire(df) *> unit.foreverM).start
+          _ <- latch.get
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -321,9 +319,9 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       try {
         val task = for {
-          df    <- allocateUncancelable
-          fb    <- (acquire(df) *> unit.foreverM).start
-          _     <- release(df).timeout(timeout).guarantee(fb.cancel)
+          df <- allocateUncancelable
+          fb <- (acquire(df) *> unit.foreverM).start
+          _ <- release(df).timeout(timeout).guarantee(fb.cancel)
         } yield ()
 
         assert(task.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
@@ -333,20 +331,18 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
     }
   }
 
-
   test("MVar (async) — issue #380: with cooperative light async boundaries; with latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocateUncancelable
+        d <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -357,15 +353,14 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (async) — issue #380: with cooperative light async boundaries; without latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocateUncancelable
-        fb    <- (acquire(d) *> foreverAsync(0)).start
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        d <- allocateUncancelable
+        fb <- (acquire(d) *> foreverAsync(0)).start
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 
@@ -376,17 +371,16 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
   test("MVar (async) — issue #380: with cooperative full async boundaries; with latch") {
     def run = {
-      def foreverAsync(i: Int): IO[Unit] = {
-        if(i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
+      def foreverAsync(i: Int): IO[Unit] =
+        if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
-      }
 
       for {
-        d     <- allocateUncancelable
+        d <- allocateUncancelable
         latch <- Deferred.uncancelable[IO, Unit]
-        fb    <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
-        _     <- latch.get
-        _     <- release(d).timeout(timeout).guarantee(fb.cancel)
+        fb <- (latch.complete(()) *> acquire(d) *> foreverAsync(0)).start
+        _ <- latch.get
+        _ <- release(d).timeout(timeout).guarantee(fb.cancel)
       } yield true
     }
 

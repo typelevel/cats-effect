@@ -32,7 +32,8 @@ import scala.annotation.tailrec
  * Used in the implementation of `cats.effect.IO`. Inspired by the
  * implementation of `StackedCancelable` from the Monix library.
  */
-private[effect] sealed abstract class IOConnection {
+sealed abstract private[effect] class IOConnection {
+
   /**
    * Cancels the unit of work represented by this reference.
    *
@@ -83,6 +84,7 @@ private[effect] sealed abstract class IOConnection {
 }
 
 private[effect] object IOConnection {
+
   /** Builder for [[IOConnection]]. */
   def apply(): IOConnection =
     new Impl
@@ -94,7 +96,7 @@ private[effect] object IOConnection {
   val uncancelable: IOConnection =
     new Uncancelable
 
-  private final class Uncancelable extends IOConnection {
+  final private class Uncancelable extends IOConnection {
     def cancel = IO.unit
     def isCanceled: Boolean = false
     def push(token: CancelToken[IO]): Unit = ()
@@ -103,7 +105,7 @@ private[effect] object IOConnection {
     def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
   }
 
-  private final class Impl extends IOConnection {
+  final private class Impl extends IOConnection {
     private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
 
     val cancel = IO.suspend {

@@ -21,7 +21,6 @@ import cats.{Parallel, Traverse}
 import scala.concurrent.duration.FiniteDuration
 import cats.effect.{Concurrent, Timer}
 
-
 trait ConcurrentSyntax extends Concurrent.ToConcurrentOps {
   implicit def catsEffectSyntaxConcurrent[F[_], A](fa: F[A]): ConcurrentOps[F, A] =
     new ConcurrentOps[F, A](fa)
@@ -41,14 +40,14 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
 final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal {
 
   /**
-    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
   def parTraverseN[T[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(implicit T: Traverse[T], P: Parallel[F]): F[T[B]] =
     Concurrent.parTraverseN(n)(ta)(f)(T, F, P)
 
   /**
-    * Like `Parallel.parSequence`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
   def parSequenceN[T[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F]): F[T[A]] =
     Concurrent.parSequenceN(n)(tma)(T, F, P)
 }

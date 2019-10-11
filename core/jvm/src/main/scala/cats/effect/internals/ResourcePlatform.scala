@@ -24,26 +24,26 @@ import javax.security.auth.Destroyable
 private[effect] trait ResourcePlatform {
 
   /**
-    * Creates a [[Resource]] by wrapping a Java
-    * [[https://docs.oracle.com/javase/8/docs/api/javax/security/auth/Destroyable.html Destroyable]].
-    *
-    * Example:
-    * {{{
-    *   import java.security.KeyStore.PasswordProtection
-    *   import cats.effect._
-    *   import cats.implicits._
-    *
-    *   def passwordProtection[F[_]](getPassword: F[Array[Char]])(implicit F: Sync[F]): Resource[F, PasswordProtection] =
-    *     Resource.fromDestroyable(
-    *       getPassword.map(new PasswordProtection(_))
-    *     )
-    * }}}
-    * @param acquire The effect with the resource to acquire.
-    * @param F the effect type in which the resource was acquired and will be released
-    * @tparam F the type of the effect
-    * @tparam A the type of the destroyable resource
-    * @return a Resource that will automatically destroy after use
-    */
+   * Creates a [[Resource]] by wrapping a Java
+   * [[https://docs.oracle.com/javase/8/docs/api/javax/security/auth/Destroyable.html Destroyable]].
+   *
+   * Example:
+   * {{{
+   *   import java.security.KeyStore.PasswordProtection
+   *   import cats.effect._
+   *   import cats.implicits._
+   *
+   *   def passwordProtection[F[_]](getPassword: F[Array[Char]])(implicit F: Sync[F]): Resource[F, PasswordProtection] =
+   *     Resource.fromDestroyable(
+   *       getPassword.map(new PasswordProtection(_))
+   *     )
+   * }}}
+   * @param acquire The effect with the resource to acquire.
+   * @param F the effect type in which the resource was acquired and will be released
+   * @tparam F the type of the effect
+   * @tparam A the type of the destroyable resource
+   * @return a Resource that will automatically destroy after use
+   */
   def fromDestroyable[F[_], A <: Destroyable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(destroyable => F.delay(destroyable.destroy()))
 }

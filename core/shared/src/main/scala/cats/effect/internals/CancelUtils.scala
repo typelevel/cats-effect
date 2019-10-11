@@ -23,33 +23,36 @@ import scala.collection.mutable.ListBuffer
  * INTERNAL API - utilities for dealing with cancelable thunks.
  */
 private[effect] object CancelUtils {
+
   /**
    * Given a list of cancel tokens, cancels all, delaying all
    * exceptions until all references are canceled.
    */
-  def cancelAll(cancelables: CancelToken[IO]*): CancelToken[IO] = {
+  def cancelAll(cancelables: CancelToken[IO]*): CancelToken[IO] =
     if (cancelables.isEmpty) {
       IO.unit
-    } else IO.suspend {
-      cancelAll(cancelables.iterator)
+    } else {
+      IO.suspend {
+        cancelAll(cancelables.iterator)
+      }
     }
-  }
 
   def cancelAll(cursor: Iterator[CancelToken[IO]]): CancelToken[IO] =
     if (cursor.isEmpty) {
       IO.unit
-    } else IO.suspend {
-      val frame = new CancelAllFrame(cursor)
-      frame.loop()
+    } else {
+      IO.suspend {
+        val frame = new CancelAllFrame(cursor)
+        frame.loop()
+      }
     }
 
   // Optimization for `cancelAll`
-  private final class CancelAllFrame(cursor: Iterator[CancelToken[IO]])
-    extends IOFrame[Unit, IO[Unit]] {
+  final private class CancelAllFrame(cursor: Iterator[CancelToken[IO]]) extends IOFrame[Unit, IO[Unit]] {
 
     private[this] val errors = ListBuffer.empty[Throwable]
 
-    def loop(): CancelToken[IO] = {
+    def loop(): CancelToken[IO] =
       if (cursor.hasNext) {
         cursor.next().flatMap(this)
       } else {
@@ -59,11 +62,10 @@ private[effect] object CancelUtils {
           case first :: rest =>
             // Logging the errors somewhere, because exceptions
             // should never be silent
-            rest foreach Logger.reportFailure
+            rest.foreach(Logger.reportFailure)
             IO.raiseError(first)
         }
       }
-    }
 
     def apply(a: Unit): IO[Unit] =
       loop()

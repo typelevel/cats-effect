@@ -30,7 +30,7 @@ import cats.effect.IO
  * Inspired by
  * [[https://github.com/alexknvl/newtypes alexknvl/newtypes]].
  */
-private[effect] abstract class IONewtype { self =>
+abstract private[effect] class IONewtype { self =>
   type Base
   trait Tag extends Any
   type Type[+A] <: Base with Tag

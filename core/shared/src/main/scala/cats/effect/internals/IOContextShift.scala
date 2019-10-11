@@ -26,8 +26,7 @@ import scala.concurrent.ExecutionContext
  * Depends on having a Scala `ExecutionContext` for the actual
  * execution of tasks (i.e. bind continuations)
  */
-private[internals] final class IOContextShift private (ec: ExecutionContext)
-  extends ContextShift[IO] {
+final private[internals] class IOContextShift private (ec: ExecutionContext) extends ContextShift[IO] {
 
   val shift: IO[Unit] =
     IOShift(ec)
@@ -37,6 +36,7 @@ private[internals] final class IOContextShift private (ec: ExecutionContext)
 }
 
 private[effect] object IOContextShift {
+
   /** `ContextShift` builder. */
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)

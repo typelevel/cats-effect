@@ -18,5 +18,4 @@ package cats.effect.syntax
 
 import cats.effect.SyncEffect
 
-
 trait SyncEffectSyntax extends SyncEffect.ToSyncEffectOps

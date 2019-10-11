@@ -31,13 +31,11 @@ import scala.util.Try
  * execution of tasks after their schedule (i.e. bind continuations) and on a Java
  * `ScheduledExecutorService` for scheduling ticks with a delay.
  */
-private[internals] final class IOTimer private (
-  ec: ExecutionContext, sc: ScheduledExecutorService)
-  extends Timer[IO] {
+final private[internals] class IOTimer private (ec: ExecutionContext, sc: ScheduledExecutorService) extends Timer[IO] {
 
   import IOTimer._
 
-  val clock : Clock[IO] = Clock.create[IO]
+  val clock: Clock[IO] = Clock.create[IO]
 
   override def sleep(timespan: FiniteDuration): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
@@ -60,6 +58,7 @@ private[internals] final class IOTimer private (
 }
 
 private[internals] object IOTimer {
+
   /** Builder. */
   def apply(ec: ExecutionContext): Timer[IO] =
     apply(ec, scheduler)
@@ -72,11 +71,13 @@ private[internals] object IOTimer {
     mkGlobalScheduler(sys.props)
 
   private[internals] def mkGlobalScheduler(props: collection.Map[String, String]): ScheduledThreadPoolExecutor = {
-    val corePoolSize = props.get("cats.effect.global_scheduler.threads.core_pool_size")
+    val corePoolSize = props
+      .get("cats.effect.global_scheduler.threads.core_pool_size")
       .flatMap(s => Try(s.toInt).toOption)
       .filter(_ > 0)
       .getOrElse(2)
-    val keepAliveTime = props.get("cats.effect.global_scheduler.keep_alive_time_ms")
+    val keepAliveTime = props
+      .get("cats.effect.global_scheduler.keep_alive_time_ms")
       .flatMap(s => Try(s.toLong).toOption)
       .filter(_ > 0L)
 
@@ -96,12 +97,12 @@ private[internals] object IOTimer {
     tp.setRemoveOnCancelPolicy(true)
     tp
   }
-  
-  private final class ShiftTick(
+
+  final private class ShiftTick(
     conn: IOConnection,
     cb: Either[Throwable, Unit] => Unit,
-    ec: ExecutionContext)
-    extends Runnable {
+    ec: ExecutionContext
+  ) extends Runnable {
 
     def run(): Unit = {
       // Shifts actual execution on our `ExecutionContext`, because

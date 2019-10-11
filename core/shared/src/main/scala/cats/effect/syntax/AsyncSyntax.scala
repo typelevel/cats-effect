@@ -28,14 +28,14 @@ trait AsyncSyntax extends Async.ToAsyncOps {
 final class AsyncObjOps[F[_]](private val F: Async[F]) extends AnyVal {
 
   /**
-    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parTraverse`, but limits the degree of parallelism.
+   */
   def parTraverseN[T[_], A, B](n: Long)(ta: T[A])(f: A => F[B])(implicit T: Traverse[T], P: Parallel[F]): F[T[B]] =
     Async.parTraverseN(n)(ta)(f)(T, F, P)
 
   /**
-    * Like `Parallel.parSequence`, but limits the degree of parallelism.
-    */
+   * Like `Parallel.parSequence`, but limits the degree of parallelism.
+   */
   def parSequenceN[T[_], A](n: Long)(tma: T[F[A]])(implicit T: Traverse[T], P: Parallel[F]): F[T[A]] =
     Async.parSequenceN(n)(tma)(T, F, P)
 }

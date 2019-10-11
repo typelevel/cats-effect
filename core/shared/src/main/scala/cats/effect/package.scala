@@ -17,6 +17,7 @@
 package cats
 
 package object effect {
+
   /**
    * A cancelation token is an effectful action that is
    * able to cancel a running task.
@@ -38,18 +39,18 @@ package object effect {
   type CancelToken[F[_]] = F[Unit]
 
   /**
-    * Provides missing methods on Scala 2.11's Either while allowing
-    * -Xfatal-warnings along with -Ywarn-unused-import
-    */
-  private[effect] implicit class scala211EitherSyntax[A, B](val self: Either[A, B]) extends AnyVal {	
-    def map[B2](f: B => B2): Either[A, B2] = self match {	
-      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]	
-      case Right(b) => Right(f(b))	
+   * Provides missing methods on Scala 2.11's Either while allowing
+   * -Xfatal-warnings along with -Ywarn-unused-import
+   */
+  implicit private[effect] class scala211EitherSyntax[A, B](val self: Either[A, B]) extends AnyVal {
+    def map[B2](f: B => B2): Either[A, B2] = self match {
+      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]
+      case Right(b)    => Right(f(b))
     }
 
-    def flatMap[B2](f: B => Either[A, B2]): Either[A, B2] = self match {	
-      case Right(a) => f(a)	
-      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]	
-    }	
-  }  
+    def flatMap[B2](f: B => Either[A, B2]): Either[A, B2] = self match {
+      case Right(a)    => f(a)
+      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]
+    }
+  }
 }

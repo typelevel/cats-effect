@@ -27,32 +27,30 @@ import org.scalacheck._, Prop.forAll
 trait ConcurrentTests[F[_]] extends AsyncTests[F] {
   def laws: ConcurrentLaws[F]
 
-  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbT: Arbitrary[Throwable],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenC: Cogen[C],
-    CogenT: Cogen[Throwable],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqT: Eq[Throwable],
-    EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
-    EqFEitherTA: Eq[F[Either[Throwable, A]]],
-    EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    iso: Isomorphisms[F],
-    params: Parameters): RuleSet = {
-
+  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                       ArbFA: Arbitrary[F[A]],
+                                                                       ArbFB: Arbitrary[F[B]],
+                                                                       ArbFC: Arbitrary[F[C]],
+                                                                       ArbFU: Arbitrary[F[Unit]],
+                                                                       ArbFAtoB: Arbitrary[F[A => B]],
+                                                                       ArbFBtoC: Arbitrary[F[B => C]],
+                                                                       ArbT: Arbitrary[Throwable],
+                                                                       CogenA: Cogen[A],
+                                                                       CogenB: Cogen[B],
+                                                                       CogenC: Cogen[C],
+                                                                       CogenT: Cogen[Throwable],
+                                                                       EqFA: Eq[F[A]],
+                                                                       EqFB: Eq[F[B]],
+                                                                       EqFC: Eq[F[C]],
+                                                                       EqFU: Eq[F[Unit]],
+                                                                       EqT: Eq[Throwable],
+                                                                       EqFEitherTU: Eq[F[Either[Throwable, Unit]]],
+                                                                       EqFEitherTA: Eq[F[Either[Throwable, A]]],
+                                                                       EqEitherTFTA: Eq[EitherT[F, Throwable, A]],
+                                                                       EqFABC: Eq[F[(A, B, C)]],
+                                                                       EqFInt: Eq[F[Int]],
+                                                                       iso: Isomorphisms[F],
+                                                                       params: Parameters): RuleSet =
     new RuleSet {
       val name = "concurrent"
       val bases = Nil
@@ -80,19 +78,19 @@ trait ConcurrentTests[F[_]] extends AsyncTests[F] {
           "racePair can join left" -> forAll(laws.racePairCanJoinLeft[A] _),
           "racePair can join right" -> forAll(laws.racePairCanJoinRight[A] _),
           "an action run concurrently with a pure value is the same as just doing that action" ->
-            forAll(laws.actionConcurrentWithPureValueIsJustAction[A] _))
+            forAll(laws.actionConcurrentWithPureValueIsJustAction[A] _)
+        )
 
         // Activating the tests that detect non-termination only if allowed by Params,
         // because such tests might not be reasonable depending on evaluation model
         if (params.allowNonTerminationLaws)
-            default ++ Seq(
-              "uncancelable prevents cancellation" -> forAll(laws.uncancelablePreventsCancelation[A] _)
-            )
+          default ++ Seq(
+            "uncancelable prevents cancellation" -> forAll(laws.uncancelablePreventsCancelation[A] _)
+          )
         else
           default
       }
     }
-  }
 }
 
 object ConcurrentTests {

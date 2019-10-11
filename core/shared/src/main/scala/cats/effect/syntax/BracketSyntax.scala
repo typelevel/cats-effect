@@ -18,7 +18,6 @@ package cats.effect.syntax
 
 import cats.effect.{Bracket, ExitCase}
 
-
 trait BracketSyntax {
   implicit def catsEffectSyntaxBracket[F[_], A, E](fa: F[A])(implicit bracket: Bracket[F, E]): BracketOps[F, E, A] = {
     // Bracket instance here is required to ensure correct inference for E

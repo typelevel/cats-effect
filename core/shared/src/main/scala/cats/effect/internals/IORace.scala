@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Promise
 
 private[effect] object IORace {
+
   /**
    * Implementation for `IO.race` - could be described with `racePair`,
    * but this way it is more efficient, as we no longer have to keep
@@ -28,13 +29,11 @@ private[effect] object IORace {
    */
   def simple[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Either[A, B]] = {
     // Signals successful results
-    def onSuccess[T, U](
-      isActive: AtomicBoolean,
-      main: IOConnection,
-      other: IOConnection,
-      cb: Callback.T[Either[T, U]],
-      r: Either[T, U]): Unit = {
-
+    def onSuccess[T, U](isActive: AtomicBoolean,
+                        main: IOConnection,
+                        other: IOConnection,
+                        cb: Callback.T[Either[T, U]],
+                        r: Either[T, U]): Unit =
       if (isActive.getAndSet(false)) {
         // First interrupts the other task
         other.cancel.unsafeRunAsync { r2 =>
@@ -43,15 +42,12 @@ private[effect] object IORace {
           maybeReport(r2)
         }
       }
-    }
 
-    def onError[T](
-      active: AtomicBoolean,
-      cb: Callback.T[T],
-      main: IOConnection,
-      other: IOConnection,
-      err: Throwable): Unit = {
-
+    def onError[T](active: AtomicBoolean,
+                   cb: Callback.T[T],
+                   main: IOConnection,
+                   other: IOConnection,
+                   err: Throwable): Unit =
       if (active.getAndSet(false)) {
         other.cancel.unsafeRunAsync { r2 =>
           main.pop()
@@ -61,7 +57,6 @@ private[effect] object IORace {
       } else {
         Logger.reportFailure(err)
       }
-    }
 
     val start: Start[Either[A, B]] = (conn, cb) => {
       val active = new AtomicBoolean(true)
@@ -113,51 +108,57 @@ private[effect] object IORace {
       conn.pushPair(connL, connR)
 
       // Starts concurrent execution for the left value
-      IORunLoop.startCancelable[A](IOForkedStart(lh, cs), connL, {
-        case Right(a) =>
-          if (active.getAndSet(false)) {
-            conn.pop()
-            cb(Right(Left((a, IOStart.fiber[B](promiseR, connR)))))
-          } else {
-            promiseL.trySuccess(Right(a))
-            ()
-          }
-        case Left(err) =>
-          if (active.getAndSet(false)) {
-            connR.cancel.unsafeRunAsync { r2 =>
+      IORunLoop.startCancelable[A](
+        IOForkedStart(lh, cs),
+        connL, {
+          case Right(a) =>
+            if (active.getAndSet(false)) {
               conn.pop()
-              maybeReport(r2)
-              cb(Left(err))
+              cb(Right(Left((a, IOStart.fiber[B](promiseR, connR)))))
+            } else {
+              promiseL.trySuccess(Right(a))
+              ()
             }
-          } else {
-            promiseL.trySuccess(Left(err))
-            ()
-          }
-      })
+          case Left(err) =>
+            if (active.getAndSet(false)) {
+              connR.cancel.unsafeRunAsync { r2 =>
+                conn.pop()
+                maybeReport(r2)
+                cb(Left(err))
+              }
+            } else {
+              promiseL.trySuccess(Left(err))
+              ()
+            }
+        }
+      )
 
       // Starts concurrent execution for the right value
-      IORunLoop.startCancelable[B](IOForkedStart(rh, cs), connR, {
-        case Right(b) =>
-          if (active.getAndSet(false)) {
-            conn.pop()
-            cb(Right(Right((IOStart.fiber[A](promiseL, connL), b))))
-          } else {
-            promiseR.trySuccess(Right(b))
-            ()
-          }
-
-        case Left(err) =>
-          if (active.getAndSet(false)) {
-            connL.cancel.unsafeRunAsync { r2 =>
+      IORunLoop.startCancelable[B](
+        IOForkedStart(rh, cs),
+        connR, {
+          case Right(b) =>
+            if (active.getAndSet(false)) {
               conn.pop()
-              maybeReport(r2)
-              cb(Left(err))
+              cb(Right(Right((IOStart.fiber[A](promiseL, connL), b))))
+            } else {
+              promiseR.trySuccess(Right(b))
+              ()
             }
-          } else {
-            promiseR.trySuccess(Left(err))
-            ()
-          }
-      })
+
+          case Left(err) =>
+            if (active.getAndSet(false)) {
+              connL.cancel.unsafeRunAsync { r2 =>
+                conn.pop()
+                maybeReport(r2)
+                cb(Left(err))
+              }
+            } else {
+              promiseR.trySuccess(Left(err))
+              ()
+            }
+        }
+      )
     }
 
     IO.Async(start, trampolineAfter = true)
@@ -166,6 +167,6 @@ private[effect] object IORace {
   private[this] def maybeReport(r: Either[Throwable, _]): Unit =
     r match {
       case Left(e) => Logger.reportFailure(e)
-      case _ => ()
+      case _       => ()
     }
 }

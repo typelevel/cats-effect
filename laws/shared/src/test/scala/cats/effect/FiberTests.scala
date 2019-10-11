@@ -27,10 +27,10 @@ import scala.concurrent.Promise
 import scala.util.Failure
 
 class FiberTests extends BaseTestsSuite {
-  implicit def genFiber[A: Arbitrary : Cogen]: Arbitrary[Fiber[IO, A]] =
+  implicit def genFiber[A: Arbitrary: Cogen]: Arbitrary[Fiber[IO, A]] =
     Arbitrary(genIO[A].map(io => Fiber(io, IO.unit)))
 
-  implicit def fiberEq[F[_] : Applicative, A](implicit FA: Eq[F[A]]): Eq[Fiber[F, A]] =
+  implicit def fiberEq[F[_]: Applicative, A](implicit FA: Eq[F[A]]): Eq[Fiber[F, A]] =
     Eq.by[Fiber[F, A], F[A]](_.join)
 
   checkAllAsync("Fiber[IO, ?]", implicit ec => {
@@ -63,15 +63,15 @@ class FiberTests extends BaseTestsSuite {
     val fa = for {
       fiber <- {
         signal(fiberFinalisersInstalled) *>
-        waitUnlessInterrupted
+          waitUnlessInterrupted
       }.start
       joinFiber <- {
         wait(fiberFinalisersInstalled) *>
-        signal(joinFinalisersInstalled) *>
-        fiber.join.guaranteeCase {
-          case ExitCase.Canceled => IO { joinCanceled = true }
-          case _ => IO.unit
-        }
+          signal(joinFinalisersInstalled) *>
+          fiber.join.guaranteeCase {
+            case ExitCase.Canceled => IO { joinCanceled = true }
+            case _                 => IO.unit
+          }
       }.start
       _ <- wait(joinFinalisersInstalled) *> joinFiber.cancel
     } yield ()
@@ -89,9 +89,13 @@ class FiberTests extends BaseTestsSuite {
 
     // Needs latches due to IO being auto-cancelable at async boundaries
     val latch1 = Promise[Unit]()
-    val io1 = IO.cancelable[Int] { _ => latch1.success(()); IO { canceled += 1 } }
+    val io1 = IO.cancelable[Int] { _ =>
+      latch1.success(()); IO { canceled += 1 }
+    }
     val latch2 = Promise[Unit]()
-    val io2 = IO.cancelable[Int] { _ => latch2.success(()); IO { canceled += 1 } }
+    val io2 = IO.cancelable[Int] { _ =>
+      latch2.success(()); IO { canceled += 1 }
+    }
 
     val f: IO[Unit] =
       for {
@@ -115,7 +119,9 @@ class FiberTests extends BaseTestsSuite {
 
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io1 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val io: IO[Int] =
@@ -141,7 +147,9 @@ class FiberTests extends BaseTestsSuite {
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io2 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io2 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
 
     val f: IO[Int] =
       for {
@@ -164,7 +172,9 @@ class FiberTests extends BaseTestsSuite {
 
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io1 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f: IO[Int] =
@@ -189,7 +199,9 @@ class FiberTests extends BaseTestsSuite {
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io2 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io2 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
 
     val f: IO[Int] =
       for {
@@ -212,7 +224,9 @@ class FiberTests extends BaseTestsSuite {
 
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io1 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io1 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
     val io2 = IO.shift *> IO.raiseError[Int](dummy)
 
     val f: IO[Int] =
@@ -237,7 +251,9 @@ class FiberTests extends BaseTestsSuite {
     val io1 = IO.shift *> IO.raiseError[Int](dummy)
     // Needs latch due to auto-cancellation behavior
     val latch = Promise[Unit]()
-    val io2 = IO.cancelable[Int] { _ => latch.success(()); IO { wasCanceled = true } }
+    val io2 = IO.cancelable[Int] { _ =>
+      latch.success(()); IO { wasCanceled = true }
+    }
 
     val f: IO[Int] =
       for {
