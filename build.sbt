@@ -148,7 +148,7 @@ val commonSettings = Seq(
       }
     }).transform(node).head
   },
-  addCompilerPlugin(("org.typelevel" % "kind-projector" % "0.10.3").cross(CrossVersion.binary)),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.11.0").cross(CrossVersion.full)),
   mimaFailOnNoPrevious := false
 )
 
