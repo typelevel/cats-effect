@@ -101,7 +101,7 @@ parameterized by the return type). Now, let's start implementing our function.
 First, we need to open two streams that will read and write file contents.
 
 ### Acquiring and releasing `Resource`s
-We consider opening an stream to be a side-effect action, so we have to
+We consider opening a stream to be a side-effect action, so we have to
 encapsulate those actions in their own `IO` instances. For this, we will make
 use of cats-effect `Resource`, that allows to orderly create, use and then
 release resources. See this code:
