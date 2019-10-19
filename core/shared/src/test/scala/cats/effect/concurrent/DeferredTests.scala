@@ -22,6 +22,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import cats.implicits._
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
 class DeferredTests extends AsyncFunSuite with Matchers {

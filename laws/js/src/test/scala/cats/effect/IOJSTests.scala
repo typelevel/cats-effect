@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
 import scala.concurrent.duration.{FiniteDuration, _}

@@ -27,11 +27,7 @@ ThisBuild / startYear := Some(2017)
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.0.0"
-val ScalaTestVersion = "3.1.0-SNAP13"
-val ScalaTestPlusScalaCheckVersion = "1.0.0-SNAP8"
-val ScalaCheckVersion = "1.14.2"
-val DisciplineCoreVersion = "1.0.1"
-val DisciplineScalatestVersion = "1.0.0-M1"
+val DisciplineScalatestVersion = "1.0.0-RC1"
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
@@ -248,9 +244,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "simulacrum" % SimulacrumVersion % CompileTime,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
-      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test,
-      "org.scalatestplus" %%% "scalatestplus-scalacheck" % ScalaTestPlusScalaCheckVersion % Test,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion % Test,
       "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     ),
     libraryDependencies ++= {
@@ -283,10 +276,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-laws",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.scalacheck" %%% "scalacheck" % ScalaCheckVersion,
-      "org.typelevel" %%% "discipline-core" % DisciplineCoreVersion,
-      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test,
-      "org.scalatest" %%% "scalatest" % ScalaTestVersion % Test
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     )
   )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))

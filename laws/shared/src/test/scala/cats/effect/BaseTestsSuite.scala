@@ -19,7 +19,8 @@ package cats.effect
 import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
 import org.scalactic.source
-import org.scalatest.{Matchers, Tag}
+import org.scalatest.Tag
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.Checkers
 import org.typelevel.discipline.Laws
