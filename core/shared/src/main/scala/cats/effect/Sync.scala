@@ -273,7 +273,8 @@ object Sync {
               case ((_, a), ec) =>
                 val r = release(a, ec).run
                 if (ec == ExitCase.Completed)
-                  r.flatMap { case (l, _) => ref.set(l) } else
+                  r.flatMap { case (l, _) => ref.set(l) }
+                else
                   r.void
             }
             .flatMap { lb =>
@@ -346,7 +347,8 @@ object Sync {
                 r.flatMap {
                   case Ior.Right(_) => F.unit
                   case other        => ref.set(other.void)
-                } else
+                }
+              else
                 r.void
             }
           }
