@@ -124,7 +124,7 @@ trait Clock[F[_]] {
   def monotonic(unit: TimeUnit): F[Long]
 }
 
-object Clock {
+object Clock extends LowPriorityImplicits {
   def apply[F[_]](implicit ev: Clock[F]) = ev
 
   /**
@@ -145,6 +145,20 @@ object Clock {
    */
   implicit def extractFromTimer[F[_]](implicit timer: Timer[F]): Clock[F] =
     timer.clock
+
+  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
+      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
+      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
+    }
+  }
+}
+
+protected[effect] trait LowPriorityImplicits {
 
   /**
    * Derives a [[Clock]] instance for `cats.data.EitherT`,
@@ -225,15 +239,4 @@ object Clock {
       def monotonic(unit: TimeUnit): IorT[F, L, Long] =
         IorT.liftF(clock.monotonic(unit))
     }
-
-  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
-
-    /**
-     * Modify the context `F` using transformation `f`.
-     */
-    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
-      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
-      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
-    }
-  }
 }
