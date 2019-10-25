@@ -369,53 +369,53 @@ object Async {
    * [[Async]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, ?]] =
+  implicit def catsEitherTAsync[F[_]: Async, L]: Async[EitherT[F, L, *]] =
     new EitherTAsync[F, L] { def F = Async[F] }
 
   /**
    * [[Async]] instance built for `cats.data.OptionT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, ?]] =
+  implicit def catsOptionTAsync[F[_]: Async]: Async[OptionT[F, *]] =
     new OptionTAsync[F] { def F = Async[F] }
 
   /**
    * [[Async]] instance built for `cats.data.StateT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, ?]] =
+  implicit def catsStateTAsync[F[_]: Async, S]: Async[StateT[F, S, *]] =
     new StateTAsync[F, S] { def F = Async[F] }
 
   /**
    * [[Async]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, ?]] =
+  implicit def catsWriterTAsync[F[_]: Async, L: Monoid]: Async[WriterT[F, L, *]] =
     new WriterTAsync[F, L] { def F = Async[F]; def L = Monoid[L] }
 
   /**
    * [[Async]] instance built for `cats.data.Kleisli` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, ?]] =
+  implicit def catsKleisliAsync[F[_]: Async, R]: Async[Kleisli[F, R, *]] =
     new KleisliAsync[F, R] { def F = Async[F]; }
 
   /**
    * [[Async]] instance built for `cats.data.IorT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def catsIorTAsync[F[_]: Async, L: Semigroup]: Async[IorT[F, L, ?]] =
+  implicit def catsIorTAsync[F[_]: Async, L: Semigroup]: Async[IorT[F, L, *]] =
     new IorTAsync[F, L] { def F = Async[F]; def L = Semigroup[L] }
 
   /**
    * [[Async]] instance built for `cats.data.ReaderWriterStateT` values initialized
    * with any `F` data type that also implements `Async`.
    */
-  implicit def ReaderWriterStateTAsync[F[_]: Async, E, L: Monoid, S]: Async[ReaderWriterStateT[F, E, L, S, ?]] =
+  implicit def ReaderWriterStateTAsync[F[_]: Async, E, L: Monoid, S]: Async[ReaderWriterStateT[F, E, L, S, *]] =
     new ReaderWriterStateTAsync[F, E, L, S] { def F = Async[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTAsync[F[_], L]
-      extends Async[EitherT[F, L, ?]]
+      extends Async[EitherT[F, L, *]]
       with Sync.EitherTSync[F, L]
       with LiftIO.EitherTLiftIO[F, L] {
 
@@ -430,7 +430,7 @@ object Async {
   }
 
   private[effect] trait OptionTAsync[F[_]]
-      extends Async[OptionT[F, ?]]
+      extends Async[OptionT[F, *]]
       with Sync.OptionTSync[F]
       with LiftIO.OptionTLiftIO[F] {
 
@@ -445,7 +445,7 @@ object Async {
   }
 
   private[effect] trait StateTAsync[F[_], S]
-      extends Async[StateT[F, S, ?]]
+      extends Async[StateT[F, S, *]]
       with Sync.StateTSync[F, S]
       with LiftIO.StateTLiftIO[F, S] {
 
@@ -460,7 +460,7 @@ object Async {
   }
 
   private[effect] trait WriterTAsync[F[_], L]
-      extends Async[WriterT[F, L, ?]]
+      extends Async[WriterT[F, L, *]]
       with Sync.WriterTSync[F, L]
       with LiftIO.WriterTLiftIO[F, L] {
 
@@ -474,7 +474,7 @@ object Async {
       WriterT.liftF(F.async(k))(L, FA)
   }
 
-  abstract private[effect] class KleisliAsync[F[_], R] extends Sync.KleisliSync[F, R] with Async[Kleisli[F, R, ?]] {
+  abstract private[effect] class KleisliAsync[F[_], R] extends Sync.KleisliSync[F, R] with Async[Kleisli[F, R, *]] {
 
     implicit override protected def F: Async[F]
 
@@ -486,7 +486,7 @@ object Async {
   }
 
   private[effect] trait IorTAsync[F[_], L]
-      extends Async[IorT[F, L, ?]]
+      extends Async[IorT[F, L, *]]
       with Sync.IorTSync[F, L]
       with LiftIO.IorTLiftIO[F, L] {
 
@@ -501,7 +501,7 @@ object Async {
   }
 
   private[effect] trait ReaderWriterStateTAsync[F[_], E, L, S]
-      extends Async[ReaderWriterStateT[F, E, L, S, ?]]
+      extends Async[ReaderWriterStateT[F, E, L, S, *]]
       with LiftIO.ReaderWriterStateTLiftIO[F, E, L, S]
       with Sync.ReaderWriterStateTSync[F, E, L, S] {
 

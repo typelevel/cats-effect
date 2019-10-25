@@ -247,16 +247,16 @@ object Bracket {
    * [[Bracket]] instance built for `cats.data.Kleisli` values initialized
    * with any `F` data type that also implements `Bracket`.
    */
-  implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, ?], E] =
+  implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, *], E] =
     new KleisliBracket[F, R, E] { def F = ev }
 
-  abstract private[effect] class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, ?], E] {
+  abstract private[effect] class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, *], E] {
 
     implicit protected def F: Bracket[F, E]
 
     // NB: preferably we'd inherit things from `cats.data.KleisliApplicativeError`,
     // but we can't, because it's `private[data]`, so we have to delegate.
-    final private[this] val kleisliMonadError: MonadError[Kleisli[F, R, ?], E] =
+    final private[this] val kleisliMonadError: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli
 
     def pure[A](x: A): Kleisli[F, R, A] =
