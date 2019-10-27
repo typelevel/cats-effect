@@ -30,9 +30,9 @@ import scala.concurrent.duration._
 import scala.util.Success
 
 class ResourceTests extends BaseTestsSuite {
-  checkAllAsync("Resource[IO, ?]", implicit ec => MonadErrorTests[Resource[IO, ?], Throwable].monadError[Int, Int, Int])
+  checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
-  checkAllAsync("Resource[IO, ?]", implicit ec => SemigroupKTests[Resource[IO, ?]].semigroupK[Int])
+  checkAllAsync("Resource[IO, *]", implicit ec => SemigroupKTests[Resource[IO, *]].semigroupK[Int])
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
@@ -176,7 +176,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("mapK") { implicit ec =>
     check { fa: Kleisli[IO, Int, Int] =>
-      val runWithTwo = new ~>[Kleisli[IO, Int, ?], IO] {
+      val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
       Resource.liftF(fa).mapK(runWithTwo).use(IO.pure) <-> fa(2)
@@ -184,7 +184,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   test("mapK should preserve ExitCode-specific behaviour") {
-    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
+    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
 
@@ -246,10 +246,10 @@ class ResourceTests extends BaseTestsSuite {
   test("allocate does not release until close is invoked on mapK'd Resources") {
     val released = new java.util.concurrent.atomic.AtomicBoolean(false)
 
-    val runWithTwo = new ~>[Kleisli[IO, Int, ?], IO] {
+    val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
       override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
     }
-    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, ?]] {
+    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
     val plusOne = Kleisli { i: Int =>
