@@ -1436,7 +1436,7 @@ There is also `cats.Traverse.traverse` which will run each step synchronously.
 
 ## "Unsafe" Operations
 
-Pretty much we have been using some "unsafe" operations in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
+We have been using some "unsafe" operations pretty much everywhere in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with `unsafe` are impure functions and perform side effects (for example Haskell has `unsafePerformIO`). But don't be scared by the name! You should write your programs in a monadic way using functions such as `map` and `flatMap` to compose other functions and ideally you should just call one of these unsafe operations only **once**, at the very end of your program.
 
 ### unsafeRunSync
 
