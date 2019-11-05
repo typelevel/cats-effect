@@ -15,14 +15,24 @@
  */
 
 package cats.effect
+package syntax
 
-package object syntax {
-  object all extends AllCatsEffectSyntax
-  object bracket extends BracketSyntax
-  object async extends AsyncSyntax
-  object concurrent extends ConcurrentSyntax
-  object concurrentEffect extends ConcurrentEffectSyntax
-  object effect extends EffectSyntax
-  object paralleln extends ParallelNSyntax
-  object resource extends ResourceSyntax
+import cats.{Applicative}
+
+trait ResourceSyntax {
+  implicit def toResourceOps[F[_], A](fa: F[A]) = new ResourceOps(fa)
+  implicit def toResourceFOps[F[_], A](fra: F[Resource[F, A]]) =
+    new ResourceFOps(fra)
+
+}
+
+final class ResourceOps[F[_], A](private val fa: F[A]) extends AnyVal {
+  def liftToResource(implicit F: Applicative[F]): Resource[F, A] =
+    Resource.liftF(fa)
+}
+
+final class ResourceFOps[F[_], A](private val fra: F[Resource[F, A]])
+    extends AnyVal {
+  def flattenToResource(implicit F: Applicative[F]): Resource[F, A] =
+    Resource.liftF(fra).flatMap(identity)
 }

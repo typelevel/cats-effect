@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.syntax
 
-package object syntax {
-  object all extends AllCatsEffectSyntax
-  object bracket extends BracketSyntax
-  object async extends AsyncSyntax
-  object concurrent extends ConcurrentSyntax
-  object concurrentEffect extends ConcurrentEffectSyntax
-  object effect extends EffectSyntax
-  object paralleln extends ParallelNSyntax
-  object resource extends ResourceSyntax
+import cats.effect.Resource
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import resource._
+import cats.instances.option._
+class ResourceSyntaxTests extends AnyFunSuite with Matchers {
+
+  test("F[A] liftToResources syntax") {
+    Option(1).liftToResource: Resource[Option, Int]
+  }
+
+  test("F[Resource[F, A]] flattenToResource syntax") {
+    Option(Resource.liftF(Option(1))).flattenToResource: Resource[Option, Int]
+  }
 }
