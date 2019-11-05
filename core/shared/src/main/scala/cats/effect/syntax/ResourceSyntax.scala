@@ -17,13 +17,12 @@
 package cats.effect
 package syntax
 
-import cats.{Applicative}
+import cats.Applicative
 
 trait ResourceSyntax {
   implicit def toResourceOps[F[_], A](fa: F[A]) = new ResourceOps(fa)
   implicit def toResourceFOps[F[_], A](fra: F[Resource[F, A]]) =
     new ResourceFOps(fra)
-
 }
 
 final class ResourceOps[F[_], A](private val fa: F[A]) extends AnyVal {
@@ -31,8 +30,7 @@ final class ResourceOps[F[_], A](private val fa: F[A]) extends AnyVal {
     Resource.liftF(fa)
 }
 
-final class ResourceFOps[F[_], A](private val fra: F[Resource[F, A]])
-    extends AnyVal {
+final class ResourceFOps[F[_], A](private val fra: F[Resource[F, A]]) extends AnyVal {
   def flattenToResource(implicit F: Applicative[F]): Resource[F, A] =
     Resource.liftF(fra).flatMap(identity)
 }
