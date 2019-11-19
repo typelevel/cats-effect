@@ -239,4 +239,17 @@ protected[effect] trait LowPriorityImplicits {
       def monotonic(unit: TimeUnit): IorT[F, L, Long] =
         IorT.liftF(clock.monotonic(unit))
     }
+
+  /**
+   * Derives a [[Clock]] instance for `cats.effect.Resource`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveResource[F[_]](implicit F: Applicative[F], clock: Clock[F]): Clock[Resource[F, *]] =
+    new Clock[Resource[F, *]] {
+      def realTime(unit: TimeUnit): Resource[F, Long] =
+        Resource.liftF(clock.realTime(unit))
+
+      def monotonic(unit: TimeUnit): Resource[F, Long] =
+        Resource.liftF(clock.monotonic(unit))
+    }
 }
