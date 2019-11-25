@@ -65,7 +65,7 @@ private[effect] trait BlockerPlatform {
    * Creates a blocker that delegates to the supplied executor service.
    */
   def liftExecutorService(es: ExecutorService): Blocker =
-    liftExecutionContext(ExecutionContext.fromExecutorService(es))
+    liftExecutionContext(PoolUtils.exitOnFatal(ExecutionContext.fromExecutorService(es)))
 
   /**
    * Creates a blocker that delegates to the supplied execution context.
