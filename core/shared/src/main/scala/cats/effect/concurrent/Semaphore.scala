@@ -36,7 +36,6 @@ import scala.collection.immutable.Queue
  * if the semaphore is created with `Semaphore.async` (and hence, with an `Async[F]` instance).
  */
 abstract class Semaphore[F[_]] {
-
   /**
    * Returns the number of permits currently available. Always non-negative.
    *
@@ -103,7 +102,6 @@ abstract class Semaphore[F[_]] {
 }
 
 object Semaphore {
-
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */

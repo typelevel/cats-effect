@@ -30,7 +30,6 @@ private[effect] class LinkedMap[K, +V](
   private[this] val insertionOrder: LongMap[K],
   private[this] val nextId: Long
 ) {
-
   /** Returns `true` if this map is empty, or `false` otherwise. */
   def isEmpty: Boolean =
     entries.isEmpty

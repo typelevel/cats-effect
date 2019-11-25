@@ -24,7 +24,6 @@ import java.util.concurrent.{Executors, ThreadFactory}
 import java.util.concurrent.atomic.AtomicInteger
 
 private[internals] object PoolUtils {
-
   // we can initialize this eagerly because the enclosing object is lazy
   val ioAppGlobal: ExecutionContext = {
     // lower-bound of 2 to prevent pathological deadlocks on virtual machines

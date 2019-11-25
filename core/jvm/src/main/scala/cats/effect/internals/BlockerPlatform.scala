@@ -22,7 +22,6 @@ import java.util.concurrent.{ExecutorService, Executors, ThreadFactory}
 import cats.data.NonEmptyList
 
 private[effect] trait BlockerPlatform {
-
   /**
    * Creates a blocker that is backed by a cached thread pool.
    */

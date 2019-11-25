@@ -48,7 +48,6 @@ import scala.concurrent.duration.FiniteDuration
 * if using IO, use cats.effect.IOApp or build one with cats.effect.IO.timer
 """)
 trait Timer[F[_]] {
-
   /**
    * Returns a [[Clock]] instance associated with this timer
    * that can provide the current time and do time measurements.
@@ -156,7 +155,6 @@ object Timer {
     }
 
   implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal {
-
     /**
      * Modify the context `F` using transformation `f`.
      */

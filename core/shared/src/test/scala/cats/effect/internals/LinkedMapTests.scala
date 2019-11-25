@@ -20,7 +20,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
 final class LinkedMapTests extends AnyFunSuite with Matchers {
-
   test("empty map") {
     val map = LinkedMap.empty[Int, Int]
 
@@ -68,5 +67,4 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
     map2.keys.exists(_ == n) shouldBe false
     map2.values.exists(_ == n) shouldBe false
   }
-
 }

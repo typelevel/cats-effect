@@ -21,7 +21,6 @@ import cats.implicits._
 import scala.concurrent.Promise
 
 private[effect] object IOStart {
-
   /**
    * Implementation for `IO.start`.
    */

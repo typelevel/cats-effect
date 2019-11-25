@@ -28,7 +28,6 @@ import scala.scalajs.js
  * Deferring to JavaScript's own `setTimeout` for `sleep`.
  */
 final private[internals] class IOTimer(ec: ExecutionContext) extends Timer[IO] {
-
   import IOTimer.{clearTimeout, setTimeout, ScheduledTick}
   val clock: Clock[IO] = Clock.create[IO]
 
@@ -47,7 +46,6 @@ final private[internals] class IOTimer(ec: ExecutionContext) extends Timer[IO] {
  * Internal API
  */
 private[internals] object IOTimer {
-
   /**
    * Globally available implementation.
    */
@@ -72,7 +70,6 @@ private[internals] object IOTimer {
   }
 
   final private class ScheduledTick(conn: IOConnection, cb: Either[Throwable, Unit] => Unit) extends Runnable {
-
     def run(): Unit = {
       conn.pop()
       cb(Callback.rightUnit)

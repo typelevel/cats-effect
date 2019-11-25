@@ -187,7 +187,6 @@ sealed abstract class Resource[F[_], A] {
    *
    */
   def allocated(implicit F: Bracket[F, Throwable]): F[(A, F[Unit])] = {
-
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[F, Any], stack: List[Any => Resource[F, Any]], release: F[Unit]): F[(Any, F[Unit])] =
       loop(current, stack, release)
@@ -239,7 +238,6 @@ sealed abstract class Resource[F[_], A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
-
   /**
    * Creates a resource from an allocating effect.
    *
@@ -359,7 +357,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * the `cats.Monad` type class.
    */
   def tailRecM[F[_], A, B](a: A)(f: A => Resource[F, Either[A, B]])(implicit F: Monad[F]): Resource[F, B] = {
-
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r match {
         case Allocate(fea) =>
@@ -435,7 +432,6 @@ abstract private[effect] class ResourceInstances0 {
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
-
   import Resource.{Allocate, Bind, Suspend}
 
   implicit protected def F: MonadError[F, E]
@@ -490,7 +486,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
-
   implicit protected def A: Monoid[A]
 
   def empty: Resource[F, A] = Resource.pure(A.empty)

@@ -19,7 +19,6 @@ package cats.effect.internals
 import scala.concurrent.ExecutionContext
 
 private[effect] object Logger {
-
   /** Logs an uncaught error. */
   def reportFailure(e: Throwable): Unit =
     logger(e)

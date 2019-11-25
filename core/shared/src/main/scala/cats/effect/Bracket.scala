@@ -31,7 +31,6 @@ import cats.data.Kleisli
  *         resource and that will provide the final result
  */
 trait Bracket[F[_], E] extends MonadError[F, E] {
-
   /**
    * A generalized version of [[bracket]] which uses [[ExitCase]]
    * to distinguish between different exit cases when releasing
@@ -183,7 +182,6 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
 sealed abstract class ExitCase[+E] extends Product with Serializable
 
 object ExitCase {
-
   /**
    * An [[ExitCase]] that signals successful completion.
    *
@@ -240,7 +238,6 @@ object ExitCase {
 }
 
 object Bracket {
-
   def apply[F[_], E](implicit ev: Bracket[F, E]): Bracket[F, E] = ev
 
   /**
@@ -251,7 +248,6 @@ object Bracket {
     new KleisliBracket[F, R, E] { def F = ev }
 
   abstract private[effect] class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, *], E] {
-
     implicit protected def F: Bracket[F, E]
 
     // NB: preferably we'd inherit things from `cats.data.KleisliApplicativeError`,

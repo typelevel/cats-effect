@@ -101,7 +101,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
-
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
@@ -257,7 +256,6 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 }
 
 object Async {
-
   /**
    * Returns an non-terminating `F[_]`, that never completes
    * with a result, being equivalent with `async(_ => ())`.
@@ -418,7 +416,6 @@ object Async {
       extends Async[EitherT[F, L, *]]
       with Sync.EitherTSync[F, L]
       with LiftIO.EitherTLiftIO[F, L] {
-
     implicit override protected def F: Async[F]
     protected def FF = F
 
@@ -433,7 +430,6 @@ object Async {
       extends Async[OptionT[F, *]]
       with Sync.OptionTSync[F]
       with LiftIO.OptionTLiftIO[F] {
-
     implicit override protected def F: Async[F]
     protected def FF = F
 
@@ -448,7 +444,6 @@ object Async {
       extends Async[StateT[F, S, *]]
       with Sync.StateTSync[F, S]
       with LiftIO.StateTLiftIO[F, S] {
-
     implicit override protected def F: Async[F]
     protected def FA = F
 
@@ -463,7 +458,6 @@ object Async {
       extends Async[WriterT[F, L, *]]
       with Sync.WriterTSync[F, L]
       with LiftIO.WriterTLiftIO[F, L] {
-
     implicit override protected def F: Async[F]
     protected def FA = F
 
@@ -475,7 +469,6 @@ object Async {
   }
 
   abstract private[effect] class KleisliAsync[F[_], R] extends Sync.KleisliSync[F, R] with Async[Kleisli[F, R, *]] {
-
     implicit override protected def F: Async[F]
 
     override def asyncF[A](k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Unit]): Kleisli[F, R, A] =
@@ -489,7 +482,6 @@ object Async {
       extends Async[IorT[F, L, *]]
       with Sync.IorTSync[F, L]
       with LiftIO.IorTLiftIO[F, L] {
-
     implicit override protected def F: Async[F]
     protected def FA = F
 
@@ -504,7 +496,6 @@ object Async {
       extends Async[ReaderWriterStateT[F, E, L, S, *]]
       with LiftIO.ReaderWriterStateTLiftIO[F, E, L, S]
       with Sync.ReaderWriterStateTSync[F, E, L, S] {
-
     implicit override protected def F: Async[F]
     protected def FA = F
 

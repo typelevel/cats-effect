@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Promise
 
 private[effect] object IORace {
-
   /**
    * Implementation for `IO.race` - could be described with `racePair`,
    * but this way it is more efficient, as we no longer have to keep

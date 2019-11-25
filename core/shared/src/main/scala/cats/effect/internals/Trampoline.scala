@@ -47,7 +47,6 @@ private[internals] class Trampoline(underlying: ExecutionContext) {
 
   final protected def forkTheRest(): Unit = {
     final class ResumeRun(head: Runnable, rest: ArrayStack[Runnable]) extends Runnable {
-
       def run(): Unit = {
         immediateQueue.pushAll(rest)
         immediateLoop(head)

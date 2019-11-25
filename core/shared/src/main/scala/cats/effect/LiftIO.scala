@@ -32,7 +32,6 @@ trait LiftIO[F[_]] {
 }
 
 object LiftIO {
-
   /**
    * [[LiftIO.liftIO]] as a natural transformation.
    */
@@ -144,5 +143,4 @@ object LiftIO {
     override def liftIO[A](ioa: IO[A]): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.liftF(F.liftIO(ioa))(FA, L)
   }
-
 }
