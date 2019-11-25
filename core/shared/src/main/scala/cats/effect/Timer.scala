@@ -155,6 +155,18 @@ object Timer {
         IorT.liftF(timer.sleep(duration))
     }
 
+  /**
+   * Derives a [[Timer]] instance for `cats.effect.Resource`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveResource[F[_]](implicit F: Applicative[F], timer: Timer[F]): Timer[Resource[F, *]] =
+    new Timer[Resource[F, *]] {
+      val clock: Clock[Resource[F, *]] = Clock.deriveResource
+
+      def sleep(duration: FiniteDuration): Resource[F, Unit] =
+        Resource.liftF(timer.sleep(duration))
+    }
+
   implicit class TimerOps[F[_]](val self: Timer[F]) extends AnyVal {
 
     /**
