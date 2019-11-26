@@ -73,16 +73,21 @@ private[effect] object IOBracket {
     def run(): Unit = result match {
       case Right(a) =>
         val frame = new BracketReleaseFrame[A, B](a, release)
-        val onNext = {
-          val fb = try use(a)
-          catch { case NonFatal(e) => IO.raiseError(e) }
-          fb.flatMap(frame)
-        }
+
         // Registering our cancelable token ensures that in case
         // cancellation is detected, `release` gets called
         deferredRelease.complete(frame.cancel)
-        // Actual execution
-        IORunLoop.startCancelable(onNext, conn, cb)
+
+        // Check if IO wasn't already cancelled in acquire
+        if (!conn.isCanceled) {
+          val onNext = {
+            val fb = try use(a)
+            catch { case NonFatal(e) => IO.raiseError(e) }
+            fb.flatMap(frame)
+          }
+          // Actual execution
+          IORunLoop.startCancelable(onNext, conn, cb)
+        }
 
       case error @ Left(_) =>
         deferredRelease.complete(IO.unit)
