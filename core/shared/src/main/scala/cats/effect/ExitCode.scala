@@ -25,7 +25,6 @@ package effect
 sealed abstract case class ExitCode private (code: Int)
 
 object ExitCode {
-
   /**
    * Creates an `ExitCode`.
    *

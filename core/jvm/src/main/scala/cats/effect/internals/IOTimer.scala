@@ -32,7 +32,6 @@ import scala.util.Try
  * `ScheduledExecutorService` for scheduling ticks with a delay.
  */
 final private[internals] class IOTimer private (ec: ExecutionContext, sc: ScheduledExecutorService) extends Timer[IO] {
-
   import IOTimer._
 
   val clock: Clock[IO] = Clock.create[IO]
@@ -58,7 +57,6 @@ final private[internals] class IOTimer private (ec: ExecutionContext, sc: Schedu
 }
 
 private[internals] object IOTimer {
-
   /** Builder. */
   def apply(ec: ExecutionContext): Timer[IO] =
     apply(ec, scheduler)
@@ -103,7 +101,6 @@ private[internals] object IOTimer {
     cb: Either[Throwable, Unit] => Unit,
     ec: ExecutionContext
   ) extends Runnable {
-
     def run(): Unit = {
       // Shifts actual execution on our `ExecutionContext`, because
       // the scheduler is in charge only of ticks and the execution

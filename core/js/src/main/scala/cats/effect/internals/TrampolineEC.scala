@@ -30,7 +30,6 @@ import scala.concurrent.ExecutionContext
  * don't need a `ThreadLocal` or Scala's `BlockingContext`.
  */
 final private[effect] class TrampolineEC private (underlying: ExecutionContext) extends ExecutionContext {
-
   private[this] val trampoline = new Trampoline(underlying)
 
   override def execute(runnable: Runnable): Unit =
@@ -40,7 +39,6 @@ final private[effect] class TrampolineEC private (underlying: ExecutionContext) 
 }
 
 private[effect] object TrampolineEC {
-
   /** [[TrampolineEC]] instance that executes everything
    * immediately, on the current call stack.
    */

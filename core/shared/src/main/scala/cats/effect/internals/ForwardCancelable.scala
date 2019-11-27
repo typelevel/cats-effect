@@ -73,7 +73,6 @@ final private[effect] class ForwardCancelable private () {
 }
 
 private[effect] object ForwardCancelable {
-
   /**
    * Builds reference.
    */

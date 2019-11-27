@@ -38,7 +38,6 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
 }
 
 final class ConcurrentObjOps[F[_]](private val F: Concurrent[F]) extends AnyVal {
-
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */

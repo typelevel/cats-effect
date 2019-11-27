@@ -22,7 +22,6 @@ import cats.implicits._
 import scala.util.Success
 
 class ContextShiftTests extends BaseTestsSuite {
-
   type EitherTIO[A] = EitherT[IO, Throwable, A]
   type OptionTIO[A] = OptionT[IO, A]
   type WriterTIO[A] = WriterT[IO, Int, A]

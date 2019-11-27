@@ -32,7 +32,6 @@ import scala.concurrent.{BlockContext, CanAwait, ExecutionContext}
  * need a `ThreadLocal` and Scala's `BlockingContext`.
  */
 final private[effect] class TrampolineEC private (underlying: ExecutionContext) extends ExecutionContext {
-
   private[this] val trampoline =
     new ThreadLocal[Trampoline]() {
       override def initialValue(): Trampoline =
@@ -46,7 +45,6 @@ final private[effect] class TrampolineEC private (underlying: ExecutionContext) 
 }
 
 private[effect] object TrampolineEC {
-
   /**
    * [[TrampolineEC]] instance that executes everything
    * immediately, on the current thread.
@@ -76,7 +74,6 @@ private[effect] object TrampolineEC {
    * INTERNAL API.
    */
   final private class JVMTrampoline(underlying: ExecutionContext) extends Trampoline(underlying) {
-
     private[this] val trampolineContext: BlockContext =
       new BlockContext {
         def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {

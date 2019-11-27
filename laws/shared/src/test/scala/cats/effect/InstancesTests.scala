@@ -25,7 +25,6 @@ import cats.implicits._
 import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {
-
   checkAllAsync("StateT[IO, S, *]", implicit ec => AsyncTests[StateT[IO, Int, *]].async[Int, Int, Int])
 
   checkAllAsync(

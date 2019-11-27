@@ -22,7 +22,6 @@ import scala.util.{Failure, Success, Try}
  * Internal API — describes internal conversions.
  */
 private[effect] object Conversions {
-
   def toTry[A](a: Either[Throwable, A]): Try[A] =
     a match {
       case Right(r) => Success(r)

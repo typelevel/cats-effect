@@ -32,7 +32,6 @@ import scala.util.{Either, Left, Right}
 case class LTask[A](run: ExecutionContext => Future[A])
 
 object LTask {
-
   /** For testing laws with ScalaCheck. */
   implicit def arbitrary[A](implicit A: Arbitrary[IO[A]]): Arbitrary[LTask[A]] =
     Arbitrary(A.arbitrary.map { io =>

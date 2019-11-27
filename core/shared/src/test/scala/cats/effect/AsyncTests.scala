@@ -29,7 +29,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 class AsyncTests extends AsyncFunSuite with Matchers {
-
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
@@ -56,5 +55,4 @@ class AsyncTests extends AsyncFunSuite with Matchers {
     val modifies = implicitly[Async[IO]].parSequenceN(3)(list)
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
   }
-
 }

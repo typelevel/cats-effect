@@ -43,7 +43,6 @@ import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 * create a Clock[${F}] instance with Clock.create
 """)
 trait Clock[F[_]] {
-
   /**
    * Returns the current time, as a Unix timestamp (number of time units
    * since the Unix epoch), suspended in `F[_]`.
@@ -147,7 +146,6 @@ object Clock extends LowPriorityImplicits {
     timer.clock
 
   implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
-
     /**
      * Modify the context `F` using transformation `f`.
      */
@@ -159,7 +157,6 @@ object Clock extends LowPriorityImplicits {
 }
 
 protected[effect] trait LowPriorityImplicits {
-
   /**
    * Derives a [[Clock]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.

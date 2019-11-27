@@ -24,7 +24,6 @@ import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
-
   /**
    * Implementation for `IO.bracketCase`.
    */
@@ -54,7 +53,6 @@ private[effect] object IOBracket {
     cb: Callback.T[B]
   ) extends (Either[Throwable, A] => Unit)
       with Runnable {
-
     // This runnable is a dirty optimization to avoid some memory allocations;
     // This class switches from being a Callback to a Runnable, but relies on
     // the internal IO callback protocol to be respected (called at most once)
@@ -115,14 +113,12 @@ private[effect] object IOBracket {
 
   final private class BracketReleaseFrame[A, B](a: A, releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
       extends BaseReleaseFrame[A, B] {
-
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(a, c)
   }
 
   final private class EnsureReleaseFrame[A](releaseFn: ExitCase[Throwable] => IO[Unit])
       extends BaseReleaseFrame[Unit, A] {
-
     def release(c: ExitCase[Throwable]): CancelToken[IO] =
       releaseFn(c)
   }
@@ -161,7 +157,6 @@ private[effect] object IOBracket {
   }
 
   final private class ReleaseRecover(e: Throwable) extends IOFrame[Unit, IO[Nothing]] {
-
     def recover(e2: Throwable): IO[Nothing] = {
       // Logging the error somewhere, because exceptions
       // should never be silent

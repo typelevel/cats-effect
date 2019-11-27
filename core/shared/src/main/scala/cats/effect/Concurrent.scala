@@ -197,7 +197,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
-
   /**
    * Start concurrent execution of the source suspended in
    * the `F` context.
@@ -355,7 +354,6 @@ trait Concurrent[F[_]] extends Async[F] {
 }
 
 object Concurrent {
-
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].
    *
@@ -641,7 +639,6 @@ object Concurrent {
     new IorTConcurrent[F, L] { def F = Concurrent[F]; def L = Semigroup[L] }
 
   private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L] with Concurrent[EitherT[F, L, *]] {
-
     implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
@@ -679,7 +676,6 @@ object Concurrent {
   }
 
   private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F] with Concurrent[OptionT[F, *]] {
-
     implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
@@ -717,7 +713,6 @@ object Concurrent {
   }
 
   private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L] with Concurrent[WriterT[F, L, *]] {
-
     implicit override protected def F: Concurrent[F]
     override protected def FA = F
 
@@ -749,7 +744,6 @@ object Concurrent {
   abstract private[effect] class KleisliConcurrent[F[_], R]
       extends Async.KleisliAsync[F, R]
       with Concurrent[Kleisli[F, R, *]] {
-
     implicit override protected def F: Concurrent[F]
     // Needed to drive static checks, otherwise the
     // compiler can choke on type inference :-(
@@ -774,7 +768,6 @@ object Concurrent {
   }
 
   private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L] with Concurrent[IorT[F, L, *]] {
-
     implicit override protected def F: Concurrent[F]
     override protected def FA = F
 

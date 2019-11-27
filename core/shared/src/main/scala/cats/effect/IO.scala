@@ -709,7 +709,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
-
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
@@ -845,7 +844,6 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override val sequential: IO.Par ~> IO = λ[IO.Par ~> IO](IO.Par.unwrap(_))
 
       final override val parallel: IO ~> IO.Par = λ[IO ~> IO.Par](IO.Par(_))
-
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {
@@ -993,7 +991,6 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
  *          control over the thread pool used.
  */
 object IO extends IOInstances {
-
   /**
    * Suspends a synchronous side effect in `IO`.
    *
@@ -1458,7 +1455,6 @@ object IO extends IOInstances {
 
   /** Corresponds to [[IO.map]]. */
   final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
-
     override def apply(value: E): IO[A] =
       new Pure(f(value))
   }

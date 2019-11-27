@@ -55,7 +55,6 @@ private[effect] object IORunLoop {
     bFirstRef: Bind,
     bRestRef: CallStack
   ): Unit = {
-
     var currentIO: Current = source
     // Can change on a context switch
     var conn: IOConnection = cancelable
@@ -318,7 +317,6 @@ private[effect] object IORunLoop {
    * For internal use only, here be dragons!
    */
   final private class RestartCallback(connInit: IOConnection, cb: Callback) extends Callback with Runnable {
-
     import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch
@@ -384,7 +382,6 @@ private[effect] object IORunLoop {
     old: IOConnection,
     restore: (Any, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IOFrame[Any, IO[Any]] {
-
     def apply(a: Any): IO[Any] =
       ContextSwitch(Pure(a), current => restore(a, null, old, current), null)
     def recover(e: Throwable): IO[Any] =

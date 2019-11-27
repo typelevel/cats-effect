@@ -41,7 +41,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
-
   /**
    * Evaluates `F[_]`, with the effect of starting the run-loop
    * being suspended in the `SyncIO` context.
@@ -64,7 +63,6 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 object Effect {
-
   /**
    * [[Effect.toIO]] default implementation, derived from [[Effect.runAsync]].
    */
@@ -95,7 +93,6 @@ object Effect {
   private[effect] trait EitherTEffect[F[_]]
       extends Effect[EitherT[F, Throwable, *]]
       with Async.EitherTAsync[F, Throwable] {
-
     protected def F: Effect[F]
 
     def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
@@ -106,7 +103,6 @@ object Effect {
   }
 
   private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, *]] with Async.WriterTAsync[F, L] {
-
     protected def F: Effect[F]
     protected def L: Monoid[L]
 

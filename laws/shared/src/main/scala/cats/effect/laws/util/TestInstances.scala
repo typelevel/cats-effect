@@ -29,7 +29,6 @@ import scala.util.{Failure, Success}
  * asynchronous execution.
  */
 trait TestInstances {
-
   /**
    * Defines equality for `IO` references that can
    * get interpreted by means of a [[TestContext]].

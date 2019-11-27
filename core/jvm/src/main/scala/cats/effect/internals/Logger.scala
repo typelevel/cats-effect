@@ -26,7 +26,6 @@ package cats.effect.internals
  * then error is printed on standard output.
  */
 private[effect] object Logger {
-
   /** Logs an uncaught error. */
   def reportFailure(e: Throwable): Unit =
     Thread.getDefaultUncaughtExceptionHandler match {

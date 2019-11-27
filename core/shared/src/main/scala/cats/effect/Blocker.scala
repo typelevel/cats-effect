@@ -31,7 +31,6 @@ import cats.effect.internals.BlockerPlatform
  * Instances of this class should *not* be passed implicitly.
  */
 final class Blocker private (val blockingContext: ExecutionContext) extends AnyVal {
-
   /**
    * Like `Sync#delay` but the supplied thunk is evaluated on the blocking
    * execution context.
@@ -53,7 +52,6 @@ final class Blocker private (val blockingContext: ExecutionContext) extends AnyV
 }
 
 object Blocker extends BlockerPlatform {
-
   /**
    * Creates a blocker that delegates to the supplied execution context.
    *
