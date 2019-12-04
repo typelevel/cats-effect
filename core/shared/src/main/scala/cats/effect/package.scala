@@ -36,21 +36,4 @@ package object effect {
    * is a useful property to keep in mind when building such values.
    */
   type CancelToken[F[_]] = F[Unit]
-
-  /**
-   * Provides missing methods on Scala 2.11's Either while allowing
-   * -Xfatal-warnings along with -Ywarn-unused-import
-   */
-  @deprecated("Cats-effect no longer supports Scala 2.11.x", "2.1.0")
-  private[effect] class scala211EitherSyntax[A, B](val self: Either[A, B]) extends AnyVal {
-    def map[B2](f: B => B2): Either[A, B2] = self match {
-      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]
-      case Right(b)    => Right(f(b))
-    }
-
-    def flatMap[B2](f: B => Either[A, B2]): Either[A, B2] = self match {
-      case Right(a)    => f(a)
-      case l @ Left(_) => l.asInstanceOf[Either[A, B2]]
-    }
-  }
 }
