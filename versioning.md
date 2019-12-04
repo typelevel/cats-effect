@@ -22,8 +22,6 @@ Within a single *major/minor* version (e.g. the **1.0** in **1.0.5**), all relea
 
 *Backward binary compatibility* is not guaranteed. Thus, code compiled against 1.0.5 may not run with the same semantics against 1.0, though it is *very* likely that it will.
 
-Please note that there are some limits in Scala's binary compatibility story prior to Scala 2.12. At the present time, the guarantees in this section hold for all cats-effect cross-builds: 2.11 and 2.12; but we reserve the right to restrict certain guarantees to just 2.12 in the future.
-
 ## Snapshots
 
 Snapshots may be published to sonatype at any time. They will be denoted as versions of the form `major.minor-hash`, where the `hash` is the 7 character git hash prefix of the commit from which the snapshot was published. Thus, "snapshots" are in fact stable, and can be used as repeatable upstream dependencies if you're feeling courageous. A snapshot with a `major` version of *x* and a `minor` version of *y* is expected (and indeed, machine-checked in so far as possible) to be binary compatible with the full release with version *x*.*y* (and all its subsequent minor versions). Thus, eviction works basically the way you expect. The only exception to this is *unreleased* incompatible versions, since such versions are still in flux and early snapshots may be incompatible with this future release.
