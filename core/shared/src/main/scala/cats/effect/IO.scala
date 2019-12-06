@@ -383,7 +383,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * the background action will be canceled.
    *
    * @see [[cats.effect.syntax.ConcurrentOps#background]]
-  */
+   */
   final def background(implicit cs: ContextShift[IO]): Resource[IO, IO[A @uncheckedVariance]] =
     Resource.make(start)(_.cancel).map(_.join)
 

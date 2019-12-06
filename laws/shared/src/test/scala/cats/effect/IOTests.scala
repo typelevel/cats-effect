@@ -1026,13 +1026,15 @@ class IOTests extends BaseTestsSuite {
   testAsync("background cancels the action in cleanup") { ec =>
     implicit val contextShift = ec.contextShift[IO]
 
-    val f = Deferred[IO, Unit].flatMap { started => //wait for this before closing resource
-      Deferred[IO, ExitCase[Throwable]].flatMap { result =>
-        val bg = started.complete(()) *> IO.never.guaranteeCase(result.complete)
+    val f = Deferred[IO, Unit]
+      .flatMap { started => //wait for this before closing resource
+        Deferred[IO, ExitCase[Throwable]].flatMap { result =>
+          val bg = started.complete(()) *> IO.never.guaranteeCase(result.complete)
 
-        bg.background.use(_ => started.get) *> result.get
+          bg.background.use(_ => started.get) *> result.get
+        }
       }
-    }.unsafeToFuture()
+      .unsafeToFuture()
 
     ec.tick()
 
@@ -1042,11 +1044,13 @@ class IOTests extends BaseTestsSuite {
   testAsync("background allows awaiting the action") { ec =>
     implicit val contextShift = ec.contextShift[IO]
 
-    val f = Deferred[IO, Unit].flatMap { latch =>
-      val bg = latch.get *> IO.pure(42)
+    val f = Deferred[IO, Unit]
+      .flatMap { latch =>
+        val bg = latch.get *> IO.pure(42)
 
-      bg.background.use(await => latch.complete(()) *> await)
-    }.unsafeToFuture()
+        bg.background.use(await => latch.complete(()) *> await)
+      }
+      .unsafeToFuture()
 
     ec.tick()
 
