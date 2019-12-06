@@ -71,7 +71,7 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
    *
    * In case the result of such an action is canceled, both processes will receive cancelation signals.
    * The same result can be achieved by using `anotherProcess &> longProcess` with the Parallel type class syntax.
-  */
+   */
   def background(implicit F: Concurrent[F]): Resource[F, F[A]] = Resource.make(F.start(self))(_.cancel).map(_.join)
 }
 
