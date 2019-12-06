@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats
+package effect
+package laws
 
-trait AllCatsEffectSyntax
-    extends BracketSyntax
-    with AsyncSyntax
-    with ConcurrentSyntax
-    with EffectSyntax
-    with ConcurrentEffectSyntax
-    with ParallelNSyntax
-    with SyncEffectSyntax
+import cats.laws._
+
+trait SyncEffectLaws[F[_]] extends SyncLaws[F] {
+  implicit def F: SyncEffect[F]
+
+  def toSyncIOAndBackIsIdentity[A](fa: F[A]) =
+    SyncEffect[SyncIO].runSync[F, A](F.runSync[SyncIO, A](fa)) <-> fa
+}
+
+object SyncEffectLaws {
+  def apply[F[_]](implicit F0: SyncEffect[F]): SyncEffectLaws[F] = new SyncEffectLaws[F] {
+    val F = F0
+  }
+}

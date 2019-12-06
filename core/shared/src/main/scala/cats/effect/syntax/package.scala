@@ -24,4 +24,5 @@ package object syntax {
   object concurrentEffect extends ConcurrentEffectSyntax
   object effect extends EffectSyntax
   object paralleln extends ParallelNSyntax
+  object syncEffect extends SyncEffectSyntax
 }
