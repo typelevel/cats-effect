@@ -151,10 +151,9 @@ val commonSettings = Seq(
 val mimaSettings = Seq(
   mimaPreviousArtifacts := {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      //2.11 has some incompatibilities in core in 2.0.0, 2.13 didn't have a release before
-      case Some((2, 11) | (2, 13)) => Set(organization.value %% name.value % "2.0.0")
-      case Some((2, 12))           => Set(organization.value %% name.value % "1.0.0")
-      case _                       => Set.empty
+      case Some((2, 13)) => Set(organization.value %% name.value % "2.0.0")
+      case Some((2, 12)) => Set(organization.value %% name.value % "1.0.0")
+      case _             => Set.empty
     }
   },
   mimaBinaryIssueFilters ++= {
