@@ -205,9 +205,47 @@ trait Concurrent[F[_]] extends Async[F] {
    * the running computation, being similar in spirit (but not
    * in implementation) to starting a thread.
    *
-   * @see [[syntax.ConcurrentOps#background]] for a safer alternative.
+   * @see [[background]] for a safer alternative.
    */
   def start[A](fa: F[A]): F[Fiber[F, A]]
+
+  /**
+   * Returns a resource that will start execution of the effect in the background.
+   *
+   * In case the resource is closed while the effect is still running (e.g. due to a failure in `use`),
+   * the background action will be canceled.
+   *
+   * A basic example with IO:
+   *
+   * {{{
+   *   val longProcess = (IO.sleep(5.seconds) *> IO(println("Ping!"))).foreverM
+   *
+   *   val srv: Resource[IO, ServerBinding[IO]] = for {
+   *     _ <- longProcess.background
+   *     server <- server.run
+   *   } yield server
+   *
+   *   val application = srv.use(binding => IO(println("Bound to " + binding)) *> IO.never)
+   * }}}
+   *
+   * Here, we are starting a background process as part of the application's startup.
+   * Afterwards, we initialize a server. Then, we use that server forever using `IO.never`.
+   * This will ensure we never close the server resource unless somebody cancels the whole `application` action.
+   *
+   * If at some point of using the resource you want to wait for the result of the background action,
+   * you can do so by sequencing the value inside the resource (it's equivalent to `join` on `Fiber`).
+   *
+   * This will start the background process, run another action, and wait for the result of the background process:
+   *
+   * {{{
+   *   longProcess.background.use(await => anotherProcess *> await)
+   * }}}
+   *
+   * In case the result of such an action is canceled, both processes will receive cancelation signals.
+   * The same result can be achieved by using `anotherProcess &> longProcess` with the Parallel type class syntax.
+   */
+  def background[A](fa: F[A])(implicit F: Concurrent[F]): Resource[F, F[A]] =
+    Resource.make(F.start(fa))(_.cancel).map(_.join)
 
   /**
    * Run two tasks concurrently, creating a race between them and returns a

@@ -41,14 +41,6 @@ val commonSettings = Seq(
     }
     .toList
     .flatten,
-  scalacOptions --= PartialFunction
-    .condOpt(CrossVersion.partialVersion(scalaVersion.value)) {
-      case Some((2, 11)) =>
-        // Falsely detects interpolation in @implicitNotFound
-        Seq("-Xlint:missing-interpolator")
-    }
-    .toList
-    .flatten,
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
 
