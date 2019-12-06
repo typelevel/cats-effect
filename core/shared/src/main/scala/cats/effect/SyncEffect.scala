@@ -26,7 +26,6 @@ import cats.data.{EitherT, WriterT}
  */
 @typeclass
 trait SyncEffect[F[_]] extends Sync[F] {
-
   /**
    * Convert to any other type that implements `Sync`.
    */
@@ -41,7 +40,6 @@ trait SyncEffect[F[_]] extends Sync[F] {
 }
 
 object SyncEffect {
-
   /**
    * [[SyncEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `SyncEffect`.
@@ -59,7 +57,6 @@ object SyncEffect {
   private[effect] trait EitherTSyncEffect[F[_]]
       extends SyncEffect[EitherT[F, Throwable, ?]]
       with Sync.EitherTSync[F, Throwable] {
-
     protected def F: SyncEffect[F]
 
     def runSync[G[_], A](fa: EitherT[F, Throwable, A])(implicit G: Sync[G]): G[A] =
@@ -67,7 +64,6 @@ object SyncEffect {
   }
 
   private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, ?]] with Sync.WriterTSync[F, L] {
-
     protected def F: SyncEffect[F]
     protected def L: Monoid[L]
 

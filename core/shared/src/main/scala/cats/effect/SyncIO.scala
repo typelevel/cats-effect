@@ -384,11 +384,9 @@ object SyncIO extends SyncIOInstances {
 }
 
 abstract private[effect] class SyncIOInstances extends SyncIOLowPriorityInstances {
-
   implicit val syncIOsyncEffect: SyncEffect[SyncIO] = new SyncIOSync with SyncEffect[SyncIO] {
     final override def runSync[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
       G.delay(fa.unsafeRunSync())
-
   }
 
   @deprecated("Signature changed to return SyncEffect", "2.1.0")
