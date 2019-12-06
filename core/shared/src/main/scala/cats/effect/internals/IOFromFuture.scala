@@ -22,7 +22,6 @@ import scala.concurrent.Future
 import scala.util.{Failure, Left, Right, Success}
 
 private[effect] object IOFromFuture {
-
   /**
    * Implementation for `IO.fromFuture`.
    */

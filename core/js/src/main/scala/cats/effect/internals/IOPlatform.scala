@@ -21,7 +21,6 @@ import cats.effect.IO
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
-
   /**
    * Javascript specific function that should block for the result
    * of an IO task, unfortunately blocking is not possible for JS,
@@ -49,7 +48,7 @@ private[effect] object IOPlatform {
    * Establishes the maximum stack depth for `IO#map` operations
    * for JavaScript.
    *
-   * The default for JavaScript is 32, from which we substract 1
+   * The default for JavaScript is 32, from which we subtract 1
    * as an optimization.
    */
   final val fusionMaxStackDepth = 31
@@ -62,7 +61,6 @@ private[effect] object IOPlatform {
    * Internal — used in the implementation of [[unsafeResync]].
    */
   final private class ResyncCallback[A] extends (Either[Throwable, A] => Unit) {
-
     var isActive = true
     var value: Either[Throwable, A] = _
 

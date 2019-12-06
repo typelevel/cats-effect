@@ -197,7 +197,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
-
   /**
    * Start concurrent execution of the source suspended in
    * the `F` context.
@@ -355,7 +354,6 @@ trait Concurrent[F[_]] extends Async[F] {
 }
 
 object Concurrent {
-
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].
    *
@@ -609,47 +607,46 @@ object Concurrent {
    * [[Concurrent]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsEitherTConcurrent[F[_]: Concurrent, L]: Concurrent[EitherT[F, L, ?]] =
+  implicit def catsEitherTConcurrent[F[_]: Concurrent, L]: Concurrent[EitherT[F, L, *]] =
     new EitherTConcurrent[F, L] { def F = Concurrent[F] }
 
   /**
    * [[Concurrent]] instance built for `cats.data.OptionT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsOptionTConcurrent[F[_]: Concurrent]: Concurrent[OptionT[F, ?]] =
+  implicit def catsOptionTConcurrent[F[_]: Concurrent]: Concurrent[OptionT[F, *]] =
     new OptionTConcurrent[F] { def F = Concurrent[F] }
 
   /**
    * [[Concurrent]] instance built for `cats.data.Kleisli` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsKleisliConcurrent[F[_]: Concurrent, R]: Concurrent[Kleisli[F, R, ?]] =
+  implicit def catsKleisliConcurrent[F[_]: Concurrent, R]: Concurrent[Kleisli[F, R, *]] =
     new KleisliConcurrent[F, R] { def F = Concurrent[F] }
 
   /**
    * [[Concurrent]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, ?]] =
+  implicit def catsWriterTConcurrent[F[_]: Concurrent, L: Monoid]: Concurrent[WriterT[F, L, *]] =
     new WriterTConcurrent[F, L] { def F = Concurrent[F]; def L = Monoid[L] }
 
   /**
    * [[Concurrent]] instance built for `cats.data.IorT` values initialized
    * with any `F` data type that also implements `Concurrent`.
    */
-  implicit def catsIorTConcurrent[F[_]: Concurrent, L: Semigroup]: Concurrent[IorT[F, L, ?]] =
+  implicit def catsIorTConcurrent[F[_]: Concurrent, L: Semigroup]: Concurrent[IorT[F, L, *]] =
     new IorTConcurrent[F, L] { def F = Concurrent[F]; def L = Semigroup[L] }
 
-  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L] with Concurrent[EitherT[F, L, ?]] {
-
+  private[effect] trait EitherTConcurrent[F[_], L] extends Async.EitherTAsync[F, L] with Concurrent[EitherT[F, L, *]] {
     implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
     // Needed to drive static checks, otherwise the
     // compiler will choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[EitherT[F, L, ?], A]
+    type Fiber[A] = cats.effect.Fiber[EitherT[F, L, *], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[EitherT[F, L, ?]]): EitherT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[EitherT[F, L, *]]): EitherT[F, L, A] =
       EitherT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
 
     override def start[A](fa: EitherT[F, L, A]) =
@@ -678,16 +675,15 @@ object Concurrent {
       Fiber(EitherT(fiber.join), EitherT.liftF(fiber.cancel))
   }
 
-  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F] with Concurrent[OptionT[F, ?]] {
-
+  private[effect] trait OptionTConcurrent[F[_]] extends Async.OptionTAsync[F] with Concurrent[OptionT[F, *]] {
     implicit override protected def F: Concurrent[F]
     override protected def FF = F
 
     // Needed to drive static checks, otherwise the
     // compiler will choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[OptionT[F, ?], A]
+    type Fiber[A] = cats.effect.Fiber[OptionT[F, *], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[OptionT[F, ?]]): OptionT[F, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[OptionT[F, *]]): OptionT[F, A] =
       OptionT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
 
     override def start[A](fa: OptionT[F, A]) =
@@ -716,16 +712,15 @@ object Concurrent {
       Fiber(OptionT(fiber.join), OptionT.liftF(fiber.cancel))
   }
 
-  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L] with Concurrent[WriterT[F, L, ?]] {
-
+  private[effect] trait WriterTConcurrent[F[_], L] extends Async.WriterTAsync[F, L] with Concurrent[WriterT[F, L, *]] {
     implicit override protected def F: Concurrent[F]
     override protected def FA = F
 
     // Needed to drive static checks, otherwise the
     // compiler will choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[WriterT[F, L, ?], A]
+    type Fiber[A] = cats.effect.Fiber[WriterT[F, L, *], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[WriterT[F, L, ?]]): WriterT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[WriterT[F, L, *]]): WriterT[F, L, A] =
       WriterT.liftF(F.cancelable(k.andThen(_.run.map(_ => ()))))(L, F)
 
     override def start[A](fa: WriterT[F, L, A]) =
@@ -748,14 +743,13 @@ object Concurrent {
 
   abstract private[effect] class KleisliConcurrent[F[_], R]
       extends Async.KleisliAsync[F, R]
-      with Concurrent[Kleisli[F, R, ?]] {
-
+      with Concurrent[Kleisli[F, R, *]] {
     implicit override protected def F: Concurrent[F]
     // Needed to drive static checks, otherwise the
     // compiler can choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, ?], A]
+    type Fiber[A] = cats.effect.Fiber[Kleisli[F, R, *], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Kleisli[F, R, ?]]): Kleisli[F, R, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[Kleisli[F, R, *]]): Kleisli[F, R, A] =
       Kleisli(r => F.cancelable(k.andThen(_.run(r).map(_ => ()))))
 
     override def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[A]] =
@@ -773,16 +767,15 @@ object Concurrent {
       Fiber(Kleisli.liftF(fiber.join), Kleisli.liftF(fiber.cancel))
   }
 
-  private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L] with Concurrent[IorT[F, L, ?]] {
-
+  private[effect] trait IorTConcurrent[F[_], L] extends Async.IorTAsync[F, L] with Concurrent[IorT[F, L, *]] {
     implicit override protected def F: Concurrent[F]
     override protected def FA = F
 
     // Needed to drive static checks, otherwise the
     // compiler will choke on type inference :-(
-    type Fiber[A] = cats.effect.Fiber[IorT[F, L, ?], A]
+    type Fiber[A] = cats.effect.Fiber[IorT[F, L, *], A]
 
-    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IorT[F, L, ?]]): IorT[F, L, A] =
+    override def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IorT[F, L, *]]): IorT[F, L, A] =
       IorT.liftF(F.cancelable(k.andThen(_.value.map(_ => ()))))(F)
 
     override def start[A](fa: IorT[F, L, A]) =

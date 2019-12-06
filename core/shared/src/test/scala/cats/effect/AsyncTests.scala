@@ -22,13 +22,13 @@ import cats.effect.implicits._
 import cats.implicits._
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.{Matchers, Succeeded}
+import org.scalatest.Succeeded
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
 class AsyncTests extends AsyncFunSuite with Matchers {
-
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
@@ -55,5 +55,4 @@ class AsyncTests extends AsyncFunSuite with Matchers {
     val modifies = implicitly[Async[IO]].parSequenceN(3)(list)
     run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
   }
-
 }

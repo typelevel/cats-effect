@@ -20,14 +20,14 @@ package concurrent
 
 import cats.data.State
 import cats.implicits._
-import org.scalatest.{Matchers, Succeeded}
+import org.scalatest.Succeeded
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AsyncFunSuite
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class RefTests extends AsyncFunSuite with Matchers {
-
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)

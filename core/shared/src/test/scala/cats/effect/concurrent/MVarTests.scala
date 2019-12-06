@@ -19,7 +19,7 @@ package concurrent
 
 import cats.effect.internals.Platform
 import cats.implicits._
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

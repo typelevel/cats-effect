@@ -33,7 +33,6 @@ import scala.annotation.unchecked.uncheckedVariance
  * throws an exception upon encountering an async boundary.
  */
 final class SyncIO[+A] private (private val io: IO[A]) {
-
   def toIO: IO[A] =
     IO(io.unsafeRunSync())
 
@@ -320,7 +319,6 @@ final class SyncIO[+A] private (private val io: IO[A]) {
 }
 
 object SyncIO extends SyncIOInstances {
-
   /**
    * Suspends a synchronous side effect in `SyncIO`.
    *

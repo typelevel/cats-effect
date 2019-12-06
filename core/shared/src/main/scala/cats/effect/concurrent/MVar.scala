@@ -53,7 +53,6 @@ import cats.~>
  * by `scalaz.concurrent.MVar`.
  */
 abstract class MVar[F[_], A] {
-
   /**
    * Returns `true` if the `MVar` is empty and can receive a `put`, or
    * `false` otherwise.
@@ -122,7 +121,6 @@ abstract class MVar[F[_], A] {
 
 /** Builders for [[MVar]]. */
 object MVar {
-
   /**
    * Builds an [[MVar]] value for `F` data types that are [[Concurrent]].
    *
@@ -235,7 +233,6 @@ object MVar {
    * Returned by the [[apply]] builder.
    */
   final class ApplyBuilders[F[_]](val F: Concurrent[F]) extends AnyVal {
-
     /**
      * Builds an `MVar` with an initial value.
      *

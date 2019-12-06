@@ -187,7 +187,6 @@ sealed abstract class Resource[F[_], A] {
    *
    */
   def allocated(implicit F: Bracket[F, Throwable]): F[(A, F[Unit])] = {
-
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[F, Any], stack: List[Any => Resource[F, Any]], release: F[Unit]): F[(Any, F[Unit])] =
       loop(current, stack, release)
@@ -239,7 +238,6 @@ sealed abstract class Resource[F[_], A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
-
   /**
    * Creates a resource from an allocating effect.
    *
@@ -328,8 +326,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
   /**
    * Lifts an applicative into a resource as a `FunctionK`.  The resource has a no-op release.
    */
-  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, ?] =
-    λ[F ~> Resource[F, ?]](Resource.liftF(_))
+  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
+    λ[F ~> Resource[F, *]](Resource.liftF(_))
 
   /**
    * Creates a [[Resource]] by wrapping a Java
@@ -359,7 +357,6 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * the `cats.Monad` type class.
    */
   def tailRecM[F[_], A, B](a: A)(f: A => Resource[F, Either[A, B]])(implicit F: Monad[F]): Resource[F, B] = {
-
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r match {
         case Allocate(fea) =>
@@ -397,7 +394,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 }
 
 abstract private[effect] class ResourceInstances extends ResourceInstances0 {
-  implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, ?], E] =
+  implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
     new ResourceMonadError[F, E] {
       def F = F0
     }
@@ -408,7 +405,7 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, ?]] =
+  implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
     new ResourceLiftIO[F] {
       def F0 = F00
       def F1 = F10
@@ -416,7 +413,7 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
 }
 
 abstract private[effect] class ResourceInstances0 {
-  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, ?]] =
+  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
     new ResourceMonad[F] {
       def F = F0
     }
@@ -434,8 +431,7 @@ abstract private[effect] class ResourceInstances0 {
     }
 }
 
-abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, ?], E] {
-
+abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
   import Resource.{Allocate, Bind, Suspend}
 
   implicit protected def F: MonadError[F, E]
@@ -473,7 +469,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
     Resource.applyCase(F.raiseError(e))
 }
 
-abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, ?]] {
+abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
   implicit protected def F: Monad[F]
 
   override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
@@ -490,7 +486,6 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, ?]]
 }
 
 abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
-
   implicit protected def A: Monoid[A]
 
   def empty: Resource[F, A] = Resource.pure(A.empty)
@@ -507,7 +502,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
     } yield A.combine(x, y)
 }
 
-abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, ?]] {
+abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
   implicit protected def F: Monad[F]
   implicit protected def K: SemigroupK[F]
 
@@ -519,7 +514,7 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
     } yield xy
 }
 
-abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, ?]] {
+abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
   implicit protected def F0: LiftIO[F]
   implicit protected def F1: Applicative[F]
 

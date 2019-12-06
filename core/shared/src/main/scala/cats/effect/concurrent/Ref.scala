@@ -40,7 +40,6 @@ import scala.annotation.tailrec
  * of a purely functional wrapper over an `AtomicReference`.
  */
 abstract class Ref[F[_], A] {
-
   /**
    * Obtains the current value.
    *
@@ -128,7 +127,6 @@ abstract class Ref[F[_], A] {
 }
 
 object Ref {
-
   /**
    * Builds a `Ref` value for data types that are [[Sync]]
    *
@@ -181,9 +179,9 @@ object Ref {
    *   import cats.effect.concurrent.Ref
    *
    *   class Counter private () {
-   *     private val count = Ref.unsafe[IO](0)
+   *     private val count = Ref.unsafe[IO, Int](0)
    *
-   *     def increment: IO[Unit] = count.modify(_ + 1)
+   *     def increment: IO[Unit] = count.update(_ + 1)
    *     def total: IO[Int] = count.get
    *   }
    *
@@ -209,7 +207,6 @@ object Ref {
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
 
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
-
     /**
      * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
      *
@@ -219,7 +216,6 @@ object Ref {
   }
 
   final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
-
     def get: F[A] = F.delay(ar.get)
 
     def set(a: A): F[Unit] = F.delay(ar.set(a))
@@ -282,11 +278,11 @@ object Ref {
     override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
 
     override def access: G[(A, A => G[Boolean])] =
-      trans(F.compose[(A, ?)].compose[A => ?].map(underlying.access)(trans(_)))
+      trans(F.compose[(A, ?)].compose[A => *].map(underlying.access)(trans(_)))
   }
 
-  implicit def catsInvariantForRef[F[_]: Functor]: Invariant[Ref[F, ?]] =
-    new Invariant[Ref[F, ?]] {
+  implicit def catsInvariantForRef[F[_]: Functor]: Invariant[Ref[F, *]] =
+    new Invariant[Ref[F, *]] {
       override def imap[A, B](fa: Ref[F, A])(f: A => B)(g: B => A): Ref[F, B] =
         new Ref[F, B] {
           override val get: F[B] = fa.get.map(f)
@@ -308,5 +304,4 @@ object Ref {
             fa.modifyState(state.dimap(f)(g))
         }
     }
-
 }

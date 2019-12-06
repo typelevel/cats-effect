@@ -20,13 +20,11 @@ import cats.effect.Async
 import cats.{Parallel, Traverse}
 
 trait AsyncSyntax extends Async.ToAsyncOps {
-
   implicit def catsEffectSyntaxAsyncObj[F[_]](F: Async[F]): AsyncObjOps[F] =
     new AsyncObjOps[F](F)
 }
 
 final class AsyncObjOps[F[_]](private val F: Async[F]) extends AnyVal {
-
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */

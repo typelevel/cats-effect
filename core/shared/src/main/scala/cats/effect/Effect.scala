@@ -41,7 +41,6 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
-
   /**
    * Evaluates `F[_]`, with the effect of starting the run-loop
    * being suspended in the `SyncIO` context.
@@ -64,7 +63,6 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 object Effect {
-
   /**
    * [[Effect.toIO]] default implementation, derived from [[Effect.runAsync]].
    */
@@ -82,20 +80,19 @@ object Effect {
    * [[Effect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Effect`.
    */
-  implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, ?]] =
+  implicit def catsEitherTEffect[F[_]: Effect]: Effect[EitherT[F, Throwable, *]] =
     new EitherTEffect[F] { def F = Effect[F] }
 
   /**
    * [[Effect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Effect`.
    */
-  implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, ?]] =
+  implicit def catsWriterTEffect[F[_]: Effect, L: Monoid]: Effect[WriterT[F, L, *]] =
     new WriterTEffect[F, L] { def F = Effect[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTEffect[F[_]]
-      extends Effect[EitherT[F, Throwable, ?]]
+      extends Effect[EitherT[F, Throwable, *]]
       with Async.EitherTAsync[F, Throwable] {
-
     protected def F: Effect[F]
 
     def runAsync[A](fa: EitherT[F, Throwable, A])(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] =
@@ -105,8 +102,7 @@ object Effect {
       F.toIO(F.rethrow(fa.value))
   }
 
-  private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, ?]] with Async.WriterTAsync[F, L] {
-
+  private[effect] trait WriterTEffect[F[_], L] extends Effect[WriterT[F, L, *]] with Async.WriterTAsync[F, L] {
     protected def F: Effect[F]
     protected def L: Monoid[L]
 

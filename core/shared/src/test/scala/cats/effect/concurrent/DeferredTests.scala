@@ -22,10 +22,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import cats.implicits._
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
 class DeferredTests extends AsyncFunSuite with Matchers {
-
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: cats.effect.Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
@@ -34,7 +34,6 @@ class DeferredTests extends AsyncFunSuite with Matchers {
   trait TryableDeferredConstructor { def apply[A]: IO[TryableDeferred[IO, A]] }
 
   def tests(label: String, pc: DeferredConstructor): Unit = {
-
     test(s"$label - complete") {
       pc[Int]
         .flatMap { p =>

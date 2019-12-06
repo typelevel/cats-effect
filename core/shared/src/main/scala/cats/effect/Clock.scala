@@ -43,7 +43,6 @@ import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS, TimeUnit}
 * create a Clock[${F}] instance with Clock.create
 """)
 trait Clock[F[_]] {
-
   /**
    * Returns the current time, as a Unix timestamp (number of time units
    * since the Unix epoch), suspended in `F[_]`.
@@ -124,7 +123,7 @@ trait Clock[F[_]] {
   def monotonic(unit: TimeUnit): F[Long]
 }
 
-object Clock {
+object Clock extends LowPriorityImplicits {
   def apply[F[_]](implicit ev: Clock[F]) = ev
 
   /**
@@ -146,12 +145,24 @@ object Clock {
   implicit def extractFromTimer[F[_]](implicit timer: Timer[F]): Clock[F] =
     timer.clock
 
+  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+    /**
+     * Modify the context `F` using transformation `f`.
+     */
+    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
+      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
+      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
+    }
+  }
+}
+
+protected[effect] trait LowPriorityImplicits {
   /**
    * Derives a [[Clock]] instance for `cats.data.EitherT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveEitherT[F[_], L](implicit F: Functor[F], clock: Clock[F]): Clock[EitherT[F, L, ?]] =
-    new Clock[EitherT[F, L, ?]] {
+  implicit def deriveEitherT[F[_], L](implicit F: Functor[F], clock: Clock[F]): Clock[EitherT[F, L, *]] =
+    new Clock[EitherT[F, L, *]] {
       def realTime(unit: TimeUnit): EitherT[F, L, Long] =
         EitherT.liftF(clock.realTime(unit))
 
@@ -163,8 +174,8 @@ object Clock {
    * Derives a [[Clock]] instance for `cats.data.OptionT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveOptionT[F[_]](implicit F: Functor[F], clock: Clock[F]): Clock[OptionT[F, ?]] =
-    new Clock[OptionT[F, ?]] {
+  implicit def deriveOptionT[F[_]](implicit F: Functor[F], clock: Clock[F]): Clock[OptionT[F, *]] =
+    new Clock[OptionT[F, *]] {
       def realTime(unit: TimeUnit): OptionT[F, Long] =
         OptionT.liftF(clock.realTime(unit))
 
@@ -176,8 +187,8 @@ object Clock {
    * Derives a [[Clock]] instance for `cats.data.StateT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveStateT[F[_], S](implicit F: Applicative[F], clock: Clock[F]): Clock[StateT[F, S, ?]] =
-    new Clock[StateT[F, S, ?]] {
+  implicit def deriveStateT[F[_], S](implicit F: Applicative[F], clock: Clock[F]): Clock[StateT[F, S, *]] =
+    new Clock[StateT[F, S, *]] {
       def realTime(unit: TimeUnit): StateT[F, S, Long] =
         StateT.liftF(clock.realTime(unit))
 
@@ -191,8 +202,8 @@ object Clock {
    */
   implicit def deriveWriterT[F[_], L](implicit F: Applicative[F],
                                       L: Monoid[L],
-                                      clock: Clock[F]): Clock[WriterT[F, L, ?]] =
-    new Clock[WriterT[F, L, ?]] {
+                                      clock: Clock[F]): Clock[WriterT[F, L, *]] =
+    new Clock[WriterT[F, L, *]] {
       def realTime(unit: TimeUnit): WriterT[F, L, Long] =
         WriterT.liftF(clock.realTime(unit))
 
@@ -204,8 +215,8 @@ object Clock {
    * Derives a [[Clock]] instance for `cats.data.Kleisli`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveKleisli[F[_], R](implicit clock: Clock[F]): Clock[Kleisli[F, R, ?]] =
-    new Clock[Kleisli[F, R, ?]] {
+  implicit def deriveKleisli[F[_], R](implicit clock: Clock[F]): Clock[Kleisli[F, R, *]] =
+    new Clock[Kleisli[F, R, *]] {
       def realTime(unit: TimeUnit): Kleisli[F, R, Long] =
         Kleisli.liftF(clock.realTime(unit))
 
@@ -217,8 +228,8 @@ object Clock {
    * Derives a [[Clock]] instance for `cats.data.IorT`,
    * given we have one for `F[_]`.
    */
-  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], clock: Clock[F]): Clock[IorT[F, L, ?]] =
-    new Clock[IorT[F, L, ?]] {
+  implicit def deriveIorT[F[_], L](implicit F: Applicative[F], clock: Clock[F]): Clock[IorT[F, L, *]] =
+    new Clock[IorT[F, L, *]] {
       def realTime(unit: TimeUnit): IorT[F, L, Long] =
         IorT.liftF(clock.realTime(unit))
 
@@ -226,14 +237,16 @@ object Clock {
         IorT.liftF(clock.monotonic(unit))
     }
 
-  implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
+  /**
+   * Derives a [[Clock]] instance for `cats.effect.Resource`,
+   * given we have one for `F[_]`.
+   */
+  implicit def deriveResource[F[_]](implicit F: Applicative[F], clock: Clock[F]): Clock[Resource[F, *]] =
+    new Clock[Resource[F, *]] {
+      def realTime(unit: TimeUnit): Resource[F, Long] =
+        Resource.liftF(clock.realTime(unit))
 
-    /**
-     * Modify the context `F` using transformation `f`.
-     */
-    def mapK[G[_]](f: F ~> G): Clock[G] = new Clock[G] {
-      def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
-      def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
+      def monotonic(unit: TimeUnit): Resource[F, Long] =
+        Resource.liftF(clock.monotonic(unit))
     }
-  }
 }

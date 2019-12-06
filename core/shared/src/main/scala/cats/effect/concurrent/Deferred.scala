@@ -49,7 +49,6 @@ import scala.util.{Failure, Success}
  * blocked by the implementation.
  */
 abstract class Deferred[F[_], A] {
-
   /**
    * Obtains the value of the `Deferred`, or waits until it has been completed.
    * The returned value may be canceled.
@@ -84,7 +83,6 @@ abstract class Deferred[F[_], A] {
 }
 
 abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
-
   /**
    * Obtains the current value of the `Deferred`, or None if it hasn't completed.
    */
@@ -92,7 +90,6 @@ abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
 }
 
 object Deferred {
-
   /** Creates an unset promise. **/
   def apply[F[_], A](implicit F: Concurrent[F]): F[Deferred[F, A]] =
     F.delay(unsafe[F, A])
@@ -163,7 +160,6 @@ object Deferred {
 
   final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
       extends TryableDeferred[F, A] {
-
     def get: F[A] =
       F.suspend {
         ref.get match {

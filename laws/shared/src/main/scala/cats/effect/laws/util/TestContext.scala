@@ -334,7 +334,6 @@ final class TestContext private () extends ExecutionContext { self =>
 }
 
 object TestContext {
-
   /** Builder for [[TestContext]] instances. */
   def apply(): TestContext =
     new TestContext
@@ -346,7 +345,6 @@ object TestContext {
                          clock: FiniteDuration,
                          tasks: SortedSet[Task],
                          lastReportedFailure: Option[Throwable]) {
-
     // $COVERAGE-OFF$
     assert(!tasks.headOption.exists(_.runsAt < clock), "The runsAt for any task must never be in the past")
     // $COVERAGE-ON$

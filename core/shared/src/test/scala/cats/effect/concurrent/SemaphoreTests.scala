@@ -19,13 +19,13 @@ package effect
 package concurrent
 
 import cats.implicits._
-import org.scalatest.{Assertion, EitherValues, Matchers}
+import org.scalatest.{Assertion, EitherValues}
 import org.scalatest.funsuite.AsyncFunSuite
+import org.scalatest.matchers.should.Matchers
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
 class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
-
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
@@ -96,7 +96,6 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
             _ <- s.acquireN(20).void
             t <- IO.shift *> s.available
           } yield t
-
         }
         .unsafeToFuture()
         .map(_ shouldBe 0)

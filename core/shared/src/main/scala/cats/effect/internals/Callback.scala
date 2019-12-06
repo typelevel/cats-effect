@@ -93,7 +93,6 @@ private[effect] object Callback {
 
   /** Helpers async callbacks. */
   implicit final class Extensions[-A](val self: T[A]) extends AnyVal {
-
     /**
      * Executes the source callback with a light (trampolined) async
      * boundary, meant to protect against stack overflows.
@@ -126,7 +125,6 @@ private[effect] object Callback {
   final private class AsyncIdempotentCallback[-A](conn: IOConnection, cb: Either[Throwable, A] => Unit)
       extends (Either[Throwable, A] => Unit)
       with Runnable {
-
     private[this] val canCall = new AtomicBoolean(true)
     private[this] var value: Either[Throwable, A] = _
     def run(): Unit = cb(value)

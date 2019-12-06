@@ -17,7 +17,6 @@
 package cats
 
 package object effect {
-
   /**
    * A cancelation token is an effectful action that is
    * able to cancel a running task.
@@ -42,6 +41,7 @@ package object effect {
    * Provides missing methods on Scala 2.11's Either while allowing
    * -Xfatal-warnings along with -Ywarn-unused-import
    */
+  @deprecated("Cats-effect no longer supports Scala 2.11.x", "2.1.0")
   implicit private[effect] class scala211EitherSyntax[A, B](val self: Either[A, B]) extends AnyVal {
     def map[B2](f: B => B2): Either[A, B2] = self match {
       case l @ Left(_) => l.asInstanceOf[Either[A, B2]]

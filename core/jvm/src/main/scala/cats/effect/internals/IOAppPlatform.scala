@@ -19,7 +19,6 @@ package effect
 package internals
 
 private[effect] object IOAppPlatform {
-
   def main(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
     run: List[String] => IO[ExitCode]
   ): Unit = {

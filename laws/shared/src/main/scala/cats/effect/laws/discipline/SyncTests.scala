@@ -25,7 +25,6 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 
 trait SyncTests[F[_]] extends BracketTests[F, Throwable] {
-
   def laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit

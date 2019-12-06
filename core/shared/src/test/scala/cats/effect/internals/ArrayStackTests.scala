@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
 class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {

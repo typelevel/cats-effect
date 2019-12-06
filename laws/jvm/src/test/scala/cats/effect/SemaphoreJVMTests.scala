@@ -21,7 +21,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, Semaphore}
 import cats.implicits._
-import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration._

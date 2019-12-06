@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import java.io.ByteArrayOutputStream
 import cats.effect.IO
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 import scala.util.control.NonFatal
 

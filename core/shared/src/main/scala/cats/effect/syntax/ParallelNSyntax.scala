@@ -21,7 +21,6 @@ import cats.effect.implicits._
 import cats.{Monad, Parallel, Traverse}
 
 trait ParallelNSyntax {
-
   implicit final def catsSyntaxParallelTraverseNConcurrent[T[_]: Traverse, A](
     ta: T[A]
   ): ParallelTraversableNConcurrentOps[T, A] =
@@ -30,17 +29,14 @@ trait ParallelNSyntax {
   implicit final def catsSyntaxParallelSequenceNConcurrent[T[_]: Traverse, M[_]: Monad, A](
     tma: T[M[A]]
   ): ParallelSequenceNConcurrentOps[T, M, A] = new ParallelSequenceNConcurrentOps[T, M, A](tma)
-
 }
 
 final class ParallelSequenceNConcurrentOps[T[_], M[_], A](private val tma: T[M[A]]) extends AnyVal {
-
   def parSequenceN(n: Long)(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M]): M[T[A]] =
     M.parSequenceN(n)(tma)
 }
 
 final class ParallelTraversableNConcurrentOps[T[_], A](private val ta: T[A]) extends AnyVal {
-
   def parTraverseN[M[_], B](n: Long)(f: A => M[B])(implicit M: Concurrent[M], T: Traverse[T], P: Parallel[M]): M[T[B]] =
     M.parTraverseN(n)(ta)(f)
 }

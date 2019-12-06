@@ -20,7 +20,8 @@ import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit
 import concurrent.Deferred
 import cats.implicits._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}

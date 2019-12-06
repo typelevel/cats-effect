@@ -28,7 +28,6 @@ import scala.annotation.tailrec
 final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcurrent.State[A])(
   implicit F: Concurrent[F]
 ) extends MVar[F, A] {
-
   import MVarConcurrent._
 
   /** Shared mutable state. */
@@ -278,7 +277,6 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
 }
 
 private[effect] object MVarConcurrent {
-
   /** Builds an [[MVarConcurrent]] instance with an `initial` value. */
   def apply[F[_], A](initial: A)(implicit F: Concurrent[F]): MVar[F, A] =
     new MVarConcurrent[F, A](State(initial))

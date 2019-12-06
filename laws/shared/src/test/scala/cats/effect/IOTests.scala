@@ -1025,7 +1025,6 @@ class IOTests extends BaseTestsSuite {
 }
 
 object IOTests {
-
   /** Implementation for testing default methods. */
   val ioEffectDefaults = new IODefaults
 

@@ -29,5 +29,5 @@ class RefTests extends BaseTestsSuite {
 
   implicit def eqRef[A: Eq]: Eq[Ref[IO, A]] = Eq.by(_.get.unsafeRunSync())
 
-  checkAll("Ref[IO, ?]", InvariantTests[Ref[IO, ?]].invariant[Int, Int, Int])
+  checkAll("Ref[IO, *]", InvariantTests[Ref[IO, *]].invariant[Int, Int, Int])
 }

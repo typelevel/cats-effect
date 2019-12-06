@@ -29,7 +29,6 @@ import cats.instances.tuple._
  */
 @typeclass(excludeParents = List("Defer"))
 trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
-
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -56,57 +55,56 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
 }
 
 object Sync {
-
   /**
    * [[Sync]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, ?]] =
+  implicit def catsEitherTSync[F[_]: Sync, L]: Sync[EitherT[F, L, *]] =
     new EitherTSync[F, L] { def F = Sync[F] }
 
   /**
    * [[Sync]] instance built for `cats.data.OptionT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, ?]] =
+  implicit def catsOptionTSync[F[_]: Sync]: Sync[OptionT[F, *]] =
     new OptionTSync[F] { def F = Sync[F] }
 
   /**
    * [[Sync]] instance built for `cats.data.StateT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, ?]] =
+  implicit def catsStateTSync[F[_]: Sync, S]: Sync[StateT[F, S, *]] =
     new StateTSync[F, S] { def F = Sync[F] }
 
   /**
    * [[Sync]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, ?]] =
+  implicit def catsWriterTSync[F[_]: Sync, L: Monoid]: Sync[WriterT[F, L, *]] =
     new WriterTSync[F, L] { def F = Sync[F]; def L = Monoid[L] }
 
   /**
    * [[Sync]] instance built for `cats.data.Kleisli` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, ?]] =
+  implicit def catsKleisliSync[F[_]: Sync, R]: Sync[Kleisli[F, R, *]] =
     new KleisliSync[F, R] { def F = Sync[F] }
 
   /**
    * [[Sync]] instance built for `cats.data.IorT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsIorTSync[F[_]: Sync, L: Semigroup]: Sync[IorT[F, L, ?]] =
+  implicit def catsIorTSync[F[_]: Sync, L: Semigroup]: Sync[IorT[F, L, *]] =
     new IorTSync[F, L] { def F = Sync[F]; def L = Semigroup[L] }
 
   /**
    * [[Sync]] instance built for `cats.data.ReaderWriterStateT` values initialized
    * with any `F` data type that also implements `Sync`.
    */
-  implicit def catsReaderWriteStateTSync[F[_]: Sync, E, L: Monoid, S]: Sync[ReaderWriterStateT[F, E, L, S, ?]] =
+  implicit def catsReaderWriteStateTSync[F[_]: Sync, E, L: Monoid, S]: Sync[ReaderWriterStateT[F, E, L, S, *]] =
     new ReaderWriterStateTSync[F, E, L, S] { def F = Sync[F]; def L = Monoid[L] }
 
-  private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, ?]] {
+  private[effect] trait EitherTSync[F[_], L] extends Sync[EitherT[F, L, *]] {
     implicit protected def F: Sync[F]
 
     def pure[A](x: A): EitherT[F, L, A] =
@@ -155,7 +153,7 @@ object Sync {
       EitherT(F.uncancelable(fa.value))
   }
 
-  private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, ?]] {
+  private[effect] trait OptionTSync[F[_]] extends Sync[OptionT[F, *]] {
     implicit protected def F: Sync[F]
 
     def pure[A](x: A): OptionT[F, A] = OptionT.pure(x)
@@ -204,7 +202,7 @@ object Sync {
       OptionT(F.uncancelable(fa.value))
   }
 
-  private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, ?]] {
+  private[effect] trait StateTSync[F[_], S] extends Sync[StateT[F, S, *]] {
     implicit protected def F: Sync[F]
 
     def pure[A](x: A): StateT[F, S, A] = StateT.pure(x)
@@ -250,7 +248,7 @@ object Sync {
       StateT.applyF(F.suspend(thunk.runF))
   }
 
-  private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, ?]] {
+  private[effect] trait WriterTSync[F[_], L] extends Sync[WriterT[F, L, *]] {
     implicit protected def F: Sync[F]
     implicit protected def L: Monoid[L]
 
@@ -273,7 +271,8 @@ object Sync {
               case ((_, a), ec) =>
                 val r = release(a, ec).run
                 if (ec == ExitCase.Completed)
-                  r.flatMap { case (l, _) => ref.set(l) } else
+                  r.flatMap { case (l, _) => ref.set(l) }
+                else
                   r.void
             }
             .flatMap { lb =>
@@ -297,8 +296,7 @@ object Sync {
 
   abstract private[effect] class KleisliSync[F[_], R]
       extends Bracket.KleisliBracket[F, R, Throwable]
-      with Sync[Kleisli[F, R, ?]] {
-
+      with Sync[Kleisli[F, R, *]] {
     implicit override protected def F: Sync[F]
 
     override def handleErrorWith[A](fa: Kleisli[F, R, A])(f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
@@ -320,7 +318,7 @@ object Sync {
       }
   }
 
-  private[effect] trait IorTSync[F[_], L] extends Sync[IorT[F, L, ?]] {
+  private[effect] trait IorTSync[F[_], L] extends Sync[IorT[F, L, *]] {
     implicit protected def F: Sync[F]
     implicit protected def L: Semigroup[L]
 
@@ -346,7 +344,8 @@ object Sync {
                 r.flatMap {
                   case Ior.Right(_) => F.unit
                   case other        => ref.set(other.void)
-                } else
+                }
+              else
                 r.void
             }
           }
@@ -369,7 +368,7 @@ object Sync {
       IorT(F.uncancelable(fa.value))
   }
 
-  private[effect] trait ReaderWriterStateTSync[F[_], E, L, S] extends Sync[ReaderWriterStateT[F, E, L, S, ?]] {
+  private[effect] trait ReaderWriterStateTSync[F[_], E, L, S] extends Sync[ReaderWriterStateT[F, E, L, S, *]] {
     implicit protected def F: Sync[F]
     implicit protected def L: Monoid[L]
 

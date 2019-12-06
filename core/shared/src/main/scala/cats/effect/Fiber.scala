@@ -53,7 +53,6 @@ import cats.{~>, Applicative, Apply, Monoid, Semigroup}
  * }}}
  */
 trait Fiber[F[_], A] {
-
   /**
    * Triggers the cancellation of the fiber.
    *
@@ -77,7 +76,6 @@ trait Fiber[F[_], A] {
 }
 
 object Fiber extends FiberInstances {
-
   /**
    * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
    */
@@ -87,7 +85,6 @@ object Fiber extends FiberInstances {
   final private case class Tuple[F[_], A](join: F[A], cancel: CancelToken[F]) extends Fiber[F, A]
 
   implicit class FiberOps[F[_], A](val self: Fiber[F, A]) extends AnyVal {
-
     /**
      * Modify the context `F` using transformation `f`.
      */
@@ -99,9 +96,8 @@ object Fiber extends FiberInstances {
 }
 
 abstract private[effect] class FiberInstances extends FiberLowPriorityInstances {
-
-  implicit def fiberApplicative[F[_]](implicit F: Concurrent[F]): Applicative[Fiber[F, ?]] =
-    new Applicative[Fiber[F, ?]] {
+  implicit def fiberApplicative[F[_]](implicit F: Concurrent[F]): Applicative[Fiber[F, *]] =
+    new Applicative[Fiber[F, *]] {
       final override def pure[A](x: A): Fiber[F, A] =
         Fiber(F.pure(x), F.unit)
       final override def ap[A, B](ff: Fiber[F, A => B])(fa: Fiber[F, A]): Fiber[F, B] =
@@ -126,10 +122,10 @@ abstract private[effect] class FiberInstances extends FiberLowPriorityInstances 
     }
 
   implicit def fiberMonoid[F[_]: Concurrent, M[_], A: Monoid]: Monoid[Fiber[F, A]] =
-    Applicative.monoid[Fiber[F, ?], A]
+    Applicative.monoid[Fiber[F, *], A]
 }
 
 abstract private[effect] class FiberLowPriorityInstances {
   implicit def fiberSemigroup[F[_]: Concurrent, A: Semigroup]: Semigroup[Fiber[F, A]] =
-    Apply.semigroup[Fiber[F, ?], A]
+    Apply.semigroup[Fiber[F, *], A]
 }
