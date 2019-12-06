@@ -244,8 +244,8 @@ trait Concurrent[F[_]] extends Async[F] {
    * In case the result of such an action is canceled, both processes will receive cancelation signals.
    * The same result can be achieved by using `anotherProcess &> longProcess` with the Parallel type class syntax.
    */
-  def background[A](fa: F[A])(implicit F: Concurrent[F]): Resource[F, F[A]] =
-    Resource.make(F.start(fa))(_.cancel).map(_.join)
+  def background[A](fa: F[A]): Resource[F, F[A]] =
+    Resource.make(start(fa))(_.cancel)(this).map(_.join)(this)
 
   /**
    * Run two tasks concurrently, creating a race between them and returns a
