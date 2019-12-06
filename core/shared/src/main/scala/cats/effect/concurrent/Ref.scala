@@ -179,9 +179,9 @@ object Ref {
    *   import cats.effect.concurrent.Ref
    *
    *   class Counter private () {
-   *     private val count = Ref.unsafe[IO](0)
+   *     private val count = Ref.unsafe[IO, Int](0)
    *
-   *     def increment: IO[Unit] = count.modify(_ + 1)
+   *     def increment: IO[Unit] = count.update(_ + 1)
    *     def total: IO[Int] = count.get
    *   }
    *
