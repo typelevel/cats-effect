@@ -61,14 +61,16 @@ final class ConcurrentOps[F[_], A](val self: F[A]) extends AnyVal {
    * This will ensure we never close the server resource unless somebody cancels the whole `application` action.
    *
    * If at some point of using the resource you want to wait for the result of the background action,
-   * you can do so by sequencing the value inside the resource.
+   * you can do so by sequencing the value inside the resource (it's equivalent to `join` on `Fiber`).
    *
-   * This will start the background process, wait 5 seconds, and cancel it in case it takes longer than that.
-   * Note: this pattern is exactly what [[cats.effect.Concurrent#timeout]] does in a more concise and less error-prone way.
+   * This will start the background process, run another action, and wait for the result of the background process:
    *
    * {{{
-   *   longProcess.background.use(await => IO.sleep(5.seconds) *> await)
+   *   longProcess.background.use(await => anotherProcess *> await)
    * }}}
+   *
+   * In case the result of such an action is canceled, both processes will receive cancelation signals.
+   * The same result can be achieved by using `anotherProcess &> longProcess` with the Parallel type class syntax.
   */
   def background(implicit F: Concurrent[F]): Resource[F, F[A]] = Resource.make(F.start(self))(_.cancel).map(_.join)
 }
