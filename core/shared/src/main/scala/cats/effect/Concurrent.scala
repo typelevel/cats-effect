@@ -204,6 +204,8 @@ trait Concurrent[F[_]] extends Async[F] {
    * Returns a [[Fiber]] that can be used to either join or cancel
    * the running computation, being similar in spirit (but not
    * in implementation) to starting a thread.
+   *
+   * @see [[syntax.ConcurrentOps#background]] for a safer alternative.
    */
   def start[A](fa: F[A]): F[Fiber[F, A]]
 
