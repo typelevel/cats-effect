@@ -27,7 +27,7 @@ Cats Effect relies on improved type inference and needs partial unification enab
 
 If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.11.x, 2.12.x, and 2.13.0, as well as Scala.js 0.6.x.
+Cross-builds are available for Scala 2.12.x and 2.13.x, as well as Scala.js 0.6.x.
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 

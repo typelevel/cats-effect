@@ -370,9 +370,22 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * consider in the example above what would happen if the first task
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
+   *
+   * Also see [[background]] for a safer alternative.
    */
   final def start(implicit cs: ContextShift[IO]): IO[Fiber[IO, A @uncheckedVariance]] =
     IOStart(cs, this)
+
+  /**
+   * Returns a resource that will start execution of this IO in the background.
+   *
+   * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
+   * the background action will be canceled.
+   *
+   * @see [[cats.effect.Concurrent#background]] for the generic version.
+   */
+  final def background(implicit cs: ContextShift[IO]): Resource[IO, IO[A @uncheckedVariance]] =
+    Resource.make(start)(_.cancel).map(_.join)
 
   /**
    * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]

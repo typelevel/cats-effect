@@ -1022,6 +1022,40 @@ class IOTests extends BaseTestsSuite {
     ec.tickOne()
     f.value shouldBe Some(Success(1))
   }
+
+  testAsync("background cancels the action in cleanup") { ec =>
+    implicit val contextShift = ec.contextShift[IO]
+
+    val f = Deferred[IO, Unit]
+      .flatMap { started => //wait for this before closing resource
+        Deferred[IO, ExitCase[Throwable]].flatMap { result =>
+          val bg = started.complete(()) *> IO.never.guaranteeCase(result.complete)
+
+          bg.background.use(_ => started.get) *> result.get
+        }
+      }
+      .unsafeToFuture()
+
+    ec.tick()
+
+    f.value shouldBe Some(Success(ExitCase.Canceled))
+  }
+
+  testAsync("background allows awaiting the action") { ec =>
+    implicit val contextShift = ec.contextShift[IO]
+
+    val f = Deferred[IO, Unit]
+      .flatMap { latch =>
+        val bg = latch.get *> IO.pure(42)
+
+        bg.background.use(await => latch.complete(()) *> await)
+      }
+      .unsafeToFuture()
+
+    ec.tick()
+
+    f.value shouldBe Some(Success(42))
+  }
 }
 
 object IOTests {
