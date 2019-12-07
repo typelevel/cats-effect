@@ -382,7 +382,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
    * the background action will be canceled.
    *
-   * @see [[cats.effect.syntax.ConcurrentOps#background]]
+   * @see [[cats.effect.Concurrent#background]] for the generic version.
    */
   final def background(implicit cs: ContextShift[IO]): Resource[IO, IO[A @uncheckedVariance]] =
     Resource.make(start)(_.cancel).map(_.join)
