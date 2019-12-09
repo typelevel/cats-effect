@@ -19,6 +19,7 @@ package internals
 
 import scala.concurrent.ExecutionContext
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory}
+import java.util.concurrent.atomic.AtomicInteger
 import cats.data.NonEmptyList
 
 private[effect] trait BlockerPlatform {
@@ -27,8 +28,9 @@ private[effect] trait BlockerPlatform {
    */
   def apply[F[_]](implicit F: Sync[F]): Resource[F, Blocker] =
     fromExecutorService(F.delay(Executors.newCachedThreadPool(new ThreadFactory {
+      val ctr = new AtomicInteger(0)
       def newThread(r: Runnable) = {
-        val t = new Thread(r, "cats-effect-blocker")
+        val t = new Thread(r, s"cats-effect-blocker-${ctr.getAndIncrement()}")
         t.setDaemon(true)
         t
       }
