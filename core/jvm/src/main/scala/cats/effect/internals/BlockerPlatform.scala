@@ -23,14 +23,15 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.data.NonEmptyList
 
 private[effect] trait BlockerPlatform {
+  private val threadCtr = new AtomicInteger(0)
+
   /**
    * Creates a blocker that is backed by a cached thread pool.
    */
   def apply[F[_]](implicit F: Sync[F]): Resource[F, Blocker] =
     fromExecutorService(F.delay(Executors.newCachedThreadPool(new ThreadFactory {
-      val ctr = new AtomicInteger(0)
       def newThread(r: Runnable) = {
-        val t = new Thread(r, s"cats-effect-blocker-${ctr.getAndIncrement()}")
+        val t = new Thread(r, s"cats-effect-blocker-${threadCtr.getAndIncrement()}")
         t.setDaemon(true)
         t
       }
