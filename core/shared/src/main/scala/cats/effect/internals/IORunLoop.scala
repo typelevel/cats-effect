@@ -16,8 +16,9 @@
 
 package cats.effect.internals
 
-import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
+import cats.effect.{IO, Trace, TracingMode}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, SetTracingMode, BackTrace}
+import cats.effect.util.TracedException
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -68,6 +69,9 @@ private[effect] object IORunLoop {
     // For auto-cancellation
     var currentIndex = 0
 
+    var tracingMode: TracingMode = TracingMode.Rabbit
+    var currentTrace: List[StackTraceElement] = Nil
+
     do {
       currentIO match {
         case Bind(fa, bindNext) =>
@@ -87,23 +91,31 @@ private[effect] object IORunLoop {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
             currentIO = null
+            val st = new Throwable().getStackTrace().toList.take(2)
+            currentTrace = st ++ currentTrace
           } catch {
             case NonFatal(e) =>
-              currentIO = RaiseError(e)
+              val st = new Throwable().getStackTrace().toList.take(2)
+              currentTrace = st ++ currentTrace
+              currentIO = RaiseError(e, Trace(currentTrace))
           }
 
         case Suspend(thunk) =>
           currentIO = try thunk()
-          catch { case NonFatal(ex) => RaiseError(ex) }
+          catch { case NonFatal(ex) =>
+            val st = new Throwable().getStackTrace().toList.take(2)
+            currentTrace = st ++ currentTrace
+            RaiseError(ex, Trace(currentTrace))
+          }
 
-        case RaiseError(ex) =>
+        case RaiseError(ex, trace) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
-              cb(Left(ex))
+              cb(Left(new TracedException(trace, ex)))
               return
             case bind =>
               val fa = try bind.recover(ex)
-              catch { case NonFatal(e) => RaiseError(e) }
+              catch { case NonFatal(e) => RaiseError(e, trace) }
               bFirst = null
               currentIO = fa
           }
@@ -131,6 +143,13 @@ private[effect] object IORunLoop {
             if (restore ne null)
               currentIO = Bind(next, new RestoreContext(old, restore))
           }
+        case SetTracingMode(source, tm) => 
+          tracingMode = tm
+          currentIO = source
+        case BackTrace() =>
+          //TODO
+          unboxed = Trace(Nil).asInstanceOf[AnyRef]
+          hasUnboxed = true
       }
 
       if (hasUnboxed) {
@@ -140,7 +159,12 @@ private[effect] object IORunLoop {
             return
           case bind =>
             val fa = try bind(unboxed)
-            catch { case NonFatal(ex) => RaiseError(ex) }
+            
+            catch { case NonFatal(ex) => 
+              val st = new Throwable().getStackTrace().toList.take(2)
+              currentTrace = st ++ currentTrace
+              RaiseError(ex, Trace(currentTrace)) 
+            }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -170,6 +194,9 @@ private[effect] object IORunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
 
+    var tracingMode: TracingMode = TracingMode.Rabbit
+    var currentTrace: List[StackTraceElement] = Nil
+
     do {
       currentIO match {
         case Bind(fa, bindNext) =>
@@ -191,21 +218,27 @@ private[effect] object IORunLoop {
             currentIO = null
           } catch {
             case NonFatal(e) =>
-              currentIO = RaiseError(e)
+              val st = new Throwable().getStackTrace().toList.take(2)
+              currentTrace = st ++ currentTrace
+              currentIO = RaiseError(e, Trace(currentTrace))
           }
 
         case Suspend(thunk) =>
           currentIO = try {
             thunk()
-          } catch { case NonFatal(ex) => RaiseError(ex) }
+          } catch { case NonFatal(ex) => 
+            val st = new Throwable().getStackTrace().toList.take(2)
+            currentTrace = st ++ currentTrace
+            RaiseError(ex, Trace(currentTrace))
+          }
 
-        case RaiseError(ex) =>
+        case RaiseError(ex, trace) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
             case bind =>
               val fa = try bind.recover(ex)
-              catch { case NonFatal(e) => RaiseError(e) }
+              catch { case NonFatal(e) => RaiseError(e, trace) }
               bFirst = null
               currentIO = fa
           }
@@ -217,6 +250,10 @@ private[effect] object IORunLoop {
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
+
+        case SetTracingMode(source, tm) => 
+          tracingMode = tm
+          currentIO = source
 
         case Async(_, _) =>
           // Cannot inline the code of this method — as it would
@@ -235,7 +272,11 @@ private[effect] object IORunLoop {
               .asInstanceOf[IO[A]]
           case bind =>
             currentIO = try bind(unboxed)
-            catch { case NonFatal(ex) => RaiseError(ex) }
+            catch { case NonFatal(ex) => 
+              val st = new Throwable().getStackTrace().toList.take(2)
+              currentTrace = st ++ currentTrace
+              RaiseError(ex, Trace(currentTrace)) 
+            }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -354,7 +395,8 @@ private[effect] object IORunLoop {
         case Right(success) =>
           loop(Pure(success), conn, cb, this, bFirst, bRest)
         case Left(e) =>
-          loop(RaiseError(e), conn, cb, this, bFirst, bRest)
+          val st = new Throwable().getStackTrace().toList.take(2)
+          loop(RaiseError(e, Trace(st)), conn, cb, this, bFirst, bRest)
       }
     }
 
@@ -384,8 +426,10 @@ private[effect] object IORunLoop {
   ) extends IOFrame[Any, IO[Any]] {
     def apply(a: Any): IO[Any] =
       ContextSwitch(Pure(a), current => restore(a, null, old, current), null)
-    def recover(e: Throwable): IO[Any] =
-      ContextSwitch(RaiseError(e), current => restore(null, e, old, current), null)
+    def recover(e: Throwable): IO[Any] = {
+      val st = new Throwable().getStackTrace().toList.take(2)
+      ContextSwitch(RaiseError(e, Trace(st)), current => restore(null, e, old, current), null)
+    }
   }
 
   /**

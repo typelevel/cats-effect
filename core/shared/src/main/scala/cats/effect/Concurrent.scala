@@ -365,13 +365,13 @@ object Concurrent {
   def liftIO[F[_], A](ioa: IO[A])(implicit F: Concurrent[F]): F[A] =
     ioa match {
       case Pure(a)       => F.pure(a)
-      case RaiseError(e) => F.raiseError(e)
+      case RaiseError(e, _) => F.raiseError(e)
       case Delay(thunk)  => F.delay(thunk())
       case _ =>
         F.suspend {
           IORunLoop.step(ioa) match {
             case Pure(a)       => F.pure(a)
-            case RaiseError(e) => F.raiseError(e)
+            case RaiseError(e, _) => F.raiseError(e)
             case async =>
               F.cancelable(cb => liftIO(async.unsafeRunCancelable(cb))(F))
           }

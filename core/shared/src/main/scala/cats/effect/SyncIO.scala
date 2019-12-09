@@ -313,7 +313,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
 
   override def toString: String = io match {
     case IO.Pure(a)       => s"SyncIO($a)"
-    case IO.RaiseError(e) => s"SyncIO(throw $e)"
+    case IO.RaiseError(e, _) => s"SyncIO(throw $e)"
     case _                => "SyncIO$" + System.identityHashCode(this)
   }
 }

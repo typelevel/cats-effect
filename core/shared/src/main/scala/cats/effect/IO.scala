@@ -19,6 +19,7 @@ package effect
 
 import cats.effect.internals._
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
+import cats.effect.util.TracedException
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -319,7 +320,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
       case Pure(a)       => Some(a)
-      case RaiseError(e) => throw e
+      case RaiseError(e, t) => throw new TracedException(t, e)
       case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
       case _ =>
@@ -701,9 +702,19 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
 
+
+  def slugTrace: IO[A] =
+    IO.SetTracingMode(this, TracingMode.Slug)
+
+  def rabbitTrace: IO[A] =
+    IO.SetTracingMode(this, TracingMode.Rabbit)
+
+  def noTrace: IO[A] =
+    IO.SetTracingMode(this, TracingMode.Disabled)
+
   override def toString: String = this match {
     case Pure(a)       => s"IO($a)"
-    case RaiseError(e) => s"IO(throw $e)"
+    case RaiseError(e, _) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
 }
@@ -1204,7 +1215,7 @@ object IO extends IOInstances {
    *
    * @see [[IO#attempt]]
    */
-  def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
+  def raiseError[A](e: Throwable): IO[A] = RaiseError(e, Trace(Nil))
 
   /**
    * Constructs an `IO` which evaluates the given `Future` and
@@ -1435,6 +1446,9 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
+  def backtrace: IO[Trace] =
+    IO.BackTrace()
+
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
 
@@ -1445,7 +1459,7 @@ object IO extends IOInstances {
   final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
-  final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
+  final private[effect] case class RaiseError(e: Throwable, t: Trace) extends IO[Nothing]
 
   /** Corresponds to [[IO.suspend]]. */
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
@@ -1490,6 +1504,13 @@ object IO extends IOInstances {
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
+
+  final private[effect] case class SetTracingMode[A](
+    source: IO[A],
+    tracingMode: TracingMode
+  ) extends IO[A]
+
+  final private[effect] case class BackTrace() extends IO[Trace]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
