@@ -34,8 +34,7 @@ private[internals] object PoolUtils {
       new ThreadFactory {
         val ctr = new AtomicInteger(0)
         def newThread(r: Runnable): Thread = {
-          val back = new Thread(r)
-          back.setName(s"ioapp-compute-${ctr.getAndIncrement()}")
+          val back = new Thread(r, s"ioapp-compute-${ctr.getAndIncrement()}")
           back.setDaemon(true)
           back
         }
