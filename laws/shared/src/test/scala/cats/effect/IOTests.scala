@@ -1089,7 +1089,7 @@ class IOTests extends BaseTestsSuite {
 
     val fa = for {
       pa <- Deferred[IO, Unit]
-      fiber <- IO.unit.bracket(_ => pa.complete(()) >> IO.unit)(_ => IO.never).start
+      fiber <- IO.unit.bracket(_ => pa.complete(()))(_ => IO.never).start
       _ <- pa.get
       _ <- fiber.cancel
     } yield ()
@@ -1109,7 +1109,7 @@ class IOTests extends BaseTestsSuite {
 
     val fa = for {
       pa <- Deferred[IO, Unit]
-      fiber <- IO.unit.bracket(_ => pa.complete(()) >> IO.unit)(_ => IO.sleep(1.second) >> IO.raiseError(dummy)).start
+      fiber <- IO.unit.bracket(_ => pa.complete(()))(_ => IO.sleep(1.second) >> IO.raiseError(dummy)).start
       _ <- pa.get
       _ <- fiber.cancel
     } yield ()
