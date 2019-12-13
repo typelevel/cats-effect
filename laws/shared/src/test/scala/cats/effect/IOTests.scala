@@ -1083,6 +1083,23 @@ class IOTests extends BaseTestsSuite {
 
     f.value shouldBe Some(Success(42))
   }
+
+  testAsync("cancel should always wait for the finalizer") { implicit ec =>
+    implicit val contextShift = ec.contextShift[IO]
+
+    val fa = for {
+      pa <- Deferred[IO, Unit]
+      fiber <- IO.unit.bracket(_ => pa.complete(()) >> IO.unit)(_ => IO.never).start
+      _ <- pa.get
+      _ <- fiber.cancel
+    } yield ()
+
+    val f = fa.unsafeToFuture()
+
+    ec.tick()
+
+    f.value shouldBe None
+  }
 }
 
 object IOTests {
