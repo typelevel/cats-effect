@@ -19,7 +19,8 @@ package cats.effect.internals
 import cats.effect.IO.ContextSwitch
 import cats.effect.{CancelToken, ExitCase, IO}
 import cats.effect.internals.TrampolineEC.immediate
-import scala.concurrent.ExecutionContext
+
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -127,15 +128,16 @@ private[effect] object IOBracket {
     // Guard used for thread-safety, to ensure the idempotency
     // of the release; otherwise `release` can be called twice
     private[this] val waitsForResult = new AtomicBoolean(true)
+    private[this] val p: Promise[Unit] = Promise()
 
     def release(c: ExitCase[Throwable]): CancelToken[IO]
 
     private def applyRelease(e: ExitCase[Throwable]): IO[Unit] =
       IO.suspend {
         if (waitsForResult.compareAndSet(true, false))
-          release(e)
+          release(e).map(_ => p.success(()))
         else
-          IO.unit
+          IOFromFuture.apply(p.future)
       }
 
     final val cancel: CancelToken[IO] =
