@@ -27,6 +27,7 @@ import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
+import cats.laws.discipline.arbitrary._
 import org.scalacheck._
 
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -41,10 +42,16 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
+  checkAllAsync("IO", implicit ec => AlignTests[IO].align[Int, Int, Int, Int])
 
   checkAllAsync("IO.Par", implicit ec => {
     implicit val cs = ec.contextShift[IO]
     CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
+  })
+
+  checkAllAsync("IO.Par", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    AlignTests[IO.Par].align[Int, Int, Int, Int]
   })
 
   checkAllAsync(

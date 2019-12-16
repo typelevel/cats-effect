@@ -18,6 +18,7 @@ package cats
 package effect
 
 import scala.annotation.unchecked.uncheckedVariance
+import cats.data.Ior
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -387,6 +388,19 @@ abstract private[effect] class SyncIOInstances extends SyncIOLowPriorityInstance
   implicit val syncIOsyncEffect: SyncEffect[SyncIO] = new SyncIOSync with SyncEffect[SyncIO] {
     final override def runSync[G[_], A](fa: SyncIO[A])(implicit G: Sync[G]): G[A] =
       G.delay(fa.unsafeRunSync())
+  }
+
+  implicit val syncIOalign: Align[SyncIO] = new Align[SyncIO] {
+    def align[A, B](fa: SyncIO[A], fb: SyncIO[B]): SyncIO[Ior[A, B]] =
+      alignWith(fa, fb)(identity)
+
+    override def alignWith[A, B, C](fa: SyncIO[A], fb: SyncIO[B])(f: Ior[A, B] => C): SyncIO[C] =
+      fa.redeemWith(
+        t => fb.redeemWith(_ => SyncIO.raiseError(t), b => SyncIO.pure(f(Ior.right(b)))),
+        a => fb.redeem(_ => f(Ior.left(a)), b => f(Ior.both(a, b)))
+      )
+
+    def functor: Functor[SyncIO] = Functor[SyncIO]
   }
 
   @deprecated("Signature changed to return SyncEffect", "2.1.0")
