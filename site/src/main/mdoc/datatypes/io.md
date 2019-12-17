@@ -369,11 +369,15 @@ asynchronous boundaries. It can be achieved in the following way:
   those operations is also possible to cancel. It includes, but is not limited to
   waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
   
-  We should also note that `flatMap` chains are not auto-cancelable. Asynchronous
-  boundaries are important for fairness and it's not reasonable to expect interruption
-  in its' absence. With `IO`, fairness needs to be managed explicitly, the protocol being
-  easy to follow and predictable in a WYSIWYG fashion. Try to avoid very long, 
-  or never-ending loops without it.
+  We should also note that `flatMap` chains are not auto-cancelable,
+  they are cancellable only if the `flatMap` chain happens *after*
+  an asynchronous boundary mentioned above, after an asynchronous
+  boundary, cancellation checks are performed on every N `flatMap`.
+  Asynchronous boundaries are important for fairness and it's not
+  reasonable to expect interruption in its' absence. With `IO`,
+  fairness needs to be managed explicitly, the protocol being easy
+  to follow and predictable in a WYSIWYG fashion. Try to avoid very
+  long, or never-ending loops without it.
   
 2. `IO` tasks that are cancelable, usually become non-terminating on
    `cancel`
