@@ -749,14 +749,11 @@ abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef wi
     def align[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[Ior[A, B]] = alignWith(fa, fb)(identity)
 
     override def alignWith[A, B, C](fa: IO.Par[A], fb: IO.Par[B])(f: Ior[A, B] => C): IO.Par[C] =
-      par(for {
-        fibA <- unwrap(fa).start
-        fibB <- unwrap(fb).start
-        c <- fibA.join.redeemWith(
-          t => fibB.join.redeemWith(_ => IO.raiseError(t), b => IO.pure(f(Ior.right(b)))),
-          a => fibB.join.redeem(_ => f(Ior.left(a)), b => f(Ior.both(a, b)))
-        )
-      } yield c)
+      par(
+        IOParMap(cs, unwrap(fa).attempt, unwrap(fb).attempt)(
+          (ea, eb) => cats.instances.either.catsStdInstancesForEither.alignWith(ea, eb)(f)
+        ).flatMap(IO.fromEither)
+      )
 
     def functor: Functor[IO.Par] = ioParCommutativeApplicative
   }
