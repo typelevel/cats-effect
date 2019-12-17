@@ -371,7 +371,7 @@ asynchronous boundaries. It can be achieved in the following way:
   
   We should also note that `flatMap` chains are not auto-cancelable,
   they are cancellable only if the `flatMap` chain happens *after*
-  an asynchronous boundary mentioned above, after an asynchronous
+  an asynchronous boundary mentioned above. After an asynchronous
   boundary, cancellation checks are performed on every N `flatMap`.
   Asynchronous boundaries are important for fairness and it's not
   reasonable to expect interruption in its' absence. With `IO`,
