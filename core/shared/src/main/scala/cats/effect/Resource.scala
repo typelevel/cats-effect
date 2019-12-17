@@ -94,7 +94,7 @@ import scala.annotation.tailrec
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
  */
-sealed abstract class Resource[F[_], A] {
+sealed abstract class Resource[F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
   /**
@@ -321,7 +321,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @param fa the value to lift into a resource
    */
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
-    Resource.suspend(fa.map(a => Resource.pure(a)))
+    Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
 
   /**
    * Lifts an applicative into a resource as a `FunctionK`.  The resource has a no-op release.
@@ -360,9 +360,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r match {
         case Allocate(fea) =>
-          Suspend(fea.flatMap {
+          Suspend(fea.flatMap[Resource[F, B]] {
             case (Left(a), release) =>
-              release(Completed).map(_ => tailRecM(a)(f))
+              release(Completed).map(_ => tailRecM[F, A, B](a)(f))
             case (Right(b), release) =>
               F.pure(Allocate[F, B](F.pure((b, release))))
           })
@@ -418,13 +418,13 @@ abstract private[effect] class ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectSemigroupForResource[F[_], A](implicit F0: Monad[F], A0: Semigroup[A]) =
+  implicit def catsEffectSemigroupForResource[F[_], A](implicit F0: Monad[F], A0: Semigroup[A]): ResourceSemigroup[F, A] =
     new ResourceSemigroup[F, A] {
       def A = A0
       def F = F0
     }
 
-  implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F], K0: SemigroupK[F]) =
+  implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F], K0: SemigroupK[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
@@ -444,18 +444,16 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
           case Right((a, release)) => (Right(a), release)
         })
       case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
-        Suspend(F.pure(source).map { source =>
-          Bind(attempt(source),
-               (r: Either[E, Any]) =>
-                 r match {
-                   case Left(error) => Resource.pure(Left(error))
-                   case Right(s)    => attempt(fs(s))
-                 })
+        Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
+          Bind(attempt(source), (r: Either[E, Any]) => r match {
+            case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
+            case Right(s) => attempt(fs(s))
+          })
         })
       case Suspend(resource) =>
         Suspend(resource.attempt.map {
-          case Left(error)               => Resource.pure(Left(error))
-          case Right(fa: Resource[F, A]) => fa.attempt
+          case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
+          case Right(fa: Resource[F, A]) => catsSyntaxApplicativeError[Resource[F, *], E, A](fa).attempt
         })
     }
 
@@ -466,7 +464,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
     }
 
   def raiseError[A](e: E): Resource[F, A] =
-    Resource.applyCase(F.raiseError(e))
+    Resource.applyCase[F, A](F.raiseError(e))
 }
 
 abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
@@ -476,7 +474,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
     fa.map(f)
 
   def pure[A](a: A): Resource[F, A] =
-    Resource.applyCase(F.pure((a, _ => F.unit)))
+    Resource.applyCase[F, A](F.pure((a, _ => F.unit)))
 
   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
     fa.flatMap(f)
