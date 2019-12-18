@@ -19,7 +19,7 @@ install:
   - rvm install 2.6
   # In case we want to reinstall all Ruby dependencies from scratch:
   #   rvm --force gemset delete 2.6@cats-effect
-  - rvm use 2.6@cats-effect --install --default --create
+  - rvm use 2.6@cats-effect --default --create
   - bundle install --system --gemfile=site/Gemfile
 
 script:
