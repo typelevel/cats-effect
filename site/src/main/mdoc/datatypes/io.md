@@ -369,15 +369,28 @@ asynchronous boundaries. It can be achieved in the following way:
   those operations is also possible to cancel. It includes, but is not limited to
   waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
   
-  We should also note that `flatMap` chains are not auto-cancelable,
-  they are cancellable only if the `flatMap` chain happens *after*
-  an asynchronous boundary mentioned above. After an asynchronous
-  boundary, cancellation checks are performed on every N `flatMap`.
-  Asynchronous boundaries are important for fairness and it's not
-  reasonable to expect interruption in its' absence. With `IO`,
-  fairness needs to be managed explicitly, the protocol being easy
-  to follow and predictable in a WYSIWYG fashion. Try to avoid very
-  long, or never-ending loops without it.
+  We should also note that `flatMap` chains are only cancellable only if
+  the chain happens *after* an asynchronous boundary.
+  After an asynchronous boundary, cancellation checks are performed on every N `flatMap`.
+
+  Here is an example,
+  ```scala mdoc:reset:silent
+  import cats.effect.IO
+
+  def retryUntilRight[A, B](io: IO[Either[A, B]): IO[B] = {
+    io.flatMap {
+      case Right(b) => IO.pure(b)
+      case Left(a) => retryUntilRight(io)
+    }
+  }
+
+  // non-terminating IO that is NOT cancelable
+  val notCancellable: IO[Int] = retryUntilRight[A, B](IO(Left(0)))
+
+  // non-terminating IO that is cancelable because there is an
+  // async boundary created by IO.shift before `flatMap` chain
+  val cancellable: IO[Int] = IO.shift *> retryUntilRight[A, B](IO(Left(0)))
+  ```
   
 2. `IO` tasks that are cancelable, usually become non-terminating on
    `cancel`
