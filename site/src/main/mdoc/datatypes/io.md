@@ -369,7 +369,7 @@ asynchronous boundaries. It can be achieved in the following way:
   those operations is also possible to cancel. It includes, but is not limited to
   waiting on `Mvar.take`, `Mvar.put` and `Deferred.get`.
   
-  We should also note that `flatMap` chains are only cancellable only if
+  We should also note that `flatMap` chains are only cancelable only if
   the chain happens *after* an asynchronous boundary.
   After an asynchronous boundary, cancellation checks are performed on every N `flatMap`.
 
@@ -385,11 +385,11 @@ asynchronous boundaries. It can be achieved in the following way:
   }
 
   // non-terminating IO that is NOT cancelable
-  val notCancellable: IO[Int] = retryUntilRight[A, B](IO(Left(0)))
+  val notCancelable: IO[Int] = retryUntilRight[A, B](IO(Left(0)))
 
   // non-terminating IO that is cancelable because there is an
   // async boundary created by IO.shift before `flatMap` chain
-  val cancellable: IO[Int] = IO.shift *> retryUntilRight[A, B](IO(Left(0)))
+  val cancelable: IO[Int] = IO.shift *> retryUntilRight[A, B](IO(Left(0)))
   ```
   
 2. `IO` tasks that are cancelable, usually become non-terminating on
