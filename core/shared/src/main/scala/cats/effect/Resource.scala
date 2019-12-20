@@ -459,7 +459,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
       case Suspend(resource) =>
         Suspend(resource.attempt.map {
           case Left(error)               => Resource.pure[F, Either[E, A]](Left(error))
-          case Right(fa: Resource[F, A]) => catsSyntaxApplicativeError[Resource[F, *], E, A](fa).attempt
+          case Right(fa: Resource[F, A]) => attempt(fa)
         })
     }
 
