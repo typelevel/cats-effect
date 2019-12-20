@@ -11,3 +11,4 @@ benchmarks/results
 .DS_Store
 .metals
 .bloop
+.bundle
