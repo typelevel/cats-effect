@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{MonadError, Traverse}
+import cats.{~>, MonadError, Traverse}
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -25,9 +25,9 @@ trait Fiber[F[_], E, A] {
   def join: F[ExitCase[E, A]]
 }
 
-// fa.flatMap(a => if (a > 42) f.cancel else void)
+// fa.flatMap(a => if (a > 42) f.cancel else unit)
 //
-// (f.cancel *> raiseError(new Exception)).attempt *> void
+// (f.cancel *> raiseError(new Exception)).attempt *> unit
 
 trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   type Case[A] = ExitCase[E, A]
@@ -37,17 +37,21 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
-  // cancelable(uncancelable(fa)) <-> fa
-  // uncancelable(cancelable(fa)) <-> fa
-  // uncancelable(canceled *> fa) <-> uncancelable(fa)
-  def cancelable[A](fa: F[A]): F[A]
-
-  // uncancelable(fa) <-> bracket(fa)(_.pure)(_ => unit)
-  // uncancelable(fa) <-> bracket(fa)(_ => unit[F])(_ => unit[F])
-  def uncancelable[A](fa: F[A]): F[A]
+  // uncancelable(_(fa)) <-> fa
+  // uncanceable(_ => fa).start.flatMap(f => f.cancel >> f.join) <-> fa.map(ExitCase.Completed(_))
+  def uncancelable[A](body: (F ~> F) => F[A]): F[A]
 
   // produces an effect which is already canceled (and doesn't introduce an async boundary)
-  def canceled[A]: F[A]
+  // this is effectively a way for a fiber to commit suicide and yield back to its parent
+  // The fallback value is produced if the effect is sequenced into a block in which
+  // cancelation is suppressed.
+  //
+  // uncancelable(_ => canceled(a)) <-> pure(a)
+  // (canceled(a) >> never).start.void <-> pure(a).start.flatMap(_.cancel)
+  def canceled[A](fallback: A): F[A]
+
+  // produces an effect which never returns
+  def never[A]: F[A]
 
   // introduces a fairness boundary by yielding control to the underlying dispatcher
   def cede: F[Unit]

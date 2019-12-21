@@ -19,7 +19,7 @@ package ce3
 import scala.concurrent.duration.FiniteDuration
 
 trait Temporal[F[_], E] extends Concurrent[F, E] { self: Safe[F, E] =>
-  // (sleep(n) *> now) <-> now.map(_ + n)
+  // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
   def now: F[FiniteDuration]
 }

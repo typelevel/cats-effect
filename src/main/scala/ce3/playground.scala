@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Daniel Spiewak
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package ce3
 
 import cats.{~>, Eq, InjectK, MonadError, Monoid, Show, StackSafeMonad}
@@ -51,7 +67,15 @@ object playground {
       get[F, S].flatMap(f(_).flatMap(put[F, S](_)))
   }
 
-  type PureIOF[E, A] = EitherK[StateF[Dispatch, ?], ExitCase[E, ?], A]
+  type PureIOF[E, A] =
+    EitherK[
+      StateF[Dispatch, ?],    // cancelation and fiber ids
+      EitherK[
+        StateF[Boolean, ?],   // cancelability
+        ExitCase[E, ?],
+        ?],
+      A]
+
   type PureIO[E, A] = Free[PureIOF[E, ?], A]
 
   object PureIO {
@@ -74,7 +98,8 @@ object playground {
             ExitCase.Completed(())
 
           case Right(ec) =>
-            ec
+            ???
+            // ec
         }
       }
 
@@ -88,7 +113,7 @@ object playground {
         def handleErrorWith[A](fa: PureIO[E, A])(f: E => PureIO[E, A]): PureIO[E, A] =
           State.get[PureIOF[E, ?], Dispatch] flatMap { d =>
             val (d2, ec) = eval(d, fa)
-            State.put[PureIOF[E, ?], Dispatch](d2) *> ec.fold(canceled[A], f, pure(_))
+            State.put[PureIOF[E, ?], Dispatch](d2) *> ec.fold(canceled[A](???), f, pure(_))
           }
 
         def raiseError[A](e: E): PureIO[E, A] =
@@ -120,11 +145,15 @@ object playground {
           b <- Free.liftInject[PureIOF[E, ?]](ecb)
         } yield b
 
-        def uncancelable[A](fa: PureIO[E, A]): PureIO[E, A] = ???
-        def cancelable[A](fa: PureIO[E, A]): PureIO[E, A] = ???
+        def uncancelable[A](
+            body: (PureIO[E, ?] ~> PureIO[E, ?]) => PureIO[E, A])
+            : PureIO[E, A]
+            = ???
 
-        def canceled[A]: PureIO[E, A] =
+        def canceled[A](fallback: A): PureIO[E, A] =
           Free.liftInject[PureIOF[E, ?]](ExitCase.Canceled: ExitCase[E, A])
+
+        def never[A]: PureIO[E, A] = ???
 
         def start[A](fa: PureIO[E, A]): PureIO[E, Fiber[PureIO[E, ?], E, A]] =
           State.get[PureIOF[E, ?], Dispatch] flatMap { d =>
