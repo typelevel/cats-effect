@@ -24,11 +24,13 @@ import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
+import cats.laws.discipline.arbitrary._
 
 class SyncIOTests extends BaseTestsSuite {
   checkAllAsync("SyncIO", _ => SyncEffectTests[SyncIO].syncEffect[Int, Int, Int])
   checkAllAsync("SyncIO", _ => MonoidTests[SyncIO[Int]].monoid)
   checkAllAsync("SyncIO", _ => SemigroupKTests[SyncIO].semigroupK[Int])
+  checkAllAsync("SyncIO", _ => AlignTests[SyncIO].align[Int, Int, Int, Int])
 
   test("defer evaluation until run") {
     var run = false

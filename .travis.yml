@@ -16,10 +16,11 @@ matrix:
       env: COVERAGE=
 
 install:
-  - rvm use 2.6.0 --install --fuzzy
-  - gem update --system
-  - gem install sass
-  - gem install jekyll -v 3.2.1
+  - rvm install 2.6
+  # In case we want to reinstall all Ruby dependencies from scratch:
+  #   rvm --force gemset delete 2.6@cats-effect
+  - rvm use 2.6@cats-effect --default --create
+  - bundle install --system --gemfile=site/Gemfile
 
 script:
   - export SBT_PROFILE=$COVERAGE
@@ -46,3 +47,4 @@ cache:
     - $HOME/.ivy2/cache
     - $HOME/.coursier/cache
     - $HOME/.sbt
+    - $HOME/.rvm
