@@ -41,15 +41,6 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def bracketErrorIdentity[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError[B](e)
-
-  // this law is slightly confusing; it just means that release is run on error
-  // it also means that an error in the action is represented in the error case of Case
-  // TODO do we need this law now that we have bracketErrorCoherence?
-  def bracketDistributesReleaseOverError[A](acq: F[A], e: E, release: E => F[Unit]) = {
-    F.bracketCase(acq)(_ => F.raiseError[Unit](e)) { (_, c) =>
-      c.attempt.traverse(_.fold(release, _ => F.unit)).void
-    } <-> (acq *> release(e) *> F.raiseError(e))
-  }
 }
 
 object BracketLaws {

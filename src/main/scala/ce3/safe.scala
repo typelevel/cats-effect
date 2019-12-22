@@ -16,14 +16,14 @@
 
 package ce3
 
-import cats.{Monad, MonadError, Traverse}
+import cats.{ApplicativeError, Monad, MonadError, Traverse}
 
 // represents the type Bracket | Region
 sealed trait Safe[F[_], E] extends MonadError[F, E] {
   // inverts the contravariance, allowing a lawful bracket without discussing cancelation until Concurrent
   type Case[A]
 
-  implicit def CaseInstance: MonadError[Case, E] with Traverse[Case]
+  implicit def CaseInstance: ApplicativeError[Case, E]
 }
 
 trait Bracket[F[_], E] extends Safe[F, E] {
