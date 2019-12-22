@@ -758,6 +758,26 @@ class IOTests extends BaseTestsSuite {
     effect shouldBe 1
   }
 
+  testAsync("bracket does not evaluate use on cancel") { implicit ec =>
+    implicit val contextShift = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    var use = false
+    var release = false
+
+    val task = IO
+      .sleep(2.second)
+      .bracket(_ => IO { use = true })(_ => IO { release = true })
+      .timeoutTo[Unit](1.second, IO.never)
+
+    val f = task.unsafeToFuture()
+    ec.tick(2.second)
+
+    f.value shouldBe None
+    use shouldBe false
+    release shouldBe true
+  }
+
   test("unsafeRunSync works for IO.cancelBoundary") {
     val io = IO.cancelBoundary *> IO(1)
     io.unsafeRunSync() shouldBe 1
