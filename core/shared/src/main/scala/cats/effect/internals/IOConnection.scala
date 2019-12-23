@@ -19,6 +19,7 @@ package internals
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
+import scala.concurrent.Promise
 
 /**
  * INTERNAL API — Represents a composite of functions
@@ -70,16 +71,6 @@ sealed abstract private[effect] class IOConnection {
    * @return the cancelable reference that was removed.
    */
   def pop(): CancelToken[IO]
-
-  /**
-   * Tries to reset an `IOConnection`, from a cancelled state,
-   * back to a pristine state, but only if possible.
-   *
-   * Returns `true` on success, or `false` if there was a race
-   * condition (i.e. the connection wasn't cancelled) or if
-   * the type of the connection cannot be reactivated.
-   */
-  def tryReactivate(): Boolean
 }
 
 private[effect] object IOConnection {
@@ -99,19 +90,21 @@ private[effect] object IOConnection {
     def isCanceled: Boolean = false
     def push(token: CancelToken[IO]): Unit = ()
     def pop(): CancelToken[IO] = IO.unit
-    def tryReactivate(): Boolean = true
     def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
   }
 
   final private class Impl extends IOConnection {
     private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
+    private[this] val p: Promise[Unit] = Promise()
 
     val cancel = IO.suspend {
       state.getAndSet(null) match {
-        case null | Nil =>
-          IO.unit
+        case Nil  => IO.unit
+        case null => IOFromFuture(p.future)
         case list =>
-          CancelUtils.cancelAll(list.iterator)
+          CancelUtils
+            .cancelAll(list.iterator)
+            .redeemWith(ex => IO(p.success(())).flatMap(_ => IO.raiseError(ex)), _ => IO(p.success(())))
       }
     }
 
@@ -137,8 +130,5 @@ private[effect] object IOConnection {
           if (!state.compareAndSet(current, xs)) pop()
           else x
       }
-
-    def tryReactivate(): Boolean =
-      state.compareAndSet(null, Nil)
   }
 }
