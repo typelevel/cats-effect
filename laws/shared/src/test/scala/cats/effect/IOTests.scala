@@ -1084,12 +1084,12 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(42))
   }
 
-  testAsync("cancel should wait for the release finalizer on success") { implicit ec =>
+  testAsync("cancel should wait for already started finalizers on success") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
-      fiber <- IO.unit.bracket(_ => pa.complete(()))(_ => IO.never).start
+      fiber <- IO.unit.guarantee(pa.complete(()) >> IO.never).start
       _ <- pa.get
       _ <- fiber.cancel
     } yield ()
@@ -1101,7 +1101,7 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe None
   }
 
-  testAsync("cancel should wait for the release finalizer on failure") { implicit ec =>
+  testAsync("cancel should wait for already started finalizers on failure") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -1109,7 +1109,7 @@ class IOTests extends BaseTestsSuite {
 
     val fa = for {
       pa <- Deferred[IO, Unit]
-      fiber <- IO.unit.bracket(_ => pa.complete(()))(_ => IO.sleep(1.second) >> IO.raiseError(dummy)).start
+      fiber <- IO.unit.guarantee(pa.complete(()) >> IO.sleep(1.second) >> IO.raiseError(dummy)).start
       _ <- pa.get
       _ <- fiber.cancel
     } yield ()
@@ -1123,7 +1123,7 @@ class IOTests extends BaseTestsSuite {
     f.value shouldBe Some(Success(()))
   }
 
-  testAsync("cancel should wait for the use finalizer") { implicit ec =>
+  testAsync("cancel should wait for already started use finalizers") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
     implicit val timer = ec.timer[IO]
 
@@ -1131,7 +1131,7 @@ class IOTests extends BaseTestsSuite {
       pa <- Deferred[IO, Unit]
       fibA <- IO.unit
         .bracket(
-          _ => (pa.complete(()) >> IO.never).guarantee(IO.sleep(2.second))
+          _ => IO.unit.guarantee(pa.complete(()) >> IO.sleep(2.second))
         )(_ => IO.unit)
         .start
       _ <- pa.get
@@ -1145,6 +1145,78 @@ class IOTests extends BaseTestsSuite {
 
     ec.tick(2.second)
     f.value shouldBe Some(Success(()))
+  }
+
+  testAsync("second cancel should wait for use finalizers") { implicit ec =>
+    implicit val contextShift = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val fa = for {
+      pa <- Deferred[IO, Unit]
+      fiber <- IO.unit
+        .bracket(
+          _ => (pa.complete(()) >> IO.never).guarantee(IO.sleep(2.second))
+        )(_ => IO.unit)
+        .start
+      _ <- pa.get
+      _ <- IO.race(fiber.cancel, fiber.cancel)
+    } yield ()
+
+    val f = fa.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec.tick(2.second)
+    f.value shouldBe Some(Success(()))
+  }
+
+  testAsync("second cancel during acquire should wait for it and finalizers to complete") { implicit ec =>
+    implicit val contextShift = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    val fa = for {
+      pa <- Deferred[IO, Unit]
+      fiber <- (pa.complete(()) >> IO.sleep(1.second))
+        .bracket(_ => IO.unit)(_ => IO.sleep(1.second))
+        .start
+      _ <- pa.get
+      _ <- IO.race(fiber.cancel, fiber.cancel)
+    } yield ()
+
+    val f = fa.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldBe None
+
+    ec.tick(1.second)
+    f.value shouldBe None
+
+    ec.tick(1.second)
+    f.value shouldBe Some(Success(()))
+  }
+
+  testAsync("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
+    implicit ec =>
+      implicit val contextShift = ec.contextShift[IO]
+      implicit val timer = ec.timer[IO]
+
+      val fa = for {
+        pa <- Deferred[IO, Unit]
+        fiber <- (pa.complete(()) >> IO.sleep(1.second))
+          .bracket(_ => IO.unit)(_ => IO.never)
+          .start
+        _ <- pa.get
+        _ <- IO.race(fiber.cancel, fiber.cancel)
+      } yield ()
+
+      val f = fa.unsafeToFuture()
+
+      ec.tick()
+      f.value shouldBe None
+
+      ec.tick(1.day)
+      f.value shouldBe None
   }
 }
 
