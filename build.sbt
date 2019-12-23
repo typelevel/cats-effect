@@ -22,7 +22,7 @@ organization in ThisBuild := "com.codecommit"
 publishGithubUser in ThisBuild := "djspiewak"
 publishFullName in ThisBuild := "Daniel Spiewak"
 
-val CatsVersion = "2.0.0-M4"
+val CatsVersion = "2.1.0"
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
