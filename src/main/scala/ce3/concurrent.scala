@@ -33,7 +33,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   type Case[A] = ExitCase[F, E, A]
 
   final def CaseInstance: ApplicativeError[ExitCase[F, E, ?], E] =
-    ExitCase.instance[F, E](this)
+    ExitCase.applicativeError[F, E](this)
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
