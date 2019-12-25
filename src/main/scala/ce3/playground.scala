@@ -140,6 +140,8 @@ object playground {
       implicit PU: ProjectK[StateF[U, ?], S, T])
       : StateT[M, U, A] = {
 
+    // NB: all the asInstanceOf usage here is safe and will be erased; it exists solely because scalac can't unify certain existentials
+
     // non-empty list of fibers where we know the type of the head and nothing else
     def runAll(universe: U, main: Free[S, A], fibers: List[Free[S, Unit]]): M[(U, A)] = {
       type StepLeft[X] = M[X]
