@@ -84,6 +84,10 @@ object playground {
 
   def run[E, A](pc: PureConcurrent[E, A]): ExitCase[Option, E, A] = ???
 
+  // useful combinator for merging interpreters (should exist on EitherK, really)
+  def merge[F[_], G[_], H[_]](f: F ~> H, g: G ~> H): EitherK[F, G, ?] ~> H =
+    λ[EitherK[F, G, ?] ~> H](_.fold(f, g))
+
   /**
    * Implements a cooperative parallel interpreter for Free with a global state space,
    * given an injection for state and a traversable pattern functor. The state is
