@@ -135,8 +135,9 @@ object playground {
    */
   def forkFoldFree[S[_], T[_]: Traverse, U, A, M[_]: Monad](
       target: Free[S, A])(
-      f: T ~> StateT[M, U, ?],
-      daemon: Boolean = true)
+      f: T ~> M,
+      daemon: Boolean = true)(
+      implicit PU: ProjectK[StateF[U, ?], S, T])
       : StateT[M, U, A] = {
 
     // NB: all the asInstanceOf usage here is safe and will be erased; it exists solely because scalac can't unify certain existentials
