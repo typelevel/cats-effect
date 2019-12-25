@@ -118,7 +118,7 @@ object playground {
    * will see different values depending on whether you're in the main fiber
    * (which will receive the value from the T ~> M interpreter) or in one of the
    * forked continuations (which will receive a corresponding value from the
-   * suspension).
+   * suspension). The results of all forked continuations will be discarded.
    *
    * "Daemon" semantics correspond to a mode in which forked suspensions with
    * outstanding continuations are ignored if the main suspension reaches
