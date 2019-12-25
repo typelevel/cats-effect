@@ -16,8 +16,8 @@
 
 package ce3
 
-import cats.{~>, Id, InjectK, Monad}
-import cats.data.{Const, EitherK}
+import cats.{~>, Id, InjectK, Monad, Traverse}
+import cats.data.{Const, EitherK, StateT}
 import cats.implicits._
 
 object playground {
@@ -86,12 +86,35 @@ object playground {
 
   /**
    * Implements a cooperative parallel interpreter for Free with a global state space,
-   * given injections for state access and recursive forks. The state is
+   * given an injection for state and a traversable pattern functor. The state is
    * shared across all simultaneous suspensions and will survive short-circuiting
    * in the target monad (if relevant). Note that callers are responsible for
    * ensuring that any short circuiting in the target monad is handled prior to
    * suspending the actual fork, otherwise the short circuiting will propagate
    * through the entire system and terminate all suspensions.
+   *
+   * Forks are defined by a non-empty traversal on the suspension pattern functor
+   * (excepting the state pattern). In most interpreter-like usage of Free, suspensions
+   * are only trivially traversable, in that they contain no case which contains any
+   * sub-structure. As an example, the StateF pattern functor has two cases, GetF and
+   * PutF, neither of which contain an "A". Thus, while StateF does form a Traverse,
+   * it is always empty and trivial. These patterns are considered to be "non-forking".
+   *
+   * Pattern instances which *do* contain one or more "A" values representing forks.
+   * We evaluate these by taking each A "hole" and passing it to the continuation
+   * *independently*. Which is to say, whenever you suspend a forking pattern instance,
+   * any flatMap which succeeds it will be instantiated with *n + 1* different values:
+   *
+   * - Once for the value which is returned from the T ~> M interpreter
+   * - Once for each value of type A within the fork
+   *
+   * The best way to think of this is that it is similar to the `fork()` function
+   * in the C standard library, which returns different results whether you're in
+   * the child or the parent. Suspending a forking pattern and then binding on it
+   * will see different values depending on whether you're in the main fiber
+   * (which will receive the value from the T ~> M interpreter) or in one of the
+   * forked continuations (which will receive a corresponding value from the
+   * suspension).
    *
    * "Daemon" semantics correspond to a mode in which forked suspensions with
    * outstanding continuations are ignored if the main suspension reaches
@@ -110,58 +133,57 @@ object playground {
    * Fairness is not considered. If you care about fairness, you probably also care
    * about other little things like... uh... performance.
    */
-  def forkFoldFree[S[_], U, A, M[_]: Monad](
-      target: Free[S, A],
-      universe: U)(
-      f: S ~> M,
+  def forkFoldFree[S[_], T[_]: Traverse, U, A, M[_]: Monad](
+      target: Free[S, A])(
+      f: T ~> M,
       daemon: Boolean = true)(
-      implicit IU: InjectK[StateF[U, ?], S],
-      IF: InjectK[(Free[S, _], ?), S])
-      : M[(U, A)] = {
+      implicit PU: ProjectK[StateF[U, ?], S, T])
+      : StateT[M, U, A] = {
 
     // non-empty list of fibers where we know the type of the head and nothing else
-    def runAll(universe: U, main: Free[S, A], fibers: List[Free[S, _]]): M[(U, A)] = {
+    def runAll(universe: U, main: Free[S, A], fibers: List[Free[S, Unit]]): M[(U, A)] = {
       type StepLeft[X] = M[X]
-      type StepRight[X] = (Free[S, X], Option[Free[S, _]])
-      type StepRightList[X] = (Free[S, X], List[Free[S, _]])
+      type StepRight[X] = (Free[S, X], List[Free[S, Unit]])
 
       type Step[X] = Either[StepLeft[X], StepRight[X]]
+
+      val Nil = List[Free[S, Unit]]()   // cheating
 
       def stepFiber[X](universe: U, fiber: Free[S, X]): M[(U, Step[X])] = {
         fiber.foldStep(
           onPure = a => a.pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe),
 
           onSuspend = { sa =>
-            val backM = IF.prj(sa) match {
-              case Some((fiber, a)) =>
-                (Free.pure[S, X](a), Some(fiber): Option[Free[S, _]]).asRight[StepLeft[X]].pure[M]
+            PU(sa) match {
+              case Left(StateF.Get()) =>
+                universe.asInstanceOf[X].pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe)
 
-              case None =>
-                f(sa).asLeft[StepRight[X]].pure[M]
+              case Left(StateF.Put(universe)) =>
+                ().asInstanceOf[X].pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe)
+
+              case Right(ta) =>
+                // we can't possibly fork here since there are no continuations, so we just terminate
+                f(ta).asLeft[StepRight[X]].pure[M].tupleLeft(universe)
             }
-
-            backM.tupleLeft(universe)
           },
 
           onFlatMapped = { pair =>
             val (front, cont) = pair
 
-            IU.prj(front) match {
-              case Some(StateF.Get()) =>
-                (cont(universe.asInstanceOf), None: Option[Free[S, _]]).asRight[StepLeft[X]].pure[M].tupleLeft(universe)
+            PU(front) match {
+              case Left(StateF.Get()) =>
+                (cont(universe.asInstanceOf), Nil).asRight[StepLeft[X]].pure[M].tupleLeft(universe)
 
-              case Some(StateF.Put(universe2)) =>
-                (cont(().asInstanceOf), None: Option[Free[S, _]]).asRight[StepLeft[X]].pure[M].tupleLeft(universe2)
+              case Left(StateF.Put(universe2)) =>
+                (cont(().asInstanceOf), Nil).asRight[StepLeft[X]].pure[M].tupleLeft(universe2)
 
-              case None =>
-                // the asInstanceOf usage here is getting around a bug in scalac, where it simply isn't unifying the existential with itself
-                IF.prj(front) match {
-                  case Some((fiber, x)) =>
-                    (cont(x.asInstanceOf), Some(fiber): Option[Free[S, _]]).asRight[StepLeft[X]].pure[M].tupleLeft(universe)
-
-                  case None =>
-                    f(front).map(x => (cont(x.asInstanceOf), None: Option[Free[S, _]]).asRight[StepLeft[X]]).tupleLeft(universe)
+              case Right(front) =>
+                val forks = front.toList.map(x => cont(x.asInstanceOf).void)
+                val backM = f(front) map { x =>
+                  (cont(x.asInstanceOf), forks).asRight[StepLeft[X]]
                 }
+
+                backM.tupleLeft(universe)
             }
           })
       }
@@ -171,12 +193,12 @@ object playground {
           case Left(ma) =>
             // if non-daemon semantics and we still have outstanding fibers, transform back into a Right
             if (daemon || fibers.isEmpty)
-              ma.asLeft[StepRightList[A]].pure[M]
+              ma.asLeft[StepRight[A]].pure[M]
             else
               ma.map(a => (Free.pure[S, A](a), fibers).asRight[StepLeft[A]])
 
           case Right((main, forked)) =>
-            (main, forked.map(_ :: fibers).getOrElse(fibers)).asRight[StepLeft[A]].pure[M]
+            (main, forked ::: fibers).asRight[StepLeft[A]].pure[M]
         }
       }
 
@@ -186,7 +208,7 @@ object playground {
 
         case (universe, Right((main2, fibers))) =>
           // amusingly, we reverse the list with each step... that's technically okay
-          val fibers2M = fibers.foldLeftM((universe, List[Free[S, _]]())) {
+          val fibers2M = fibers.foldLeftM((universe, Nil)) {
             case ((universe, acc), fiber) =>
               stepFiber(universe, fiber) flatMap { tuple =>
                 tuple traverse {
@@ -196,7 +218,7 @@ object playground {
 
                   // fiber stepped, optionally forking
                   case Right((fiber2, forked2)) =>
-                    (fiber2 :: forked2.map(_ :: acc).getOrElse(acc)).pure[M]
+                    (fiber2 :: forked2 ::: acc).pure[M]
                 }
               }
           }
@@ -208,6 +230,6 @@ object playground {
       }
     }
 
-    runAll(universe, target, Nil)
+    StateT(runAll(_, target, Nil))
   }
 }
