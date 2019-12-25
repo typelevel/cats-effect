@@ -17,7 +17,7 @@
 package ce3
 
 import cats.{~>, Id, InjectK, Monad, Traverse}
-import cats.data.{Const, EitherK, StateT}
+import cats.data.{Const, EitherK, State, StateT}
 import cats.implicits._
 
 object playground {
@@ -86,12 +86,11 @@ object playground {
 
   /**
    * Implements a cooperative parallel interpreter for Free with a global state space,
-   * given an injection for state and a traversable pattern functor. The state is
-   * shared across all simultaneous suspensions and will survive short-circuiting
-   * in the target monad (if relevant). Note that callers are responsible for
-   * ensuring that any short circuiting in the target monad is handled prior to
-   * suspending the actual fork, otherwise the short circuiting will propagate
-   * through the entire system and terminate all suspensions.
+   * given a traversable pattern functor. The state is shared across all simultaneous
+   * suspensions and will survive short-circuiting in the target monad (if relevant).
+   * Note that callers are responsible for ensuring that any short circuiting in the
+   * target monad is handled prior to suspending the actual fork, otherwise the short
+   * circuiting will propagate through the entire system and terminate all suspensions.
    *
    * Forks are defined by a non-empty traversal on the suspension pattern functor
    * (excepting the state pattern). In most interpreter-like usage of Free, suspensions
@@ -124,7 +123,7 @@ object playground {
    * final result to be held pending the resolution of all forked suspensions.
    *
    * Sequence orders are deterministic, but not guaranteed to follow any particular
-   * order. In other words, race conditions can and will happen, but if they resolve
+   * pattern. In other words, race conditions can and will happen, but if they resolve
    * in a particular direction in one run, they will resolve in the same direction
    * on the next run unless other changes are made. Changes to the structure of the
    * forked Free(s) (such as adding or removing an extra flatMap) can and will have
@@ -133,11 +132,10 @@ object playground {
    * Fairness is not considered. If you care about fairness, you probably also care
    * about other little things like... uh... performance.
    */
-  def forkFoldFree[S[_], T[_]: Traverse, U, A, M[_]: Monad](
+  def forkFoldFree[S[_]: Traverse, U, A, M[_]: Monad](
       target: Free[S, A])(
-      f: T ~> M,
-      daemon: Boolean = true)(
-      implicit PU: ProjectK[StateF[U, ?], S, T])
+      f: S ~> λ[α => State[U, M[α]]],     // note that this is inside out from StateT!
+      daemon: Boolean = true)
       : StateT[M, U, A] = {
 
     // NB: all the asInstanceOf usage here is safe and will be erased; it exists solely because scalac can't unify certain existentials
@@ -156,36 +154,15 @@ object playground {
           onPure = a => a.pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe),
 
           onSuspend = { sa =>
-            PU(sa) match {
-              case Left(StateF.Get()) =>
-                universe.asInstanceOf[X].pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe)
-
-              case Left(StateF.Put(universe)) =>
-                ().asInstanceOf[X].pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe)
-
-              case Right(ta) =>
-                // we can't possibly fork here since there are no continuations, so we just terminate
-                f(ta).asLeft[StepRight[X]].pure[M].tupleLeft(universe)
-            }
+            f(sa).run(universe).value.map(_.asLeft[StepRight[X]]).pure[M]
           },
 
           onFlatMapped = { pair =>
             val (front, cont) = pair
+            val forks = front.toList.map(x => cont(x.asInstanceOf).void)
 
-            PU(front) match {
-              case Left(StateF.Get()) =>
-                (cont(universe.asInstanceOf), Nil).asRight[StepLeft[X]].pure[M].tupleLeft(universe)
-
-              case Left(StateF.Put(universe2)) =>
-                (cont(().asInstanceOf), Nil).asRight[StepLeft[X]].pure[M].tupleLeft(universe2)
-
-              case Right(front) =>
-                val forks = front.toList.map(x => cont(x.asInstanceOf).void)
-                val backM = f(front) map { x =>
-                  (cont(x.asInstanceOf), forks).asRight[StepLeft[X]]
-                }
-
-                backM.tupleLeft(universe)
+            f(front).run(universe).value traverse { mx =>
+              mx.map(x => (cont(x.asInstanceOf), forks).asRight[StepLeft[X]])
             }
           })
       }
