@@ -168,7 +168,15 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.IO.fromFuture"),
       // Incompatible signatures should not cause linking problems.
       exclude[IncompatibleSignatureProblem]("cats.effect.IO.ioParallel"),
-      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel")
+      exclude[IncompatibleSignatureProblem]("cats.effect.IOInstances.ioParallel"),
+      // Signature changes to make Resource covariant, should not cause linking problems. - https://github.com/typelevel/cats-effect/pull/731
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.use"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.flatMap"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.map"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.mapK"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.allocated"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalMap"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalTap")
     )
   }
 )
