@@ -27,6 +27,7 @@ import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
+import cats.laws.discipline.arbitrary._
 import org.scalacheck._
 
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -41,10 +42,16 @@ class IOTests extends BaseTestsSuite {
 
   checkAllAsync("IO", implicit ec => MonoidTests[IO[Int]].monoid)
   checkAllAsync("IO", implicit ec => SemigroupKTests[IO].semigroupK[Int])
+  checkAllAsync("IO", implicit ec => AlignTests[IO].align[Int, Int, Int, Int])
 
   checkAllAsync("IO.Par", implicit ec => {
     implicit val cs = ec.contextShift[IO]
     CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
+  })
+
+  checkAllAsync("IO.Par", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    AlignTests[IO.Par].align[Int, Int, Int, Int]
   })
 
   checkAllAsync(
@@ -749,6 +756,26 @@ class IOTests extends BaseTestsSuite {
     val io = IO(1).bracket(x => IO(x + 1))(_ => IO { effect += 1 })
     io.unsafeRunSync() shouldBe 2
     effect shouldBe 1
+  }
+
+  testAsync("bracket does not evaluate use on cancel") { implicit ec =>
+    implicit val contextShift = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
+
+    var use = false
+    var release = false
+
+    val task = IO
+      .sleep(2.second)
+      .bracket(_ => IO { use = true })(_ => IO { release = true })
+      .timeoutTo[Unit](1.second, IO.never)
+
+    val f = task.unsafeToFuture()
+    ec.tick(2.second)
+
+    f.value shouldBe None
+    use shouldBe false
+    release shouldBe true
   }
 
   test("unsafeRunSync works for IO.cancelBoundary") {

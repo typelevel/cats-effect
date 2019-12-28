@@ -25,6 +25,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
+import cats.data.Ior
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -742,6 +743,21 @@ abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef wi
    */
   object Par extends IONewtype
 
+  private[effect] def ioParAlign(implicit cs: ContextShift[IO]): Align[IO.Par] = new Align[IO.Par] {
+    import IO.Par.{unwrap, apply => par}
+
+    def align[A, B](fa: IO.Par[A], fb: IO.Par[B]): IO.Par[Ior[A, B]] = alignWith(fa, fb)(identity)
+
+    override def alignWith[A, B, C](fa: IO.Par[A], fb: IO.Par[B])(f: Ior[A, B] => C): IO.Par[C] =
+      par(
+        IOParMap(cs, unwrap(fa).attempt, unwrap(fb).attempt)(
+          (ea, eb) => cats.instances.either.catsStdInstancesForEither.alignWith(ea, eb)(f)
+        ).flatMap(IO.fromEither)
+      )
+
+    def functor: Functor[IO.Par] = ioParCommutativeApplicative
+  }
+
   private[effect] def ioParCommutativeApplicative(implicit cs: ContextShift[IO]): CommutativeApplicative[IO.Par] =
     new CommutativeApplicative[IO.Par] {
       import IO.Par.{unwrap, apply => par}
@@ -828,6 +844,9 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
   implicit def parCommutativeApplicative(implicit cs: ContextShift[IO]): CommutativeApplicative[IO.Par] =
     ioParCommutativeApplicative
 
+  implicit def parAlign(implicit cs: ContextShift[IO]): Align[IO.Par] =
+    ioParAlign
+
   implicit def ioConcurrentEffect(implicit cs: ContextShift[IO]): ConcurrentEffect[IO] =
     new IOEffect with ConcurrentEffect[IO] {
       final override def start[A](fa: IO[A]): IO[Fiber[IO, A]] =
@@ -844,6 +863,19 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override def toIO[A](fa: IO[A]): IO[A] = fa
       final override def liftIO[A](ioa: IO[A]): IO[A] = ioa
     }
+
+  implicit val ioAlign: Align[IO] = new Align[IO] {
+    def align[A, B](fa: IO[A], fb: IO[B]): IO[Ior[A, B]] =
+      alignWith(fa, fb)(identity)
+
+    override def alignWith[A, B, C](fa: IO[A], fb: IO[B])(f: Ior[A, B] => C): IO[C] =
+      fa.redeemWith(
+        t => fb.redeemWith(_ => IO.raiseError(t), b => IO.pure(f(Ior.right(b)))),
+        a => fb.redeem(_ => f(Ior.left(a)), b => f(Ior.both(a, b)))
+      )
+
+    def functor: Functor[IO] = Functor[IO]
+  }
 
   implicit def ioParallel(implicit cs: ContextShift[IO]): Parallel.Aux[IO, IO.Par] =
     new Parallel[IO] {
