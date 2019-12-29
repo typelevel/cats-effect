@@ -16,199 +16,201 @@
 
 package ce3
 
-import cats.{~>, Id, InjectK, Monad, Traverse}
-import cats.data.{Const, EitherK, State, StateT}
+import cats.{~>, Id, MonadError}
+import cats.data.{Kleisli, WriterT}
 import cats.implicits._
+
+import cats.mtl.ApplicativeAsk
+import cats.mtl.implicits._
+
+import coop.{ApplicativeThread, ThreadT, MVar}
 
 object playground {
 
-  sealed trait StateF[S, A] extends Product with Serializable
-
-  object StateF {
-    final case class Get[S]() extends StateF[S, S]
-    final case class Put[S](s: S) extends StateF[S, Unit]
-  }
-
-  object State {
-    def get[F[_], S](implicit I: InjectK[StateF[S, ?], F]): Free[F, S] =
-      Free.inject[StateF[S, ?], F](StateF.Get[S]())
-
-    def put[F[_], S](s: S)(implicit I: InjectK[StateF[S, ?], F]): Free[F, Unit] =
-      Free.inject[StateF[S, ?], F](StateF.Put[S](s))
-
-    def modify[F[_], S](f: S => S)(implicit I: InjectK[StateF[S, ?], F]): Free[F, Unit] =
-      modifyF[F, S](f.andThen(_.pure[Free[F, ?]]))
-
-    def modifyF[F[_], S](f: S => Free[F, S])(implicit I: InjectK[StateF[S, ?], F]): Free[F, Unit] =
-      get[F, S].flatMap(s => f(s).flatMap(put[F, S](_)))
-  }
-
-  final case class Never[A]()
-  final case class Fork[F[_], A](body: F[_])
-
-  type FiberId = Int
-  val MainFiberId = 0
-
-  type Results = Map[FiberId, Option[_]]   // None represents cancelation
-
-  type PureConcurrentF[F[_], E, A] =
-    EitherK[
-      StateF[Results, ?],    // fiber results
-      EitherK[
-        StateF[FiberId, ?],       // current fiber id
-        EitherK[
-          Never,
-          EitherK[
-            Fork[F, ?],
-            ExitCase[Id, E, ?],
+  type PureConc[E, A] =
+    Kleisli[
+      ThreadT[
+        // everything inside here is Concurrent-specific effects
+        Kleisli[
+          ExitCase[
+            Id,
+            E,
             ?],
+          PureFiber[E, _],    // self fiber
           ?],
         ?],
+      MVar.Universe,
       A]
 
-  // this is a class because we need the recursion for Fork
-  final case class PureConcurrent[E, A](body: Free[PureConcurrent.F[E, ?], A])
-
-  object PureConcurrent {
-    type F[E, A] = PureConcurrentF[PureConcurrent[E, ?], E, A]
-  }
-
-  def ResultsI[E] = InjectK[StateF[Results, ?], PureConcurrent.F[E, ?]]
-  def FiberIdI[E] = InjectK[StateF[FiberId, ?], PureConcurrent.F[E, ?]]
-  def NeverI[E] = InjectK[Never, PureConcurrent.F[E, ?]]
-  def ForkI[E] = InjectK[Fork[PureConcurrent[E, ?], ?], PureConcurrent.F[E, ?]]
-  def ExitCaseI[E] = InjectK[ExitCase[Id, E, ?], PureConcurrent.F[E, ?]]
-
-  def nextFiberId[E]: PureConcurrent[E, FiberId] =
-    PureConcurrent(State.get[PureConcurrent.F[E, ?], FiberId])
-
-  def run[E, A](pc: PureConcurrent[E, A]): ExitCase[Option, E, A] = ???
-
   /**
-   * Implements a cooperative parallel interpreter for Free with a global state space,
-   * given a traversable pattern functor. The state is shared across all simultaneous
-   * suspensions and will survive short-circuiting in the target monad (if relevant).
-   * Note that callers are responsible for ensuring that any short circuiting in the
-   * target monad is handled prior to suspending the actual fork, otherwise the short
-   * circuiting will propagate through the entire system and terminate all suspensions.
-   *
-   * Forks are defined by a non-empty traversal on the suspension pattern functor
-   * (excepting the state pattern). In most interpreter-like usage of Free, suspensions
-   * are only trivially traversable, in that they contain no case which contains any
-   * sub-structure. As an example, the StateF pattern functor has two cases, GetF and
-   * PutF, neither of which contain an "A". Thus, while StateF does form a Traverse,
-   * it is always empty and trivial. These patterns are considered to be "non-forking".
-   *
-   * Pattern instances which *do* contain one or more "A" values representing forks.
-   * We evaluate these by taking each A "hole" and passing it to the continuation
-   * *independently*. Which is to say, whenever you suspend a forking pattern instance,
-   * any flatMap which succeeds it will be instantiated with *n + 1* different values:
-   *
-   * - Once for the value which is returned from the T ~> M interpreter
-   * - Once for each value of type A within the fork
-   *
-   * The best way to think of this is that it is similar to the `fork()` function
-   * in the C standard library, which returns different results whether you're in
-   * the child or the parent. Suspending a forking pattern and then binding on it
-   * will see different values depending on whether you're in the main fiber
-   * (which will receive the value from the T ~> M interpreter) or in one of the
-   * forked continuations (which will receive a corresponding value from the
-   * suspension). The results of all forked continuations will be discarded.
-   *
-   * "Daemon" semantics correspond to a mode in which forked suspensions with
-   * outstanding continuations are ignored if the main suspension reaches
-   * completion (either Pure or Suspend). This is analogous to how daemon threads
-   * will not prevent the termination of the JVM, even if they still have outstanding
-   * work when the main thread terminates. Non-daemon semantics will cause the
-   * final result to be held pending the resolution of all forked suspensions.
-   *
-   * Sequence orders are deterministic, but not guaranteed to follow any particular
-   * pattern. In other words, race conditions can and will happen, but if they resolve
-   * in a particular direction in one run, they will resolve in the same direction
-   * on the next run unless other changes are made. Changes to the structure of the
-   * forked Free(s) (such as adding or removing an extra flatMap) can and will have
-   * an impact on evaluation order, and thus race condition resolution.
-   *
-   * Fairness is not considered. If you care about fairness, you probably also care
-   * about other little things like... uh... performance.
+   * Produces Completed(None) when the main fiber is deadlocked. Note that
+   * deadlocks outside of the main fiber are ignored when results are
+   * appropriately produced (i.e. daemon semantics).
    */
-  def forkFoldFree[S[_]: Traverse, U, A, M[_]: Monad](
-      target: Free[S, A])(
-      f: S ~> λ[α => State[U, M[α]]],     // note that this is inside out from StateT!
-      daemon: Boolean = true)
-      : StateT[M, U, A] = {
+  def run[E, A](pc: PureConc[E, A]): ExitCase[Option, E, A] = {
+    val resolved = MVar resolve {
+      // this is PureConc[E, ?] without the inner Kleisli
+      type Main[X] = Kleisli[ThreadT[ExitCase[Id, E, ?], ?], MVar.Universe, X]
 
-    // NB: all the asInstanceOf usage here is safe and will be erased; it exists solely because scalac can't unify certain existentials
+      MVar.empty[Main, ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
+        MVar[Main, Int](0) flatMap { finalizers =>
+          val fiber = new PureFiber[E, A](state, finalizers)
 
-    // non-empty list of fibers where we know the type of the head and nothing else
-    def runAll(universe: U, main: Free[S, A], fibers: List[Free[S, Unit]]): M[(U, A)] = {
-      type StepLeft[X] = M[X]
-      type StepRight[X] = (Free[S, X], List[Free[S, Unit]])
-
-      type Step[X] = Either[StepLeft[X], StepRight[X]]
-
-      val Nil = List[Free[S, Unit]]()   // cheating
-
-      def stepFiber[X](universe: U, fiber: Free[S, X]): M[(U, Step[X])] = {
-        fiber.foldStep(
-          onPure = a => a.pure[M].asLeft[StepRight[X]].pure[M].tupleLeft(universe),
-
-          onSuspend = { sa =>
-            f(sa).run(universe).value.map(_.asLeft[StepRight[X]]).pure[M]
-          },
-
-          onFlatMapped = { pair =>
-            val (front, cont) = pair
-            val forks = front.toList.map(x => cont(x.asInstanceOf).void)
-
-            f(front).run(universe).value traverse { mx =>
-              mx.map(x => (cont(x.asInstanceOf), forks).asRight[StepLeft[X]])
+          val identified = pc mapF { ta =>
+            ta mapK λ[Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?] ~> ExitCase[Id, E, ?]] { ke =>
+              ke.run(fiber)
             }
-          })
-      }
-
-      val daemonized = stepFiber(universe, main) flatMap { tuple =>
-        tuple traverse {
-          case Left(ma) =>
-            // if non-daemon semantics and we still have outstanding fibers, transform back into a Right
-            if (daemon || fibers.isEmpty)
-              ma.asLeft[StepRight[A]].pure[M]
-            else
-              ma.map(a => (Free.pure[S, A](a), fibers).asRight[StepLeft[A]])
-
-          case Right((main, forked)) =>
-            (main, forked ::: fibers).asRight[StepLeft[A]].pure[M]
-        }
-      }
-
-      daemonized flatMap {
-        case (universe, Left(ma)) =>
-          ma.tupleLeft(universe)
-
-        case (universe, Right((main2, fibers))) =>
-          // amusingly, we reverse the list with each step... that's technically okay
-          val fibers2M = fibers.foldLeftM((universe, Nil)) {
-            case ((universe, acc), fiber) =>
-              stepFiber(universe, fiber) flatMap { tuple =>
-                tuple traverse {
-                  // fiber completed; drop it from the list
-                  case Left(ma) =>
-                    ma.as(acc)    // ensure we sequence the final action... and then drop the results
-
-                  // fiber stepped, optionally forking
-                  case Right((fiber2, forked2)) =>
-                    (fiber2 :: forked2 ::: acc).pure[M]
-                }
-              }
           }
 
-          fibers2M flatMap {
-            case (universe, fibers2) =>
-              runAll(universe, main2, fibers2)
+          val body = identified.flatMap(a => state.tryPut[Main](ExitCase.Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
+            state.tryPut[Main](ExitCase.Errored(e))
+          }
+
+          import ExitCase._
+          val results = state.read[Main] flatMap {
+            case Canceled => (Canceled: ExitCase[Id, E, A]).pure[Main]
+            case Errored(e) => (Errored(e): ExitCase[Id, E, A]).pure[Main]
+
+            case Completed(fa) =>
+              val identified = fa mapF { ta =>
+                ta mapK λ[Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?] ~> ExitCase[Id, E, ?]] { ke =>
+                  ke.run(fiber)
+                }
+              }
+
+              identified.map(a => Completed[Id, A](a): ExitCase[Id, E, A])
+          }
+
+          Kleisli.ask[ThreadT[ExitCase[Id, E, ?], ?], MVar.Universe] map { u =>
+            (body.run(u), results.run(u))
+          }
+        }
+      }
+    }
+
+    val scheduled = ThreadT roundRobin {
+      // we put things into WriterT because roundRobin returns Unit
+      val writerLift = λ[ExitCase[Id, E, ?] ~> WriterT[ExitCase[Id, E, ?], List[ExitCase[Id, E, A]], ?]](WriterT.liftF(_))
+      val lifted = resolved.mapK(writerLift)
+
+      lifted flatMap {
+        case (body, results) =>
+          body.mapK(writerLift) >> results.mapK(writerLift) flatMap { ec =>
+            ThreadT liftF {
+              WriterT.tell[ExitCase[Id, E, ?], List[ExitCase[Id, E, A]]](List(ec))
+            }
           }
       }
     }
 
-    StateT(runAll(_, target, Nil))
+    scheduled.run.mapK(λ[Id ~> Option](Some(_))) flatMap {
+      case (List(results), _) => results.mapK(λ[Id ~> Option](Some(_)))
+      case (_, false) => ExitCase.Completed(None)
+
+      // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
+      case _ => ExitCase.Completed(None)
+    }
+  }
+
+  implicit def concurrentBForPureConc[E]: ConcurrentBracket[PureConc[E, ?], E] =
+    new Concurrent[PureConc[E, ?], E] with Bracket[PureConc[E, ?], E] {
+      private[this] val M: MonadError[PureConc[E, ?], E] =
+        Kleisli.catsDataMonadErrorForKleisli
+
+      private[this] val Thread = ApplicativeThread[PureConc[E, ?]]
+
+      def pure[A](x: A): PureConc[E, A] =
+        M.pure(x)
+
+      def handleErrorWith[A](fa: PureConc[E, A])(f: E => PureConc[E, A]): PureConc[E, A] =
+        M.handleErrorWith(fa)(f)
+
+      def raiseError[A](e: E): PureConc[E, A] =
+        M.raiseError(e)
+
+      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ce3.ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] = ???
+
+      def canceled[A](fallback: A): PureConc[E, A] =
+        withSelf(_.cancelImmediate.ifM(Thread.done[A], pure(fallback)))
+
+      def cede: PureConc[E, Unit] =
+        Thread.cede
+
+      def never[A]: PureConc[E, A] =
+        Thread.done[A]
+
+      def racePair[A, B](fa: PureConc[E, A], fb: PureConc[E, B]): PureConc[E, Either[(A, Fiber[PureConc[E, ?], E, B]), (Fiber[PureConc[E, ?], E, A], B)]] = ???
+
+      def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, ?], E, A]] =
+        PureFiber(fa) flatMap {
+          case (fiber, body) => Thread.start(body).as(fiber)
+        }
+
+      def uncancelable[A](body: PureConc[E, ?] ~> PureConc[E, ?] => PureConc[E, A]): PureConc[E, A] = ???
+
+      def flatMap[A, B](fa: PureConc[E, A])(f: A => PureConc[E, B]): PureConc[E, B] =
+        M.flatMap(fa)(f)
+
+      def tailRecM[A, B](a: A)(f: A => PureConc[E, Either[A, B]]): PureConc[E, B] =
+        M.tailRecM(a)(f)
+
+      // the type inferencer just... fails... completely here
+      private[this] def withSelf[A](body: PureFiber[E, _] => PureConc[E, A]): PureConc[E, A] =
+        Kleisli.liftF[ThreadT[Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?], ?], MVar.Universe, PureConc[E, A]](
+          ThreadT.liftF[Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?], PureConc[E, A]](
+            Kleisli.ask[ExitCase[Id, E, ?], PureFiber[E, _]].map(body))).flatten
+        // ApplicativeAsk[PureConc[E, ?], PureFiber[E, _]].ask.flatMap(body)
+    }
+
+  final class PureFiber[E, A](
+      state0: MVar[ExitCase[PureConc[E, ?], E, A]],
+      finalizers0: MVar[Int])
+      extends Fiber[PureConc[E, ?], E, A] {
+
+    private[this] val state = state0[PureConc[E, ?]]
+    private[this] val finalizers = finalizers0[PureConc[E, ?]]
+
+    private[playground] val canceled: PureConc[E, Boolean] =
+      state.tryRead.map(_.map(_.fold(true, _ => false, _ => false)).getOrElse(false))
+
+    // note that this is atomic because, internally, we won't check cancelation here
+    private[playground] val incrementFinalizers: PureConc[E, Unit] =
+      finalizers.read.flatMap(i => finalizers.swap(i + 1)).void
+
+    private[playground] val decrementFinalizers: PureConc[E, Unit] =
+      finalizers.read.flatMap(i => finalizers.swap(i - 1)).void
+
+    private[playground] val cancelImmediate: PureConc[E, Boolean] =
+      state.tryPut(ExitCase.Canceled)
+
+    val cancel: PureConc[E, Unit] =
+      cancelImmediate >> finalizers.read.iterateUntil(_ <= 0).void
+
+    val join: PureConc[E, ExitCase[PureConc[E, ?], E, A]] =
+      state.read    // NB we don't await finalizers on join?
+  }
+
+  object PureFiber {
+
+    def apply[E, A](fa: PureConc[E, A]): PureConc[E, (Fiber[PureConc[E, ?], E, A], PureConc[E, Unit])] =
+      MVar.empty[PureConc[E, ?], ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
+        MVar[PureConc[E, ?], Int](0) map { finalizers =>
+          val fiber = new PureFiber[E, A](state, finalizers)
+
+          val identified = fa mapF { ta =>
+            ta mapK λ[Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?] ~> Kleisli[ExitCase[Id, E, ?], PureFiber[E, _], ?]] { ke =>
+              // discard the parent fiber entirely
+              Kleisli.liftF(ke.run(fiber))
+            }
+          }
+
+          // the tryPut(s) here are interesting: they indicate that Cancelation dominates
+          val body = identified.flatMap(a => state.tryPut[PureConc[E, ?]](ExitCase.Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
+            state.tryPut[PureConc[E, ?]](ExitCase.Errored(e))
+          }
+
+          (fiber, body.void)
+        }
+      }
   }
 }

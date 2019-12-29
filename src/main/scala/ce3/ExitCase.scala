@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{Applicative, ApplicativeError, Eq, Eval, Monad, MonadError, Show, Traverse}
+import cats.{~>, Applicative, ApplicativeError, Eq, Eval, Monad, MonadError, Show, Traverse}
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -72,6 +72,7 @@ object ExitCase extends LowPriorityImplicits {
     either.fold(Errored(_), a => Completed(a.pure[F]))
 
   implicit class Syntax[F[_], E, A](val self: ExitCase[F, E, A]) extends AnyVal {
+
     def fold[B](
         canceled: => B,
         errored: E => B,
@@ -80,6 +81,12 @@ object ExitCase extends LowPriorityImplicits {
       case Canceled => canceled
       case Errored(e) => errored(e)
       case Completed(fa) => completed(fa)
+    }
+
+    def mapK[G[_]](f: F ~> G): ExitCase[G, E, A] = self match {
+      case ExitCase.Canceled => ExitCase.Canceled
+      case ExitCase.Errored(e) => ExitCase.Errored(e)
+      case ExitCase.Completed(fa) => ExitCase.Completed(f(fa))
     }
   }
 
