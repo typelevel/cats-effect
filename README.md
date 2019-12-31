@@ -79,7 +79,7 @@ These are some of the projects that provide high-level functions on top of `cats
 | Project | Description |
 | ------- | ----------- |
 | [Cats Retry](https://github.com/cb372/cats-retry) | A library for retrying actions that can fail |
-| [Console4cats](https://gvolpe.github.io/console4cats/) | Console I/O for Cats Effect |
+| [Console4cats](https://console4cats.profunktor.dev/) | Console I/O for Cats Effect |
 | [Fuuid](https://christopherdavenport.github.io/fuuid/) | Functional UUID's |
 | [Linebacker](https://christopherdavenport.github.io/linebacker/) | Thread Pool Management for Scala: Enabling functional blocking where needed |
 | [Log4cats](https://christopherdavenport.github.io/log4cats/) | Functional Logging |
