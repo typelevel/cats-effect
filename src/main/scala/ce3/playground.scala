@@ -223,7 +223,10 @@ object playground {
           }
         }
 
-        body(poll)
+        withCtx { ctx =>
+          val ctx2 = ctx.copy(masks = mask :: ctx.masks)
+          localCtx(ctx2, body(poll))
+        }
       }
 
       def flatMap[A, B](fa: PureConc[E, A])(f: A => PureConc[E, B]): PureConc[E, B] =
