@@ -36,12 +36,12 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   }
 
   def racePairLeftCanceledYields[A](fa: F[A]) = {
-    val fc = F.canceled[Unit]
+    val fc = F.canceled(())
     F.racePair(fc, fa) <-> F.start(fc).flatMap(f => fa.map(a => Right((f, a))))
   }
 
   def racePairRightCanceledYields[A](fa: F[A]) = {
-    val fc = F.canceled[Unit]
+    val fc = F.canceled(())
     F.racePair(fa, fc) <-> F.start(fc).flatMap(f => fa.map(a => Left((a, f))))
   }
 
@@ -49,29 +49,29 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.start(body).flatMap(f => f.cancel *> f.join) <-> F.pure(ExitCase.Canceled)
 
   def fiberOfCanceledIsCanceled =
-    F.start(F.canceled[Unit]).flatMap(_.join) <-> F.pure(ExitCase.Canceled)
+    F.start(F.canceled(())).flatMap(_.join) <-> F.pure(ExitCase.Canceled)
 }
 
 trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLaws[F, E] {
 
   implicit val F: Concurrent[F, E] with Bracket[F, E]
 
-  def bracketCanceledReleases[A, B](acq: F[A], release: F[Unit], e: E) = {
-    F.bracketCase(acq)(_ => F.canceled[B]) {
+  def bracketCanceledReleases[A, B](acq: F[A], release: F[Unit], e: E, b: B) = {
+    F.bracketCase(acq)(_ => F.canceled(b)) {
       case (a, ExitCase.Canceled) => release
       case _ => F.raiseError[Unit](e)
-    } <-> (acq.flatMap(_ => release) *> F.canceled[B])
+    } <-> (acq.flatMap(_ => release) *> F.canceled(b))
   }
 
-  def bracketProtectSuppressesCancelation[A, B](acq: F[A], use: A => F[B], cancel: F[Unit], completed: B => F[Unit]) = {
-    val result = F.bracketCase(acq)(a => F.uncancelable(use(a))) {
+  def bracketProtectSuppressesCancelation[A, B](acq: F[A], use: A => F[B], cancel: F[Unit], completed: F[B] => F[Unit], b: B) = {
+    val result = F.bracketCase(acq)(a => F.uncancelable(_ => use(a))) {
       case (_, ExitCase.Canceled) => cancel
       case (_, ExitCase.Completed(b)) => completed(b)
       case (_, ExitCase.Errored(e)) => F.raiseError(e)
     }
 
-    val completes = result <-> (acq.flatMap(use).flatMap(b => completed(b).as(b)))
-    val aborts = result <-> F.canceled[B]
+    val completes = result <-> (acq.flatMap(use).flatMap(b => completed(b.pure[F]).as(b)))
+    val aborts = result <-> F.canceled(b)
 
     completes || aborts
   }

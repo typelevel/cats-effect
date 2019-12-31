@@ -33,78 +33,43 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureCancelableSpec extends Specification with Discipline {
-  import PureIO.concurrentB
+
+  // TODO
+  // - Arbitrary[Kleisli]
+  // - Arbitrary[FreeT]
+  // - Cogen[Kleisli]
+  // - Cogen[FreeT]
 
   checkAll(
-    "PureIO",
-    ConcurrentBracketTests[PureIO[Int, ?], Int].concurrentBracket[Int, Int, Int])
+    "PureConc",
+    BracketTests[PureConc[Int, ?], Int].bracket[Int, Int, Int])
+
+  /*checkAll(
+    "PureConc",
+    ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])*/
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  implicit def arbDispatch: Arbitrary[Dispatch] = Arbitrary(genDispatch)
+  implicit def arbExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Arbitrary[ExitCase[F, E, A]] =
+    Arbitrary(genExitCase[F, E, A])
 
-  def genDispatch: Gen[Dispatch] = for {
-    ordinal <- Gen.posNum[Int]
-    numCanceled <- Gen.chooseNum[Int](0, 20)
-    canceled <- Gen.listOfN(numCanceled, Gen.chooseNum[Int](0, ordinal))
-  } yield Dispatch(ordinal, canceled.toSet)
-
-  implicit def cogenDispatch: Cogen[Dispatch] =
-    Cogen.tuple2[Int, List[Int]] contramap { (d: Dispatch) =>
-      (d.ordinal, d.canceled.toList)
-    }
-
-  implicit def arbEitherK[F[_], G[_], A](implicit efa: Arbitrary[Either[F[A], G[A]]]): Arbitrary[EitherK[F, G, A]] =
-    Arbitrary(efa.arbitrary.map(EitherK(_)))
-
-  def genStateFDispatch[A: Arbitrary]: Gen[StateF[Dispatch, A]] = ???
-
-  implicit def arbStateFDispatch[A: Arbitrary]: Arbitrary[StateF[Dispatch, A]] =
-    Arbitrary(genStateFDispatch[A])
-
-  implicit def arbExitCase[E: Arbitrary, A: Arbitrary]: Arbitrary[ExitCase[E, A]] =
-    Arbitrary(genExitCase[E, A])
-
-  def genExitCase[E: Arbitrary, A: Arbitrary]: Gen[ExitCase[E, A]] =
+  def genExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Gen[ExitCase[F, E, A]] =
     Gen.oneOf(
       Gen.const(ExitCase.Canceled),
       Arbitrary.arbitrary[E].map(ExitCase.Errored(_)),
-      Arbitrary.arbitrary[A].map(ExitCase.Completed(_)))
+      Arbitrary.arbitrary[F[A]].map(ExitCase.Completed(_)))
 
-  implicit def cogenExitCase[E: Cogen, A: Cogen]: Cogen[ExitCase[E, A]] = Cogen[Option[Either[E, A]]].contramap {
+  implicit def cogenExitCase[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[ExitCase[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
     case ExitCase.Canceled => None
-    case ExitCase.Completed(a) => Some(Right(a))
+    case ExitCase.Completed(fa) => Some(Right(fa))
     case ExitCase.Errored(e) => Some(Left(e))
   }
 
   // copied from FreeSuite
   def headOptionU = λ[List ~> Option](_.headOption)
 
-  private def freeGen[F[_], A](maxDepth: Int)(implicit F: Arbitrary[F[A]], A: Arbitrary[A]): Gen[Free[F, A]] = {
-    val noFlatMapped = Gen.oneOf(A.arbitrary.map(Free.pure[F, A]), F.arbitrary.map(Free.liftF[F, A]))
-
-    val nextDepth = Gen.chooseNum(1, math.max(1, maxDepth - 1))
-
-    def withFlatMapped =
-      for {
-        fDepth <- nextDepth
-        freeDepth <- nextDepth
-        f <- Arbitrary.arbFunction1[A, Free[F, A]](Arbitrary(freeGen[F, A](fDepth)), Cogen[Unit].contramap(_ => ())).arbitrary
-        freeFA <- freeGen[F, A](freeDepth)
-      } yield freeFA.flatMap(f)
-
-    if (maxDepth <= 1) noFlatMapped
-    else Gen.oneOf(noFlatMapped, withFlatMapped)
-  }
-
-  implicit def freeArbitrary[F[_], A](implicit F: Arbitrary[F[A]], A: Arbitrary[A]): Arbitrary[Free[F, A]] =
-    Arbitrary(freeGen[F, A](4))
-
-  implicit def pureIOEq[E: Eq, A: Eq]: Eq[PureIO[E, A]] = Eq.by(PureIO.run(_))
-
-  implicit def freeShow[S[_]: Monad, A](implicit SA: Show[S[A]]): Show[Free[S, A]] =
-    SA.contramap((fsa: Free[S, A]) => fsa.runM(identity))
+  implicit def pureConcEq[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
 
   def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
 
