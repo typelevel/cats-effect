@@ -34,13 +34,13 @@ object playground {
 
   type PureConc[E, A] = MVarR[ThreadT[FiberR[E, ?], ?], A]
 
+  type Finalizer[E] = ExitCase[PureConc[E, ?], E, Nothing] => PureConc[E, Unit]
+
   final class MaskId
 
   object MaskId {
     implicit val eq: Eq[MaskId] = Eq.fromUniversalEquals[MaskId]
   }
-
-  val BracketMask = new MaskId
 
   final case class FiberCtx[E](self: PureFiber[E, _], masks: List[MaskId] = Nil)
 
@@ -64,8 +64,9 @@ object playground {
     val cancelationCheck = new (FiberR[E, ?] ~> PureConc[E, ?]) {
       def apply[α](ka: FiberR[E, α]): PureConc[E, α] = {
         val back = Kleisli.ask[IdEC[E, ?], FiberCtx[E]] map { ctx =>
-          // TODO is it right to double check masks here?
-          ctx.self.canceled.map(_ && ctx.masks.isEmpty).ifM(
+          // we have to double check finalization so that we don't accidentally cancel the finalizer
+          // this is also where we check masking to ensure that we don't abort out in the middle of a masked section
+          (ctx.self.canceled, ctx.self.finalizing).mapN(_ && !_ && ctx.masks.isEmpty).ifM(
             ApplicativeThread[PureConc[E, ?]].done,
             mvarLiftF(ThreadT.liftF(ka)))
         }
@@ -86,7 +87,7 @@ object playground {
       type Main[X] = MVarR[ThreadT[IdEC[E, ?], ?], X]
 
       MVar.empty[Main, ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
-        MVar[Main, Int](0) flatMap { finalizers =>
+        MVar[Main, List[Finalizer[E]]](Nil) flatMap { finalizers =>
           val fiber = new PureFiber[E, A](state, finalizers)
 
           val identified = canceled mapF { ta =>
@@ -161,7 +162,30 @@ object playground {
       def raiseError[A](e: E): PureConc[E, A] =
         M.raiseError(e)
 
-      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] = ???
+      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] = {
+        val init = uncancelable { _ =>
+          acquire flatMap { a =>
+            val finalizer: Finalizer[E] = ec => uncancelable(_ => release(a, ec) >> withCtx(_.self.popFinalizer))
+            withCtx[E, Unit](_.self.pushFinalizer(finalizer)).as((a, finalizer))
+          }
+        }
+
+        init flatMap {
+          case (a, finalizer) =>
+            val used = use(a) flatMap { b =>
+              uncancelable { _ =>
+                val released = release(a, ExitCase.Completed(b.pure[PureConc[E, ?]])) >>
+                  withCtx(_.self.popFinalizer)
+
+                released.as(b)
+              }
+            }
+
+            handleErrorWith(used) { e =>
+              finalizer(ExitCase.Errored(e)) >> raiseError(e)
+            }
+        }
+      }
 
       def canceled[A](fallback: A): PureConc[E, A] =
         withCtx(_.self.cancelImmediate.ifM(Thread.done[A], pure(fallback)))
@@ -176,7 +200,7 @@ object playground {
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, ?], E, A]] =
         MVar.empty[PureConc[E, ?], ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
-          MVar[PureConc[E, ?], Int](0) flatMap { finalizers =>
+          MVar[PureConc[E, ?], List[Finalizer[E]]](Nil) flatMap { finalizers =>
             val fiber = new PureFiber[E, A](state, finalizers)
             val identified = localCtx(FiberCtx(fiber), fa)    // note we drop masks here
 
@@ -194,7 +218,7 @@ object playground {
 
         val poll = λ[PureConc[E, ?] ~> PureConc[E, ?]] { fa =>
           withCtx { ctx =>
-            val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(id => id === mask || id === BracketMask))
+            val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask ===))
             localCtx(ctx2, fa)
           }
         }
@@ -230,7 +254,7 @@ object playground {
 
   final class PureFiber[E, A](
       state0: MVar[ExitCase[PureConc[E, ?], E, A]],
-      finalizers0: MVar[Int])
+      finalizers0: MVar[List[Finalizer[E]]])
       extends Fiber[PureConc[E, ?], E, A] {
 
     private[this] val state = state0[PureConc[E, ?]]
@@ -239,22 +263,27 @@ object playground {
     private[playground] val canceled: PureConc[E, Boolean] =
       state.tryRead.map(_.map(_.fold(true, _ => false, _ => false)).getOrElse(false))
 
-    // note that this is atomic because, internally, we won't check cancelation here
-    private[playground] val incrementFinalizers: PureConc[E, Unit] =
-      finalizers.read.flatMap(i => finalizers.swap(i + 1)).void
-
-    private[playground] val decrementFinalizers: PureConc[E, Unit] =
-      finalizers.read.flatMap(i => finalizers.swap(i - 1)).void
+    private[playground] val finalizing: PureConc[E, Boolean] =
+      finalizers.tryRead.map(_.isEmpty)
 
     private[playground] val cancelImmediate: PureConc[E, Boolean] = {
       val checkM = withCtx[E, Boolean](_.masks.isEmpty.pure[PureConc[E, ?]])
       checkM.ifM(state.tryPut(ExitCase.Canceled), false.pure[PureConc[E, ?]])
     }
 
+    private[playground] def pushFinalizer(f: Finalizer[E]): PureConc[E, Unit] =
+      finalizers.take.flatMap(fs => finalizers.put(f :: fs))
+
+    private[playground] val popFinalizer: PureConc[E, Unit] =
+      finalizers.take.flatMap(fs => finalizers.put(fs.drop(1)))
+
+    // in case of multiple simultaneous cancelations, we block all others while we traverse
     val cancel: PureConc[E, Unit] =
-      cancelImmediate.ifM(finalizers.read.iterateUntil(_ <= 0).void, ().pure[PureConc[E, ?]])
+      cancelImmediate.ifM(
+        finalizers.take.flatMap(_.traverse_(_(ExitCase.Canceled))) >> finalizers.put(Nil),
+        finalizers.read.void)
 
     val join: PureConc[E, ExitCase[PureConc[E, ?], E, A]] =
-      state.read    // NB we don't await finalizers on join?
+      state.read
   }
 }
