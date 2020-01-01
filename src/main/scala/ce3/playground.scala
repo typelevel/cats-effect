@@ -196,7 +196,37 @@ object playground {
       def never[A]: PureConc[E, A] =
         Thread.done[A]
 
-      def racePair[A, B](fa: PureConc[E, A], fb: PureConc[E, B]): PureConc[E, Either[(A, Fiber[PureConc[E, ?], E, B]), (Fiber[PureConc[E, ?], E, A], B)]] = ???
+      def racePair[A, B](
+          fa: PureConc[E, A],
+          fb: PureConc[E, B])
+          : PureConc[
+            E,
+            Either[
+              (A, Fiber[PureConc[E, ?], E, B]),
+              (Fiber[PureConc[E, ?], E, A], B)]] =
+        MVar.empty[PureConc[E, ?], Either[(A, Fiber[PureConc[E, ?], E, B]), (Fiber[PureConc[E, ?], E, A], B)]] flatMap { results =>
+          MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, A]] flatMap { fiberAVar =>
+            MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, B]] flatMap { fiberBVar =>
+              val fa2 = fa flatMap { a =>
+                fiberBVar.read[PureConc[E, ?]] flatMap { fiberB =>
+                  results.tryPut[PureConc[E, ?]](Left((a, fiberB))).as(a)
+                }
+              }
+
+              val fb2 = fb flatMap { b =>
+                fiberAVar.read[PureConc[E, ?]] flatMap { fiberA =>
+                  results.tryPut[PureConc[E, ?]](Right((fiberA, b))).as(b)
+                }
+              }
+
+              start(fa2) flatMap { fiberA =>
+                start(fb2) flatMap { fiberB =>
+                  fiberAVar.put[PureConc[E, ?]](fiberA) >> fiberBVar.put[PureConc[E, ?]](fiberB) >> results.read[PureConc[E, ?]]
+                }
+              }
+            }
+          }
+        }
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, ?], E, A]] =
         MVar.empty[PureConc[E, ?], ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
