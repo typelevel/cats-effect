@@ -145,45 +145,6 @@ class PureCancelableSpec extends Specification with Discipline {
     case ExitCase.Errored(e) => Some(Left(e))
   }
 
-  // copied from FreeSuite
-  implicit def freeTArb[
-      F[_],
-      G[_]: Applicative,
-      A](
-      implicit F: Arbitrary[F[A]],
-      G: Arbitrary[G[A]],
-      A: Arbitrary[A])
-      : Arbitrary[FreeT[F, G, A]] =
-    Arbitrary(freeTGen[F, G, A](4))
-
-  def freeTGen[
-      F[_],
-      G[_]: Applicative,
-      A](
-      maxDepth: Int)(
-      implicit F: Arbitrary[F[A]],
-      G: Arbitrary[G[A]],
-      A: Arbitrary[A])
-      : Gen[FreeT[F, G, A]] = {
-    val noFlatMapped = Gen.oneOf(
-      A.arbitrary.map(FreeT.pure[F, G, A]),
-      F.arbitrary.map(FreeT.liftF[F, G, A])
-    )
-
-    val nextDepth = Gen.chooseNum(1, math.max(1, maxDepth - 1))
-
-    def withFlatMapped =
-      for {
-        fDepth <- nextDepth
-        freeDepth <- nextDepth
-        f <- Arbitrary.arbFunction1[A, FreeT[F, G, A]](Arbitrary(freeTGen[F, G, A](fDepth)), Cogen[Unit].contramap(_ => ())).arbitrary
-        freeFGA <- freeTGen[F, G, A](freeDepth)
-      } yield freeFGA.flatMap(f)
-
-    if (maxDepth <= 1) noFlatMapped
-    else Gen.oneOf(noFlatMapped, withFlatMapped)
-  }
-
   implicit def pureConcEq[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
 
   def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)

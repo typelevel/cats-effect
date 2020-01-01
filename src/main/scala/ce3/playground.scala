@@ -204,29 +204,32 @@ object playground {
             Either[
               (A, Fiber[PureConc[E, ?], E, B]),
               (Fiber[PureConc[E, ?], E, A], B)]] =
-        MVar.empty[PureConc[E, ?], Either[(A, Fiber[PureConc[E, ?], E, B]), (Fiber[PureConc[E, ?], E, A], B)]] flatMap { results =>
-          MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, A]] flatMap { fiberAVar =>
-            MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, B]] flatMap { fiberBVar =>
-              val fa2 = fa flatMap { a =>
-                fiberBVar.read[PureConc[E, ?]] flatMap { fiberB =>
-                  results.tryPut[PureConc[E, ?]](Left((a, fiberB))).as(a)
-                }
-              }
+        for {
+          results <- MVar.empty[PureConc[E, ?], Either[(A, Fiber[PureConc[E, ?], E, B]), (Fiber[PureConc[E, ?], E, A], B)]]
 
-              val fb2 = fb flatMap { b =>
-                fiberAVar.read[PureConc[E, ?]] flatMap { fiberA =>
-                  results.tryPut[PureConc[E, ?]](Right((fiberA, b))).as(b)
-                }
-              }
+          fiberAVar <- MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, A]]
+          fiberBVar <- MVar.empty[PureConc[E, ?], Fiber[PureConc[E, ?], E, B]]
 
-              start(fa2) flatMap { fiberA =>
-                start(fb2) flatMap { fiberB =>
-                  fiberAVar.put[PureConc[E, ?]](fiberA) >> fiberBVar.put[PureConc[E, ?]](fiberB) >> results.read[PureConc[E, ?]]
-                }
-              }
-            }
-          }
-        }
+          fa2 = for {
+            a <- fa
+            fiberB <- fiberBVar.read[PureConc[E, ?]]
+            _ <- results.tryPut[PureConc[E, ?]](Left((a, fiberB)))
+          } yield a
+
+          fb2 = for {
+            b <- fb
+            fiberA <- fiberAVar.read[PureConc[E, ?]]
+            _ <- results.tryPut[PureConc[E, ?]](Right((fiberA, b)))
+          } yield b
+
+          fiberA <- start(fa2)
+          fiberB <- start(fb2)
+
+          _ <- fiberAVar.put[PureConc[E, ?]](fiberA)
+          _ <- fiberBVar.put[PureConc[E, ?]](fiberB)
+
+          back <- results.read[PureConc[E, ?]]
+        } yield back
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, ?], E, A]] =
         MVar.empty[PureConc[E, ?], ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
