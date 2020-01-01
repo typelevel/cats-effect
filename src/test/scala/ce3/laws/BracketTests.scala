@@ -73,7 +73,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
 }
 
 object BracketTests {
-  def apply[F[_], E](implicit F0: Bracket[F, E]): BracketTests[F, E] = new BracketTests[F, E] {
+  def apply[F[_], E](implicit F0: Bracket[F, E]): BracketTests[F, E] { val laws: BracketLaws[F, E] { val F: F0.type } } = new BracketTests[F, E] {
     val laws = BracketLaws[F, E]
   }
 }

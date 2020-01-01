@@ -17,14 +17,14 @@
 package ce3
 package laws
 
-import cats.{~>, ApplicativeError, Eq, FlatMap, Monad, Monoid, Show}
+import cats.{~>, Applicative, ApplicativeError, Eq, FlatMap, Monad, Monoid, Show}
 import cats.data.{EitherK, StateT}
-import cats.free.Free
+import cats.free.FreeT
 import cats.implicits._
 
 import playground._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 import org.scalacheck.util.Pretty
 
 import org.specs2.matcher.Matcher
@@ -34,11 +34,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureCancelableSpec extends Specification with Discipline {
 
-  // TODO
-  // - Arbitrary[Kleisli]
-  // - Arbitrary[FreeT]
-  // - Cogen[Kleisli]
-  // - Cogen[FreeT]
+  def F[E] = ConcurrentBracket[PureConc[E, ?], E]
 
   checkAll(
     "PureConc",
@@ -50,6 +46,89 @@ class PureCancelableSpec extends Specification with Discipline {
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
+
+  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
+    Arbitrary(genPureConc[E, A])
+
+  def genPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    Gen.frequency(
+      1 -> genPure[E, A],
+      1 -> genRaiseError[E, A],
+      1 -> genCanceled[E, A],
+      1 -> genCede[E].flatMap(pc => arbitrary[A].map(pc.as(_))),
+      1 -> Gen.delay(genBracketCase[E, A]),
+      1 -> Gen.delay(genUncancelable[E, A]),
+      1 -> Gen.delay(genHandleErrorWith[E, A]),
+      1 -> Gen.delay(genNever),
+      1 -> Gen.delay(genRacePair[E, A]),
+      1 -> Gen.delay(genStart[E, A]),
+      1 -> Gen.delay(genFlatMap[E, A]))
+
+  def genPure[E, A: Arbitrary]: Gen[PureConc[E, A]] =
+    arbitrary[A].map(_.pure[PureConc[E, ?]])
+
+  def genRaiseError[E: Arbitrary, A]: Gen[PureConc[E, A]] =
+    arbitrary[E].map(F[E].raiseError[A](_))
+
+  def genHandleErrorWith[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    for {
+      fa <- genPureConc[E, A]
+      f <- arbitrary[E => PureConc[E, A]]
+    } yield F[E].handleErrorWith(fa)(f)
+
+  def genBracketCase[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    for {
+      acquire <- genPureConc[E, A]
+      use <- arbitrary[A => PureConc[E, A]]
+      release <- arbitrary[(A, ExitCase[PureConc[E, ?], E, A]) => PureConc[E, Unit]]
+    } yield F[E].bracketCase(acquire)(use)(release)
+
+  // TODO we can't really use poll :-( since we can't Cogen FunctionK
+  def genUncancelable[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    genPureConc[E, A].map(pc => F[E].uncancelable(_ => pc))
+
+  def genCanceled[E, A: Arbitrary]: Gen[PureConc[E, A]] =
+    arbitrary[A].map(F[E].canceled(_))
+
+  def genCede[E]: Gen[PureConc[E, Unit]] =
+    F[E].cede
+
+  def genNever[E, A]: Gen[PureConc[E, A]] =
+    F[E].never[A]
+
+  def genStart[E: Arbitrary: Cogen, A: Arbitrary]: Gen[PureConc[E, A]] =
+    genPureConc[E, Unit].flatMap(pc => arbitrary[A].map(a => F[E].start(pc).as(a)))
+
+  def genRacePair[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    for {
+      fa <- genPureConc[E, A]
+      fb <- genPureConc[E, A]
+
+      cancel <- arbitrary[Boolean]
+
+      back = F[E].racePair(fa, fb) flatMap {
+        case Left((a, f)) =>
+          if (cancel)
+            f.cancel.as(a)
+          else
+            f.join.as(a)
+
+        case Right((f, a)) =>
+          if (cancel)
+            f.cancel.as(a)
+          else
+            f.join.as(a)
+      }
+    } yield back
+
+  def genFlatMap[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Gen[PureConc[E, A]] =
+    for {
+      pc <- genPureConc[E, A]
+      f <- arbitrary[A => PureConc[E, A]]
+    } yield pc.flatMap(f)
+
+  implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] =
+    Cogen[ExitCase[Option, E, A]].contramap(run(_))
 
   implicit def arbExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Arbitrary[ExitCase[F, E, A]] =
     Arbitrary(genExitCase[F, E, A])
@@ -67,7 +146,43 @@ class PureCancelableSpec extends Specification with Discipline {
   }
 
   // copied from FreeSuite
-  def headOptionU = λ[List ~> Option](_.headOption)
+  implicit def freeTArb[
+      F[_],
+      G[_]: Applicative,
+      A](
+      implicit F: Arbitrary[F[A]],
+      G: Arbitrary[G[A]],
+      A: Arbitrary[A])
+      : Arbitrary[FreeT[F, G, A]] =
+    Arbitrary(freeTGen[F, G, A](4))
+
+  def freeTGen[
+      F[_],
+      G[_]: Applicative,
+      A](
+      maxDepth: Int)(
+      implicit F: Arbitrary[F[A]],
+      G: Arbitrary[G[A]],
+      A: Arbitrary[A])
+      : Gen[FreeT[F, G, A]] = {
+    val noFlatMapped = Gen.oneOf(
+      A.arbitrary.map(FreeT.pure[F, G, A]),
+      F.arbitrary.map(FreeT.liftF[F, G, A])
+    )
+
+    val nextDepth = Gen.chooseNum(1, math.max(1, maxDepth - 1))
+
+    def withFlatMapped =
+      for {
+        fDepth <- nextDepth
+        freeDepth <- nextDepth
+        f <- Arbitrary.arbFunction1[A, FreeT[F, G, A]](Arbitrary(freeTGen[F, G, A](fDepth)), Cogen[Unit].contramap(_ => ())).arbitrary
+        freeFGA <- freeTGen[F, G, A](freeDepth)
+      } yield freeFGA.flatMap(f)
+
+    if (maxDepth <= 1) noFlatMapped
+    else Gen.oneOf(noFlatMapped, withFlatMapped)
+  }
 
   implicit def pureConcEq[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
 
