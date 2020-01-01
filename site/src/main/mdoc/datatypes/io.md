@@ -372,6 +372,7 @@ asynchronous boundaries. It can be achieved in the following way:
   We should also note that `flatMap` chains are only cancelable only if
   the chain happens *after* an asynchronous boundary.
   After an asynchronous boundary, cancellation checks are performed on every N `flatMap`.
+  The value of `N` is hardcoded to 512.
 
   Here is an example,
   ```scala mdoc:reset:silent
