@@ -36,9 +36,9 @@ class PureCancelableSpec extends Specification with Discipline {
 
   def F[E] = ConcurrentBracket[PureConc[E, ?], E]
 
-  checkAll(
+  /*checkAll(
     "PureConc",
-    BracketTests[PureConc[Int, ?], Int].bracket[Int, Int, Int])
+    BracketTests[PureConc[Int, ?], Int].bracket[Int, Int, Int])*/
 
   /*checkAll(
     "PureConc",

@@ -106,6 +106,12 @@ object ExitCase extends LowPriorityImplicits {
   implicit def monadError[F[_]: Traverse, E](implicit F: Monad[F]): MonadError[ExitCase[F, E, ?], E] =
     new ExitCaseApplicativeError[F, E]()(F) with MonadError[ExitCase[F, E, ?], E] {
 
+      override def map[A, B](fa: ExitCase[F, E, A])(f: A => B): ExitCase[F, E, B] = fa match {
+        case c: Completed[F, A] => Completed(F.map(c.fa)(f))
+        case Errored(e) => Errored(e)
+        case Canceled => Canceled
+      }
+
       def flatMap[A, B](fa: ExitCase[F, E, A])(f: A => ExitCase[F, E, B]): ExitCase[F, E, B] = fa match {
         case Completed(ifa) =>
           Traverse[F].traverse(ifa)(f) match {
