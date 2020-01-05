@@ -1086,10 +1086,11 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("cancel should wait for already started finalizers on success") { implicit ec =>
     implicit val contextShift = ec.contextShift[IO]
+    implicit val timer = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
-      fiber <- IO.unit.guarantee(pa.complete(()) >> IO.never).start
+      fiber <- IO.unit.guarantee(pa.complete(()) >> IO.sleep(1.second)).start
       _ <- pa.get
       _ <- fiber.cancel
     } yield ()
@@ -1097,8 +1098,10 @@ class IOTests extends BaseTestsSuite {
     val f = fa.unsafeToFuture()
 
     ec.tick()
-
     f.value shouldBe None
+
+    ec.tick(1.second)
+    f.value shouldBe Some(Success(()))
   }
 
   testAsync("cancel should wait for already started finalizers on failure") { implicit ec =>
