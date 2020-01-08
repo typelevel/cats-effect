@@ -240,6 +240,112 @@ sealed abstract class Resource[+F[_], +A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
+
+  /**
+    * def ex(name: String) =
+    *   for {
+    *     _ <- Resource.liftF(IO(scala.util.Random.nextInt(1000).millis))
+    *     a <- Resource
+    *       .make(put(s"$name: open 1"))(_ => put(s"$name: close 1"))
+    *      .as(1)
+    *     b <- Resource
+    *      .make(put(s"$name: open 2"))(_ => put(s"$name: close 2"))
+    *      .as(2)
+    *   } yield a + b
+    *
+    * def put(s: String) = IO(println(s))
+    * def three = parZip(ex("A"), ex("B")).use(_.pure[IO]).unsafeRunSync
+    *
+    * scala> three
+    * A: open 1
+    * A: open 2
+    * B: open 1
+    * B: open 2
+    * A: close 2
+    * A: close 1
+    * B: close 2
+    * B: close 1
+    * res3: (Int, Int) = (3,3)
+    * 
+    * scala> three
+    * A: open 1
+    * B: open 1
+    * A: open 2
+    * B: open 2
+    * A: close 2
+    * A: close 1
+    * B: close 2
+    * B: close 1
+    * res4: (Int, Int) = (3,3)
+    * 
+    * scala> three
+    * B: open 1
+    * A: open 1
+    * B: open 2
+    * A: open 2
+    * A: close 2
+    * B: close 2
+    * A: close 1
+    * B: close 1
+    * res5: (Int, Int) = (3,3)
+    *
+    **/
+
+  def parZip[F[_]: Sync: Parallel, A, B](
+      left: Resource[F, A],
+      right: Resource[F, B]
+    ): Resource[F, (A, B)] = {
+
+      def alloc[F[_]: Bracket[?[_], Throwable], A](
+        finalisers: (F[Unit] => F[Unit]) => F[Unit],
+        res: Resource[F, A]
+      ): F[A] = {
+        // Indirection for calling `loop` needed because `loop` must be @tailrec
+        def continue(
+          current: Resource[F, Any],
+          stack: List[Any => Resource[F, Any]]
+        ): F[Any] =
+          loop(current, stack)
+
+        // Interpreter that knows how to evaluate a Resource data structure;
+        // Maintains its own stack for dealing with Bind chains
+        @tailrec def loop(
+          current: Resource[F, Any],
+          stack: List[Any => Resource[F, Any]]
+        ): F[Any] = {
+          current match {
+            case Resource.Allocate(resource) =>
+              resource.bracketCase {
+                case (a, _) =>
+                  stack match {
+                    case Nil => a.pure[F]
+                    case f0 :: xs => continue(f0(a), xs)
+                  }
+              } {
+                case ((_, release), ec) =>
+                  finalisers(_.guarantee(release(ec)))
+              }
+            case Resource.Bind(source, f0) =>
+              loop(source, f0.asInstanceOf[Any => Resource[F, Any]] :: stack)
+            case Resource.Suspend(resource) =>
+              resource.flatMap(continue(_, stack))
+          }
+        }
+        loop(res.asInstanceOf[Resource[F, Any]], Nil).asInstanceOf[F[A]]
+      }
+
+    def store = Ref[F].of(Sync[F].unit -> Sync[F].unit)
+    type Store = (F[Unit] => F[Unit]) => F[Unit]
+
+    Resource.make(store)(_.get.flatMap(_.parTupled.void)).evalMap { store =>
+      val leftStore: Store = f => store.update(_.leftMap(f))
+      val rightStore: Store = f => store.update(_.map(f))
+
+      (alloc(leftStore, left), alloc(rightStore, right)).parTupled
+    }
+  }
+
+
   /**
    * Creates a resource from an allocating effect.
    *
