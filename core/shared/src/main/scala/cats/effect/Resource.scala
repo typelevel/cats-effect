@@ -19,8 +19,10 @@ package cats.effect
 import cats._
 import cats.data.AndThen
 import cats.effect.ExitCase.Completed
+import cats.effect.concurrent.Ref
 import cats.effect.internals.ResourcePlatform
 import cats.implicits._
+import cats.effect.implicits._
 
 import scala.annotation.tailrec
 
@@ -97,6 +99,37 @@ import scala.annotation.tailrec
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
+  private def fold[G[x] >: F[x], B](
+    onOutput: A => G[B],
+    onRelease: (ExitCase[Throwable] => G[Unit], ExitCase[Throwable]) => G[Unit]
+  )(implicit F: Bracket[G, Throwable]): G[B] = {
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+      loop(current, stack)
+
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+      current match {
+        case a: Allocate[G, Any] =>
+          F.bracketCase(a.resource) {
+            case (a, _) =>
+              stack match {
+                case Nil => onOutput.asInstanceOf[Any => G[Any]](a)
+                case l   => continue(l.head(a), l.tail)
+              }
+          } {
+            case ((_, release), ec) =>
+              onRelease(release, ec)
+          }
+        case b: Bind[G, _, Any] =>
+          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
+        case s: Suspend[G, Any] =>
+          s.resource.flatMap(continue(_, stack))
+      }
+    loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
+  }
+
   /**
    * Allocates a resource and supplies it to the given function.  The
    * resource is released as soon as the resulting `F[B]` is
@@ -105,125 +138,76 @@ sealed abstract class Resource[+F[_], +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] = {
-    // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-      loop(current, stack)
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
+    fold[G, B](f, (release, ec) => release(ec))
 
-    // Interpreter that knows how to evaluate a Resource data structure;
-    // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-      current match {
-        case a: Allocate[G, Any] =>
-          F.bracketCase(a.resource) {
-            case (a, _) =>
-              stack match {
-                case Nil => f.asInstanceOf[Any => G[Any]](a)
-                case l   => continue(l.head(a), l.tail)
-              }
-          } {
-            case ((_, release), ec) =>
-              release(ec)
-          }
-        case b: Bind[G, _, Any] =>
-          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
-        case s: Suspend[G, Any] =>
-          s.resource.flatMap(continue(_, stack))
-      }
-    loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
-  }
-
-  def stored[G[x] >: F[x], B >: A](f: (G[Unit] => G[Unit]) => G[Unit])(implicit F: Bracket[G, Throwable]): G[B] = {
-    // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-      loop(current, stack)
-
-    // Interpreter that knows how to evaluate a Resource data structure;
-    // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-      current match {
-        case a: Allocate[G, Any] =>
-          F.bracketCase(a.resource) {
-            case (a, _) =>
-              stack match {
-                case Nil => a.pure[G]
-                case l   => continue(l.head(a), l.tail)
-              }
-          } {
-            case ((_, release), ec) =>
-              f(F.guarantee(_)(release(ec)))
-          }
-        case b: Bind[G, _, Any] =>
-          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
-        case s: Suspend[G, Any] =>
-          s.resource.flatMap(continue(_, stack))
-      }
-    loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
-  }
-
-    /**
-    * def ex(name: String) =
-    *   for {
-    *     _ <- Resource.liftF(IO(scala.util.Random.nextInt(1000).millis))
-    *     a <- Resource
-    *       .make(put(s"$name: open 1"))(_ => put(s"$name: close 1"))
-    *      .as(1)
-    *     b <- Resource
-    *      .make(put(s"$name: open 2"))(_ => put(s"$name: close 2"))
-    *      .as(2)
-    *   } yield a + b
-    *
-    * def put(s: String) = IO(println(s))
-    * def three = parZip(ex("A"), ex("B")).use(_.pure[IO]).unsafeRunSync
-    *
-    * scala> three
-    * A: open 1
-    * A: open 2
-    * B: open 1
-    * B: open 2
-    * A: close 2
-    * A: close 1
-    * B: close 2
-    * B: close 1
-    * res3: (Int, Int) = (3,3)
-    * 
-    * scala> three
-    * A: open 1
-    * B: open 1
-    * A: open 2
-    * B: open 2
-    * A: close 2
-    * A: close 1
-    * B: close 2
-    * B: close 1
-    * res4: (Int, Int) = (3,3)
-    * 
-    * scala> three
-    * B: open 1
-    * A: open 1
-    * B: open 2
-    * A: open 2
-    * A: close 2
-    * B: close 2
-    * A: close 1
-    * B: close 1
-    * res5: (Int, Int) = (3,3)
-    *
+  /**
+   * def ex(name: String) =
+   *   for {
+   *     _ <- Resource.liftF(IO(scala.util.Random.nextInt(1000).millis))
+   *     a <- Resource
+   *       .make(put(s"$name: open 1"))(_ => put(s"$name: close 1"))
+   *      .as(1)
+   *     b <- Resource
+   *      .make(put(s"$name: open 2"))(_ => put(s"$name: close 2"))
+   *      .as(2)
+   *   } yield a + b
+   *
+   * def put(s: String) = IO(println(s))
+   * def three = parZip(ex("A"), ex("B")).use(_.pure[IO]).unsafeRunSync
+   *
+   * scala> three
+   * A: open 1
+   * A: open 2
+   * B: open 1
+   * B: open 2
+   * A: close 2
+   * A: close 1
+   * B: close 2
+   * B: close 1
+   * res3: (Int, Int) = (3,3)
+   *
+   * scala> three
+   * A: open 1
+   * B: open 1
+   * A: open 2
+   * B: open 2
+   * A: close 2
+   * A: close 1
+   * B: close 2
+   * B: close 1
+   * res4: (Int, Int) = (3,3)
+   *
+   * scala> three
+   * B: open 1
+   * A: open 1
+   * B: open 2
+   * A: open 2
+   * A: close 2
+   * B: close 2
+   * A: close 1
+   * B: close 1
+   * res5: (Int, Int) = (3,3)
+   *
     **/
-
   def parZip[G[x] >: F[x]: Sync: Parallel, B](
-      other: Resource[G, B]
-    ): Resource[G, (A, B)] = {
+    that: Resource[G, B]
+  ): Resource[G, (A, B)] = {
+    type Update = (G[Unit] => G[Unit]) => G[Unit]
 
-    def store = cats.effect.concurrent.Ref[G].of(Sync[G].unit -> Sync[G].unit)
-    type Store = (G[Unit] => G[Unit]) => G[Unit]
+    def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
+      r.fold[G, C](_.pure[G], (release, ec) => storeFinalizer(_.guarantee(release(ec))))
 
-    Resource.make(store)(_.get.flatMap(_.parTupled.void)).evalMap { store =>
-      val leftStore: Store = f => store.update(_.leftMap(f))
-      val rightStore: Store = f => store.update(_.map(f))
+    val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
 
-      (this.stored(leftStore), other.stored(rightStore)).parTupled
-    }
+    Resource
+      .make(bothFinalizers)(_.get.flatMap(_.parTupled).void)
+      .evalMap { store =>
+        val leftStore: Update = f => store.update(_.leftMap(f))
+        val rightStore: Update = f => store.update(_.map(f))
+
+        (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+      }
   }
 
   /**
@@ -333,7 +317,6 @@ sealed abstract class Resource[+F[_], +A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
-
   /**
    * Creates a resource from an allocating effect.
    *
