@@ -85,6 +85,7 @@ These are some of the projects that provide high-level functions on top of `cats
 | [Log4cats](https://christopherdavenport.github.io/log4cats/) | Functional Logging |
 | [Cats STM](https://timwspence.github.io/cats-stm/) | Software Transactional Memory for Cats Effect |
 | [Mau](https://github.com/kailuowang/mau) | A tiny library for an auto polling `Ref` |
+| [Odin](https://github.com/valskalla/odin) | Fast & Functional logger with own logging backend |
 | [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing) | Experimental integration between cats-effect and testing frameworks |
 | [graphite4s](https://github.com/YannMoisan/graphite4s) | lightweight graphite client |
 
