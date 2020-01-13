@@ -141,7 +141,33 @@ sealed abstract class Resource[+F[_], +A] {
   def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
     fold[G, B](f, identity)
 
-
+  /**
+   * Allocates two resources concurrently, and combines their results in a tuple.
+   *
+   * The finalizers for the two resources are also run concurrently with each other,
+   * but within _each_ of the two resources, nested finalizers are run in the usual
+   * reverse order of acquisition.
+   *
+   * Note that `Resource` also comes with a `cats.Parallel` instance
+   * that offers more convenient access to the same functionality as
+   * `parZip`, for example via `parMapN`:
+   *
+   * {{{
+   *   def mkResource(name: String) = {
+   *     val acquire =
+   *       IO(scala.util.Random.nextInt(1000).millis) *>
+   *       IO(println(s"Acquiring $$name")).as(name)
+   *
+   *     val release = IO(println(s"Releasing $$name"))
+   *     Resource.make(acquire)(release)
+   *   }
+   *
+   *  val r = (mkResource("one"), mkResource("two"))
+   *             .parMapN((s1, s2) => s"I have $s1 and $s2 ")
+   *             .use(msg => IO(println(msg)))
+   * }}}
+   *
+   **/
   def parZip[G[x] >: F[x]: Sync: Parallel, B](
     that: Resource[G, B]
   ): Resource[G, (A, B)] = {
