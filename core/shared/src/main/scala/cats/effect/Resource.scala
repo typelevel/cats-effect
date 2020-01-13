@@ -101,7 +101,7 @@ sealed abstract class Resource[+F[_], +A] {
 
   private def fold[G[x] >: F[x], B](
     onOutput: A => G[B],
-    onRelease: (ExitCase[Throwable] => G[Unit], ExitCase[Throwable]) => G[Unit]
+    onRelease: G[Unit] => G[Unit]
   )(implicit F: Bracket[G, Throwable]): G[B] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
@@ -120,7 +120,7 @@ sealed abstract class Resource[+F[_], +A] {
               }
           } {
             case ((_, release), ec) =>
-              onRelease(release, ec)
+              onRelease(release(ec))
           }
         case b: Bind[G, _, Any] =>
           loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
@@ -139,64 +139,16 @@ sealed abstract class Resource[+F[_], +A] {
    * @return the result of applying [F] to
    */
   def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
-    fold[G, B](f, (release, ec) => release(ec))
+    fold[G, B](f, identity)
 
-  /**
-   * def ex(name: String) =
-   *   for {
-   *     _ <- Resource.liftF(IO(scala.util.Random.nextInt(1000).millis))
-   *     a <- Resource
-   *       .make(put(s"$name: open 1"))(_ => put(s"$name: close 1"))
-   *      .as(1)
-   *     b <- Resource
-   *      .make(put(s"$name: open 2"))(_ => put(s"$name: close 2"))
-   *      .as(2)
-   *   } yield a + b
-   *
-   * def put(s: String) = IO(println(s))
-   * def three = parZip(ex("A"), ex("B")).use(_.pure[IO]).unsafeRunSync
-   *
-   * scala> three
-   * A: open 1
-   * A: open 2
-   * B: open 1
-   * B: open 2
-   * A: close 2
-   * A: close 1
-   * B: close 2
-   * B: close 1
-   * res3: (Int, Int) = (3,3)
-   *
-   * scala> three
-   * A: open 1
-   * B: open 1
-   * A: open 2
-   * B: open 2
-   * A: close 2
-   * A: close 1
-   * B: close 2
-   * B: close 1
-   * res4: (Int, Int) = (3,3)
-   *
-   * scala> three
-   * B: open 1
-   * A: open 1
-   * B: open 2
-   * A: open 2
-   * A: close 2
-   * B: close 2
-   * A: close 1
-   * B: close 1
-   * res5: (Int, Int) = (3,3)
-   *
-    **/
+
   def parZip[G[x] >: F[x]: Sync: Parallel, B](
     that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
 
     def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
-      r.fold[G, C](_.pure[G], (release, ec) => storeFinalizer(_.guarantee(release(ec))))
+      r.fold[G, C](_.pure[G], release => storeFinalizer(_.guarantee(release)))
 
     val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
 
