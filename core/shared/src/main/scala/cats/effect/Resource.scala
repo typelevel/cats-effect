@@ -374,6 +374,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   /**
    * Lifts an applicative into a resource.  The resource has a no-op release.
+   * Preserves interruptibility of `fa`
    *
    * @param fa the value to lift into a resource
    */
