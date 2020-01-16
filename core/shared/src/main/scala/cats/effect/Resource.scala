@@ -449,6 +449,34 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * resource value.
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Resource[F, A]
+
+  /**
+    * Newtype encoding for a `Resource` datatype that has a `cats.Applicative`
+    * capable of doing parallel processing in `ap` and `map2`, needed
+    * for implementing `cats.Parallel`.
+    *
+    * Helpers are provided for converting back and forth in `Par.apply`
+    * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
+    *
+    * The encoding is based on the "newtypes" project by
+    * Alexander Konovalov, chosen because it's devoid of boxing issues and
+    * a good choice until opaque types will land in Scala.
+    * [[https://github.com/alexknvl/newtypes alexknvl/newtypes]].
+    *
+    */
+  type Par[+F[_], +A] = Par.Type[F, A]
+
+  object Par {
+    type Base
+    trait Tag extends Any
+    type Type[+F[_], +A] <: Base with Tag
+
+    def apply[F[_], A](fa: Resource[F, A]): Type[F, A] =
+      fa.asInstanceOf[Type[F, A]]
+
+    def unwrap[F[_], A](fa: Type[F, A]): Resource[F, A] =
+      fa.asInstanceOf[Resource[F, A]]
+  }
 }
 
 abstract private[effect] class ResourceInstances extends ResourceInstances0 {
@@ -468,6 +496,19 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F0 = F00
       def F1 = F10
     }
+
+  implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](implicit F: Sync[F], P: Parallel[F]): CommutativeApplicative[Resource.Par[F, *]] =
+    new ResourceParCommutativeApplicative[F] {
+      def F0 = F
+      def F1 = P
+    }
+
+  implicit def catsEffectParallelForResource[F0[_]: Sync: Parallel]: Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
+    new ResourceParallel[F0] {
+      final override val F0 = catsEffectCommutativeApplicativeForResourcePar
+      final override val F1 = catsEffectMonadForResource
+    }
+
 }
 
 abstract private[effect] class ResourceInstances0 {
@@ -580,4 +621,40 @@ abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *
 
   def liftIO[A](ioa: IO[A]): Resource[F, A] =
     Resource.liftF(F0.liftIO(ioa))
+}
+
+abstract private[effect] class ResourceParCommutativeApplicative[F[_]] extends CommutativeApplicative[Resource.Par[F, *]] {
+  import Resource.Par
+  import Resource.Par.{unwrap, apply => par}
+
+  implicit protected def F0: Sync[F]
+  implicit protected def F1: Parallel[F]
+
+
+  final override def map[A, B](fa: Par[F, A])(f: A => B): Par[F, B] =
+    par(unwrap(fa).map(f))
+  final override def pure[A](x: A): Par[F, A] =
+    par(Resource.pure[F, A](x))
+  final override def product[A, B](fa: Par[F, A], fb: Par[F, B]): Par[F, (A, B)] =
+    par(unwrap(fa) parZip unwrap(fb))
+  final override def map2[A, B, Z](fa: Par[F, A], fb: Par[F, B])(f: (A, B) => Z): Par[F, Z] =
+    map(product(fa, fb)) { case (a, b) => f(a,b) }
+  final override def ap[A, B](ff: Par[F, A => B])(fa: Par[F, A]): Par[F, B] =
+    map(product(ff, fa)) { case (ff, a) => ff(a) }
+}
+
+abstract private[effect] class ResourceParallel[F0[_]] extends Parallel[Resource[F0, *]] {
+  protected def F0: Applicative[Resource.Par[F0, *]]
+  protected def F1: Monad[Resource[F0, *]]
+
+  type F[x] = Resource.Par[F0, x]
+
+  final override val applicative: Applicative[Resource.Par[F0, *]] = F0
+  final override val monad: Monad[Resource[F0, *]] = F1
+
+  final override val sequential: Resource.Par[F0, *] ~> Resource[F0, *] =
+    λ[Resource.Par[F0, *] ~> Resource[F0, *]](Resource.Par.unwrap(_))
+
+  final override val parallel: Resource[F0, *] ~> Resource.Par[F0, *] =
+    λ[Resource[F0, *] ~> Resource.Par[F0, *]](Resource.Par(_))
 }
