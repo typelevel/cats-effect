@@ -58,7 +58,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFExitCaseEA: Eq[F[ExitCase[F, E, A]]],
       EqFExitCaseEU: Eq[F[ExitCase[F, E, Unit]]],
-      EqEitherTFEA: Eq[EitherT[F, E, A]],
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       iso: Isomorphisms[F],
