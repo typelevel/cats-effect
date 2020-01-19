@@ -21,37 +21,6 @@ import cats.MonadError
 import cats.implicits._
 import cats.laws.MonadErrorLaws
 
-trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
-
-  implicit val F: Concurrent[F, E]
-
-  def racePairLeftErrorYields[A](fa: F[A], e: E) = {
-    val fe = F.raiseError[Unit](e)
-    F.racePair(fe, fa) <-> F.start(fe).flatMap(f => fa.map(a => Right((f, a))))
-  }
-
-  def racePairRightErrorYields[A](fa: F[A], e: E) = {
-    val fe = F.raiseError[Unit](e)
-    F.racePair(fa, fe) <-> F.start(fe).flatMap(f => fa.map(a => Left((a, f))))
-  }
-
-  def racePairLeftCanceledYields[A](fa: F[A]) = {
-    val fc = F.canceled(())
-    F.racePair(fc, fa) <-> F.start(fc).flatMap(f => fa.map(a => Right((f, a))))
-  }
-
-  def racePairRightCanceledYields[A](fa: F[A]) = {
-    val fc = F.canceled(())
-    F.racePair(fa, fc) <-> F.start(fc).flatMap(f => fa.map(a => Left((a, f))))
-  }
-
-  def fiberCancelationIsCanceled[A](body: F[A]) =
-    F.start(body).flatMap(f => f.cancel *> f.join) <-> F.pure(ExitCase.Canceled)
-
-  def fiberOfCanceledIsCanceled =
-    F.start(F.canceled(())).flatMap(_.join) <-> F.pure(ExitCase.Canceled)
-}
-
 trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLaws[F, E] {
 
   implicit val F: Concurrent[F, E] with Bracket[F, E]
@@ -63,17 +32,16 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
     } <-> (acq.flatMap(_ => release) *> F.canceled(b))
   }
 
-  def bracketProtectSuppressesCancelation[A, B](acq: F[A], use: A => F[B], cancel: F[Unit], completed: F[B] => F[Unit], b: B) = {
-    val result = F.bracketCase(acq)(a => F.uncancelable(_ => use(a))) {
-      case (_, ExitCase.Canceled) => cancel
-      case (_, ExitCase.Completed(b)) => completed(b)
-      case (_, ExitCase.Errored(e)) => F.raiseError(e)
+  def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, ExitCase[F, E, B]) => F[Unit]) = {
+    val identity = F uncancelable { poll =>
+      acq flatMap { a =>
+        val finalized = F.onCase(poll(use(a)), release(a, ExitCase.Canceled))(ExitCase.Canceled ==)
+        val handled = finalized.handleErrorWith(e => release(a, ExitCase.Errored(e)).attempt >> F.raiseError(e))
+        handled.flatMap(b => release(a, ExitCase.Completed(F.pure(b))).attempt.as(b))
+      }
     }
 
-    val completes = result <-> (acq.flatMap(use).flatMap(b => completed(b.pure[F]).as(b)))
-    val aborts = result <-> F.canceled(b)
-
-    completes || aborts
+    F.bracketCase(acq)(use)(release) <-> identity
   }
 
   // TODO cancel a fiber in uncancelable still cancels

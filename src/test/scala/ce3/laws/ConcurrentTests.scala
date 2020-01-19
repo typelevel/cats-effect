@@ -25,11 +25,11 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with BracketTests[F, E] {
+trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
 
-  val laws: ConcurrentBracketLaws[F, E]
+  val laws: ConcurrentLaws[F, E]
 
-  def concurrentBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
@@ -69,19 +69,29 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
       : RuleSet = {
 
     new RuleSet {
-      val name = "concurrent (bracket)"
+      val name = "concurrent"
       val bases = Nil
-      val parents = Seq(concurrent[A, B, C], bracket[A, B, C])
+      val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "bracket canceled releases" -> forAll(laws.bracketCanceledReleases[A, B] _),
-        "bracket uncancelable flatMap identity" -> forAll(laws.bracketUncancelableFlatMapIdentity[A, B] _))
+        "concurrent race is racePair idenitty" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
+        "concurrent race left error yields" -> forAll(laws.raceLeftErrorYields[A] _),
+        "concurrent race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
+        "concurrent race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
+        "concurrent race right canceled yields" -> forAll(laws.raceRightCanceledYields[A] _),
+        "concurrent fiber pure is completed pure" -> forAll(laws.fiberPureIsCompletedPure[A] _),
+        "concurrent fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
+        "concurrent fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
+        "concurrent fiber of canceled is canceled" -> laws.fiberOfCanceledIsCanceled,
+        "concurrent uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
+        "concurrent uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
+        "concurrent uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _))
     }
   }
 }
 
-object ConcurrentBracketTests {
-  def apply[F[_], E](implicit F0: Concurrent[F, E] with Bracket[F, E]): ConcurrentBracketTests[F, E] = new ConcurrentBracketTests[F, E] {
-    val laws = ConcurrentBracketLaws[F, E]
+object ConcurrentTests {
+  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] = new ConcurrentTests[F, E] {
+    val laws = ConcurrentLaws[F, E]
   }
 }
