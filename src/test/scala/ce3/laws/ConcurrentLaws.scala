@@ -70,6 +70,9 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def startOfNeverIsUnit =
     F.start(F.never[Unit]).void <-> F.unit
 
+  def neverDistributesOverFlatMapLeft[A](fa: F[A]) =
+    F.never >> fa <-> F.never[A]
+
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
 
@@ -78,6 +81,15 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def uncancelableOfCanceledIsPure[A](a: A) =
     F.uncancelable(_ => F.canceled(a)) <-> F.pure(a)
+
+  def uncancelableRaceIsUncancelable[A](a: A) =
+    F.uncancelable(_ => F.race(F.never[Unit], F.canceled(a))) <-> F.pure(a.asRight[Unit])
+
+  def uncancelableStartIsCancelable =
+    F.uncancelable(_ => F.start(F.canceled(())).flatMap(_.join)) <-> F.pure(Outcome.Canceled)
+
+  def canceledDistributesOverFlatMapLeft[A](fa: F[A]) =
+    F.canceled(()) >> fa.void <-> F.canceled(())
 }
 
 object ConcurrentLaws {
