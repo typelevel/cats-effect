@@ -47,22 +47,22 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.race(fa, F.canceled(())) <-> fa.map(_.asLeft[Unit])
 
   def fiberPureIsCompletedPure[A](a: A) =
-    F.start(F.pure(a)).flatMap(f => f.cancel *> f.join) <-> F.pure(ExitCase.Completed(F.pure(a)))
+    F.start(F.pure(a)).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Completed(F.pure(a)))
 
   def fiberErrorIsErrored(e: E) =
-    F.start(F.raiseError[Unit](e)).flatMap(f => f.cancel *> f.join) <-> F.pure(ExitCase.Errored(e))
+    F.start(F.raiseError[Unit](e)).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Errored(e))
 
   def fiberCancelationIsCanceled =
-    F.start(F.never[Unit]).flatMap(f => f.cancel *> f.join) <-> F.pure(ExitCase.Canceled)
+    F.start(F.never[Unit]).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Canceled)
 
   def fiberOfCanceledIsCanceled =
-    F.start(F.canceled(())).flatMap(_.join) <-> F.pure(ExitCase.Canceled)
+    F.start(F.canceled(())).flatMap(_.join) <-> F.pure(Outcome.Canceled)
 
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
 
   def uncancelableFiberBodyWillComplete[A](fa: F[A]) =
-    F.start(F.uncancelable(_ => fa)).flatMap(f => f.cancel >> f.join) <-> fa.map(a => ExitCase.Completed(a.pure[F]))
+    F.start(F.uncancelable(_ => fa)).flatMap(f => f.cancel >> f.join) <-> fa.map(a => Outcome.Completed(a.pure[F]))
 
   def uncancelableOfCanceledIsPure[A](a: A) =
     F.uncancelable(_ => F.canceled(a)) <-> F.pure(a)

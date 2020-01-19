@@ -26,18 +26,18 @@ import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ExitCaseSpec extends Specification with Discipline {
+class OutcomeSpec extends Specification with Discipline {
   import Generators._
 
   checkAll(
-    "ExitCase[Id, Int, ?]",
-    MonadErrorTests[ExitCase[Id, Int, ?], Int].monadError[Int, Int, Int])
+    "Outcome[Id, Int, ?]",
+    MonadErrorTests[Outcome[Id, Int, ?], Int].monadError[Int, Int, Int])
 
   checkAll(
-    "ExitCase[Option, Int, ?]",
-    MonadErrorTests[ExitCase[Option, Int, ?], Int].monadError[Int, Int, Int])
+    "Outcome[Option, Int, ?]",
+    MonadErrorTests[Outcome[Option, Int, ?], Int].monadError[Int, Int, Int])
 
   checkAll(
-    "ExitCase[Eval, Int, ?]",
-    ApplicativeErrorTests[ExitCase[Eval, Int, ?], Int].applicativeError[Int, Int, Int])
+    "Outcome[Eval, Int, ?]",
+    ApplicativeErrorTests[Outcome[Eval, Int, ?], Int].applicativeError[Int, Int, Int])
 }

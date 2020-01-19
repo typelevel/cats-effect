@@ -74,7 +74,7 @@ object Generators {
     for {
       acquire <- genPureConc[E, A](depth + 1)
       use <- arbitrary[A => PureConc[E, A]]
-      release <- arbitrary[(A, ExitCase[PureConc[E, ?], E, A]) => PureConc[E, Unit]]
+      release <- arbitrary[(A, Outcome[PureConc[E, ?], E, A]) => PureConc[E, Unit]]
     } yield F[E].bracketCase(acquire)(use)(release)
   }
 
@@ -134,20 +134,20 @@ object Generators {
   }
 
   implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] =
-    Cogen[ExitCase[Option, E, A]].contramap(run(_))
+    Cogen[Outcome[Option, E, A]].contramap(run(_))
 
-  implicit def arbExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Arbitrary[ExitCase[F, E, A]] =
+  implicit def arbExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Arbitrary[Outcome[F, E, A]] =
     Arbitrary(genExitCase[F, E, A])
 
-  def genExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Gen[ExitCase[F, E, A]] =
+  def genExitCase[F[_], E: Arbitrary, A](implicit A: Arbitrary[F[A]]): Gen[Outcome[F, E, A]] =
     Gen.oneOf(
-      Gen.const(ExitCase.Canceled),
-      Arbitrary.arbitrary[E].map(ExitCase.Errored(_)),
-      Arbitrary.arbitrary[F[A]].map(ExitCase.Completed(_)))
+      Gen.const(Outcome.Canceled),
+      Arbitrary.arbitrary[E].map(Outcome.Errored(_)),
+      Arbitrary.arbitrary[F[A]].map(Outcome.Completed(_)))
 
-  implicit def cogenExitCase[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[ExitCase[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
-    case ExitCase.Canceled => None
-    case ExitCase.Completed(fa) => Some(Right(fa))
-    case ExitCase.Errored(e) => Some(Left(e))
+  implicit def cogenExitCase[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
+    case Outcome.Canceled => None
+    case Outcome.Completed(fa) => Some(Right(fa))
+    case Outcome.Errored(e) => Some(Left(e))
   }
 }

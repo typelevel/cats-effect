@@ -48,7 +48,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
     val acq: F[Int] = F.canceled(42)
 
-    def release(a: Int, c: ExitCase[F, Int, Unit]): F[Unit] =
+    def release(a: Int, c: Outcome[F, Int, Unit]): F[Unit] =
       F.unit
 
     def f(a: Int): Int = a
@@ -57,7 +57,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
     val expected = F uncancelable { _ =>
       acq flatMap { a =>
-        release(a, ExitCase.Errored(f(a))) *> F.raiseError[Unit](f(a))
+        release(a, Outcome.Errored(f(a))) *> F.raiseError[Unit](f(a))
       }
     }
 

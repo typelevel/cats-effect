@@ -27,17 +27,17 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
 
   def bracketCanceledReleases[A, B](acq: F[A], release: F[Unit], e: E, b: B) = {
     F.bracketCase(acq)(_ => F.canceled(b)) {
-      case (a, ExitCase.Canceled) => release
+      case (a, Outcome.Canceled) => release
       case _ => F.raiseError[Unit](e)
     } <-> (acq.flatMap(_ => release) *> F.canceled(b))
   }
 
-  def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, ExitCase[F, E, B]) => F[Unit]) = {
+  def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, Outcome[F, E, B]) => F[Unit]) = {
     val identity = F uncancelable { poll =>
       acq flatMap { a =>
-        val finalized = F.onCase(poll(use(a)), release(a, ExitCase.Canceled))(ExitCase.Canceled ==)
-        val handled = finalized.handleErrorWith(e => release(a, ExitCase.Errored(e)).attempt >> F.raiseError(e))
-        handled.flatMap(b => release(a, ExitCase.Completed(F.pure(b))).attempt.as(b))
+        val finalized = F.onCase(poll(use(a)), release(a, Outcome.Canceled))(Outcome.Canceled ==)
+        val handled = finalized.handleErrorWith(e => release(a, Outcome.Errored(e)).attempt >> F.raiseError(e))
+        handled.flatMap(b => release(a, Outcome.Completed(F.pure(b))).attempt.as(b))
       }
     }
 

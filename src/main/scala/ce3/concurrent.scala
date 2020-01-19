@@ -23,14 +23,14 @@ import scala.concurrent.duration.FiniteDuration
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
-  def join: F[ExitCase[F, E, A]]
+  def join: F[Outcome[F, E, A]]
 }
 
 trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
-  type Case[A] = ExitCase[F, E, A]
+  type Case[A] = Outcome[F, E, A]
 
-  final def CaseInstance: ApplicativeError[ExitCase[F, E, ?], E] =
-    ExitCase.applicativeError[F, E](this)
+  final def CaseInstance: ApplicativeError[Outcome[F, E, ?], E] =
+    Outcome.applicativeError[F, E](this)
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 

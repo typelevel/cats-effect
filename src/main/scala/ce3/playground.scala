@@ -28,13 +28,13 @@ import coop.{ApplicativeThread, ThreadT, MVar}
 
 object playground {
 
-  type IdEC[E, A] = ExitCase[Id, E, A]                      // a fiber may complete, error, or cancel
-  type FiberR[E, A] = Kleisli[IdEC[E, ?], FiberCtx[E], A]   // fiber context and results
+  type IdOC[E, A] = Outcome[Id, E, A]                       // a fiber may complete, error, or cancel
+  type FiberR[E, A] = Kleisli[IdOC[E, ?], FiberCtx[E], A]   // fiber context and results
   type MVarR[F[_], A] = Kleisli[F, MVar.Universe, A]        // ability to use MVar(s)
 
   type PureConc[E, A] = MVarR[ThreadT[FiberR[E, ?], ?], A]
 
-  type Finalizer[E] = ExitCase[PureConc[E, ?], E, Nothing] => PureConc[E, Unit]
+  type Finalizer[E] = Outcome[PureConc[E, ?], E, Nothing] => PureConc[E, Unit]
 
   final class MaskId
 
@@ -44,14 +44,14 @@ object playground {
 
   final case class FiberCtx[E](self: PureFiber[E, _], masks: List[MaskId] = Nil)
 
-  type ResolvedPC[E, A] = ThreadT[IdEC[E, ?], A]
+  type ResolvedPC[E, A] = ThreadT[IdOC[E, ?], A]
 
-  def resolveMain[E, A](pc: PureConc[E, A]): ResolvedPC[E, IdEC[E, A]] = {
+  def resolveMain[E, A](pc: PureConc[E, A]): ResolvedPC[E, IdOC[E, A]] = {
     /*
      * The cancelation implementation is here. The failures of type inference make this look
      * HORRIBLE but the general idea is fairly simple: mapK over the FreeT into a new monad
-     * which sequences a cancelation check within each flatten. Thus, we go from Kleisli[FreeT[Kleisli[ExitCase[Id, ...]]]]
-     * to Kleisli[FreeT[Kleisli[FreeT[Kleisli[ExitCase[Id, ...]]]]]]]], which we then need to go
+     * which sequences a cancelation check within each flatten. Thus, we go from Kleisli[FreeT[Kleisli[Outcome[Id, ...]]]]
+     * to Kleisli[FreeT[Kleisli[FreeT[Kleisli[Outcome[Id, ...]]]]]]]], which we then need to go
      * through and flatten. The cancelation check *itself* is in `cancelationCheck`, while the flattening
      * process is in the definition of `val canceled`.
      *
@@ -60,7 +60,7 @@ object playground {
 
     val cancelationCheck = new (FiberR[E, ?] ~> PureConc[E, ?]) {
       def apply[α](ka: FiberR[E, α]): PureConc[E, α] = {
-        val back = Kleisli.ask[IdEC[E, ?], FiberCtx[E]] map { ctx =>
+        val back = Kleisli.ask[IdOC[E, ?], FiberCtx[E]] map { ctx =>
           // we have to double check finalization so that we don't accidentally cancel the finalizer
           // this is also where we check masking to ensure that we don't abort out in the middle of a masked section
           (ctx.self.canceled, ctx.self.finalizing).mapN(_ && !_ && ctx.masks.isEmpty).ifM(
@@ -83,36 +83,36 @@ object playground {
       // this is PureConc[E, ?] without the inner Kleisli
       type Main[X] = MVarR[ResolvedPC[E, ?], X]
 
-      MVar.empty[Main, ExitCase[PureConc[E, ?], E, A]] flatMap { state0 =>
+      MVar.empty[Main, Outcome[PureConc[E, ?], E, A]] flatMap { state0 =>
         val state = state0[Main]
 
         MVar[Main, List[Finalizer[E]]](Nil) flatMap { finalizers =>
           val fiber = new PureFiber[E, A](state0, finalizers)
 
           val identified = canceled mapF { ta =>
-            ta mapK λ[FiberR[E, ?] ~> IdEC[E, ?]] { ke =>
+            ta mapK λ[FiberR[E, ?] ~> IdOC[E, ?]] { ke =>
               ke.run(FiberCtx(fiber))
             }
           }
 
-          import ExitCase._
+          import Outcome._
 
           val body = identified.flatMap(a => state.tryPut(Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
             state.tryPut(Errored(e))
           }
 
           val results = state.read flatMap {
-            case Canceled => (Canceled: IdEC[E, A]).pure[Main]
-            case Errored(e) => (Errored(e): IdEC[E, A]).pure[Main]
+            case Canceled => (Canceled: IdOC[E, A]).pure[Main]
+            case Errored(e) => (Errored(e): IdOC[E, A]).pure[Main]
 
             case Completed(fa) =>
               val identified = fa mapF { ta =>
-                ta mapK λ[FiberR[E, ?] ~> IdEC[E, ?]] { ke =>
+                ta mapK λ[FiberR[E, ?] ~> IdOC[E, ?]] { ke =>
                   ke.run(FiberCtx(fiber))
                 }
               }
 
-              identified.map(a => Completed[Id, A](a): IdEC[E, A])
+              identified.map(a => Completed[Id, A](a): IdOC[E, A])
           }
 
           Kleisli.ask[ResolvedPC[E, ?], MVar.Universe] map { u =>
@@ -130,24 +130,24 @@ object playground {
    * deadlocks outside of the main fiber are ignored when results are
    * appropriately produced (i.e. daemon semantics).
    */
-  def run[E, A](pc: PureConc[E, A]): ExitCase[Option, E, A] = {
+  def run[E, A](pc: PureConc[E, A]): Outcome[Option, E, A] = {
     val scheduled = ThreadT roundRobin {
       // we put things into WriterT because roundRobin returns Unit
-      val writerLift = λ[IdEC[E, ?] ~> WriterT[IdEC[E, ?], List[IdEC[E, A]], ?]](WriterT.liftF(_))
+      val writerLift = λ[IdOC[E, ?] ~> WriterT[IdOC[E, ?], List[IdOC[E, A]], ?]](WriterT.liftF(_))
 
       resolveMain(pc).mapK(writerLift) flatMap { ec =>
         ThreadT liftF {
-          WriterT.tell[IdEC[E, ?], List[IdEC[E, A]]](List(ec))
+          WriterT.tell[IdOC[E, ?], List[IdOC[E, A]]](List(ec))
         }
       }
     }
 
     scheduled.run.mapK(λ[Id ~> Option](Some(_))) flatMap {
       case (List(results), _) => results.mapK(λ[Id ~> Option](Some(_)))
-      case (_, false) => ExitCase.Completed(None)
+      case (_, false) => Outcome.Completed(None)
 
       // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
-      case _ => ExitCase.Completed(None)
+      case _ => Outcome.Completed(None)
     }
   }
 
@@ -212,27 +212,27 @@ object playground {
       def raiseError[A](e: E): PureConc[E, A] =
         M.raiseError(e)
 
-      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] =
+      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, Outcome[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] =
         uncancelable { poll =>
           acquire flatMap { a =>
-            val finalized = onCancel(poll(use(a)), release(a, ExitCase.Canceled))
-            val handled = finalized.handleErrorWith(e => release(a, ExitCase.Errored(e)).attempt >> raiseError(e))
-            handled.flatMap(b => release(a, ExitCase.Completed(pure(b))).attempt.as(b))
+            val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled))
+            val handled = finalized.handleErrorWith(e => release(a, Outcome.Errored(e)).attempt >> raiseError(e))
+            handled.flatMap(b => release(a, Outcome.Completed(pure(b))).attempt.as(b))
           }
         }
 
       def onCancel[A](fa: PureConc[E, A], body: PureConc[E, Unit]): PureConc[E, A] =
-        onCase(fa, body)(ExitCase.Canceled ==)
+        onCase(fa, body)(Outcome.Canceled ==)
 
-      override def onCase[A](fa: PureConc[E, A], body: PureConc[E, Unit])(p: ExitCase[PureConc[E, ?], E, A] => Boolean): PureConc[E, A] = {
+      override def onCase[A](fa: PureConc[E, A], body: PureConc[E, Unit])(p: Outcome[PureConc[E, ?], E, A] => Boolean): PureConc[E, A] = {
         val finalizer: Finalizer[E] =
           ec => uncancelable(_ => (if (p(ec)) body.attempt else unit) >> withCtx(_.self.popFinalizer))
 
         uncancelable { poll =>
-          val handled = poll(fa).handleErrorWith(e => finalizer(ExitCase.Errored(e)) >> raiseError[A](e))
+          val handled = poll(fa).handleErrorWith(e => finalizer(Outcome.Errored(e)) >> raiseError[A](e))
 
           val completed = handled flatMap { a =>
-            val run = if (p(ExitCase.Completed(pure(a))))
+            val run = if (p(Outcome.Completed(pure(a))))
               body.attempt.as(a)
             else
               pure(a)
@@ -289,14 +289,14 @@ object playground {
         } yield back
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, ?], E, A]] =
-        MVar.empty[PureConc[E, ?], ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
+        MVar.empty[PureConc[E, ?], Outcome[PureConc[E, ?], E, A]] flatMap { state =>
           MVar[PureConc[E, ?], List[Finalizer[E]]](Nil) flatMap { finalizers =>
             val fiber = new PureFiber[E, A](state, finalizers)
             val identified = localCtx(FiberCtx(fiber), fa)    // note we drop masks here
 
             // the tryPut(s) here are interesting: they encode first-wins semantics on cancelation/completion
-            val body = identified.flatMap(a => state.tryPut[PureConc[E, ?]](ExitCase.Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
-              state.tryPut[PureConc[E, ?]](ExitCase.Errored(e))
+            val body = identified.flatMap(a => state.tryPut[PureConc[E, ?]](Outcome.Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
+              state.tryPut[PureConc[E, ?]](Outcome.Errored(e))
             }
 
             Thread.start(body).as(fiber)
@@ -347,7 +347,7 @@ object playground {
 
   // the type inferencer just... fails... completely here
   private[this] def withCtx[E, A](body: FiberCtx[E] => PureConc[E, A]): PureConc[E, A] =
-    mvarLiftF(ThreadT.liftF(Kleisli.ask[IdEC[E, ?], FiberCtx[E]].map(body))).flatten
+    mvarLiftF(ThreadT.liftF(Kleisli.ask[IdOC[E, ?], FiberCtx[E]].map(body))).flatten
     // ApplicativeAsk[PureConc[E, ?], FiberCtx[E]].ask.flatMap(body)
 
   private[this] def localCtx[E, A](ctx: FiberCtx[E], around: PureConc[E, A]): PureConc[E, A] =
@@ -358,7 +358,7 @@ object playground {
     }
 
   final class PureFiber[E, A](
-      state0: MVar[ExitCase[PureConc[E, ?], E, A]],
+      state0: MVar[Outcome[PureConc[E, ?], E, A]],
       finalizers0: MVar[List[Finalizer[E]]])
       extends Fiber[PureConc[E, ?], E, A] {
 
@@ -373,7 +373,7 @@ object playground {
 
     private[playground] val cancelImmediate: PureConc[E, Boolean] = {
       val checkM = withCtx[E, Boolean](_.masks.isEmpty.pure[PureConc[E, ?]])
-      checkM.ifM(state.tryPut(ExitCase.Canceled), false.pure[PureConc[E, ?]])
+      checkM.ifM(state.tryPut(Outcome.Canceled), false.pure[PureConc[E, ?]])
     }
 
     private[playground] def pushFinalizer(f: Finalizer[E]): PureConc[E, Unit] =
@@ -385,10 +385,10 @@ object playground {
     // in case of multiple simultaneous cancelations, we block all others while we traverse
     val cancel: PureConc[E, Unit] =
       cancelImmediate.ifM(
-        finalizers.take.flatMap(_.traverse_(_(ExitCase.Canceled))) >> finalizers.put(Nil),
+        finalizers.take.flatMap(_.traverse_(_(Outcome.Canceled))) >> finalizers.put(Nil),
         finalizers.read.void)
 
-    val join: PureConc[E, ExitCase[PureConc[E, ?], E, A]] =
+    val join: PureConc[E, Outcome[PureConc[E, ?], E, A]] =
       state.read
   }
 }
