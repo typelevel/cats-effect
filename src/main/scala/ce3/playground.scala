@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{~>, Eq, Functor, Id, Monad, MonadError}
+import cats.{~>, Eq, Functor, Id, Monad, MonadError, Show}
 import cats.data.{Kleisli, WriterT}
 import cats.free.FreeT
 import cats.implicits._
@@ -44,12 +44,9 @@ object playground {
 
   final case class FiberCtx[E](self: PureFiber[E, _], masks: List[MaskId] = Nil)
 
-  /**
-   * Produces Completed(None) when the main fiber is deadlocked. Note that
-   * deadlocks outside of the main fiber are ignored when results are
-   * appropriately produced (i.e. daemon semantics).
-   */
-  def run[E, A](pc: PureConc[E, A]): ExitCase[Option, E, A] = {
+  type ResolvedPC[E, A] = ThreadT[IdEC[E, ?], A]
+
+  def resolveMain[E, A](pc: PureConc[E, A]): ResolvedPC[E, IdEC[E, A]] = {
     /*
      * The cancelation implementation is here. The failures of type inference make this look
      * HORRIBLE but the general idea is fairly simple: mapK over the FreeT into a new monad
@@ -82,13 +79,15 @@ object playground {
       flattenK(traversed)
     }
 
-    val resolved = MVar resolve {
+    val backM = MVar resolve {
       // this is PureConc[E, ?] without the inner Kleisli
-      type Main[X] = MVarR[ThreadT[IdEC[E, ?], ?], X]
+      type Main[X] = MVarR[ResolvedPC[E, ?], X]
 
-      MVar.empty[Main, ExitCase[PureConc[E, ?], E, A]] flatMap { state =>
+      MVar.empty[Main, ExitCase[PureConc[E, ?], E, A]] flatMap { state0 =>
+        val state = state0[Main]
+
         MVar[Main, List[Finalizer[E]]](Nil) flatMap { finalizers =>
-          val fiber = new PureFiber[E, A](state, finalizers)
+          val fiber = new PureFiber[E, A](state0, finalizers)
 
           val identified = canceled mapF { ta =>
             ta mapK λ[FiberR[E, ?] ~> IdEC[E, ?]] { ke =>
@@ -96,12 +95,13 @@ object playground {
             }
           }
 
-          val body = identified.flatMap(a => state.tryPut[Main](ExitCase.Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
-            state.tryPut[Main](ExitCase.Errored(e))
+          import ExitCase._
+
+          val body = identified.flatMap(a => state.tryPut(Completed(a.pure[PureConc[E, ?]]))) handleErrorWith { e =>
+            state.tryPut(Errored(e))
           }
 
-          import ExitCase._
-          val results = state.read[Main] flatMap {
+          val results = state.read flatMap {
             case Canceled => (Canceled: IdEC[E, A]).pure[Main]
             case Errored(e) => (Errored(e): IdEC[E, A]).pure[Main]
 
@@ -115,25 +115,30 @@ object playground {
               identified.map(a => Completed[Id, A](a): IdEC[E, A])
           }
 
-          Kleisli.ask[ThreadT[IdEC[E, ?], ?], MVar.Universe] map { u =>
-            (body.run(u), results.run(u))
+          Kleisli.ask[ResolvedPC[E, ?], MVar.Universe] map { u =>
+            body.run(u) >> results.run(u)
           }
         }
       }
     }
 
+    backM.flatten
+  }
+
+  /**
+   * Produces Completed(None) when the main fiber is deadlocked. Note that
+   * deadlocks outside of the main fiber are ignored when results are
+   * appropriately produced (i.e. daemon semantics).
+   */
+  def run[E, A](pc: PureConc[E, A]): ExitCase[Option, E, A] = {
     val scheduled = ThreadT roundRobin {
       // we put things into WriterT because roundRobin returns Unit
       val writerLift = λ[IdEC[E, ?] ~> WriterT[IdEC[E, ?], List[IdEC[E, A]], ?]](WriterT.liftF(_))
-      val lifted = resolved.mapK(writerLift)
 
-      lifted flatMap {
-        case (body, results) =>
-          body.mapK(writerLift) >> results.mapK(writerLift) flatMap { ec =>
-            ThreadT liftF {
-              WriterT.tell[IdEC[E, ?], List[IdEC[E, A]]](List(ec))
-            }
-          }
+      resolveMain(pc).mapK(writerLift) flatMap { ec =>
+        ThreadT liftF {
+          WriterT.tell[IdEC[E, ?], List[IdEC[E, A]]](List(ec))
+        }
       }
     }
 
@@ -145,6 +150,51 @@ object playground {
       case _ => ExitCase.Completed(None)
     }
   }
+
+  // the one in Free is broken: typelevel/cats#3240
+  implicit def catsFreeMonadErrorForFreeT2[
+      S[_],
+      M[_],
+      E](
+      implicit E: MonadError[M, E],
+      S: Functor[S])
+      : MonadError[FreeT[S, M, *], E] =
+    new MonadError[FreeT[S, M, *], E] {
+      private val F = FreeT.catsFreeMonadErrorForFreeT[S, M, E]
+
+      def pure[A](x: A): FreeT[S, M, A] =
+        F.pure(x)
+
+      def flatMap[A, B](fa: FreeT[S, M, A])(f: A => FreeT[S, M, B]): FreeT[S, M, B] =
+        F.flatMap(fa)(f)
+
+      def tailRecM[A, B](a: A)(f: A => FreeT[S, M, Either[A, B]]): FreeT[S, M, B] =
+        F.tailRecM(a)(f)
+
+      // this is the thing we need to override
+      def handleErrorWith[A](fa: FreeT[S, M, A])(f: E => FreeT[S, M, A]) = {
+        val ft = FreeT liftT[S, M, FreeT[S, M, A]] {
+          val resultsM = fa.resume map {
+            case Left(se) =>
+              pure(()).flatMap(_ => FreeT.roll(se.map(handleErrorWith(_)(f))))
+
+            case Right(a) =>
+              pure(a)
+          }
+
+          resultsM handleErrorWith { e =>
+            f(e).resume map { eth =>
+              FreeT.defer(eth.swap.pure[M]) // why on earth is defer inconsistent with resume??
+            }
+          }
+        }
+
+        ft.flatMap(identity)
+      }
+
+      def raiseError[A](e: E) =
+        F.raiseError(e)
+    }
 
   implicit def concurrentBForPureConc[E]: ConcurrentBracket[PureConc[E, ?], E] =
     new Concurrent[PureConc[E, ?], E] with Bracket[PureConc[E, ?], E] {
@@ -165,7 +215,7 @@ object playground {
       def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] = {
         val init = uncancelable { _ =>
           acquire flatMap { a =>
-            val finalizer: Finalizer[E] = ec => uncancelable(_ => release(a, ec) >> withCtx(_.self.popFinalizer))
+            val finalizer: Finalizer[E] = ec => uncancelable(_ => release(a, ec).attempt >> withCtx(_.self.popFinalizer))
             withCtx[E, Unit](_.self.pushFinalizer(finalizer)).as((a, finalizer))
           }
         }
@@ -177,7 +227,7 @@ object playground {
                 val released = release(a, ExitCase.Completed(b.pure[PureConc[E, ?]])) >>
                   withCtx(_.self.popFinalizer)
 
-                released.as(b)
+                handleError(released.as(b))(_ => b)
               }
             }
 
@@ -267,6 +317,18 @@ object playground {
 
       def tailRecM[A, B](a: A)(f: A => PureConc[E, Either[A, B]]): PureConc[E, B] =
         M.tailRecM(a)(f)
+    }
+
+  implicit def pureConcEq[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
+
+  implicit def showPureConc[E: Show, A: Show]: Show[PureConc[E, A]] =
+    Show show { pc =>
+      val trace = ThreadT.prettyPrint(resolveMain(pc), limit = 1024).fold(
+        "Canceled",
+        e => s"Errored(${e.show})",
+        str => str.replace('╭', '├'))
+
+      run(pc).show + "\n│\n" + trace
     }
 
   private[this] def mvarLiftF[F[_], A](fa: F[A]): MVarR[F, A] =

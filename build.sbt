@@ -30,8 +30,8 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % CatsVersion,
   "org.typelevel" %% "cats-free" % CatsVersion,
 
-  "com.codecommit" %% "coop" % "0.2.0",
+  "com.codecommit" %% "coop" % "0.3.1",
 
   "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
-  "org.typelevel" %% "discipline-specs2" % "0.12.0-M3" % Test,
-  "org.specs2"    %% "specs2-scalacheck" % "4.5.1"     % Test)
+  "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
+  "org.specs2"    %% "specs2-scalacheck" % "4.8.1"     % Test)
