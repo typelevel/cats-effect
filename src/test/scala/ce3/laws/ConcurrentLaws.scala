@@ -46,6 +46,12 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def raceRightCanceledYields[A](fa: F[A]) =
     F.race(fa, F.canceled(())) <-> fa.map(_.asLeft[Unit])
 
+  def raceLeftCedeYields[A](a: A) =
+    F.race(F.cede, F.pure(a)) <-> F.pure(Right(a))
+
+  def raceRightCedeYields[A](a: A) =
+    F.race(F.pure(a), F.cede) <-> F.pure(Left(a))
+
   def fiberPureIsCompletedPure[A](a: A) =
     F.start(F.pure(a)).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Completed(F.pure(a)))
 

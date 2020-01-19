@@ -78,6 +78,8 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
         "race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
         "race right canceled yields" -> forAll(laws.raceRightCanceledYields[A] _),
+        "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
+        "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsCompletedPure[A] _),
         "fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
