@@ -41,7 +41,10 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketReleaseErrorIgnore(e: E) =
     F.bracketCase(F.unit)(_ => F.unit)((_, _) => F.raiseError[Unit](e)) <-> F.unit
 
-  def bracketOnCaseDefinedByBracketCase[A](fa: F[A], body: F[Unit], p: F.Case[A] => Boolean) =
+  def bracketBodyIdentity[A](fa: F[A]) =
+    F.bracketCase(F.unit)(_ => fa)((_, _) => F.unit) <-> fa
+
+  def onCaseDefinedByBracketCase[A](fa: F[A], body: F[Unit], p: F.Case[A] => Boolean) =
     F.onCase(fa, body)(p) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => if (p(c)) body else F.unit)
 }
 

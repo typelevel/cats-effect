@@ -74,18 +74,18 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "concurrent race is racePair idenitty" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
-        "concurrent race left error yields" -> forAll(laws.raceLeftErrorYields[A] _),
-        "concurrent race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
-        "concurrent race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
-        "concurrent race right canceled yields" -> forAll(laws.raceRightCanceledYields[A] _),
-        "concurrent fiber pure is completed pure" -> forAll(laws.fiberPureIsCompletedPure[A] _),
-        "concurrent fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
-        "concurrent fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
-        "concurrent fiber of canceled is canceled" -> laws.fiberOfCanceledIsCanceled,
-        "concurrent uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "concurrent uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
-        "concurrent uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _))
+        "race is racePair idenitty" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
+        "race left error yields" -> forAll(laws.raceLeftErrorYields[A] _),
+        "race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
+        "race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
+        "race right canceled yields" -> forAll(laws.raceRightCanceledYields[A] _),
+        "fiber pure is completed pure" -> forAll(laws.fiberPureIsCompletedPure[A] _),
+        "fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
+        "fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
+        "fiber of canceled is canceled" -> laws.fiberOfCanceledIsCanceled,
+        "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
+        "uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
+        "uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _))
     }
   }
 }
