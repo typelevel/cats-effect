@@ -47,13 +47,13 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.race(fa, F.canceled(())) <-> fa.map(_.asLeft[Unit])
 
   def fiberPureIsCompletedPure[A](a: A) =
-    F.start(F.pure(a)).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Completed(F.pure(a)))
+    F.start(F.pure(a)).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Completed(F.pure(a)))
 
   def fiberErrorIsErrored(e: E) =
-    F.start(F.raiseError[Unit](e)).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Errored(e))
+    F.start(F.raiseError[Unit](e)).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Errored(e))
 
   def fiberCancelationIsCanceled =
-    F.start(F.never[Unit]).flatMap(f => f.cancel *> f.join) <-> F.pure(Outcome.Canceled)
+    F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Canceled)
 
   def fiberOfCanceledIsCanceled =
     F.start(F.canceled(())).flatMap(_.join) <-> F.pure(Outcome.Canceled)
