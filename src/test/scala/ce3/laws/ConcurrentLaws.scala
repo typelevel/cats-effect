@@ -64,6 +64,12 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def fiberOfCanceledIsCanceled =
     F.start(F.canceled(())).flatMap(_.join) <-> F.pure(Outcome.Canceled)
 
+  def fiberJoinOfNeverIsNever =
+    F.start(F.never[Unit]).flatMap(_.join) <-> F.never[Outcome[F, E, Unit]]
+
+  def startOfNeverIsUnit =
+    F.start(F.never[Unit]).void <-> F.unit
+
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
 

@@ -73,7 +73,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "race is racePair idenitty" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
+        "race is racePair identity" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
         "race left error yields" -> forAll(laws.raceLeftErrorYields[A] _),
         "race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
         "race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
@@ -84,6 +84,8 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
         "fiber of canceled is canceled" -> laws.fiberOfCanceledIsCanceled,
+        "fiber join of never is never" -> laws.fiberJoinOfNeverIsNever,
+        "start of never is unit" -> laws.startOfNeverIsUnit,
         "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
         "uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
         "uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _))
