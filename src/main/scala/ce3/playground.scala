@@ -212,28 +212,35 @@ object playground {
       def raiseError[A](e: E): PureConc[E, A] =
         M.raiseError(e)
 
-      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] = {
-        val init = uncancelable { _ =>
+      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(release: (A, ExitCase[PureConc[E, ?], E, B]) => PureConc[E, Unit]): PureConc[E, B] =
+        uncancelable { poll =>
           acquire flatMap { a =>
-            val finalizer: Finalizer[E] = ec => uncancelable(_ => release(a, ec).attempt >> withCtx(_.self.popFinalizer))
-            withCtx[E, Unit](_.self.pushFinalizer(finalizer)).as((a, finalizer))
+            val finalized = onCancel(poll(use(a)), release(a, ExitCase.Canceled))
+            val handled = finalized.handleErrorWith(e => release(a, ExitCase.Errored(e)).attempt >> raiseError(e))
+            handled.flatMap(b => release(a, ExitCase.Completed(pure(b))).attempt.as(b))
           }
         }
 
-        init flatMap {
-          case (a, finalizer) =>
-            val used = use(a) flatMap { b =>
-              uncancelable { _ =>
-                val released = release(a, ExitCase.Completed(b.pure[PureConc[E, ?]])) >>
-                  withCtx(_.self.popFinalizer)
+      def onCancel[A](fa: PureConc[E, A], body: PureConc[E, Unit]): PureConc[E, A] =
+        onCase(fa, body)(ExitCase.Canceled ==)
 
-                handleError(released.as(b))(_ => b)
-              }
-            }
+      override def onCase[A](fa: PureConc[E, A], body: PureConc[E, Unit])(p: ExitCase[PureConc[E, ?], E, A] => Boolean): PureConc[E, A] = {
+        val finalizer: Finalizer[E] =
+          ec => uncancelable(_ => (if (p(ec)) body.attempt else unit) >> withCtx(_.self.popFinalizer))
 
-            handleErrorWith(used) { e =>
-              finalizer(ExitCase.Errored(e)) >> raiseError(e)
-            }
+        uncancelable { poll =>
+          val handled = poll(fa).handleErrorWith(e => finalizer(ExitCase.Errored(e)) >> raiseError[A](e))
+
+          val completed = handled flatMap { a =>
+            val run = if (p(ExitCase.Completed(pure(a))))
+              body.attempt.as(a)
+            else
+              pure(a)
+
+            run <* withCtx(_.self.popFinalizer)
+          }
+
+          withCtx[E, Unit](_.self.pushFinalizer(finalizer)) >> completed
         }
       }
 
