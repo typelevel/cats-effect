@@ -42,32 +42,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
     "PureConc",
     ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
 
-  "bracket pure example" >> {
-    type F[A] = PureConc[Int, A]
-    val F = Bracket[F, Int]
-
-    val acq: F[Int] = F.canceled(42)
-
-    def release(a: Int, c: Outcome[F, Int, Unit]): F[Unit] =
-      F.unit
-
-    def f(a: Int): Int = a
-
-    val result = F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))(release(_, _))
-
-    val expected = F uncancelable { _ =>
-      acq flatMap { a =>
-        release(a, Outcome.Errored(f(a))) *> F.raiseError[Unit](f(a))
-      }
-    }
-
-    result must beEqv(expected)
-  }
-
-  /*checkAll(
-    "PureConc",
-    ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])*/
-
   implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
     Arbitrary(genPureConc[E, A](0))
 
