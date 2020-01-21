@@ -21,6 +21,7 @@ install:
 
 script:
   - sbt ++$TRAVIS_SCALA_VERSION ci
+  - SCALAJS_VERSION=1.0.0-RC2 sbt ++$TRAVIS_SCALA_VERSION ci
   - |
     if [[ "$TRAVIS_SCALA_VERSION" =~ ^2\.12\. ]]; then
       sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
