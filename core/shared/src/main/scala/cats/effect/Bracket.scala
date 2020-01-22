@@ -192,12 +192,12 @@ object ExitCase {
    * outcome for the user, but it does for the purposes of the
    * `bracket` operation.
    */
-  final case object Completed extends ExitCase[Nothing]
+  case object Completed extends ExitCase[Nothing]
 
   /**
    * An [[ExitCase]] signaling completion in failure.
    */
-  final case class Error[+E](e: E) extends ExitCase[E]
+  case class Error[+E](e: E) extends ExitCase[E]
 
   /**
    * An [[ExitCase]] signaling that the action was aborted.
@@ -209,7 +209,7 @@ object ExitCase {
    * Thus [[Bracket]] allows you to observe interruption conditions
    * and act on them.
    */
-  final case object Canceled extends ExitCase[Nothing]
+  case object Canceled extends ExitCase[Nothing]
 
   /**
    * Parametrized alias for the [[Completed]] data constructor.
