@@ -4,6 +4,9 @@ language: scala
 
 matrix:
   include:
+    - jdk: openjdk9
+      scala: 0.22.0-bin-20200128-e7a0f80-NIGHTLY
+      env: COVERAGE=
     - jdk: openjdk8
       scala: 2.13.0
     # We want the latest stable Scala last so sbt-travisci makes it the default
