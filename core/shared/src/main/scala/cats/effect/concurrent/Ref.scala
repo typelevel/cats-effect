@@ -28,6 +28,7 @@ import cats.syntax.functor._
 import cats.syntax.bifunctor._
 
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 /**
  * An asynchronous, concurrent mutable reference.

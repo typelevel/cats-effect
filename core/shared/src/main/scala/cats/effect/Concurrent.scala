@@ -30,6 +30,7 @@ import cats.syntax.all._
 import scala.annotation.implicitNotFound
 import scala.concurrent.{Promise, TimeoutException}
 import scala.concurrent.duration.FiniteDuration
+import scala.language.implicitConversions
 import scala.util.Either
 import simulacrum.typeclass
 

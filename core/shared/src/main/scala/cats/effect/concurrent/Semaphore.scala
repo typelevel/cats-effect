@@ -22,6 +22,7 @@ import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
 import scala.collection.immutable.Queue
+import scala.language.implicitConversions
 
 /**
  * A purely functional semaphore.

@@ -21,6 +21,8 @@ import cats.syntax.applicative._
 import cats.syntax.flatMap._
 import cats.{~>, Applicative, Apply, Monoid, Semigroup}
 
+import scala.language.implicitConversions
+
 /**
  * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
  * being started concurrently and that can be either joined or canceled.

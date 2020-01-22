@@ -23,6 +23,7 @@ import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import cats.instances.tuple._
 import scala.annotation.implicitNotFound
+import scala.language.implicitConversions
 
 /**
  * A monad that can suspend the execution of side effects

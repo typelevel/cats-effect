@@ -17,9 +17,10 @@
 package cats.effect.syntax
 
 import cats.{Parallel, Traverse}
+import cats.effect.{Concurrent, Timer}
 
 import scala.concurrent.duration.FiniteDuration
-import cats.effect.{Concurrent, Timer}
+import scala.language.implicitConversions
 
 trait ConcurrentSyntax extends Concurrent.ToConcurrentOps {
   implicit def catsEffectSyntaxConcurrent[F[_], A](fa: F[A]): ConcurrentOps[F, A] =

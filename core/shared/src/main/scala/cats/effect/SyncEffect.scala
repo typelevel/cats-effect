@@ -20,6 +20,7 @@ package effect
 import simulacrum._
 import cats.data.{EitherT, WriterT}
 import scala.annotation.implicitNotFound
+import scala.language.implicitConversions
 
 /**
  * A monad that can suspend side effects into the `F` context and

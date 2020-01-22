@@ -27,6 +27,7 @@ import cats.effect.internals.TrampolineEC.immediate
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.implicitConversions
 import scala.util.{Either, Failure, Success}
 
 /**

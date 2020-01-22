@@ -18,6 +18,7 @@ package cats.effect.syntax
 
 import cats.effect.Async
 import cats.{Parallel, Traverse}
+import scala.language.implicitConversions
 
 trait AsyncSyntax extends Async.ToAsyncOps {
   implicit def catsEffectSyntaxAsyncObj[F[_]](F: Async[F]): AsyncObjOps[F] =

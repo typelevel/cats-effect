@@ -20,6 +20,7 @@ package effect
 import simulacrum._
 import cats.data.{EitherT, WriterT}
 import scala.annotation.implicitNotFound
+import scala.language.implicitConversions
 import scala.util.Either
 
 /**

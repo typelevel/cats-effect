@@ -19,6 +19,7 @@ package cats.effect.internals
 import cats.effect.{ContextShift, Fiber, IO}
 import cats.implicits._
 import scala.concurrent.Promise
+import scala.language.implicitConversions
 
 private[effect] object IOStart {
   /**

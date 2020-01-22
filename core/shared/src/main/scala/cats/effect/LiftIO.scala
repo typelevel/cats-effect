@@ -22,6 +22,7 @@ import simulacrum._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
+import scala.language.implicitConversions
 
 @typeclass
 @implicitNotFound("Could not find an instance of LiftIO for ${F}")

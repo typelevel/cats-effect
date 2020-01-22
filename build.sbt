@@ -59,6 +59,7 @@ val commonSettings = Seq(
   scalacOptions in (Compile, doc) ++=
     Opts.doc.title("cats-effect"),
   scalacOptions in Test += "-Yrangepos",
+  scalacOptions in Test += "-language:implicitConversions",
   scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
   libraryDependencies ++= (if (isDotty.value) Nil else Seq(compilerPlugin(scalafixSemanticdb))),
   scalacOptions ++= (if (isDotty.value) Nil
