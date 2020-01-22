@@ -104,7 +104,7 @@ private[effect] object IOConnection {
         case list =>
           CancelUtils
             .cancelAll(list.iterator)
-            .redeemWith(ex => IO(p.success(())).flatMap(_ => IO.raiseError(ex)), _ => IO(p.success(())))
+            .redeemWith(ex => IO(p.success(())).flatMap(_ => IO.raiseError(ex)), _ => IO { p.success(()); () })
       }
     }
 
