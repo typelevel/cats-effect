@@ -188,16 +188,7 @@ val lawsMimaSettings = mimaSettings ++ Seq(
 
 lazy val cmdlineProfile = sys.env.getOrElse("SBT_PROFILE", "")
 
-def profile: Project => Project =
-  pr => {
-    cmdlineProfile match {
-      case "coverage" => pr
-      case _          => pr.disablePlugins(scoverage.ScoverageSbtPlugin)
-    }
-  }
-
 lazy val scalaJSSettings = Seq(
-  coverageExcludedFiles := ".*",
   // Use globally accessible (rather than local) source paths in JS source maps
   scalacOptions += {
     val hasVersion = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.nonEmpty
@@ -231,7 +222,6 @@ lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
   .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
-  .configure(profile)
   .settings(skipOnPublishSettings)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -261,7 +251,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
-  .jvmConfigure(profile)
   .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val coreJVM = core.jvm
@@ -281,7 +270,6 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(lawsMimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
-  .jvmConfigure(profile)
   .jsConfigure(_.settings(scalaJSSettings))
 
 lazy val lawsJVM = laws.jvm
@@ -289,7 +277,6 @@ lazy val lawsJS = laws.js
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
-  .configure(profile)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "1.0.0-RC")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
@@ -297,7 +284,6 @@ lazy val benchmarksPrev = project
 
 lazy val benchmarksNext = project
   .in(file("benchmarks/vNext"))
-  .configure(profile)
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
