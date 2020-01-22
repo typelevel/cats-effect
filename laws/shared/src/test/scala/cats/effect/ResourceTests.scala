@@ -250,7 +250,7 @@ class ResourceTests extends BaseTestsSuite {
     val resource = Resource.liftF(IO.unit)
 
     val prog = for {
-      res <- (release *> resource).allocated
+      res <- (release *> resource).allocated[IO, Unit]
       (_, close) = res
       _ <- IO(released.get() shouldBe false)
       _ <- close
@@ -278,7 +278,7 @@ class ResourceTests extends BaseTestsSuite {
     val resource = Resource.liftF(IO.unit)
 
     val prog = for {
-      res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
+      res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated[IO, Int]
       (_, close) = res
       _ <- IO(released.get() shouldBe false)
       _ <- close

@@ -386,7 +386,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[cats.effect.Concurrent#background]] for the generic version.
    */
   final def background(implicit cs: ContextShift[IO]): Resource[IO, IO[A @uncheckedVariance]] =
-    Resource.make(start)(_.cancel).map(_.join)
+    Resource.make[IO, Fiber[IO, A]](start)(_.cancel).map(_.join)
 
   /**
    * Makes the source `IO` uninterruptible such that a [[Fiber.cancel]]

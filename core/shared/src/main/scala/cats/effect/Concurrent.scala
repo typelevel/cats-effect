@@ -243,7 +243,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * The same result can be achieved by using `anotherProcess &> longProcess` with the Parallel type class syntax.
    */
   def background[A](fa: F[A]): Resource[F, F[A]] =
-    Resource.make(start(fa))(_.cancel)(this).map(_.join)(this)
+    Resource.make[F, Fiber[F, A]](start(fa))(_.cancel)(this).map[F, F[A]](_.join)(this)
 
   /**
    * Run two tasks concurrently, creating a race between them and returns a
@@ -326,7 +326,7 @@ trait Concurrent[F[_]] extends Async[F] {
    * }}}
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[F]): F[A] =
-    Concurrent.defaultCancelable(k)(this)
+    Concurrent.defaultCancelable[F, A](k)(this)
 
   /**
    * Inherited from [[LiftIO]], defines a conversion from [[IO]]
