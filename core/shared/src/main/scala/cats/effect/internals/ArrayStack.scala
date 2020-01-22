@@ -23,7 +23,7 @@ package cats.effect.internals
  *
  * INTERNAL API.
  */
-final private[internals] class ArrayStack[A] private (
+final private[internals] class ArrayStack[A <: AnyRef] private (
   initialArray: Array[AnyRef],
   chunkSize: Int,
   initialIndex: Int
