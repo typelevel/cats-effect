@@ -44,18 +44,18 @@ object SyncEffect {
    * [[SyncEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `SyncEffect`.
    */
-  implicit def catsEitherTSyncEffect[F[_]: SyncEffect]: SyncEffect[EitherT[F, Throwable, ?]] =
+  implicit def catsEitherTSyncEffect[F[_]: SyncEffect]: SyncEffect[EitherT[F, Throwable, *]] =
     new EitherTSyncEffect[F] { def F = SyncEffect[F] }
 
   /**
    * [[SyncEffect]] instance built for `cats.data.WriterT` values initialized
    * with any `F` data type that also implements `SyncEffect`.
    */
-  implicit def catsWriterTSyncEffect[F[_]: SyncEffect, L: Monoid]: SyncEffect[WriterT[F, L, ?]] =
+  implicit def catsWriterTSyncEffect[F[_]: SyncEffect, L: Monoid]: SyncEffect[WriterT[F, L, *]] =
     new WriterTSyncEffect[F, L] { def F = SyncEffect[F]; def L = Monoid[L] }
 
   private[effect] trait EitherTSyncEffect[F[_]]
-      extends SyncEffect[EitherT[F, Throwable, ?]]
+      extends SyncEffect[EitherT[F, Throwable, *]]
       with Sync.EitherTSync[F, Throwable] {
     protected def F: SyncEffect[F]
 
@@ -63,7 +63,7 @@ object SyncEffect {
       F.runSync(F.rethrow(fa.value))
   }
 
-  private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, ?]] with Sync.WriterTSync[F, L] {
+  private[effect] trait WriterTSyncEffect[F[_], L] extends SyncEffect[WriterT[F, L, *]] with Sync.WriterTSync[F, L] {
     protected def F: SyncEffect[F]
     protected def L: Monoid[L]
 
