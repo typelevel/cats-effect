@@ -19,11 +19,10 @@ package effect
 
 import scala.concurrent.ExecutionContext
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
-class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
+class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(
