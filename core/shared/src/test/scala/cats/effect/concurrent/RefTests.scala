@@ -53,7 +53,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       getResult <- r.get
     } yield getAndSetResult == 0 && getResult == 1
 
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("access - successful") {
@@ -64,7 +64,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       success <- setter(value + 1)
       result <- r.get
     } yield success && result == 1
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("access - setter should fail if value is modified before setter is called") {
@@ -76,7 +76,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       success <- setter(value + 1)
       result <- r.get
     } yield !success && result == 5
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("access - setter should fail if called twice") {
@@ -89,7 +89,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       cond2 <- setter(value + 1)
       result <- r.get
     } yield cond1 && !cond2 && result == 0
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("tryUpdate - modification occurs successfully") {
@@ -99,7 +99,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       value <- r.get
     } yield result && value == 1
 
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("tryUpdate - should fail to update if modification has occurred") {
@@ -115,7 +115,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       )
     } yield result
 
-    run(op.map(_ shouldBe false))
+    run(op.map(_ shouldBe false).void)
   }
 
   test("tryModifyState - modification occurs successfully") {
@@ -124,7 +124,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.tryModifyState(State.pure(1))
     } yield result.contains(1)
 
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 
   test("modifyState - modification occurs successfully") {
@@ -133,6 +133,6 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyState(State.pure(1))
     } yield result == 1
 
-    run(op.map(_ shouldBe true))
+    run(op.map(_ shouldBe true).void)
   }
 }
