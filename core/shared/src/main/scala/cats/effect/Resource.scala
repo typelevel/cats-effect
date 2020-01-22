@@ -560,7 +560,7 @@ abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad
                  })
         })
       case Suspend(resource) =>
-        Suspend(resource.attempt.map {
+        Suspend(F.attempt(resource).map {
           case Left(error)               => Resource.pure[F, Either[E, A]](Left(error))
           case Right(fa: Resource[F, A]) => attempt(fa)
         })

@@ -190,7 +190,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     val received =
       F.racePair(fa, never).flatMap {
         case Left((a, fiberB)) =>
-          fiberB.cancel.map(_ => a)
+          F.map(fiberB.cancel)(_ => a)
         case Right(_) =>
           F.raiseError[A](new IllegalStateException("right"))
       }
@@ -202,7 +202,7 @@ trait ConcurrentLaws[F[_]] extends AsyncLaws[F] {
     val received =
       F.racePair(never, fb).flatMap {
         case Right((fiberA, b)) =>
-          fiberA.cancel.map(_ => b)
+          F.map(fiberA.cancel)(_ => b)
         case Left(_) =>
           F.raiseError[B](new IllegalStateException("left"))
       }

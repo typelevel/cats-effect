@@ -612,7 +612,7 @@ object Concurrent {
             case ExitCase.Completed | ExitCase.Error(_) =>
               fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
             case _ =>
-              fiber.cancel >>
+              (fiber.cancel: F[Unit]) >>
                 r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
           }.attempt
         }(_ => r.get.void)
@@ -696,14 +696,14 @@ object Concurrent {
         case Left((value, fiberB)) =>
           value match {
             case Left(_) =>
-              fiberB.cancel.map(_ => value.asInstanceOf[Left[L, Nothing]])
+              F.map(fiberB.cancel)(_ => value.asInstanceOf[Left[L, Nothing]])
             case Right(r) =>
               F.pure(Right(Left((r, fiberT[B](fiberB)))))
           }
         case Right((fiberA, value)) =>
           value match {
             case Left(_) =>
-              fiberA.cancel.map(_ => value.asInstanceOf[Left[L, Nothing]])
+              F.map(fiberA.cancel)(_ => value.asInstanceOf[Left[L, Nothing]])
             case Right(r) =>
               F.pure(Right(Right((fiberT[A](fiberA), r))))
           }
@@ -733,14 +733,14 @@ object Concurrent {
         case Left((value, fiberB)) =>
           value match {
             case None =>
-              fiberB.cancel.map(_ => None)
+              F.map(fiberB.cancel)(_ => None)
             case Some(r) =>
               F.pure(Some(Left((r, fiberT[B](fiberB)))))
           }
         case Right((fiberA, value)) =>
           value match {
             case None =>
-              fiberA.cancel.map(_ => None)
+              F.map(fiberA.cancel)(_ => None)
             case Some(r) =>
               F.pure(Some(Right((fiberT[A](fiberA), r))))
           }
@@ -825,7 +825,7 @@ object Concurrent {
         case Left((value, fiberB)) =>
           value match {
             case l @ Ior.Left(_) =>
-              fiberB.cancel.map(_ => l)
+              F.map(fiberB.cancel)(_ => l)
             case Ior.Right(r) =>
               F.pure(Ior.Right(Left((r, fiberT[B](fiberB)))))
             case Ior.Both(l, r) =>
@@ -834,7 +834,7 @@ object Concurrent {
         case Right((fiberA, value)) =>
           value match {
             case l @ Ior.Left(_) =>
-              fiberA.cancel.map(_ => l)
+              F.map(fiberA.cancel)(_ => l)
             case Ior.Right(r) =>
               F.pure(Ior.Right(Right((fiberT[A](fiberA), r))))
             case Ior.Both(l, r) =>
