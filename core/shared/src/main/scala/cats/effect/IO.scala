@@ -886,9 +886,13 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
       final override val monad: Monad[IO] =
         ioConcurrentEffect(cs)
 
-      final override val sequential: IO.Par ~> IO = λ[IO.Par ~> IO](IO.Par.unwrap(_))
+      final override val sequential: IO.Par ~> IO = new (IO.Par ~> IO) {
+        def apply[A](a: IO.Par[A]): IO[A] = IO.Par.unwrap(a)
+      }
 
-      final override val parallel: IO ~> IO.Par = λ[IO ~> IO.Par](IO.Par(_))
+      final override val parallel: IO ~> IO.Par = new (IO ~> IO.Par) {
+        def apply[A](a: IO[A]): IO.Par[A] = IO.Par(a)
+      }
     }
 
   implicit def ioMonoid[A: Monoid]: Monoid[IO[A]] = new IOSemigroup[A] with Monoid[IO[A]] {

@@ -48,7 +48,9 @@ final class Blocker private (val blockingContext: ExecutionContext) extends AnyV
    * `blockOn` as a natural transformation.
    */
   def blockOnK[F[_]](implicit cs: ContextShift[F]): F ~> F =
-    λ[F ~> F](blockOn(_))
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = blockOn(fa)
+    }
 }
 
 object Blocker extends BlockerPlatform {

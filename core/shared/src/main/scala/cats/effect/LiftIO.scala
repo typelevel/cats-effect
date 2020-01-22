@@ -33,7 +33,9 @@ object LiftIO {
   /**
    * [[LiftIO.liftIO]] as a natural transformation.
    */
-  def liftK[F[_]: LiftIO]: IO ~> F = λ[IO ~> F](_.to[F])
+  def liftK[F[_]: LiftIO]: IO ~> F = new (IO ~> F) {
+    def apply[A](a: IO[A]): F[A] = a.to[F]
+  }
 
   /**
    * [[LiftIO]] instance built for `cats.data.EitherT` values initialized

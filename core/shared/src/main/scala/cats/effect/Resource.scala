@@ -385,7 +385,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Lifts an applicative into a resource as a `FunctionK`.  The resource has a no-op release.
    */
   def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
-    λ[F ~> Resource[F, *]](Resource.liftF(_))
+    new (F ~> Resource[F, *]) {
+      def apply[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
+    }
 
   /**
    * Creates a [[Resource]] by wrapping a Java
@@ -656,8 +658,12 @@ abstract private[effect] class ResourceParallel[F0[_]] extends Parallel[Resource
   final override val monad: Monad[Resource[F0, *]] = F1
 
   final override val sequential: Resource.Par[F0, *] ~> Resource[F0, *] =
-    λ[Resource.Par[F0, *] ~> Resource[F0, *]](Resource.Par.unwrap(_))
+    new (Resource.Par[F0, *] ~> Resource[F0, *]) {
+      def apply[A](rpa: Resource.Par[F0, A]): Resource[F0, A] = Resource.Par.unwrap(rpa)
+    }
 
   final override val parallel: Resource[F0, *] ~> Resource.Par[F0, *] =
-    λ[Resource[F0, *] ~> Resource.Par[F0, *]](Resource.Par(_))
+    new (Resource[F0, *] ~> Resource.Par[F0, *]) {
+      def apply[A](ra: Resource[F0, A]): Resource.Par[F0, A] = Resource.Par(ra)
+    }
 }

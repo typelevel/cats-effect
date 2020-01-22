@@ -71,7 +71,9 @@ object Effect {
   /**
    * [[Effect.toIO]] as a natural transformation.
    */
-  def toIOK[F[_]](implicit F: Effect[F]): F ~> IO = λ[F ~> IO](F.toIO(_))
+  def toIOK[F[_]](implicit F: Effect[F]): F ~> IO = new (F ~> IO) {
+    def apply[A](fa: F[A]): IO[A] = F.toIO(fa)
+  }
 
   /**
    * [[Effect]] instance built for `cats.data.EitherT` values initialized
