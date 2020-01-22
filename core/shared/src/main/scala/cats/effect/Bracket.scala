@@ -197,7 +197,7 @@ object ExitCase {
   /**
    * An [[ExitCase]] signaling completion in failure.
    */
-  case class Error[+E](e: E) extends ExitCase[E]
+  final case class Error[+E](e: E) extends ExitCase[E]
 
   /**
    * An [[ExitCase]] signaling that the action was aborted.
