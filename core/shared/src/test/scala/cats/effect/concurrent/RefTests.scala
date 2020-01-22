@@ -37,7 +37,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture
+  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture()
 
   test("concurrent modifications") {
     val finalValue = 100

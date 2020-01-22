@@ -76,7 +76,7 @@ class FiberTests extends BaseTestsSuite {
       _ <- wait(joinFinalisersInstalled) *> joinFiber.cancel
     } yield ()
 
-    fa.unsafeToFuture
+    fa.unsafeToFuture()
     ec.tick()
 
     joinCanceled shouldBe true

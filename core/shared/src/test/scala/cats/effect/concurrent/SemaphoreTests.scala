@@ -37,7 +37,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           (0 until n).toList.traverse(_ => s.acquire).void *> s.available
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldBe 0)
     }
 
@@ -50,7 +50,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
             t <- s.tryAcquire
           } yield t
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldBe true)
     }
 
@@ -63,7 +63,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
             t <- s.tryAcquire
           } yield t
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldBe false)
     }
 
@@ -149,7 +149,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           (acquires(s, permits), releases(s, permits)).parTupled *> s.count
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldBe 0L)
     }
   }
@@ -165,7 +165,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         // count stays at 2.
         s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
       }
-      .unsafeToFuture
+      .unsafeToFuture()
       .map(_ shouldBe 2L)
   }
 
@@ -178,7 +178,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         // cancel, the permit count will be 2, otherwise 1
         s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
       }
-      .unsafeToFuture
+      .unsafeToFuture()
       .map(_ shouldBe 1L)
   }
 

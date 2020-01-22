@@ -39,7 +39,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         .flatMap { p =>
           p.complete(0) *> p.get
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldBe 0)
     }
 
@@ -48,7 +48,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         .flatMap { p =>
           (p.complete(0) *> p.complete(1).attempt).product(p.get)
         }
-        .unsafeToFuture
+        .unsafeToFuture()
         .map {
           case (err, value) =>
             err.swap.toOption.get shouldBe an[IllegalStateException]
@@ -66,13 +66,13 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         _ <- readGate.get
         res <- state.get
       } yield res
-      op.unsafeToFuture.map(_ shouldBe 2)
+      op.unsafeToFuture().map(_ shouldBe 2)
     }
   }
 
   def tryableTests(label: String, pc: TryableDeferredConstructor): Unit = {
     test(s"$label - tryGet returns None for unset Deferred") {
-      pc[Unit].flatMap(_.tryGet).unsafeToFuture.map(_ shouldBe None)
+      pc[Unit].flatMap(_.tryGet).unsafeToFuture().map(_ shouldBe None)
     }
 
     test(s"$label - tryGet returns Some() for set Deferred") {
@@ -82,7 +82,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         result <- d.tryGet
       } yield result shouldBe Some(())
 
-      op.unsafeToFuture
+      op.unsafeToFuture()
     }
   }
 
@@ -108,7 +108,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
     } yield result
 
   test("concurrent - get - cancel before forcing") {
-    cancelBeforeForcing(Deferred.apply).unsafeToFuture.map(_ shouldBe None)
+    cancelBeforeForcing(Deferred.apply).unsafeToFuture().map(_ shouldBe None)
   }
 
   test("issue #380: complete doesn't block, test #1") {

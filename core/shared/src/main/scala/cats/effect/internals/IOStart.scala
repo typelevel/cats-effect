@@ -32,7 +32,7 @@ private[effect] object IOStart {
       // Starting the source `IO`, with a new connection, because its
       // cancellation is now decoupled from our current one
       val conn2 = IOConnection()
-      val cb0 = { ea: Either[Throwable, A] =>
+      val cb0 = { (ea: Either[Throwable, A]) =>
         p.success(ea)
         ()
       }
