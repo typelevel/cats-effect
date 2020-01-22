@@ -96,10 +96,7 @@ import scala.util.{Either, Failure, Success}
  * See the [[Concurrent]] alternative for that.
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for Async[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of Async for ${F}")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
@@ -508,5 +505,41 @@ object Async {
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.liftF(F.async(k))
+  }
+
+  /****************************************************************************
+   * THE REST OF THIS OBJECT IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!! *
+   ****************************************************************************/
+  /**
+   * Summon an instance of [[Async]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Async[F]): Async[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Async[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Sync.AllOps[F, A] with LiftIO.AllOps[F, A] {
+    type TypeClassType <: Async[F]
+  }
+  trait ToAsyncOps {
+    implicit def toAsyncOps[F[_], A](target: F[A])(implicit tc: Async[F]): Ops[F, A] {
+      type TypeClassType = Async[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Async[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToAsyncOps
+  object ops {
+    implicit def toAllAsyncOps[F[_], A](target: F[A])(implicit tc: Async[F]): AllOps[F, A] {
+      type TypeClassType = Async[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Async[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
   }
 }

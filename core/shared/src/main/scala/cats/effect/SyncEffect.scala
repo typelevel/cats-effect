@@ -19,11 +19,13 @@ package effect
 
 import simulacrum._
 import cats.data.{EitherT, WriterT}
+import scala.annotation.implicitNotFound
 
 /**
  * A monad that can suspend side effects into the `F` context and
  * that supports only synchronous lazy evaluation of these effects.
  */
+@implicitNotFound("Could not find an instance of SyncEffect for ${F}")
 @typeclass
 trait SyncEffect[F[_]] extends Sync[F] {
   /**
@@ -69,5 +71,42 @@ object SyncEffect {
 
     def runSync[G[_], A](fa: WriterT[F, L, A])(implicit G: Sync[G]): G[A] =
       F.runSync(F.map(fa.run)(_._2))
+  }
+
+  /****************************************************************************
+   * THE REST OF THIS OBJECT IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!! *
+   ****************************************************************************/
+  /**
+   * Summon an instance of [[SyncEffect]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: SyncEffect[F]): SyncEffect[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: SyncEffect[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def runSync[G[_]](implicit G: Sync[G]): G[A] = typeClassInstance.runSync[G, A](self)(G)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Sync.AllOps[F, A] {
+    type TypeClassType <: SyncEffect[F]
+  }
+  trait ToSyncEffectOps {
+    implicit def toSyncEffectOps[F[_], A](target: F[A])(implicit tc: SyncEffect[F]): Ops[F, A] {
+      type TypeClassType = SyncEffect[F]
+    } = new Ops[F, A] {
+      type TypeClassType = SyncEffect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToSyncEffectOps
+  object ops {
+    implicit def toAllSyncEffectOps[F[_], A](target: F[A])(implicit tc: SyncEffect[F]): AllOps[F, A] {
+      type TypeClassType = SyncEffect[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = SyncEffect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
   }
 }

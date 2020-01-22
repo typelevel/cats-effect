@@ -35,10 +35,7 @@ import scala.util.Either
  * Note this is the safe and generic version of [[IO.unsafeRunCancelable]].
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for ConcurrentEffect[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of ConcurrentEffect for ${F}")
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
   /**
    * Evaluates `F[_]` with the ability to cancel it.
@@ -107,5 +104,43 @@ object ConcurrentEffect {
       fa: WriterT[F, L, A]
     )(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[WriterT[F, L, *]]] =
       F.runCancelable(fa.run)(cb.compose(_.map(_._2))).map(WriterT.liftF(_)(L, F))
+  }
+
+  /****************************************************************************
+   * THE REST OF THIS OBJECT IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!! *
+   ****************************************************************************/
+  /**
+   * Summon an instance of [[ConcurrentEffect]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: ConcurrentEffect[F]): ConcurrentEffect[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: ConcurrentEffect[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def runCancelable(cb: Either[Throwable, A] => IO[Unit]): SyncIO[CancelToken[F]] =
+      typeClassInstance.runCancelable[A](self)(cb)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Concurrent.AllOps[F, A] with Effect.AllOps[F, A] {
+    type TypeClassType <: ConcurrentEffect[F]
+  }
+  trait ToConcurrentEffectOps {
+    implicit def toConcurrentEffectOps[F[_], A](target: F[A])(implicit tc: ConcurrentEffect[F]): Ops[F, A] {
+      type TypeClassType = ConcurrentEffect[F]
+    } = new Ops[F, A] {
+      type TypeClassType = ConcurrentEffect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToConcurrentEffectOps
+  object ops {
+    implicit def toAllConcurrentEffectOps[F[_], A](target: F[A])(implicit tc: ConcurrentEffect[F]): AllOps[F, A] {
+      type TypeClassType = ConcurrentEffect[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = ConcurrentEffect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
   }
 }

@@ -192,10 +192,7 @@ import simulacrum.typeclass
  * `acquire` and `release` operations are guaranteed to be uncancelable as well.
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for Concurrent[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of Concurrent for ${F}")
 trait Concurrent[F[_]] extends Async[F] {
   /**
    * Start concurrent execution of the source suspended in
@@ -870,4 +867,46 @@ object Concurrent {
         case _                  => F.unit
       }
     }
+
+  /****************************************************************************
+   * THE REST OF THIS OBJECT IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!! *
+   ****************************************************************************/
+  /**
+   * Summon an instance of [[Concurrent]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Concurrent[F]): Concurrent[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Concurrent[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def start: F[Fiber[F, A]] = typeClassInstance.start[A](self)
+    def background: Resource[F, F[A]] = typeClassInstance.background[A](self)
+    def racePair[B](fb: F[B]): F[Either[(A, Fiber[F, B]), (Fiber[F, A], B)]] =
+      typeClassInstance.racePair[A, B](self, fb)
+    def race[B](fb: F[B]): F[Either[A, B]] = typeClassInstance.race[A, B](self, fb)
+    def continual[B](f: Either[Throwable, A] => F[B]): F[B] = typeClassInstance.continual[A, B](self)(f)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Async.AllOps[F, A] {
+    type TypeClassType <: Concurrent[F]
+  }
+  trait ToConcurrentOps {
+    implicit def toConcurrentOps[F[_], A](target: F[A])(implicit tc: Concurrent[F]): Ops[F, A] {
+      type TypeClassType = Concurrent[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Concurrent[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToConcurrentOps
+  object ops {
+    implicit def toAllConcurrentOps[F[_], A](target: F[A])(implicit tc: Concurrent[F]): AllOps[F, A] {
+      type TypeClassType = Concurrent[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Concurrent[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
 }

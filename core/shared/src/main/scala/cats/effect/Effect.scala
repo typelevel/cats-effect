@@ -36,10 +36,7 @@ import scala.util.Either
  * (aka Haskell's `unsafePerformIO`).
  */
 @typeclass
-@implicitNotFound("""Cannot find implicit value for Effect[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of Effect for ${F}")
 trait Effect[F[_]] extends Async[F] {
   /**
    * Evaluates `F[_]`, with the effect of starting the run-loop
@@ -111,5 +108,43 @@ object Effect {
 
     override def toIO[A](fa: WriterT[F, L, A]): IO[A] =
       F.toIO(fa.value(F))
+  }
+
+  /****************************************************************************
+   * THE REST OF THIS OBJECT IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!! *
+   ****************************************************************************/
+  /**
+   * Summon an instance of [[Effect]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Effect[F]): Effect[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Effect[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def runAsync(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] = typeClassInstance.runAsync[A](self)(cb)
+    def toIO: IO[A] = typeClassInstance.toIO[A](self)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Async.AllOps[F, A] {
+    type TypeClassType <: Effect[F]
+  }
+  trait ToEffectOps {
+    implicit def toEffectOps[F[_], A](target: F[A])(implicit tc: Effect[F]): Ops[F, A] {
+      type TypeClassType = Effect[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Effect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToEffectOps
+  object ops {
+    implicit def toAllEffectOps[F[_], A](target: F[A])(implicit tc: Effect[F]): AllOps[F, A] {
+      type TypeClassType = Effect[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Effect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
   }
 }
