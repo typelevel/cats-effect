@@ -27,7 +27,7 @@ ThisBuild / startYear := Some(2017)
 val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.1.0"
-val DisciplineScalatestVersion = "1.0.0-RC4"
+val DisciplineScalatestVersion = "1.0.0"
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
 addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
