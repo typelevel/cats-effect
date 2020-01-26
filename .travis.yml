@@ -6,14 +6,11 @@ matrix:
   include:
     - jdk: openjdk8
       scala: 2.13.0
-      env: COVERAGE=
     # We want the latest stable Scala last so sbt-travisci makes it the default
     - jdk: openjdk8
       scala: 2.12.9
-      env: COVERAGE=
     - jdk: openjdk11
       scala: 2.12.9
-      env: COVERAGE=
 
 install:
   - rvm install 2.6
@@ -23,19 +20,10 @@ install:
   - bundle install --system --gemfile=site/Gemfile
 
 script:
-  - export SBT_PROFILE=$COVERAGE
-  - sbt ++$TRAVIS_SCALA_VERSION $COVERAGE ci
+  - sbt ++$TRAVIS_SCALA_VERSION ci
   - |
     if [[ "$TRAVIS_SCALA_VERSION" =~ ^2\.12\. ]]; then
       sbt ++$TRAVIS_SCALA_VERSION microsite/makeMicrosite
-    fi
-
-after_success:
-  - |
-    if [ "$COVERAGE" = "coverage" ]; then
-      export SBT_PROFILE=$COVERAGE
-      sbt ++$TRAVIS_SCALA_VERSION coverageAggregate coverageReport
-      bash <(curl -s https://codecov.io/bash)
     fi
 
 before_cache:
