@@ -99,6 +99,19 @@ trait TestInstances {
         E.eqv(x.use(F.pure), y.use(F.pure))
     }
 
+  /**
+   * Defines equality for `Resource.Par`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResourcePar[F[_], A](implicit E: Eq[F[A]], F: Bracket[F, Throwable]): Eq[Resource.Par[F, A]] =
+    new Eq[Resource.Par[F, A]] {
+      import Resource.Par.unwrap
+      def eqv(x: Resource.Par[F, A], y: Resource.Par[F, A]): Boolean =
+        eqResource[F, A].eqv(unwrap(x), unwrap(y))
+    }
+
+
   /** Defines equality for `SyncIO` references. */
   implicit def eqSyncIO[A](implicit A: Eq[A]): Eq[SyncIO[A]] =
     new Eq[SyncIO[A]] {

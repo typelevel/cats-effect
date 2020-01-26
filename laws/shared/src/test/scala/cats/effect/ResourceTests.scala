@@ -33,6 +33,20 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
   checkAllAsync("Resource[IO, *]", implicit ec => SemigroupKTests[Resource[IO, *]].semigroupK[Int])
+  checkAllAsync("Resource.Par[IO, *]", implicit ec => {
+    implicit val cs = ec.contextShift[IO]
+    CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
+  })
+  checkAllAsync(
+    "Resource[IO, *]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+
+      // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+      val module = ParallelTests[IO]
+      module.parallel[Int, Int]
+    }
+  )
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
