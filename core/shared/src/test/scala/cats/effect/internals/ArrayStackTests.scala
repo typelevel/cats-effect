@@ -21,20 +21,20 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   test("push and pop 8 items") {
-    val stack = new ArrayStack[Int]()
+    val stack = new ArrayStack[String]()
     var times = 0
 
     while (times < 10) {
       assert(stack.isEmpty, "stack.isEmpty")
-      for (i <- 0 until 8) stack.push(i)
+      for (i <- 0 until 8) stack.push(i.toString)
 
-      var list = List.empty[Int]
+      var list = List.empty[String]
       while (!stack.isEmpty) {
         assert(!stack.isEmpty, "!stack.isEmpty")
         list = stack.pop() :: list
       }
 
-      list shouldBe (0 until 8).toList
+      list shouldBe (0 until 8).map(_.toString).toList
       stack.pop().asInstanceOf[AnyRef] shouldBe null
       stack.isEmpty shouldBe true
 
@@ -43,20 +43,20 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("push and pop 100 items") {
-    val stack = new ArrayStack[Int]()
+    val stack = new ArrayStack[String]()
     var times = 0
 
     while (times < 10) {
       assert(stack.isEmpty, "stack.isEmpty")
-      for (i <- 0 until 100) stack.push(i)
+      for (i <- 0 until 100) stack.push(i.toString)
 
-      var list = List.empty[Int]
+      var list = List.empty[String]
       while (!stack.isEmpty) {
         assert(!stack.isEmpty, "!stack.isEmpty")
         list = stack.pop() :: list
       }
 
-      list shouldBe (0 until 100).toList
+      list shouldBe (0 until 100).map(_.toString).toList
       stack.pop().asInstanceOf[AnyRef] shouldBe null
       stack.isEmpty shouldBe true
 
@@ -65,30 +65,30 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("pushAll(stack)") {
-    val stack = new ArrayStack[Int]()
-    val stack2 = new ArrayStack[Int]()
+    val stack = new ArrayStack[String]()
+    val stack2 = new ArrayStack[String]()
 
-    for (i <- 0 until 100) stack2.push(i)
+    for (i <- 0 until 100) stack2.push(i.toString)
     stack.pushAll(stack2)
 
-    var list = List.empty[Int]
+    var list = List.empty[String]
     while (!stack.isEmpty) {
       assert(!stack.isEmpty)
       list = stack.pop() :: list
     }
 
-    list shouldBe (0 until 100).toList.reverse
+    list shouldBe (0 until 100).map(_.toString).toList.reverse
     stack.pop().asInstanceOf[AnyRef] shouldBe null
     stack.isEmpty shouldBe true
     stack2.isEmpty shouldBe false
   }
 
   test("pushAll(iterable)") {
-    val stack = new ArrayStack[Int]()
-    val expected = (0 until 100).toList
+    val stack = new ArrayStack[String]()
+    val expected = (0 until 100).map(_.toString).toList
     stack.pushAll(expected)
 
-    var list = List.empty[Int]
+    var list = List.empty[String]
     while (!stack.isEmpty) {
       assert(!stack.isEmpty)
       list = stack.pop() :: list
@@ -100,8 +100,8 @@ class ArrayStackTests extends AnyFunSuite with Matchers with TestUtils {
   }
 
   test("iterator") {
-    val stack = new ArrayStack[Int]()
-    val expected = (0 until 100).toList
+    val stack = new ArrayStack[String]()
+    val expected = (0 until 100).map(_.toString).toList
     for (i <- expected) stack.push(i)
     stack.iteratorReversed.toList shouldBe expected.reverse
   }
