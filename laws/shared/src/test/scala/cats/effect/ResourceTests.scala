@@ -290,4 +290,22 @@ class ResourceTests extends BaseTestsSuite {
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
   }
+
+  testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+    check { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+      var released: List[Int] = Nil
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+      }
+      val unit = ().pure[Resource[IO, *]]
+      val p = if (rhs) r.parZip(unit) else unit.parZip(r)
+
+      p.use(IO.pure).attempt.unsafeToFuture
+      ec.tick()
+      released <-> as.map(_._1)
+    }
+  }
+
 }
