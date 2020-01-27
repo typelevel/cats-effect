@@ -68,7 +68,7 @@ private[effect] object IORunLoop {
     // For auto-cancellation
     var currentIndex = 0
 
-    do {
+    while ({
       currentIO match {
         case Bind(fa, bindNext) =>
           if (bFirst ne null) {
@@ -154,7 +154,8 @@ private[effect] object IORunLoop {
         if (conn.isCanceled) return
         currentIndex = 0
       }
-    } while (true)
+      true
+    }) ()
   }
 
   /**
@@ -170,7 +171,7 @@ private[effect] object IORunLoop {
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
 
-    do {
+    while ({
       currentIO match {
         case Bind(fa, bindNext) =>
           if (bFirst ne null) {
@@ -241,7 +242,8 @@ private[effect] object IORunLoop {
             bFirst = null
         }
       }
-    } while (true)
+      true
+    }) ()
     // $COVERAGE-OFF$
     null // Unreachable code
     // $COVERAGE-ON$
@@ -267,14 +269,15 @@ private[effect] object IORunLoop {
       return bFirst
 
     if (bRest eq null) return null
-    do {
+    while ({
       val next = bRest.pop()
       if (next eq null) {
         return null
       } else if (!next.isInstanceOf[IOFrame.ErrorHandler[_]]) {
         return next
       }
-    } while (true)
+      true
+    }) ()
     // $COVERAGE-OFF$
     null
     // $COVERAGE-ON$
@@ -290,13 +293,14 @@ private[effect] object IORunLoop {
       case _ =>
         if (bRest eq null) null
         else {
-          do {
+          while ({
             val ref = bRest.pop()
             if (ref eq null)
               return null
             else if (ref.isInstanceOf[IOFrame[_, _]])
               return ref.asInstanceOf[IOFrame[Any, IO[Any]]]
-          } while (true)
+            true
+          }) ()
           // $COVERAGE-OFF$
           null
           // $COVERAGE-ON$

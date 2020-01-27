@@ -278,7 +278,7 @@ object Ref {
     override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
 
     override def access: G[(A, A => G[Boolean])] =
-      trans(F.compose[(A, ?)].compose[A => *].map(underlying.access)(trans(_)))
+      trans(F.compose[(A, *)].compose[A => *].map(underlying.access)(trans(_)))
   }
 
   implicit def catsInvariantForRef[F[_]: Functor]: Invariant[Ref[F, *]] =

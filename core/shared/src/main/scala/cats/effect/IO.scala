@@ -1051,7 +1051,7 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] =
-    Delay(body _)
+    Delay(() => body)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1062,7 +1062,7 @@ object IO extends IOInstances {
    * `IO`.
    */
   def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(thunk _)
+    Suspend(() => thunk)
 
   /**
    * Suspends a pure value in `IO`.

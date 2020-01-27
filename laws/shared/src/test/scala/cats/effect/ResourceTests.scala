@@ -114,7 +114,7 @@ class ResourceTests extends BaseTestsSuite {
         }
         .timeout(2.seconds)
 
-    val res = p.unsafeToFuture
+    val res = p.unsafeToFuture()
 
     ec.tick(3.seconds)
 

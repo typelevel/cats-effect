@@ -19,18 +19,17 @@ package effect
 
 import scala.concurrent.ExecutionContext
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 
-class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with TestUtils {
+class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(
         _ => IO.pure(ExitCode(42))
       )
       .flatMap(_.join)
-      .unsafeToFuture
+      .unsafeToFuture()
       .map(_ shouldEqual 42)
   }
 
@@ -40,7 +39,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
         args => IO.pure(ExitCode(args.mkString.toInt))
       )
       .flatMap(_.join)
-      .unsafeToFuture
+      .unsafeToFuture()
       .map(_ shouldEqual 123)
   }
 
@@ -49,7 +48,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with BeforeAndAfterAll with
       IOAppPlatform
         .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
-        .unsafeToFuture
+        .unsafeToFuture()
         .map(_ shouldEqual 1)
     }
   }

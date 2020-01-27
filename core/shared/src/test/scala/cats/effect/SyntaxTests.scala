@@ -27,7 +27,7 @@ object SyntaxTests extends AllCatsEffectSyntax {
     val _ = a
   }
 
-  def bracketSyntax[F[_]: Bracket[?[_], Throwable], A, B] = {
+  def bracketSyntax[F[_], A, B](implicit F: Bracket[F, Throwable]) = {
     val acquire = mock[F[A]]
     val use = mock[A => F[B]]
     val releaseCase = mock[(A, ExitCase[Throwable]) => F[Unit]]
