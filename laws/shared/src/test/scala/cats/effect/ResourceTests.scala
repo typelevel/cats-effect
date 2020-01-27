@@ -292,7 +292,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
-    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+    implicit val ctx = ec.contextShift[IO]
+
     check { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
       var released: List[Int] = Nil
       val r = as.traverse {
@@ -308,4 +309,31 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  testAsync("parZip - parallel acquisition and release") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var leftReleased = false
+    var rightReleased = false
+
+    val wait = IO.sleep(1.second)
+    val lhs = Resource.make(wait >> IO { leftAllocated = true })(_ => wait >> IO { leftReleased =  true})
+    val rhs = Resource.make(wait >> IO { rightAllocated = true })(_ => wait >> IO { rightReleased =  true})
+
+    (lhs, rhs).parTupled.use(IO.pure).unsafeToFuture()
+
+    ec.tick(1.second)
+    leftAllocated shouldBe true
+    rightAllocated shouldBe true
+
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
+  }
+
+  // both allocate, one task fails whilst the other is executing, check all reasources are released
+  // both failure and interruption are tested
+  // failure during allocation of one whilst other executing, the second gets closed
 }
