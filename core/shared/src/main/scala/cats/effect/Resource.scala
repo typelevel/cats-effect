@@ -505,8 +505,8 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
 
   implicit def catsEffectParallelForResource[F0[_]: Sync: Parallel]: Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
     new ResourceParallel[F0] {
-      final override val F0 = catsEffectCommutativeApplicativeForResourcePar
-      final override val F1 = catsEffectMonadForResource
+      def F0 = catsEffectCommutativeApplicativeForResourcePar
+      def F1 = catsEffectMonadForResource
     }
 
 }
