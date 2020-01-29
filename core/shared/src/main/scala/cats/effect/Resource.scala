@@ -163,7 +163,7 @@ sealed abstract class Resource[+F[_], +A] {
    *   }
    *
    *  val r = (mkResource("one"), mkResource("two"))
-   *             .parMapN((s1, s2) => s"I have $s1 and $s2 ")
+   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
    *             .use(msg => IO(println(msg)))
    * }}}
    *
