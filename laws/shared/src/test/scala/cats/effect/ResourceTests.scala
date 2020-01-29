@@ -33,10 +33,13 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
   checkAllAsync("Resource[IO, *]", implicit ec => SemigroupKTests[Resource[IO, *]].semigroupK[Int])
-  checkAllAsync("Resource.Par[IO, *]", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
-    CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
-  })
+  checkAllAsync(
+    "Resource.Par[IO, *]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+      CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
+    }
+  )
   checkAllAsync(
     "Resource[IO, *]",
     implicit ec => {
@@ -324,8 +327,12 @@ class ResourceTests extends BaseTestsSuite {
     var rightReleased = false
 
     val wait = IO.sleep(1.second)
-    val lhs = Resource.make(wait >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait >> IO { leftReleased =  true})
-    val rhs = Resource.make(wait >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait >> IO { rightReleased =  true})
+    val lhs = Resource.make(wait >> IO { leftAllocated = true }) { _ =>
+      IO { leftReleasing = true } >> wait >> IO { leftReleased = true }
+    }
+    val rhs = Resource.make(wait >> IO { rightAllocated = true }) { _ =>
+      IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
+    }
 
     (lhs, rhs).parTupled.use(_ => wait).unsafeToFuture()
 
@@ -366,18 +373,20 @@ class ResourceTests extends BaseTestsSuite {
 
     def wait(n: Int) = IO.sleep(n.seconds)
     val lhs = for {
-      _ <- Resource.make(wait(1) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
+      _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
+        IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+      }
       _ <- Resource.liftF { wait(1) >> IO.raiseError[Unit](new Exception) }
     } yield ()
 
     val rhs = for {
-      _ <- Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
       _ <- Resource.liftF(wait(2))
     } yield ()
 
-
-    (lhs, rhs)
-      .parTupled
+    (lhs, rhs).parTupled
       .use(_ => IO.unit)
       .handleError(_ => ())
       .unsafeToFuture()
@@ -419,15 +428,17 @@ class ResourceTests extends BaseTestsSuite {
     var rightReleased = false
 
     def wait(n: Int) = IO.sleep(n.seconds)
-    val lhs = Resource.make(wait(3) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
+    val lhs = Resource.make(wait(3) >> IO { leftAllocated = true }) { _ =>
+      IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+    }
     val rhs = for {
-      _ <- Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
-      _ <- Resource.make(wait(1) >> IO {rightErrored = true} >> IO.raiseError[Unit](new Exception))(_ => IO.unit)
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
+      _ <- Resource.make(wait(1) >> IO { rightErrored = true } >> IO.raiseError[Unit](new Exception))(_ => IO.unit)
     } yield ()
 
-
-    (lhs, rhs)
-      .parTupled
+    (lhs, rhs).parTupled
       .use(_ => wait(1))
       .handleError(_ => ())
       .unsafeToFuture()

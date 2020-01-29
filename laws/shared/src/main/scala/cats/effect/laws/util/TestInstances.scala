@@ -111,7 +111,6 @@ trait TestInstances {
         eqResource[F, A].eqv(unwrap(x), unwrap(y))
     }
 
-
   /** Defines equality for `SyncIO` references. */
   implicit def eqSyncIO[A](implicit A: Eq[A]): Eq[SyncIO[A]] =
     new Eq[SyncIO[A]] {
