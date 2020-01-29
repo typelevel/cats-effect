@@ -94,7 +94,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
   test("parMap2 concurrently") {
     import scala.concurrent.ExecutionContext.Implicits.global
-    implicit val cs = IO.contextShift(global)
+    implicit val cs: ContextShift[IO] = IO.contextShift(global)
 
     val io1 = IO.shift *> IO(1)
     val io2 = IO.shift *> IO(2)
@@ -107,7 +107,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
 
   test("long synchronous loops that are forked are cancelable") {
     val thread = new AtomicReference[Thread](null)
-    implicit val ec = new ExecutionContext {
+    implicit val ec: ExecutionContext = new ExecutionContext {
       def execute(runnable: Runnable): Unit = {
         val th = new Thread(runnable)
         if (!thread.compareAndSet(null, th))
@@ -122,7 +122,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
       val latch = new java.util.concurrent.CountDownLatch(1)
       def loop(): IO[Int] = IO.suspend(loop())
 
-      implicit val ctx = IO.contextShift(ec)
+      implicit val ctx: ContextShift[IO] = IO.contextShift(ec)
       val task = IO.shift *> IO(latch.countDown()) *> loop()
       val c = task.unsafeRunCancelable {
         case Left(e) => e.printStackTrace()

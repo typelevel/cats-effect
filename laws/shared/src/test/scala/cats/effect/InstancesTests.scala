@@ -36,7 +36,7 @@ class InstancesTests extends BaseTestsSuite {
   )
 
   checkAllAsync("OptionT[IO, *]", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentTests[OptionT[IO, *]].concurrent[Int, Int, Int]
   })
 
@@ -49,7 +49,7 @@ class InstancesTests extends BaseTestsSuite {
   )
 
   checkAllAsync("Kleisli[IO, *]", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentTests[Kleisli[IO, Int, *]].concurrent[Int, Int, Int]
   })
 
@@ -58,7 +58,7 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "EitherT[IO, Throwable, *]",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
       ConcurrentEffectTests[EitherT[IO, Throwable, *]].concurrentEffect[Int, Int, Int]
     }
   )
@@ -71,10 +71,13 @@ class InstancesTests extends BaseTestsSuite {
     }
   )
 
-  checkAllAsync("WriterT[IO, Int, *]", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
-    ConcurrentEffectTests[WriterT[IO, Int, *]].concurrentEffect[Int, Int, Int]
-  })
+  checkAllAsync(
+    "WriterT[IO, Int, *]",
+    implicit ec => {
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
+      ConcurrentEffectTests[WriterT[IO, Int, *]].concurrentEffect[Int, Int, Int]
+    }
+  )
 
   checkAllAsync(
     "WriterT[IO, Int, *]",
@@ -85,7 +88,7 @@ class InstancesTests extends BaseTestsSuite {
   )
 
   checkAllAsync("IorT[IO, Int, *]", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentTests[IorT[IO, Int, *]].concurrent[Int, Int, Int]
   })
 

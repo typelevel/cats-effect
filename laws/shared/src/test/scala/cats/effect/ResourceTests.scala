@@ -58,7 +58,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   test("releases resources in reverse order of acquisition") {
-    check { as: List[(Int, Either[Throwable, Unit])] =>
+    check { (as: List[(Int, Either[Throwable, Unit])]) =>
       var released: List[Int] = Nil
       val r = as.traverse {
         case (a, e) =>
@@ -108,14 +108,14 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("liftF") { implicit ec =>
-    check { fa: IO[String] =>
+    check { (fa: IO[String]) =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
 
   testAsync("liftF - interruption") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     def p =
       Deferred[IO, ExitCase[Throwable]]
@@ -152,7 +152,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
@@ -167,7 +167,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a =>
@@ -183,7 +183,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("(evalTap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
@@ -192,7 +192,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("mapK") { implicit ec =>
-    check { fa: Kleisli[IO, Int, Int] =>
+    check { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
@@ -236,7 +236,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("allocated produces the same value as the resource") { implicit ec =>
-    check { resource: Resource[IO, Int] =>
+    check { (resource: Resource[IO, Int]) =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
       val a1 = resource.use(IO.pure).attempt
 
@@ -257,7 +257,7 @@ class ResourceTests extends BaseTestsSuite {
       _ <- IO(released.get() shouldBe true)
     } yield ()
 
-    prog.unsafeRunSync
+    prog.unsafeRunSync()
   }
 
   test("allocate does not release until close is invoked on mapK'd Resources") {
@@ -269,7 +269,7 @@ class ResourceTests extends BaseTestsSuite {
     val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
-    val plusOne = Kleisli { i: Int =>
+    val plusOne = Kleisli { (i: Int) =>
       IO { i + 1 }
     }
     val plusOneResource = Resource.liftF(plusOne)
@@ -285,7 +285,7 @@ class ResourceTests extends BaseTestsSuite {
       _ <- IO(released.get() shouldBe true)
     } yield ()
 
-    prog.unsafeRunSync
+    prog.unsafeRunSync()
   }
 
   test("safe attempt suspended resource") {

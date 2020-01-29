@@ -28,7 +28,7 @@ import cats.laws.discipline._
 
 class MemoizeTests extends BaseTestsSuite {
   testAsync("Concurrent.memoize does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val timer = ec.timer[IO]
 
     val prog = for {
@@ -45,7 +45,7 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.memoize evalutes effect once if inner `F[A]` is bound twice") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val prog = for {
       ref <- Ref.of[IO, Int](0)
@@ -66,7 +66,7 @@ class MemoizeTests extends BaseTestsSuite {
 
   testAsync("Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)") {
     implicit ec =>
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
       val timer = ec.timer[IO]
 
       val prog = for {
@@ -88,15 +88,15 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.memoize and then flatten is identity") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    check { fa: IO[Int] =>
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    check { (fa: IO[Int]) =>
       Concurrent.memoize(fa).flatten <-> fa
     }
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (1)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
@@ -115,8 +115,8 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (2)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
@@ -138,8 +138,8 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val prog = for {
       completed <- Ref[IO].of(false)
@@ -161,8 +161,8 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Running a memoized effect after it was previously canceled reruns it") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val prog = for {
       started <- Ref[IO].of(0)
@@ -183,8 +183,8 @@ class MemoizeTests extends BaseTestsSuite {
   }
 
   testAsync("Attempting to cancel a memoized effect with active subscribers is a no-op") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val prog = for {
       condition <- Deferred[IO, Unit]

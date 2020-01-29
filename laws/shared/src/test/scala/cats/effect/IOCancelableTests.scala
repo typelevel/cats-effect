@@ -36,7 +36,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("IO.cancelBoundary can be canceled") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = (IO.shift *> IO.cancelBoundary).unsafeToFuture()
     f.value shouldBe None
@@ -51,7 +51,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("(fa <* IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (fa: IO[Int]) =>
       val received =
@@ -66,7 +66,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("task.start.flatMap(id) <-> task") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (task: IO[Int]) =>
       task.start.flatMap(_.join) <-> task
@@ -74,7 +74,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("task.start is cancelable") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val task = (IO.shift *> IO.cancelBoundary *> IO(1)).start.flatMap(_.join)
 
@@ -89,11 +89,11 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("bracket back-pressures on the finalizer") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val p1 = Promise[Unit]()
     val io = IO.unit.bracket(_ => IO.never: IO[Unit]) { _ =>
-      IO.sleep(3.seconds) *> IO(p1.success(()))
+      IO.sleep(3.seconds) *> IO(p1.success(())).void
     }
 
     val p2 = Promise[Unit]()
@@ -116,7 +116,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("CancelUtils.cancelAll") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val token1 = IO.sleep(1.seconds)
     val token2 = IO.sleep(2.seconds)
@@ -142,7 +142,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("nested brackets are sequenced") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
     val atom = new AtomicInteger(0)
 
     val io =
@@ -151,16 +151,19 @@ class IOCancelableTests extends BaseTestsSuite {
           IO(3).bracket(_ => IO.never: IO[Unit]) { x3 =>
             IO.sleep(3.seconds) *> IO {
               atom.compareAndSet(0, x3) shouldBe true
+              ()
             }
           }
         } { x2 =>
           IO.sleep(2.seconds) *> IO {
             atom.compareAndSet(3, x2) shouldBe true
+            ()
           }
         }
       } { x1 =>
         IO.sleep(1.second) *> IO {
           atom.compareAndSet(2, x1) shouldBe true
+          ()
         }
       }
 
@@ -226,7 +229,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
   // regression test for https://github.com/typelevel/cats-effect/issues/487
   testAsync("bracket can be canceled while failing to acquire") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
       .bracket(_ => IO.unit)(_ => IO.unit)

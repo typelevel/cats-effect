@@ -27,7 +27,7 @@ import scala.util.Success
 
 class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF works for immediate values") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (value: Either[Throwable, Int]) =>
       val received = Concurrent.cancelableF[IO, Int](cb => IO { cb(value); IO.unit })
@@ -36,7 +36,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.cancelableF works for async values") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (value: Either[Throwable, Int]) =>
       val received = Concurrent.cancelableF[IO, Int] { cb =>
@@ -48,7 +48,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
 
   testAsync("Concurrent.cancelableF can delay callback") { implicit ec =>
     import scala.concurrent.duration._
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val timer = ec.timer[IO]
 
     val task = Concurrent.cancelableF[IO, Int] { cb =>
@@ -70,7 +70,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
 
   testAsync("Concurrent.cancelableF can delay task execution") { implicit ec =>
     import scala.concurrent.duration._
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val timer = ec.timer[IO]
 
     val complete = Promise[Unit]()
@@ -89,7 +89,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.cancelableF can yield cancelable tasks") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val task = for {
       d <- MVar.empty[IO, Unit]
@@ -114,8 +114,8 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF executes generated task uninterruptedly") { implicit ec =>
     import scala.concurrent.duration._
 
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     var effect = 0
     val task = Concurrent.cancelableF[IO, Unit] { cb =>

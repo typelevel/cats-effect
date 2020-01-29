@@ -36,7 +36,7 @@ import scala.concurrent.duration._
 
 class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
   })
 
@@ -45,19 +45,19 @@ class IOTests extends BaseTestsSuite {
   checkAllAsync("IO", implicit ec => AlignTests[IO].align[Int, Int, Int, Int])
 
   checkAllAsync("IO.Par", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     CommutativeApplicativeTests[IO.Par].commutativeApplicative[Int, Int, Int]
   })
 
   checkAllAsync("IO.Par", implicit ec => {
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     AlignTests[IO.Par].align[Int, Int, Int, Int]
   })
 
   checkAllAsync(
     "IO",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
 
       // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
       val module = ParallelTests[IO]
@@ -66,21 +66,21 @@ class IOTests extends BaseTestsSuite {
   )
 
   checkAllAsync("IO(Effect defaults)", implicit ec => {
-    implicit val ioEffect = IOTests.ioEffectDefaults
+    implicit val ioEffect: Effect[IO] = IOTests.ioEffectDefaults
     EffectTests[IO].effect[Int, Int, Int]
   })
 
   checkAllAsync(
     "IO(ConcurrentEffect defaults)",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
-      implicit val ioConcurrent = IOTests.ioConcurrentEffectDefaults(ec)
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
+      implicit val ioConcurrent: ConcurrentEffect[IO] = IOTests.ioConcurrentEffectDefaults(ec)
       ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
     }
   )
 
   testAsync("IO.Par's applicative instance is different") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     implicitly[Applicative[IO]] shouldNot be(implicitly[Applicative[IO.Par]])
   }
 
@@ -93,7 +93,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("throw in register is fail") { implicit ec =>
-    check { e: Throwable =>
+    check { (e: Throwable) =>
       IO.async[Unit](_ => throw e) <-> IO.raiseError(e)
     }
   }
@@ -175,7 +175,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("shift works for success (via Timer)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val expected = IO.shift.flatMap(_ => IO(1)).unsafeToFuture()
     expected.value shouldEqual None
@@ -193,7 +193,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("shift works for failure (via Timer)") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val dummy = new RuntimeException("dummy")
 
     val expected = IO.shift.flatMap(_ => IO.raiseError(dummy)).unsafeToFuture()
@@ -221,7 +221,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.sleep") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val io = IO.sleep(10.seconds) *> IO(1 + 1)
     val f = io.unsafeToFuture()
@@ -316,7 +316,7 @@ class IOTests extends BaseTestsSuite {
       val io1 = IO.fromFuture(IO(Future { effect = f(effect, a) }))
       val io2 = IO.fromFuture(IO(Future { effect = g(effect, a) }))
 
-      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
+      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a)).void
     }
   }
 
@@ -453,7 +453,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("sync.to[IO] is stack-safe") { implicit ec =>
     // Override default generator to only generate
     // synchronous instances that are stack-safe
-    implicit val arbIO = Arbitrary(genSyncIO[Int].map(_.toIO))
+    implicit val arbIO: Arbitrary[IO[Int]] = Arbitrary(genSyncIO[Int].map(_.toIO))
 
     check { (io: IO[Int]) =>
       repeatedTransformLoop(10000, io) <-> io
@@ -536,7 +536,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 for successful values") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val io1 = IO.shift *> IO.pure(1)
     val io2 = IO.shift *> IO.pure(2)
@@ -548,7 +548,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 can fail for one") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val dummy = new RuntimeException("dummy")
     val io1 = IO.shift *> IO.pure(1)
@@ -568,7 +568,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 can fail for both, with non-deterministic failure") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     catchSystemErr {
       val dummy1 = new RuntimeException("dummy1")
@@ -586,7 +586,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 is stack safe") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 5000
     val io = (0 until count).foldLeft(IO(0))((acc, e) => (acc, IO(e)).parMapN(_ + _))
@@ -597,7 +597,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 cancels first, when second terminates in error") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
@@ -616,7 +616,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 cancels second, when first terminates in error") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val dummy = new RuntimeException("dummy")
     var wasCanceled = false
@@ -635,7 +635,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.cancelable IOs can be canceled") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     var wasCanceled = false
     val p = Promise[Int]()
@@ -680,8 +680,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.timeout can mirror the source") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     check { (ioa: IO[Int]) =>
       ioa.timeout(1.day) <-> ioa
@@ -689,8 +689,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.timeout can end in timeout") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = for {
       p <- Deferred[IO, Unit]
@@ -759,8 +759,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("bracket does not evaluate use on cancel") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     var use = false
     var release = false
@@ -784,7 +784,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair should be stack safe, take 1") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
@@ -804,7 +804,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair should be stack safe, take 2") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
@@ -824,7 +824,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair has a stack safe cancelable") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val p = Promise[Int]()
@@ -854,7 +854,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("racePair avoids extraneous async boundaries") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = IO
       .racePair(IO.shift *> IO(1), IO.shift *> IO(1))
@@ -872,7 +872,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race should be stack safe, take 1") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
@@ -892,7 +892,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race should be stack safe, take 2") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
@@ -912,7 +912,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race has a stack safe cancelable") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val p = Promise[Int]()
@@ -939,7 +939,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race forks execution") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = IO
       .race(IO(1), IO(1))
@@ -956,7 +956,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("race avoids extraneous async boundaries") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = IO
       .race(IO.shift *> IO(1), IO.shift *> IO(1))
@@ -973,7 +973,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 should be stack safe") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 100000 else 1000
     val tasks = (0 until count).map(_ => IO(1))
@@ -985,7 +985,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 has a stack safe cancelable") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val count = if (IOPlatform.isJVM) 10000 else 1000
     val tasks = (0 until count).map(_ => IO.never: IO[Int])
@@ -1004,7 +1004,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 forks execution") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = (IO(1), IO(1)).parMapN(_ + _).unsafeToFuture()
     f.value shouldBe None
@@ -1017,7 +1017,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("parMap2 avoids extraneous async boundaries") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = (IO.shift *> IO(1), IO.shift *> IO(1))
       .parMapN(_ + _)
@@ -1033,7 +1033,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("start forks automatically") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = IO(1).start.flatMap(_.join).unsafeToFuture()
     f.value shouldBe None
@@ -1042,7 +1042,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("start avoids async boundaries") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = (IO.shift *> IO(1)).start.flatMap(_.join).unsafeToFuture()
     f.value shouldBe None
@@ -1051,7 +1051,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("background cancels the action in cleanup") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = Deferred[IO, Unit]
       .flatMap { started => //wait for this before closing resource
@@ -1069,7 +1069,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("background allows awaiting the action") { ec =>
-    implicit val contextShift = ec.contextShift[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = Deferred[IO, Unit]
       .flatMap { latch =>
@@ -1085,8 +1085,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("cancel should wait for already started finalizers on success") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1105,8 +1105,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("cancel should wait for already started finalizers on failure") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val dummy = new RuntimeException("dummy")
 
@@ -1127,8 +1127,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("cancel should wait for already started use finalizers") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1151,8 +1151,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("second cancel should wait for use finalizers") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1175,8 +1175,8 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("second cancel during acquire should wait for it and finalizers to complete") { implicit ec =>
-    implicit val contextShift = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1201,8 +1201,8 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
     implicit ec =>
-      implicit val contextShift = ec.contextShift[IO]
-      implicit val timer = ec.timer[IO]
+      implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+      implicit val timer: Timer[IO] = ec.timer[IO]
 
       val fa = for {
         pa <- Deferred[IO, Unit]

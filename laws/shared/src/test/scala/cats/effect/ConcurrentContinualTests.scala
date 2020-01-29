@@ -24,8 +24,8 @@ import scala.util.Success
 class ConcurrentContinualTests extends BaseTestsSuite {
   testAsync("Concurrent.continual allows interruption of its input") { implicit ec =>
     import scala.concurrent.duration._
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { canceled =>
       (IO.never: IO[Unit])
@@ -42,8 +42,8 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
   testAsync("Concurrent.continual backpressures on finalizers") { implicit ec =>
     import scala.concurrent.duration._
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { canceled =>
       (IO.never: IO[Unit])
@@ -63,7 +63,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.continual behaves like flatMap on the happy path") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val task = IO(1).continual(n => IO(n.toOption.get + 1)).map(_ + 1)
 
     val f = task.unsafeToFuture()
@@ -72,7 +72,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.continual behaves like handleErrorWith on errors") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val ex = new Exception("boom")
     val task = IO.raiseError[Unit](ex).continual(n => IO(n.swap.toOption.get))
@@ -83,7 +83,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   }
 
   testAsync("Concurrent.continual propagates errors in the continuation") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val ex = new Exception("boom")
     val task = IO(1).continual(_ => IO.raiseError(ex)).handleError(identity)
@@ -95,8 +95,8 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
   testAsync("Concurrent.continual respects the continual guarantee") { implicit ec =>
     import scala.concurrent.duration._
-    implicit val cs = ec.contextShift[IO]
-    implicit val timer = ec.timer[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { completed =>
       IO.unit
