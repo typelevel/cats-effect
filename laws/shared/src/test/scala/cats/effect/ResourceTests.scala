@@ -315,25 +315,122 @@ class ResourceTests extends BaseTestsSuite {
 
     var leftAllocated = false
     var rightAllocated = false
+    var leftReleasing = false
+    var rightReleasing = false
     var leftReleased = false
     var rightReleased = false
 
     val wait = IO.sleep(1.second)
-    val lhs = Resource.make(wait >> IO { leftAllocated = true })(_ => wait >> IO { leftReleased =  true})
-    val rhs = Resource.make(wait >> IO { rightAllocated = true })(_ => wait >> IO { rightReleased =  true})
+    val lhs = Resource.make(wait >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait >> IO { leftReleased =  true})
+    val rhs = Resource.make(wait >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait >> IO { rightReleased =  true})
 
-    (lhs, rhs).parTupled.use(IO.pure).unsafeToFuture()
+    (lhs, rhs).parTupled.use(_ => wait).unsafeToFuture()
 
     ec.tick(1.second)
     leftAllocated shouldBe true
     rightAllocated shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    ec.tick(1.second)
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
 
     ec.tick(1.second)
     leftReleased shouldBe true
     rightReleased shouldBe true
   }
 
-  // both allocate, one task fails whilst the other is executing, check all reasources are released
-  // both failure and interruption are tested
-  // failure during allocation of one whilst other executing, the second gets closed
+  testAsync("parZip - safety: lhs error during rhs interruptible region") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
+
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = Resource.make(wait(1) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
+    val rhs = Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
+
+
+    (lhs.evalMap(_ => wait(1) >> IO.raiseError(new Exception)),
+     rhs.evalMap(_ => wait(2))
+    ).parTupled
+      .use(_ => IO.unit)
+      .handleError(_ => ())
+      .unsafeToFuture()
+
+    ec.tick(1.second)
+    leftAllocated shouldBe true
+    rightAllocated shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    ec.tick(1.second)
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
+
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
+  }
+
+  testAsync("parZip - safety: rhs error during lhs uninterruptible region") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var rightErrored = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
+
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = Resource.make(wait(3) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
+      _ <- Resource.make(wait(1) >> IO {rightErrored = true} >> IO.raiseError[Unit](new Exception))(_ => IO.unit)
+    } yield ()
+
+
+    (lhs, rhs)
+      .parTupled
+      .use(_ => wait(1))
+      .handleError(_ => ())
+      .unsafeToFuture()
+
+    ec.tick(1.second)
+    leftAllocated shouldBe false
+    rightAllocated shouldBe true
+    rightErrored shouldBe false
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    ec.tick(1.second)
+    leftAllocated shouldBe false
+    rightAllocated shouldBe true
+    rightErrored shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    ec.tick(1.second)
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
+
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
+  }
 }
