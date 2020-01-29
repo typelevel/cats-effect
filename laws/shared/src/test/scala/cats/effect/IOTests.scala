@@ -29,12 +29,13 @@ import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import org.scalacheck._
+import org.scalatest.Inside
 
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.{Failure, Success, Try}
 import scala.concurrent.duration._
 
-class IOTests extends BaseTestsSuite {
+class IOTests extends BaseTestsSuite with Inside {
   checkAllAsync("IO", implicit ec => {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
@@ -122,7 +123,7 @@ class IOTests extends BaseTestsSuite {
 
     val ioa = IO { throw Foo }
 
-    ioa.attempt.unsafeRunSync() should matchPattern {
+    inside(ioa.attempt.unsafeRunSync()) {
       case Left(Foo) => ()
     }
   }
@@ -142,7 +143,7 @@ class IOTests extends BaseTestsSuite {
     case object Foo extends Exception
     val e: Either[Throwable, Nothing] = Left(Foo)
 
-    IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+    inside(IO.fromEither(e).attempt.unsafeRunSync()) {
       case Left(Foo) => ()
     }
   }
@@ -151,7 +152,7 @@ class IOTests extends BaseTestsSuite {
     case class Foo(x: Int)
     val e: Either[Throwable, Foo] = Right(Foo(1))
 
-    IO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+    inside(IO.fromEither(e).attempt.unsafeRunSync()) {
       case Right(Foo(_)) => ()
     }
   }
@@ -160,7 +161,7 @@ class IOTests extends BaseTestsSuite {
     case object Foo extends Exception
     val t: Try[Nothing] = Failure(Foo)
 
-    IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
+    inside(IO.fromTry(t).attempt.unsafeRunSync()) {
       case Left(Foo) => ()
     }
   }
@@ -169,7 +170,7 @@ class IOTests extends BaseTestsSuite {
     case class Foo(x: Int)
     val t: Try[Foo] = Success(Foo(1))
 
-    IO.fromTry(t).attempt.unsafeRunSync() should matchPattern {
+    inside(IO.fromTry(t).attempt.unsafeRunSync()) {
       case Right(Foo(_)) => ()
     }
   }

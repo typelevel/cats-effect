@@ -25,8 +25,9 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
+import org.scalatest.Inside
 
-class SyncIOTests extends BaseTestsSuite {
+class SyncIOTests extends BaseTestsSuite with Inside {
   checkAllAsync("SyncIO", _ => SyncEffectTests[SyncIO].syncEffect[Int, Int, Int])
   checkAllAsync("SyncIO", _ => MonoidTests[SyncIO[Int]].monoid)
   checkAllAsync("SyncIO", _ => SemigroupKTests[SyncIO].semigroupK[Int])
@@ -45,7 +46,7 @@ class SyncIOTests extends BaseTestsSuite {
 
     val ioa = SyncIO { throw Foo }
 
-    ioa.attempt.unsafeRunSync() should matchPattern {
+    inside(ioa.attempt.unsafeRunSync()) {
       case Left(Foo) => ()
     }
   }
@@ -54,7 +55,7 @@ class SyncIOTests extends BaseTestsSuite {
     case object Foo extends Exception
     val e: Either[Throwable, Nothing] = Left(Foo)
 
-    SyncIO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+    inside(SyncIO.fromEither(e).attempt.unsafeRunSync()) {
       case Left(Foo) => ()
     }
   }
@@ -63,7 +64,7 @@ class SyncIOTests extends BaseTestsSuite {
     case class Foo(x: Int)
     val e: Either[Throwable, Foo] = Right(Foo(1))
 
-    SyncIO.fromEither(e).attempt.unsafeRunSync() should matchPattern {
+    inside(SyncIO.fromEither(e).attempt.unsafeRunSync()) {
       case Right(Foo(_)) => ()
     }
   }
