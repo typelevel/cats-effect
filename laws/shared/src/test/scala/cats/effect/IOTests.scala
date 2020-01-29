@@ -316,7 +316,7 @@ class IOTests extends BaseTestsSuite {
       val io1 = IO.fromFuture(IO(Future { effect = f(effect, a) }))
       val io2 = IO.fromFuture(IO(Future { effect = g(effect, a) }))
 
-      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a))
+      io2.flatMap(_ => io1).flatMap(_ => io2) <-> IO(g(f(g(a, a), a), a)).void
     }
   }
 

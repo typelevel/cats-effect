@@ -104,7 +104,7 @@ class FiberTests extends BaseTestsSuite {
         _ <- IO.fromFuture(IO.pure(latch1.future))
         _ <- IO.fromFuture(IO.pure(latch2.future))
         _ <- fiber1.map2(fiber2)(_ + _).cancel
-      } yield fiber2.join
+      } yield { fiber2.join; () }
 
     f.unsafeToFuture()
     ec.tick()

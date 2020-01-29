@@ -93,7 +93,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
     val p1 = Promise[Unit]()
     val io = IO.unit.bracket(_ => IO.never: IO[Unit]) { _ =>
-      IO.sleep(3.seconds) *> IO(p1.success(()))
+      IO.sleep(3.seconds) *> IO(p1.success(())).void
     }
 
     val p2 = Promise[Unit]()
@@ -151,16 +151,19 @@ class IOCancelableTests extends BaseTestsSuite {
           IO(3).bracket(_ => IO.never: IO[Unit]) { x3 =>
             IO.sleep(3.seconds) *> IO {
               atom.compareAndSet(0, x3) shouldBe true
+              ()
             }
           }
         } { x2 =>
           IO.sleep(2.seconds) *> IO {
             atom.compareAndSet(3, x2) shouldBe true
+            ()
           }
         }
       } { x1 =>
         IO.sleep(1.second) *> IO {
           atom.compareAndSet(2, x1) shouldBe true
+          ()
         }
       }
 
