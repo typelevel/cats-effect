@@ -84,7 +84,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => ())
 
-  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit) =
+  def asyncCanBeDerivedFromAsyncF[A](k: (Either[Throwable, A] => Unit) => Unit): IsEq[F[A]] =
     F.async(k) <-> F.asyncF(cb => F.delay(k(cb)))
 
   def bracketReleaseIsCalledOnCompletedOrError[A, B](fa: F[A], b: B) = {
