@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import cats.effect.{BaseTestsSuite, IO}
+import cats.effect.{BaseTestsSuite, ContextShift, IO}
 import scala.util.Success
 
 class IOContextShiftTests extends BaseTestsSuite {
