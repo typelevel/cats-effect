@@ -69,7 +69,11 @@ trait IOApp {
   /**
    * Provides an implicit [[ContextShift]] for the app.
    *
-   * The default is lazily constructed from the global execution context
+   * The default on top of the JVM is lazily constructed as a fixed
+   * thread pool based on number available of available CPUs (see
+   * `PoolUtils`).
+   *
+   * On top of JavaScript, the global execution context is used
    * (i.e. `scala.concurrent.ExecutionContext.Implicits.global`).
    *
    * Users can override this value in order to customize the main
@@ -88,7 +92,7 @@ trait IOApp {
    * The default on top of the JVM uses an internal scheduler built with Java's
    * [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Executors.html#newScheduledThreadPool-int- Executors.newScheduledThreadPool]]
    * (configured with one or two threads) and that defers the execution of the
-   * scheduled ticks (the bind continuations get shifted) to Scala's `global`.
+   * scheduled ticks (the bind continuations get shifted) to the app's [[contextShift]].
    *
    * On top of JavaScript the default timer will simply use the standard
    * [[https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout setTimeout]].
