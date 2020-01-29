@@ -294,6 +294,9 @@ class ResourceTests extends BaseTestsSuite {
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
     implicit val ctx = ec.contextShift[IO]
 
+    // conceptually asserts that:
+    //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
+    // needs to be tested manually to assert the equivalence during cleanup as well
     check { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
       var released: List[Int] = Nil
       val r = as.traverse {
@@ -326,18 +329,25 @@ class ResourceTests extends BaseTestsSuite {
 
     (lhs, rhs).parTupled.use(_ => wait).unsafeToFuture()
 
+    // after 1 second:
+    //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+    //  resources are still open during `use` (correctness)
     ec.tick(1.second)
     leftAllocated shouldBe true
     rightAllocated shouldBe true
     leftReleasing shouldBe false
     rightReleasing shouldBe false
 
+    // after 2 seconds:
+    //  both resources have started cleanup (correctness)
     ec.tick(1.second)
     leftReleasing shouldBe true
     rightReleasing shouldBe true
     leftReleased shouldBe false
     rightReleased shouldBe false
 
+    // after 3 seconds:
+    //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
     ec.tick(1.second)
     leftReleased shouldBe true
     rightReleased shouldBe true
@@ -355,29 +365,42 @@ class ResourceTests extends BaseTestsSuite {
     var rightReleased = false
 
     def wait(n: Int) = IO.sleep(n.seconds)
-    val lhs = Resource.make(wait(1) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
-    val rhs = Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
+    val lhs = for {
+      _ <- Resource.make(wait(1) >> IO { leftAllocated = true })(_ => IO { leftReleasing = true} >> wait(1) >> IO { leftReleased =  true})
+      _ <- Resource.liftF { wait(1) >> IO.raiseError[Unit](new Exception) }
+    } yield ()
+
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true })(_ => IO { rightReleasing = true} >> wait(1) >> IO { rightReleased =  true})
+      _ <- Resource.liftF(wait(2))
+    } yield ()
 
 
-    (lhs.evalMap(_ => wait(1) >> IO.raiseError(new Exception)),
-     rhs.evalMap(_ => wait(2))
-    ).parTupled
+    (lhs, rhs)
+      .parTupled
       .use(_ => IO.unit)
       .handleError(_ => ())
       .unsafeToFuture()
 
+    // after 1 second:
+    //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+    //  resources are still open during `flatMap` (correctness)
     ec.tick(1.second)
     leftAllocated shouldBe true
     rightAllocated shouldBe true
     leftReleasing shouldBe false
     rightReleasing shouldBe false
 
+    // after 2 seconds:
+    //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
     ec.tick(1.second)
     leftReleasing shouldBe true
     rightReleasing shouldBe true
     leftReleased shouldBe false
     rightReleased shouldBe false
 
+    // after 3 seconds:
+    //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
     ec.tick(1.second)
     leftReleased shouldBe true
     rightReleased shouldBe true
@@ -409,6 +432,8 @@ class ResourceTests extends BaseTestsSuite {
       .handleError(_ => ())
       .unsafeToFuture()
 
+    // after 1 second:
+    //  rhs has partially allocated, lhs executing
     ec.tick(1.second)
     leftAllocated shouldBe false
     rightAllocated shouldBe true
@@ -416,6 +441,8 @@ class ResourceTests extends BaseTestsSuite {
     leftReleasing shouldBe false
     rightReleasing shouldBe false
 
+    // after 2 seconds:
+    //  rhs has failed, release blocked since lhs is in uninterruptible allocation
     ec.tick(1.second)
     leftAllocated shouldBe false
     rightAllocated shouldBe true
@@ -423,12 +450,18 @@ class ResourceTests extends BaseTestsSuite {
     leftReleasing shouldBe false
     rightReleasing shouldBe false
 
+    // after 3 seconds:
+    //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
+    //  both resources have started cleanup (correctness, error propagates to both sides)
     ec.tick(1.second)
+    leftAllocated shouldBe true
     leftReleasing shouldBe true
     rightReleasing shouldBe true
     leftReleased shouldBe false
     rightReleased shouldBe false
 
+    // after 4 seconds:
+    //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
     ec.tick(1.second)
     leftReleased shouldBe true
     rightReleased shouldBe true
