@@ -121,6 +121,11 @@ object arbitrary {
                                                            AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
+  implicit def catsEffectLawsArbitraryForResourceParallel[F[_], A](
+    implicit A: Arbitrary[Resource[F, A]]
+  ): Arbitrary[Resource.Par[F, A]] =
+    Arbitrary(A.arbitrary.map(Resource.Par.apply))
+
   def genResource[F[_], A](implicit F: Applicative[F],
                            AFA: Arbitrary[F[A]],
                            AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {

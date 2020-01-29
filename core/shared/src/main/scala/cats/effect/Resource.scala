@@ -19,8 +19,10 @@ package cats.effect
 import cats._
 import cats.data.AndThen
 import cats.effect.ExitCase.Completed
+import cats.effect.concurrent.Ref
 import cats.effect.internals.ResourcePlatform
 import cats.implicits._
+import cats.effect.implicits._
 
 import scala.annotation.tailrec
 
@@ -97,15 +99,10 @@ import scala.annotation.tailrec
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
-  /**
-   * Allocates a resource and supplies it to the given function.  The
-   * resource is released as soon as the resulting `F[B]` is
-   * completed, whether normally or as a raised error.
-   *
-   * @param f the function to apply to the allocated resource
-   * @return the result of applying [F] to
-   */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] = {
+  private def fold[G[x] >: F[x], B](
+    onOutput: A => G[B],
+    onRelease: G[Unit] => G[Unit]
+  )(implicit F: Bracket[G, Throwable]): G[B] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
       loop(current, stack)
@@ -118,12 +115,12 @@ sealed abstract class Resource[+F[_], +A] {
           F.bracketCase(a.resource) {
             case (a, _) =>
               stack match {
-                case Nil => f.asInstanceOf[Any => G[Any]](a)
+                case Nil => onOutput.asInstanceOf[Any => G[Any]](a)
                 case l   => continue(l.head(a), l.tail)
               }
           } {
             case ((_, release), ec) =>
-              release(ec)
+              onRelease(release(ec))
           }
         case b: Bind[G, _, Any] =>
           loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
@@ -131,6 +128,64 @@ sealed abstract class Resource[+F[_], +A] {
           s.resource.flatMap(continue(_, stack))
       }
     loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
+  }
+
+  /**
+   * Allocates a resource and supplies it to the given function.  The
+   * resource is released as soon as the resulting `F[B]` is
+   * completed, whether normally or as a raised error.
+   *
+   * @param f the function to apply to the allocated resource
+   * @return the result of applying [F] to
+   */
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
+    fold[G, B](f, identity)
+
+  /**
+   * Allocates two resources concurrently, and combines their results in a tuple.
+   *
+   * The finalizers for the two resources are also run concurrently with each other,
+   * but within _each_ of the two resources, nested finalizers are run in the usual
+   * reverse order of acquisition.
+   *
+   * Note that `Resource` also comes with a `cats.Parallel` instance
+   * that offers more convenient access to the same functionality as
+   * `parZip`, for example via `parMapN`:
+   *
+   * {{{
+   *   def mkResource(name: String) = {
+   *     val acquire =
+   *       IO(scala.util.Random.nextInt(1000).millis) *>
+   *       IO(println(s"Acquiring $$name")).as(name)
+   *
+   *     val release = IO(println(s"Releasing $$name"))
+   *     Resource.make(acquire)(release)
+   *   }
+   *
+   *  val r = (mkResource("one"), mkResource("two"))
+   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
+   *             .use(msg => IO(println(msg)))
+   * }}}
+   *
+   **/
+  def parZip[G[x] >: F[x]: Sync: Parallel, B](
+    that: Resource[G, B]
+  ): Resource[G, (A, B)] = {
+    type Update = (G[Unit] => G[Unit]) => G[Unit]
+
+    def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
+      r.fold[G, C](_.pure[G], release => storeFinalizer(_.guarantee(release)))
+
+    val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
+
+    Resource
+      .make(bothFinalizers)(_.get.flatMap(_.parTupled).void)
+      .evalMap { store =>
+        val leftStore: Update = f => store.update(_.leftMap(f))
+        val rightStore: Update = f => store.update(_.map(f))
+
+        (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+      }
   }
 
   /**
@@ -319,6 +374,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   /**
    * Lifts an applicative into a resource.  The resource has a no-op release.
+   * Preserves interruptibility of `fa`
    *
    * @param fa the value to lift into a resource
    */
@@ -393,6 +449,34 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * resource value.
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Resource[F, A]
+
+  /**
+   * Newtype encoding for a `Resource` datatype that has a `cats.Applicative`
+   * capable of doing parallel processing in `ap` and `map2`, needed
+   * for implementing `cats.Parallel`.
+   *
+   * Helpers are provided for converting back and forth in `Par.apply`
+   * for wrapping any `IO` value and `Par.unwrap` for unwrapping.
+   *
+   * The encoding is based on the "newtypes" project by
+   * Alexander Konovalov, chosen because it's devoid of boxing issues and
+   * a good choice until opaque types will land in Scala.
+   * [[https://github.com/alexknvl/newtypes alexknvl/newtypes]].
+   *
+   */
+  type Par[+F[_], +A] = Par.Type[F, A]
+
+  object Par {
+    type Base
+    trait Tag extends Any
+    type Type[+F[_], +A] <: Base with Tag
+
+    def apply[F[_], A](fa: Resource[F, A]): Type[F, A] =
+      fa.asInstanceOf[Type[F, A]]
+
+    def unwrap[F[_], A](fa: Type[F, A]): Resource[F, A] =
+      fa.asInstanceOf[Resource[F, A]]
+  }
 }
 
 abstract private[effect] class ResourceInstances extends ResourceInstances0 {
@@ -411,6 +495,22 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
     new ResourceLiftIO[F] {
       def F0 = F00
       def F1 = F10
+    }
+
+  implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
+    implicit F: Sync[F],
+    P: Parallel[F]
+  ): CommutativeApplicative[Resource.Par[F, *]] =
+    new ResourceParCommutativeApplicative[F] {
+      def F0 = F
+      def F1 = P
+    }
+
+  implicit def catsEffectParallelForResource[F0[_]: Sync: Parallel]
+    : Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
+    new ResourceParallel[F0] {
+      def F0 = catsEffectCommutativeApplicativeForResourcePar
+      def F1 = catsEffectMonadForResource
     }
 }
 
@@ -524,4 +624,40 @@ abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *
 
   def liftIO[A](ioa: IO[A]): Resource[F, A] =
     Resource.liftF(F0.liftIO(ioa))
+}
+
+abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
+    extends CommutativeApplicative[Resource.Par[F, *]] {
+  import Resource.Par
+  import Resource.Par.{unwrap, apply => par}
+
+  implicit protected def F0: Sync[F]
+  implicit protected def F1: Parallel[F]
+
+  final override def map[A, B](fa: Par[F, A])(f: A => B): Par[F, B] =
+    par(unwrap(fa).map(f))
+  final override def pure[A](x: A): Par[F, A] =
+    par(Resource.pure[F, A](x))
+  final override def product[A, B](fa: Par[F, A], fb: Par[F, B]): Par[F, (A, B)] =
+    par(unwrap(fa).parZip(unwrap(fb)))
+  final override def map2[A, B, Z](fa: Par[F, A], fb: Par[F, B])(f: (A, B) => Z): Par[F, Z] =
+    map(product(fa, fb)) { case (a, b) => f(a, b) }
+  final override def ap[A, B](ff: Par[F, A => B])(fa: Par[F, A]): Par[F, B] =
+    map(product(ff, fa)) { case (ff, a) => ff(a) }
+}
+
+abstract private[effect] class ResourceParallel[F0[_]] extends Parallel[Resource[F0, *]] {
+  protected def F0: Applicative[Resource.Par[F0, *]]
+  protected def F1: Monad[Resource[F0, *]]
+
+  type F[x] = Resource.Par[F0, x]
+
+  final override val applicative: Applicative[Resource.Par[F0, *]] = F0
+  final override val monad: Monad[Resource[F0, *]] = F1
+
+  final override val sequential: Resource.Par[F0, *] ~> Resource[F0, *] =
+    λ[Resource.Par[F0, *] ~> Resource[F0, *]](Resource.Par.unwrap(_))
+
+  final override val parallel: Resource[F0, *] ~> Resource.Par[F0, *] =
+    λ[Resource[F0, *] ~> Resource.Par[F0, *]](Resource.Par(_))
 }

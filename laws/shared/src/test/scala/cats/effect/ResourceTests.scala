@@ -33,6 +33,23 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
   checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
   checkAllAsync("Resource[IO, *]", implicit ec => SemigroupKTests[Resource[IO, *]].semigroupK[Int])
+  checkAllAsync(
+    "Resource.Par[IO, *]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+      CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
+    }
+  )
+  checkAllAsync(
+    "Resource[IO, *]",
+    implicit ec => {
+      implicit val cs = ec.contextShift[IO]
+
+      // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+      val module = ParallelTests[IO]
+      module.parallel[Int, Int]
+    }
+  )
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
@@ -275,5 +292,189 @@ class ResourceTests extends BaseTestsSuite {
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
+  }
+
+  testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
+    implicit val ctx = ec.contextShift[IO]
+
+    // conceptually asserts that:
+    //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
+    // needs to be tested manually to assert the equivalence during cleanup as well
+    check { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+      var released: List[Int] = Nil
+      val r = as.traverse {
+        case (a, e) =>
+          Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+      }
+      val unit = ().pure[Resource[IO, *]]
+      val p = if (rhs) r.parZip(unit) else unit.parZip(r)
+
+      p.use(IO.pure).attempt.unsafeToFuture
+      ec.tick()
+      released <-> as.map(_._1)
+    }
+  }
+
+  testAsync("parZip - parallel acquisition and release") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
+
+    val wait = IO.sleep(1.second)
+    val lhs = Resource.make(wait >> IO { leftAllocated = true }) { _ =>
+      IO { leftReleasing = true } >> wait >> IO { leftReleased = true }
+    }
+    val rhs = Resource.make(wait >> IO { rightAllocated = true }) { _ =>
+      IO { rightReleasing = true } >> wait >> IO { rightReleased = true }
+    }
+
+    (lhs, rhs).parTupled.use(_ => wait).unsafeToFuture()
+
+    // after 1 second:
+    //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+    //  resources are still open during `use` (correctness)
+    ec.tick(1.second)
+    leftAllocated shouldBe true
+    rightAllocated shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    // after 2 seconds:
+    //  both resources have started cleanup (correctness)
+    ec.tick(1.second)
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
+
+    // after 3 seconds:
+    //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
+  }
+
+  testAsync("parZip - safety: lhs error during rhs interruptible region") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
+
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = for {
+      _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
+        IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+      }
+      _ <- Resource.liftF { wait(1) >> IO.raiseError[Unit](new Exception) }
+    } yield ()
+
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
+      _ <- Resource.liftF(wait(2))
+    } yield ()
+
+    (lhs, rhs).parTupled
+      .use(_ => IO.unit)
+      .handleError(_ => ())
+      .unsafeToFuture()
+
+    // after 1 second:
+    //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
+    //  resources are still open during `flatMap` (correctness)
+    ec.tick(1.second)
+    leftAllocated shouldBe true
+    rightAllocated shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    // after 2 seconds:
+    //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
+    ec.tick(1.second)
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
+
+    // after 3 seconds:
+    //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
+  }
+
+  testAsync("parZip - safety: rhs error during lhs uninterruptible region") { implicit ec =>
+    implicit val timer = ec.timer[IO]
+    implicit val ctx = ec.contextShift[IO]
+
+    var leftAllocated = false
+    var rightAllocated = false
+    var rightErrored = false
+    var leftReleasing = false
+    var rightReleasing = false
+    var leftReleased = false
+    var rightReleased = false
+
+    def wait(n: Int) = IO.sleep(n.seconds)
+    val lhs = Resource.make(wait(3) >> IO { leftAllocated = true }) { _ =>
+      IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
+    }
+    val rhs = for {
+      _ <- Resource.make(wait(1) >> IO { rightAllocated = true }) { _ =>
+        IO { rightReleasing = true } >> wait(1) >> IO { rightReleased = true }
+      }
+      _ <- Resource.make(wait(1) >> IO { rightErrored = true } >> IO.raiseError[Unit](new Exception))(_ => IO.unit)
+    } yield ()
+
+    (lhs, rhs).parTupled
+      .use(_ => wait(1))
+      .handleError(_ => ())
+      .unsafeToFuture()
+
+    // after 1 second:
+    //  rhs has partially allocated, lhs executing
+    ec.tick(1.second)
+    leftAllocated shouldBe false
+    rightAllocated shouldBe true
+    rightErrored shouldBe false
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    // after 2 seconds:
+    //  rhs has failed, release blocked since lhs is in uninterruptible allocation
+    ec.tick(1.second)
+    leftAllocated shouldBe false
+    rightAllocated shouldBe true
+    rightErrored shouldBe true
+    leftReleasing shouldBe false
+    rightReleasing shouldBe false
+
+    // after 3 seconds:
+    //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
+    //  both resources have started cleanup (correctness, error propagates to both sides)
+    ec.tick(1.second)
+    leftAllocated shouldBe true
+    leftReleasing shouldBe true
+    rightReleasing shouldBe true
+    leftReleased shouldBe false
+    rightReleased shouldBe false
+
+    // after 4 seconds:
+    //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
+    ec.tick(1.second)
+    leftReleased shouldBe true
+    rightReleased shouldBe true
   }
 }
