@@ -91,7 +91,7 @@ class SyncIOTests extends BaseTestsSuite {
       }
     }
 
-    val value = loop.unsafeRunSync
+    val value = loop.unsafeRunSync()
     value shouldEqual count
   }
 

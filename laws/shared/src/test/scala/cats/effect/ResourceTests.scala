@@ -41,7 +41,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   test("releases resources in reverse order of acquisition") {
-    check { as: List[(Int, Either[Throwable, Unit])] =>
+    check { (as: List[(Int, Either[Throwable, Unit])]) =>
       var released: List[Int] = Nil
       val r = as.traverse {
         case (a, e) =>
@@ -91,7 +91,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("liftF") { implicit ec =>
-    check { fa: IO[String] =>
+    check { (fa: IO[String]) =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
@@ -175,7 +175,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("mapK") { implicit ec =>
-    check { fa: Kleisli[IO, Int, Int] =>
+    check { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
@@ -219,7 +219,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("allocated produces the same value as the resource") { implicit ec =>
-    check { resource: Resource[IO, Int] =>
+    check { (resource: Resource[IO, Int]) =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
       val a1 = resource.use(IO.pure).attempt
 
@@ -240,7 +240,7 @@ class ResourceTests extends BaseTestsSuite {
       _ <- IO(released.get() shouldBe true)
     } yield ()
 
-    prog.unsafeRunSync
+    prog.unsafeRunSync()
   }
 
   test("allocate does not release until close is invoked on mapK'd Resources") {
@@ -252,7 +252,7 @@ class ResourceTests extends BaseTestsSuite {
     val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
-    val plusOne = Kleisli { i: Int =>
+    val plusOne = Kleisli { (i: Int) =>
       IO { i + 1 }
     }
     val plusOneResource = Resource.liftF(plusOne)
@@ -268,7 +268,7 @@ class ResourceTests extends BaseTestsSuite {
       _ <- IO(released.get() shouldBe true)
     } yield ()
 
-    prog.unsafeRunSync
+    prog.unsafeRunSync()
   }
 
   test("safe attempt suspended resource") {

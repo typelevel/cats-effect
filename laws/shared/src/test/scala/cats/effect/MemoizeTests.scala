@@ -89,7 +89,7 @@ class MemoizeTests extends BaseTestsSuite {
 
   testAsync("Concurrent.memoize and then flatten is identity") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    check { fa: IO[Int] =>
+    check { (fa: IO[Int]) =>
       Concurrent.memoize(fa).flatten <-> fa
     }
   }
