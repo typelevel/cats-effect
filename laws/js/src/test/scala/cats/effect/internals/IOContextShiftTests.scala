@@ -21,7 +21,7 @@ import scala.util.Success
 
 class IOContextShiftTests extends BaseTestsSuite {
   testAsync("ContextShift[IO] instance based on implicit ExecutionContext") { implicit ec =>
-    val contextShift = ec.contextShift[IO]
+    val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = contextShift.shift.map(_ => 1).unsafeToFuture()
     f.value shouldBe None

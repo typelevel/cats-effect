@@ -30,7 +30,7 @@ class ContextShiftTests extends BaseTestsSuite {
   type IorTIO[A] = IorT[IO, Int, A]
 
   testAsync("ContextShift[IO].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = cs.shift.unsafeToFuture()
     f.value shouldBe None
@@ -40,7 +40,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("ContextShift[IO].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val ec2 = TestContext()
 
     val f = cs.evalOn(ec2)(IO(1)).unsafeToFuture()
@@ -56,7 +56,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("ContextShift.evalOnK[IO]") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val ec2 = TestContext()
 
     val funK = ContextShift.evalOnK[IO](ec2)
@@ -75,7 +75,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- EitherT
 
   testAsync("Timer[EitherT].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[EitherTIO]].shift.value.unsafeToFuture()
 
     f.value shouldBe None
@@ -85,7 +85,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[EitherT].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[EitherTIO]]
     val ec2 = TestContext()
 
@@ -104,7 +104,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- OptionT
 
   testAsync("Timer[OptionT].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[OptionTIO]].shift.value.unsafeToFuture()
 
     f.value shouldBe None
@@ -114,7 +114,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[OptionT].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[OptionTIO]]
     val ec2 = TestContext()
 
@@ -133,7 +133,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- WriterT
 
   testAsync("Timer[WriterT].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[WriterTIO]].shift.value.unsafeToFuture()
 
     f.value shouldBe None
@@ -143,7 +143,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[WriterT].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[WriterTIO]]
     val ec2 = TestContext()
 
@@ -162,7 +162,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- StateT
 
   testAsync("Timer[StateT].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[StateTIO]].shift.run(0).unsafeToFuture()
 
     f.value shouldBe None
@@ -172,7 +172,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[StateT].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[StateTIO]]
     val ec2 = TestContext()
 
@@ -191,7 +191,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- Kleisli
 
   testAsync("Timer[Kleisli].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[KleisliIO]].shift.run(0).unsafeToFuture()
 
     f.value shouldBe None
@@ -201,7 +201,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[Kleisli].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[KleisliIO]]
     val ec2 = TestContext()
 
@@ -220,7 +220,7 @@ class ContextShiftTests extends BaseTestsSuite {
   // -- IorT
 
   testAsync("Timer[IorT].shift") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[IorTIO]].shift.value.unsafeToFuture()
 
     f.value shouldBe None
@@ -230,7 +230,7 @@ class ContextShiftTests extends BaseTestsSuite {
   }
 
   testAsync("Timer[IorT].evalOn") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
     val cs2 = implicitly[ContextShift[IorTIO]]
     val ec2 = TestContext()
 

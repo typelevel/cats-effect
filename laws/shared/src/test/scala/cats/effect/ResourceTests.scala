@@ -97,8 +97,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("liftF - interruption") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     def p =
       Deferred[IO, ExitCase[Throwable]]
@@ -135,7 +135,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
@@ -150,7 +150,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a =>
@@ -166,7 +166,7 @@ class ResourceTests extends BaseTestsSuite {
 
   testAsync("(evalTap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))

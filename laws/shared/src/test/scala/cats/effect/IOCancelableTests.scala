@@ -36,7 +36,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("IO.cancelBoundary can be canceled") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = (IO.shift *> IO.cancelBoundary).unsafeToFuture()
     f.value shouldBe None
@@ -51,7 +51,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("(fa <* IO.cancelBoundary).cancel <-> IO.never") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (fa: IO[Int]) =>
       val received =
@@ -66,7 +66,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("task.start.flatMap(id) <-> task") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     check { (task: IO[Int]) =>
       task.start.flatMap(_.join) <-> task
@@ -74,7 +74,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("task.start is cancelable") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val task = (IO.shift *> IO.cancelBoundary *> IO(1)).start.flatMap(_.join)
 

@@ -136,6 +136,11 @@ final class TestContext private () extends ExecutionContext { self =>
   )
 
   /**
+   * Derives a `cats.effect.Timer` from this `TestContext` for `IO`.
+   */
+  def ioTimer: Timer[IO] = timer[IO](IO.ioEffect)
+
+  /**
    * Derives a `cats.effect.Timer` from this `TestContext`, for any data
    * type that has a `LiftIO` instance.
    *
@@ -166,8 +171,13 @@ final class TestContext private () extends ExecutionContext { self =>
     }
 
   /**
+   * Derives a `cats.effect.ContextShift` from this `TestContext` for `IO`.
+   */
+  def ioContextShift: ContextShift[IO] = contextShift[IO](IO.ioEffect)
+
+  /**
    * Derives a `cats.effect.ContextShift` from this `TestContext`, for any data
-   * type that has a `LiftIO` and `MonadError` instance.
+   * type that has an `Async` instance.
    *
    * Example:
    *

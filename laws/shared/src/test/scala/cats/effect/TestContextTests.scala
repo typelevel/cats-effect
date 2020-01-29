@@ -90,7 +90,7 @@ class TestContextTests extends BaseTestsSuite {
   }
 
   testAsync("IO.shift via implicit ExecutionContext") { implicit ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
     assert(f.value === None)
@@ -100,7 +100,7 @@ class TestContextTests extends BaseTestsSuite {
   }
 
   testAsync("IO.shift via Timer") { ec =>
-    implicit val cs = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
     assert(f.value === None)
