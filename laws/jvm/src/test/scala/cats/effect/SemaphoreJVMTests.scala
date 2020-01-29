@@ -35,14 +35,14 @@ class SemaphoreJVMParallelism4Tests extends BaseSemaphoreJVMTests(4)
 abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
   var service: ExecutorService = _
 
-  implicit val context = new ExecutionContext {
+  implicit val context: ExecutionContext = new ExecutionContext {
     def execute(runnable: Runnable): Unit =
       service.execute(runnable)
     def reportFailure(cause: Throwable): Unit =
       cause.printStackTrace()
   }
 
-  implicit val cs = IO.contextShift(context)
+  implicit val cs: ContextShift[IO] = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
   before {

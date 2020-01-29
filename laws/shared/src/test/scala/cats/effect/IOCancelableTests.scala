@@ -89,7 +89,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("bracket back-pressures on the finalizer") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val p1 = Promise[Unit]()
     val io = IO.unit.bracket(_ => IO.never: IO[Unit]) { _ =>
@@ -116,7 +116,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("CancelUtils.cancelAll") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val token1 = IO.sleep(1.seconds)
     val token2 = IO.sleep(2.seconds)
@@ -142,7 +142,7 @@ class IOCancelableTests extends BaseTestsSuite {
   }
 
   testAsync("nested brackets are sequenced") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
     val atom = new AtomicInteger(0)
 
     val io =
@@ -226,7 +226,7 @@ class IOCancelableTests extends BaseTestsSuite {
 
   // regression test for https://github.com/typelevel/cats-effect/issues/487
   testAsync("bracket can be canceled while failing to acquire") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val io = (IO.sleep(2.second) *> IO.raiseError[Unit](new Exception()))
       .bracket(_ => IO.unit)(_ => IO.unit)

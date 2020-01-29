@@ -115,7 +115,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     import scala.concurrent.duration._
 
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     var effect = 0
     val task = Concurrent.cancelableF[IO, Unit] { cb =>

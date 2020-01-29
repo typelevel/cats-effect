@@ -25,7 +25,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   testAsync("Concurrent.continual allows interruption of its input") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { canceled =>
       (IO.never: IO[Unit])
@@ -43,7 +43,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   testAsync("Concurrent.continual backpressures on finalizers") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { canceled =>
       (IO.never: IO[Unit])
@@ -96,7 +96,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
   testAsync("Concurrent.continual respects the continual guarantee") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = Ref[IO].of(false).flatMap { completed =>
       IO.unit

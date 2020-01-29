@@ -66,7 +66,7 @@ class IOTests extends BaseTestsSuite {
   )
 
   checkAllAsync("IO(Effect defaults)", implicit ec => {
-    implicit val ioEffect = IOTests.ioEffectDefaults
+    implicit val ioEffect: Effect[IO] = IOTests.ioEffectDefaults
     EffectTests[IO].effect[Int, Int, Int]
   })
 
@@ -74,7 +74,7 @@ class IOTests extends BaseTestsSuite {
     "IO(ConcurrentEffect defaults)",
     implicit ec => {
       implicit val cs: ContextShift[IO] = ec.ioContextShift
-      implicit val ioConcurrent = IOTests.ioConcurrentEffectDefaults(ec)
+      implicit val ioConcurrent: ConcurrentEffect[IO] = IOTests.ioConcurrentEffectDefaults(ec)
       ConcurrentEffectTests[IO].concurrentEffect[Int, Int, Int]
     }
   )
@@ -221,7 +221,7 @@ class IOTests extends BaseTestsSuite {
   }
 
   testAsync("IO.sleep") { ec =>
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val io = IO.sleep(10.seconds) *> IO(1 + 1)
     val f = io.unsafeToFuture()
@@ -453,7 +453,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("sync.to[IO] is stack-safe") { implicit ec =>
     // Override default generator to only generate
     // synchronous instances that are stack-safe
-    implicit val arbIO = Arbitrary(genSyncIO[Int].map(_.toIO))
+    implicit val arbIO: Arbitrary[IO[Int]] = Arbitrary(genSyncIO[Int].map(_.toIO))
 
     check { (io: IO[Int]) =>
       repeatedTransformLoop(10000, io) <-> io
@@ -681,7 +681,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("IO.timeout can mirror the source") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     check { (ioa: IO[Int]) =>
       ioa.timeout(1.day) <-> ioa
@@ -690,7 +690,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("IO.timeout can end in timeout") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val task = for {
       p <- Deferred[IO, Unit]
@@ -760,7 +760,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("bracket does not evaluate use on cancel") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     var use = false
     var release = false
@@ -1086,7 +1086,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("cancel should wait for already started finalizers on success") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1106,7 +1106,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("cancel should wait for already started finalizers on failure") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val dummy = new RuntimeException("dummy")
 
@@ -1128,7 +1128,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("cancel should wait for already started use finalizers") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1152,7 +1152,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("second cancel should wait for use finalizers") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1176,7 +1176,7 @@ class IOTests extends BaseTestsSuite {
 
   testAsync("second cancel during acquire should wait for it and finalizers to complete") { implicit ec =>
     implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-    implicit val timer = ec.timer[IO]
+    implicit val timer: Timer[IO] = ec.timer[IO]
 
     val fa = for {
       pa <- Deferred[IO, Unit]
@@ -1202,7 +1202,7 @@ class IOTests extends BaseTestsSuite {
   testAsync("second cancel during acquire should wait for it and finalizers to complete (non-terminating)") {
     implicit ec =>
       implicit val contextShift: ContextShift[IO] = ec.ioContextShift
-      implicit val timer = ec.timer[IO]
+      implicit val timer: Timer[IO] = ec.timer[IO]
 
       val fa = for {
         pa <- Deferred[IO, Unit]
