@@ -309,7 +309,7 @@ class ResourceTests extends BaseTestsSuite {
       val unit = ().pure[Resource[IO, *]]
       val p = if (rhs) r.parZip(unit) else unit.parZip(r)
 
-      p.use(IO.pure).attempt.unsafeToFuture
+      p.use(IO.pure).attempt.unsafeToFuture()
       ec.tick()
       released <-> as.map(_._1)
     }
