@@ -181,8 +181,8 @@ sealed abstract class Resource[+F[_], +A] {
     Resource
       .make(bothFinalizers)(_.get.flatMap(_.parTupled).void)
       .evalMap { store =>
-        val leftStore: Update = f => store.update(_.leftMap(f))
-        val rightStore: Update = f => store.update(_.map(f))
+        val leftStore: Update = f => store.update { case (a, b)  => (f(a), b) }
+        val rightStore: Update = f => store.update { case (a, b) => (a, f(b)) }
 
         (allocate(this, leftStore), allocate(that, rightStore)).parTupled
       }
