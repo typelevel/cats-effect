@@ -36,14 +36,14 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync(
     "Resource.Par[IO, *]",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
       CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
     }
   )
   checkAllAsync(
     "Resource[IO, *]",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
 
       // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
       val module = ParallelTests[IO]
@@ -295,7 +295,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
-    implicit val ctx = ec.contextShift[IO]
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     // conceptually asserts that:
     //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
@@ -316,8 +316,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - parallel acquisition and release") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false
@@ -361,8 +361,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - safety: lhs error during rhs interruptible region") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false
@@ -416,8 +416,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - safety: rhs error during lhs uninterruptible region") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false
