@@ -28,9 +28,10 @@ val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.1.0"
 val DisciplineScalatestVersion = "1.0.0"
+val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
-addCommandAlias("release", ";project root ;reload ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
+addCommandAlias("release", ";project root ;reload ;clean ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
   scalacOptions ++= PartialFunction
@@ -252,6 +253,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .jvmConfigure(_.settings(mimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.settings(scalaJSSettings))
+  .jvmSettings(
+    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0"))
+  )
 
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
@@ -271,6 +275,9 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
   .jvmConfigure(_.settings(lawsMimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jsConfigure(_.settings(scalaJSSettings))
+  .jvmSettings(
+    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0"))
+  )
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js

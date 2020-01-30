@@ -19,7 +19,7 @@ package internals
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.scalajs.js
+import scala.scalajs.js.timers
 
 /**
  * Internal API — JavaScript specific implementation for a [[Timer]]
@@ -59,15 +59,11 @@ private[internals] object IOTimer {
       e.printStackTrace()
   })
 
-  private def setTimeout(delayMillis: Long, ec: ExecutionContext, r: Runnable): js.Dynamic = {
-    val lambda: js.Function = () => ec.execute(r)
-    js.Dynamic.global.setTimeout(lambda, delayMillis)
-  }
+  private def setTimeout(delayMillis: Long, ec: ExecutionContext, r: Runnable): timers.SetTimeoutHandle =
+    timers.setTimeout(delayMillis.toDouble)(ec.execute(r))
 
-  private def clearTimeout(task: js.Dynamic): Unit = {
-    js.Dynamic.global.clearTimeout(task)
-    ()
-  }
+  private def clearTimeout(handle: timers.SetTimeoutHandle): Unit =
+    timers.clearTimeout(handle)
 
   final private class ScheduledTick(conn: IOConnection, cb: Either[Throwable, Unit] => Unit) extends Runnable {
     def run(): Unit = {
