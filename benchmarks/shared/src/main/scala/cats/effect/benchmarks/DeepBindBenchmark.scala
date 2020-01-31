@@ -16,9 +16,9 @@
 package cats.effect.benchmarks
 
 import java.util.concurrent.TimeUnit
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import org.openjdk.jmh.annotations._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits
 
 /** To do comparative benchmarks between versions:
   *
@@ -38,6 +38,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class DeepBindBenchmark {
+  implicit val cs: ContextShift[IO] = IO.contextShift(Implicits.global)
+
   @Param(Array("3000"))
   var size: Int = _
 

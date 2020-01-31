@@ -16,10 +16,10 @@
 package cats.effect.benchmarks
 
 import java.util.concurrent.TimeUnit
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.implicits._
 import org.openjdk.jmh.annotations._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits
 
 /**
  * To do comparative benchmarks between versions:
@@ -40,6 +40,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class AsyncBenchmark {
+  implicit val cs: ContextShift[IO] = IO.contextShift(Implicits.global)
+
   @Param(Array("100"))
   var size: Int = _
 
