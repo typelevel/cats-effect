@@ -155,7 +155,7 @@ sealed abstract class Resource[+F[_], +A] {
    * {{{
    *   def mkResource(name: String) = {
    *     val acquire =
-   *       IO(scala.util.Random.nextInt(1000).millis) *>
+   *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
    *       IO(println(s"Acquiring $$name")).as(name)
    *
    *     val release = IO(println(s"Releasing $$name"))
