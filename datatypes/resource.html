@@ -32,7 +32,7 @@
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(
 //   Delay(&lt;function0&gt;),
-//   cats.FlatMap$$Lambda$6482/1226290938@63af06e9
+//   cats.FlatMap$$Lambda$13577/826578695@d8e03e6
 // )
 </span><span class="k">val</span> <span class="nv">release</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"...release everything"</span><span class="o">))</span>
 <span class="c1">// release: String =&gt; IO[Unit] = &lt;function1&gt;
