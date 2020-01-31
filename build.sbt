@@ -323,7 +323,7 @@ lazy val siteSettings = Seq(
     file("README.md") -> ExtraMdFileConfig(
       "index.md",
       "home",
-      Map("section" -> "home", "position" -> "0")
+      Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
     )
   ),
   micrositeCompilingDocsTool := WithMdoc,
