@@ -20,19 +20,19 @@ import cats.effect.IO
 import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between versions:
-  *
-  *     benchmarks/run-benchmark HandleErrorBenchmark
-  *
-  * This will generate results in `benchmarks/results`.
-  *
-  * Or to run the benchmark from within sbt:
-  *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.HandleErrorBenchmark
-  *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
-  * Please note that benchmarks should be usually executed at least in
-  * 10 iterations (as a rule of thumb), but more is better.
-  */
+ *
+ *     benchmarks/run-benchmark HandleErrorBenchmark
+ *
+ * This will generate results in `benchmarks/results`.
+ *
+ * Or to run the benchmark from within sbt:
+ *
+ *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.HandleErrorBenchmark
+ *
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+ * Please note that benchmarks should be usually executed at least in
+ * 10 iterations (as a rule of thumb), but more is better.
+ */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)

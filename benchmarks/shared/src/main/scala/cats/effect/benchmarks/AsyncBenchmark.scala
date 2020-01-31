@@ -49,7 +49,9 @@ class AsyncBenchmark {
     IO.async(_(Right(n)))
 
   def evalCancelable(n: Int): IO[Int] =
-    IO.cancelable[Int] { cb => cb(Right(n)); IO.unit }
+    IO.cancelable[Int] { cb =>
+      cb(Right(n)); IO.unit
+    }
 
   @Benchmark
   def async() = {
@@ -71,30 +73,32 @@ class AsyncBenchmark {
 
   @Benchmark
   def parMap2() = {
-    val task = (0 until size).foldLeft(IO(0))((acc, i) =>
-      (acc, IO.shift *> IO(i)).parMapN(_ + _)
-    )
+    val task = (0 until size).foldLeft(IO(0))((acc, i) => (acc, IO.shift *> IO(i)).parMapN(_ + _))
     task.unsafeRunSync()
   }
 
   @Benchmark
   def race() = {
-    val task = (0 until size).foldLeft(IO.never:IO[Int])((acc, _) =>
-      IO.race(acc, IO.shift *> IO(1)).map {
-        case Left(i) => i
-        case Right(i) => i
-      })
+    val task = (0 until size).foldLeft(IO.never: IO[Int])(
+      (acc, _) =>
+        IO.race(acc, IO.shift *> IO(1)).map {
+          case Left(i)  => i
+          case Right(i) => i
+        }
+    )
 
     task.unsafeRunSync()
   }
 
   @Benchmark
   def racePair() = {
-    val task = (0 until size).foldLeft(IO.never:IO[Int])((acc, _) =>
-      IO.racePair(acc, IO.shift *> IO(1)).flatMap {
-        case Left((i, fiber)) => fiber.cancel.map(_ => i)
-        case Right((fiber, i)) => fiber.cancel.map(_ => i)
-      })
+    val task = (0 until size).foldLeft(IO.never: IO[Int])(
+      (acc, _) =>
+        IO.racePair(acc, IO.shift *> IO(1)).flatMap {
+          case Left((i, fiber))  => fiber.cancel.map(_ => i)
+          case Right((fiber, i)) => fiber.cancel.map(_ => i)
+        }
+    )
 
     task.unsafeRunSync()
   }

@@ -21,19 +21,19 @@ import org.openjdk.jmh.annotations._
 import scala.concurrent.ExecutionContext.Implicits
 
 /** To do comparative benchmarks between versions:
-  *
-  *     benchmarks/run-benchmark DeepBindBenchmark
-  *
-  * This will generate results in `benchmarks/results`.
-  *
-  * Or to run the benchmark from within sbt:
-  *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.DeepBindBenchmark
-  *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
-  * Please note that benchmarks should be usually executed at least in
-  * 10 iterations (as a rule of thumb), but more is better.
-  */
+ *
+ *     benchmarks/run-benchmark DeepBindBenchmark
+ *
+ * This will generate results in `benchmarks/results`.
+ *
+ * Or to run the benchmark from within sbt:
+ *
+ *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.DeepBindBenchmark
+ *
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+ * Please note that benchmarks should be usually executed at least in
+ * 10 iterations (as a rule of thumb), but more is better.
+ */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
@@ -48,7 +48,7 @@ class DeepBindBenchmark {
     def loop(i: Int): IO[Int] =
       for {
         j <- IO.pure(i)
-        _ <- if(j > size) IO.pure(j) else loop(j + 1)
+        _ <- if (j > size) IO.pure(j) else loop(j + 1)
       } yield j
 
     loop(0).unsafeRunSync()
@@ -59,7 +59,7 @@ class DeepBindBenchmark {
     def loop(i: Int): IO[Int] =
       for {
         j <- IO(i)
-        _ <- if(j > size) IO(j) else loop(j + 1)
+        _ <- if (j > size) IO(j) else loop(j + 1)
       } yield j
 
     loop(0).unsafeRunSync()
@@ -71,7 +71,7 @@ class DeepBindBenchmark {
       for {
         j <- IO(i)
         _ <- IO.shift
-        _ <- if(j > size) IO(j) else loop(j + 1)
+        _ <- if (j > size) IO(j) else loop(j + 1)
       } yield j
 
     loop(0).unsafeRunSync()
