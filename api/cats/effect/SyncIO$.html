@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -252,7 +260,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/SyncIO.scala" target="_blank">SyncIO.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/SyncIO.scala" target="_blank">SyncIO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -675,6 +683,38 @@ conceptually the allocation of a stack frame).  Any exceptions
 thrown by the side effect will be caught and sequenced into the
 <code>SyncIO</code>.
 </p></div></div>
+    </li><li name="cats.effect.SyncIOInstances#syncIOalign" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syncIOalign:cats.Align[cats.effect.SyncIO]"></a><a id="syncIOalign:Align[SyncIO]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/SyncIO$.html#syncIOalign:cats.Align[cats.effect.SyncIO]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">syncIOalign</span><span class="result">: <span class="extype" name="cats.Align">Align</span>[<a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>SyncIOInstances</dd></dl></div>
+    </li><li name="cats.effect.SyncIOInstances#syncIOsyncEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syncIOsyncEffect:cats.effect.SyncEffect[cats.effect.SyncIO]"></a><a id="syncIOsyncEffect:SyncEffect[SyncIO]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/SyncIO$.html#syncIOsyncEffect:cats.effect.SyncEffect[cats.effect.SyncIO]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name">syncIOsyncEffect</span><span class="result">: <a href="SyncEffect.html" class="extype" name="cats.effect.SyncEffect">SyncEffect</a>[<a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>SyncIOInstances</dd></dl></div>
     </li><li name="cats.effect.SyncIOInstances#syncIoMonoid" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="syncIoMonoid[A](implicitevidence$1:cats.Monoid[A]):cats.Monoid[cats.effect.SyncIO[A]]"></a><a id="syncIoMonoid[A](Monoid[A]):Monoid[SyncIO[A]]"></a>
       <span class="permalink">
@@ -720,22 +760,6 @@ thrown by the side effect will be caught and sequenced into the
       </span>
       <span class="symbol">
         <span class="name">syncIoSemigroupK</span><span class="result">: <span class="extype" name="cats.SemigroupK">SemigroupK</span>[<a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>SyncIOInstances</dd></dl></div>
-    </li><li name="cats.effect.SyncIOInstances#syncIoSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="syncIoSync:cats.effect.Sync[cats.effect.SyncIO]"></a><a id="syncIoSync:Sync[SyncIO]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/SyncIO$.html#syncIoSync:cats.effect.Sync[cats.effect.SyncIO]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">implicit </span>
-        <span class="kind">val</span>
-      </span>
-      <span class="symbol">
-        <span class="name">syncIoSync</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>SyncIOInstances</dd></dl></div>
@@ -861,7 +885,29 @@ thrown by the side effect will be caught and sequenced into the
 
         
 
-        
+        <div class="values members">
+              <h3>Deprecated Value Members</h3>
+              <ol><li name="cats.effect.SyncIOInstances#syncIoSync" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="syncIoSync:cats.effect.Sync[cats.effect.SyncIO]"></a><a id="syncIoSync:Sync[SyncIO]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/SyncIO$.html#syncIoSync:cats.effect.Sync[cats.effect.SyncIO]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">val</span>
+      </span>
+      <span class="symbol">
+        <span class="name deprecated" title="Deprecated: (Since version 2.1.0) Signature changed to return SyncEffect">syncIoSync</span><span class="result">: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<a href="SyncIO.html" class="extype" name="cats.effect.SyncIO">SyncIO</a>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>SyncIOInstances</dd><dt>Annotations</dt><dd>
+                <span class="name">@deprecated</span>
+              
+        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 2.1.0)</i> Signature changed to return SyncEffect</p></dd></dl></div>
+    </li></ol>
+            </div>
         </div>
 
         <div id="inheritedMembers">

@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -247,7 +255,7 @@
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <span class="name">Resource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+        <span class="name">Resource</span><span class="tparams">[<span name="F">+F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">+A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
       </span>
       </h4>
 
@@ -257,7 +265,7 @@ allocation of a resource, along with its finalizer.</p><p>This can be used to wr
   Resource(IO {
     <span class="kw">val</span> in = <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
     (in, IO(in.close()))
-  })</pre><p>Usage is done via <a href="#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
+  })</pre><p>Usage is done via <a href="#use[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.effect.Bracket[G,Throwable]):G[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
 because its implementation is specified in terms of <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><pre>open(file1).use { in1 <span class="kw">=&gt;</span>
   open(file2).use { in2 <span class="kw">=&gt;</span>
     readFiles(in1, in2)
@@ -286,7 +294,7 @@ Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data stru
 the following node types and that can be interpreted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
-</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -397,9 +405,9 @@ into a streaming data type).
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="cats.effect.Resource#allocated" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="allocated(implicitF:cats.effect.Bracket[F,Throwable]):F[(A,F[Unit])]"></a><a id="allocated(Bracket[F,Throwable]):F[(A,F[Unit])]"></a>
+      <a id="allocated[G[x]&gt;:F[x],B&gt;:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])]"></a><a id="allocated[G[x]&gt;:F[x],B&gt;:A](Bracket[G,Throwable]):G[(B,G[Unit])]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#allocated(implicitF:cats.effect.Bracket[F,Throwable]):F[(A,F[Unit])]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#allocated[G[x]&gt;:F[x],B&gt;:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -408,7 +416,7 @@ into a streaming data type).
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">allocated</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.F">F</span>[(<span class="extype" name="cats.effect.Resource.A">A</span>, <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="scala.Unit">Unit</span>])]</span>
+        <span class="name">allocated</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.allocated.G.x">x</span>]</span>, <span name="B">B &gt;: <span class="extype" name="cats.effect.Resource.A">A</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.allocated.G">G</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.allocated.G">G</span>[(<span class="extype" name="cats.effect.Resource.allocated.B">B</span>, <span class="extype" name="cats.effect.Resource.allocated.G">G</span>[<span class="extype" name="scala.Unit">Unit</span>])]</span>
       </span>
       
       <p class="shortcomment cmt">Given a <code>Resource</code>, possibly built by composing multiple
@@ -421,7 +429,7 @@ succeeds, it's up to the user to ensure the returned <code>F[Unit]</code>
 is called once <code>A</code> needs to be released. If the returned
 <code>F[Unit]</code> is not called, the finalizers will not be run.</p><p>For this reason, this is an advanced and potentially unsafe api
 which can cause a resource leak if not used correctly, please
-prefer <a href="#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> as the standard way of running a <code>Resource</code>
+prefer <a href="#use[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.effect.Bracket[G,Throwable]):G[B]" class="extmbr" name="cats.effect.Resource#use">use</a> as the standard way of running a <code>Resource</code>
 program.</p><p>Use cases include interacting with side-effectful apis that
 expect separate acquire and release actions (like the <code>before</code>
 and <code>after</code> methods of many test frameworks), or complex library
@@ -500,9 +508,9 @@ resource.</p></div></div>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="cats.effect.Resource#evalMap" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="evalMap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,B]"></a><a id="evalMap[B]((A)⇒F[B])(Applicative[F]):Resource[F,B]"></a>
+      <a id="evalMap[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.Applicative[G]):cats.effect.Resource[G,B]"></a><a id="evalMap[G[x]&gt;:F[x],B]((A)⇒G[B])(Applicative[G]):Resource[G,B]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#evalMap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,B]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#evalMap[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.Applicative[G]):cats.effect.Resource[G,B]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -511,16 +519,16 @@ resource.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">evalMap</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.evalMap.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.F">F</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.evalMap.B">B</span>]</span>
+        <span class="name">evalMap</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.evalMap.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.evalMap.G">G</span>[<span class="extype" name="cats.effect.Resource.evalMap.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.evalMap.G">G</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.evalMap.G">G</span>, <span class="extype" name="cats.effect.Resource.evalMap.B">B</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Applies an effectful transformation to the allocated resource.</p><div class="fullcomment"><div class="comment cmt"><p>Applies an effectful transformation to the allocated resource. Like a
 <code>flatMap</code> on <code>F[A]</code> while maintaining the resource context
 </p></div></div>
     </li><li name="cats.effect.Resource#evalTap" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="evalTap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,A]"></a><a id="evalTap[B]((A)⇒F[B])(Applicative[F]):Resource[F,A]"></a>
+      <a id="evalTap[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.Applicative[G]):cats.effect.Resource[G,A]"></a><a id="evalTap[G[x]&gt;:F[x],B]((A)⇒G[B])(Applicative[G]):Resource[G,A]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#evalTap[B](f:A=&gt;F[B])(implicitF:cats.Applicative[F]):cats.effect.Resource[F,A]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#evalTap[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.Applicative[G]):cats.effect.Resource[G,A]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -529,7 +537,7 @@ resource.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">evalTap</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.evalTap.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.F">F</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.A">A</span>]</span>
+        <span class="name">evalTap</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.evalTap.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.evalTap.G">G</span>[<span class="extype" name="cats.effect.Resource.evalTap.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.evalTap.G">G</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.evalTap.G">G</span>, <span class="extype" name="cats.effect.Resource.A">A</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Applies an effectful transformation to the allocated resource.</p><div class="fullcomment"><div class="comment cmt"><p>Applies an effectful transformation to the allocated resource. Like a
@@ -558,9 +566,9 @@ resource.</p></div></div>
               
         </dd></dl></div>
     </li><li name="cats.effect.Resource#flatMap" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="flatMap[B](f:A=&gt;cats.effect.Resource[F,B]):cats.effect.Resource[F,B]"></a><a id="flatMap[B]((A)⇒Resource[F,B]):Resource[F,B]"></a>
+      <a id="flatMap[G[x]&gt;:F[x],B](f:A=&gt;cats.effect.Resource[G,B]):cats.effect.Resource[G,B]"></a><a id="flatMap[G[x]&gt;:F[x],B]((A)⇒Resource[G,B]):Resource[G,B]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#flatMap[B](f:A=&gt;cats.effect.Resource[F,B]):cats.effect.Resource[F,B]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#flatMap[G[x]&gt;:F[x],B](f:A=&gt;cats.effect.Resource[G,B]):cats.effect.Resource[G,B]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -569,7 +577,7 @@ resource.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">flatMap</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>
+        <span class="name">flatMap</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.flatMap.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.flatMap.G">G</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.flatMap.G">G</span>, <span class="extype" name="cats.effect.Resource.flatMap.B">B</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Implementation for the <code>flatMap</code> operation, as described via the
@@ -629,9 +637,9 @@ resource.</p></div></div>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
     </li><li name="cats.effect.Resource#map" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="map[B](f:A=&gt;B)(implicitF:cats.Applicative[F]):cats.effect.Resource[F,B]"></a><a id="map[B]((A)⇒B)(Applicative[F]):Resource[F,B]"></a>
+      <a id="map[G[x]&gt;:F[x],B](f:A=&gt;B)(implicitF:cats.Applicative[G]):cats.effect.Resource[G,B]"></a><a id="map[G[x]&gt;:F[x],B]((A)⇒B)(Applicative[G]):Resource[G,B]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#map[B](f:A=&gt;B)(implicitF:cats.Applicative[F]):cats.effect.Resource[F,B]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#map[G[x]&gt;:F[x],B](f:A=&gt;B)(implicitF:cats.Applicative[G]):cats.effect.Resource[G,B]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -640,7 +648,7 @@ resource.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">map</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.map.B">B</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.F">F</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.map.B">B</span>]</span>
+        <span class="name">map</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.map.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.map.B">B</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.map.G">G</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.map.G">G</span>, <span class="extype" name="cats.effect.Resource.map.B">B</span>]</span>
       </span>
       
       <p class="shortcomment cmt"> Given a mapping function, transforms the resource provided by
@@ -648,9 +656,9 @@ resource.</p></div></div>
  this Resource.</p><p> This is the standard <code>Functor.map</code>.
 </p></div></div>
     </li><li name="cats.effect.Resource#mapK" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
-      <a id="mapK[G[_]](f:F~&gt;G)(implicitB:cats.effect.Bracket[F,Throwable],implicitD:cats.Defer[G],implicitG:cats.Applicative[G]):cats.effect.Resource[G,A]"></a><a id="mapK[G[_]](~&gt;[F,G])(Bracket[F,Throwable],Defer[G],Applicative[G]):Resource[G,A]"></a>
+      <a id="mapK[G[x]&gt;:F[x],H[_]](f:G~&gt;H)(implicitB:cats.effect.Bracket[G,Throwable],implicitD:cats.Defer[H],implicitG:cats.Applicative[H]):cats.effect.Resource[H,A]"></a><a id="mapK[G[x]&gt;:F[x],H[_]](~&gt;[G,H])(Bracket[G,Throwable],Defer[H],Applicative[H]):Resource[H,A]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#mapK[G[_]](f:F~&gt;G)(implicitB:cats.effect.Bracket[F,Throwable],implicitD:cats.Defer[G],implicitG:cats.Applicative[G]):cats.effect.Resource[G,A]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#mapK[G[x]&gt;:F[x],H[_]](f:G~&gt;H)(implicitB:cats.effect.Bracket[G,Throwable],implicitD:cats.Defer[H],implicitG:cats.Applicative[H]):cats.effect.Resource[H,A]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -659,7 +667,7 @@ resource.</p></div></div>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">mapK</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span name="f">f: <a href="../index.html#~&gt;[F[_],G[_]]=cats.arrow.FunctionK[F,G]" class="extmbr" name="cats.~&gt;">~&gt;</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="cats.effect.Resource.mapK.G">G</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="B">B: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>, <span name="D">D: <span class="extype" name="cats.Defer">Defer</span>[<span class="extype" name="cats.effect.Resource.mapK.G">G</span>]</span>, <span name="G">G: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.mapK.G">G</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.mapK.G">G</span>, <span class="extype" name="cats.effect.Resource.A">A</span>]</span>
+        <span class="name">mapK</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.mapK.G.x">x</span>]</span>, <span name="H">H<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span name="f">f: <a href="../index.html#~&gt;[F[_],G[_]]=cats.arrow.FunctionK[F,G]" class="extmbr" name="cats.~&gt;">~&gt;</a>[<span class="extype" name="cats.effect.Resource.mapK.G">G</span>, <span class="extype" name="cats.effect.Resource.mapK.H">H</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="B">B: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.mapK.G">G</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>, <span name="D">D: <span class="extype" name="cats.Defer">Defer</span>[<span class="extype" name="cats.effect.Resource.mapK.H">H</span>]</span>, <span name="G">G: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Resource.mapK.H">H</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.mapK.H">H</span>, <span class="extype" name="cats.effect.Resource.A">A</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Given a natural transformation from <code>F</code> to <code>G</code>, transforms this
@@ -718,6 +726,37 @@ Resource from effect <code>F</code> to effect <code>G</code>.</p>
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.Resource#parZip" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="parZip[G[x]&gt;:F[x],B](that:cats.effect.Resource[G,B])(implicitevidence$1:cats.effect.Sync[G],implicitevidence$2:cats.Parallel[G]):cats.effect.Resource[G,(A,B)]"></a><a id="parZip[G[x]&gt;:F[x],B](Resource[G,B])(Sync[G],Parallel[G]):Resource[G,(A,B)]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Resource.html#parZip[G[x]&gt;:F[x],B](that:cats.effect.Resource[G,B])(implicitevidence$1:cats.effect.Sync[G],implicitevidence$2:cats.Parallel[G]):cats.effect.Resource[G,(A,B)]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parZip</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.parZip.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="that">that: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.parZip.G">G</span>, <span class="extype" name="cats.effect.Resource.parZip.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="arg0">arg0: <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.Resource.parZip.G">G</span>]</span>, <span name="arg1">arg1: <span class="extype" name="cats.Parallel">Parallel</span>[<span class="extype" name="cats.effect.Resource.parZip.G">G</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Resource.parZip.G">G</span>, (<span class="extype" name="cats.effect.Resource.A">A</span>, <span class="extype" name="cats.effect.Resource.parZip.B">B</span>)]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Allocates two resources concurrently, and combines their results in a tuple.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates two resources concurrently, and combines their results in a tuple.</p><p>The finalizers for the two resources are also run concurrently with each other,
+but within _each_ of the two resources, nested finalizers are run in the usual
+reverse order of acquisition.</p><p>Note that <code>Resource</code> also comes with a <code>cats.Parallel</code> instance
+that offers more convenient access to the same functionality as
+<code>parZip</code>, for example via <code>parMapN</code>:</p><pre> <span class="kw">def</span> mkResource(name: <span class="std">String</span>) = {
+   <span class="kw">val</span> acquire =
+     IO(scala.util.Random.nextInt(<span class="num">1000</span>).millis).flatMap(IO.sleep) *&gt;
+     IO(println(s<span class="lit">"Acquiring $$name"</span>)).as(name)
+
+   <span class="kw">val</span> release = IO(println(s<span class="lit">"Releasing $$name"</span>))
+   Resource.make(acquire)(release)
+ }
+
+<span class="kw">val</span> r = (mkResource(<span class="lit">"one"</span>), mkResource(<span class="lit">"two"</span>))
+           .parMapN((s1, s2) <span class="kw">=&gt;</span> s<span class="lit">"I have $s1 and $s2"</span>)
+           .use(msg <span class="kw">=&gt;</span> IO(println(msg)))</pre></div></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>
       <span class="permalink">
@@ -751,9 +790,9 @@ Resource from effect <code>F</code> to effect <code>G</code>.</p>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
     </li><li name="cats.effect.Resource#use" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]"></a><a id="use[B]((A)⇒F[B])(Bracket[F,Throwable]):F[B]"></a>
+      <a id="use[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.effect.Bracket[G,Throwable]):G[B]"></a><a id="use[G[x]&gt;:F[x],B]((A)⇒G[B])(Bracket[G,Throwable]):G[B]"></a>
       <span class="permalink">
-      <a href="../../cats/effect/Resource.html#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" title="Permalink">
+      <a href="../../cats/effect/Resource.html#use[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.effect.Bracket[G,Throwable]):G[B]" title="Permalink">
         <i class="material-icons"></i>
       </a>
     </span>
@@ -762,7 +801,7 @@ Resource from effect <code>F</code> to effect <code>G</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">use</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
+        <span class="name">use</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.use.G">G</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
       </span>
       
       <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.  The

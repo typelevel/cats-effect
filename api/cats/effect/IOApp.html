@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -269,7 +277,7 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
       <span class="kw">case</span> <span class="std">None</span> <span class="kw">=&gt;</span>
         IO(System.err.println(<span class="lit">"Usage: MyApp name"</span>)).as(ExitCode(<span class="num">2</span>))
     }
-}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/IOApp.scala" target="_blank">IOApp.scala</a></dd></dl><div class="toggleContainer block">
+}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/IOApp.scala" target="_blank">IOApp.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -449,7 +457,9 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
         <span class="name">contextShift</span><span class="result">: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="IO.html" class="extype" name="cats.effect.IO">IO</a>]</span>
       </span>
       
-      <p class="shortcomment cmt">Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><p>The default is lazily constructed from the global execution context
+      <p class="shortcomment cmt">Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><div class="fullcomment"><div class="comment cmt"><p>Provides an implicit <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a> for the app.</p><p>The default on top of the JVM is lazily constructed as a fixed
+thread pool based on number available of available CPUs (see
+<code>PoolUtils</code>).</p><p>On top of JavaScript, the global execution context is used
 (i.e. <code>scala.concurrent.ExecutionContext.Implicits.global</code>).</p><p>Users can override this value in order to customize the main
 thread-pool on top of the JVM, or to customize the run-loop on
 top of JavaScript.
@@ -668,7 +678,7 @@ the app with the resulting code on completion.</p>
 underlying scheduler being used.</p><p>The default on top of the JVM uses an internal scheduler built with Java's
 <a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/Executors.html#newScheduledThreadPool-int-" target="_blank">Executors.newScheduledThreadPool</a>
 (configured with one or two threads) and that defers the execution of the
-scheduled ticks (the bind continuations get shifted) to Scala's <code>global</code>.</p><p>On top of JavaScript the default timer will simply use the standard
+scheduled ticks (the bind continuations get shifted) to the app's <a href="#contextShift:cats.effect.ContextShift[cats.effect.IO]" class="extmbr" name="cats.effect.IOApp#contextShift">contextShift</a>.</p><p>On top of JavaScript the default timer will simply use the standard
 <a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout" target="_blank">setTimeout</a>.
 </p></div><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li name="scala.AnyRef#toString" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">

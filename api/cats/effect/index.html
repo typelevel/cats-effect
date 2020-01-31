@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -250,7 +258,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/package.scala" target="_blank">package.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -341,6 +349,11 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
       <span class="defval" name="&quot;Cannot find implicit value for Async[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
+    </span>)</span>
+              
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of Async for ${F}&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -533,6 +546,11 @@ on evaluation will have no effect if evaluated.</p><p>So <code>uncancelable</cod
       <span class="defval" name="&quot;Cannot find implicit value for Concurrent[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of Concurrent for ${F}&quot;">...</span>
+    </span>)</span>
+              
         </dd></dl></div>
     </li><li name="cats.effect.ConcurrentEffect" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="ConcurrentEffect[F[_]]extendsConcurrent[F]withEffect[F]withSerializable"></a><a id="ConcurrentEffect[F[_]]:ConcurrentEffect[F]"></a>
@@ -559,6 +577,11 @@ computation.</p><p>Note this is the safe and generic version of <a href="IO.html
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
       <span class="defval" name="&quot;Cannot find implicit value for ConcurrentEffect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
+    </span>)</span>
+              
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of ConcurrentEffect for ${F}&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -612,6 +635,11 @@ that supports lazy and potentially asynchronous evaluation.</p><p>This type clas
                 <span class="name">@implicitNotFound</span><span class="args">(<span>
       
       <span class="defval" name="&quot;Cannot find implicit value for Effect[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
+    </span>)</span>
+              
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of Effect for ${F}&quot;">...</span>
     </span>)</span>
               
         </dd></dl></div>
@@ -786,9 +814,30 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
       <span class="defval" name="&quot;Cannot find implicit value for LiftIO[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler or some equivalent type.&quot;">...</span>
     </span>)</span>
               
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of LiftIO for ${F}&quot;">...</span>
+    </span>)</span>
+              
         </dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits" visbl="prt" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="LowPriorityImplicitsextendsAnyRef"></a><a id="LowPriorityImplicits:LowPriorityImplicits"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/LowPriorityImplicits.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="LowPriorityImplicits.html"><span class="name">LowPriorityImplicits</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Attributes</dt><dd>protected </dd></dl></div>
     </li><li name="cats.effect.Resource" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
-      <a id="Resource[F[_],A]extendsAnyRef"></a><a id="Resource[F[_],A]:Resource[F,A]"></a>
+      <a id="Resource[+F[_],+A]extendsAnyRef"></a><a id="Resource[+F[_],+A]:Resource[F,A]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Resource.html" title="Permalink">
         <i class="material-icons"></i>
@@ -799,7 +848,7 @@ with the numeric value of the signal plus 128.</p><pre><span class="kw">import</
         <span class="kind">class</span>
       </span>
       <span class="symbol">
-        <a title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer." href="Resource.html"><span class="name">Resource</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+        <a title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer." href="Resource.html"><span class="name">Resource</span></a><span class="tparams">[<span name="F">+F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="A">+A</span>]</span><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
       </span>
       
       <p class="shortcomment cmt">The <code>Resource</code> is a data structure that captures the effectful
@@ -808,7 +857,7 @@ allocation of a resource, along with its finalizer.</p><p>This can be used to wr
   Resource(IO {
     <span class="kw">val</span> in = <span class="kw">new</span> BufferedReader(<span class="kw">new</span> FileReader(file))
     (in, IO(in.close()))
-  })</pre><p>Usage is done via <a href="Resource.html#use[B](f:A=&gt;F[B])(implicitF:cats.effect.Bracket[F,Throwable]):F[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
+  })</pre><p>Usage is done via <a href="Resource.html#use[G[x]&gt;:F[x],B](f:A=&gt;G[B])(implicitF:cats.effect.Bracket[G,Throwable]):G[B]" class="extmbr" name="cats.effect.Resource#use">use</a> and note that resource usage nests,
 because its implementation is specified in terms of <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>:</p><pre>open(file1).use { in1 <span class="kw">=&gt;</span>
   open(file2).use { in2 <span class="kw">=&gt;</span>
     readFiles(in1, in2)
@@ -838,7 +887,7 @@ the following node types and that can be interpreted if needed:</p><ul><li><a hr
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
 </p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl></div>
-    </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
+    </li><li name="cats.effect.Sync" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
       <a id="Sync[F[_]]extendsBracket[F,Throwable]withDefer[F]withSerializable"></a><a id="Sync[F[_]]:Sync[F]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Sync.html" title="Permalink">
@@ -854,7 +903,40 @@ into a streaming data type).
       </span>
       
       <p class="shortcomment cmt">A monad that can suspend the execution of side effects
-in the <code>F[_]</code> context.</p>
+in the <code>F[_]</code> context.</p><div class="fullcomment"><div class="comment cmt"><p>A monad that can suspend the execution of side effects
+in the <code>F[_]</code> context.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of Sync for ${F}&quot;">...</span>
+    </span>)</span>
+              
+        </dd></dl></div>
+    </li><li name="cats.effect.SyncEffect" visbl="pub" class="indented0 " data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="SyncEffect[F[_]]extendsSync[F]withSerializable"></a><a id="SyncEffect[F[_]]:SyncEffect[F]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/SyncEffect.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects." href="SyncEffect.html"><span class="name">SyncEffect</span></a><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="result"> extends <a href="Sync.html" class="extype" name="cats.effect.Sync">Sync</a>[<span class="extype" name="cats.effect.SyncEffect.F">F</span>] with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      <p class="shortcomment cmt">A monad that can suspend side effects into the <code>F</code> context and
+that supports only synchronous lazy evaluation of these effects.</p><div class="fullcomment"><div class="comment cmt"><p>A monad that can suspend side effects into the <code>F</code> context and
+that supports only synchronous lazy evaluation of these effects.
+</p></div><dl class="attributes block"> <dt>Annotations</dt><dd>
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of SyncEffect for ${F}&quot;">...</span>
+    </span>)</span>
+              
+        </dd></dl></div>
     </li><li name="cats.effect.SyncIO" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="SyncIO[+A]extendsAnyRef"></a><a id="SyncIO[+A]:SyncIO[A]"></a>
       <span class="permalink">
@@ -977,7 +1059,7 @@ requirement.
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <a title="" href="Clock$.html"><span class="name">Clock</span></a>
+        <a title="" href="Clock$.html"><span class="name">Clock</span></a><span class="result"> extends <a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></span>
       </span>
       
       
@@ -1170,6 +1252,22 @@ requirement.
       </span>
       <span class="symbol">
         <a title="" href="Sync$.html"><span class="name">Sync</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      
+      
+    </li><li name="cats.effect.SyncEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="SyncEffect"></a><a id="SyncEffect:SyncEffect"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/SyncEffect$.html" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a title="" href="SyncEffect$.html"><span class="name">SyncEffect</span></a><span class="result"> extends <span class="extype" name="scala.Serializable">Serializable</span></span>
       </span>
       
       

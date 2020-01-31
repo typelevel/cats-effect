@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -281,7 +289,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -421,6 +429,24 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
 they may be handled.</p><div class="fullcomment"><div class="comment cmt"><p>Materializes any sequenced exceptions into value space, where
 they may be handled.</p><p>This is analogous to the <code>catch</code> clause in <code>try</code>/<code>catch</code>, being
 the inverse of <code>IO.raiseError</code>. Thus:</p><pre>IO.raiseError(ex).attempt.unsafeRunAsync === Left(ex)</pre></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="IO$.html#raiseError[A](e:Throwable):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#raiseError">IO.raiseError</a></p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#background" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="background(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.Resource[cats.effect.IO,cats.effect.IO[A@scala.annotation.unchecked.uncheckedVariance]]"></a><a id="background(ContextShift[IO]):Resource[IO,IO[A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#background(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.Resource[cats.effect.IO,cats.effect.IO[A@scala.annotation.unchecked.uncheckedVariance]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">background</span><span class="params">(<span class="implicit">implicit </span><span name="cs">cs: <a href="ContextShift.html" class="extype" name="cats.effect.ContextShift">ContextShift</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>, <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns a resource that will start execution of this IO in the background.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a resource that will start execution of this IO in the background.</p><p>In case the resource is closed while this IO is still running (e.g. due to a failure in <code>use</code>),
+the background action will be canceled.
+</p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="Concurrent.html#background[A](fa:F[A]):cats.effect.Resource[F,F[A]]" class="extmbr" name="cats.effect.Concurrent#background">cats.effect.Concurrent#background</a> for the generic version.</p></span></dd></dl></div>
     </li><li name="cats.effect.IO#bracket" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="bracket[B](use:A=&gt;cats.effect.IO[B])(release:A=&gt;cats.effect.IO[Unit]):cats.effect.IO[B]"></a><a id="bracket[B]((A)⇒IO[B])((A)⇒IO[Unit]):IO[B]"></a>
       <span class="permalink">
@@ -990,7 +1016,7 @@ The following code is more or less equivalent with <code>parMap2</code>
 still recommended because of behavior on error and cancellation —
 consider in the example above what would happen if the first task
 finishes in error. In that case the second task doesn't get canceled,
-which creates a potential memory leak.
+which creates a potential memory leak.</p><p>Also see <a href="#background(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.Resource[cats.effect.IO,cats.effect.IO[A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#background">background</a> for a safer alternative.
 </p></div></div>
     </li><li name="scala.AnyRef#synchronized" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="synchronized[T0](x$1:=&gt;T0):T0"></a><a id="synchronized[T0](⇒T0):T0"></a>

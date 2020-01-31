@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -277,7 +285,12 @@ See the <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">C
       <span class="defval" name="&quot;Cannot find implicit value for Async[${F}].\nBuilding this implicit value might depend on having an implicit\ns.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]\nor some equivalent type.&quot;">...</span>
     </span>)</span>
               
-        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
+                <span class="name">@implicitNotFound</span><span class="args">(<span>
+      
+      <span class="defval" name="&quot;Could not find an instance of Async for ${F}&quot;">...</span>
+    </span>)</span>
+              
+        </dd><dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/Async.scala" target="_blank">Async.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -691,7 +704,7 @@ in <code>F</code>.
         <span class="name">adaptError</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.adaptError.A">A</span>]</span>)</span><span class="params">(<span name="pf">pf: <span class="extype" name="scala.PartialFunction">PartialFunction</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.adaptError.A">A</span>]</span>
       </span>
       
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>MonadError</dd></dl></div>
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>MonadError → ApplicativeError</dd></dl></div>
     </li><li name="cats.FlatMap#ap" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ap[A,B](ff:F[A=&gt;B])(fa:F[A]):F[B]"></a><a id="ap[A,B](F[(A)⇒B])(F[A]):F[B]"></a>
       <span class="permalink">
@@ -1092,6 +1105,22 @@ in <code>F</code>.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.ApplicativeError#attemptNarrow" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="attemptNarrow[EE,A](fa:F[A])(implicittag:scala.reflect.ClassTag[EE],implicitev:EE&lt;:&lt;E):F[Either[EE,A]]"></a><a id="attemptNarrow[EE,A](F[A])(ClassTag[EE],&lt;:&lt;[EE,Throwable]):F[Either[EE,A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#attemptNarrow[EE,A](fa:F[A])(implicittag:scala.reflect.ClassTag[EE],implicitev:EE&lt;:&lt;E):F[Either[EE,A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">attemptNarrow</span><span class="tparams">[<span name="EE">EE</span>, <span name="A">A</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.attemptNarrow.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="tag">tag: <span class="extype" name="scala.reflect.ClassTag">ClassTag</span>[<span class="extype" name="cats.ApplicativeError.attemptNarrow.EE">EE</span>]</span>, <span name="ev">ev: <span class="extype" name="scala.Predef.&lt;:&lt;">&lt;:&lt;</span>[<span class="extype" name="cats.ApplicativeError.attemptNarrow.EE">EE</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="scala.Either">Either</span>[<span class="extype" name="cats.ApplicativeError.attemptNarrow.EE">EE</span>, <span class="extype" name="cats.ApplicativeError.attemptNarrow.A">A</span>]]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
     </li><li name="cats.ApplicativeError#attemptT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="attemptT[A](fa:F[A]):cats.data.EitherT[F,E,A]"></a><a id="attemptT[A](F[A]):EitherT[F,Throwable,A]"></a>
       <span class="permalink">
@@ -1163,6 +1192,22 @@ acquisition and release.
       </span>
       <span class="symbol">
         <span class="name">catchNonFatalEval</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="a">a: <span class="extype" name="cats.Eval">Eval</span>[<span class="extype" name="cats.ApplicativeError.catchNonFatalEval.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ev">ev: <span class="extype" name="scala.Predef.&lt;:&lt;">&lt;:&lt;</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.catchNonFatalEval.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.ApplicativeError#catchOnly" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="catchOnly[T&gt;:Null&lt;:Throwable]:cats.ApplicativeError.CatchOnlyPartiallyApplied[T,F,E]"></a><a id="catchOnly[T&lt;:Throwable&gt;:Null]:CatchOnlyPartiallyApplied[T,F,Throwable]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#catchOnly[T&gt;:Null&lt;:Throwable]:cats.ApplicativeError.CatchOnlyPartiallyApplied[T,F,E]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">catchOnly</span><span class="tparams">[<span name="T">T &gt;: <span class="extype" name="scala.Null">Null</span> &lt;: <span class="extype" name="scala.Throwable">Throwable</span></span>]</span><span class="result">: <span class="extype" name="cats.ApplicativeError.CatchOnlyPartiallyApplied">CatchOnlyPartiallyApplied</span>[<span class="extype" name="cats.ApplicativeError.catchOnly.T">T</span>, <span class="extype" name="cats.effect.Async.F">F</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
@@ -1442,6 +1487,22 @@ in <code>F</code>.
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.Defer#fix" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="fix[A](fn:F[A]=&gt;F[A]):F[A]"></a><a id="fix[A]((F[A])⇒F[A]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#fix[A](fn:F[A]=&gt;F[A]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fix</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fn">fn: (<span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Defer.fix.A">A</span>]) ⇒ <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Defer.fix.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Defer.fix.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Defer</dd></dl></div>
     </li><li name="cats.FlatMap#flatTap" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="flatTap[A,B](fa:F[A])(f:A=&gt;F[B]):F[A]"></a><a id="flatTap[A,B](F[A])((A)⇒F[B]):F[A]"></a>
       <span class="permalink">
@@ -1490,6 +1551,22 @@ in <code>F</code>.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Functor</dd></dl></div>
+    </li><li name="cats.FlatMap#foreverM" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="foreverM[A,B](fa:F[A]):F[B]"></a><a id="foreverM[A,B](F[A]):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#foreverM[A,B](fa:F[A]):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">foreverM</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.foreverM.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.foreverM.B">B</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd></dl></div>
     </li><li name="cats.Functor#fproduct" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="fproduct[A,B](fa:F[A])(f:A=&gt;B):F[(A,B)]"></a><a id="fproduct[A,B](F[A])((A)⇒B):F[(A,B)]"></a>
       <span class="permalink">
@@ -1522,6 +1599,22 @@ in <code>F</code>.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.ApplicativeError#fromOption" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="fromOption[A](oa:Option[A],ifEmpty:=&gt;E):F[A]"></a><a id="fromOption[A](Option[A],⇒Throwable):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#fromOption[A](oa:Option[A],ifEmpty:=&gt;E):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromOption</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="oa">oa: <span class="extype" name="scala.Option">Option</span>[<span class="extype" name="cats.ApplicativeError.fromOption.A">A</span>]</span>, <span name="ifEmpty">ifEmpty: ⇒ <span class="extype" name="scala.Throwable">Throwable</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.fromOption.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
     </li><li name="cats.ApplicativeError#fromTry" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="fromTry[A](t:scala.util.Try[A])(implicitev:Throwable&lt;:&lt;E):F[A]"></a><a id="fromTry[A](Try[A])(&lt;:&lt;[Throwable,Throwable]):F[A]"></a>
       <span class="permalink">
@@ -1535,6 +1628,22 @@ in <code>F</code>.
       </span>
       <span class="symbol">
         <span class="name">fromTry</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="t">t: <span class="extype" name="scala.util.Try">Try</span>[<span class="extype" name="cats.ApplicativeError.fromTry.A">A</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="ev">ev: <span class="extype" name="scala.Predef.&lt;:&lt;">&lt;:&lt;</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.fromTry.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.ApplicativeError#fromValidated" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="fromValidated[A](x:cats.data.Validated[E,A]):F[A]"></a><a id="fromValidated[A](Validated[Throwable,A]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#fromValidated[A](x:cats.data.Validated[E,A]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">fromValidated</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="x">x: <span class="extype" name="cats.data.Validated">Validated</span>[<span class="extype" name="scala.Throwable">Throwable</span>, <span class="extype" name="cats.ApplicativeError.fromValidated.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.fromValidated.A">A</span>]</span>
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
@@ -1640,6 +1749,38 @@ for the acquisition and release of resources.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.Apply#ifA" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ifA[A](fcond:F[Boolean])(ifTrue:F[A],ifFalse:F[A]):F[A]"></a><a id="ifA[A](F[Boolean])(F[A],F[A]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#ifA[A](fcond:F[Boolean])(ifTrue:F[A],ifFalse:F[A]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ifA</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fcond">fcond: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="scala.Boolean">Boolean</span>]</span>)</span><span class="params">(<span name="ifTrue">ifTrue: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.ifA.A">A</span>]</span>, <span name="ifFalse">ifFalse: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.ifA.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.ifA.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd></dl></div>
+    </li><li name="cats.Functor#ifF" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="ifF[A](fb:F[Boolean])(ifTrue:=&gt;A,ifFalse:=&gt;A):F[A]"></a><a id="ifF[A](F[Boolean])(⇒A,⇒A):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#ifF[A](fb:F[Boolean])(ifTrue:=&gt;A,ifFalse:=&gt;A):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">ifF</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="scala.Boolean">Boolean</span>]</span>)</span><span class="params">(<span name="ifTrue">ifTrue: ⇒ <span class="extype" name="cats.Functor.ifF.A">A</span></span>, <span name="ifFalse">ifFalse: ⇒ <span class="extype" name="cats.Functor.ifF.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Functor.ifF.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Functor</dd></dl></div>
     </li><li name="cats.FlatMap#ifM" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="ifM[B](fa:F[Boolean])(ifTrue:=&gt;F[B],ifFalse:=&gt;F[B]):F[B]"></a><a id="ifM[B](F[Boolean])(⇒F[B],⇒F[B]):F[B]"></a>
       <span class="permalink">
@@ -1688,6 +1829,22 @@ for the acquisition and release of resources.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Any</dd></dl></div>
+    </li><li name="cats.FlatMap#iterateForeverM" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="iterateForeverM[A,B](a:A)(f:A=&gt;F[A]):F[B]"></a><a id="iterateForeverM[A,B](A)((A)⇒F[A]):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#iterateForeverM[A,B](a:A)(f:A=&gt;F[A]):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">iterateForeverM</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="a">a: <span class="extype" name="cats.FlatMap.iterateForeverM.A">A</span></span>)</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.FlatMap.iterateForeverM.A">A</span>) ⇒ <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.iterateForeverM.A">A</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.iterateForeverM.B">B</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd></dl></div>
     </li><li name="cats.Monad#iterateUntil" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="iterateUntil[A](f:F[A])(p:A=&gt;Boolean):F[A]"></a><a id="iterateUntil[A](F[A])((A)⇒Boolean):F[A]"></a>
       <span class="permalink">
@@ -2418,6 +2575,38 @@ care of the success and error case elsewhere in your code
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.ApplicativeError#redeem" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="redeem[A,B](fa:F[A])(recover:E=&gt;B,f:A=&gt;B):F[B]"></a><a id="redeem[A,B](F[A])((Throwable)⇒B,(A)⇒B):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#redeem[A,B](fa:F[A])(recover:E=&gt;B,f:A=&gt;B):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">redeem</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.redeem.A">A</span>]</span>)</span><span class="params">(<span name="recover">recover: (<span class="extype" name="scala.Throwable">Throwable</span>) ⇒ <span class="extype" name="cats.ApplicativeError.redeem.B">B</span></span>, <span name="f">f: (<span class="extype" name="cats.ApplicativeError.redeem.A">A</span>) ⇒ <span class="extype" name="cats.ApplicativeError.redeem.B">B</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.ApplicativeError.redeem.B">B</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>ApplicativeError</dd></dl></div>
+    </li><li name="cats.MonadError#redeemWith" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="redeemWith[A,B](fa:F[A])(recover:E=&gt;F[B],bind:A=&gt;F[B]):F[B]"></a><a id="redeemWith[A,B](F[A])((Throwable)⇒F[B],(A)⇒F[B]):F[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#redeemWith[A,B](fa:F[A])(recover:E=&gt;F[B],bind:A=&gt;F[B]):F[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">redeemWith</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.redeemWith.A">A</span>]</span>)</span><span class="params">(<span name="recover">recover: (<span class="extype" name="scala.Throwable">Throwable</span>) ⇒ <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.redeemWith.B">B</span>]</span>, <span name="bind">bind: (<span class="extype" name="cats.MonadError.redeemWith.A">A</span>) ⇒ <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.redeemWith.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.MonadError.redeemWith.B">B</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>MonadError</dd></dl></div>
     </li><li name="cats.Applicative#replicateA" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="replicateA[A](n:Int,fa:F[A]):F[List[A]]"></a><a id="replicateA[A](Int,F[A]):F[List[A]]"></a>
       <span class="permalink">
@@ -2901,6 +3090,22 @@ when interrupted.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Applicative</dd></dl></div>
+    </li><li name="cats.FlatMap#untilDefinedM" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="untilDefinedM[A](foa:F[Option[A]]):F[A]"></a><a id="untilDefinedM[A](F[Option[A]]):F[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#untilDefinedM[A](foa:F[Option[A]]):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">untilDefinedM</span><span class="tparams">[<span name="A">A</span>]</span><span class="params">(<span name="foa">foa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="scala.Option">Option</span>[<span class="extype" name="cats.FlatMap.untilDefinedM.A">A</span>]]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.untilDefinedM.A">A</span>]</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd></dl></div>
     </li><li name="cats.Monad#untilM" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="untilM[G[_],A](f:F[A])(cond:=&gt;F[Boolean])(implicitG:cats.Alternative[G]):F[G[A]]"></a><a id="untilM[G[_],A](F[A])(⇒F[Boolean])(Alternative[G]):F[G[A]]"></a>
       <span class="permalink">
@@ -2933,6 +3138,22 @@ when interrupted.
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Monad</dd></dl></div>
+    </li><li name="cats.Functor#unzip" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="unzip[A,B](fab:F[(A,B)]):(F[A],F[B])"></a><a id="unzip[A,B](F[(A,B)]):(F[A],F[B])"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Async.html#unzip[A,B](fab:F[(A,B)]):(F[A],F[B])" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">unzip</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fab">fab: <span class="extype" name="cats.effect.Async.F">F</span>[(<span class="extype" name="cats.Functor.unzip.A">A</span>, <span class="extype" name="cats.Functor.unzip.B">B</span>)]</span>)</span><span class="result">: (<span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Functor.unzip.A">A</span>], <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Functor.unzip.B">B</span>])</span>
+      </span>
+      
+      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Functor</dd></dl></div>
     </li><li name="cats.Functor#void" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="void[A](fa:F[A]):F[Unit]"></a><a id="void[A](F[A]):F[Unit]"></a>
       <span class="permalink">
@@ -3087,90 +3308,7 @@ when interrupted.
 
         
 
-        <div class="values members">
-              <h3>Deprecated Value Members</h3>
-              <ol><li name="cats.Apply#followedBy" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="followedBy[A,B](fa:F[A])(fb:F[B]):F[B]"></a><a id="followedBy[A,B](F[A])(F[B]):F[B]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Async.html#followedBy[A,B](fa:F[A])(fb:F[B]):F[B]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">final </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name deprecated" title="Deprecated: (Since version 1.0.0-RC2) Use *&gt; or productR instead.">followedBy</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.followedBy.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.followedBy.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.followedBy.B">B</span>]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd><dt>Annotations</dt><dd>
-                <span class="name">@deprecated</span>
-              
-                <span class="name">@inline</span><span class="args">()</span>
-              
-        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.0.0-RC2)</i> Use *&gt; or productR instead.</p></dd></dl></div>
-    </li><li name="cats.FlatMap#followedByEval" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="followedByEval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[B]"></a><a id="followedByEval[A,B](F[A])(Eval[F[B]]):F[B]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Async.html#followedByEval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[B]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name deprecated" title="Deprecated: (Since version 1.0.0-RC2) Use productREval instead.">followedByEval</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.followedByEval.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.Eval">Eval</span>[<span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.followedByEval.B">B</span>]]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.followedByEval.B">B</span>]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd><dt>Annotations</dt><dd>
-                <span class="name">@deprecated</span>
-              
-        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.0.0-RC2)</i> Use productREval instead.</p></dd></dl></div>
-    </li><li name="cats.Apply#forEffect" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="forEffect[A,B](fa:F[A])(fb:F[B]):F[A]"></a><a id="forEffect[A,B](F[A])(F[B]):F[A]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Async.html#forEffect[A,B](fa:F[A])(fb:F[B]):F[A]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">final </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name deprecated" title="Deprecated: (Since version 1.0.0-RC2) Use &lt;* or productL instead.">forEffect</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.forEffect.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.forEffect.B">B</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.Apply.forEffect.A">A</span>]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>Apply</dd><dt>Annotations</dt><dd>
-                <span class="name">@deprecated</span>
-              
-                <span class="name">@inline</span><span class="args">()</span>
-              
-        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.0.0-RC2)</i> Use &lt;* or productL instead.</p></dd></dl></div>
-    </li><li name="cats.FlatMap#forEffectEval" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
-      <a id="forEffectEval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[A]"></a><a id="forEffectEval[A,B](F[A])(Eval[F[B]]):F[A]"></a>
-      <span class="permalink">
-      <a href="../../cats/effect/Async.html#forEffectEval[A,B](fa:F[A])(fb:cats.Eval[F[B]]):F[A]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier"></span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name deprecated" title="Deprecated: (Since version 1.0.0-RC2) Use productLEval instead.">forEffectEval</span><span class="tparams">[<span name="A">A</span>, <span name="B">B</span>]</span><span class="params">(<span name="fa">fa: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.forEffectEval.A">A</span>]</span>)</span><span class="params">(<span name="fb">fb: <span class="extype" name="cats.Eval">Eval</span>[<span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.forEffectEval.B">B</span>]]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Async.F">F</span>[<span class="extype" name="cats.FlatMap.forEffectEval.A">A</span>]</span>
-      </span>
-      
-      <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>FlatMap</dd><dt>Annotations</dt><dd>
-                <span class="name">@deprecated</span>
-              
-        </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 1.0.0-RC2)</i> Use productLEval instead.</p></dd></dl></div>
-    </li></ol>
-            </div>
+        
         </div>
 
         <div id="inheritedMembers">

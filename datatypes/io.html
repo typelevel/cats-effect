@@ -1,4 +1,4 @@
-<html><head><title>Cats Effect: IO</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="image" property="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: IO" /><meta name="title" property="og:title" content="Cats Effect: IO" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: IO" /><meta name="twitter:image" content="/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/style.css" /><link rel="stylesheet" href="/cats-effect/css/palette.css" /><link rel="stylesheet" href="/cats-effect/css/codemirror.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><ul id="sidebar" class="sidebar-nav"><li class="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"><span>Cats Effect</span></div></a></li> <li><a href="/cats-effect/datatypes/" class="">Data Types</a> <ul class="sub_section"> <li><a href="/cats-effect/datatypes/io.html" class=" active ">IO</a></li> <li><a href="/cats-effect/datatypes/syncio.html" class="">SyncIO</a></li> <li><a href="/cats-effect/datatypes/fiber.html" class="">Fiber</a></li> <li><a href="/cats-effect/datatypes/resource.html" class="">Resource</a></li> <li><a href="/cats-effect/datatypes/clock.html" class="">Clock</a></li> <li><a href="/cats-effect/datatypes/contextshift.html" class="">ContextShift</a></li> <li><a href="/cats-effect/datatypes/timer.html" class="">Timer</a></li> <li><a href="/cats-effect/datatypes/ioapp.html" class="">IOApp</a></li></ul></li> <li><a href="/cats-effect/concurrency/" class="">Concurrency</a> <ul class="sub_section"> <li><a href="/cats-effect/concurrency/basics.html" class="">Concurrency Basics</a></li> <li><a href="/cats-effect/concurrency/deferred.html" class="">Deferred</a></li> <li><a href="/cats-effect/concurrency/mvar.html" class="">MVar</a></li> <li><a href="/cats-effect/concurrency/ref.html" class="">Ref</a></li> <li><a href="/cats-effect/concurrency/semaphore.html" class="">Semaphore</a></li></ul></li> <li><a href="/cats-effect/typeclasses/" class="">Type Classes</a> <ul class="sub_section"> <li><a href="/cats-effect/typeclasses/bracket.html" class="">Bracket</a></li> <li><a href="/cats-effect/typeclasses/sync.html" class="">Sync</a></li> <li><a href="/cats-effect/typeclasses/liftio.html" class="">LiftIO</a></li> <li><a href="/cats-effect/typeclasses/async.html" class="">Async</a></li> <li><a href="/cats-effect/typeclasses/concurrent.html" class="">Concurrent</a></li> <li><a href="/cats-effect/typeclasses/effect.html" class="">Effect</a></li> <li><a href="/cats-effect/typeclasses/concurrent-effect.html" class="">ConcurrentEffect</a></li></ul></li> <li><a href="/cats-effect/tutorial/tutorial.html" class="">Tutorial</a></li></ul></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-eye"></i><span>WATCH<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect"><i class="fa fa-star-o"></i><span>STARS<span id="stars" class="label label-default">--</span></span></a></li><li><a href="#" onclick="shareSiteTwitter('Cats Effect The IO Monad for Scala');"><i class="fa fa-twitter"></i></a></li><li><a href="#" onclick="shareSiteFacebook('Cats Effect The IO Monad for Scala');"><i class="fa fa-facebook"></i></a></li><li><a href="#" onclick="shareSiteGoogle();"><i class="fa fa-google-plus"></i></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>IO</h1>
+<html><head><title>Cats Effect: IO</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="image" property="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: IO" /><meta name="title" property="og:title" content="Cats Effect: IO" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: IO" /><meta name="twitter:image" content="/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/light-style.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><div id="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"></div><span>Cats Effect</span></a><button id="main-toggle" class="sidebar-toggle"><span class="close"></span></button></div><div class="sidebar-nav"> <div class="sidebar-nav-item  open"><a href="/cats-effect/datatypes/" title="Data Types" class="drop-nested">Data Types</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/datatypes/io.html" title="IO" class="active">IO</a> <a href="/cats-effect/datatypes/syncio.html" title="SyncIO" class="">SyncIO</a> <a href="/cats-effect/datatypes/fiber.html" title="Fiber" class="">Fiber</a> <a href="/cats-effect/datatypes/resource.html" title="Resource" class="">Resource</a> <a href="/cats-effect/datatypes/clock.html" title="Clock" class="">Clock</a> <a href="/cats-effect/datatypes/contextshift.html" title="ContextShift" class="">ContextShift</a> <a href="/cats-effect/datatypes/timer.html" title="Timer" class="">Timer</a> <a href="/cats-effect/datatypes/ioapp.html" title="IOApp" class="">IOApp</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/concurrency/" title="Concurrency" class="drop-nested">Concurrency</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/concurrency/basics.html" title="Concurrency Basics" class="">Concurrency Basics</a> <a href="/cats-effect/concurrency/deferred.html" title="Deferred" class="">Deferred</a> <a href="/cats-effect/concurrency/mvar.html" title="MVar" class="">MVar</a> <a href="/cats-effect/concurrency/ref.html" title="Ref" class="">Ref</a> <a href="/cats-effect/concurrency/semaphore.html" title="Semaphore" class="">Semaphore</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/typeclasses/" title="Type Classes" class="drop-nested">Type Classes</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/typeclasses/bracket.html" title="Bracket" class="">Bracket</a> <a href="/cats-effect/typeclasses/sync.html" title="Sync" class="">Sync</a> <a href="/cats-effect/typeclasses/liftio.html" title="LiftIO" class="">LiftIO</a> <a href="/cats-effect/typeclasses/async.html" title="Async" class="">Async</a> <a href="/cats-effect/typeclasses/concurrent.html" title="Concurrent" class="">Concurrent</a> <a href="/cats-effect/typeclasses/effect.html" title="Effect" class="">Effect</a> <a href="/cats-effect/typeclasses/concurrent-effect.html" title="ConcurrentEffect" class="">ConcurrentEffect</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/tutorial/tutorial.html" title="Tutorial" class="">Tutorial</a></div></div></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-eye"></i><span>Watchers<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-star-o"></i><span>Stars<span id="stars" class="label label-default">--</span></span></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>IO</h1>
 
 <p>A data type for encoding side effects as pure values, capable of
 expressing both synchronous and asynchronous computations.</p>
@@ -212,7 +212,7 @@ purely functional way:</p>
 <code class="highlighter-rouge">IO.cancelable</code> builders.</p>
 
 <p><code class="highlighter-rouge">IO.async</code> is the operation that complies with the laws of
-<code class="highlighter-rouge">Async#async</code> (see <a href="../typeclasses/async.html">Async</a>) and can
+<code class="highlighter-rouge">Async#async</code> (see <a href="../typeclasses/async.md">Async</a>) and can
 describe simple asynchronous processes that cannot be canceled,
 its signature being:</p>
 
@@ -247,7 +247,7 @@ however the code for converting a <code class="highlighter-rouge">Future</code> 
 
 <p>For building cancelable <code class="highlighter-rouge">IO</code> tasks you need to use the
 <code class="highlighter-rouge">IO.cancelable</code> builder, this being compliant with
-<code class="highlighter-rouge">Concurrent#cancelable</code> (see <a href="../typeclasses/concurrent.html">Concurrent</a>) 
+<code class="highlighter-rouge">Concurrent#cancelable</code> (see <a href="../typeclasses/concurrent.md">Concurrent</a>) 
 and has this signature:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">cancelable</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
@@ -266,6 +266,7 @@ depends on Java’s <code class="highlighter-rouge">ScheduledExecutorService</co
 certain time duration:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 
 <span class="k">def</span> <span class="n">delayedTick</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span>
@@ -277,7 +278,7 @@ certain time duration:</p>
     
     <span class="c1">// Returning the cancellation token needed to cancel 
 </span>    <span class="c1">// the scheduling and release resources early
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">))</span>
+</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">)).</span><span class="n">void</span>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -315,7 +316,9 @@ equivalences:</p>
 of the returned <code class="highlighter-rouge">IO</code> to some other reference. It’s also useful for
 modeling stack safe, tail recursive loops:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">suspend</span> <span class="o">{</span>
     <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
       <span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">)</span>
@@ -334,8 +337,8 @@ course, <code class="highlighter-rouge">suspend</code> being just nicer in this 
 however by using <code class="highlighter-rouge">IO</code> we can also preserve fairness by inserting
 asynchronous boundaries:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
-<span class="k">import</span> <span class="nn">cats.effect.ContextShift</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
 
 <span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">suspend</span> <span class="o">{</span>
@@ -372,48 +375,75 @@ asynchronous boundaries. It can be achieved in the following way:
   those operations is also possible to cancel. It includes, but is not limited to
   waiting on <code class="highlighter-rouge">Mvar.take</code>, <code class="highlighter-rouge">Mvar.put</code> and <code class="highlighter-rouge">Deferred.get</code>.</p>
 
-<p>We should also note that <code class="highlighter-rouge">flatMap</code> chains are not auto-cancelable. Asynchronous
-  boundaries are important for fairness and it’s not reasonable to expect interruption
-  in its’ absence. With <code class="highlighter-rouge">IO</code>, fairness needs to be managed explicitly, the protocol being
-  easy to follow and predictable in a WYSIWYG fashion. Try to avoid very long, 
-  or never-ending loops without it.</p>
+<p>We should also note that <code class="highlighter-rouge">flatMap</code> chains are only cancelable only if
+  the chain happens <em>after</em> an asynchronous boundary.
+  After an asynchronous boundary, cancellation checks are performed on every N <code class="highlighter-rouge">flatMap</code>.
+  The value of <code class="highlighter-rouge">N</code> is hardcoded to 512.</p>
 
-<ol>
-  <li><code class="highlighter-rouge">IO</code> tasks that are cancelable, usually become non-terminating on
-<code class="highlighter-rouge">cancel</code></li>
-</ol>
+<p>Here is an example,
+  ```scala mdoc:reset:silent
+  import cats.effect.IO</p>
 
-<p>Also this might be a point of confusion for folks coming from Java and
-that expect the features of <code class="highlighter-rouge">Thread.interrupt</code> or of the old and
-deprecated <code class="highlighter-rouge">Thread.stop</code>:</p>
+<p>def retryUntilRight<a href="io: IO[Either[A, B]">A, B</a>: IO[B] = {
+    io.flatMap {
+      case Right(b) =&gt; IO.pure(b)
+      case Left(a) =&gt; retryUntilRight(io)
+    }
+  }</p>
 
-<p><code class="highlighter-rouge">IO</code> cancellation does NOT work like that, as thread interruption in
-Java is inherently <em>unsafe, unreliable and not portable</em>!</p>
+<p>// non-terminating IO that is NOT cancelable
+  val notCancelable: IO[Int] = retryUntilRight<a href="IO(Left(0))">A, B</a></p>
 
-<p>Next subsections describe cancellation-related operations in more depth.</p>
+<p>// non-terminating IO that is cancelable because there is an
+  // async boundary created by IO.shift before <code class="highlighter-rouge">flatMap</code> chain
+  val cancelable: IO[Int] = IO.shift *&gt; retryUntilRight<a href="IO(Left(0))">A, B</a></p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  
+2. `IO` tasks that are cancelable, usually become non-terminating on
+   `cancel`
+    
+Also this might be a point of confusion for folks coming from Java and
+that expect the features of `Thread.interrupt` or of the old and
+deprecated `Thread.stop`:
 
-<h3 id="building-cancelable-io-tasks">Building cancelable IO tasks</h3>
+`IO` cancellation does NOT work like that, as thread interruption in
+Java is inherently *unsafe, unreliable and not portable*!
 
-<p>Cancelable <code class="highlighter-rouge">IO</code> tasks can be described via the <code class="highlighter-rouge">IO.cancelable</code>
-builder. The <code class="highlighter-rouge">delayedTick</code> example making use of the Java’s
-<code class="highlighter-rouge">ScheduledExecutorService</code> was already given above, but to recap:</p>
+Next subsections describe cancellation-related operations in more depth.
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span>
-  <span class="o">(</span><span class="k">implicit</span> <span class="n">sc</span><span class="k">:</span> <span class="kt">ScheduledExecutorService</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+### Building cancelable IO tasks
 
-  <span class="nc">IO</span><span class="o">.</span><span class="n">cancelable</span> <span class="o">{</span> <span class="n">cb</span> <span class="k">=&gt;</span> 
-    <span class="k">val</span> <span class="n">r</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">Runnable</span> <span class="o">{</span> <span class="k">def</span> <span class="n">run</span><span class="o">()</span> <span class="k">=</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(()))</span> <span class="o">}</span>
-    <span class="k">val</span> <span class="n">f</span> <span class="k">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">schedule</span><span class="o">(</span><span class="n">r</span><span class="o">,</span> <span class="n">d</span><span class="o">.</span><span class="n">length</span><span class="o">,</span> <span class="n">d</span><span class="o">.</span><span class="n">unit</span><span class="o">)</span>
-    <span class="c1">// Returning a function that can cancel our scheduling
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">f</span><span class="o">.</span><span class="n">cancel</span><span class="o">(</span><span class="kc">false</span><span class="o">))</span>
-  <span class="o">}</span>
-<span class="o">}</span>
+Cancelable `IO` tasks can be described via the `IO.cancelable`
+builder. The `delayedTick` example making use of the Java's
+`ScheduledExecutorService` was already given above, but to recap:
+
+```scala
+import java.util.concurrent.ScheduledExecutorService
+
+import cats.effect.IO
+import cats.syntax.functor._
+
+import scala.concurrent.duration.FiniteDuration
+
+def sleep(d: FiniteDuration)
+  (implicit sc: ScheduledExecutorService): IO[Unit] = {
+
+  IO.cancelable { cb =&gt; 
+    val r = new Runnable { def run() = cb(Right(())) }
+    val f = sc.schedule(r, d.length, d.unit)
+    // Returning a function that can cancel our scheduling
+    IO(f.cancel(false)).void
+  }
+}
 </code></pre></div></div>
 
 <p>Important: if you don’t specify cancellation logic for a task, then the task
 is NOT cancelable. So for example, using Java’s blocking I/O still:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 <span class="k">import</span> <span class="nn">scala.util.control.NonFatal</span>
 
 <span class="k">def</span> <span class="n">unsafeFileToString</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
@@ -463,14 +493,23 @@ between platforms.</p>
 We could simply introduce a variable that changes to <code class="highlighter-rouge">false</code>, to be
 observed in that <code class="highlighter-rouge">while</code> loop:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.atomic.AtomicBoolean</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.File</span>
+<span class="k">import</span> <span class="nn">java.util.concurrent.atomic.AtomicBoolean</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.io.Source</span>
+<span class="k">import</span> <span class="nn">scala.util.control.NonFatal</span>
 
 <span class="k">def</span> <span class="n">unsafeFileToString</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">isActive</span><span class="k">:</span> <span class="kt">AtomicBoolean</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="n">sc</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">StringBuilder</span>
-  <span class="c1">// ...
-</span>  <span class="k">var</span> <span class="n">hasNext</span> <span class="k">=</span> <span class="kc">true</span>
-  <span class="k">while</span> <span class="o">(</span><span class="n">hasNext</span> <span class="o">&amp;&amp;</span> <span class="n">isActive</span><span class="o">.</span><span class="n">get</span><span class="o">)</span> <span class="o">{</span> 
-    <span class="o">???</span> 
+  <span class="k">val</span> <span class="n">linesIterator</span> <span class="k">=</span> <span class="nc">Source</span><span class="o">.</span><span class="n">fromFile</span><span class="o">(</span><span class="n">file</span><span class="o">).</span><span class="n">getLines</span><span class="o">()</span>
+  <span class="k">var</span> <span class="n">hasNext</span> <span class="k">=</span> <span class="kc">true</span>
+  <span class="k">while</span> <span class="o">(</span><span class="n">hasNext</span> <span class="o">&amp;&amp;</span> <span class="n">isActive</span><span class="o">.</span><span class="n">get</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">sc</span><span class="o">.</span><span class="n">append</span><span class="o">(</span><span class="n">linesIterator</span><span class="o">.</span><span class="n">next</span><span class="o">)</span>
+    <span class="n">hasNext</span> <span class="k">=</span> <span class="n">linesIterator</span><span class="o">.</span><span class="n">hasNext</span>
   <span class="o">}</span>
   <span class="n">sc</span><span class="o">.</span><span class="n">toString</span>
 <span class="o">}</span>
@@ -489,7 +528,7 @@ observed in that <code class="highlighter-rouge">while</code> loop:</p>
       <span class="o">}</span>
     <span class="o">})</span>    
     <span class="c1">// On cancel, signal it
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">isActive</span><span class="o">.</span><span class="n">set</span><span class="o">(</span><span class="kc">false</span><span class="o">))</span>
+</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">isActive</span><span class="o">.</span><span class="n">set</span><span class="o">(</span><span class="kc">false</span><span class="o">)).</span><span class="n">void</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
@@ -498,14 +537,22 @@ observed in that <code class="highlighter-rouge">while</code> loop:</p>
 <p>This is not always obvious, not from the above examples, but you might
 be tempted to do something like this:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readLine</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.util.control.NonFatal</span>
+
+<span class="k">def</span> <span class="n">readLine</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">cancelable</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="o">{</span> <span class="n">cb</span> <span class="k">=&gt;</span>
     <span class="n">ec</span><span class="o">.</span><span class="n">execute</span><span class="o">(()</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span>
       <span class="k">try</span> <span class="nc">Right</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span> 
       <span class="k">catch</span> <span class="o">{</span> <span class="k">case</span> <span class="nc">NonFatal</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Left</span><span class="o">(</span><span class="n">e</span><span class="o">)</span> <span class="o">}))</span>
       
     <span class="c1">// Cancellation logic is not thread-safe!
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">())</span>
+</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">void</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
@@ -521,7 +568,16 @@ not at the cost of data corruption.</p>
 <p>Therefore the user needs to handle thread safety concerns. So here’s
 one way of doing it:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readLine</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+<span class="k">import</span> <span class="nn">java.util.concurrent.atomic.AtomicBoolean</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">import</span> <span class="nn">scala.util.control.NonFatal</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">def</span> <span class="n">readLine</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">cancelable</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="o">{</span> <span class="n">cb</span> <span class="k">=&gt;</span>
     <span class="k">val</span> <span class="n">isActive</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">AtomicBoolean</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
     <span class="n">ec</span><span class="o">.</span><span class="n">execute</span> <span class="o">{</span> <span class="o">()</span> <span class="k">=&gt;</span> 
@@ -538,7 +594,7 @@ one way of doing it:</p>
       <span class="c1">// Thread-safe gate
 </span>      <span class="k">if</span> <span class="o">(</span><span class="n">isActive</span><span class="o">.</span><span class="n">getAndSet</span><span class="o">(</span><span class="kc">false</span><span class="o">))</span>
         <span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()</span>
-    <span class="o">}</span>
+    <span class="o">}.</span><span class="n">void</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
@@ -569,19 +625,22 @@ being available via <code class="highlighter-rouge">IO#start</code>, the operati
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">start</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">A</span><span class="o">]]</span>
 </code></pre></div></div>
 
-<p>Returned is a <a href="./fiber.html">Fiber</a>. You can think of fibers as being
+<p>Returned is a <a href="./fiber.md">Fiber</a>. You can think of fibers as being
 lightweight threads, a fiber being the pure and light equivalent of a
 thread that can be either joined (via <code class="highlighter-rouge">join</code>) or interrupted (via
 <code class="highlighter-rouge">cancel</code>).</p>
 
 <p>Example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for IO.start to do a logical thread fork
 </span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
-<span class="k">val</span> <span class="n">launchMissiles</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">launchMissiles</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
 
 <span class="k">for</span> <span class="o">{</span>
@@ -592,9 +651,7 @@ thread that can be either joined (via <code class="highlighter-rouge">join</code
 </span>    <span class="n">fiber</span><span class="o">.</span><span class="n">cancel</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="n">error</span><span class="o">)</span>
   <span class="o">}</span>
   <span class="n">aftermath</span> <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
-<span class="o">}</span> <span class="k">yield</span> <span class="o">{</span>
-  <span class="n">aftermath</span>
-<span class="o">}</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
 </code></pre></div></div>
 
 <p>Implementation notes:</p>
@@ -614,7 +671,11 @@ unsafe version).</p>
 <p>Example relying on the side-effecting <code class="highlighter-rouge">unsafeRunCancelable</code> and note
 this kind of code is impure and should be used with care:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 
 <span class="c1">// Needed for `sleep`
 </span><span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
@@ -631,10 +692,11 @@ this kind of code is impure and should be used with care:</p>
 </code></pre></div></div>
 
 <p>The <code class="highlighter-rouge">runCancelable</code> alternative is the operation that’s compliant with
-the laws of <a href="../typeclasses/concurrent-effect.html">ConcurrentEffect</a>.
+the laws of <a href="../typeclasses/concurrent-effect.md">ConcurrentEffect</a>.
 Same idea, only the actual execution is suspended in <code class="highlighter-rouge">SyncIO</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.SyncIO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.flatMap._</span>
 
 <span class="k">val</span> <span class="n">pureResult</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="n">io</span><span class="o">.</span><span class="n">runCancelable</span> <span class="o">{</span> <span class="n">r</span> <span class="k">=&gt;</span> 
   <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Done: $r"</span><span class="o">))</span>
@@ -642,7 +704,7 @@ Same idea, only the actual execution is suspended in <code class="highlighter-ro
 
 <span class="c1">// On evaluation, this will first execute the source, then it 
 // will cancel it, because it makes perfect sense :-)
-</span><span class="k">val</span> <span class="n">cancel</span> <span class="k">=</span> <span class="n">pureResult</span><span class="o">.</span><span class="n">toIO</span><span class="o">.</span><span class="n">flatten</span>
+</span><span class="n">pureResult</span><span class="o">.</span><span class="n">toIO</span><span class="o">.</span><span class="n">flatten</span>
 </code></pre></div></div>
 
 <h3 id="uncancelable-marker">uncancelable marker</h3>
@@ -650,7 +712,16 @@ Same idea, only the actual execution is suspended in <code class="highlighter-ro
 <p>Given a cancelable <code class="highlighter-rouge">IO</code>, we can turn it into an <code class="highlighter-rouge">IO</code> that cannot be
 canceled:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Our reference from above
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
+
+<span class="c1">// Needed for `sleep`
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="c1">// Our reference from above
 </span><span class="k">val</span> <span class="n">io</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">10.</span><span class="n">seconds</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello!"</span><span class="o">))</span>
 
 <span class="c1">// This IO can't be canceled, even if we try
@@ -663,7 +734,7 @@ what this operation does — cancelable IOs are by definition not atomic
 and in certain cases we need to make them atomic.</p>
 
 <p>This law is compliant with the laws of <code class="highlighter-rouge">Concurrent#uncancelable</code> (see
-<a href="../typeclasses/concurrent.html">Concurrent</a>).</p>
+<a href="../typeclasses/concurrent.md">Concurrent</a>).</p>
 
 <h3 id="iocancelboundary">IO.cancelBoundary</h3>
 
@@ -674,7 +745,10 @@ continuation to keep executing in case cancellation happened.</p>
 <p>This operation is very similar to <code class="highlighter-rouge">IO.shift</code>, as it can be dropped in
 <code class="highlighter-rouge">flatMap</code> chains in order to make such long loops cancelable:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+
+<span class="k">def</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">suspend</span> <span class="o">{</span>
     <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="o">)</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">a</span><span class="o">)</span> <span class="k">else</span> <span class="o">{</span>
       <span class="k">val</span> <span class="n">next</span> <span class="k">=</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">)</span>
@@ -715,12 +789,12 @@ losers being usually canceled.</p>
 </code></pre></div></div>
 
 <p>The simple version, <code class="highlighter-rouge">IO.race</code>, will cancel the loser immediately,
-whereas the second version gives you a <a href="./fiber.html">Fiber</a>, letting
+whereas the second version gives you a <a href="./fiber.md">Fiber</a>, letting
 you decide what to do next.</p>
 
 <p>So <code class="highlighter-rouge">race</code> can be derived with <code class="highlighter-rouge">racePair</code> like so:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 
 <span class="k">def</span> <span class="n">race</span><span class="o">[</span><span class="kt">A</span>, <span class="kt">B</span><span class="o">](</span><span class="n">lh</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">],</span> <span class="n">rh</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">B</span><span class="o">])</span>
   <span class="o">(</span><span class="k">implicit</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Either</span><span class="o">[</span><span class="kt">A</span>, <span class="kt">B</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
@@ -736,7 +810,10 @@ you decide what to do next.</p>
 
 <p>Using <code class="highlighter-rouge">race</code> we could implement a “timeout” operation:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.CancellationException</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.CancellationException</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.duration.FiniteDuration</span>
 
 <span class="k">def</span> <span class="n">timeoutTo</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">fa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">],</span> <span class="n">after</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">,</span> <span class="n">fallback</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span>
   <span class="o">(</span><span class="k">implicit</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">],</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
@@ -839,13 +916,18 @@ exception of <code class="highlighter-rouge">finally</code> gets rethrown, hidin
 
 <p>Via the <code class="highlighter-rouge">bracket</code> operation we can easily describe the above:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readFirstLine</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">def</span> <span class="n">readFirstLine</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">BufferedReader</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileReader</span><span class="o">(</span><span class="n">file</span><span class="o">))).</span><span class="n">bracket</span> <span class="o">{</span> <span class="n">in</span> <span class="k">=&gt;</span>
     <span class="c1">// Usage (the try block)
 </span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span>
   <span class="o">}</span> <span class="o">{</span> <span class="n">in</span> <span class="k">=&gt;</span>
     <span class="c1">// Releasing the reader (the finally block)
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">())</span>
+</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">void</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
@@ -866,7 +948,17 @@ throws an error as well, the reported error will be that of
 <p>Of special consideration is that <code class="highlighter-rouge">bracket</code> calls the <code class="highlighter-rouge">release</code> action
 on cancellation as well. Consider this sample:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
   <span class="c1">// Opens file with an asynchronous boundary before it, 
 </span>  <span class="c1">// ensuring that processing doesn't block the "current thread"
 </span>  <span class="k">val</span> <span class="n">acquire</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">BufferedReader</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileReader</span><span class="o">(</span><span class="n">file</span><span class="o">)))</span>
@@ -887,7 +979,7 @@ on cancellation as well. Consider this sample:</p>
     <span class="c1">// Releasing the reader (the finally block)
 </span>    <span class="c1">// This is problematic if the resulting `IO` can get 
 </span>    <span class="c1">// canceled, because it can lead to data corruption
-</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">())</span>
+</span>    <span class="nc">IO</span><span class="o">(</span><span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()).</span><span class="n">void</span>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -901,7 +993,17 @@ calling <code class="highlighter-rouge">io.close()</code> concurrently with that
 can lead to data corruption. Depending on use-case synchronization
 might be needed to prevent it:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io._</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.functor._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">def</span> <span class="n">readFile</span><span class="o">(</span><span class="n">file</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
   <span class="c1">// Opens file with an asynchronous boundary before it, 
 </span>  <span class="c1">// ensuring that processing doesn't block the "current thread"
 </span>  <span class="k">val</span> <span class="n">acquire</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">BufferedReader</span><span class="o">(</span><span class="k">new</span> <span class="nc">FileReader</span><span class="o">(</span><span class="n">file</span><span class="o">)))</span>
@@ -935,7 +1037,7 @@ might be needed to prevent it:</p>
           <span class="n">isCanceled</span> <span class="k">=</span> <span class="kc">true</span>
           <span class="n">in</span><span class="o">.</span><span class="n">close</span><span class="o">()</span>
         <span class="o">}</span>
-      <span class="o">}</span>
+      <span class="o">}.</span><span class="n">void</span>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
@@ -954,7 +1056,9 @@ an <code class="highlighter-rouge">ExitCase</code> in <code class="highlighter-r
 
 <p>Usage sample:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.ExitCase.</span><span class="o">{</span><span class="nc">Completed</span><span class="o">,</span> <span class="nc">Error</span><span class="o">,</span> <span class="nc">Canceled</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.io.BufferedReader</span>
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">cats.effect.ExitCase.</span><span class="o">{</span><span class="nc">Completed</span><span class="o">,</span> <span class="nc">Error</span><span class="o">,</span> <span class="nc">Canceled</span><span class="o">}</span>
 
 <span class="k">def</span> <span class="n">readLine</span><span class="o">(</span><span class="n">in</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
   <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">in</span><span class="o">).</span><span class="n">bracketCase</span> <span class="o">{</span> <span class="n">in</span> <span class="k">=&gt;</span>
@@ -992,7 +1096,8 @@ so there might not be anybody available to release it.</p>
 
 <p>Constructs an <code class="highlighter-rouge">IO</code> which evaluates the given <code class="highlighter-rouge">Future</code> and produces either a result or a failure. It is defined as follow:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
 
 <span class="k">def</span> <span class="n">fromFuture</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">iof</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Future</span><span class="o">[</span><span class="kt">A</span><span class="o">]])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 </code></pre></div></div>
@@ -1001,7 +1106,13 @@ so there might not be anybody available to release it.</p>
 
 <p>Lazy evaluation, equivalent with by-name parameters:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">ExecutionContext.Implicits.global</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
 <span class="nc">IO</span><span class="o">.</span><span class="n">fromFuture</span><span class="o">(</span><span class="nc">IO</span> <span class="o">{</span>
   <span class="nc">Future</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"I come from the Future!"</span><span class="o">))</span>
@@ -1019,7 +1130,9 @@ so there might not be anybody available to release it.</p>
 
 <p>Lifts an <code class="highlighter-rouge">Either[Throwable, A]</code> into the <code class="highlighter-rouge">IO[A]</code> context raising the throwable if it exists.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">fromEither</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">e</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span><span class="o">.</span><span class="n">fold</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">,</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">def</span> <span class="n">fromEither</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">e</span><span class="k">:</span> <span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="n">e</span><span class="o">.</span><span class="n">fold</span><span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">,</span> <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">)</span>
 </code></pre></div></div>
 
 <h2 id="error-handling">Error Handling</h2>
@@ -1030,21 +1143,21 @@ so there might not be anybody available to release it.</p>
 
 <p>Constructs an <code class="highlighter-rouge">IO</code> which sequences the specified exception.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">boom</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span>
-<span class="c1">// boom: cats.effect.IO[Nothing] = IO(throw java.lang.Exception: boom)
-</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">val</span> <span class="n">boom</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span>
 <span class="n">boom</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-<span class="c1">// java.lang.Exception: boom
-//   ... 43 elided
-</span></code></pre></div></div>
+</code></pre></div></div>
 
 <h3 id="attempt">attempt</h3>
 
 <p>Materializes any sequenced exceptions into value space, where they may be handled. This is analogous to the <code class="highlighter-rouge">catch</code> clause in <code class="highlighter-rouge">try</code>/<code class="highlighter-rouge">catch</code>, being the inverse of <code class="highlighter-rouge">IO.raiseError</code>. Example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">boom</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
-<span class="c1">// res22: Either[Throwable,Nothing] = Left(java.lang.Exception: boom)
-</span></code></pre></div></div>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">val</span> <span class="n">boom</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span>
+<span class="n">boom</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
+</code></pre></div></div>
 
 <p>Look at the <a href="https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/MonadError.scala">MonadError</a> typeclass for more.</p>
 
@@ -1054,8 +1167,9 @@ so there might not be anybody available to release it.</p>
 
 <p>For example here’s a way to implement retries with exponential back-off:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
+
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 
 <span class="k">def</span> <span class="n">retryWithBackoff</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">],</span> <span class="n">initialDelay</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">,</span> <span class="n">maxRetries</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span>
@@ -1079,19 +1193,19 @@ so there might not be anybody available to release it.</p>
 <p>Note there are 2 overloads of the <code class="highlighter-rouge">IO.shift</code> function:</p>
 
 <ul>
-  <li>One that takes a <a href="./contextshift.html">ContextShift</a> that manages the thread-pool used to trigger async boundaries.</li>
+  <li>One that takes a <a href="./contextshift.md">ContextShift</a> that manages the thread-pool used to trigger async boundaries.</li>
   <li>Another that takes a Scala <code class="highlighter-rouge">ExecutionContext</code> as the thread-pool.</li>
 </ul>
 
 <p>Please use the former by default and use the latter only for fine-grained control over the thread pool in use.</p>
 
 <p>By default, <code class="highlighter-rouge">Cats Effect</code> can provide instance of <code class="highlighter-rouge">ContextShift[IO]</code> that manages thread-pools,
-but only if there’s an <code class="highlighter-rouge">ExecutionContext</code> in scope or if <a href="./ioapp.html">IOApp</a> is used:</p>
+but only if there’s an <code class="highlighter-rouge">ExecutionContext</code> in scope or if <a href="./ioapp.md">IOApp</a> is used:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">ContextShift</span><span class="o">}</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 
-<span class="k">val</span> <span class="n">contextShift</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">global</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>We can introduce an asynchronous boundary in the <code class="highlighter-rouge">flatMap</code> chain before a certain task:</p>
@@ -1131,6 +1245,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.Executors</span>
 
+<span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="k">val</span> <span class="n">cachedThreadPool</span> <span class="k">=</span> <span class="nc">Executors</span><span class="o">.</span><span class="n">newCachedThreadPool</span><span class="o">()</span>
@@ -1142,7 +1257,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Enter your name: "</span><span class="o">))</span>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span><span class="o">(</span><span class="nc">BlockingFileIO</span><span class="o">)</span>
     <span class="n">name</span>  <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">scala</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">())</span>
-    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span>
+    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span><span class="o">(</span><span class="nc">Main</span><span class="o">)</span>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Welcome $name!"</span><span class="o">))</span>
     <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">cachedThreadPool</span><span class="o">.</span><span class="n">shutdown</span><span class="o">())</span>
   <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
@@ -1152,7 +1267,12 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>Another somewhat less common application of <code class="highlighter-rouge">shift</code> is to reset the thread stack and yield control back to the underlying pool. For example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">lazy</span> <span class="k">val</span> <span class="n">doStuff</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"stuff"</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">lazy</span> <span class="k">val</span> <span class="n">doStuff</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"stuff"</span><span class="o">))</span>
 
 <span class="k">lazy</span> <span class="k">val</span> <span class="n">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
@@ -1174,7 +1294,9 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p><code class="highlighter-rouge">IO</code> is trampolined for all <code class="highlighter-rouge">synchronous</code> and <code class="highlighter-rouge">asynchronous</code> joins. This means that you can safely call <code class="highlighter-rouge">flatMap</code> in a recursive function of arbitrary depth, without fear of blowing the stack. So you can do this for example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">signal</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">async</span><span class="o">(</span><span class="k">_</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">def</span> <span class="n">signal</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">async</span><span class="o">(</span><span class="k">_</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">a</span><span class="o">)))</span>
 
 <span class="k">def</span> <span class="n">loop</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
   <span class="n">signal</span><span class="o">(</span><span class="n">n</span><span class="o">).</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">x</span> <span class="k">=&gt;</span>
@@ -1187,10 +1309,10 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 <p>Since the introduction of the <a href="https://github.com/typelevel/cats/blob/master/core/src/main/scala/cats/Parallel.scala">Parallel</a> typeclasss in the Cats library and its <code class="highlighter-rouge">IO</code> instance, it became possible to execute two or more given <code class="highlighter-rouge">IO</code>s in parallel.</p>
 
 <p>Note: all parallel operations require an implicit <code class="highlighter-rouge">ContextShift[IO]</code> in scope
-(see <a href="./contextshift.html">ContextShift</a>). You have a <code class="highlighter-rouge">ContextShift</code> in scope if:</p>
+(see <a href="./contextshift.md">ContextShift</a>). You have a <code class="highlighter-rouge">ContextShift</code> in scope if:</p>
 
 <ol>
-  <li>via usage of <a href="./ioapp.html">IOApp</a> that gives you a <code class="highlighter-rouge">ContextShift</code> by default</li>
+  <li>via usage of <a href="./ioapp.md">IOApp</a> that gives you a <code class="highlighter-rouge">ContextShift</code> by default</li>
   <li>the user provides a custom <code class="highlighter-rouge">ContextShift</code>, which can be created using <code class="highlighter-rouge">IO.contextShift(executionContext)</code></li>
 </ol>
 
@@ -1198,15 +1320,18 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>It has the potential to run an arbitrary number of <code class="highlighter-rouge">IO</code>s in parallel, and it allows you to apply a function to the result (as in <code class="highlighter-rouge">map</code>). It finishes processing when all the <code class="highlighter-rouge">IO</code>s are completed, either successfully or with a failure. For example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
-<span class="k">import</span> <span class="nn">cats.effect.ContextShift</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
 <span class="k">val</span> <span class="n">ioA</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioA"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">ioB</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioB"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">ioC</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioC"</span><span class="o">))</span>
 
-<span class="c1">// make sure that you have an implicit ContextShift[IO] in scope. We created one earlier in this document.
+<span class="c1">// make sure that you have an implicit ContextShift[IO] in scope. 
 </span><span class="k">val</span> <span class="n">program</span> <span class="k">=</span> <span class="o">(</span><span class="n">ioA</span><span class="o">,</span> <span class="n">ioB</span><span class="o">,</span> <span class="n">ioC</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 
 <span class="n">program</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
@@ -1218,16 +1343,25 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>If any of the <code class="highlighter-rouge">IO</code>s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">[</span><span class="kt">Unit</span><span class="o">](</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span> <span class="o">&lt;*</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioA"</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">ExitCase</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">[</span><span class="kt">Unit</span><span class="o">](</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom"</span><span class="o">))</span> <span class="o">&lt;*</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioA"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">b</span> <span class="k">=</span> <span class="o">(</span><span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Running ioB"</span><span class="o">)))</span>
   <span class="o">.</span><span class="n">guaranteeCase</span> <span class="o">{</span>
-    <span class="k">case</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"ioB was canceled!"</span><span class="o">))</span>
+    <span class="k">case</span> <span class="nc">ExitCase</span><span class="o">.</span><span class="nc">Canceled</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"ioB was canceled!"</span><span class="o">))</span>
     <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">unit</span>
   <span class="o">}</span>
 
 <span class="k">val</span> <span class="n">parFailure</span> <span class="k">=</span> <span class="o">(</span><span class="n">a</span><span class="o">,</span> <span class="n">b</span><span class="o">).</span><span class="n">parMapN</span> <span class="o">{</span> <span class="o">(</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">()</span> <span class="o">}</span>
 
-<span class="n">parFailure</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
+<span class="n">parFailure</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 <span class="c1">//=&gt; ioB was canceled!
 //=&gt; java.lang.Exception: boom
 //=&gt;  ... 43 elided
@@ -1236,7 +1370,16 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via <code class="highlighter-rouge">parMapN</code> will not wait for 10 seconds before emitting the error:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioA</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">10.</span><span class="n">seconds</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Delayed!"</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
+<span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
+
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">ioA</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">10.</span><span class="n">seconds</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Delayed!"</span><span class="o">))</span>
 <span class="k">val</span> <span class="n">ioB</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">[</span><span class="kt">Unit</span><span class="o">](</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"dummy"</span><span class="o">))</span>
 
 <span class="o">(</span><span class="n">ioA</span><span class="o">,</span> <span class="n">ioB</span><span class="o">).</span><span class="n">parMapN</span><span class="o">((</span><span class="k">_</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="o">())</span>
@@ -1246,7 +1389,15 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>If you have a list of IO, and you want a single IO with the result list you can use <code class="highlighter-rouge">parSequence</code> which executes the IO tasks in parallel.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats._</span><span class="o">,</span> <span class="n">cats</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="k">_</span><span class="o">,</span> <span class="n">cats</span><span class="o">.</span><span class="n">syntax</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="k">_</span><span class="o">,</span> <span class="n">cats</span><span class="o">.</span><span class="n">effect</span><span class="o">.</span><span class="nc">IO</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data.NonEmptyList</span>
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.parallel._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span> 
+
+<span class="c1">// Needed for IO.start to do a logical thread fork
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
 <span class="k">val</span> <span class="n">anIO</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span>
 
@@ -1262,7 +1413,17 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>If you have a list of data and a way of turning each item into an IO, but you want a single IO for the results you can use <code class="highlighter-rouge">parTraverse</code> to run the steps in parallel.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">results</span> <span class="k">=</span> <span class="nc">NonEmptyList</span><span class="o">.</span><span class="n">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">).</span><span class="n">parTraverse</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.data.NonEmptyList</span>
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
+<span class="k">import</span> <span class="nn">cats.syntax.parallel._</span>
+
+<span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span> 
+
+<span class="c1">// Needed for IO.start to do a logical thread fork
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">results</span> <span class="k">=</span> <span class="nc">NonEmptyList</span><span class="o">.</span><span class="n">of</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="mi">3</span><span class="o">).</span><span class="n">parTraverse</span> <span class="o">{</span> <span class="n">i</span> <span class="k">=&gt;</span>
   <span class="nc">IO</span><span class="o">(</span><span class="n">i</span><span class="o">)</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -1271,7 +1432,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <h2 id="unsafe-operations">“Unsafe” Operations</h2>
 
-<p>Pretty much we have been using some “unsafe” operations in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with <code class="highlighter-rouge">unsafe</code> are impure functions and perform side effects (for example Haskell has <code class="highlighter-rouge">unsafePerformIO</code>). But don’t be scared by the name! You should write your programs in a monadic way using functions such as <code class="highlighter-rouge">map</code> and <code class="highlighter-rouge">flatMap</code> to compose other functions and ideally you should just call one of these unsafe operations only <strong>once</strong>, at the very end of your program.</p>
+<p>We have been using some “unsafe” operations pretty much everywhere in the previous examples but we never explained any of them, so here it goes. All of the operations prefixed with <code class="highlighter-rouge">unsafe</code> are impure functions and perform side effects (for example Haskell has <code class="highlighter-rouge">unsafePerformIO</code>). But don’t be scared by the name! You should write your programs in a monadic way using functions such as <code class="highlighter-rouge">map</code> and <code class="highlighter-rouge">flatMap</code> to compose other functions and ideally you should just call one of these unsafe operations only <strong>once</strong>, at the very end of your program.</p>
 
 <h3 id="unsaferunsync">unsafeRunSync</h3>
 
@@ -1301,7 +1462,9 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="n">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!
-// res46: cats.effect.CancelToken[cats.effect.IO] = IO$260250146
+// res58: cats.effect.package.CancelToken[IO] = Suspend(
+//   cats.effect.internals.IOConnection$Impl$$Lambda$7662/57943930@487c57e1
+// )
 </span></code></pre></div></div>
 
 <h3 id="unsaferuntimed">unsafeRunTimed</h3>
@@ -1395,7 +1558,22 @@ So this should be avoided:</p>
 
 <link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
 <script type="text/javascript" src="/cats-effect/js/toc.js"></script>
-</section></div></div></div></div><script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script><script src="/cats-effect/highlight/highlight.pack.js"></script><script>hljs.configure({languages:['scala','java','bash']});
-hljs.initHighlighting();
-              </script><script src="/cats-effect/js/toc.js"></script><script>((window.gitter = {}).chat = {}).options = {
-room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/cats-effect/js/main.js"></script></body></html>
+</section></div></div></div></div><script src="/cats-effect/highlight/highlight.pack.js"></script><script>
+// For all code blocks, copy the language from the containing div
+// to the inner code tag (where hljs expects it to be)
+const langPrefix = 'language-';
+document.querySelectorAll(`div[class^='${langPrefix}']`).forEach(function(div) {
+  div.classList.forEach(function(cssClass) {
+    if (cssClass.startsWith(langPrefix)) {
+      const lang = cssClass.substring(langPrefix.length);
+      div.querySelectorAll('pre code').forEach(function(code) {
+        code.classList.add(lang);
+      });
+    }
+  });
+});
+
+hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlightingOnLoad();
+      </script><script src="/cats-effect/js/toc.js"></script><script>console.info('\x57\x65\x62\x73\x69\x74\x65\x20\x62\x75\x69\x6c\x74\x20\x77\x69\x74\x68\x3a\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x5f\x5f\x0a\x20\x20\x20\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x5f\x20\x20\x2f\x20\x2f\x5f\x20\x20\x20\x20\x20\x20\x5f\x5f\x5f\x5f\x20\x5f\x5f\x5f\x20\x20\x28\x5f\x29\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x28\x5f\x29\x20\x2f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x0a\x20\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x60\x5f\x5f\x20\x5c\x2f\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x20\x2f\x20\x5f\x5f\x2f\x20\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x0a\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x5f\x2f\x20\x2f\x20\x2f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x5f\x5f\x2f\x20\x2f\x20\x20\x2f\x20\x2f\x5f\x2f\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x20\x2f\x5f\x2f\x20\x20\x5f\x5f\x28\x5f\x5f\x20\x20\x29\x0a\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2e\x5f\x5f\x5f\x2f\x5c\x5f\x5f\x2f\x20\x20\x20\x20\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x2f\x20\x20\x20\x5c\x5f\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x0a\x0a\x68\x74\x74\x70\x73\x3a\x2f\x2f\x34\x37\x64\x65\x67\x2e\x67\x69\x74\x68\x75\x62\x2e\x69\x6f\x2f\x73\x62\x74\x2d\x6d\x69\x63\x72\x6f\x73\x69\x74\x65\x73')</script><script>((window.gitter = {}).chat = {}).options = {
+room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/cats-effect/js/docs.js"></script></body></html>

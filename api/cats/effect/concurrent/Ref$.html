@@ -168,7 +168,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -622,9 +622,9 @@ so only effect type needs to be specified explicitly.</p><p>Some care must be ta
 <span class="kw">import</span> cats.effect.concurrent.Ref
 
 <span class="kw">class</span> Counter <span class="kw">private</span> () {
-  <span class="kw">private</span> <span class="kw">val</span> count = Ref.unsafe[IO](<span class="num">0</span>)
+  <span class="kw">private</span> <span class="kw">val</span> count = Ref.unsafe[IO, <span class="std">Int</span>](<span class="num">0</span>)
 
-  <span class="kw">def</span> increment: IO[<span class="std">Unit</span>] = count.modify(_ + <span class="num">1</span>)
+  <span class="kw">def</span> increment: IO[<span class="std">Unit</span>] = count.update(_ + <span class="num">1</span>)
   <span class="kw">def</span> total: IO[<span class="std">Int</span>] = count.get
 }
 

@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -252,7 +260,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/Timer.scala" target="_blank">Timer.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/Timer.scala" target="_blank">Timer.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -499,6 +507,23 @@ given we have one for <code>F[_]</code>.</p>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for <code>cats.data.OptionT</code>,
+given we have one for <code>F[_]</code>.</p>
+    </li><li name="cats.effect.Timer#deriveResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="deriveResource[F[_]](implicitF:cats.Applicative[F],implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[β$18$]cats.effect.Resource[F,β$18$]]"></a><a id="deriveResource[F[_]](Applicative[F],Timer[F]):Timer[[β$18$]Resource[F,β$18$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Timer$.html#deriveResource[F[_]](implicitF:cats.Applicative[F],implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[β$18$]cats.effect.Resource[F,β$18$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">deriveResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Timer.deriveResource.F">F</span>]</span>, <span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<span class="extype" name="cats.effect.Timer.deriveResource.F">F</span>]</span>)</span><span class="result">: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[[β$18$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.Timer.deriveResource.F">F</span>, <span class="extype" name="cats.effect.Timer.&lt;refinement&gt;.Λ$.β$18$">β$18$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Derives a <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a> instance for <code>cats.effect.Resource</code>,
 given we have one for <code>F[_]</code>.</p>
     </li><li name="cats.effect.Timer#deriveStateT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
       <a id="deriveStateT[F[_],S](implicitF:cats.Applicative[F],implicittimer:cats.effect.Timer[F]):cats.effect.Timer[[γ$9$]cats.data.IndexedStateT[F,S,S,γ$9$]]"></a><a id="deriveStateT[F[_],S](Applicative[F],Timer[F]):Timer[[γ$9$]IndexedStateT[F,S,S,γ$9$]]"></a>

@@ -207,6 +207,10 @@
                         <a class="trait" href="LiftIO.html" title=""></a>
                         <a href="LiftIO.html" title="">LiftIO</a>
                       </li><li class="current-entities indented2">
+                        <span class="separator"></span>
+                        <a class="trait" href="LowPriorityImplicits.html" title=""></a>
+                        <a href="LowPriorityImplicits.html" title="">LowPriorityImplicits</a>
+                      </li><li class="current-entities indented2">
                         <a class="object" href="Resource$.html" title=""></a>
                         <a class="class" href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer."></a>
                         <a href="Resource.html" title="The Resource is a data structure that captures the effectful allocation of a resource, along with its finalizer.">Resource</a>
@@ -214,6 +218,10 @@
                         <a class="object" href="Sync$.html" title=""></a>
                         <a class="trait" href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context."></a>
                         <a href="Sync.html" title="A monad that can suspend the execution of side effects in the F[_] context.">Sync</a>
+                      </li><li class="current-entities indented2">
+                        <a class="object" href="SyncEffect$.html" title=""></a>
+                        <a class="trait" href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects."></a>
+                        <a href="SyncEffect.html" title="A monad that can suspend side effects into the F context and that supports only synchronous lazy evaluation of these effects.">SyncEffect</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="SyncIO$.html" title=""></a>
                         <a class="class" href="SyncIO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect is obtained synchronously."></a>
@@ -247,16 +255,16 @@
         <span class="kind">object</span>
       </span>
       <span class="symbol">
-        <span class="name">Clock</span>
+        <span class="name">Clock</span><span class="result"> extends <a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></span>
       </span>
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.0.0/core/shared/src/main/scala/cats/effect/Clock.scala" target="_blank">Clock.scala</a></dd></dl><div class="toggleContainer block">
+          <div id="comment" class="fullcommenttop"><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.0/core/shared/src/main/scala/cats/effect/Clock.scala" target="_blank">Clock.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
-          <div class="superTypes hiddenContent"><span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
+          <div class="superTypes hiddenContent"><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a>, <span class="extype" name="scala.AnyRef">AnyRef</span>, <span class="extype" name="scala.Any">Any</span></div>
         </div></div>
         
 
@@ -282,7 +290,7 @@
                   <span class="filtertype">Inherited<br />
                   </span>
                   <ol id="linearization">
-                    <li class="in" name="cats.effect.Clock"><span>Clock</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
+                    <li class="in" name="cats.effect.Clock"><span>Clock</span></li><li class="in" name="cats.effect.LowPriorityImplicits"><span>LowPriorityImplicits</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li>
                   </ol>
                 </div><div class="ancestors">
               <span class="filtertype"></span>
@@ -449,7 +457,7 @@
       
       <p class="shortcomment cmt">Provides Clock instance for any <code>F</code> that has <code>Sync</code> defined
 </p>
-    </li><li name="cats.effect.Clock#deriveEitherT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+    </li><li name="cats.effect.LowPriorityImplicits#deriveEitherT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveEitherT[F[_],L](implicitF:cats.Functor[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$0$]cats.data.EitherT[F,L,γ$0$]]"></a><a id="deriveEitherT[F[_],L](Functor[F],Clock[F]):Clock[[γ$0$]EitherT[F,L,γ$0$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveEitherT[F[_],L](implicitF:cats.Functor[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$0$]cats.data.EitherT[F,L,γ$0$]]" title="Permalink">
@@ -461,12 +469,14 @@
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveEitherT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.Clock.deriveEitherT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveEitherT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$0$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.effect.Clock.deriveEitherT.F">F</span>, <span class="extype" name="cats.effect.Clock.deriveEitherT.L">L</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.γ$0$">γ$0$</span>]]</span>
+        <span class="name">deriveEitherT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveEitherT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveEitherT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$0$]<span class="extype" name="cats.data.EitherT">EitherT</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveEitherT.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveEitherT.L">L</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.γ$0$">γ$0$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.EitherT</code>,
-given we have one for <code>F[_]</code>.</p>
-    </li><li name="cats.effect.Clock#deriveIorT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.EitherT</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveIorT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveIorT[F[_],L](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$10$]cats.data.IorT[F,L,γ$10$]]"></a><a id="deriveIorT[F[_],L](Applicative[F],Clock[F]):Clock[[γ$10$]IorT[F,L,γ$10$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveIorT[F[_],L](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$10$]cats.data.IorT[F,L,γ$10$]]" title="Permalink">
@@ -478,12 +488,14 @@ given we have one for <code>F[_]</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveIorT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Clock.deriveIorT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveIorT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$10$]<span class="extype" name="cats.data.IorT">IorT</span>[<span class="extype" name="cats.effect.Clock.deriveIorT.F">F</span>, <span class="extype" name="cats.effect.Clock.deriveIorT.L">L</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.γ$10$">γ$10$</span>]]</span>
+        <span class="name">deriveIorT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveIorT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveIorT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$10$]<span class="extype" name="cats.data.IorT">IorT</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveIorT.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveIorT.L">L</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.γ$10$">γ$10$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.IorT</code>,
-given we have one for <code>F[_]</code>.</p>
-    </li><li name="cats.effect.Clock#deriveKleisli" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.IorT</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveKleisli" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveKleisli[F[_],R](implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$8$]cats.data.Kleisli[F,R,γ$8$]]"></a><a id="deriveKleisli[F[_],R](Clock[F]):Clock[[γ$8$]Kleisli[F,R,γ$8$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveKleisli[F[_],R](implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$8$]cats.data.Kleisli[F,R,γ$8$]]" title="Permalink">
@@ -495,12 +507,14 @@ given we have one for <code>F[_]</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveKleisli</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="R">R</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveKleisli.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$8$]<span class="extype" name="cats.data.Kleisli">Kleisli</span>[<span class="extype" name="cats.effect.Clock.deriveKleisli.F">F</span>, <span class="extype" name="cats.effect.Clock.deriveKleisli.R">R</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.γ$8$">γ$8$</span>]]</span>
+        <span class="name">deriveKleisli</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="R">R</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveKleisli.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$8$]<span class="extype" name="cats.data.Kleisli">Kleisli</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveKleisli.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveKleisli.R">R</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.γ$8$">γ$8$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.Kleisli</code>,
-given we have one for <code>F[_]</code>.</p>
-    </li><li name="cats.effect.Clock#deriveOptionT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.Kleisli</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveOptionT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveOptionT[F[_]](implicitF:cats.Functor[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[β$2$]cats.data.OptionT[F,β$2$]]"></a><a id="deriveOptionT[F[_]](Functor[F],Clock[F]):Clock[[β$2$]OptionT[F,β$2$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveOptionT[F[_]](implicitF:cats.Functor[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[β$2$]cats.data.OptionT[F,β$2$]]" title="Permalink">
@@ -512,12 +526,33 @@ given we have one for <code>F[_]</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveOptionT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.Clock.deriveOptionT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveOptionT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[β$2$]<span class="extype" name="cats.data.OptionT">OptionT</span>[<span class="extype" name="cats.effect.Clock.deriveOptionT.F">F</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.β$2$">β$2$</span>]]</span>
+        <span class="name">deriveOptionT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Functor">Functor</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveOptionT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveOptionT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[β$2$]<span class="extype" name="cats.data.OptionT">OptionT</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveOptionT.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.β$2$">β$2$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.OptionT</code>,
-given we have one for <code>F[_]</code>.</p>
-    </li><li name="cats.effect.Clock#deriveStateT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.OptionT</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveResource" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="deriveResource[F[_]](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[β$12$]cats.effect.Resource[F,β$12$]]"></a><a id="deriveResource[F[_]](Applicative[F],Clock[F]):Clock[[β$12$]Resource[F,β$12$]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/Clock$.html#deriveResource[F[_]](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[β$12$]cats.effect.Resource[F,β$12$]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">implicit </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">deriveResource</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveResource.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveResource.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[β$12$]<a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveResource.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.β$12$">β$12$</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.effect.Resource</code>,
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.effect.Resource</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveStateT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveStateT[F[_],S](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$4$]cats.data.IndexedStateT[F,S,S,γ$4$]]"></a><a id="deriveStateT[F[_],S](Applicative[F],Clock[F]):Clock[[γ$4$]IndexedStateT[F,S,S,γ$4$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveStateT[F[_],S](implicitF:cats.Applicative[F],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$4$]cats.data.IndexedStateT[F,S,S,γ$4$]]" title="Permalink">
@@ -529,12 +564,14 @@ given we have one for <code>F[_]</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveStateT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Clock.deriveStateT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveStateT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$4$]<span class="extype" name="cats.data.IndexedStateT">IndexedStateT</span>[<span class="extype" name="cats.effect.Clock.deriveStateT.F">F</span>, <span class="extype" name="cats.effect.Clock.deriveStateT.S">S</span>, <span class="extype" name="cats.effect.Clock.deriveStateT.S">S</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.γ$4$">γ$4$</span>]]</span>
+        <span class="name">deriveStateT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="S">S</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveStateT.F">F</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveStateT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$4$]<span class="extype" name="cats.data.IndexedStateT">IndexedStateT</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveStateT.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveStateT.S">S</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveStateT.S">S</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.γ$4$">γ$4$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.StateT</code>,
-given we have one for <code>F[_]</code>.</p>
-    </li><li name="cats.effect.Clock#deriveWriterT" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.StateT</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
+    </li><li name="cats.effect.LowPriorityImplicits#deriveWriterT" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="deriveWriterT[F[_],L](implicitF:cats.Applicative[F],implicitL:cats.Monoid[L],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$6$]cats.data.WriterT[F,L,γ$6$]]"></a><a id="deriveWriterT[F[_],L](Applicative[F],Monoid[L],Clock[F]):Clock[[γ$6$]WriterT[F,L,γ$6$]]"></a>
       <span class="permalink">
       <a href="../../cats/effect/Clock$.html#deriveWriterT[F[_],L](implicitF:cats.Applicative[F],implicitL:cats.Monoid[L],implicitclock:cats.effect.Clock[F]):cats.effect.Clock[[γ$6$]cats.data.WriterT[F,L,γ$6$]]" title="Permalink">
@@ -546,11 +583,13 @@ given we have one for <code>F[_]</code>.</p>
         <span class="kind">def</span>
       </span>
       <span class="symbol">
-        <span class="name">deriveWriterT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.Clock.deriveWriterT.F">F</span>]</span>, <span name="L">L: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.Clock.deriveWriterT.L">L</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.Clock.deriveWriterT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$6$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.Clock.deriveWriterT.F">F</span>, <span class="extype" name="cats.effect.Clock.deriveWriterT.L">L</span>, <span class="extype" name="cats.effect.Clock.&lt;refinement&gt;.Λ$.γ$6$">γ$6$</span>]]</span>
+        <span class="name">deriveWriterT</span><span class="tparams">[<span name="F">F<span class="tparams">[<span name="_">_</span>]</span></span>, <span name="L">L</span>]</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <span class="extype" name="cats.Applicative">Applicative</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveWriterT.F">F</span>]</span>, <span name="L">L: <a href="../index.html#Monoid[A]=cats.kernel.Monoid[A]" class="extmbr" name="cats.Monoid">Monoid</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveWriterT.L">L</span>]</span>, <span name="clock">clock: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveWriterT.F">F</span>]</span>)</span><span class="result">: <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a>[[γ$6$]<span class="extype" name="cats.data.WriterT">WriterT</span>[<span class="extype" name="cats.effect.LowPriorityImplicits.deriveWriterT.F">F</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.deriveWriterT.L">L</span>, <span class="extype" name="cats.effect.LowPriorityImplicits.&lt;refinement&gt;.Λ$.γ$6$">γ$6$</span>]]</span>
       </span>
       
       <p class="shortcomment cmt">Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.WriterT</code>,
-given we have one for <code>F[_]</code>.</p>
+given we have one for <code>F[_]</code>.</p><div class="fullcomment"><div class="comment cmt"><p>Derives a <a href="Clock.html" class="extype" name="cats.effect.Clock">Clock</a> instance for <code>cats.data.WriterT</code>,
+given we have one for <code>F[_]</code>.
+</p></div><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></dd></dl></div>
     </li><li name="scala.AnyRef#eq" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="eq(x$1:AnyRef):Boolean"></a><a id="eq(AnyRef):Boolean"></a>
       <span class="permalink">
@@ -840,7 +879,9 @@ in scope, extracts a <a href="Clock.html" class="extype" name="cats.effect.Clock
         </div>
 
         <div id="inheritedMembers">
-        <div class="parent" name="scala.AnyRef">
+        <div class="parent" name="cats.effect.LowPriorityImplicits">
+              <h3>Inherited from <a href="LowPriorityImplicits.html" class="extype" name="cats.effect.LowPriorityImplicits">LowPriorityImplicits</a></h3>
+            </div><div class="parent" name="scala.AnyRef">
               <h3>Inherited from <span class="extype" name="scala.AnyRef">AnyRef</span></h3>
             </div><div class="parent" name="scala.Any">
               <h3>Inherited from <span class="extype" name="scala.Any">Any</span></h3>
