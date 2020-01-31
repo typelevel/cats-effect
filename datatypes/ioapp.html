@@ -19,13 +19,13 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="o">{</span>
   <span class="c1">// Needed for `IO.sleep`
-</span>  <span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+</span>  <span class="k">implicit</span> <span class="k">val</span> <span class="nv">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">timer</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
   
-  <span class="k">def</span> <span class="n">program</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
-    <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello world!. Args $args"</span><span class="o">))</span>
+  <span class="k">def</span> <span class="nf">program</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nv">IO</span><span class="o">.</span><span class="py">sleep</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello world!. Args $args"</span><span class="o">))</span>
     
-  <span class="k">def</span> <span class="n">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span>
-    <span class="n">program</span><span class="o">(</span><span class="n">args</span><span class="o">.</span><span class="n">toList</span><span class="o">).</span><span class="n">unsafeRunSync</span>
+  <span class="k">def</span> <span class="nf">main</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span>
+    <span class="nf">program</span><span class="o">(</span><span class="nv">args</span><span class="o">.</span><span class="py">toList</span><span class="o">).</span><span class="py">unsafeRunSync</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -40,12 +40,12 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">args</span><span class="o">.</span><span class="n">headOption</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nv">args</span><span class="o">.</span><span class="py">headOption</span> <span class="k">match</span> <span class="o">{</span>
       <span class="k">case</span> <span class="nc">Some</span><span class="o">(</span><span class="n">name</span><span class="o">)</span> <span class="k">=&gt;</span>
-        <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $name."</span><span class="o">)).</span><span class="n">as</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+        <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $name."</span><span class="o">)).</span><span class="py">as</span><span class="o">(</span><span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span><span class="o">)</span>
       <span class="k">case</span> <span class="nc">None</span> <span class="k">=&gt;</span>
-        <span class="nc">IO</span><span class="o">(</span><span class="nc">System</span><span class="o">.</span><span class="n">err</span><span class="o">.</span><span class="n">println</span><span class="o">(</span><span class="s">"Usage: MyApp name"</span><span class="o">)).</span><span class="n">as</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">(</span><span class="mi">2</span><span class="o">))</span>
+        <span class="nc">IO</span><span class="o">(</span><span class="nv">System</span><span class="o">.</span><span class="py">err</span><span class="o">.</span><span class="py">println</span><span class="o">(</span><span class="s">"Usage: MyApp name"</span><span class="o">)).</span><span class="py">as</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">(</span><span class="mi">2</span><span class="o">))</span>
     <span class="o">}</span>  
 <span class="o">}</span>
 </code></pre></div></div>
@@ -92,20 +92,20 @@ and safely release any resources.</p>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">loop</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
-    <span class="nc">IO</span><span class="o">.</span><span class="n">suspend</span> <span class="o">{</span>
-      <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">)</span>
-        <span class="nc">IO</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Tick: $n"</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="n">loop</span><span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
+  <span class="k">def</span> <span class="nf">loop</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nv">IO</span><span class="o">.</span><span class="py">suspend</span> <span class="o">{</span>
+      <span class="nf">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">)</span>
+        <span class="nv">IO</span><span class="o">.</span><span class="py">sleep</span><span class="o">(</span><span class="mf">1.</span><span class="n">second</span><span class="o">)</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Tick: $n"</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nf">loop</span><span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
       <span class="k">else</span>
-        <span class="nc">IO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+        <span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span><span class="o">)</span>
     <span class="o">}</span>
 
-  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
-    <span class="n">loop</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="n">guaranteeCase</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nf">loop</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="py">guaranteeCase</span> <span class="o">{</span>
       <span class="k">case</span> <span class="nc">Canceled</span> <span class="k">=&gt;</span>
-        <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Interrupted: releasing and exiting!"</span><span class="o">))</span>
+        <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Interrupted: releasing and exiting!"</span><span class="o">))</span>
       <span class="k">case</span> <span class="k">_</span> <span class="k">=&gt;</span>
-        <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Normal exit!"</span><span class="o">))</span>
+        <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Normal exit!"</span><span class="o">))</span>
     <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -157,12 +157,12 @@ or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
   <span class="k">type</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span>
-  <span class="k">val</span> <span class="n">F</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ConcurrentEffect</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
+  <span class="k">val</span> <span class="nv">F</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">ConcurrentEffect</span><span class="o">[</span><span class="kt">F</span><span class="o">]]</span>
 
-  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> 
-    <span class="n">F</span><span class="o">.</span><span class="n">toIO</span> <span class="o">{</span>
-      <span class="nc">EitherT</span><span class="o">.</span><span class="n">right</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello from EitherT"</span><span class="o">)))</span>
-        <span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span><span class="o">)</span>
+  <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> 
+    <span class="nv">F</span><span class="o">.</span><span class="py">toIO</span> <span class="o">{</span>
+      <span class="nv">EitherT</span><span class="o">.</span><span class="py">right</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello from EitherT"</span><span class="o">)))</span>
+        <span class="o">.</span><span class="py">map</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span><span class="o">)</span>
     <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>

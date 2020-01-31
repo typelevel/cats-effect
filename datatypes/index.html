@@ -11,8 +11,8 @@
 <h3 id="fiber"><a href="./fiber.md">Fiber</a></h3>
 <p>A pure result of a <a href="../typeclasses/concurrent.md">Concurrent</a> data type being started concurrently and that can be either joined or canceled</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">cancel</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-<span class="k">def</span> <span class="n">join</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">cancel</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+<span class="k">def</span> <span class="nf">join</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
 <h3 id="resource"><a href="./resource.md">Resource</a></h3>
@@ -21,8 +21,8 @@
 <h3 id="clock"><a href="./clock.md">Clock</a></h3>
 <p>Provides the current time, used for time measurements and getting the current clock</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">realTime</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
-<span class="k">def</span> <span class="n">monotonic</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">realTime</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
+<span class="k">def</span> <span class="nf">monotonic</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
 </code></pre></div></div>
 
 <h3 id="contextshift"><a href="./contextshift.md">ContextShift</a></h3>
@@ -30,8 +30,8 @@
 
 <p>Instance for <code class="highlighter-rouge">IO</code> is required by <code class="highlighter-rouge">Concurrent[IO]</code></p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-<span class="k">def</span> <span class="n">evalOn</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+<span class="k">def</span> <span class="nf">evalOn</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 </code></pre></div></div>
 
 <h3 id="timer"><a href="./timer.md">Timer</a></h3>
@@ -39,8 +39,8 @@
 
 <p>Instance for <code class="highlighter-rouge">IO</code> is required by <code class="highlighter-rouge">IO.sleep</code>, <code class="highlighter-rouge">timeout</code>, etc.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="n">clock</span><span class="k">:</span> <span class="kt">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
-<span class="k">def</span> <span class="n">sleep</span><span class="o">(</span><span class="n">duration</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">clock</span><span class="k">:</span> <span class="kt">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span>
+<span class="k">def</span> <span class="nf">sleep</span><span class="o">(</span><span class="n">duration</span><span class="k">:</span> <span class="kt">FiniteDuration</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 </code></pre></div></div>
 </section></div></div></div></div><script src="/cats-effect/highlight/highlight.pack.js"></script><script>
 // For all code blocks, copy the language from the containing div

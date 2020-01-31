@@ -5,9 +5,9 @@
 <p>A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">available</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">acquire</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">release</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">available</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">acquire</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">release</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
   <span class="c1">// ... and more
 </span><span class="o">}</span>
 </code></pre></div></div>
@@ -58,33 +58,33 @@ R3 &gt;&gt; Done | Availability: 1
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 
 <span class="c1">// Needed for getting a Concurrent[IO] instance
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">ctx</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="nv">ctx</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
 <span class="c1">// Needed for `sleep`
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">timer</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">timer</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="nv">timer</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">timer</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
 
 <span class="k">class</span> <span class="nc">PreciousResource</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">name</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">s</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Concurrent</span><span class="o">[</span><span class="kt">F</span><span class="o">],</span> <span class="n">timer</span><span class="k">:</span> <span class="kt">Timer</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">use</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">def</span> <span class="nf">use</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
     <span class="k">for</span> <span class="o">{</span>
-      <span class="n">x</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">available</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Availability: $x"</span><span class="o">))</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">acquire</span>
-      <span class="n">y</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">available</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Started | Availability: $y"</span><span class="o">))</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">timer</span><span class="o">.</span><span class="n">sleep</span><span class="o">(</span><span class="mf">3.</span><span class="n">seconds</span><span class="o">)</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">release</span>
-      <span class="n">z</span> <span class="k">&lt;-</span> <span class="n">s</span><span class="o">.</span><span class="n">available</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Done | Availability: $z"</span><span class="o">))</span>
-    <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+      <span class="n">x</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">available</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">F</span><span class="o">.</span><span class="py">delay</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Availability: $x"</span><span class="o">))</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">acquire</span>
+      <span class="n">y</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">available</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">F</span><span class="o">.</span><span class="py">delay</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Started | Availability: $y"</span><span class="o">))</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">timer</span><span class="o">.</span><span class="py">sleep</span><span class="o">(</span><span class="mf">3.</span><span class="n">seconds</span><span class="o">)</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">release</span>
+      <span class="n">z</span> <span class="k">&lt;-</span> <span class="nv">s</span><span class="o">.</span><span class="py">available</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">F</span><span class="o">.</span><span class="py">delay</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"$name &gt;&gt; Done | Availability: $z"</span><span class="o">))</span>
+    <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 <span class="o">}</span>
 
-<span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">val</span> <span class="nv">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">s</span>  <span class="k">&lt;-</span> <span class="nc">Semaphore</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="mi">1</span><span class="o">)</span>
     <span class="n">r1</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">PreciousResource</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="s">"R1"</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span>
     <span class="n">r2</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">PreciousResource</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="s">"R2"</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span>
     <span class="n">r3</span> <span class="k">=</span> <span class="k">new</span> <span class="nc">PreciousResource</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="s">"R3"</span><span class="o">,</span> <span class="n">s</span><span class="o">)</span>
-    <span class="k">_</span>  <span class="k">&lt;-</span> <span class="nc">List</span><span class="o">(</span><span class="n">r1</span><span class="o">.</span><span class="n">use</span><span class="o">,</span> <span class="n">r2</span><span class="o">.</span><span class="n">use</span><span class="o">,</span> <span class="n">r3</span><span class="o">.</span><span class="n">use</span><span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+    <span class="k">_</span>  <span class="k">&lt;-</span> <span class="nc">List</span><span class="o">(</span><span class="nv">r1</span><span class="o">.</span><span class="py">use</span><span class="o">,</span> <span class="nv">r2</span><span class="o">.</span><span class="py">use</span><span class="o">,</span> <span class="nv">r3</span><span class="o">.</span><span class="py">use</span><span class="o">).</span><span class="py">parSequence</span><span class="o">.</span><span class="py">void</span>
+  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
 

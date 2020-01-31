@@ -20,9 +20,9 @@ or other actions that are problematic.</p>
 
 <span class="k">trait</span> <span class="nc">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">shift</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 
-  <span class="k">def</span> <span class="n">evalOn</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">evalOn</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -41,17 +41,17 @@ something like this:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 
-<span class="k">def</span> <span class="n">fib</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">1</span><span class="o">)</span>
+<span class="k">def</span> <span class="nf">fib</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">1</span><span class="o">)</span>
   <span class="o">(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">],</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
 
-  <span class="n">F</span><span class="o">.</span><span class="n">suspend</span> <span class="o">{</span>
-    <span class="k">val</span> <span class="n">next</span> <span class="k">=</span> 
-      <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="n">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">)</span>
-      <span class="k">else</span> <span class="n">F</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+  <span class="nv">F</span><span class="o">.</span><span class="py">suspend</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="nv">next</span> <span class="k">=</span> 
+      <span class="nf">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span> <span class="nf">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">)</span>
+      <span class="k">else</span> <span class="nv">F</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
     
     <span class="c1">// Triggering a logical fork every 100 iterations
-</span>    <span class="k">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span>
-      <span class="n">cs</span><span class="o">.</span><span class="n">shift</span> <span class="o">*&gt;</span> <span class="n">next</span>
+</span>    <span class="nf">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">100</span> <span class="o">==</span> <span class="mi">0</span><span class="o">)</span>
+      <span class="nv">cs</span><span class="o">.</span><span class="py">shift</span> <span class="o">*&gt;</span> <span class="n">next</span>
     <span class="k">else</span>
       <span class="n">next</span>  
   <span class="o">}</span>
@@ -68,31 +68,31 @@ thread-pool or run-loop for the bind continuation.</p>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 <span class="k">import</span> <span class="nn">cats.effect._</span>
 
-<span class="k">def</span> <span class="n">blockingThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">ExecutionContext</span><span class="o">]</span> <span class="k">=</span>
-  <span class="nc">Resource</span><span class="o">(</span><span class="n">F</span><span class="o">.</span><span class="n">delay</span> <span class="o">{</span>
-    <span class="k">val</span> <span class="n">executor</span> <span class="k">=</span> <span class="nc">Executors</span><span class="o">.</span><span class="n">newCachedThreadPool</span><span class="o">()</span>
-    <span class="k">val</span> <span class="n">ec</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="n">executor</span><span class="o">)</span>
-    <span class="o">(</span><span class="n">ec</span><span class="o">,</span> <span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">executor</span><span class="o">.</span><span class="n">shutdown</span><span class="o">()))</span>
+<span class="k">def</span> <span class="nf">blockingThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">ExecutionContext</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Resource</span><span class="o">(</span><span class="nv">F</span><span class="o">.</span><span class="py">delay</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="nv">executor</span> <span class="k">=</span> <span class="nv">Executors</span><span class="o">.</span><span class="py">newCachedThreadPool</span><span class="o">()</span>
+    <span class="k">val</span> <span class="nv">ec</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="n">executor</span><span class="o">)</span>
+    <span class="o">(</span><span class="n">ec</span><span class="o">,</span> <span class="nv">F</span><span class="o">.</span><span class="py">delay</span><span class="o">(</span><span class="nv">executor</span><span class="o">.</span><span class="py">shutdown</span><span class="o">()))</span>
   <span class="o">})</span>
   
-<span class="k">def</span> <span class="n">readName</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
-  <span class="n">F</span><span class="o">.</span><span class="n">delay</span> <span class="o">{</span>
-    <span class="n">println</span><span class="o">(</span><span class="s">"Enter your name: "</span><span class="o">)</span>
-    <span class="n">scala</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">()</span>
+<span class="k">def</span> <span class="nf">readName</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
+  <span class="nv">F</span><span class="o">.</span><span class="py">delay</span> <span class="o">{</span>
+    <span class="nf">println</span><span class="o">(</span><span class="s">"Enter your name: "</span><span class="o">)</span>
+    <span class="nv">scala</span><span class="o">.</span><span class="py">io</span><span class="o">.</span><span class="py">StdIn</span><span class="o">.</span><span class="py">readLine</span><span class="o">()</span>
   <span class="o">}</span>
 
 <span class="k">object</span> <span class="nc">MyApp</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> <span class="o">{</span>
-    <span class="k">val</span> <span class="n">name</span> <span class="k">=</span> <span class="n">blockingThreadPool</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">use</span> <span class="o">{</span> <span class="n">ec</span> <span class="k">=&gt;</span>
+  <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="nv">name</span> <span class="k">=</span> <span class="n">blockingThreadPool</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="py">use</span> <span class="o">{</span> <span class="n">ec</span> <span class="k">=&gt;</span>
       <span class="c1">// Blocking operation, executed on special thread-pool
-</span>      <span class="n">contextShift</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">ec</span><span class="o">)(</span><span class="n">readName</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span>
+</span>      <span class="nv">contextShift</span><span class="o">.</span><span class="py">evalOn</span><span class="o">(</span><span class="n">ec</span><span class="o">)(</span><span class="n">readName</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span>
     <span class="o">}</span>
     
     <span class="k">for</span> <span class="o">{</span>
       <span class="n">n</span> <span class="k">&lt;-</span> <span class="n">name</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $n!"</span><span class="o">))</span>
-    <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $n!"</span><span class="o">))</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
@@ -103,24 +103,24 @@ thread-pool or run-loop for the bind continuation.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 
-<span class="k">def</span> <span class="n">readName</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">blocker</span><span class="k">:</span> <span class="kt">Blocker</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
+<span class="k">def</span> <span class="nf">readName</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync:</span> <span class="kt">ContextShift</span><span class="o">](</span><span class="n">blocker</span><span class="k">:</span> <span class="kt">Blocker</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> 
   <span class="c1">// Blocking operation, executed on special thread-pool
-</span>  <span class="n">blocker</span><span class="o">.</span><span class="n">delay</span> <span class="o">{</span>
-    <span class="n">println</span><span class="o">(</span><span class="s">"Enter your name: "</span><span class="o">)</span>
-    <span class="n">scala</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="nc">StdIn</span><span class="o">.</span><span class="n">readLine</span><span class="o">()</span>
+</span>  <span class="nv">blocker</span><span class="o">.</span><span class="py">delay</span> <span class="o">{</span>
+    <span class="nf">println</span><span class="o">(</span><span class="s">"Enter your name: "</span><span class="o">)</span>
+    <span class="nv">scala</span><span class="o">.</span><span class="py">io</span><span class="o">.</span><span class="py">StdIn</span><span class="o">.</span><span class="py">readLine</span><span class="o">()</span>
   <span class="o">}</span>
 
 <span class="k">object</span> <span class="nc">MyApp</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="n">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> <span class="o">{</span>
-    <span class="k">val</span> <span class="n">name</span> <span class="k">=</span> <span class="nc">Blocker</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">use</span> <span class="o">{</span> <span class="n">blocker</span> <span class="k">=&gt;</span>
+  <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span> <span class="k">=</span> <span class="o">{</span>
+    <span class="k">val</span> <span class="nv">name</span> <span class="k">=</span> <span class="nc">Blocker</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="py">use</span> <span class="o">{</span> <span class="n">blocker</span> <span class="k">=&gt;</span>
       <span class="n">readName</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="n">blocker</span><span class="o">)</span>
     <span class="o">}</span>
 
     <span class="k">for</span> <span class="o">{</span>
       <span class="n">n</span> <span class="k">&lt;-</span> <span class="n">name</span>
-      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $n!"</span><span class="o">))</span>
-    <span class="o">}</span> <span class="k">yield</span> <span class="nc">ExitCode</span><span class="o">.</span><span class="nc">Success</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Hello, $n!"</span><span class="o">))</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span>
   <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>

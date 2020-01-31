@@ -5,9 +5,9 @@
 <p>An asynchronous, concurrent mutable reference.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Ref</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="n">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">set</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-  <span class="k">def</span> <span class="n">modify</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="o">(</span><span class="n">A</span><span class="o">,</span> <span class="n">B</span><span class="o">))</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">set</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="nf">modify</span><span class="o">[</span><span class="kt">B</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">A</span> <span class="o">=&gt;</span> <span class="o">(</span><span class="n">A</span><span class="o">,</span> <span class="n">B</span><span class="o">))</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">B</span><span class="o">]</span>
   <span class="c1">// ... and more
 </span><span class="o">}</span>
 </code></pre></div></div>
@@ -38,34 +38,34 @@
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for triggering evaluation in parallel
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">ctx</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="nv">ctx</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
 
 <span class="k">class</span> <span class="nc">Worker</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]](</span><span class="n">number</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">ref</span><span class="k">:</span> <span class="kt">Ref</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Int</span><span class="o">])(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span> <span class="o">{</span>
 
-  <span class="k">private</span> <span class="k">def</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">value</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">F</span><span class="o">.</span><span class="n">delay</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
+  <span class="k">private</span> <span class="k">def</span> <span class="nf">putStrLn</span><span class="o">(</span><span class="n">value</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">F</span><span class="o">.</span><span class="py">delay</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
 
-  <span class="k">def</span> <span class="n">start</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">def</span> <span class="nf">start</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
     <span class="k">for</span> <span class="o">{</span>
-      <span class="n">c1</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">get</span>
-      <span class="k">_</span>  <span class="k">&lt;-</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">show</span><span class="s">"#$number &gt;&gt; $c1"</span><span class="o">)</span>
-      <span class="n">c2</span> <span class="k">&lt;-</span> <span class="n">ref</span><span class="o">.</span><span class="n">modify</span><span class="o">(</span><span class="n">x</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
-      <span class="k">_</span>  <span class="k">&lt;-</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">show</span><span class="s">"#$number &gt;&gt; $c2"</span><span class="o">)</span>
-    <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+      <span class="n">c1</span> <span class="k">&lt;-</span> <span class="nv">ref</span><span class="o">.</span><span class="py">get</span>
+      <span class="k">_</span>  <span class="k">&lt;-</span> <span class="nf">putStrLn</span><span class="o">(</span><span class="n">show</span><span class="s">"#$number &gt;&gt; $c1"</span><span class="o">)</span>
+      <span class="n">c2</span> <span class="k">&lt;-</span> <span class="nv">ref</span><span class="o">.</span><span class="py">modify</span><span class="o">(</span><span class="n">x</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">,</span> <span class="n">x</span><span class="o">))</span>
+      <span class="k">_</span>  <span class="k">&lt;-</span> <span class="nf">putStrLn</span><span class="o">(</span><span class="n">show</span><span class="s">"#$number &gt;&gt; $c2"</span><span class="o">)</span>
+    <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 
 <span class="o">}</span>
 
-<span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">val</span> <span class="nv">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">ref</span> <span class="k">&lt;-</span> <span class="nc">Ref</span><span class="o">.</span><span class="n">of</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">](</span><span class="mi">0</span><span class="o">)</span>
+    <span class="n">ref</span> <span class="k">&lt;-</span> <span class="nv">Ref</span><span class="o">.</span><span class="py">of</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">](</span><span class="mi">0</span><span class="o">)</span>
     <span class="n">w1</span>  <span class="k">=</span> <span class="k">new</span> <span class="nc">Worker</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="mi">1</span><span class="o">,</span> <span class="n">ref</span><span class="o">)</span>
     <span class="n">w2</span>  <span class="k">=</span> <span class="k">new</span> <span class="nc">Worker</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="mi">2</span><span class="o">,</span> <span class="n">ref</span><span class="o">)</span>
     <span class="n">w3</span>  <span class="k">=</span> <span class="k">new</span> <span class="nc">Worker</span><span class="o">[</span><span class="kt">IO</span><span class="o">](</span><span class="mi">3</span><span class="o">,</span> <span class="n">ref</span><span class="o">)</span>
     <span class="k">_</span>   <span class="k">&lt;-</span> <span class="nc">List</span><span class="o">(</span>
-             <span class="n">w1</span><span class="o">.</span><span class="n">start</span><span class="o">,</span>
-             <span class="n">w2</span><span class="o">.</span><span class="n">start</span><span class="o">,</span>
-             <span class="n">w3</span><span class="o">.</span><span class="n">start</span>
-           <span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
+             <span class="nv">w1</span><span class="o">.</span><span class="py">start</span><span class="o">,</span>
+             <span class="nv">w2</span><span class="o">.</span><span class="py">start</span><span class="o">,</span>
+             <span class="nv">w3</span><span class="o">.</span><span class="py">start</span>
+           <span class="o">).</span><span class="py">parSequence</span><span class="o">.</span><span class="py">void</span>
+  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
 
