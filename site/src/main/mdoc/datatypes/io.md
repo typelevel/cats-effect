@@ -375,23 +375,28 @@ asynchronous boundaries. It can be achieved in the following way:
   The value of `N` is hardcoded to 512.
 
   Here is an example,
-  ```scala mdoc:reset:silent
-  import cats.effect.IO
 
-  def retryUntilRight[A, B](io: IO[Either[A, B]): IO[B] = {
-    io.flatMap {
-      case Right(b) => IO.pure(b)
-      case Left(a) => retryUntilRight(io)
-    }
+```scala mdoc:reset:silent
+import cats.effect.{ContextShift, IO}
+import cats.implicits._
+import scala.concurrent.ExecutionContext
+
+implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
+def retryUntilRight[A, B](io: IO[Either[A, B]]): IO[B] = {
+  io.flatMap {
+    case Right(b) => IO.pure(b)
+    case Left(_) => retryUntilRight(io)
   }
+}
 
-  // non-terminating IO that is NOT cancelable
-  val notCancelable: IO[Int] = retryUntilRight[A, B](IO(Left(0)))
+// non-terminating IO that is NOT cancelable
+val notCancelable: IO[Int] = retryUntilRight(IO(Left(0)))
 
-  // non-terminating IO that is cancelable because there is an
-  // async boundary created by IO.shift before `flatMap` chain
-  val cancelable: IO[Int] = IO.shift *> retryUntilRight[A, B](IO(Left(0)))
-  ```
+// non-terminating IO that is cancelable because there is an
+// async boundary created by IO.shift before `flatMap` chain
+val cancelable: IO[Int] = IO.shift *> retryUntilRight(IO(Left(0)))
+```
   
 2. `IO` tasks that are cancelable, usually become non-terminating on
    `cancel`
