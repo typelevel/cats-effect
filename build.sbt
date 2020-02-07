@@ -176,7 +176,10 @@ val mimaSettings = Seq(
       exclude[IncompatibleSignatureProblem]("cats.effect.Resource.mapK"),
       exclude[IncompatibleSignatureProblem]("cats.effect.Resource.allocated"),
       exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalMap"),
-      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalTap")
+      exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalTap"),
+      // change in encoding of value classes in generic methods https://github.com/lightbend/mima/issues/423
+      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.apply"),
+      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService")
     )
   }
 )
