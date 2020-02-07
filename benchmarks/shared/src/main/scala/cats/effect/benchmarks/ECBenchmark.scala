@@ -1,8 +1,7 @@
 package cats.effect.benchmarks
 
 import java.util.concurrent._
-import java.util.concurrent.atomic._
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp, Resource, SyncIO}
 import cats.implicits._
 import org.openjdk.jmh.annotations._
 import scala.concurrent.ExecutionContext
@@ -23,7 +22,10 @@ class ECBenchmark {
   }
 
   private val ioApp = new IOApp with Run
-  private val ioAppCtx = new IOApp.WithContext with Run
+  private val ioAppCtx = new IOApp.WithContext with Run {
+    protected def executionContextResource: Resource[SyncIO, ExecutionContext] =
+      Resource.liftF(SyncIO.pure(ExecutionContext.Implicits.global))
+  }
 
   @Benchmark
   def app(): Unit = {

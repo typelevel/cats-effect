@@ -16,28 +16,30 @@
 package cats.effect.benchmarks
 
 import java.util.concurrent.TimeUnit
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import org.openjdk.jmh.annotations._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext.Implicits
 
 /** To do comparative benchmarks between versions:
-  *
-  *     benchmarks/run-benchmark ShallowBindBenchmark
-  *
-  * This will generate results in `benchmarks/results`.
-  *
-  * Or to run the benchmark from within sbt:
-  *
-  *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.ShallowBindBenchmark
-  *
-  * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
-  * Please note that benchmarks should be usually executed at least in
-  * 10 iterations (as a rule of thumb), but more is better.
-  */
+ *
+ *     benchmarks/run-benchmark ShallowBindBenchmark
+ *
+ * This will generate results in `benchmarks/results`.
+ *
+ * Or to run the benchmark from within sbt:
+ *
+ *     jmh:run -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.ShallowBindBenchmark
+ *
+ * Which means "10 iterations", "10 warm-up iterations", "2 forks", "1 thread".
+ * Please note that benchmarks should be usually executed at least in
+ * 10 iterations (as a rule of thumb), but more is better.
+ */
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class ShallowBindBenchmark {
+  implicit val cs: ContextShift[IO] = IO.contextShift(Implicits.global)
+
   @Param(Array("10000"))
   var size: Int = _
 
@@ -47,7 +49,8 @@ class ShallowBindBenchmark {
       if (i < size) IO.pure(i + 1).flatMap(loop)
       else IO.pure(i)
 
-    IO.pure(0).flatMap(loop)
+    IO.pure(0)
+      .flatMap(loop)
       .unsafeRunSync()
   }
 
