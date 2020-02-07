@@ -37,7 +37,7 @@ e.g. waiting for disk operation to finish or external service to answer your req
 <h3 id="non-terminating-task">Non-terminating task</h3>
 <p>Task that will never signal its result. A task can be non-terminating without blocking threads or consuming CPU.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">IO</span><span class="o">.</span><span class="py">never</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"done"</span><span class="o">))</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">.</span><span class="n">never</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"done"</span><span class="o">))</span>
 </code></pre></div></div>
 
 <p>The above will never print “done”, block a thread (unless <code class="highlighter-rouge">.unsafeRunSync</code> is run on it), or consume CPU after its creation.</p>
@@ -114,17 +114,17 @@ If you need to execute blocking operation and come back consider using <code cla
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
-<span class="k">implicit</span> <span class="k">val</span> <span class="nv">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
-<span class="k">val</span> <span class="nv">blockingEC</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newCachedThreadPool</span><span class="o">())</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">blockingEC</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="nc">Executors</span><span class="o">.</span><span class="n">newCachedThreadPool</span><span class="o">())</span>
 
-<span class="k">def</span> <span class="nf">blockingOp</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="cm">/* blocking op*/</span> <span class="o">())</span>
-<span class="k">def</span> <span class="nf">doSth</span><span class="o">()</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="cm">/* do something */</span> <span class="o">())</span>
+<span class="k">def</span> <span class="n">blockingOp</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="cm">/* blocking op*/</span> <span class="o">())</span>
+<span class="k">def</span> <span class="n">doSth</span><span class="o">()</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="cm">/* do something */</span> <span class="o">())</span>
 
-<span class="k">val</span> <span class="nv">prog</span> <span class="k">=</span>
+<span class="k">val</span> <span class="n">prog</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">contextShift</span><span class="o">.</span><span class="py">evalOn</span><span class="o">(</span><span class="n">blockingEC</span><span class="o">)(</span><span class="n">blockingOp</span><span class="o">)</span> <span class="c1">// executes on blockingEC
-</span>    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">doSth</span><span class="o">()</span>                                     <span class="c1">// executes on contextShift
-</span>  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">contextShift</span><span class="o">.</span><span class="n">evalOn</span><span class="o">(</span><span class="n">blockingEC</span><span class="o">)(</span><span class="n">blockingOp</span><span class="o">)</span> <span class="c1">// executes on blockingEC
+</span>    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">doSth</span><span class="o">()</span>                                     <span class="c1">// executes on contextShift
+</span>  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
 <p>For more convenient tools for this pattern, see <a href="https://github.com/ChristopherDavenport/linebacker">linebacker</a>.</p>
@@ -177,16 +177,16 @@ Allowing different threads to advance their work is called <strong>fairness</str
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
-<span class="k">val</span> <span class="nv">ecOne</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newSingleThreadExecutor</span><span class="o">())</span>
-<span class="k">val</span> <span class="nv">ecTwo</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newSingleThreadExecutor</span><span class="o">())</span>
+<span class="k">val</span> <span class="n">ecOne</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="nc">Executors</span><span class="o">.</span><span class="n">newSingleThreadExecutor</span><span class="o">())</span>
+<span class="k">val</span> <span class="n">ecTwo</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="nc">Executors</span><span class="o">.</span><span class="n">newSingleThreadExecutor</span><span class="o">())</span>
 
-<span class="k">val</span> <span class="nv">csOne</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">ecOne</span><span class="o">)</span>
-<span class="k">val</span> <span class="nv">csTwo</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">ecTwo</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">csOne</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">ecOne</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">csTwo</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">ecTwo</span><span class="o">)</span>
 
-<span class="k">def</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">id</span><span class="o">)).</span><span class="py">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">repeat</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">id</span><span class="o">)).</span><span class="n">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">repeat</span><span class="o">)</span>
 
-  <span class="nv">repeat</span><span class="o">.</span><span class="py">start</span><span class="o">(</span><span class="n">cs</span><span class="o">)</span>
+  <span class="n">repeat</span><span class="o">.</span><span class="n">start</span><span class="o">(</span><span class="n">cs</span><span class="o">)</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -195,13 +195,13 @@ and a function that will run <code class="highlighter-rouge">IO</code>, forever 
 Note <code class="highlighter-rouge">repeat.start</code> and return type of <code class="highlighter-rouge">IO[Fiber[IO, Unit]]</code> which means that we run this computation in the background.
 It will run on thread pool provided by <code class="highlighter-rouge">cs</code>, which we will pass explicitly:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">prog</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">prog</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 
-<span class="nv">prog</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
+<span class="n">prog</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 <p>It will never print <code class="highlighter-rouge">11</code> despite using <code class="highlighter-rouge">.start</code>!
 Why? The <code class="highlighter-rouge">ecOne</code> execution context executes its <code class="highlighter-rouge">IO</code> on the only thread it has, but needs to wait for its
@@ -209,15 +209,15 @@ completion before it can schedule the other one.</p>
 
 <p>How about two thread pools?</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">program</span> <span class="k">=</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">program</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">2</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">22</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
-  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">2</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">22</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 
-<span class="nv">program</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
+<span class="n">program</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
 <p>Now it will keep printing both <code class="highlighter-rouge">1</code> and <code class="highlighter-rouge">2</code> but neither <code class="highlighter-rouge">11</code> nor <code class="highlighter-rouge">22</code>. What changed?
@@ -231,27 +231,27 @@ Basically, the thread pool decides which task gets a thread to run but the OS de
 <span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
-<span class="k">val</span> <span class="nv">ecOne</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newSingleThreadExecutor</span><span class="o">())</span>
-<span class="k">val</span> <span class="nv">ecTwo</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newSingleThreadExecutor</span><span class="o">())</span>
+<span class="k">val</span> <span class="n">ecOne</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="nc">Executors</span><span class="o">.</span><span class="n">newSingleThreadExecutor</span><span class="o">())</span>
+<span class="k">val</span> <span class="n">ecTwo</span> <span class="k">=</span> <span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">fromExecutor</span><span class="o">(</span><span class="nc">Executors</span><span class="o">.</span><span class="n">newSingleThreadExecutor</span><span class="o">())</span>
 
-<span class="k">val</span> <span class="nv">csOne</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">ecOne</span><span class="o">)</span>
-<span class="k">val</span> <span class="nv">csTwo</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">ecTwo</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">csOne</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">ecOne</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">csTwo</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">ecTwo</span><span class="o">)</span>
 
-<span class="k">def</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">id</span><span class="o">)).</span><span class="py">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nv">IO</span><span class="o">.</span><span class="py">shift</span> <span class="o">*&gt;</span> <span class="n">repeat</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">cs</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">repeat</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">id</span><span class="o">)).</span><span class="n">flatMap</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">shift</span> <span class="o">*&gt;</span> <span class="n">repeat</span><span class="o">)</span>
 
-  <span class="nv">repeat</span><span class="o">.</span><span class="py">start</span>
+  <span class="n">repeat</span><span class="o">.</span><span class="n">start</span>
 <span class="o">}</span>
 
-<span class="k">val</span> <span class="nv">prog</span> <span class="k">=</span>
+<span class="k">val</span> <span class="n">prog</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">2</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">infiniteIO</span><span class="o">(</span><span class="mi">22</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
-  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">1</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">11</span><span class="o">)(</span><span class="n">csOne</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">2</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">infiniteIO</span><span class="o">(</span><span class="mi">22</span><span class="o">)(</span><span class="n">csTwo</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 
-<span class="nv">prog</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
+<span class="n">prog</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
 <p>Notice the <code class="highlighter-rouge">IO.shift *&gt; repeat</code> call. <code class="highlighter-rouge">*&gt;</code> means that we execute first operation, ignore its result and then call <code class="highlighter-rouge">repeat</code>.

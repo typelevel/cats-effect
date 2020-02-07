@@ -5,7 +5,7 @@
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">LiftIO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
 
 <span class="k">trait</span> <span class="nc">Async</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="nc">extends</span> <span class="nc">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="k">with</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">F</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">async</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">async</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">k</span><span class="k">:</span> <span class="o">(</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Unit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -57,19 +57,19 @@
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.Future</span>
 
-<span class="k">val</span> <span class="nv">apiCall</span> <span class="k">=</span> <span class="nv">Future</span><span class="o">.</span><span class="py">successful</span><span class="o">(</span><span class="s">"I come from the Future!"</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">apiCall</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="s">"I come from the Future!"</span><span class="o">)</span>
 
-<span class="k">val</span> <span class="nv">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
-  <span class="nc">Async</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="py">async</span> <span class="o">{</span> <span class="n">cb</span> <span class="k">=&gt;</span>
+<span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Async</span><span class="o">[</span><span class="kt">IO</span><span class="o">].</span><span class="n">async</span> <span class="o">{</span> <span class="n">cb</span> <span class="k">=&gt;</span>
     <span class="k">import</span> <span class="nn">scala.util.</span><span class="o">{</span><span class="nc">Failure</span><span class="o">,</span> <span class="nc">Success</span><span class="o">}</span>
 
-    <span class="nv">apiCall</span><span class="o">.</span><span class="py">onComplete</span> <span class="o">{</span>
-      <span class="k">case</span> <span class="nc">Success</span><span class="o">(</span><span class="n">value</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nf">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
-      <span class="k">case</span> <span class="nc">Failure</span><span class="o">(</span><span class="n">error</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nf">cb</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">error</span><span class="o">))</span>
+    <span class="n">apiCall</span><span class="o">.</span><span class="n">onComplete</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Success</span><span class="o">(</span><span class="n">value</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="n">value</span><span class="o">))</span>
+      <span class="k">case</span> <span class="nc">Failure</span><span class="o">(</span><span class="n">error</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">cb</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">error</span><span class="o">))</span>
     <span class="o">}</span>
  <span class="o">}</span>
 
-<span class="nv">ioa</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">()</span>
+<span class="n">ioa</span><span class="o">.</span><span class="n">unsafeRunSync</span><span class="o">()</span>
 </code></pre></div></div>
 
 <p>In the example above <code class="highlighter-rouge">ioa</code> will have a successful value <code class="highlighter-rouge">A</code> or it will be raise an error in the <code class="highlighter-rouge">IO</code> context.</p>

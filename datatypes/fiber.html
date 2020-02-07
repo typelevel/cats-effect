@@ -5,8 +5,8 @@
 <p>You can think of fibers as being lightweight threads, a fiber being a concurrency primitive for doing cooperative multi-tasking.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">trait</span> <span class="nc">Fiber</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">cancel</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
-  <span class="k">def</span> <span class="nf">join</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">cancel</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">join</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -16,10 +16,10 @@
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 <span class="c1">// Needed for `start`
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="nv">ctx</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="n">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">ctx</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="n">global</span><span class="o">)</span>
 
-<span class="k">val</span> <span class="nv">io</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello!"</span><span class="o">))</span>
-<span class="k">val</span> <span class="nv">fiber</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="nv">io</span><span class="o">.</span><span class="py">start</span>
+<span class="k">val</span> <span class="n">io</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello!"</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">fiber</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Fiber</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Unit</span><span class="o">]]</span> <span class="k">=</span> <span class="n">io</span><span class="o">.</span><span class="n">start</span>
 </code></pre></div></div>
 
 <p>Usage example:</p>
@@ -29,19 +29,19 @@
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
-<span class="k">implicit</span> <span class="k">val</span> <span class="nv">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
+<span class="k">implicit</span> <span class="k">val</span> <span class="n">contextShift</span><span class="k">:</span> <span class="kt">ContextShift</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
-<span class="k">val</span> <span class="nv">launchMissiles</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
-<span class="k">val</span> <span class="nv">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">launchMissiles</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">runToBunker</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"To the bunker!!!"</span><span class="o">))</span>
 
 <span class="k">for</span> <span class="o">{</span>
-  <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="nv">launchMissiles</span><span class="o">.</span><span class="py">start</span>
-  <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">runToBunker</span><span class="o">.</span><span class="py">handleErrorWith</span> <span class="o">{</span> <span class="n">error</span> <span class="k">=&gt;</span>
+  <span class="n">fiber</span> <span class="k">&lt;-</span> <span class="n">launchMissiles</span><span class="o">.</span><span class="n">start</span>
+  <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">runToBunker</span><span class="o">.</span><span class="n">handleErrorWith</span> <span class="o">{</span> <span class="n">error</span> <span class="k">=&gt;</span>
          <span class="c1">// Retreat failed, cancel launch (maybe we should
 </span>         <span class="c1">// have retreated to our bunker before the launch?)
-</span>         <span class="nv">fiber</span><span class="o">.</span><span class="py">cancel</span> <span class="o">*&gt;</span> <span class="nv">IO</span><span class="o">.</span><span class="py">raiseError</span><span class="o">(</span><span class="n">error</span><span class="o">)</span>
+</span>         <span class="n">fiber</span><span class="o">.</span><span class="n">cancel</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">.</span><span class="n">raiseError</span><span class="o">(</span><span class="n">error</span><span class="o">)</span>
        <span class="o">}</span>
-  <span class="n">aftermath</span> <span class="k">&lt;-</span> <span class="nv">fiber</span><span class="o">.</span><span class="py">join</span>
+  <span class="n">aftermath</span> <span class="k">&lt;-</span> <span class="n">fiber</span><span class="o">.</span><span class="n">join</span>
 <span class="o">}</span> <span class="k">yield</span> <span class="n">aftermath</span>
 </code></pre></div></div>
 

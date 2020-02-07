@@ -7,8 +7,8 @@
 <p>When created, a <code class="highlighter-rouge">Deferred</code> is empty. It can then be completed exactly once, and never be made empty again.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract</span> <span class="k">class</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
-  <span class="k">def</span> <span class="nf">complete</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">get</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">complete</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -46,22 +46,22 @@ possible for as long as the <code class="highlighter-rouge">Deferred</code> valu
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for `start` or `Concurrent[IO]` and therefore `parSequence`
-</span><span class="k">implicit</span> <span class="k">val</span> <span class="nv">cs</span> <span class="k">=</span> <span class="nv">IO</span><span class="o">.</span><span class="py">contextShift</span><span class="o">(</span><span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">global</span><span class="o">)</span>
+</span><span class="k">implicit</span> <span class="k">val</span> <span class="n">cs</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">.</span><span class="n">contextShift</span><span class="o">(</span><span class="nc">ExecutionContext</span><span class="o">.</span><span class="n">global</span><span class="o">)</span>
 
-<span class="k">def</span> <span class="nf">start</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
-  <span class="k">val</span> <span class="nv">attemptCompletion</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="nv">d</span><span class="o">.</span><span class="py">complete</span><span class="o">(</span><span class="n">n</span><span class="o">).</span><span class="py">attempt</span><span class="o">.</span><span class="py">void</span>
+<span class="k">def</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="k">:</span> <span class="kt">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">attemptCompletion</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="n">d</span><span class="o">.</span><span class="n">complete</span><span class="o">(</span><span class="n">n</span><span class="o">).</span><span class="n">attempt</span><span class="o">.</span><span class="n">void</span>
 
   <span class="nc">List</span><span class="o">(</span>
-    <span class="nv">IO</span><span class="o">.</span><span class="py">race</span><span class="o">(</span><span class="nf">attemptCompletion</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span> <span class="nf">attemptCompletion</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span>
-    <span class="nv">d</span><span class="o">.</span><span class="py">get</span><span class="o">.</span><span class="py">flatMap</span> <span class="o">{</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">show</span><span class="s">"Result: $n"</span><span class="o">))</span> <span class="o">}</span>
-  <span class="o">).</span><span class="py">parSequence</span><span class="o">.</span><span class="py">void</span>
+    <span class="nc">IO</span><span class="o">.</span><span class="n">race</span><span class="o">(</span><span class="n">attemptCompletion</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span> <span class="n">attemptCompletion</span><span class="o">(</span><span class="mi">2</span><span class="o">)),</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">get</span><span class="o">.</span><span class="n">flatMap</span> <span class="o">{</span> <span class="n">n</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">show</span><span class="s">"Result: $n"</span><span class="o">))</span> <span class="o">}</span>
+  <span class="o">).</span><span class="n">parSequence</span><span class="o">.</span><span class="n">void</span>
 <span class="o">}</span>
 
-<span class="k">val</span> <span class="nv">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">for</span> <span class="o">{</span>
     <span class="n">d</span> <span class="k">&lt;-</span> <span class="nc">Deferred</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
-    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nf">start</span><span class="o">(</span><span class="n">d</span><span class="o">)</span>
-  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">start</span><span class="o">(</span><span class="n">d</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">()</span>
 </code></pre></div></div>
 
 <h2 id="cancellation">Cancellation</h2>
@@ -74,7 +74,7 @@ registered listener and can thus avoid memory leaks.</p>
 in situations where the cancelable behavior isn’t desirable.
 To do so you can use the <code class="highlighter-rouge">uncancelable</code> builder:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">Deferred</span><span class="o">.</span><span class="py">uncancelable</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">Deferred</span><span class="o">.</span><span class="n">uncancelable</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Int</span><span class="o">]</span>
 </code></pre></div></div>
 
 <p>The restriction on the <code class="highlighter-rouge">uncancelable</code> builder is just <code class="highlighter-rouge">Async</code>,

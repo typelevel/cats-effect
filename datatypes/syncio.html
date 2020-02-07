@@ -8,9 +8,9 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.SyncIO</span>
 
-<span class="k">def</span> <span class="nf">putStrLn</span><span class="o">(</span><span class="n">str</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">str</span><span class="o">))</span>
+<span class="k">def</span> <span class="n">putStrLn</span><span class="o">(</span><span class="n">str</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="n">str</span><span class="o">))</span>
 
-<span class="nv">SyncIO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="s">"Cats!"</span><span class="o">).</span><span class="py">flatMap</span><span class="o">(</span><span class="n">putStrLn</span><span class="o">).</span><span class="py">unsafeRunSync</span>
+<span class="nc">SyncIO</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="s">"Cats!"</span><span class="o">).</span><span class="n">flatMap</span><span class="o">(</span><span class="n">putStrLn</span><span class="o">).</span><span class="n">unsafeRunSync</span>
 <span class="c1">// Cats!
 </span></code></pre></div></div>
 
@@ -22,10 +22,10 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.Eval</span>
 
-<span class="k">val</span> <span class="nv">eval</span> <span class="k">=</span> <span class="nv">Eval</span><span class="o">.</span><span class="py">now</span><span class="o">(</span><span class="s">"hey!"</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">eval</span> <span class="k">=</span> <span class="nc">Eval</span><span class="o">.</span><span class="n">now</span><span class="o">(</span><span class="s">"hey!"</span><span class="o">)</span>
 <span class="c1">// eval: Eval[String] = Now("hey!")
 </span>
-<span class="nv">SyncIO</span><span class="o">.</span><span class="py">eval</span><span class="o">(</span><span class="n">eval</span><span class="o">).</span><span class="py">unsafeRunSync</span>
+<span class="nc">SyncIO</span><span class="o">.</span><span class="n">eval</span><span class="o">(</span><span class="n">eval</span><span class="o">).</span><span class="n">unsafeRunSync</span>
 <span class="c1">// res1: String = "hey!"
 </span></code></pre></div></div>
 
@@ -33,12 +33,12 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
-<span class="k">val</span> <span class="nv">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
-<span class="c1">// ioa: SyncIO[Unit] = SyncIO$777700877
-</span><span class="k">val</span> <span class="nv">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nv">ioa</span><span class="o">.</span><span class="py">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
+<span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">SyncIO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="nc">SyncIO</span><span class="o">(</span><span class="n">println</span><span class="o">(</span><span class="s">"Hello world!"</span><span class="o">))</span>
+<span class="c1">// ioa: SyncIO[Unit] = SyncIO$201014834
+</span><span class="k">val</span> <span class="n">iob</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="n">ioa</span><span class="o">.</span><span class="n">to</span><span class="o">[</span><span class="kt">IO</span><span class="o">]</span>
 <span class="c1">// iob: IO[Unit] = Delay(&lt;function0&gt;)
 </span>
-<span class="nv">iob</span><span class="o">.</span><span class="py">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
+<span class="n">iob</span><span class="o">.</span><span class="n">unsafeRunAsync</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Hello world!
 </span></code></pre></div></div>
 

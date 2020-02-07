@@ -5,7 +5,7 @@
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 
 <span class="k">trait</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
-  <span class="k">def</span> <span class="nf">liftIO</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">liftIO</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
@@ -16,18 +16,18 @@
 
 <span class="k">type</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">[</span><span class="kt">Either</span><span class="o">[</span><span class="kt">Throwable</span>, <span class="kt">A</span><span class="o">]]</span>
 
-<span class="k">implicit</span> <span class="k">def</span> <span class="nf">myEffectLiftIO</span><span class="k">:</span> <span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">myEffectLiftIO</span><span class="k">:</span> <span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]</span> <span class="k">=</span>
   <span class="k">new</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]</span> <span class="o">{</span>
-    <span class="k">override</span> <span class="k">def</span> <span class="nf">liftIO</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
-      <span class="nv">ioa</span><span class="o">.</span><span class="py">attempt</span><span class="o">.</span><span class="py">unsafeToFuture</span><span class="o">()</span>
+    <span class="k">override</span> <span class="k">def</span> <span class="n">liftIO</span><span class="o">[</span><span class="kt">A</span><span class="o">](</span><span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+      <span class="n">ioa</span><span class="o">.</span><span class="n">attempt</span><span class="o">.</span><span class="n">unsafeToFuture</span><span class="o">()</span>
     <span class="o">}</span>
   <span class="o">}</span>
 </code></pre></div></div>
 
 <p>Having an implicit instance of <code class="highlighter-rouge">LiftIO</code> in scope you can, at any time, <code class="highlighter-rouge">lift</code> any given <code class="highlighter-rouge">IO[A]</code> into <code class="highlighter-rouge">MyEffect[A]</code>:</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="nv">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
-<span class="k">val</span> <span class="nv">effect</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">].</span><span class="py">liftIO</span><span class="o">(</span><span class="n">ioa</span><span class="o">)</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">val</span> <span class="n">ioa</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"Hello World!"</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">effect</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">].</span><span class="n">liftIO</span><span class="o">(</span><span class="n">ioa</span><span class="o">)</span>
 </code></pre></div></div>
 
 <p>A more interesting example:</p>
@@ -37,18 +37,18 @@
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext.Implicits.global</span>
 
-<span class="k">val</span> <span class="nv">L</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]]</span>
+<span class="k">val</span> <span class="n">L</span> <span class="k">=</span> <span class="n">implicitly</span><span class="o">[</span><span class="kt">LiftIO</span><span class="o">[</span><span class="kt">MyEffect</span><span class="o">]]</span>
 
-<span class="k">val</span> <span class="nv">service1</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nv">Future</span><span class="o">.</span><span class="py">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">22</span><span class="o">))</span>
-<span class="k">val</span> <span class="nv">service2</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span> <span class="k">=</span> <span class="nv">Future</span><span class="o">.</span><span class="py">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="kc">true</span><span class="o">))</span>
-<span class="k">val</span> <span class="nv">service3</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nv">Future</span><span class="o">.</span><span class="py">successful</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">)))</span>
+<span class="k">val</span> <span class="n">service1</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">22</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">service2</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">Boolean</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="kc">true</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">service3</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="k">new</span> <span class="nc">Exception</span><span class="o">(</span><span class="s">"boom!"</span><span class="o">)))</span>
 
-<span class="k">val</span> <span class="nv">program</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
+<span class="k">val</span> <span class="n">program</span><span class="k">:</span> <span class="kt">MyEffect</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span>
   <span class="o">(</span><span class="k">for</span> <span class="o">{</span>
     <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">service1</span><span class="o">)</span>
     <span class="n">x</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">service2</span><span class="o">)</span>
-    <span class="n">y</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="nf">if</span> <span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="nv">L</span><span class="o">.</span><span class="py">liftIO</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="s">"from io"</span><span class="o">))</span> <span class="k">else</span> <span class="n">service3</span><span class="o">)</span>
-  <span class="o">}</span> <span class="k">yield</span> <span class="n">y</span><span class="o">).</span><span class="py">value</span>
+    <span class="n">y</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="k">if</span> <span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="n">L</span><span class="o">.</span><span class="n">liftIO</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="s">"from io"</span><span class="o">))</span> <span class="k">else</span> <span class="n">service3</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">y</span><span class="o">).</span><span class="n">value</span>
 </code></pre></div></div>
 
 

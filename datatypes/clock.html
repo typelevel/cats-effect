@@ -28,9 +28,9 @@ without actual delays happening</li>
 
 <span class="k">trait</span> <span class="nc">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]]</span> <span class="o">{</span>
 
-  <span class="k">def</span> <span class="nf">realTime</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">realTime</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
 
-  <span class="k">def</span> <span class="nf">monotonic</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">monotonic</span><span class="o">(</span><span class="n">unit</span><span class="k">:</span> <span class="kt">TimeUnit</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span>
   
 <span class="o">}</span>
 </code></pre></div></div>
@@ -45,14 +45,14 @@ logic is essential.</p>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration.MILLISECONDS</span>
 
-<span class="k">def</span> <span class="nf">measure</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">](</span><span class="n">fa</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span>
+<span class="k">def</span> <span class="n">measure</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span>, <span class="kt">A</span><span class="o">](</span><span class="n">fa</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">A</span><span class="o">])</span>
   <span class="o">(</span><span class="k">implicit</span> <span class="n">F</span><span class="k">:</span> <span class="kt">Sync</span><span class="o">[</span><span class="kt">F</span><span class="o">],</span> <span class="n">clock</span><span class="k">:</span> <span class="kt">Clock</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[(</span><span class="kt">A</span>, <span class="kt">Long</span><span class="o">)]</span> <span class="k">=</span> <span class="o">{</span>
   
   <span class="k">for</span> <span class="o">{</span>
-    <span class="n">start</span>  <span class="k">&lt;-</span> <span class="nv">clock</span><span class="o">.</span><span class="py">monotonic</span><span class="o">(</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
+    <span class="n">start</span>  <span class="k">&lt;-</span> <span class="n">clock</span><span class="o">.</span><span class="n">monotonic</span><span class="o">(</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
     <span class="n">result</span> <span class="k">&lt;-</span> <span class="n">fa</span>
-    <span class="n">finish</span> <span class="k">&lt;-</span> <span class="nv">clock</span><span class="o">.</span><span class="py">monotonic</span><span class="o">(</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
-  <span class="o">}</span> <span class="nf">yield</span> <span class="o">(</span><span class="n">result</span><span class="o">,</span> <span class="n">finish</span> <span class="o">-</span> <span class="n">start</span><span class="o">)</span>
+    <span class="n">finish</span> <span class="k">&lt;-</span> <span class="n">clock</span><span class="o">.</span><span class="n">monotonic</span><span class="o">(</span><span class="nc">MILLISECONDS</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">result</span><span class="o">,</span> <span class="n">finish</span> <span class="o">-</span> <span class="n">start</span><span class="o">)</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
