@@ -99,7 +99,7 @@ private[effect] object IOConnection {
 
     val cancel = IO.suspend {
       state.getAndSet(null) match {
-        case Nil  => IO.unit
+        case Nil  => IO { p.success(()); () }
         case null => IOFromFuture(p.future)
         case list =>
           CancelUtils

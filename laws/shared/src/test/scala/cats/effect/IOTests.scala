@@ -1221,6 +1221,22 @@ class IOTests extends BaseTestsSuite {
       ec.tick(1.day)
       f.value shouldBe None
   }
+
+  testAsync("Multiple cancel should not hang (Issue #779)") { implicit ec =>
+    implicit val contextShift: ContextShift[IO] = ec.ioContextShift
+    implicit val timer: Timer[IO] = ec.timer[IO]
+
+    val fa = for {
+      fiber <- IO.sleep(1.second).start
+      _ <- fiber.cancel
+      _ <- fiber.cancel
+    } yield ()
+
+    val f = fa.unsafeToFuture()
+
+    ec.tick()
+    f.value shouldBe Some(Success(()))
+  }
 }
 
 object IOTests {
