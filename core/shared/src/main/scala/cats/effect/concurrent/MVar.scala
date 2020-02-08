@@ -20,6 +20,7 @@ package concurrent
 import cats.effect.concurrent.MVar.{TransformedMVar, TransformedMVar2}
 import cats.effect.internals.{MVarAsync, MVarConcurrent}
 import cats.~>
+import com.github.ghik.silencer.silent
 
 /**
  * @define mVarDescription A mutable location, that is either empty or contains a value of type `A`.
@@ -58,7 +59,9 @@ sealed private[concurrent] trait MVarDocumentation extends Any {}
 /**
  * $mVarDescription
  */
+@deprecated("`MVar` is now deprecated in favour of a new generation `MVar2` with `tryRead` and `swap` support", "2.2.0")
 abstract class MVar[F[_], A] extends MVarDocumentation {
+
   /**
    * Returns `true` if the `MVar` is empty and can receive a `put`, or
    * `false` otherwise.
@@ -131,7 +134,9 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
  * The `MVar2` is the successor of `MVar` with [[tryRead]] and [[swap]]. It was implemented separately only to maintain
  * binary compatibility with `MVar`.
  */
+@silent("deprecated")
 abstract class MVar2[F[_], A] extends MVar[F, A] {
+
   /**
    * Replaces a value in MVar and returns the old value.
 
@@ -158,6 +163,7 @@ abstract class MVar2[F[_], A] extends MVar[F, A] {
 
 /** Builders for [[MVar]]. */
 object MVar {
+
   /**
    * Builds an [[MVar]] value for `F` data types that are [[Concurrent]].
    *

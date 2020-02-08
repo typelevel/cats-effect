@@ -29,6 +29,7 @@ val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.1.1"
 val DisciplineScalatestVersion = "1.0.1"
+val SilencerVersion = "1.6.0"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
@@ -239,6 +240,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     ),
+    libraryDependencies ++= Seq(
+      compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
+      ("com.github.ghik" % "silencer-lib" % SilencerVersion % CompileTime).cross(CrossVersion.full),
+      ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
+    ),
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
         case Some((2, v)) if v <= 12 =>
@@ -329,9 +335,6 @@ lazy val siteSettings = Seq(
       "home",
       Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
     )
-  ),
-  micrositeConfigYaml := ConfigYml(
-    yamlCustomProperties = Map("plugins" -> List("jekyll-relative-links"))
   ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
