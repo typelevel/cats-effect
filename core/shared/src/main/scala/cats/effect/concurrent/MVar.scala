@@ -17,13 +17,12 @@
 package cats.effect
 package concurrent
 
-import cats.effect.concurrent.MVar.TransformedMVar
+import cats.effect.concurrent.MVar.{TransformedMVar, TransformedMVar2}
 import cats.effect.internals.{MVarAsync, MVarConcurrent}
 import cats.~>
 
 /**
- * A mutable location, that is either empty or contains
- * a value of type `A`.
+ * @define mVarDescription A mutable location, that is either empty or contains a value of type `A`.
  *
  * It has the following fundamental atomic operations:
  *
@@ -37,6 +36,8 @@ import cats.~>
  *  - [[read]] which reads the current value without touching it,
  *    assuming there is one, or otherwise it waits until a value
  *    is made available via `put`
+ *  - `tryRead` returns a variable if it exists. Implemented in the successor [[MVar2]]
+ *  - `swap` takes a value, replaces it and returns the taken value. Implemented in the successor [[MVar2]]
  *  - [[isEmpty]] returns true if currently empty
  *
  * The `MVar` is appropriate for building synchronization
@@ -52,8 +53,12 @@ import cats.~>
  * Inspired by `Control.Concurrent.MVar` from Haskell and
  * by `scalaz.concurrent.MVar`.
  */
-abstract class MVar[F[_], A] {
+sealed private[concurrent] trait MVarDocumentation extends Any {}
 
+/**
+ * $mVarDescription
+ */
+abstract class MVar[F[_], A] extends MVarDocumentation {
   /**
    * Returns `true` if the `MVar` is empty and can receive a `put`, or
    * `false` otherwise.
@@ -120,9 +125,39 @@ abstract class MVar[F[_], A] {
     new TransformedMVar(this, f)
 }
 
+/**
+ * $mVarDescription
+ *
+ * The `MVar2` is the successor of `MVar` with [[tryRead]] and [[swap]]. It was implemented separately only to maintain
+ * binary compatibility with `MVar`.
+ */
+abstract class MVar2[F[_], A] extends MVar[F, A] {
+  /**
+   * Replaces a value in MVar and returns the old value.
+
+   * @param newValue is a new value
+   * @return the value taken
+   */
+  def swap(newValue: A): F[A]
+
+  /**
+   * Returns the value without waiting or modifying.
+   *
+   * This operation is atomic.
+   *
+   * @return an Option holding the current value, None means it was empty
+   */
+  def tryRead: F[Option[A]]
+
+  /**
+   * Modify the context `F` using transformation `f`.
+   */
+  override def mapK[G[_]](f: F ~> G): MVar2[G, A] =
+    new TransformedMVar2(this, f)
+}
+
 /** Builders for [[MVar]]. */
 object MVar {
-
   /**
    * Builds an [[MVar]] value for `F` data types that are [[Concurrent]].
    *
@@ -156,7 +191,7 @@ object MVar {
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def empty[F[_], A](implicit F: Concurrent[F]): F[MVar[F, A]] =
+  def empty[F[_], A](implicit F: Concurrent[F]): F[MVar2[F, A]] =
     F.delay(MVarConcurrent.empty)
 
   /**
@@ -172,7 +207,7 @@ object MVar {
    *
    * @see [[empty]] for creating cancelable MVars
    */
-  def uncancelableEmpty[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
+  def uncancelableEmpty[F[_], A](implicit F: Async[F]): F[MVar2[F, A]] =
     F.delay(MVarAsync.empty)
 
   /**
@@ -187,7 +222,7 @@ object MVar {
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def of[F[_], A](initial: A)(implicit F: Concurrent[F]): F[MVar[F, A]] =
+  def of[F[_], A](initial: A)(implicit F: Concurrent[F]): F[MVar2[F, A]] =
     F.delay(MVarConcurrent(initial))
 
   /**
@@ -204,31 +239,31 @@ object MVar {
    *
    * @see [[of]] for creating cancelable MVars
    */
-  def uncancelableOf[F[_], A](initial: A)(implicit F: Async[F]): F[MVar[F, A]] =
+  def uncancelableOf[F[_], A](initial: A)(implicit F: Async[F]): F[MVar2[F, A]] =
     F.delay(MVarAsync(initial))
 
   /**
    * Like [[of]] but initializes state using another effect constructor
    */
-  def in[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+  def in[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Concurrent[G]): F[MVar2[G, A]] =
     F.delay(MVarConcurrent(initial))
 
   /**
    * Like [[empty]] but initializes state using another effect constructor
    */
-  def emptyIn[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[MVar[G, A]] =
+  def emptyIn[F[_], G[_], A](implicit F: Sync[F], G: Concurrent[G]): F[MVar2[G, A]] =
     F.delay(MVarConcurrent.empty)
 
   /**
    * Like [[uncancelableOf]] but initializes state using another effect constructor
    */
-  def uncancelableIn[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+  def uncancelableIn[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Async[G]): F[MVar2[G, A]] =
     F.delay(MVarAsync(initial))
 
   /**
    * Like [[uncancelableEmpty]] but initializes state using another effect constructor
    */
-  def uncancelableEmptyIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+  def uncancelableEmptyIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[MVar2[G, A]] =
     F.delay(MVarAsync.empty)
 
   /**
@@ -241,7 +276,7 @@ object MVar {
      *
      * @see documentation for [[MVar.of]]
      */
-    def of[A](a: A): F[MVar[F, A]] =
+    def of[A](a: A): F[MVar2[F, A]] =
       MVar.of(a)(F)
 
     /**
@@ -249,7 +284,7 @@ object MVar {
      *
      * @see documentation for [[MVar.empty]]
      */
-    def empty[A]: F[MVar[F, A]] =
+    def empty[A]: F[MVar2[F, A]] =
       MVar.empty(F)
   }
 
@@ -261,5 +296,17 @@ object MVar {
     override def take: G[A] = trans(underlying.take)
     override def tryTake: G[Option[A]] = trans(underlying.tryTake)
     override def read: G[A] = trans(underlying.read)
+  }
+
+  final private[concurrent] class TransformedMVar2[F[_], G[_], A](underlying: MVar2[F, A], trans: F ~> G)
+      extends MVar2[G, A] {
+    override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
+    override def put(a: A): G[Unit] = trans(underlying.put(a))
+    override def tryPut(a: A): G[Boolean] = trans(underlying.tryPut(a))
+    override def take: G[A] = trans(underlying.take)
+    override def tryTake: G[Option[A]] = trans(underlying.tryTake)
+    override def read: G[A] = trans(underlying.read)
+    override def tryRead: G[Option[A]] = trans(underlying.tryRead)
+    override def swap(newValue: A): G[A] = trans(underlying.swap(newValue))
   }
 }

@@ -25,10 +25,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class MVarConcurrentTests extends BaseMVarTests {
-  def init[A](a: A): IO[MVar[IO, A]] =
+  def init[A](a: A): IO[MVar2[IO, A]] =
     MVar[IO].of(a)
 
-  def empty[A]: IO[MVar[IO, A]] =
+  def empty[A]: IO[MVar2[IO, A]] =
     MVar[IO].empty[A]
 
   test("put is cancelable") {
@@ -87,10 +87,10 @@ class MVarConcurrentTests extends BaseMVarTests {
 }
 
 class MVarAsyncTests extends BaseMVarTests {
-  def init[A](a: A): IO[MVar[IO, A]] =
+  def init[A](a: A): IO[MVar2[IO, A]] =
     MVar.uncancelableOf(a)
 
-  def empty[A]: IO[MVar[IO, A]] =
+  def empty[A]: IO[MVar2[IO, A]] =
     MVar.uncancelableEmpty
 }
 
@@ -102,8 +102,8 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   implicit val cs: ContextShift[IO] =
     IO.contextShift(executionContext)
 
-  def init[A](a: A): IO[MVar[IO, A]]
-  def empty[A]: IO[MVar[IO, A]]
+  def init[A](a: A): IO[MVar2[IO, A]]
+  def empty[A]: IO[MVar2[IO, A]]
 
   test("empty; put; take; put; take") {
     val task = for {
@@ -232,6 +232,35 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     }
   }
 
+  test("empty; tryRead; read; put; tryRead; read") {
+    val task = for {
+      av <- empty[Int]
+      tryReadEmpty <- av.tryRead
+      read <- av.read.start
+      _ <- av.put(10)
+      tryReadContains <- av.tryRead
+      r <- read.join
+    } yield (tryReadEmpty, tryReadContains, r)
+
+    for (v <- task.unsafeToFuture()) yield {
+      v shouldBe ((None, Some(10), 10))
+    }
+  }
+
+  test("empty; put; swap; read") {
+    val task = for {
+      mVar <- empty[Int]
+      fiber <- mVar.put(10).start
+      oldValue <- mVar.swap(20)
+      newValue <- mVar.read
+      _ <- fiber.join
+    } yield (newValue, oldValue)
+
+    for (v <- task.unsafeToFuture()) yield {
+      v shouldBe ((20, 10))
+    }
+  }
+
   test("put(null) works") {
     val task = empty[String].flatMap { mvar =>
       mvar.put(null) *> mvar.read
@@ -243,7 +272,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("producer-consumer parallel loop") {
     // Signaling option, because we need to detect completion
-    type Channel[A] = MVar[IO, Option[A]]
+    type Channel[A] = MVar2[IO, Option[A]]
 
     def producer(ch: Channel[Int], list: List[Int]): IO[Unit] =
       list match {
@@ -281,7 +310,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
   test("stack overflow test") {
     // Signaling option, because we need to detect completion
-    type Channel[A] = MVar[IO, Option[A]]
+    type Channel[A] = MVar2[IO, Option[A]]
     val count = 10000
 
     def consumer(ch: Channel[Int], sum: Long): IO[Long] =
@@ -313,7 +342,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
   }
 
   test("take/put test is stack safe") {
-    def loop(n: Int, acc: Int)(ch: MVar[IO, Int]): IO[Int] =
+    def loop(n: Int, acc: Int)(ch: MVar2[IO, Int]): IO[Int] =
       if (n <= 0) IO.pure(acc)
       else
         ch.take.flatMap { x =>
@@ -328,7 +357,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  def testStackSequential(channel: MVar[IO, Int]): (Int, IO[Int], IO[Unit]) = {
+  def testStackSequential(channel: MVar2[IO, Int]): (Int, IO[Int], IO[Unit]) = {
     val count = if (Platform.isJvm) 10000 else 5000
 
     def readLoop(n: Int, acc: Int): IO[Int] =

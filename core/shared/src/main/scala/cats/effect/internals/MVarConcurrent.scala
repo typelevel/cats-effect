@@ -18,8 +18,10 @@ package cats.effect
 package internals
 
 import java.util.concurrent.atomic.AtomicReference
-import cats.effect.concurrent.MVar
+
+import cats.effect.concurrent.MVar2
 import cats.effect.internals.Callback.rightUnit
+
 import scala.annotation.tailrec
 
 /**
@@ -27,7 +29,7 @@ import scala.annotation.tailrec
  */
 final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcurrent.State[A])(
   implicit F: Concurrent[F]
-) extends MVar[F, A] {
+) extends MVar2[F, A] {
   import MVarConcurrent._
 
   /** Shared mutable state. */
@@ -58,12 +60,25 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
   val read: F[A] =
     F.cancelable(unsafeRead)
 
+  def tryRead =
+    F.delay {
+      stateRef.get match {
+        case WaitForTake(value, _) => Some(value)
+        case WaitForPut(_, _)      => None
+      }
+    }
+
   def isEmpty: F[Boolean] =
     F.delay {
       stateRef.get match {
         case WaitForPut(_, _)  => true
         case WaitForTake(_, _) => false
       }
+    }
+
+  def swap(newValue: A): F[A] =
+    F.flatMap(take) { oldValue =>
+      F.map(put(newValue))(_ => oldValue)
     }
 
   @tailrec private def unsafeTryPut(a: A): F[Boolean] =
@@ -280,11 +295,11 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
 private[effect] object MVarConcurrent {
 
   /** Builds an [[MVarConcurrent]] instance with an `initial` value. */
-  def apply[F[_], A](initial: A)(implicit F: Concurrent[F]): MVar[F, A] =
+  def apply[F[_], A](initial: A)(implicit F: Concurrent[F]): MVar2[F, A] =
     new MVarConcurrent[F, A](State(initial))
 
   /** Returns an empty [[MVarConcurrent]] instance. */
-  def empty[F[_], A](implicit F: Concurrent[F]): MVar[F, A] =
+  def empty[F[_], A](implicit F: Concurrent[F]): MVar2[F, A] =
     new MVarConcurrent[F, A](State.empty)
 
   /**
