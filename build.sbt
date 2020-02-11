@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import microsites.ExtraMdFileConfig
+import microsites.{ConfigYml, ExtraMdFileConfig}
+
 import scala.sys.process._
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -328,6 +329,9 @@ lazy val siteSettings = Seq(
       "home",
       Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
     )
+  ),
+  micrositeConfigYaml := ConfigYml(
+    yamlCustomProperties = Map("plugins" -> List("jekyll-relative-links"))
   ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",

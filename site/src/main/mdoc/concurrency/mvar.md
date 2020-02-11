@@ -49,8 +49,8 @@ It has these fundamental (atomic) operations:
 <p class="extra" markdown='1'>
 In this context "<i>asynchronous blocking</i>" means that we are not blocking
 any threads. Instead the implementation uses callbacks to notify clients
-when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.html) or
-[Concurrent](../typeclasses/concurrent.html) data types such as [IO](../datatypes/io.html))
+when the operation has finished (notifications exposed by means of [Async](../typeclasses/async.md) or
+[Concurrent](../typeclasses/concurrent.md) data types such as [IO](../datatypes/io.md))
 and it thus works on top of JavaScript as well.
 </p>
 

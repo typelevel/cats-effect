@@ -9,13 +9,13 @@ position: 1
 {:.responsive-pic}
 ![datatypes cheat sheet](../img/datatypes-cheat-sheet.png)
 
-### [IO](./io.md)
+### [IO](io.md)
 A data type for encoding synchronous and asynchronous side effects as pure values
 
-### [SyncIO](./syncio.md)
+### [SyncIO](syncio.md)
 A data type for encoding synchronous side effects as pure values
 
-### [Fiber](./fiber.md)
+### [Fiber](fiber.md)
 A pure result of a [Concurrent](../typeclasses/concurrent.md) data type being started concurrently and that can be either joined or canceled
 
 ```scala
