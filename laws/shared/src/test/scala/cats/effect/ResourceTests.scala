@@ -92,18 +92,24 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("resource from AutoCloseable is auto closed") {
+  testAsync("resource from AutoCloseable is auto closed") { implicit ec =>
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
+
+    val blocker = Blocker.liftExecutionContext(ec)
+
     var closed = false
     val autoCloseable = new AutoCloseable {
       override def close(): Unit = closed = true
     }
 
     val result = Resource
-      .fromAutoCloseable(IO(autoCloseable))
+      .fromAutoCloseable(blocker)(IO(autoCloseable))
       .use(_ => IO.pure("Hello world"))
-      .unsafeRunSync()
+      .unsafeToFuture()
 
-    result shouldBe "Hello world"
+    ec.tick()
+
+    result.value shouldBe Some(Success("Hello world"))
     closed shouldBe true
   }
 

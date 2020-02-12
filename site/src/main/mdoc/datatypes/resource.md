@@ -91,18 +91,19 @@ import java.io._
 import collection.JavaConverters._
 import cats.effect._
 
-def readAllLines(bufferedReader: BufferedReader): IO[List[String]] = IO {
-  bufferedReader.lines().iterator().asScala.toList
-}
+def readAllLines(bufferedReader: BufferedReader, blocker: Blocker)(implicit cs: ContextShift[IO]): IO[List[String]] =
+  blocker.delay[IO, List[String]] {
+    bufferedReader.lines().iterator().asScala.toList
+  }
 
-def reader(file: File): Resource[IO, BufferedReader] =
-  Resource.fromAutoCloseable(IO {
-        new BufferedReader(new FileReader(file))
-      }
+def reader(file: File, blocker: Blocker)(implicit cs: ContextShift[IO]): Resource[IO, BufferedReader] =
+  Resource.fromAutoCloseable(blocker)(IO {
+      new BufferedReader(new FileReader(file))
+    }
   )
 
-def readLinesFromFile(file: File): IO[List[String]] = {
-    reader(file).use(readAllLines)
+def readLinesFromFile(file: File, blocker: Blocker)(implicit cs: ContextShift[IO]): IO[List[String]] = {
+  reader(file, blocker).use(br => readAllLines(br, blocker))
 }
 ```
 
@@ -111,27 +112,28 @@ def readLinesFromFile(file: File): IO[List[String]] = {
 ```scala mdoc:reset:silent
 import java.io._
 import cats.effect._
+import cats.syntax.flatMap._
 
-def reader[F[_]](file: File)(implicit F: Sync[F]): Resource[F, BufferedReader] =
-  Resource.fromAutoCloseable(F.delay {
+def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
+  Resource.fromAutoCloseable(blocker)(F.delay {
     new BufferedReader(new FileReader(file))
   })
 
-def dumpResource[F[_]](res: Resource[F, BufferedReader])(implicit F: Sync[F]): F[Unit] = {
+def dumpResource[F[_]](res: Resource[F, BufferedReader], blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] = {
   def loop(in: BufferedReader): F[Unit] =
     F.suspend {
-      val line = in.readLine()
-      if (line != null) {
-        System.out.println(line)
-        loop(in)
-      } else {
-        F.unit
+      blocker.delay(in.readLine()).flatMap { line =>
+        if (line != null) {
+          System.out.println(line)
+          loop(in)
+        } else {
+          F.unit
+        }
       }
     }
   res.use(loop)
 }
 
-def dumpFile[F[_]](file: File)(implicit F: Sync[F]): F[Unit] =
-  dumpResource(reader(file))
-
+def dumpFile[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): F[Unit] =
+  dumpResource(reader(file, blocker), blocker)
 ```

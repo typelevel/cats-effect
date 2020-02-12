@@ -411,6 +411,29 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
 
   /**
+   * Creates a [[Resource]] by wrapping a Java
+   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
+   *
+   * Example:
+   * {{{
+   *   import java.io._
+   *   import cats.effect._
+   *
+   *   def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
+   *     Resource.fromAutoCloseable(blocker)(F.delay {
+   *       new BufferedReader(new FileReader(file))
+   *     })
+   * }}}
+   * @param acquire The effect with the resource to acquire
+   * @param blocker The blocking context that will be used to compute acquire and close
+   * @tparam F the type of the effect
+   * @tparam A the type of the autocloseable resource
+   * @return a Resource that will automatically close after use
+   */
+  def fromAutoCloseable[F[_]: Sync: ContextShift, A <: AutoCloseable](blocker: Blocker)(acquire: F[A]): Resource[F, A] =
+    Resource.make(blocker.blockOn(acquire))(autoCloseable => blocker.delay(autoCloseable.close()))
+
+  /**
    * Implementation for the `tailRecM` operation, as described via
    * the `cats.Monad` type class.
    */
