@@ -22,7 +22,6 @@ import cats.Eval
 import cats.effect.internals.{IOAppPlatform, IOResourceAppPlatform}
 
 trait IOResourceApp {
-
   /**
    * Produces the `Resource[IO, ExitCode]` to be run as an app.
    *

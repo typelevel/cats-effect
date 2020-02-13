@@ -101,7 +101,7 @@ private[effect] object IOResourceAppPlatform {
         shutdownAction.unsafeRunAsync { result =>
           result.swap.foreach(Logger.reportFailure)
           sys.exit(code + 128)
-      }
+        }
 
     IO {
       if (!js.isUndefined(js.Dynamic.global.process)) {
