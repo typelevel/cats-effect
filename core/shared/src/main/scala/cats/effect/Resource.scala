@@ -393,12 +393,12 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * Example:
    * {{{
-   *   import java.io._
    *   import cats.effect._
+   *   import scala.io.Source
    *
-   *   def reader[F[_]](file: File)(implicit F: Sync[F]): Resource[F, BufferedReader] =
+   *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
    *     Resource.fromAutoCloseable(F.delay {
-   *       new BufferedReader(new FileReader(file))
+   *       Source.fromString(data)
    *     })
    * }}}
    * @param acquire The effect with the resource to acquire.
@@ -412,7 +412,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   /**
    * Creates a [[Resource]] by wrapping a Java
-   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
+   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]]
+   * which is blocking in its adquire and close operations.
    *
    * Example:
    * {{{
@@ -420,7 +421,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *   import cats.effect._
    *
    *   def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
-   *     Resource.fromAutoCloseable(blocker)(F.delay {
+   *     Resource.fromAutoCloseableBlocking(blocker)(F.delay {
    *       new BufferedReader(new FileReader(file))
    *     })
    * }}}
@@ -430,7 +431,9 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * @tparam A the type of the autocloseable resource
    * @return a Resource that will automatically close after use
    */
-  def fromAutoCloseable[F[_]: Sync: ContextShift, A <: AutoCloseable](blocker: Blocker)(acquire: F[A]): Resource[F, A] =
+  def fromAutoCloseableBlocking[F[_]: Sync: ContextShift, A <: AutoCloseable](
+    blocker: Blocker
+  )(acquire: F[A]): Resource[F, A] =
     Resource.make(blocker.blockOn(acquire))(autoCloseable => blocker.delay(autoCloseable.close()))
 
   /**

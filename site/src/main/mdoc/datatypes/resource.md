@@ -97,7 +97,7 @@ def readAllLines(bufferedReader: BufferedReader, blocker: Blocker)(implicit cs: 
   }
 
 def reader(file: File, blocker: Blocker)(implicit cs: ContextShift[IO]): Resource[IO, BufferedReader] =
-  Resource.fromAutoCloseable(blocker)(IO {
+  Resource.fromAutoCloseableBlocking(blocker)(IO {
       new BufferedReader(new FileReader(file))
     }
   )
@@ -115,7 +115,7 @@ import cats.effect._
 import cats.syntax.flatMap._
 
 def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
-  Resource.fromAutoCloseable(blocker)(F.delay {
+  Resource.fromAutoCloseableBlocking(blocker)(F.delay {
     new BufferedReader(new FileReader(file))
   })
 
