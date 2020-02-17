@@ -20,6 +20,7 @@ package effect
 import cats.data.Kleisli
 import cats.effect.concurrent.Deferred
 import cats.effect.laws.discipline.arbitrary._
+import cats.effect.laws.util.TestContext
 import cats.implicits._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
@@ -105,6 +106,45 @@ class ResourceTests extends BaseTestsSuite {
 
     result shouldBe "Hello world"
     closed shouldBe true
+  }
+
+  testAsync("resource from AutoCloseableBlocking is auto closed and executes in the blocking context") { implicit ec =>
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
+
+    val blockingEc = TestContext()
+    val blocker = Blocker.liftExecutionContext(blockingEc)
+
+    var closed = false
+    val autoCloseable = new AutoCloseable {
+      override def close(): Unit = closed = true
+    }
+
+    var acquired = false
+    val acquire = IO {
+      acquired = true
+      autoCloseable
+    }
+
+    val result = Resource
+      .fromAutoCloseableBlocking(blocker)(acquire)
+      .use(_ => IO.pure("Hello world"))
+      .unsafeToFuture()
+
+    // Check that acquire ran inside the blocking context.
+    ec.tick()
+    acquired shouldBe false
+    blockingEc.tick()
+    acquired shouldBe true
+
+    // Check that close was called and ran inside the blocking context.
+    ec.tick()
+    closed shouldBe false
+    blockingEc.tick()
+    closed shouldBe true
+
+    // Check the final result.
+    ec.tick()
+    result.value shouldBe Some(Success("Hello world"))
   }
 
   testAsync("liftF") { implicit ec =>
