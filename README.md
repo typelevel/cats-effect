@@ -99,7 +99,7 @@ cats-effect is a [Typelevel](http://typelevel.org/) project. This means we embra
 
 ### Contributing documentation
 
-The sources for the cats-effect microsite can be found in `site/src/main/tut`.
+The sources for the cats-effect microsite can be found in `site/src/main/mdoc`.
 The menu structure is in `site/src/main/resources/microsite/data/menu.yml`.
 
 You can build the microsite with `sbt microsite/makeMicrosite`.
