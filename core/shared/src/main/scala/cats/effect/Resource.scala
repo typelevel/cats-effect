@@ -131,8 +131,8 @@ sealed abstract class Resource[+F[_], +A] {
   }
 
   /**
-   * Allocates a resource and supplies it to the given function.  The
-   * resource is released as soon as the resulting `F[B]` is
+   * Allocates a resource and supplies it to the given function.
+   * The resource is released as soon as the resulting `F[B]` is
    * completed, whether normally or as a raised error.
    *
    * @param f the function to apply to the allocated resource
@@ -365,7 +365,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
     applyCase[F, A](acquire.map(a => (a, (e: ExitCase[Throwable]) => release(a, e))))
 
   /**
-   * Lifts a pure value into a resource.  The resouce has a no-op release.
+   * Lifts a pure value into a resource. The resource has a no-op release.
    *
    * @param a the value to lift into a resource
    */
@@ -373,8 +373,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Allocate(F.pure((a, (_: ExitCase[Throwable]) => F.unit)))
 
   /**
-   * Lifts an applicative into a resource.  The resource has a no-op release.
-   * Preserves interruptibility of `fa`
+   * Lifts an applicative into a resource. The resource has a no-op release.
+   * Preserves interruptibility of `fa`.
    *
    * @param fa the value to lift into a resource
    */
@@ -382,7 +382,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
     Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
 
   /**
-   * Lifts an applicative into a resource as a `FunctionK`.  The resource has a no-op release.
+   * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
    */
   def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
     λ[F ~> Resource[F, *]](Resource.liftF(_))
