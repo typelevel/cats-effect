@@ -59,9 +59,27 @@ abstract class Ref[F[_], A] {
   def set(a: A): F[Unit]
 
   /**
+   * Updates the current value using `f` and returns the value that was updated.
+   *
+   * In case of retries caused by concurrent modifications,
+   * the returned value will be the last one before a successful update.
+   */
+  def getAndUpdate(f: A => A): F[A] = modify { a =>
+    (f(a), a)
+  }
+
+  /**
    * Replaces the current value with `a`, returning the previous value.
    */
-  def getAndSet(a: A): F[A]
+  def getAndSet(a: A): F[A] = getAndUpdate(_ => a)
+
+  /**
+   * Updates the current value using `f`, and returns the updated value.
+   */
+  def updateAndGet(f: A => A): F[A] = modify { a =>
+    val newA = f(a)
+    (newA, newA)
+  }
 
   /**
    * Obtains a snapshot of the current value, and a setter for updating it.
@@ -220,7 +238,9 @@ object Ref {
 
     def set(a: A): F[Unit] = F.delay(ar.set(a))
 
-    def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
+    override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
+    override def updateAndGet(f: A => A): F[A] = F.delay(ar.updateAndGet(f(_)))
+    override def getAndUpdate(f: A => A): F[A] = F.delay(ar.getAndUpdate(f(_)))
 
     def access: F[(A, A => F[Boolean])] = F.delay {
       val snapshot = ar.get
@@ -239,8 +259,7 @@ object Ref {
       else None
     }
 
-    def update(f: A => A): F[Unit] =
-      modify(a => (f(a), ()))
+    def update(f: A => A): F[Unit] = updateAndGet(f).void
 
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec

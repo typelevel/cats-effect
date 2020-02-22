@@ -56,6 +56,26 @@ class RefTests extends AsyncFunSuite with Matchers {
     run(op.map(_ shouldBe true).void)
   }
 
+  test("getAndUpdate - successful") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      getAndUpdateResult <- r.getAndUpdate(_ + 1)
+      getResult <- r.get
+    } yield getAndUpdateResult == 0 && getResult == 1
+
+    run(op.map(_ shouldBe true).void)
+  }
+
+  test("updateAndGet - successful") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      updateAndGetResult <- r.updateAndGet(_ + 1)
+      getResult <- r.get
+    } yield updateAndGetResult == 1 && getResult == 1
+
+    run(op.map(_ shouldBe true).void)
+  }
+
   test("access - successful") {
     val op = for {
       r <- Ref[IO].of(0)
