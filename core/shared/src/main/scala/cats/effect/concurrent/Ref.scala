@@ -239,8 +239,6 @@ object Ref {
     def set(a: A): F[Unit] = F.delay(ar.set(a))
 
     override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
-    override def updateAndGet(f: A => A): F[A] = F.delay(ar.updateAndGet(f(_)))
-    override def getAndUpdate(f: A => A): F[A] = F.delay(ar.getAndUpdate(f(_)))
 
     def access: F[(A, A => F[Boolean])] = F.delay {
       val snapshot = ar.get
@@ -259,7 +257,9 @@ object Ref {
       else None
     }
 
-    def update(f: A => A): F[Unit] = updateAndGet(f).void
+    def update(f: A => A): F[Unit] = modify { a =>
+      (f(a), ())
+    }
 
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec
