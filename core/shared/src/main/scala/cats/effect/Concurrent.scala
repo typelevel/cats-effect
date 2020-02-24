@@ -608,17 +608,20 @@ object Concurrent {
     import scala.util.control.NoStackTrace
 
     Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
-      fa.start
-        .bracket { fiber =>
-          fiber.join.guaranteeCase {
-            case ExitCase.Completed | ExitCase.Error(_) =>
-              fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
-            case _ =>
-              fiber.cancel >>
-                r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
-          }.attempt
-        }(_ => r.get.void)
-        .flatMap(_ => r.get.rethrow)
+      fa.start.bracketCase { fiber =>
+        fiber.join.guaranteeCase {
+          case ExitCase.Completed | ExitCase.Error(_) => fiber.join.attempt.flatMap(f).attempt.flatMap(r.complete)
+          case _                                      => F.unit //will be canceled in release of enclosing bracketCase
+        }
+      } {
+        case (fiber, ExitCase.Canceled) =>
+          // This cancel has to be here, and not in the `guaranteeCase` above, as the `use` of `bracketCase` might not be evaluated.
+          // See https://github.com/typelevel/cats-effect/issues/793
+          fiber.cancel *>
+            // We complete the promise because it's uncancelable - there needs to be *something* in it after this `bracketCase`.
+            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+        case _ => F.unit
+      }.attempt *> r.get.rethrow.guaranteeCase(e => F.delay(println(e)))
     }
   }
 
