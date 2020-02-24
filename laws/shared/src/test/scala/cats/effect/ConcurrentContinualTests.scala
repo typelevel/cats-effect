@@ -22,11 +22,10 @@ import cats.effect.implicits._
 import scala.util.Success
 import cats.effect.concurrent.Deferred
 import org.scalatest.funsuite.AsyncFunSuite
-import scala.concurrent.ExecutionContext
 
 class ContinualHangingTest extends AsyncFunSuite {
   test("Concurrent.continual can be canceled immediately after starting") {
-    implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+    implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
     val task =
       Deferred[IO, Unit]
