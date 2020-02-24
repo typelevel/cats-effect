@@ -20,8 +20,30 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
 import scala.util.Success
+import cats.effect.concurrent.Deferred
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class ConcurrentContinualTests extends BaseTestsSuite {
+  test("Concurrent.continual can be canceled immediately after starting") {
+    implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+    implicit val timer: Timer[IO] = IO.timer(ExecutionContext.global)
+
+    var a = 0
+
+    val test = IO(println("iteration " + { a += 1; a })) *> Deferred[IO, Unit]
+      .flatMap { started =>
+        (started.complete(()) *> IO.never: IO[Unit])
+          .continual(_ => IO.unit)
+          .start
+          .flatMap(started.get *> _.cancel)
+      }
+      .replicateA(1000)
+      .as(true)
+      .timeout(10.seconds)
+
+    test.unsafeRunSync() shouldBe true
+  }
   testAsync("Concurrent.continual allows interruption of its input") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs: ContextShift[IO] = ec.ioContextShift
