@@ -39,6 +39,7 @@ class ConcurrentContinualTests extends BaseTestsSuite {
 
     test.unsafeRunSync() shouldBe true
   }
+
   testAsync("Concurrent.continual allows interruption of its input") { implicit ec =>
     import scala.concurrent.duration._
     implicit val cs: ContextShift[IO] = ec.ioContextShift
