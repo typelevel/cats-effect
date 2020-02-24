@@ -28,15 +28,16 @@ class ContinualHangingTest extends AsyncFunSuite {
   test("Concurrent.continual can be canceled immediately after starting") {
     implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
-    val task = {
-      IO(println("a")) *> Deferred[IO, Unit]
+    val task =
+      Deferred[IO, Unit]
         .flatMap { started =>
           (started.complete(()) *> IO.never: IO[Unit])
             .continual(_ => IO.unit)
             .start
             .flatMap(started.get *> _.cancel)
         }
-    }.replicateA(1000).as(true)
+        .replicateA(10000)
+        .as(true)
 
     task.unsafeToFuture.map(result => assert(result == true))
   }
