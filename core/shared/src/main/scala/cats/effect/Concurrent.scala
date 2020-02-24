@@ -621,7 +621,7 @@ object Concurrent {
             // We complete the promise because it's uncancelable - there needs to be *something* in it after this `bracketCase`.
             r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
         case _ => F.unit
-      }.attempt *> r.get.rethrow.guaranteeCase(e => F.delay(println(e)))
+      }.attempt *> r.get.rethrow
     }
   }
 
