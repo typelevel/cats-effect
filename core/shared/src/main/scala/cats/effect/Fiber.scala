@@ -22,7 +22,7 @@ import cats.syntax.flatMap._
 import cats.{~>, Applicative, Apply, Monoid, Semigroup}
 
 /**
- * `Fiber` represents the (pure) result of an [[Async]] data type (e.g. [[IO]])
+ * `Fiber` represents the (pure) result of a [[Concurrent]] data type (e.g. [[IO]])
  * being started concurrently and that can be either joined or canceled.
  *
  * You can think of fibers as being lightweight threads, a fiber being a
