@@ -605,7 +605,6 @@ object Concurrent {
    */
   def continual[F[_], A, B](fa: F[A])(f: Either[Throwable, A] => F[B])(implicit F: Concurrent[F]): F[B] = {
     import cats.effect.implicits._
-    import scala.util.control.NoStackTrace
 
     Deferred.uncancelable[F, Either[Throwable, B]].flatMap { r =>
       fa.start.bracketCase { fiber =>
@@ -617,9 +616,7 @@ object Concurrent {
         case (fiber, ExitCase.Canceled) =>
           // This cancel has to be here, and not in the `guaranteeCase` above, as the `use` of `bracketCase` might not be evaluated.
           // See https://github.com/typelevel/cats-effect/issues/793
-          fiber.cancel *>
-            // We complete the promise because it's uncancelable - there needs to be *something* in it after this `bracketCase`.
-            r.complete(Left(new Exception("Continual fiber cancelled") with NoStackTrace))
+          fiber.cancel
         case _ => F.unit
       }.attempt *> r.get.rethrow
     }
