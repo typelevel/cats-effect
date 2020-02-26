@@ -3,7 +3,7 @@
 set -euo pipefail # STRICT MODE
 IFS=$'\n\t'       # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 
-for sjs in '1.0.0-RC2' '0.6.32'; do
+for sjs in '1.0.0' '0.6.32'; do
   SCALAJS_VERSION=$sjs sbt clean +publish
 done
 
