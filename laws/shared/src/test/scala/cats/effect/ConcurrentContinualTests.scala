@@ -20,6 +20,27 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
 import scala.util.Success
+import cats.effect.concurrent.Deferred
+import org.scalatest.funsuite.AsyncFunSuite
+
+class ContinualHangingTest extends AsyncFunSuite {
+  test("Concurrent.continual can be canceled immediately after starting") {
+    implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
+
+    val task =
+      Deferred[IO, Unit]
+        .flatMap { started =>
+          (started.complete(()) *> IO.never: IO[Unit])
+            .continual(_ => IO.unit)
+            .start
+            .flatMap(started.get *> _.cancel)
+        }
+        .replicateA(10000)
+        .as(true)
+
+    task.unsafeToFuture.map(result => assert(result == true))
+  }
+}
 
 class ConcurrentContinualTests extends BaseTestsSuite {
   testAsync("Concurrent.continual allows interruption of its input") { implicit ec =>
