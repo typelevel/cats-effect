@@ -661,7 +661,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOBracket.guaranteeCase(this, finalizer)
 
   /**
-   * Replaces failures in this IO with [[scala.None]].
+   * Replaces failures in this IO with an empty Option.
    */
   def option: IO[Option[A]] = redeem(_ => None, Some(_))
 
@@ -675,7 +675,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IO.Bind(this, new IOFrame.ErrorHandler(f))
 
   /**
-   * Zips both [[this]] and [[another]] in parallel.
+   * Zips both this action and the parameter in parallel.
    * If [[parProduct]] is canceled, both actions are canceled.
    * Failure in either of the IOs will cancel the other one.
    *  */
@@ -752,19 +752,21 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def void: IO[Unit] = map(_ => ())
 
   /**
-   * Runs the current IO, then run [[another]], keeping its result.
-   * The result of [[this]] is ignored.
+   * Runs the current IO, then runs the parameter, keeping its result.
+   * The result of the first action is ignored.
+   * If the source fails, the other action won't run.
    * */
   def *>[B](another: IO[B]): IO[B] = flatMap(_ => another)
 
   /**
-   * Like [[*>]], but keeps the result of [[this]].
+   * Like [[*>]], but keeps the result of the source.
+   *
+   * For a similar method that also runs the parameter in case of failure or interruption, see [[guarantee]].
    * */
   def <*[B](another: IO[B]): IO[A] = flatMap(another.as(_))
 
   /**
-   * Runs the current IO and [[another]] in parallel.
-   * The result of [[this]] is ignored.
+   * Runs this IO and the parameter in parallel.
    *
    * Failure in either of the IOs will cancel the other one.
    * If the whole computation is canceled, both actions are also canceled.
@@ -773,7 +775,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IO.Par.unwrap(IO.parApplicative.productR(IO.Par(this))(IO.Par(another)))
 
   /**
-   * Like [[&>]], but keeps the result of [[this]].
+   * Like [[&>]], but keeps the result of the source.
    * */
   def <&[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[A] =
     another &> this
@@ -1142,7 +1144,7 @@ object IO extends IOInstances {
   val never: IO[Nothing] = async(_ => ())
 
   /**
-   * An IO that contains a [[scala.None]].
+   * An IO that contains an empty Option.
    */
   def none[A]: IO[Option[A]] = pure(None)
 
