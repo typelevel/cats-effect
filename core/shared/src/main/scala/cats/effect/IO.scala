@@ -679,8 +679,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * If [[parProduct]] is canceled, both actions are canceled.
    * Failure in either of the IOs will cancel the other one.
    *  */
-  def parProduct[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[(A, B)] =
-    IO.Par.unwrap(IO.parApplicative.product(IO.Par(this), IO.Par(another)))
+  def parProduct[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[(A, B)] =
+    p.sequential(p.apply.product(p.parallel(this), p.parallel(another)))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -771,14 +771,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Failure in either of the IOs will cancel the other one.
    * If the whole computation is canceled, both actions are also canceled.
    * */
-  def &>[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[B] =
-    IO.Par.unwrap(IO.parApplicative.productR(IO.Par(this))(IO.Par(another)))
+  def &>[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[B] =
+    p.parProductR(this)(another)
 
   /**
    * Like [[&>]], but keeps the result of the source.
    * */
-  def <&[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[A] =
-    another &> this
+  def <&[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[A] =
+    p.parProductL(this)(another)
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
