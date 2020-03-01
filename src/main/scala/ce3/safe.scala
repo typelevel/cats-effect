@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Daniel Spiewak
+ * Copyright 2020 Daniel Spiewak
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 
 package ce3
 
-import cats.{Monad, MonadError, Traverse}
+import cats.{ApplicativeError, Monad, MonadError, Traverse}
 
 // represents the type Bracket | Region
 sealed trait Safe[F[_], E] extends MonadError[F, E] {
   // inverts the contravariance, allowing a lawful bracket without discussing cancelation until Concurrent
   type Case[A]
 
-  implicit def CaseInstance: MonadError[Case, E] with Traverse[Case]
+  implicit def CaseInstance: ApplicativeError[Case, E]
 }
 
 trait Bracket[F[_], E] extends Safe[F, E] {
@@ -40,6 +40,9 @@ trait Bracket[F[_], E] extends Safe[F, E] {
       release: A => F[Unit])
       : F[B] =
     bracketCase(acquire)(use)((a, _) => release(a))
+
+  def onCase[A](fa: F[A], body: F[Unit])(p: Case[A] => Boolean): F[A] =
+    bracketCase(unit)(_ => fa)((_, c) => if (p(c)) body else unit)
 }
 
 object Bracket {

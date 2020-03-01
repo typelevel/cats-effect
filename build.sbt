@@ -22,13 +22,15 @@ organization in ThisBuild := "com.codecommit"
 publishGithubUser in ThisBuild := "djspiewak"
 publishFullName in ThisBuild := "Daniel Spiewak"
 
-val CatsVersion = "2.0.0-M4"
+val CatsVersion = "2.1.0"
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % CatsVersion,
   "org.typelevel" %% "cats-free" % CatsVersion,
+
+  "com.codecommit" %% "coop" % "0.2.0",
 
   "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
   "org.typelevel" %% "discipline-specs2" % "0.12.0-M3" % Test,

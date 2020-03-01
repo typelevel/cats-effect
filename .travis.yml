@@ -6,7 +6,7 @@ branches:
     - /^v\d+\.\d+\.\d+$/      # don't redundantly build tags
 
 scala:
-  - 2.13.0
+  - 2.13.1
 
 script:
   - sbt ++$TRAVIS_SCALA_VERSION ci

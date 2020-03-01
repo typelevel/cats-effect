@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Daniel Spiewak
+ * Copyright 2020 Daniel Spiewak
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,14 +67,13 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
         "bracket pure coherence" -> forAll(laws.bracketPureCoherence[A, B] _),
         "bracket error coherence" -> forAll(laws.bracketErrorCoherence[A] _),
         "bracket flatMap attempt identity" -> forAll(laws.bracketFlatMapAttemptIdentity[A, B] _),
-        "bracket raiseError identity" -> forAll(laws.bracketErrorIdentity[A, B] _),
-        "bracket raiseError distributivity" -> forAll(laws.bracketDistributesReleaseOverError[A] _))
+        "bracket raiseError identity" -> forAll(laws.bracketErrorIdentity[A, B] _))
     }
   }
 }
 
 object BracketTests {
-  def apply[F[_], E](implicit F0: Bracket[F, E]): BracketTests[F, E] = new BracketTests[F, E] {
+  def apply[F[_], E](implicit F0: Bracket[F, E]): BracketTests[F, E] { val laws: BracketLaws[F, E] { val F: F0.type } } = new BracketTests[F, E] {
     val laws = BracketLaws[F, E]
   }
 }
