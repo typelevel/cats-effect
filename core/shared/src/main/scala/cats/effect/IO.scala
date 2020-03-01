@@ -85,6 +85,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
 
   /**
+   * Replaces the result of this IO with the given value.
+   * The value won't be computed if the IO doesn't succeed.
+   * */
+  def as[B](newValue: => B): IO[B] = map(_ => newValue)
+
+  /**
    * Functor map on `IO`. Given a mapping function, it transforms the
    * value produced by the source, while keeping the `IO` context.
    *
@@ -452,6 +458,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
+   * Returns an IO that will delay the execution of the source by the given duration.
+   * */
+  final def delayBy(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+    timer.sleep(duration) *> this
+
+  /**
    * Returns an `IO` action that treats the source task as the
    * acquisition of a resource, which is then exploited by the `use`
    * function and then `released`.
@@ -649,6 +661,11 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOBracket.guaranteeCase(this, finalizer)
 
   /**
+   * Replaces failures in this IO with [[scala.None]].
+   */
+  def option: IO[Option[A]] = map(Some(_)).handleErrorWith(_ => IO.none)
+
+  /**
    * Handle any error, potentially recovering from it, by mapping it to another
    * `IO` value.
    *
@@ -656,6 +673,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
     IO.Bind(this, new IOFrame.ErrorHandler(f))
+
+  /**
+   * Zips both [[this]] and [[another]] in parallel.
+   * If [[parProduct]] is canceled, both actions are canceled.
+   * Failure in either of the IOs will cancel the other one.
+   *  */
+  def parProduct[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[(A, B)] =
+    IO.Par.unwrap(IO.parApplicative.product(IO.Par(this), IO.Par(another)))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -720,6 +745,38 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     case RaiseError(e) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
+
+  /*
+   * Ignores the result of this IO.
+   */
+  def void: IO[Unit] = map(_ => ())
+
+  /**
+   * Run the current IO, then run [[another]], keeping its result.
+   * The result of [[this]] is ignored.
+   * */
+  def *>[B](another: IO[B]): IO[B] = flatMap(_ => another)
+
+  /**
+   * Like [[*>]], but keeps the result of [[this]].
+   * */
+  def <*[B](another: IO[B]): IO[A] = flatMap(another.as(_))
+
+  /**
+   * Run the current IO and [[another]] in parallel.
+   * The result of [[this]] is ignored.
+   *
+   * Failure in either of the IOs will cancel the other one.
+   * If the whole computation is canceled, both actions are also canceled.
+   * */
+  def &>[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[B] =
+    IO.Par.unwrap(IO.parApplicative.productR(IO.Par(this))(IO.Par(another)))
+
+  /**
+   * Like [[&>]], but keeps the result of [[this]].
+   * */
+  def <&[B](another: IO[B])(implicit cs: ContextShift[IO]): IO[A] =
+    another &> this
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
@@ -1085,6 +1142,11 @@ object IO extends IOInstances {
   val never: IO[Nothing] = async(_ => ())
 
   /**
+   * An IO that contains a [[scala.None]].
+   */
+  def none[A]: IO[Option[A]] = pure(None)
+
+  /**
    * Lifts an `Eval` into `IO`.
    *
    * This function will preserve the evaluation semantics of any
@@ -1297,6 +1359,11 @@ object IO extends IOInstances {
       case Right(a)  => pure(a)
       case Left(err) => raiseError(err)
     }
+
+  def fromOption[A](orElse: => Throwable)(option: Option[A]): IO[A] = option match {
+    case None        => raiseError(orElse)
+    case Some(value) => pure(value)
+  }
 
   /**
    * Lifts an `Try[A]` into the `IO[A]` context, raising the throwable if it
