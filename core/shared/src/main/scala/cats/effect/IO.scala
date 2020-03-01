@@ -663,7 +663,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   /**
    * Replaces failures in this IO with [[scala.None]].
    */
-  def option: IO[Option[A]] = map(Some(_)).handleErrorWith(_ => IO.none)
+  def option: IO[Option[A]] = redeem(_ => None, Some(_))
 
   /**
    * Handle any error, potentially recovering from it, by mapping it to another
