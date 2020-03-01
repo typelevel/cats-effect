@@ -752,7 +752,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def void: IO[Unit] = map(_ => ())
 
   /**
-   * Run the current IO, then run [[another]], keeping its result.
+   * Runs the current IO, then run [[another]], keeping its result.
    * The result of [[this]] is ignored.
    * */
   def *>[B](another: IO[B]): IO[B] = flatMap(_ => another)
@@ -763,7 +763,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def <*[B](another: IO[B]): IO[A] = flatMap(another.as(_))
 
   /**
-   * Run the current IO and [[another]] in parallel.
+   * Runs the current IO and [[another]] in parallel.
    * The result of [[this]] is ignored.
    *
    * Failure in either of the IOs will cancel the other one.
@@ -1360,7 +1360,7 @@ object IO extends IOInstances {
       case Left(err) => raiseError(err)
     }
 
-  def fromOption[A](orElse: => Throwable)(option: Option[A]): IO[A] = option match {
+  def fromOption[A](option: Option[A])(orElse: => Throwable): IO[A] = option match {
     case None        => raiseError(orElse)
     case Some(value) => pure(value)
   }
