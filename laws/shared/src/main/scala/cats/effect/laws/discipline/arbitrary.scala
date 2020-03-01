@@ -19,7 +19,6 @@ package effect
 package laws
 package discipline
 
-import cats.syntax.all._
 import cats.effect.IO.Par
 import cats.effect.internals.IORunLoop
 import org.scalacheck.Arbitrary.{arbitrary => getArbitrary}
