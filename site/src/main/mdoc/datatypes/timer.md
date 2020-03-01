@@ -36,7 +36,6 @@ As mentioned in the `IO` documentation, there's a default instance of `Timer[IO]
 import java.util.concurrent.ScheduledExecutorService
 
 import cats.effect.{IO, Timer, Clock}
-import cats.syntax.functor._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 

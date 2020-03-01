@@ -20,7 +20,6 @@ described by `IO`), you have to do something like this:
 
 ```scala mdoc:silent
 import cats.effect._
-import cats.syntax.all._
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
@@ -44,7 +43,6 @@ You can now use `cats.effect.IOApp` to describe pure programs:
 
 ```scala mdoc:reset:silent
 import cats.effect._
-import cats.syntax.all._
 
 object Main extends IOApp {
 
@@ -92,7 +90,6 @@ For example:
 ```scala mdoc:reset:silent
 import cats.effect.ExitCase.Canceled
 import cats.effect._
-import cats.syntax.all._
 import scala.concurrent.duration._
 
 object Main extends IOApp {
