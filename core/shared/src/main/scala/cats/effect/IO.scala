@@ -1362,6 +1362,9 @@ object IO extends IOInstances {
       case Left(err) => raiseError(err)
     }
 
+  /**
+   * Lifts an `Option[A]` into the `IO[A]` context, raising the throwable if the option is empty.
+   */
   def fromOption[A](option: Option[A])(orElse: => Throwable): IO[A] = option match {
     case None        => raiseError(orElse)
     case Some(value) => pure(value)
