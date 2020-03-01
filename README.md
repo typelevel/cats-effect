@@ -15,12 +15,12 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 
 Versions of Cats Effect:
 
-- Stable: `2.1.1`
+- Stable: `2.1.2`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.1"
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.2"
 ```
 
 Cats Effect relies on improved type inference and needs partial unification enabled as described in the Cats [Getting Started](https://github.com/typelevel/cats#getting-started) documentation.
@@ -38,7 +38,7 @@ Please see [this document](https://github.com/typelevel/cats-effect/blob/master/
 The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
-libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.1.1" % "test"
+libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.1.2" % "test"
 ```
 
 These laws are compatible with both Specs2 and ScalaTest.
