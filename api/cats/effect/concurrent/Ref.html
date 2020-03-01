@@ -172,7 +172,7 @@
 functionality for synchronisation, which is instead handled by <a href="Deferred.html" class="extype" name="cats.effect.concurrent.Deferred">Deferred</a>.
 For this reason, a <code>Ref</code> is always initialised to a value.</p><p>The default implementation is nonblocking and lightweight, consisting essentially
 of a purely functional wrapper over an <code>AtomicReference</code>.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.1/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/8e10876c7b63e264191baa4c08a6e23f208300ed/core/shared/src/main/scala/cats/effect/concurrent/Ref.scala" target="_blank">Ref.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -284,22 +284,6 @@ call to <code>access</code> uses its setter first.</p><p>Once it has noop'd or b
       <p class="shortcomment cmt">Obtains the current value.</p><div class="fullcomment"><div class="comment cmt"><p>Obtains the current value.</p><p>Since <code>Ref</code> is always guaranteed to have a value, the returned action
 completes immediately after being bound.
 </p></div></div>
-    </li><li name="cats.effect.concurrent.Ref#getAndSet" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
-      <a id="getAndSet(a:A):F[A]"></a><a id="getAndSet(A):F[A]"></a>
-      <span class="permalink">
-      <a href="../../../cats/effect/concurrent/Ref.html#getAndSet(a:A):F[A]" title="Permalink">
-        <i class="material-icons"></i>
-      </a>
-    </span>
-      <span class="modifier_kind">
-        <span class="modifier">abstract </span>
-        <span class="kind">def</span>
-      </span>
-      <span class="symbol">
-        <span class="name">getAndSet</span><span class="params">(<span name="a">a: <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>]</span>
-      </span>
-      
-      <p class="shortcomment cmt">Replaces the current value with <code>a</code>, returning the previous value.</p>
     </li><li name="cats.effect.concurrent.Ref#modify" visbl="pub" class="indented0 " data-isabs="true" fullComment="no" group="Ungrouped">
       <a id="modify[B](f:A=&gt;(A,B)):F[B]"></a><a id="modify[B]((A)⇒(A,B)):F[B]"></a>
       <span class="permalink">
@@ -575,6 +559,40 @@ is retried using the new value. Hence, <code>f</code> may be invoked multiple ti
     </span>)</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.concurrent.Ref#getAndSet" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="getAndSet(a:A):F[A]"></a><a id="getAndSet(A):F[A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Ref.html#getAndSet(a:A):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">getAndSet</span><span class="params">(<span name="a">a: <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Replaces the current value with <code>a</code>, returning the previous value.</p>
+    </li><li name="cats.effect.concurrent.Ref#getAndUpdate" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="getAndUpdate(f:A=&gt;A):F[A]"></a><a id="getAndUpdate((A)⇒A):F[A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Ref.html#getAndUpdate(f:A=&gt;A):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">getAndUpdate</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>) ⇒ <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Updates the current value using <code>f</code> and returns the value that was updated.</p><div class="fullcomment"><div class="comment cmt"><p>Updates the current value using <code>f</code> and returns the value that was updated.</p><p>In case of retries caused by concurrent modifications,
+the returned value will be the last one before a successful update.
+</p></div></div>
     </li><li name="scala.AnyRef#getClass" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="getClass():Class[_]"></a>
       <span class="permalink">
@@ -731,6 +749,22 @@ is retried using the new value. Hence, <code>f</code> may be invoked multiple ti
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="cats.effect.concurrent.Ref#updateAndGet" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="updateAndGet(f:A=&gt;A):F[A]"></a><a id="updateAndGet((A)⇒A):F[A]"></a>
+      <span class="permalink">
+      <a href="../../../cats/effect/concurrent/Ref.html#updateAndGet(f:A=&gt;A):F[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">updateAndGet</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>) ⇒ <span class="extype" name="cats.effect.concurrent.Ref.A">A</span></span>)</span><span class="result">: <span class="extype" name="cats.effect.concurrent.Ref.F">F</span>[<span class="extype" name="cats.effect.concurrent.Ref.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Updates the current value using <code>f</code>, and returns the updated value.</p>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>
       <span class="permalink">

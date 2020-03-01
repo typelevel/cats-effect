@@ -192,8 +192,8 @@
                         <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
-                        <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
-                        <a href="Fiber.html" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
+                        <a class="trait" href="Fiber.html" title="Fiber represents the (pure) result of a Concurrent data type (e.g."></a>
+                        <a href="Fiber.html" title="Fiber represents the (pure) result of a Concurrent data type (e.g.">Fiber</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="IO$.html" title=""></a>
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
@@ -294,7 +294,7 @@ Releasing outer</pre><p>A <code>Resource</code> is nothing more than a data stru
 the following node types and that can be interpreted if needed:</p><ul><li><a href="Resource$$Allocate.html" class="extype" name="cats.effect.Resource.Allocate">Allocate</a></li><li><a href="Resource$$Suspend.html" class="extype" name="cats.effect.Resource.Suspend">Suspend</a></li><li><a href="Resource$$Bind.html" class="extype" name="cats.effect.Resource.Bind">Bind</a></li></ul><p>Normally users don't need to care about these node types, unless conversions
 from <code>Resource</code> into something else is needed (e.g. conversion from <code>Resource</code>
 into a streaming data type).
-</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.1/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="paramcmts block"><dt class="tparam">F</dt><dd class="cmt"><p>the effect type in which the resource is allocated and released</p></dd><dt class="tparam">A</dt><dd class="cmt"><p>the type of resource</p></dd></dl><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/8e10876c7b63e264191baa4c08a6e23f208300ed/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -804,8 +804,8 @@ that offers more convenient access to the same functionality as
         <span class="name">use</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.F">F</span>[<span class="extype" name="cats.effect.Resource.use.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.use.G">G</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.  The
-resource is released as soon as the resulting <code>F[B]</code> is
+      <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.
+The resource is released as soon as the resulting <code>F[B]</code> is
 completed, whether normally or as a raised error.
 </p></div><dl class="paramcmts block"><dt class="param">f</dt><dd class="cmt"><p>the function to apply to the allocated resource</p></dd><dt>returns</dt><dd class="cmt"><p>the result of applying [F] to</p></dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">

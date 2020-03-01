@@ -192,8 +192,8 @@
                         <a href="ExitCode.html" title="Represents the exit code of an application.">ExitCode</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="Fiber$.html" title=""></a>
-                        <a class="trait" href="" title="Fiber represents the (pure) result of an Async data type (e.g."></a>
-                        <a href="" title="Fiber represents the (pure) result of an Async data type (e.g.">Fiber</a>
+                        <a class="trait" href="" title="Fiber represents the (pure) result of a Concurrent data type (e.g."></a>
+                        <a href="" title="Fiber represents the (pure) result of a Concurrent data type (e.g.">Fiber</a>
                       </li><li class="current-entities indented2">
                         <a class="object" href="IO$.html" title=""></a>
                         <a class="class" href="IO.html" title="A pure abstraction representing the intention to perform a side effect, where the result of that side effect may be obtained synchronously (via return) or asynchronously (via callback)."></a>
@@ -260,7 +260,7 @@
       </h4>
 
       
-          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p><code>Fiber</code> represents the (pure) result of an <a href="Async.html" class="extype" name="cats.effect.Async">Async</a> data type (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)
+          <div id="comment" class="fullcommenttop"><div class="comment cmt"><p><code>Fiber</code> represents the (pure) result of a <a href="Concurrent.html" class="extype" name="cats.effect.Concurrent">Concurrent</a> data type (e.g. <a href="IO.html" class="extype" name="cats.effect.IO">IO</a>)
 being started concurrently and that can be either joined or canceled.</p><p>You can think of fibers as being lightweight threads, a fiber being a
 concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <code>Fiber</code> value is the result of evaluating <a href="IO.html#start(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[cats.effect.Fiber[cats.effect.IO,A@scala.annotation.unchecked.uncheckedVariance]]" class="extmbr" name="cats.effect.IO#start">IO.start</a>:</p><pre><span class="kw">val</span> io = IO.shift *&gt; IO(println(<span class="lit">"Hello!"</span>))
 
@@ -274,7 +274,7 @@ concurrency primitive for doing cooperative multi-tasking.</p><p>For example a <
   aftermath <span class="kw">&lt;-</span> fiber.join
 } <span class="kw">yield</span> {
   aftermath
-}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.1/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
+}</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/8e10876c7b63e264191baa4c08a6e23f208300ed/core/shared/src/main/scala/cats/effect/Fiber.scala" target="_blank">Fiber.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>

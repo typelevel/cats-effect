@@ -163,7 +163,7 @@
 
       
           <div id="comment" class="fullcommenttop"><div class="comment cmt"><p><code>Resource</code> data constructor that encodes the <code>flatMap</code> operation.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.1/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/8e10876c7b63e264191baa4c08a6e23f208300ed/core/shared/src/main/scala/cats/effect/Resource.scala" target="_blank">Resource.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -672,8 +672,8 @@ that offers more convenient access to the same functionality as
         <span class="name">use</span><span class="tparams">[<span name="G">G<span class="tparams">[<span name="x">x</span>]</span> &gt;: <span class="extype" name="cats.effect.Resource.Bind.F">F</span>[<span class="extype" name="cats.effect.Resource.use.G.x">x</span>]</span>, <span name="B">B</span>]</span><span class="params">(<span name="f">f: (<span class="extype" name="cats.effect.Resource.Bind.A">A</span>) ⇒ <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="F">F: <a href="Bracket.html" class="extype" name="cats.effect.Bracket">Bracket</a>[<span class="extype" name="cats.effect.Resource.use.G">G</span>, <span class="extype" name="scala.Throwable">Throwable</span>]</span>)</span><span class="result">: <span class="extype" name="cats.effect.Resource.use.G">G</span>[<span class="extype" name="cats.effect.Resource.use.B">B</span>]</span>
       </span>
       
-      <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.  The
-resource is released as soon as the resulting <code>F[B]</code> is
+      <p class="shortcomment cmt">Allocates a resource and supplies it to the given function.</p><div class="fullcomment"><div class="comment cmt"><p>Allocates a resource and supplies it to the given function.
+The resource is released as soon as the resulting <code>F[B]</code> is
 completed, whether normally or as a raised error.
 </p></div><dl class="paramcmts block"><dt class="param">f</dt><dd class="cmt"><p>the function to apply to the allocated resource</p></dd><dt>returns</dt><dd class="cmt"><p>the result of applying [F] to</p></dd></dl><dl class="attributes block"> <dt>Definition Classes</dt><dd><a href="Resource.html" class="extype" name="cats.effect.Resource">Resource</a></dd></dl></div>
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
