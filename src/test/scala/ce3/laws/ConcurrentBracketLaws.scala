@@ -25,11 +25,11 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
 
   implicit val F: Concurrent[F, E] with Bracket[F, E]
 
-  def bracketCanceledReleases[A, B](acq: F[A], release: F[Unit], e: E, b: B) = {
+  def bracketCanceledReleases[A, B](acq: F[A], release: F[Unit], b: B) = {
     F.bracketCase(acq)(_ => F.canceled(b)) {
       case (a, Outcome.Canceled) => release
-      case _ => F.raiseError[Unit](e)
-    } <-> (acq.flatMap(_ => release) *> F.canceled(b))
+      case _ => F.unit
+    } <-> (acq >> F.uncancelable(_ => release.attempt) >> F.canceled(b))
   }
 
   def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, Outcome[F, E, B]) => F[Unit]) = {

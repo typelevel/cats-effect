@@ -64,7 +64,11 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
       aFUPP: (A => F[Unit]) => Pretty,
-      ePP: E => Pretty)
+      ePP: E => Pretty,
+      foaPP: F[Outcome[F, E, A]] => Pretty,
+      feauPP: F[Either[A, Unit]] => Pretty,
+      feuaPP: F[Either[Unit, A]] => Pretty,
+      fouPP: F[Outcome[F, E, Unit]] => Pretty)
       : RuleSet = {
 
     new RuleSet {
@@ -75,24 +79,23 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val props = Seq(
         "race is racePair identity" -> forAll(laws.raceIsRacePairCancelIdentity[A, B] _),
 
-        "race left error yields" -> forAll(laws.raceLeftErrorYields[A] _),
-        "race right error yields" -> forAll(laws.raceRightErrorYields[A] _),
         "race left canceled yields" -> forAll(laws.raceLeftCanceledYields[A] _),
         "race right canceled yields" -> forAll(laws.raceRightCanceledYields[A] _),
-        "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
-        "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
+        // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
+        // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
 
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsCompletedPure[A] _),
         "fiber error is errored" -> forAll(laws.fiberErrorIsErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsCanceled,
         "fiber of canceled is canceled" -> laws.fiberOfCanceledIsCanceled,
         "fiber join of never is never" -> laws.fiberJoinOfNeverIsNever,
+        "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
 
-        "start of never is unit" -> laws.startOfNeverIsUnit,
         "never left-distributes over flatMap" -> forAll(laws.neverDistributesOverFlatMapLeft[A] _),
 
         "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
+        // "uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
+        "uncancelable cancelation cancels" -> laws.uncancelableCancelationCancels,
         "uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _),
         "uncancelable race is uncancelable" -> forAll(laws.uncancelableRaceIsUncancelable[A] _),
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
