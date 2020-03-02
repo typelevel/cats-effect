@@ -71,6 +71,14 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelablePollIsIdentity[A](fa: F[A]) =
     F.uncancelable(_(fa)) <-> fa
 
+  def uncancelableNestIdentity[A](fa: F[A]) =
+    F.uncancelable(op => F.uncancelable(ip => ip(op(fa)))) <-> fa
+
+  // this law shows that inverted polls do not apply
+  def uncancelablePollInverseNestIsUncancelable[A](fa: F[A]) =
+    F.uncancelable(op => F.uncancelable(ip => op(ip(fa)))) <->
+      F.uncancelable(_ => fa)
+
   // TODO find a way to do this without race conditions
   /*def uncancelableFiberBodyWillComplete[A](fa: F[A]) =
     F.start(F.uncancelable(_ => fa)).flatMap(f => F.cede >> f.cancel >> f.join) <->
@@ -90,6 +98,11 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def canceledDistributesOverFlatMapLeft[A](fa: F[A]) =
     F.canceled(()) >> fa.void <-> F.canceled(())
+
+  // TODO we could write some very imperative-ish bracket and cancelation laws
+  // that use fiber cancelation as an effect to signal whether or not something
+  // has been sequenced (without this, we can't really see through F[Unit]). They
+  // wouldn't be equational though; is it worth it?
 }
 
 object ConcurrentLaws {

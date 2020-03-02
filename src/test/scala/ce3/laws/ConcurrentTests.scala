@@ -94,6 +94,8 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "never left-distributes over flatMap" -> forAll(laws.neverDistributesOverFlatMapLeft[A] _),
 
         "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
+        "uncancelable nest identity" -> forAll(laws.uncancelableNestIdentity[A] _),
+        "uncancelable poll inverse nest is uncancelable" -> forAll(laws.uncancelablePollInverseNestIsUncancelable[A] _),
         // "uncancelable fiber will complete" -> forAll(laws.uncancelableFiberBodyWillComplete[A] _),
         "uncancelable cancelation cancels" -> laws.uncancelableCancelationCancels,
         "uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _),
