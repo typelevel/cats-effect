@@ -61,12 +61,12 @@ it is sequenced in the monadic chain.
 
 `IO` can suspend side effects and is thus a lazily evaluated data type, being many times compared with `Future` from the standard library and to understand the landscape in terms of the evaluation model (in Scala), consider this classification:
 
-|                    |        Eager        |            Lazy            |
-|:------------------:|:-------------------:|:--------------------------:|
-| **Synchronous**    |          A          |           () => A          |
-|                    |                     | [Eval[A]](https://typelevel.org/cats/datatypes/eval.html) |
-| **Asynchronous**   | (A => Unit) => Unit | () => (A => Unit) => Unit  |
-|                    |      Future[A]      |          IO[A]             |
+|                  |        Eager        |                           Lazy                            |
+| :--------------: | :-----------------: | :-------------------------------------------------------: |
+| **Synchronous**  |          A          |                          () => A                          |
+|                  |                     | [Eval[A]](https://typelevel.org/cats/datatypes/eval.html) |
+| **Asynchronous** | (A => Unit) => Unit |                 () => (A => Unit) => Unit                 |
+|                  |      Future[A]      |                           IO[A]                           |
 
 In comparison with Scala's `Future`, the `IO` data type preserves _referential transparency_ even when dealing with side effects and is lazily evaluated. In an eager language like Scala, this is the difference between a result and the function producing it.
 
@@ -260,7 +260,6 @@ certain time duration:
 
 ```scala mdoc:silent
 import java.util.concurrent.ScheduledExecutorService
-import cats.syntax.functor._
 import scala.concurrent.duration._
 
 def delayedTick(d: FiniteDuration)
@@ -337,7 +336,6 @@ asynchronous boundaries:
 
 ```scala mdoc:reset:silent
 import cats.effect._
-import cats.implicits._
 
 def fib(n: Int, a: Long, b: Long)(implicit cs: ContextShift[IO]): IO[Long] =
   IO.suspend {
@@ -378,7 +376,6 @@ asynchronous boundaries. It can be achieved in the following way:
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
-import cats.implicits._
 import scala.concurrent.ExecutionContext
 
 implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
@@ -420,7 +417,6 @@ builder. The `delayedTick` example making use of the Java's
 import java.util.concurrent.ScheduledExecutorService
 
 import cats.effect.IO
-import cats.syntax.functor._
 
 import scala.concurrent.duration.FiniteDuration
 
@@ -499,7 +495,6 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 import cats.effect.IO
-import cats.syntax.functor._
 
 import scala.concurrent.ExecutionContext
 import scala.io.Source
@@ -543,7 +538,6 @@ be tempted to do something like this:
 import java.io._
 
 import cats.effect.IO
-import cats.syntax.functor._
 
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
@@ -576,7 +570,6 @@ import java.io._
 import java.util.concurrent.atomic.AtomicBoolean
 
 import cats.effect.IO
-import cats.syntax.functor._
 
 import scala.util.control.NonFatal
 import scala.concurrent.ExecutionContext
@@ -639,7 +632,6 @@ Example:
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
-import cats.syntax.apply._
 
 import scala.concurrent.ExecutionContext
 
@@ -677,7 +669,6 @@ this kind of code is impure and should be used with care:
 
 ```scala mdoc:reset:silent
 import cats.effect.IO
-import cats.syntax.apply._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -720,7 +711,6 @@ canceled:
 
 ```scala mdoc:reset:silent
 import cats.effect.IO
-import cats.syntax.apply._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -754,7 +744,6 @@ This operation is very similar to `IO.shift`, as it can be dropped in
 
 ```scala mdoc:reset:silent
 import cats.effect.IO
-import cats.syntax.apply._
 
 def fib(n: Int, a: Long, b: Long): IO[Long] =
   IO.suspend {
@@ -932,7 +921,6 @@ Via the `bracket` operation we can easily describe the above:
 import java.io._
 
 import cats.effect.IO
-import cats.syntax.functor._
 
 def readFirstLine(file: File): IO[String] =
   IO(new BufferedReader(new FileReader(file))).bracket { in =>
@@ -963,8 +951,6 @@ on cancellation as well. Consider this sample:
 import java.io._
 
 import cats.effect.{ContextShift, IO}
-import cats.syntax.apply._
-import cats.syntax.functor._
 
 import scala.concurrent.ExecutionContext
 
@@ -1009,8 +995,6 @@ might be needed to prevent it:
 import java.io._
 
 import cats.effect.{ContextShift, IO}
-import cats.syntax.apply._
-import cats.syntax.functor._
 
 import scala.concurrent.ExecutionContext
 
@@ -1187,7 +1171,6 @@ For example here's a way to implement retries with exponential back-off:
 
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Timer}
-import cats.syntax.apply._
 
 import scala.concurrent.duration._
 
@@ -1243,7 +1226,6 @@ IO.shift.flatMap(_ => task)
 Or using `Cats` syntax:
 
 ```scala mdoc:silent
-import cats.syntax.apply._
 
 IO.shift *> task
 // equivalent to

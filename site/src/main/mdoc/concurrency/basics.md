@@ -240,7 +240,6 @@ Let's introduce asynchronous boundaries:
 ```scala mdoc:compile-only
 import java.util.concurrent.Executors
 import cats.effect.{ContextShift, Fiber, IO}
-import cats.syntax.apply._
 import scala.concurrent.ExecutionContext
 
 val ecOne = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())

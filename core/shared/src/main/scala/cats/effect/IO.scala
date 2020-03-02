@@ -85,6 +85,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   import IO._
 
   /**
+   * Replaces the result of this IO with the given value.
+   * The value won't be computed if the IO doesn't succeed.
+   * */
+  def as[B](newValue: => B): IO[B] = map(_ => newValue)
+
+  /**
    * Functor map on `IO`. Given a mapping function, it transforms the
    * value produced by the source, while keeping the `IO` context.
    *
@@ -452,6 +458,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   /**
+   * Returns an IO that will delay the execution of the source by the given duration.
+   * */
+  final def delayBy(duration: FiniteDuration)(implicit timer: Timer[IO]): IO[A] =
+    timer.sleep(duration) *> this
+
+  /**
    * Returns an `IO` action that treats the source task as the
    * acquisition of a resource, which is then exploited by the `use`
    * function and then `released`.
@@ -649,6 +661,11 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IOBracket.guaranteeCase(this, finalizer)
 
   /**
+   * Replaces failures in this IO with an empty Option.
+   */
+  def option: IO[Option[A]] = redeem(_ => None, Some(_))
+
+  /**
    * Handle any error, potentially recovering from it, by mapping it to another
    * `IO` value.
    *
@@ -656,6 +673,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
     IO.Bind(this, new IOFrame.ErrorHandler(f))
+
+  /**
+   * Zips both this action and the parameter in parallel.
+   * If [[parProduct]] is canceled, both actions are canceled.
+   * Failure in either of the IOs will cancel the other one.
+   *  */
+  def parProduct[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[(A, B)] =
+    p.sequential(p.apply.product(p.parallel(this), p.parallel(another)))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -720,6 +745,40 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     case RaiseError(e) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
+
+  /*
+   * Ignores the result of this IO.
+   */
+  def void: IO[Unit] = map(_ => ())
+
+  /**
+   * Runs the current IO, then runs the parameter, keeping its result.
+   * The result of the first action is ignored.
+   * If the source fails, the other action won't run.
+   * */
+  def *>[B](another: IO[B]): IO[B] = flatMap(_ => another)
+
+  /**
+   * Like [[*>]], but keeps the result of the source.
+   *
+   * For a similar method that also runs the parameter in case of failure or interruption, see [[guarantee]].
+   * */
+  def <*[B](another: IO[B]): IO[A] = flatMap(another.as(_))
+
+  /**
+   * Runs this IO and the parameter in parallel.
+   *
+   * Failure in either of the IOs will cancel the other one.
+   * If the whole computation is canceled, both actions are also canceled.
+   * */
+  def &>[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[B] =
+    p.parProductR(this)(another)
+
+  /**
+   * Like [[&>]], but keeps the result of the source.
+   * */
+  def <&[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[A] =
+    p.parProductL(this)(another)
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
@@ -1085,6 +1144,11 @@ object IO extends IOInstances {
   val never: IO[Nothing] = async(_ => ())
 
   /**
+   * An IO that contains an empty Option.
+   */
+  def none[A]: IO[Option[A]] = pure(None)
+
+  /**
    * Lifts an `Eval` into `IO`.
    *
    * This function will preserve the evaluation semantics of any
@@ -1297,6 +1361,14 @@ object IO extends IOInstances {
       case Right(a)  => pure(a)
       case Left(err) => raiseError(err)
     }
+
+  /**
+   * Lifts an `Option[A]` into the `IO[A]` context, raising the throwable if the option is empty.
+   */
+  def fromOption[A](option: Option[A])(orElse: => Throwable): IO[A] = option match {
+    case None        => raiseError(orElse)
+    case Some(value) => pure(value)
+  }
 
   /**
    * Lifts an `Try[A]` into the `IO[A]` context, raising the throwable if it

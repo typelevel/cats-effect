@@ -34,7 +34,6 @@ Usage example:
 
 ```scala mdoc:reset:silent
 import cats.effect.{ContextShift, IO}
-import cats.syntax.apply._
 
 import scala.concurrent.ExecutionContext
 

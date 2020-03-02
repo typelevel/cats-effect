@@ -18,7 +18,7 @@ abstract class Resource[F[_], A] {
 }
 ```
 
-Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner use or release fails.
+Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner acquisition, use or release fails.
 
 You can lift any `F[A]` with an `Applicative` instance into a `Resource[F, A]` with a no-op release via `Resource.liftF`:
 
@@ -34,7 +34,6 @@ Moreover it's possible to apply further effects to the wrapped resource without 
 
 ```scala mdoc:reset
 import cats.effect.{IO, Resource}
-import cats.implicits._
 
 val acquire: IO[String] = IO(println("Acquire cats...")) *> IO("cats")
 val release: String => IO[Unit] = _ => IO(println("...release everything"))
@@ -50,7 +49,6 @@ Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
 
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Resource}
-import cats.implicits._
 
 def mkResource(s: String) = {
   val acquire = IO(println(s"Acquiring $s")) *> IO.pure(s)
