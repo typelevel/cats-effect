@@ -93,6 +93,9 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelableRaceIsUncancelable[A](a: A) =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled(a))) <-> F.pure(a.asRight[Unit])
 
+  def uncancelableRacePollIsCancelable[A, B](a: A, b: B) =
+    F.uncancelable(p => F.race(p(F.canceled(a)), p(F.canceled(b)))) <-> F.canceled(Right(b))
+
   def uncancelableStartIsCancelable =
     F.uncancelable(_ => F.start(F.canceled(())).flatMap(_.join)) <-> F.pure(Outcome.Canceled)
 

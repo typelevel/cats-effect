@@ -100,6 +100,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "uncancelable cancelation cancels" -> laws.uncancelableCancelationCancels,
         "uncancelable of canceled is pure" -> forAll(laws.uncancelableOfCanceledIsPure[A] _),
         "uncancelable race is uncancelable" -> forAll(laws.uncancelableRaceIsUncancelable[A] _),
+        "uncancelable race poll is cancelable" -> forAll(laws.uncancelableRacePollIsCancelable[A, B] _),
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
 
         "canceled left-distributes over flatMap" -> forAll(laws.canceledDistributesOverFlatMapLeft[A] _))
