@@ -218,7 +218,7 @@ object playground {
         uncancelable { poll =>
           acquire flatMap { a =>
             val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled))
-            val handled = finalized.handleErrorWith(e => release(a, Outcome.Errored(e)).attempt >> raiseError(e))
+            val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
             handled.flatMap(b => release(a, Outcome.Completed(pure(b))).attempt.as(b))
           }
         }
@@ -516,7 +516,7 @@ object playground {
     private[playground] val popFinalizer: PureConc[E, Unit] =
       finalizers.tryTake flatMap {
         case Some(fs) => finalizers.put(fs.drop(1))
-        case None => ().pure[PureConc[E, ?]]   // this happens when we're being evaluated *as a finalizer* (in the traverse_ below) and we attempt to self-pop
+        case None => ().pure[PureConc[E, ?]]   // this happens when we're being evaluated *as a finalizer* (in the traverse_ above) and we attempt to self-pop
       }
 
     val cancel: PureConc[E, Unit] = state.tryPut(Outcome.Canceled).void

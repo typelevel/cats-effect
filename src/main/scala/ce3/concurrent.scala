@@ -56,13 +56,12 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Right((f, b)) => as(f.cancel, b.asRight[A])
     }
 
-  // we need to make both branches uncancelable to avoid needing to return F[Option[(A, B)]] here
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
-    flatMap(racePair(uncancelable(_ => fa), uncancelable(_ => fb))) {
+    flatMap(racePair(fa, fb)) {
       case Left((a, f)) =>
         flatMap(f.join) { c =>
           c.fold(
-            sys.error("impossible"),    // this could only happen if the right branch was canceled
+            flatMap(canceled(()))(_ => never),    // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
             e => raiseError[(A, B)](e),
             tupleLeft(_, a))
         }
@@ -70,7 +69,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Right((f, b)) =>
         flatMap(f.join) { c =>
           c.fold(
-            sys.error("impossible"),    // this could only happen if the left branch was canceled
+            flatMap(canceled(()))(_ => never),
             e => raiseError[(A, B)](e),
             tupleRight(_, b))
         }
