@@ -255,7 +255,7 @@ object playground {
         }
 
       def cede: PureConc[E, Unit] =
-        Thread.cede.void
+        Thread.cede
 
       def never[A]: PureConc[E, A] =
         Thread.done[A]

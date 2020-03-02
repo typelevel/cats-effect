@@ -30,7 +30,7 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % CatsVersion,
   "org.typelevel" %% "cats-free" % CatsVersion,
 
-  "com.codecommit" %% "coop" % "0.3-003539b",
+  "com.codecommit" %% "coop" % "0.4.0",
 
   "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
   "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
