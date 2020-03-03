@@ -39,6 +39,7 @@ final private[effect] class TrampolineEC private (underlying: ExecutionContext) 
 }
 
 private[effect] object TrampolineEC {
+
   /** [[TrampolineEC]] instance that executes everything
    * immediately, on the current call stack.
    */

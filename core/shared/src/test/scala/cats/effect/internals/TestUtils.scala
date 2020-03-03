@@ -25,6 +25,7 @@ import scala.util.control.NonFatal
  * INTERNAL API — test utilities.
  */
 trait TestUtils {
+
   /**
    * Silences `System.err`, only printing the output in case exceptions are
    * thrown by the executed `thunk`.

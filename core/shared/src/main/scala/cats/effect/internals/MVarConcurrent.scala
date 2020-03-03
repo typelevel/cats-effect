@@ -119,7 +119,8 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             F.map(streamPutAndReads(a, first, reads)) { _ =>
               onPut(rightUnit)
               F.unit
-            } else {
+            }
+          else {
             onPut(rightUnit)
             pureToken
           }
@@ -277,6 +278,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
 }
 
 private[effect] object MVarConcurrent {
+
   /** Builds an [[MVarConcurrent]] instance with an `initial` value. */
   def apply[F[_], A](initial: A)(implicit F: Concurrent[F]): MVar[F, A] =
     new MVarConcurrent[F, A](State(initial))

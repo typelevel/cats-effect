@@ -224,6 +224,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
 }
 
 private[effect] object MVarAsync {
+
   /** Builds an [[MVarAsync]] instance with an `initial` value. */
   def apply[F[_], A](initial: A)(implicit F: Async[F]): MVar[F, A] =
     new MVarAsync[F, A](State(initial))

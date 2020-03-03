@@ -197,6 +197,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Concurrent[F[_]] extends Async[F] {
+
   /**
    * Start concurrent execution of the source suspended in
    * the `F` context.
@@ -394,6 +395,7 @@ trait Concurrent[F[_]] extends Async[F] {
 }
 
 object Concurrent {
+
   /**
    * Lifts any `IO` value into any data type implementing [[Concurrent]].
    *

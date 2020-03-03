@@ -41,6 +41,7 @@ abstract private[effect] class IOFrame[-A, +R] extends (A => R) { self =>
 }
 
 private[effect] object IOFrame {
+
   /** [[IOFrame]] reference that only handles errors, useful for
    * quick filtering of `onErrorHandleWith` frames.
    */

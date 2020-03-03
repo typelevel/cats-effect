@@ -35,6 +35,7 @@ final private[internals] class IOContextShift private (ec: ExecutionContext) ext
 }
 
 private[effect] object IOContextShift {
+
   /** `ContextShift` builder. */
   def apply(ec: ExecutionContext): ContextShift[IO] =
     new IOContextShift(ec)

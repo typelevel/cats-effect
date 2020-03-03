@@ -96,11 +96,11 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
 
     val output = catchSystemErr {
       executeImmediate {
-        executeImmediate { effects += 1 }
-        executeImmediate { effects += 1 }
+        executeImmediate(effects += 1)
+        executeImmediate(effects += 1)
         executeImmediate {
-          executeImmediate { effects += 1 }
-          executeImmediate { effects += 1 }
+          executeImmediate(effects += 1)
+          executeImmediate(effects += 1)
           throw dummy2
         }
         throw dummy1

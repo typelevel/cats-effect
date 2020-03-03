@@ -30,11 +30,13 @@ import java.util.concurrent.{
 import scala.concurrent.ExecutionContext
 
 private[effect] trait IOAppCompanionPlatform {
+
   /**
    * Supports customization of the execution context and scheduler
    * used by an [[IOApp]]
    */
   trait WithContext extends IOApp {
+
     /**
      * Provides an execution context for this app to use as its main
      * thread pool.  This execution context is used by the implicit

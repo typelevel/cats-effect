@@ -38,6 +38,7 @@ import scala.concurrent.ExecutionContext
 * if using IO, use cats.effect.IOApp or build one with cats.effect.IO.contextShift
 """)
 trait ContextShift[F[_]] {
+
   /**
    * Asynchronous boundary described as an effectful `F[_]` that
    * can be used in `flatMap` chains to "shift" the continuation

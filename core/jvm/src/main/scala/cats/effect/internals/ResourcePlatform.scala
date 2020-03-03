@@ -22,6 +22,7 @@ import javax.security.auth.Destroyable
 
 /** JVM-specific Resource methods */
 private[effect] trait ResourcePlatform {
+
   /**
    * Creates a [[Resource]] by wrapping a Java
    * [[https://docs.oracle.com/javase/8/docs/api/javax/security/auth/Destroyable.html Destroyable]].

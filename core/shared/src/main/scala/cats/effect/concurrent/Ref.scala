@@ -40,6 +40,7 @@ import scala.annotation.tailrec
  * of a purely functional wrapper over an `AtomicReference`.
  */
 abstract class Ref[F[_], A] {
+
   /**
    * Obtains the current value.
    *
@@ -145,6 +146,7 @@ abstract class Ref[F[_], A] {
 }
 
 object Ref {
+
   /**
    * Builds a `Ref` value for data types that are [[Sync]]
    *
@@ -225,6 +227,7 @@ object Ref {
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
 
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
+
     /**
      * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
      *

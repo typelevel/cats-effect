@@ -32,6 +32,7 @@ import scala.annotation.tailrec
 abstract private[effect] class IOForkedStart[+A] extends Start[A]
 
 private[effect] object IOForkedStart {
+
   /**
    * Given a task, returns one that has a guaranteed
    * logical fork on execution.

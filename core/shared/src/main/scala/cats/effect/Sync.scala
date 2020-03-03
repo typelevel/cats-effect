@@ -29,6 +29,7 @@ import cats.instances.tuple._
  */
 @typeclass(excludeParents = List("Defer"))
 trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
+
   /**
    * Suspends the evaluation of an `F` reference.
    *
@@ -55,6 +56,7 @@ trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
 }
 
 object Sync {
+
   /**
    * [[Sync]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `Sync`.

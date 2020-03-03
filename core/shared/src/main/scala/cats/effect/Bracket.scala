@@ -31,6 +31,7 @@ import cats.data.Kleisli
  *         resource and that will provide the final result
  */
 trait Bracket[F[_], E] extends MonadError[F, E] {
+
   /**
    * A generalized version of [[bracket]] which uses [[ExitCase]]
    * to distinguish between different exit cases when releasing
@@ -182,6 +183,7 @@ trait Bracket[F[_], E] extends MonadError[F, E] {
 sealed abstract class ExitCase[+E] extends Product with Serializable
 
 object ExitCase {
+
   /**
    * An [[ExitCase]] that signals successful completion.
    *

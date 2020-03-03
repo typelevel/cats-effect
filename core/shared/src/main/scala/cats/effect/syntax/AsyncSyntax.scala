@@ -25,6 +25,7 @@ trait AsyncSyntax extends Async.ToAsyncOps {
 }
 
 final class AsyncObjOps[F[_]](private val F: Async[F]) extends AnyVal {
+
   /**
    * Like `Parallel.parTraverse`, but limits the degree of parallelism.
    */

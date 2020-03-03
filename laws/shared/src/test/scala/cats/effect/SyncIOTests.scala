@@ -43,7 +43,7 @@ class SyncIOTests extends BaseTestsSuite {
   test("catch exceptions within main block") {
     case object Foo extends Exception
 
-    val ioa = SyncIO { throw Foo }
+    val ioa = SyncIO(throw Foo)
 
     ioa.attempt.unsafeRunSync() should matchPattern {
       case Left(Foo) => ()
@@ -188,7 +188,7 @@ class SyncIOTests extends BaseTestsSuite {
 
   test("unsafeRunSync works for bracket") {
     var effect = 0
-    val io = SyncIO(1).bracket(x => SyncIO(x + 1))(_ => SyncIO { effect += 1 })
+    val io = SyncIO(1).bracket(x => SyncIO(x + 1))(_ => SyncIO(effect += 1))
     io.unsafeRunSync() shouldBe 2
     effect shouldBe 1
   }

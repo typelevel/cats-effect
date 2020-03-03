@@ -90,11 +90,11 @@ class FiberTests extends BaseTestsSuite {
     // Needs latches due to IO being auto-cancelable at async boundaries
     val latch1 = Promise[Unit]()
     val io1 = IO.cancelable[Int] { _ =>
-      latch1.success(()); IO { canceled += 1 }
+      latch1.success(()); IO(canceled += 1)
     }
     val latch2 = Promise[Unit]()
     val io2 = IO.cancelable[Int] { _ =>
-      latch2.success(()); IO { canceled += 1 }
+      latch2.success(()); IO(canceled += 1)
     }
 
     val f: IO[Unit] =

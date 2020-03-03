@@ -52,6 +52,7 @@ import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
  * }}}
  */
 trait IOApp {
+
   /**
    * Produces the `IO` to be run as an app.
    *

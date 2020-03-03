@@ -101,6 +101,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Async[F[_]] extends Sync[F] with LiftIO[F] {
+
   /**
    * Creates a simple, non-cancelable `F[A]` instance that
    * executes an asynchronous process on evaluation.
@@ -256,6 +257,7 @@ trait Async[F[_]] extends Sync[F] with LiftIO[F] {
 }
 
 object Async {
+
   /**
    * Returns an non-terminating `F[_]`, that never completes
    * with a result, being equivalent with `async(_ => ())`.
@@ -502,8 +504,8 @@ object Async {
     override def asyncF[A](
       k: (Either[Throwable, A] => Unit) => ReaderWriterStateT[F, E, L, S, Unit]
     ): ReaderWriterStateT[F, E, L, S, A] =
-      ReaderWriterStateT(
-        (e, s) => F.map(F.asyncF((cb: Either[Throwable, A] => Unit) => F.as(k(cb).run(e, s), ())))(a => (L.empty, s, a))
+      ReaderWriterStateT((e, s) =>
+        F.map(F.asyncF((cb: Either[Throwable, A] => Unit) => F.as(k(cb).run(e, s), ())))(a => (L.empty, s, a))
       )
 
     override def async[A](k: (Either[Throwable, A] => Unit) => Unit): ReaderWriterStateT[F, E, L, S, A] =

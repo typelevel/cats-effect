@@ -23,6 +23,7 @@ import scala.collection.mutable.ListBuffer
  * INTERNAL API - utilities for dealing with cancelable thunks.
  */
 private[effect] object CancelUtils {
+
   /**
    * Given a list of cancel tokens, cancels all, delaying all
    * exceptions until all references are canceled.

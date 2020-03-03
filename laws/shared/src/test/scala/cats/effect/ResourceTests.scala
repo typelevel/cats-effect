@@ -75,7 +75,7 @@ class ResourceTests extends BaseTestsSuite {
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
+        Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
       }
       observe(rx).combine(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
@@ -86,7 +86,7 @@ class ResourceTests extends BaseTestsSuite {
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
-        Resource.make(IO { acquired += a } *> IO.pure(a))(a => IO { released += a }).as(())
+        Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
       }
       observe(rx).combineK(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
       released <-> acquired
@@ -310,7 +310,7 @@ class ResourceTests extends BaseTestsSuite {
       override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
     }
     val plusOne = Kleisli { (i: Int) =>
-      IO { i + 1 }
+      IO(i + 1)
     }
     val plusOneResource = Resource.liftF(plusOne)
 
@@ -416,7 +416,7 @@ class ResourceTests extends BaseTestsSuite {
       _ <- Resource.make(wait(1) >> IO { leftAllocated = true }) { _ =>
         IO { leftReleasing = true } >> wait(1) >> IO { leftReleased = true }
       }
-      _ <- Resource.liftF { wait(1) >> IO.raiseError[Unit](new Exception) }
+      _ <- Resource.liftF(wait(1) >> IO.raiseError[Unit](new Exception))
     } yield ()
 
     val rhs = for {

@@ -57,6 +57,7 @@ final private[internals] class IOTimer private (ec: ExecutionContext, sc: Schedu
 }
 
 private[internals] object IOTimer {
+
   /** Builder. */
   def apply(ec: ExecutionContext): Timer[IO] =
     apply(ec, scheduler)

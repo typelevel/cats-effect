@@ -34,6 +34,7 @@ import scala.concurrent.Promise
  * implementation of `StackedCancelable` from the Monix library.
  */
 sealed abstract private[effect] class IOConnection {
+
   /**
    * Cancels the unit of work represented by this reference.
    *
@@ -74,6 +75,7 @@ sealed abstract private[effect] class IOConnection {
 }
 
 private[effect] object IOConnection {
+
   /** Builder for [[IOConnection]]. */
   def apply(): IOConnection =
     new Impl

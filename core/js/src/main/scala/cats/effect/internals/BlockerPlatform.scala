@@ -20,6 +20,7 @@ package internals
 import scala.concurrent.ExecutionContext
 
 private[effect] trait BlockerPlatform {
+
   /** Blocker that delegates to the global execution context. */
   lazy val global: Blocker = liftExecutionContext(ExecutionContext.Implicits.global)
 

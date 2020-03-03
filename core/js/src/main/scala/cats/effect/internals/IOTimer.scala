@@ -46,6 +46,7 @@ final private[internals] class IOTimer(ec: ExecutionContext) extends Timer[IO] {
  * Internal API
  */
 private[internals] object IOTimer {
+
   /**
    * Globally available implementation.
    */

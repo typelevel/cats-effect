@@ -25,8 +25,8 @@ import org.scalatest.funsuite.AsyncFunSuite
 class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
   test("exits with specified code") {
     IOAppPlatform
-      .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(
-        _ => IO.pure(ExitCode(42))
+      .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ =>
+        IO.pure(ExitCode(42))
       )
       .flatMap(_.join)
       .unsafeToFuture()
@@ -35,8 +35,8 @@ class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
 
   test("accepts arguments") {
     IOAppPlatform
-      .mainFiber(Array("1", "2", "3"), Eval.now(implicitly), Eval.now(implicitly))(
-        args => IO.pure(ExitCode(args.mkString.toInt))
+      .mainFiber(Array("1", "2", "3"), Eval.now(implicitly), Eval.now(implicitly))(args =>
+        IO.pure(ExitCode(args.mkString.toInt))
       )
       .flatMap(_.join)
       .unsafeToFuture()

@@ -40,6 +40,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
+
   /**
    * Evaluates `F[_]` with the ability to cancel it.
    *
@@ -61,6 +62,7 @@ trait ConcurrentEffect[F[_]] extends Concurrent[F] with Effect[F] {
 }
 
 object ConcurrentEffect {
+
   /**
    * [[ConcurrentEffect.toIO]] default implementation, derived from
    * [[ConcurrentEffect.runCancelable]].

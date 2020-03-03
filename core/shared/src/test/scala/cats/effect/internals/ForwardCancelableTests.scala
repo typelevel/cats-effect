@@ -25,7 +25,7 @@ class ForwardCancelableTests extends AnyFunSuite with Matchers {
     var effect = 0
 
     val ref = ForwardCancelable()
-    ref.complete(IO { effect += 1 })
+    ref.complete(IO(effect += 1))
     effect shouldBe 0
 
     ref.cancel.unsafeRunAsyncAndForget()
@@ -43,10 +43,10 @@ class ForwardCancelableTests extends AnyFunSuite with Matchers {
     ref.cancel.unsafeRunAsyncAndForget()
     effect shouldBe 0
 
-    ref.complete(IO { effect += 1 })
+    ref.complete(IO(effect += 1))
     effect shouldBe 1
 
-    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
+    intercept[IllegalStateException](ref.complete(IO(effect += 2)))
     // completed task was canceled before error was thrown
     effect shouldBe 3
 
@@ -58,10 +58,10 @@ class ForwardCancelableTests extends AnyFunSuite with Matchers {
     var effect = 0
 
     val ref = ForwardCancelable()
-    ref.complete(IO { effect += 1 })
+    ref.complete(IO(effect += 1))
     effect shouldBe 0
 
-    intercept[IllegalStateException] { ref.complete(IO { effect += 2 }) }
+    intercept[IllegalStateException](ref.complete(IO(effect += 2)))
     effect shouldBe 2
 
     ref.cancel.unsafeRunAsyncAndForget()

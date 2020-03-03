@@ -32,6 +32,7 @@ trait LiftIO[F[_]] {
 }
 
 object LiftIO {
+
   /**
    * [[LiftIO.liftIO]] as a natural transformation.
    */

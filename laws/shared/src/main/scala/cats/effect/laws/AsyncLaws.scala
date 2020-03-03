@@ -66,7 +66,7 @@ trait AsyncLaws[F[_]] extends SyncLaws[F] {
     F.suspend {
       var cur = a
       val change = F.delay { cur = f(cur) }
-      val readResult = F.delay { cur }
+      val readResult = F.delay(cur)
 
       val double: F[Unit] = F.async { cb =>
         cb(Right(()))

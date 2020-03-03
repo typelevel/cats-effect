@@ -26,6 +26,7 @@ import cats.data.{EitherT, WriterT}
  */
 @typeclass
 trait SyncEffect[F[_]] extends Sync[F] {
+
   /**
    * Convert to any other type that implements `Sync`.
    */
@@ -40,6 +41,7 @@ trait SyncEffect[F[_]] extends Sync[F] {
 }
 
 object SyncEffect {
+
   /**
    * [[SyncEffect]] instance built for `cats.data.EitherT` values initialized
    * with any `F` data type that also implements `SyncEffect`.
