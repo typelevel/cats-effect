@@ -41,6 +41,7 @@ Building this implicit value might depend on having an implicit
 s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
 or some equivalent type.""")
 trait Effect[F[_]] extends Async[F] {
+
   /**
    * Evaluates `F[_]`, with the effect of starting the run-loop
    * being suspended in the `SyncIO` context.
@@ -63,6 +64,7 @@ trait Effect[F[_]] extends Async[F] {
 }
 
 object Effect {
+
   /**
    * [[Effect.toIO]] default implementation, derived from [[Effect.runAsync]].
    */

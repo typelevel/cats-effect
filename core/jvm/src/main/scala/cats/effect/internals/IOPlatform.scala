@@ -23,6 +23,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Either, Try}
 
 private[effect] object IOPlatform {
+
   /**
    * JVM-specific function that blocks for the result of an IO task.
    *

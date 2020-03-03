@@ -34,6 +34,7 @@ import cats.effect.internals.IOPlatform
 final case class Parameters(stackSafeIterationsCount: Int, allowNonTerminationLaws: Boolean)
 
 object Parameters {
+
   /** Default parameters. */
   implicit val default: Parameters =
     Parameters(allowNonTerminationLaws = true, stackSafeIterationsCount = {

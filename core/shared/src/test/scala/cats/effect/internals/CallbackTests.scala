@@ -54,7 +54,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
-    val cb = Callback.async(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
+    val cb = Callback.async(conn, (r: Either[Throwable, Int]) => result = Some(r))
     result shouldBe None
 
     cb(Right(100))
@@ -78,7 +78,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     conn.push(ref)
 
     var result = Option.empty[Either[Throwable, Int]]
-    val cb = Callback.asyncIdempotent(conn, (r: Either[Throwable, Int]) => { result = Some(r) })
+    val cb = Callback.asyncIdempotent(conn, (r: Either[Throwable, Int]) => result = Some(r))
     result shouldBe None
 
     cb(Right(100))

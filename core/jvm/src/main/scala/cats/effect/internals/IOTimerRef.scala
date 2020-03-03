@@ -24,6 +24,7 @@ import scala.concurrent.ExecutionContext
  * Internal API — gets mixed-in the `IO` companion object.
  */
 private[effect] trait IOTimerRef {
+
   /**
    * Returns a [[Timer]] instance for [[IO]], built from a
    * Scala `ExecutionContext`.

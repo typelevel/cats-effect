@@ -25,6 +25,7 @@ import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
+
   /**
    * Implementation for `IO.bracketCase`.
    */
@@ -80,8 +81,9 @@ private[effect] object IOBracket {
         // Check if IO wasn't already cancelled in acquire
         if (!conn.isCanceled) {
           val onNext = {
-            val fb = try use(a)
-            catch { case NonFatal(e) => IO.raiseError(e) }
+            val fb =
+              try use(a)
+              catch { case NonFatal(e) => IO.raiseError(e) }
             fb.flatMap(frame)
           }
           // Actual execution

@@ -344,6 +344,7 @@ final class TestContext private () extends ExecutionContext { self =>
 }
 
 object TestContext {
+
   /** Builder for [[TestContext]] instances. */
   def apply(): TestContext =
     new TestContext

@@ -21,6 +21,7 @@ import cats.effect.IO
 import scala.concurrent.ExecutionContext
 
 private[effect] object IOShift {
+
   /** Implementation for `IO.shift`. */
   def apply(ec: ExecutionContext): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {

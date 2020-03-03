@@ -17,6 +17,7 @@
 package cats
 
 package object effect {
+
   /**
    * A cancelation token is an effectful action that is
    * able to cancel a running task.

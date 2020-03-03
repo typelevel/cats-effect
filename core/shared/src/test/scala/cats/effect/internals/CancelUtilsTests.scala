@@ -40,7 +40,7 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
 
     val io = CancelUtils.cancelAll(
       IO { wasCanceled1 = true },
-      IO { throw dummy },
+      IO(throw dummy),
       IO { wasCanceled2 = true }
     )
 
@@ -62,8 +62,8 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
 
     val io = CancelUtils.cancelAll(
       IO { wasCanceled1 = true },
-      IO { throw dummy1 },
-      IO { throw dummy2 },
+      IO(throw dummy1),
+      IO(throw dummy2),
       IO { wasCanceled2 = true }
     )
 

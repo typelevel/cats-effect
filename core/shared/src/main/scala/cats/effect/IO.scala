@@ -723,6 +723,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
+
   /**
    * Newtype encoding for an `IO` datatype that has a `cats.Applicative`
    * capable of doing parallel processing in `ap` and `map2`, needed
@@ -750,8 +751,8 @@ abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef wi
 
     override def alignWith[A, B, C](fa: IO.Par[A], fb: IO.Par[B])(f: Ior[A, B] => C): IO.Par[C] =
       par(
-        IOParMap(cs, unwrap(fa).attempt, unwrap(fb).attempt)(
-          (ea, eb) => cats.instances.either.catsStdInstancesForEither.alignWith(ea, eb)(f)
+        IOParMap(cs, unwrap(fa).attempt, unwrap(fb).attempt)((ea, eb) =>
+          cats.instances.either.catsStdInstancesForEither.alignWith(ea, eb)(f)
         ).flatMap(IO.fromEither)
       )
 
@@ -1036,6 +1037,7 @@ abstract private[effect] class IOInstances extends IOLowPriorityInstances {
  *          control over the thread pool used.
  */
 object IO extends IOInstances {
+
   /**
    * Suspends a synchronous side effect in `IO`.
    *

@@ -295,6 +295,7 @@ sealed abstract class Resource[+F[_], +A] {
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
+
   /**
    * Creates a resource from an allocating effect.
    *

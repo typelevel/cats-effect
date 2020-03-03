@@ -320,6 +320,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
 }
 
 object SyncIO extends SyncIOInstances {
+
   /**
    * Suspends a synchronous side effect in `SyncIO`.
    *

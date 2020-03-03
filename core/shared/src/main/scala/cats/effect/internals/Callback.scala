@@ -93,6 +93,7 @@ private[effect] object Callback {
 
   /** Helpers async callbacks. */
   implicit final class Extensions[-A](val self: T[A]) extends AnyVal {
+
     /**
      * Executes the source callback with a light (trampolined) async
      * boundary, meant to protect against stack overflows.

@@ -106,9 +106,10 @@ class InstancesTests extends BaseTestsSuite {
   checkAllAsync(
     "ReaderWriterStateT[IO, S, *]",
     implicit ec => {
-      val fromReaderWriterState = λ[ReaderWriterState[Int, Int, Int, *] ~> ReaderWriterStateT[IO, Int, Int, Int, *]](
-        st => ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value))
-      )
+      val fromReaderWriterState =
+        λ[ReaderWriterState[Int, Int, Int, *] ~> ReaderWriterStateT[IO, Int, Int, Int, *]](st =>
+          ReaderWriterStateT((e, s) => IO.pure(st.run(e, s).value))
+        )
       BracketTests[ReaderWriterStateT[IO, Int, Int, Int, *], Throwable]
         .bracketTrans[ReaderWriterState[Int, Int, Int, *], Int, Int](fromReaderWriterState)
     }

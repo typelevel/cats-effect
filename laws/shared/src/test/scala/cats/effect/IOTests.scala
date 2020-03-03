@@ -120,7 +120,7 @@ class IOTests extends BaseTestsSuite {
   test("catch exceptions within main block") {
     case object Foo extends Exception
 
-    val ioa = IO { throw Foo }
+    val ioa = IO(throw Foo)
 
     ioa.attempt.unsafeRunSync() should matchPattern {
       case Left(Foo) => ()
@@ -494,7 +494,7 @@ class IOTests extends BaseTestsSuite {
     class DummyException extends RuntimeException("dummy")
     val dummy = new DummyException
     val err = IO.raiseError(dummy)
-    intercept[DummyException] { err.unsafeRunTimed(Duration.Inf) }
+    intercept[DummyException](err.unsafeRunTimed(Duration.Inf))
   }
 
   test("unsafeRunTimed on flatMap chain") {
@@ -753,7 +753,7 @@ class IOTests extends BaseTestsSuite {
 
   test("unsafeRunSync works for bracket") {
     var effect = 0
-    val io = IO(1).bracket(x => IO(x + 1))(_ => IO { effect += 1 })
+    val io = IO(1).bracket(x => IO(x + 1))(_ => IO(effect += 1))
     io.unsafeRunSync() shouldBe 2
     effect shouldBe 1
   }
@@ -790,12 +790,11 @@ class IOTests extends BaseTestsSuite {
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
     val init = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)(
-      (acc, t) =>
-        IO.racePair(acc, t).map {
-          case Left((l, _))  => l
-          case Right((_, r)) => r
-        }
+    val sum = tasks.foldLeft(init)((acc, t) =>
+      IO.racePair(acc, t).map {
+        case Left((l, _))  => l
+        case Right((_, r)) => r
+      }
     )
 
     val f = sum.unsafeToFuture()
@@ -810,12 +809,11 @@ class IOTests extends BaseTestsSuite {
     val tasks = (0 until count).map(_ => IO(1))
     val init = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)(
-      (acc, t) =>
-        IO.racePair(acc, t).map {
-          case Left((l, _))  => l
-          case Right((_, r)) => r
-        }
+    val sum = tasks.foldLeft(init)((acc, t) =>
+      IO.racePair(acc, t).map {
+        case Left((l, _))  => l
+        case Right((_, r)) => r
+      }
     )
 
     val f = sum.unsafeToFuture()
@@ -830,12 +828,11 @@ class IOTests extends BaseTestsSuite {
     val p = Promise[Int]()
 
     val tasks = (0 until count).map(_ => IO.never: IO[Int])
-    val all = tasks.foldLeft(IO.never: IO[Int])(
-      (acc, t) =>
-        IO.racePair(acc, t).flatMap {
-          case Left((l, fr))  => fr.cancel.map(_ => l)
-          case Right((fl, r)) => fl.cancel.map(_ => r)
-        }
+    val all = tasks.foldLeft(IO.never: IO[Int])((acc, t) =>
+      IO.racePair(acc, t).flatMap {
+        case Left((l, fr))  => fr.cancel.map(_ => l)
+        case Right((fl, r)) => fl.cancel.map(_ => r)
+      }
     )
 
     val f = IO
@@ -878,12 +875,11 @@ class IOTests extends BaseTestsSuite {
     val tasks = (0 until count).map(_ => IO.shift *> IO(1))
     val init = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)(
-      (acc, t) =>
-        IO.race(acc, t).map {
-          case Left(l)  => l
-          case Right(r) => r
-        }
+    val sum = tasks.foldLeft(init)((acc, t) =>
+      IO.race(acc, t).map {
+        case Left(l)  => l
+        case Right(r) => r
+      }
     )
 
     val f = sum.unsafeToFuture()
@@ -898,12 +894,11 @@ class IOTests extends BaseTestsSuite {
     val tasks = (0 until count).map(_ => IO(1))
     val init = IO.never: IO[Int]
 
-    val sum = tasks.foldLeft(init)(
-      (acc, t) =>
-        IO.race(acc, t).map {
-          case Left(l)  => l
-          case Right(r) => r
-        }
+    val sum = tasks.foldLeft(init)((acc, t) =>
+      IO.race(acc, t).map {
+        case Left(l)  => l
+        case Right(r) => r
+      }
     )
 
     val f = sum.unsafeToFuture()
@@ -918,12 +913,11 @@ class IOTests extends BaseTestsSuite {
     val p = Promise[Int]()
 
     val tasks = (0 until count).map(_ => IO.never: IO[Int])
-    val all = tasks.foldLeft(IO.never: IO[Int])(
-      (acc, t) =>
-        IO.race(acc, t).map {
-          case Left(l)  => l
-          case Right(r) => r
-        }
+    val all = tasks.foldLeft(IO.never: IO[Int])((acc, t) =>
+      IO.race(acc, t).map {
+        case Left(l)  => l
+        case Right(r) => r
+      }
     )
 
     val f = IO
@@ -1133,9 +1127,7 @@ class IOTests extends BaseTestsSuite {
     val fa = for {
       pa <- Deferred[IO, Unit]
       fibA <- IO.unit
-        .bracket(
-          _ => IO.unit.guarantee(pa.complete(()) >> IO.sleep(2.second))
-        )(_ => IO.unit)
+        .bracket(_ => IO.unit.guarantee(pa.complete(()) >> IO.sleep(2.second)))(_ => IO.unit)
         .start
       _ <- pa.get
       _ <- fibA.cancel
@@ -1157,9 +1149,7 @@ class IOTests extends BaseTestsSuite {
     val fa = for {
       pa <- Deferred[IO, Unit]
       fiber <- IO.unit
-        .bracket(
-          _ => (pa.complete(()) >> IO.never).guarantee(IO.sleep(2.second))
-        )(_ => IO.unit)
+        .bracket(_ => (pa.complete(()) >> IO.never).guarantee(IO.sleep(2.second)))(_ => IO.unit)
         .start
       _ <- pa.get
       _ <- IO.race(fiber.cancel, fiber.cancel)
@@ -1240,6 +1230,7 @@ class IOTests extends BaseTestsSuite {
 }
 
 object IOTests {
+
   /** Implementation for testing default methods. */
   val ioEffectDefaults = new IODefaults
 

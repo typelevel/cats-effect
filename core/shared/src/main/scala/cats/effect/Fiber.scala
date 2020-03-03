@@ -53,6 +53,7 @@ import cats.{~>, Applicative, Apply, Monoid, Semigroup}
  * }}}
  */
 trait Fiber[F[_], A] {
+
   /**
    * Triggers the cancellation of the fiber.
    *
@@ -76,6 +77,7 @@ trait Fiber[F[_], A] {
 }
 
 object Fiber extends FiberInstances {
+
   /**
    * Given a `join` and `cancel` tuple, builds a [[Fiber]] value.
    */
@@ -85,6 +87,7 @@ object Fiber extends FiberInstances {
   final private case class Tuple[F[_], A](join: F[A], cancel: CancelToken[F]) extends Fiber[F, A]
 
   implicit class FiberOps[F[_], A](val self: Fiber[F, A]) extends AnyVal {
+
     /**
      * Modify the context `F` using transformation `f`.
      */

@@ -107,12 +107,10 @@ class RefTests extends AsyncFunSuite with Matchers {
 
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.tryUpdate(
-        currentValue => {
-          updateRefUnsafely(r)
-          currentValue + 1
-        }
-      )
+      result <- r.tryUpdate { currentValue =>
+        updateRefUnsafely(r)
+        currentValue + 1
+      }
     } yield result
 
     run(op.map(_ shouldBe false).void)

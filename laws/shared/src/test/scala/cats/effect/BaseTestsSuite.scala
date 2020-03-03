@@ -33,6 +33,7 @@ class BaseTestsSuite
     with FunSuiteDiscipline
     with TestInstances
     with TestUtils {
+
   /** For tests that need a usable [[TestContext]] reference. */
   def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)(implicit pos: source.Position): Unit =
     // Overriding System.err

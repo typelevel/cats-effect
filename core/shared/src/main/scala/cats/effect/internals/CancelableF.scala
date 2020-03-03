@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.Either
 
 private[effect] object CancelableF {
+
   /**
    * Implementation for [[Concurrent.cancelableF]].
    */

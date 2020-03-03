@@ -33,12 +33,14 @@ final class CompositeException(val head: Throwable, val tail: NonEmptyList[Throw
       s"Multiple exceptions were thrown (${1 + tail.size}), first ${head.getClass.getName}: ${head.getMessage}"
     )
     with Serializable {
+
   /** Returns the set of all errors wrapped by this composite. */
   def all: NonEmptyList[Throwable] =
     head :: tail
 }
 
 object CompositeException {
+
   /** Simple builder for [[CompositeException]]. */
   def apply(first: Throwable, second: Throwable, rest: List[Throwable] = Nil): CompositeException =
     new CompositeException(first, NonEmptyList(second, rest))

@@ -45,6 +45,7 @@ private[effect] trait IOBinaryCompat[+A] { self: IO[A] =>
 }
 
 private[effect] trait IOCompanionBinaryCompat {
+
   /**
    * DEPRECATED — the `ec` parameter is gone.
    *

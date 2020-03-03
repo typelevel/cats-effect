@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.util.control.NonFatal
 
 private[effect] object IOParMap {
+
   /**
    * Implementation for `parMap2`.
    */
@@ -43,6 +44,7 @@ private[effect] object IOParMap {
                                               conn: IOConnection,
                                               cb: Callback.T[C])
       extends Runnable {
+
     /**
      * State synchronized by an atomic reference. Possible values:
      *

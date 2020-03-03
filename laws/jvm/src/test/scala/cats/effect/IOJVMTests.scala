@@ -42,7 +42,7 @@ class IOJVMTests extends AnyFunSuite with Matchers {
   }
 
   test("shift contiguous prefix and suffix, but not interfix") {
-    val name: IO[String] = IO { Thread.currentThread().getName }
+    val name: IO[String] = IO(Thread.currentThread().getName)
 
     val aname: IO[String] = IO.async { cb =>
       new Thread {

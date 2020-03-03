@@ -93,8 +93,9 @@ private[effect] object IORunLoop {
           }
 
         case Suspend(thunk) =>
-          currentIO = try thunk()
-          catch { case NonFatal(ex) => RaiseError(ex) }
+          currentIO =
+            try thunk()
+            catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
@@ -102,8 +103,9 @@ private[effect] object IORunLoop {
               cb(Left(ex))
               return
             case bind =>
-              val fa = try bind.recover(ex)
-              catch { case NonFatal(e) => RaiseError(e) }
+              val fa =
+                try bind.recover(ex)
+                catch { case NonFatal(e) => RaiseError(e) }
               bFirst = null
               currentIO = fa
           }
@@ -139,8 +141,9 @@ private[effect] object IORunLoop {
             cb(Right(unboxed))
             return
           case bind =>
-            val fa = try bind(unboxed)
-            catch { case NonFatal(ex) => RaiseError(ex) }
+            val fa =
+              try bind(unboxed)
+              catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -196,17 +199,19 @@ private[effect] object IORunLoop {
           }
 
         case Suspend(thunk) =>
-          currentIO = try {
-            thunk()
-          } catch { case NonFatal(ex) => RaiseError(ex) }
+          currentIO =
+            try {
+              thunk()
+            } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
             case bind =>
-              val fa = try bind.recover(ex)
-              catch { case NonFatal(e) => RaiseError(e) }
+              val fa =
+                try bind.recover(ex)
+                catch { case NonFatal(e) => RaiseError(e) }
               bFirst = null
               currentIO = fa
           }
@@ -235,8 +240,9 @@ private[effect] object IORunLoop {
             return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
-            currentIO = try bind(unboxed)
-            catch { case NonFatal(ex) => RaiseError(ex) }
+            currentIO =
+              try bind(unboxed)
+              catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
@@ -256,7 +262,8 @@ private[effect] object IORunLoop {
     if (bFirst != null || (bRest != null && !bRest.isEmpty))
       Async { (conn, cb) =>
         loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
-      } else
+      }
+    else
       currentIO
 
   /**

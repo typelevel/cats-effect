@@ -21,6 +21,7 @@ import cats.effect.IO
 import scala.concurrent.duration.Duration
 
 private[effect] object IOPlatform {
+
   /**
    * Javascript specific function that should block for the result
    * of an IO task, unfortunately blocking is not possible for JS,
