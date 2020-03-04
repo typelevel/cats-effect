@@ -56,6 +56,8 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
       EqFEitherAB: Eq[F[Either[A, B]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
+      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
+      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],

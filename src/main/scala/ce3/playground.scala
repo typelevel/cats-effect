@@ -249,7 +249,7 @@ object playground {
           if (ctx.masks.isEmpty)
             ctx.self.cancel >> ctx.self.runFinalizers >> Thread.done
           else
-            pure(fallback)
+            ctx.self.cancel.as(fallback)
         }
 
       def cede: PureConc[E, Unit] =
@@ -298,33 +298,34 @@ object playground {
             cancelVar = cancelVar0[PureConc[E, ?]]
             errorVar = errorVar0[PureConc[E, ?]]
 
+            completeWithError = (e: E) => results.tryPut(Outcome.Errored(e)).void    // last wins
+            completeWithCancel = results.tryPut(Outcome.Canceled).void
+
             cancelReg = cancelVar.tryRead flatMap {
               case Some(_) =>
-                results.tryPut(Outcome.Canceled).void   // the other one has canceled, so cancel the whole
+                completeWithCancel   // the other one has canceled, so cancel the whole
 
               case None =>
                 cancelVar.tryPut(()).ifM(   // we're the first to cancel
                   errorVar.tryRead flatMap {
-                    case Some(e) => results.tryPut(Outcome.Errored(e)).void   // ...because the other one errored, so use that error
-                    case None => unit                                 // ...because the other one is still in progress
+                    case Some(e) => completeWithError(e)   // ...because the other one errored, so use that error
+                    case None => unit                      // ...because the other one is still in progress
                   },
-                  results.tryPut(Outcome.Canceled).void)      // race condition happened and both are now canceled
+                  completeWithCancel)      // race condition happened and both are now canceled
             }
 
             errorReg = { (e: E) =>
-              val completeWithError = results.tryPut(Outcome.Errored(e)).void    // last wins
-
               errorVar.tryRead flatMap {
                 case Some(_) =>
-                  completeWithError   // both have errored, use the last one (ours)
+                  completeWithError(e)   // both have errored, use the last one (ours)
 
                 case None =>
                   errorVar.tryPut(e).ifM(   // we were the first to error
                     cancelVar.tryRead flatMap {
-                      case Some(_) => completeWithError   // ...because the other one canceled, so use ours
-                      case None => unit                   // ...because the other one is still in progress
+                      case Some(_) => completeWithError(e)   // ...because the other one canceled, so use ours
+                      case None => unit                      // ...because the other one is still in progress
                     },
-                    completeWithError)      // both have errored, there was a race condition, and we were the loser (use our error)
+                    completeWithError(e))      // both have errored, there was a race condition, and we were the loser (use our error)
               }
             }
 
@@ -333,11 +334,14 @@ object playground {
             fa2 = withCtx { (ctx2: FiberCtx[E]) =>
               val body = bracketCase(unit)(_ => fa) {
                 case (_, Outcome.Completed(fa)) =>
-                  for {
-                    a <- fa
-                    fiberB <- fiberBVar.read
-                    _ <- results.tryPut(Outcome.Completed[Id, Result](Left((a, fiberB))))
-                  } yield ()
+                  // we need to do special magic to make cancelation distribute over race analogously to uncancelable
+                  ctx2.self.canceled.ifM(
+                    cancelReg,
+                    for {
+                      a <- fa
+                      fiberB <- fiberBVar.read
+                      _ <- results.tryPut(Outcome.Completed[Id, Result](Left((a, fiberB))))
+                    } yield ())
 
                 case (_, Outcome.Errored(e)) =>
                   errorReg(e)
@@ -352,11 +356,14 @@ object playground {
             fb2 = withCtx { (ctx2: FiberCtx[E]) =>
               val body = bracketCase(unit)(_ => fb) {
                 case (_, Outcome.Completed(fb)) =>
-                  for {
-                    b <- fb
-                    fiberA <- fiberAVar.read
-                    _ <- results.tryPut(Outcome.Completed[Id, Result](Right((fiberA, b))))
-                  } yield ()
+                  // we need to do special magic to make cancelation distribute over race analogously to uncancelable
+                  ctx2.self.canceled.ifM(
+                    cancelReg,
+                    for {
+                      b <- fb
+                      fiberA <- fiberAVar.read
+                      _ <- results.tryPut(Outcome.Completed[Id, Result](Right((fiberA, b))))
+                    } yield ())
 
                 case (_, Outcome.Errored(e)) =>
                   errorReg(e)
@@ -371,7 +378,7 @@ object playground {
             back <- uncancelable { poll =>
               for {
                 // note that we're uncancelable here, but we captured the masks *earlier* so we forward those along, ignoring this one
-                fiberA <- start(fa2)    // NB: inverting these two makes the law pass
+                fiberA <- start(fa2)
                 fiberB <- start(fb2)
 
                 _ <- fiberAVar.put(fiberA)
@@ -400,9 +407,7 @@ object playground {
                    * that they were similarly polled here.
                    */
                   case Outcome.Canceled =>
-                    // this will only be hit if the implementation of canceled is broken and it somehow uses the fallback even when masks == Nil
-                    def err: PureConc[E, Result] = sys.error("impossible")
-                    localCtx(ctx.copy(masks = Nil), canceled(()) >> err)
+                    localCtx(ctx.copy(masks = Nil), canceled(()) >> never[Result])
                 }
               } yield back
             }
@@ -430,13 +435,23 @@ object playground {
         val poll = λ[PureConc[E, ?] ~> PureConc[E, ?]] { fa =>
           withCtx { ctx =>
             val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask ===))
-            localCtx(ctx2, fa)
+
+            // we need to explicitly catch and suppress errors here to allow cancelation to dominate
+            val handled = fa handleErrorWith { e =>
+              ctx.self.canceled.ifM(
+                never,   // if we're canceled, convert errors into non-termination (we're canceling anyway)
+                raiseError(e))
+            }
+
+            localCtx(ctx2, handled)
           }
         }
 
         withCtx { ctx =>
           val ctx2 = ctx.copy(masks = mask :: ctx.masks)
-          localCtx(ctx2, body(poll))
+
+          localCtx(ctx2, body(poll)) <*
+            ctx.self.canceled.ifM(canceled(()), unit)   // double-check cancelation whenever we exit a block
         }
       }
 
@@ -498,11 +513,8 @@ object playground {
           runFinalizers.as(true),
           // if unmasked but not canceled, ignore
           false.pure[PureConc[E, ?]]),
-        // if masked, suppress any cancelation state
-        state.tryRead flatMap {
-          case Some(Outcome.Canceled) => state.take.as(false)    // remove the cancelation state
-          case _ => false.pure[PureConc[E, ?]]
-        })
+        // if masked, ignore cancelation state but retain until unmasked
+        false.pure[PureConc[E, ?]])
     }
 
     private[playground] val runFinalizers: PureConc[E, Unit] =
