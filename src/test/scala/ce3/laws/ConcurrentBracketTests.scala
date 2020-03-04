@@ -81,7 +81,8 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
 
       val props = Seq(
         // "bracket canceled releases" -> forAll(laws.bracketCanceledReleases[A, B] _),
-        "bracket uncancelable flatMap identity" -> forAll(laws.bracketUncancelableFlatMapIdentity[A, B] _))
+        "bracket uncancelable flatMap identity" -> forAll(laws.bracketUncancelableFlatMapIdentity[A, B] _),
+        "onCase shape-consistent with join" -> forAll(laws.onCaseShapeConsistentWithJoin[A] _))
     }
   }
 }

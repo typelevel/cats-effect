@@ -46,8 +46,26 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
     F.bracketCase(acq)(use)(release) <-> identity
   }
 
-  // TODO cancel a fiber in uncancelable still cancels
-  // TODO cancel a fiber in a bracket body which errors
+  def onCaseShapeConsistentWithJoin[A](fa: F[A], handler: F[Unit]) = {
+    val started = F.start(fa).flatMap(_.join) flatMap {
+      case Outcome.Completed(_) =>
+        F.onCase(fa, handler) {
+          case Outcome.Completed(_) => true
+          case _ => false
+        }
+
+      case Outcome.Errored(_) =>
+        F.onCase(fa, handler) {
+          case Outcome.Errored(_) => true
+          case _ => false
+        }
+
+      case Outcome.Canceled =>
+        F.onCase(fa, handler)(Outcome.Canceled ==)
+    }
+
+    started <-> (fa.attempt <* F.uncancelable(_ => handler.attempt)).rethrow
+  }
 }
 
 object ConcurrentBracketLaws {
