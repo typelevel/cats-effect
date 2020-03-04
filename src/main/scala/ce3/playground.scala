@@ -61,10 +61,8 @@ object playground {
     val cancelationCheck = new (FiberR[E, ?] ~> PureConc[E, ?]) {
       def apply[α](ka: FiberR[E, α]): PureConc[E, α] = {
         val back = Kleisli.ask[IdOC[E, ?], FiberCtx[E]] map { ctx =>
-          val checker = ctx.self.canceled.ifM(
-            ctx.self.realizeCancelation.ifM(
-              ApplicativeThread[PureConc[E, ?]].done,
-              ().pure[PureConc[E, ?]]),
+          val checker = ctx.self.realizeCancelation.ifM(
+            ApplicativeThread[PureConc[E, ?]].done,
             ().pure[PureConc[E, ?]])
 
           checker >> mvarLiftF(ThreadT.liftF(ka))
