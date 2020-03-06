@@ -243,23 +243,26 @@ sealed abstract class Resource[+F[_], +A] {
    * resource.
    *
    */
-  def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
+  def allocatedCase[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, ExitCase[Throwable] => G[Unit])] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
+    def continue(current: Resource[G, Any],
+                 stack: List[Any => Resource[G, Any]],
+                 release: ExitCase[Throwable] => G[Unit]): G[(Any, ExitCase[Throwable] => G[Unit])] =
       loop(current, stack, release)
 
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
     @tailrec def loop(current: Resource[G, Any],
                       stack: List[Any => Resource[G, Any]],
-                      release: G[Unit]): G[(Any, G[Unit])] =
+                      release: ExitCase[Throwable] => G[Unit]): G[(Any, ExitCase[Throwable] => G[Unit])] =
       current match {
         case a: Allocate[G, Any] =>
           F.bracketCase(a.resource) {
             case (a, rel) =>
               stack match {
-                case Nil => F.pure(a -> F.guarantee(rel(ExitCase.Completed))(release))
-                case l   => continue(l.head(a), l.tail, F.guarantee(rel(ExitCase.Completed))(release))
+                case Nil => F.pure(a -> ((exit: ExitCase[Throwable]) => F.guarantee(rel(exit))(release(exit))))
+                case l =>
+                  continue(l.head(a), l.tail, exit => F.guarantee(rel(exit))(release(exit)))
               }
           } {
             case (_, ExitCase.Completed) =>
@@ -273,10 +276,15 @@ sealed abstract class Resource[+F[_], +A] {
           s.resource.flatMap(continue(_, stack, release))
       }
 
-    loop(this.asInstanceOf[Resource[F, Any]], Nil, F.unit).map {
+    loop(this.asInstanceOf[Resource[F, Any]], Nil, _ => F.unit).map {
       case (a, release) =>
         (a.asInstanceOf[A], release)
     }
+  }
+
+  def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = F.map(allocatedCase[G, B]) {
+    case (resource, release) =>
+      (resource, release(ExitCase.Completed))
   }
 
   /**
