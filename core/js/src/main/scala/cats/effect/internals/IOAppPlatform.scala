@@ -39,21 +39,13 @@ private[effect] object IOAppPlatform {
   }
 
   /**
-   * Sets the exit code with `process.exitCode = code` for runtimes
-   * that support it.  This allows a graceful shutdown with a specific
-   * exit code.
-   *
-   * If the call is not supported, does a `sys.exit(code)` on any
-   * non-zero exit code.
+   * Sets the exit code with `process.exitCode = code`.  This allows a graceful
+   * shutdown with a specific exit code.
    *
    * @see https://nodejs.org/api/process.html#process_process_exitcode
    **/
   private def setExitCode(code: Int): Unit =
-    try js.Dynamic.global.process.exitCode = code
-    catch {
-      case _: js.JavaScriptException =>
-        if (code != 0) sys.exit(code)
-    }
+    js.Dynamic.global.process.exitCode = code
 
   def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
     run: List[String] => IO[ExitCode]
@@ -89,7 +81,7 @@ private[effect] object IOAppPlatform {
       () =>
         fiber.cancel.unsafeRunAsync { result =>
           result.swap.foreach(Logger.reportFailure)
-          sys.exit(code + 128)
+          setExitCode(code + 128)
         }
 
     IO {
