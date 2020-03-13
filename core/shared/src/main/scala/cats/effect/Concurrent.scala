@@ -550,7 +550,7 @@ object Concurrent {
    *               case None =>
    *                 (Await(Queue(cb)), F.pure(unregister(cb)))
    *               case Some((a, queue2)) =>
-   *                 (Available(queue2), F.delay(cb(a)).as(unregister(cb)))
+   *                 (Available(queue2), F.delay(cb(Right(a))).as(unregister(cb)))
    *             }
    *         }.flatten
    *       }
