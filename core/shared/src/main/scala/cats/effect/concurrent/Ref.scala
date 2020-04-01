@@ -226,6 +226,23 @@ object Ref {
    */
   def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
 
+  /**
+   * Creates an instance focused on a component of another Ref's value.
+   * Delegates every get and modification to underlying Ref, so both instances are always in sync.
+   *
+   * Example:
+   *
+   * {{{
+   *   case class Foo(bar: String, baz: Int)
+   *
+   *   val refA: Ref[IO, Foo] = ???
+   *   val refB: Ref[IO, String] =
+   *     Ref.lens[IO, Foo, String](refA)(_.bar, (foo: Foo) => (bar: String) => foo.copy(bar = bar))
+   * }}}
+   * */
+  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(implicit F: Functor[F]): Ref[F, B] =
+    new LensRef[F, A, B](ref)(get, set)
+
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
 
     /**
@@ -301,6 +318,67 @@ object Ref {
 
     override def access: G[(A, A => G[Boolean])] =
       trans(F.compose[(A, *)].compose[A => *].map(underlying.access)(trans(_)))
+  }
+
+  final private[concurrent] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
+    lensGet: A => B,
+    lensSet: A => B => A
+  )(implicit F: Functor[F])
+      extends Ref[F, B] {
+    override def get: F[B] = F.map(underlying.get)(a => lensGet(a))
+
+    override def set(b: B): F[Unit] = underlying.update(a => lensModify(a)(_ => b))
+
+    override def getAndSet(b: B): F[B] = underlying.modify { a =>
+      (lensModify(a)(_ => b), lensGet(a))
+    }
+
+    override def update(f: B => B): F[Unit] =
+      underlying.update(a => lensModify(a)(f))
+
+    override def modify[C](f: B => (B, C)): F[C] =
+      underlying.modify { a =>
+        val oldB = lensGet(a)
+        val (b, c) = f(oldB)
+        (lensSet(a)(b), c)
+      }
+
+    override def tryUpdate(f: B => B): F[Boolean] =
+      F.map(tryModify(a => (f(a), ())))(_.isDefined)
+
+    override def tryModify[C](f: B => (B, C)): F[Option[C]] =
+      underlying.tryModify { a =>
+        val oldB = lensGet(a)
+        val (b, result) = f(oldB)
+        (lensSet(a)(b), result)
+      }
+
+    override def tryModifyState[C](state: State[B, C]): F[Option[C]] = {
+      val f = state.runF.value
+      tryModify(a => f(a).value)
+    }
+
+    override def modifyState[C](state: State[B, C]): F[C] = {
+      val f = state.runF.value
+      modify(a => f(a).value)
+    }
+
+    override def access: F[(B, B => F[Boolean])] =
+      F.map(underlying.get) { snapshotA =>
+        val snapshotB = lensGet(snapshotA)
+        val hasBeenCalled = new AtomicBoolean(false)
+        val setter = (b: B) => {
+          F.map(underlying.tryModify { a =>
+            if (hasBeenCalled.compareAndSet(false, true) && (lensGet(a) eq snapshotB))
+              (lensSet(a)(b), true)
+            else
+              (a, false)
+          })(_.getOrElse(false))
+        }
+        (snapshotB, setter)
+      }
+
+    private def lensModify(s: A)(f: B => B): A = lensSet(s)(f(lensGet(s)))
   }
 
   implicit def catsInvariantForRef[F[_]: Functor]: Invariant[Ref[F, *]] =
