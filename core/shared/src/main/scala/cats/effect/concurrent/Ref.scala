@@ -240,7 +240,7 @@ object Ref {
    *     Ref.lens[IO, Foo, String](refA)(_.bar, (foo: Foo) => (bar: String) => foo.copy(bar = bar))
    * }}}
    * */
-  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(implicit F: Functor[F]): Ref[F, B] =
+  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(implicit F: Sync[F]): Ref[F, B] =
     new LensRef[F, A, B](ref)(get, set)
 
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
@@ -323,7 +323,7 @@ object Ref {
   final private[concurrent] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
     lensGet: A => B,
     lensSet: A => B => A
-  )(implicit F: Functor[F])
+  )(implicit F: Sync[F])
       extends Ref[F, B] {
     override def get: F[B] = F.map(underlying.get)(a => lensGet(a))
 
@@ -363,19 +363,24 @@ object Ref {
       modify(a => f(a).value)
     }
 
-    override def access: F[(B, B => F[Boolean])] =
-      F.map(underlying.get) { snapshotA =>
+    override val access: F[(B, B => F[Boolean])] =
+      F.flatMap(underlying.get) { snapshotA =>
         val snapshotB = lensGet(snapshotA)
-        val hasBeenCalled = new AtomicBoolean(false)
-        val setter = (b: B) => {
-          F.map(underlying.tryModify { a =>
-            if (hasBeenCalled.compareAndSet(false, true) && (lensGet(a) eq snapshotB))
-              (lensSet(a)(b), true)
-            else
-              (a, false)
-          })(_.getOrElse(false))
+        val setter = F.delay {
+          val hasBeenCalled = new AtomicBoolean(false)
+
+          (b: B) => {
+            F.flatMap(F.delay(hasBeenCalled.compareAndSet(false, true))) { hasBeenCalled =>
+              F.map(underlying.tryModify { a =>
+                if (hasBeenCalled && (lensGet(a) eq snapshotB))
+                  (lensSet(a)(b), true)
+                else
+                  (a, false)
+              })(_.getOrElse(false))
+            }
+          }
         }
-        (snapshotB, setter)
+        setter.tupleLeft(snapshotB)
       }
 
     private def lensModify(s: A)(f: B => B): A = lensSet(s)(f(lensGet(s)))

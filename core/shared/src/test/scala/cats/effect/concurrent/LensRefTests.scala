@@ -215,6 +215,23 @@ class LensRefTests extends AsyncFunSuite with Matchers {
     }.void)
   }
 
+  test("access - successfully modifies underlying Ref after A is modified without affecting B") {
+    val op = for {
+      refA <- Ref[IO].of(Foo(0, -1))
+      refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+      valueAndSetter <- refB.access
+      (value, setter) = valueAndSetter
+      _ <- refA.update(_.copy(baz = -2))
+      success <- setter(value + 1)
+      a <- refA.get
+    } yield (success, a)
+    run(op.map {
+      case (success, a) =>
+        success shouldBe true
+        a shouldBe Foo(1, -2)
+    }.void)
+  }
+
   test("access - setter fails to modify underlying Ref if value is modified before setter is called") {
     val op = for {
       refA <- Ref[IO].of(Foo(0, -1))
