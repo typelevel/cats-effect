@@ -466,6 +466,11 @@ run, still resources will be properly released. But recall what we commented
 before: this is because `use` returns `IO` instances that are cancelable, in
 contrast our `transfer` function is not cancelable.
 
+WARNING: To properly test cancelation, You should also ensure that
+`fork := true` is set in the sbt configuration, otherwise sbt will
+intercept the cancelation because it will be running the program
+in the same JVM as itself.
+
 ### Polymorphic cats-effect code
 There is an important characteristic of `IO` that we shall be aware of. `IO` is
 able to encapsulate side-effects, but the capacity to define concurrent and/or
