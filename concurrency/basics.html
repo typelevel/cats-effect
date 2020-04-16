@@ -228,7 +228,6 @@ Basically, the thread pool decides which task gets a thread to run but the OS de
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.Executors</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Fiber</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.syntax.apply._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="k">val</span> <span class="nv">ecOne</span> <span class="k">=</span> <span class="nv">ExecutionContext</span><span class="o">.</span><span class="py">fromExecutor</span><span class="o">(</span><span class="nv">Executors</span><span class="o">.</span><span class="py">newSingleThreadExecutor</span><span class="o">())</span>

@@ -289,7 +289,7 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       fib(n - <span class="num">1</span>, b, b2)
     <span class="kw">else</span>
       IO.pure(b2)
-  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/8e10876c7b63e264191baa4c08a6e23f208300ed/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
+  }</pre></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.3/core/shared/src/main/scala/cats/effect/IO.scala" target="_blank">IO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -378,6 +378,76 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="cats.effect.IO#&amp;&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="&amp;&gt;[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[B]"></a><a id="&amp;&gt;[B](IO[B])(NonEmptyParallel[IO]):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#&amp;&gt;[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span title="gt4s: $amp$greater" class="name">&amp;&gt;</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="another">another: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.&amp;&gt;.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="p">p: <span class="extype" name="cats.NonEmptyParallel">NonEmptyParallel</span>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.&amp;&gt;.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Runs this IO and the parameter in parallel.</p><div class="fullcomment"><div class="comment cmt"><p>Runs this IO and the parameter in parallel.</p><p>Failure in either of the IOs will cancel the other one.
+If the whole computation is canceled, both actions are also canceled.
+</p></div></div>
+    </li><li name="cats.effect.IO#*&gt;" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="*&gt;[B](another:cats.effect.IO[B]):cats.effect.IO[B]"></a><a id="*&gt;[B](IO[B]):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#*&gt;[B](another:cats.effect.IO[B]):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span title="gt4s: $times$greater" class="name">*&gt;</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="another">another: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.*&gt;.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.*&gt;.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Runs the current IO, then runs the parameter, keeping its result.</p><div class="fullcomment"><div class="comment cmt"><p>Runs the current IO, then runs the parameter, keeping its result.
+The result of the first action is ignored.
+If the source fails, the other action won't run.
+</p></div></div>
+    </li><li name="cats.effect.IO#&lt;&amp;" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="&lt;&amp;[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[A]"></a><a id="&lt;&amp;[B](IO[B])(NonEmptyParallel[IO]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#&lt;&amp;[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span title="gt4s: $less$amp" class="name">&lt;&amp;</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="another">another: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.&lt;&amp;.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="p">p: <span class="extype" name="cats.NonEmptyParallel">NonEmptyParallel</span>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <a href="#&amp;&gt;[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#&amp;&gt;">&amp;&gt;</a>, but keeps the result of the source.</p>
+    </li><li name="cats.effect.IO#&lt;*" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="&lt;*[B](another:cats.effect.IO[B]):cats.effect.IO[A]"></a><a id="&lt;*[B](IO[B]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#&lt;*[B](another:cats.effect.IO[B]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span title="gt4s: $less$times" class="name">&lt;*</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="another">another: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.&lt;*.B">B</span>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Like <a href="#*&gt;[B](another:cats.effect.IO[B]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#*&gt;">*&gt;</a>, but keeps the result of the source.</p><div class="fullcomment"><div class="comment cmt"><p>Like <a href="#*&gt;[B](another:cats.effect.IO[B]):cats.effect.IO[B]" class="extmbr" name="cats.effect.IO#*&gt;">*&gt;</a>, but keeps the result of the source.</p><p>For a similar method that also runs the parameter in case of failure or interruption, see <a href="#guarantee(finalizer:cats.effect.IO[Unit]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#guarantee">guarantee</a>.
+</p></div></div>
     </li><li name="scala.AnyRef#==" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="==(x$1:Any):Boolean"></a><a id="==(Any):Boolean"></a>
       <span class="permalink">
@@ -394,6 +464,24 @@ depth, without fear of blowing the stack.</p><pre><span class="kw">def</span> fi
       </span>
       
       <div class="fullcomment"><dl class="attributes block"> <dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div>
+    </li><li name="cats.effect.IO#as" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="as[B](newValue:=&gt;B):cats.effect.IO[B]"></a><a id="as[B](⇒B):IO[B]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#as[B](newValue:=&gt;B):cats.effect.IO[B]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">as</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="newValue">newValue: ⇒ <span class="extype" name="cats.effect.IO.as.B">B</span></span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.as.B">B</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Replaces the result of this IO with the given value.</p><div class="fullcomment"><div class="comment cmt"><p>Replaces the result of this IO with the given value.
+The value won't be computed if the IO doesn't succeed.
+</p></div></div>
     </li><li name="scala.Any#asInstanceOf" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="asInstanceOf[T0]:T0"></a>
       <span class="permalink">
@@ -591,6 +679,22 @@ parameter.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.IO#delayBy" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="delayBy(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]"></a><a id="delayBy(FiniteDuration)(Timer[IO]):IO[A]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#delayBy(duration:scala.concurrent.duration.FiniteDuration)(implicittimer:cats.effect.Timer[cats.effect.IO]):cats.effect.IO[A]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">delayBy</span><span class="params">(<span name="duration">duration: <span class="extype" name="scala.concurrent.duration.FiniteDuration">FiniteDuration</span></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="timer">timer: <a href="Timer.html" class="extype" name="cats.effect.Timer">Timer</a>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.A">A</span>]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Returns an IO that will delay the execution of the source by the given duration.</p>
     </li><li name="scala.AnyRef#eq" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="eq(x$1:AnyRef):Boolean"></a><a id="eq(AnyRef):Boolean"></a>
       <span class="permalink">
@@ -869,6 +973,41 @@ never terminate on evaluation.
                 <span class="name">@native</span><span class="args">()</span>
               
         </dd></dl></div>
+    </li><li name="cats.effect.IO#option" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="option:cats.effect.IO[Option[A]]"></a><a id="option:IO[Option[A]]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#option:cats.effect.IO[Option[A]]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">option</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Option">Option</span>[<span class="extype" name="cats.effect.IO.A">A</span>]]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Replaces failures in this IO with an empty Option.</p>
+    </li><li name="cats.effect.IO#parProduct" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="parProduct[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[(A,B)]"></a><a id="parProduct[B](IO[B])(NonEmptyParallel[IO]):IO[(A,B)]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#parProduct[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[(A,B)]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">parProduct</span><span class="tparams">[<span name="B">B</span>]</span><span class="params">(<span name="another">another: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="cats.effect.IO.parProduct.B">B</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="p">p: <span class="extype" name="cats.NonEmptyParallel">NonEmptyParallel</span>[<a href="" class="extype" name="cats.effect.IO">IO</a>]</span>)</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[(<span class="extype" name="cats.effect.IO.A">A</span>, <span class="extype" name="cats.effect.IO.parProduct.B">B</span>)]</span>
+      </span>
+      
+      <p class="shortcomment cmt">Zips both this action and the parameter in parallel.</p><div class="fullcomment"><div class="comment cmt"><p>Zips both this action and the parameter in parallel.
+If <a href="#parProduct[B](another:cats.effect.IO[B])(implicitp:cats.NonEmptyParallel[cats.effect.IO]):cats.effect.IO[(A,B)]" class="extmbr" name="cats.effect.IO#parProduct">parProduct</a> is canceled, both actions are canceled.
+Failure in either of the IOs will cancel the other one.
+</p></div></div>
     </li><li name="cats.effect.IO#redeem" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="redeem[B](recover:Throwable=&gt;B,map:A=&gt;B):cats.effect.IO[B]"></a><a id="redeem[B]((Throwable)⇒B,(A)⇒B):IO[B]"></a>
       <span class="permalink">
@@ -1293,6 +1432,22 @@ rather than an explicit callback.  This function should really
 only be used if interoperating with legacy code which uses Scala
 futures.
 </p></div><dl class="attributes block"> <dt>See also</dt><dd><span class="cmt"><p><a href="IO$.html#fromFuture[A](iof:cats.effect.IO[scala.concurrent.Future[A]])(implicitcs:cats.effect.ContextShift[cats.effect.IO]):cats.effect.IO[A]" class="extmbr" name="cats.effect.IO#fromFuture">IO.fromFuture</a></p></span></dd></dl></div>
+    </li><li name="cats.effect.IO#void" visbl="pub" class="indented0 " data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="void:cats.effect.IO[Unit]"></a><a id="void:IO[Unit]"></a>
+      <span class="permalink">
+      <a href="../../cats/effect/IO.html#void:cats.effect.IO[Unit]" title="Permalink">
+        <i class="material-icons"></i>
+      </a>
+    </span>
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">def</span>
+      </span>
+      <span class="symbol">
+        <span class="name">void</span><span class="result">: <a href="" class="extype" name="cats.effect.IO">IO</a>[<span class="extype" name="scala.Unit">Unit</span>]</span>
+      </span>
+      
+      
     </li><li name="scala.AnyRef#wait" visbl="pub" class="indented0 " data-isabs="false" fullComment="yes" group="Ungrouped">
       <a id="wait():Unit"></a>
       <span class="permalink">

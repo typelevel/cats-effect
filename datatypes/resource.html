@@ -11,7 +11,7 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner use or release fails.</p>
+<p>Nested resources are released in reverse order of acquisition. Outer resources are released even if an inner acquisition, use or release fails.</p>
 
 <p>You can lift any <code class="highlighter-rouge">F[A]</code> with an <code class="highlighter-rouge">Applicative</code> instance into a <code class="highlighter-rouge">Resource[F, A]</code> with a no-op release via <code class="highlighter-rouge">Resource.liftF</code>:</p>
 
@@ -27,12 +27,11 @@
 <p>Moreover it’s possible to apply further effects to the wrapped resource without leaving the <code class="highlighter-rouge">Resource</code> context via <code class="highlighter-rouge">evalMap</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
 
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
 <span class="c1">//   Delay(&lt;function0&gt;),</span>
-<span class="c1">//   cats.FlatMap$$Lambda$7424/532415022@4b0b8cec</span>
+<span class="c1">//   cats.effect.IO$$Lambda$10018/2101719649@7988d7df</span>
 <span class="c1">// )</span>
 <span class="k">val</span> <span class="nv">release</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"...release everything"</span><span class="o">))</span>
 <span class="c1">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
@@ -54,7 +53,6 @@
 <h3 id="example">Example</h3>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
 
 <span class="k">def</span> <span class="nf">mkResource</span><span class="o">(</span><span class="n">s</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span> <span class="k">=</span> <span class="o">{</span>
   <span class="k">val</span> <span class="nv">acquire</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"Acquiring $s"</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="n">s</span><span class="o">)</span>
