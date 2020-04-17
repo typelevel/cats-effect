@@ -14,15 +14,31 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.internals
 
-package object internals {
+import java.util.concurrent.atomic.AtomicLong
 
-  /**
-   * Handy alias for the registration functions of [[IO.Async]].
-   */
-  private[effect] type Start[+A] =
-    (IOConnection, Callback.T[A]) => Unit
+import cats.effect.IO
 
-  private[effect] type FiberRefId = Long
+private[effect] object IOFiberRef {
+
+  def allocate: IO[FiberRefId] =
+    IO.delay {
+      nextFiberRefId.getAndIncrement()
+    }
+
+  def get[A](refId: FiberRefId): IO[Option[A]] =
+    IO.FiberLocal { state =>
+      state.get(refId).map(_.asInstanceOf[A])
+    }
+
+  def set[A](refId: FiberRefId, value: A): IO[Unit] =
+    IO.FiberLocal { state =>
+      state.put(refId, value.asInstanceOf[AnyRef])
+      ()
+    }
+
+
+  private val nextFiberRefId = new AtomicLong(1)
+
 }

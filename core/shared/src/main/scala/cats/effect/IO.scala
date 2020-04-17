@@ -27,6 +27,8 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
 
+import scala.collection.mutable
+
 /**
  * A pure abstraction representing the intention to perform a
  * side effect, where the result of that side effect may be obtained
@@ -1622,4 +1624,6 @@ object IO extends IOInstances {
     override def recover(e: Throwable) =
       Pure(Left(e))
   }
+
+  final private[effect] case class FiberLocal[+A](k: mutable.HashMap[FiberRefId, AnyRef] => A) extends IO[A]
 }
