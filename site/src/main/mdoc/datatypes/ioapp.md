@@ -86,10 +86,10 @@ interruption signal that can be caught, then the `IO` app will cancel
 and safely release any resources.
 
 *WARNING*: If you run your `IOApp` program from sbt, you may observe
-cancelation and resource releasing is *not* happening. This is due to
+cancellation and resource releasing is *not* happening. This is due to
 sbt, by default, running programs in the _same_ JVM as sbt, so when
 your program is canceled sbt avoids stopping its own JVM. To properly
-allow cancelation, ensure your progam is [forked into its own JVM](https://www.scala-sbt.org/1.x/docs/Forking.html#Enable+forking)
+allow cancellation, ensure your progam is [forked into its own JVM](https://www.scala-sbt.org/1.x/docs/Forking.html#Enable+forking)
 via a setting like `fork := true` in your sbt configuration.
 
 For example:
