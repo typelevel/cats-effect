@@ -38,12 +38,13 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[E],
-      ArbHandlerB: Arbitrary[(A, laws.F.Case[B]) => F[Unit]],
-      ArbHandlerU: Arbitrary[(A, laws.F.Case[Unit]) => F[Unit]],
       CogenA: Cogen[A],
       CogenB: Cogen[B],
       CogenC: Cogen[C],
       CogenE: Cogen[E],
+      CogenCaseA: Cogen[laws.F.Case[A]],
+      CogenCaseB: Cogen[laws.F.Case[B]],
+      CogenCaseU: Cogen[laws.F.Case[Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
@@ -55,7 +56,12 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       iso: Isomorphisms[F],
-      faPP: F[A] => Pretty)
+      faPP: F[A] => Pretty,
+      fbPP: F[B] => Pretty,
+      fuPP: F[Unit] => Pretty,
+      ePP: E => Pretty,
+      feeaPP: F[Either[E, A]] => Pretty,
+      feeuPP: F[Either[E, Unit]] => Pretty)
       : RuleSet = {
 
     new RuleSet {
@@ -66,8 +72,10 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       val props = Seq(
         "bracket pure coherence" -> forAll(laws.bracketPureCoherence[A, B] _),
         "bracket error coherence" -> forAll(laws.bracketErrorCoherence[A] _),
-        "bracket flatMap attempt identity" -> forAll(laws.bracketFlatMapAttemptIdentity[A, B] _),
-        "bracket raiseError identity" -> forAll(laws.bracketErrorIdentity[A, B] _))
+        "bracket acquire raiseError identity" -> forAll(laws.bracketAcquireErrorIdentity[A, B] _),
+        "bracket release raiseError ignore" -> forAll(laws.bracketReleaseErrorIgnore _),
+        "bracket body identity" -> forAll(laws.bracketBodyIdentity[A] _),
+        "onCase defined by bracketCase" -> forAll(laws.onCaseDefinedByBracketCase[A] _))
     }
   }
 }

@@ -28,7 +28,13 @@ sealed trait IsEq[A] {
 
   def toProp(implicit A: Eq[A], pp: A => Pretty): Prop = this match {
     case IsEq.Assert(lhs, rhs) =>
-      cats.laws.discipline.catsLawsIsEqToProp(cats.laws.IsEq(lhs, rhs))
+      try {
+        cats.laws.discipline.catsLawsIsEqToProp(cats.laws.IsEq(lhs, rhs))
+      } catch {
+        case soe: StackOverflowError =>
+          soe.printStackTrace()
+          throw soe
+      }
 
     case IsEq.Or(lhs, rhs) =>
       lhs.toProp || rhs.toProp

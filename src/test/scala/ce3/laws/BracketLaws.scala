@@ -27,20 +27,25 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   import F.CaseInstance
 
-  def bracketPureCoherence[A, B](acq: F[A], f: A => B, release: (A, F.Case[B]) => F[Unit]) =
-    F.bracketCase(acq)(a => F.pure(f(a)))(release) <-> acq.flatMap(a => release(a, CaseInstance.pure(f(a))).as(f(a)))
+  def bracketPureCoherence[A, B](acq: F[A], f: A => B, release: F.Case[B] => F[Unit]) =
+    F.bracketCase(acq)(a => F.pure(f(a)))((_, c) => release(c)) <->
+      F.bracketCase(acq)(a => F.pure(f(a)))((a, _) => release(CaseInstance.pure(f(a))))
 
-  def bracketErrorCoherence[A](acq: F[A], f: A => E, release: (A, F.Case[Unit]) => F[Unit]) =
-    F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))(release) <-> acq.flatMap(a => release(a, CaseInstance.raiseError[Unit](f(a))) *> F.raiseError[Unit](f(a)))
+  def bracketErrorCoherence[A](acq: F[A], f: A => E, release: F.Case[Unit] => F[Unit]) =
+    F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))((_, c) => release(c)) <->
+      F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))((a, _) => release(CaseInstance.raiseError(f(a))))
 
-  def bracketFlatMapAttemptIdentity[A, B](acq: F[A], f: A => F[B], release: A => F[Unit]) = {
-    val result = F.bracketCase(acq)(f)((a, _) => release(a))
-    val expect = acq.flatMap(a => f(a).attempt <* release(a)).rethrow
-    result <-> expect
-  }
-
-  def bracketErrorIdentity[A, B](e: E, f: A => F[B], release: F[Unit]) =
+  def bracketAcquireErrorIdentity[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError[B](e)
+
+  def bracketReleaseErrorIgnore(e: E) =
+    F.bracketCase(F.unit)(_ => F.unit)((_, _) => F.raiseError[Unit](e)) <-> F.unit
+
+  def bracketBodyIdentity[A](fa: F[A]) =
+    F.bracketCase(F.unit)(_ => fa)((_, _) => F.unit) <-> fa
+
+  def onCaseDefinedByBracketCase[A](fa: F[A], body: F[Unit], p: F.Case[A] => Boolean) =
+    F.onCase(fa, body)(p) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => if (p(c)) body else F.unit)
 }
 
 object BracketLaws {
