@@ -28,16 +28,15 @@ private[effect] object IOFiberRef {
     }
 
   def get[A](refId: FiberRefId): IO[Option[A]] =
-    IO.FiberLocal { state =>
+    IO.Introspect.map { state =>
       state.get(refId).map(_.asInstanceOf[A])
     }
 
   def set[A](refId: FiberRefId, value: A): IO[Unit] =
-    IO.FiberLocal { state =>
+    IO.Introspect.map { state =>
       state.put(refId, value.asInstanceOf[AnyRef])
       ()
     }
-
 
   private val nextFiberRefId = new AtomicLong(1)
 
