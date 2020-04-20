@@ -257,7 +257,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
   /**
    * Returns a new value that transforms the result of the source,
    * given the `recover` or `map` functions, which get executed depending
-   * on whether the result is successful or if it ends in error.
+   * on whether the result ends in error or if it is successful.
    *
    * This is an optimization on usage of [[attempt]] and [[map]],
    * this equivalence being true:
@@ -283,7 +283,7 @@ final class SyncIO[+A] private (private val io: IO[A]) {
   /**
    * Returns a new value that transforms the result of the source,
    * given the `recover` or `bind` functions, which get executed depending
-   * on whether the result is successful or if it ends in error.
+   * on whether the result ends in error or if it is successful.
    *
    * This is an optimization on usage of [[attempt]] and [[flatMap]],
    * this equivalence being available:
