@@ -43,13 +43,16 @@ private[effect] object IOAppPlatform {
    * that support it.  This allows a graceful shutdown with a specific
    * exit code.	
    *	
-   * If the call is not supported, no action is performed.
+   * If the call is not supported and the exit code is not Success,
+   * then it is logged.
    *
    * @see https://nodejs.org/api/process.html#process_process_exitcode
    **/
   private def setExitCode(code: Int): Unit =
     if (js.typeOf(js.Dynamic.global.process) != "undefined")
       js.Dynamic.global.process.exitCode = code
+    else if (code != ExitCode.Success.code)
+      Logger.reportFailure(new RuntimeException(s"Non-zero exit code: [$code]"))
 
   def mainFiber(args: Array[String], contextShift: Eval[ContextShift[IO]], timer: Eval[Timer[IO]])(
     run: List[String] => IO[ExitCode]
@@ -89,7 +92,7 @@ private[effect] object IOAppPlatform {
         }
 
     IO {
-      if (!js.isUndefined(js.Dynamic.global.process)) {
+      if (js.typeOf(js.Dynamic.global.process) != "undefined") {
         val process = js.Dynamic.global.process
         process.on("SIGHUP", handler(1))
         process.on("SIGINT", handler(2))
