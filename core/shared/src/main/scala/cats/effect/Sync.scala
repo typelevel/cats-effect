@@ -118,6 +118,18 @@ object Sync {
     def raiseError[A](e: Throwable): EitherT[F, L, A] =
       EitherT.liftF(F.raiseError(e))
 
+    override def redeem[A, B](fa: EitherT[F, L, A])(recover: Throwable => B, f: A => B): EitherT[F, L, B] =
+      EitherT(F.redeem(fa.value)(e => Right(recover(e)), la => la.map(f)))
+
+    override def redeemWith[A, B](fa: EitherT[F, L, A])(recover: Throwable => EitherT[F, L, B], bind: A => EitherT[F, L, B]): EitherT[F, L, B] =
+      EitherT(F.redeemWith(fa.value)(
+        e => recover(e).value,
+        la => la match {
+          case Right(a) => bind(a).value
+          case _ => F.pure(la.asInstanceOf[Either[L, B]])
+        }
+      ))
+
     def bracketCase[A, B](
       acquire: EitherT[F, L, A]
     )(use: A => EitherT[F, L, B])(release: (A, ExitCase[Throwable]) => EitherT[F, L, Unit]): EitherT[F, L, B] =
@@ -165,6 +177,18 @@ object Sync {
 
     def raiseError[A](e: Throwable): OptionT[F, A] =
       OptionT.catsDataMonadErrorForOptionT[F, Throwable].raiseError(e)
+
+    override def redeem[A, B](fa: OptionT[F, A])(recover: Throwable => B, f: A => B): OptionT[F, B] =
+      OptionT(F.redeem(fa.value)(e => Some(recover(e)), la => la.map(f)))
+
+    override def redeemWith[A, B](fa: OptionT[F, A])(recover: Throwable => OptionT[F, B], bind: A => OptionT[F, B]): OptionT[F, B] =
+      OptionT(F.redeemWith(fa.value)(
+        e => recover(e).value,
+        la => la match {
+          case Some(a) => bind(a).value
+          case _ => F.pure(None)
+        }
+      ))
 
     def bracketCase[A, B](
       acquire: OptionT[F, A]
