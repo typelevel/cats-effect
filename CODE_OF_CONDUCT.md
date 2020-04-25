@@ -10,6 +10,6 @@ Any questions, concerns, or moderation requests please contact a member of the p
 
 - Ross A. Baker [gitter](https://gitter.im/rossabaker) | [twitter](https://twitter.com/rossabaker) | [email](mailto:ross@rossabaker.com)
 - Christopher Davenport [gitter](https://gitter.im/christopherdavenport) | [twitter](https://twitter.com/davenpcm) | [email](mailto:chris@christopherdavenport.tech)
-- Alexandru Nedelcu: [gitter](https://gitter.im/alexandru) | [twitter](https://twitter.com/alexelcu) | [email](mailto:coc@temp18.alexn.org)
+- Alexandru Nedelcu: [gitter](https://gitter.im/alexandru) | [twitter](https://twitter.com/alexelcu) | [email](mailto:y20+coc@alexn.org)
 
 [Scala Code of Conduct]: https://typelevel.org/code-of-conduct.html
