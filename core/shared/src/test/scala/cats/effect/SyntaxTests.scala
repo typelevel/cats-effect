@@ -16,8 +16,9 @@
 
 package cats.effect
 
-import cats.{Parallel, Traverse}
+import cats.data._
 import cats.effect.syntax.AllCatsEffectSyntax
+import cats.{Monoid, Parallel, Traverse}
 
 import scala.concurrent.duration._
 
@@ -40,6 +41,15 @@ object SyntaxTests extends AllCatsEffectSyntax {
     typed[F[B]](acquire.bracketCase(use)(releaseCase))
     typed[F[A]](acquire.guarantee(finalizer))
     typed[F[A]](acquire.guaranteeCase(finalCase))
+  }
+
+  def bracketSyntaxForMonadTransformersWithSync[F[_], A, B, L, S](implicit F: Sync[F], L: Monoid[L]) = {
+    typed[OptionT[F, A]](mock[OptionT[F, A]].uncancelable)
+    typed[EitherT[F, A, B]](mock[EitherT[F, A, B]].uncancelable)
+    typed[IorT[F, L, A]](mock[IorT[F, L, A]].uncancelable)
+    typed[StateT[F, A, B]](mock[StateT[F, A, B]].uncancelable)
+    typed[WriterT[F, L, A]](mock[WriterT[F, L, A]].uncancelable)
+    typed[ReaderWriterStateT[F, A, L, S, B]](mock[ReaderWriterStateT[F, A, L, S, B]].uncancelable)
   }
 
   def asyncSyntax[T[_]: Traverse, F[_], A, B](implicit F: Async[F], P: Parallel[F]) = {
