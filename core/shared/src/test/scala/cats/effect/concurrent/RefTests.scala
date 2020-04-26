@@ -136,6 +136,30 @@ class RefTests extends AsyncFunSuite with Matchers {
     run(op.map(_ shouldBe false).void)
   }
 
+  test("updateOr - short-circuit") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.updateOr {
+        case 0 => Left("123")
+        case _ => Right(1)
+      }
+    } yield result
+
+    run(op.map(_ shouldBe Some("123")).void)
+  }
+
+  test("modifyOr - short-circuit") {
+    val op = for {
+      r <- Ref[IO].of(0)
+      result <- r.modifyOr {
+        case 0 => Left("123")
+        case _ => Right((1, true))
+      }
+    } yield result
+
+    run(op.map(_ shouldBe Left("123")).void)
+  }
+
   test("tryModifyState - modification occurs successfully") {
     val op = for {
       r <- Ref[IO].of(0)
