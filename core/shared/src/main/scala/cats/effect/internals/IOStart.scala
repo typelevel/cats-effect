@@ -37,6 +37,8 @@ private[effect] object IOStart {
         p.success(ea)
         ()
       }
+      // TODO: We need to ensure that the thread that begins executing the new IO
+      // has a tracing status reset because of how IOBracket is implemented.
       IORunLoop.startCancelable(IOForkedStart(fa, cs), conn2, cb0)
 
       cb(Right(fiber(p, conn2)))

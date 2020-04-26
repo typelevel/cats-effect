@@ -17,13 +17,17 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
+import cats.effect.tracing.{FiberTracing, TraceElement}
+
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
   private type Current = IO[Any]
   private type Bind = Any => IO[Any]
   private type CallStack = ArrayStack[Bind]
+  // TODO: replace with a mutable ring buffer
+  private type FiberTrace = List[TraceElement]
   private type Callback = Either[Throwable, Any] => Unit
 
   /**
@@ -31,14 +35,14 @@ private[effect] object IORunLoop {
    * with the result when completed.
    */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
   def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
-    loop(source, conn, cb.asInstanceOf[Callback], null, null, null)
+    loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
 
   /**
    * Loop for evaluating an `IO` value.
@@ -53,7 +57,8 @@ private[effect] object IORunLoop {
     cb: Either[Throwable, Any] => Unit,
     rcbRef: RestartCallback,
     bFirstRef: Bind,
-    bRestRef: CallStack
+    bRestRef: CallStack,
+    traceRef: FiberTrace
   ): Unit = {
     var currentIO: Current = source
     // Can change on a context switch
@@ -61,6 +66,7 @@ private[effect] object IORunLoop {
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
+    var trace: FiberTrace = traceRef
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -100,6 +106,7 @@ private[effect] object IORunLoop {
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
+              FiberTracing.reset()
               cb(Left(ex))
               return
             case bind =>
@@ -121,10 +128,11 @@ private[effect] object IORunLoop {
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          rcb.start(async, bFirst, bRest)
+          rcb.start(async, bFirst, bRest, trace)
           return
 
         case ContextSwitch(next, modify, restore) =>
+          // TODO: any tracing implications here?
           val old = if (conn ne null) conn else IOConnection()
           conn = modify(old)
           currentIO = next
@@ -133,11 +141,22 @@ private[effect] object IORunLoop {
             if (restore ne null)
               currentIO = Bind(next, new RestoreContext(old, restore))
           }
+
+        case Trace(source, stackTrace) =>
+          if (trace eq null) trace = Nil
+          trace = stackTrace ++ trace
+          currentIO = source
+
+        case Introspect =>
+          val returnTrace: List[TraceElement] = if (trace eq null) Nil else trace
+          hasUnboxed = true
+          unboxed = returnTrace
       }
 
       if (hasUnboxed) {
         popNextBind(bFirst, bRest) match {
           case null =>
+            // TODO: reset status here?
             cb(Right(unboxed))
             return
           case bind =>
@@ -169,6 +188,7 @@ private[effect] object IORunLoop {
     var currentIO: Current = source
     var bFirst: Bind = null
     var bRest: CallStack = null
+    var trace: FiberTrace = null
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -227,10 +247,23 @@ private[effect] object IORunLoop {
         case Async(_, _) =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
+          // TODO: Since IO.traced is implemented in terms of IOBracket
+          // we may not need to concern ourselves with tracing status here?
+          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest, trace)
+
+        case Trace(source, stackTrace) =>
+          if (trace eq null) trace = Nil
+          trace = stackTrace ++ trace
+          currentIO = source
+
+        case Introspect =>
+          val returnTrace: List[TraceElement] = if (trace eq null) Nil else trace
+          hasUnboxed = true
+          unboxed = returnTrace
+
         case _ =>
           return Async { (conn, cb) =>
-            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest, trace)
           }
       }
 
@@ -255,13 +288,13 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack): IO[A] =
+  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack, trace: FiberTrace): IO[A] =
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
     // the loop with the collected stack
     if (bFirst != null || (bRest != null && !bRest.isEmpty))
       Async { (conn, cb) =>
-        loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+        loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest, trace)
       }
     else
       currentIO
@@ -336,6 +369,8 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
+    private[this] var tracingStatus: Boolean = false
+    private[this] var trace: FiberTrace = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -343,11 +378,15 @@ private[effect] object IORunLoop {
     def contextSwitch(conn: IOConnection): Unit =
       this.conn = conn
 
-    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack): Unit = {
+    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack, trace: FiberTrace): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
+      this.trace = trace
       this.trampolineAfter = task.trampolineAfter
+      // Save the bound tracing status to recover after the continuation completes
+      this.tracingStatus = FiberTracing.getAndReset()
+
       // Go, go, go
       task.k(conn, this)
     }
@@ -356,16 +395,23 @@ private[effect] object IORunLoop {
       // Allow GC to collect
       val bFirst = this.bFirst
       val bRest = this.bRest
+      val trace = this.trace
       this.bFirst = null
       this.bRest = null
+      this.trace = null
+
+      // TODO: Set only if tracing?
+      // Recover tracing status
+      println("recovering status")
+      FiberTracing.set(tracingStatus)
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {
         case Right(success) =>
-          loop(Pure(success), conn, cb, this, bFirst, bRest)
+          loop(Pure(success), conn, cb, this, bFirst, bRest, trace)
         case Left(e) =>
-          loop(RaiseError(e), conn, cb, this, bFirst, bRest)
+          loop(RaiseError(e), conn, cb, this, bFirst, bRest, trace)
       }
     }
 

@@ -26,6 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
+import cats.effect.tracing.TraceElement
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -100,8 +101,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def map[B](f: A => B): IO[B] =
-    this match {
+  final def map[B](f: A => B): IO[B] = {
+    val source = this match {
       case Map(source, g, index) =>
         // Allowed to do fixed number of map operations fused before
         // resetting the counter in order to avoid stack overflows;
@@ -111,6 +112,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
       case _ =>
         Map(this, f, 0)
     }
+
+    IOTracing.check(source)
+  }
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -127,8 +131,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] =
-    Bind(this, f)
+  final def flatMap[B](f: A => IO[B]): IO[B] = {
+    val source = Bind(this, f)
+    IOTracing.check(source)
+  }
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -739,6 +745,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
+
+  def traced: IO[A] =
+    IOTracing(this)
 
   override def toString: String = this match {
     case Pure(a)       => s"IO($a)"
@@ -1554,6 +1563,10 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
+  def introspect: IO[List[TraceElement]] =
+    Introspect
+
+
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
 
@@ -1609,6 +1622,10 @@ object IO extends IOInstances {
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
+
+  final private[effect] case class Trace[+A](source: IO[A], stackTrace: List[TraceElement]) extends IO[A]
+
+  final private[effect] case object Introspect extends IO[List[TraceElement]]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
