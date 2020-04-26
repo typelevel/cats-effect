@@ -16,28 +16,22 @@
 
 package cats.effect.internals
 
-import java.util.concurrent.atomic.AtomicLong
-
-import cats.effect.IO
+import cats.effect.{FiberRef, IO}
 
 private[effect] object IOFiberRef {
 
-  def allocate: IO[FiberRefId] =
-    IO.delay {
-      nextFiberRefId.getAndIncrement()
+  def get[A](ref: FiberRef[A]): IO[Option[A]] =
+    IO.Introspect.map { state =>
+      val k = ref.asInstanceOf[FiberRef[AnyRef]]
+      state.get(k).map(_.asInstanceOf[A])
     }
 
-  def get[A](refId: FiberRefId): IO[Option[A]] =
+  def set[A](ref: FiberRef[A], value: A): IO[Unit] =
     IO.Introspect.map { state =>
-      state.get(refId).map(_.asInstanceOf[A])
-    }
-
-  def set[A](refId: FiberRefId, value: A): IO[Unit] =
-    IO.Introspect.map { state =>
-      state.put(refId, value.asInstanceOf[AnyRef])
+      val k = ref.asInstanceOf[FiberRef[AnyRef]]
+      val v = value.asInstanceOf[AnyRef]
+      state.put(k, v)
       ()
     }
-
-  private val nextFiberRefId = new AtomicLong(1)
 
 }

@@ -26,6 +26,5 @@ package object internals {
   private[effect] type Start[+A] =
     (IOConnection, Callback.T[A]) => Unit
 
-  private[effect] type FiberState = mutable.HashMap[FiberRefId, AnyRef]
-  private[effect] type FiberRefId = Long
+  private[effect] type FiberLocals = mutable.HashMap[FiberRef[AnyRef], AnyRef]
 }

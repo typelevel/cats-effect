@@ -39,6 +39,13 @@ private[effect] object IORunLoop {
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
+  def continue[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
+    loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
+
+  /**
+   * Evaluates the given `IO` reference, calling the given callback
+   * with the result when completed.
+   */
   def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
 
@@ -56,7 +63,7 @@ private[effect] object IORunLoop {
     rcbRef: RestartCallback,
     bFirstRef: Bind,
     bRestRef: CallStack,
-    localStateRef: FiberState
+    localsRef: FiberLocals
   ): Unit = {
     var currentIO: Current = source
     // Can change on a context switch
@@ -64,7 +71,7 @@ private[effect] object IORunLoop {
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
-    var localState: FiberState = localStateRef
+    var locals: FiberLocals = localsRef
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -125,7 +132,7 @@ private[effect] object IORunLoop {
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          rcb.start(async, bFirst, bRest, localState)
+          rcb.start(async, bFirst, bRest, locals)
           return
 
         case ContextSwitch(next, modify, restore) =>
@@ -140,8 +147,8 @@ private[effect] object IORunLoop {
 
         case Introspect =>
           // TODO: exception handling?
-          if (localState eq null) localState = mutable.HashMap()
-          unboxed = localState.asInstanceOf[AnyRef]
+          if (locals eq null) locals = mutable.HashMap()
+          unboxed = locals.asInstanceOf[AnyRef]
           hasUnboxed = true
       }
 
@@ -183,7 +190,7 @@ private[effect] object IORunLoop {
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
-    var localState: FiberState = null
+    var locals: FiberLocals = null
 
     while ({
       currentIO match {
@@ -237,17 +244,17 @@ private[effect] object IORunLoop {
 
         case Introspect =>
           // TODO: exception handling?
-          if (localState eq null) localState = mutable.HashMap()
-          unboxed = localState.asInstanceOf[AnyRef]
+          if (locals eq null) locals = mutable.HashMap()
+          unboxed = locals.asInstanceOf[AnyRef]
           hasUnboxed = true
 
         case Async(_, _) =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest, localState)
+          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest, locals)
         case _ =>
           return Async { (conn, cb) =>
-            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest, localState)
+            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest, locals)
           }
       }
 
@@ -272,7 +279,7 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack, localState: FiberState): IO[A] =
+  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack, localState: FiberLocals): IO[A] =
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
     // the loop with the collected stack
@@ -353,7 +360,7 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
-    private[this] var localState: FiberState = _
+    private[this] var locals: FiberLocals = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -361,11 +368,11 @@ private[effect] object IORunLoop {
     def contextSwitch(conn: IOConnection): Unit =
       this.conn = conn
 
-    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack, localState: FiberState): Unit = {
+    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack, locals: FiberLocals): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
-      this.localState = localState
+      this.locals = locals
       this.trampolineAfter = task.trampolineAfter
       // Go, go, go
       task.k(conn, this)
@@ -375,16 +382,18 @@ private[effect] object IORunLoop {
       // Allow GC to collect
       val bFirst = this.bFirst
       val bRest = this.bRest
+      val locals = this.locals
       this.bFirst = null
       this.bRest = null
+      this.locals = null
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {
         case Right(success) =>
-          loop(Pure(success), conn, cb, this, bFirst, bRest, localState)
+          loop(Pure(success), conn, cb, this, bFirst, bRest, locals)
         case Left(e) =>
-          loop(RaiseError(e), conn, cb, this, bFirst, bRest, localState)
+          loop(RaiseError(e), conn, cb, this, bFirst, bRest, locals)
       }
     }
 

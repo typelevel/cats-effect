@@ -16,15 +16,15 @@
 
 package cats.effect
 
-import cats.effect.internals.{FiberRefId, IOFiberRef}
+import cats.effect.internals.IOFiberRef
 
-final class FiberRef[A] private (refId: FiberRefId, initial: A) {
+final class FiberRef[A] private (initial: A) {
 
   def get: IO[A] =
-    IOFiberRef.get(refId).map(_.getOrElse(initial))
+    IOFiberRef.get(this).map(_.getOrElse(initial))
 
   def set(value: A): IO[Unit] =
-    IOFiberRef.set(refId, value)
+    IOFiberRef.set(this, value)
 
   def getAndSet(value: A): IO[A] =
     get.flatMap { a =>
@@ -61,9 +61,10 @@ final class FiberRef[A] private (refId: FiberRefId, initial: A) {
 
 object FiberRef {
 
+  def unsafe[A](initial: A): FiberRef[A] =
+    new FiberRef[A](initial)
+
   def of[A](initial: A): IO[FiberRef[A]] =
-    for {
-      refId <- IOFiberRef.allocate
-    } yield new FiberRef[A](refId, initial)
+    IO.delay(unsafe(initial))
 
 }

@@ -1610,6 +1610,8 @@ object IO extends IOInstances {
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
 
+  private[effect] case object Introspect extends IO[FiberLocals]
+
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
   /**
@@ -1623,5 +1625,4 @@ object IO extends IOInstances {
       Pure(Left(e))
   }
 
-  private[effect] case object Introspect extends IO[FiberState]
 }
