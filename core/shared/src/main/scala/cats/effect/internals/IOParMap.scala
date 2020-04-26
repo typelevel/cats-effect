@@ -29,7 +29,7 @@ private[effect] object IOParMap {
   def apply[A, B, C](cs: ContextShift[IO], fa: IO[A], fb: IO[B])(f: (A, B) => C): IO[C] =
     IO.Async(
       new IOForkedStart[C] {
-        def apply(conn: IOConnection, cb: Callback.T[C]) =
+        def apply(conn: IOConnection, ctx: IOContext, cb: Callback.T[C]) =
           // For preventing stack-overflow errors; using a
           // trampolined execution context, so no thread forks
           TrampolineEC.immediate.execute(new ParMapRunnable(cs, fa, fb, f, conn, cb))

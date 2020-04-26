@@ -16,12 +16,9 @@
 
 package cats.effect
 
-package object internals {
-
-  /**
-   * Handy alias for the registration functions of [[IO.Async]].
-   */
-  private[effect] type Start[+A] =
-    (IOConnection, IOContext, Callback.T[A]) => Unit
-
+trait Local[F[_]] extends Async[F] {
+  // TODP: suspend in F
+//  def ref[A](initial: A): FiberRef[F, A]
+//
+//  def copyForkRef[A](initial: A, combine: (A, A) => A): FiberRef[F, A]
 }

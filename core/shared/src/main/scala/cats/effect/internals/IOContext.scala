@@ -14,14 +14,34 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.internals
 
-package object internals {
+import java.util.concurrent.ConcurrentHashMap
 
-  /**
-   * Handy alias for the registration functions of [[IO.Async]].
-   */
-  private[effect] type Start[+A] =
-    (IOConnection, IOContext, Callback.T[A]) => Unit
+import cats.effect.FiberRef
+
+/**
+ * Represents the state of execution for a
+ * single fiber.
+ */
+final private[effect] class IOContext {
+
+  // TODO: lazy?
+  private val locals: ConcurrentHashMap[FiberRef[Any], Any] = new ConcurrentHashMap()
+
+  def putLocal(key: FiberRef[Any], value: Any): Unit = {
+    locals.put(key, value)
+    ()
+  }
+
+  def getLocal(key: FiberRef[Any]): Option[Any] =
+    Option(locals.get(key))
+
+}
+
+object IOContext {
+
+  def apply(): IOContext =
+    new IOContext
 
 }

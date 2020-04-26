@@ -21,17 +21,18 @@ import cats.effect.{FiberRef, IO}
 private[effect] object IOFiberRef {
 
   def get[A](ref: FiberRef[A]): IO[Option[A]] =
-    IO.Introspect.map { state =>
-      val k = ref.asInstanceOf[FiberRef[AnyRef]]
-      state.get(k).map(_.asInstanceOf[A])
+    IO.Async { (_, ctx, cb) =>
+      val k = ref.asInstanceOf[FiberRef[Any]]
+      val v = ctx.getLocal(k).map(_.asInstanceOf[A])
+      cb(Right(v))
     }
 
   def set[A](ref: FiberRef[A], value: A): IO[Unit] =
-    IO.Introspect.map { state =>
-      val k = ref.asInstanceOf[FiberRef[AnyRef]]
-      val v = value.asInstanceOf[AnyRef]
-      state.put(k, v)
-      ()
+    IO.Async { (_, ctx, cb) =>
+      val k = ref.asInstanceOf[FiberRef[Any]]
+      val v = value.asInstanceOf[Any]
+      ctx.putLocal(k, v)
+      cb(Right(()))
     }
 
 }

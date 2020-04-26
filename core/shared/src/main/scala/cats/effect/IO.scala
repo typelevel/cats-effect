@@ -1201,7 +1201,7 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    Async { (_, cb) =>
+    Async { (_, _, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
@@ -1232,7 +1232,7 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-    Async { (conn, cb) =>
+    Async { (conn, _, cb) =>
       // Must create new connection, otherwise we can have a race
       // condition b/t the bind continuation and `startCancelable` below
       val conn2 = IOConnection()
@@ -1285,7 +1285,7 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] =
-    Async { (conn, cb) =>
+    Async { (conn, _, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
@@ -1473,7 +1473,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
+    val start: Start[Unit] = (_, _, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 
@@ -1593,7 +1593,7 @@ object IO extends IOInstances {
    *        signal downstream
    */
   final private[effect] case class Async[+A](
-    k: (IOConnection, Either[Throwable, A] => Unit) => Unit,
+    k: (IOConnection, IOContext, Either[Throwable, A] => Unit) => Unit,
     trampolineAfter: Boolean = false
   ) extends IO[A]
 
@@ -1609,8 +1609,6 @@ object IO extends IOInstances {
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
-
-  private[effect] case object Introspect extends IO[FiberLocals]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
