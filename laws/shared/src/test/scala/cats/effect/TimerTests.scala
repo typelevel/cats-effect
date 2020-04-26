@@ -38,6 +38,16 @@ class TimerTests extends AsyncFunSuite with Matchers {
   type IorTIO[A] = IorT[IO, Int, A]
   type ResourceIO[A] = Resource[IO, A]
 
+  def resolveClock = {
+    Clock[EitherTIO]
+    Clock[OptionTIO]
+    Clock[WriterTIO]
+    Clock[KleisliIO]
+    Clock[StateTIO]
+    Clock[IorTIO]
+    Clock[ResourceIO]
+  }
+
   test("Timer[IO].clock.realTime") {
     val time = System.currentTimeMillis()
     val io = timer.clock.realTime(MILLISECONDS)
