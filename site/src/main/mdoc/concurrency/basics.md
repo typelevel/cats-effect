@@ -114,28 +114,27 @@ Blocking a thread means that it is being wasted and nothing else can be schedule
 As mentioned, this can be very dangerous and it's best to use dedicated thread
 pool for blocking operations. This way they won't interfere with CPU-bound part of application.
 
-`cats.effect.IO` and `monix.eval.Task` provide `shift` operator which can switch computation to different thread pool.
-If you need to execute blocking operation and come back consider using `ContextShift.evalOn` which is meant for this use case:
+[`Blocker[IO]`](https://typelevel.org/cats-effect/api/cats/effect/Blocker.html) can be used to safely handle blocking operations
+in an explicit way.
 
 ```scala mdoc:silent
-import java.util.concurrent.Executors
-import cats.effect.{ContextShift, IO}
+import cats.effect.{Blocker, ContextShift, IO}
 import scala.concurrent.ExecutionContext
 
 implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-val blockingEC = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
 
 def blockingOp: IO[Unit] = IO(/* blocking op*/ ())
 def doSth(): IO[Unit] = IO(/* do something */ ())
 
-val prog =
+val prog = Blocker[IO].use { blocker =>
   for {
-    _ <- contextShift.evalOn(blockingEC)(blockingOp) // executes on blockingEC
-    _ <- doSth()                                     // executes on contextShift
+    _ <- blocker.blockOn(blockingOp) // executes on blocker, backed by cached thread pool
+    _ <- doSth()                     // executes on contextShift
   } yield ()
+}
 ```
 
-For more convenient tools for this pattern, see [linebacker](https://github.com/ChristopherDavenport/linebacker).
+In most circumstances use a shared `Blocker` when carrying out blocking operations.
 
 Other resource with good practices regarding working with blocked threads
 [is this section of Monix documentation.](https://monix.io/docs/3x/best-practices/blocking.html)
