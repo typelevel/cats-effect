@@ -20,15 +20,18 @@ sealed abstract private[effect] class TracingMode
 
 private[effect] object TracingMode {
 
+  case object Disabled extends TracingMode
+
   case object Rabbit extends TracingMode
 
   case object Slug extends TracingMode
 
   def fromString(value: String): Option[TracingMode] =
     value.toLowerCase() match {
-      case "rabbit" => Some(Rabbit)
-      case "slug"   => Some(Slug)
-      case _        => None
+      case "disabled" => Some(Disabled)
+      case "rabbit"   => Some(Rabbit)
+      case "slug"     => Some(Slug)
+      case _          => None
     }
 
 }

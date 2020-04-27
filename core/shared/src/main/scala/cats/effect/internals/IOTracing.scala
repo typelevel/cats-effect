@@ -28,11 +28,11 @@ private[effect] object IOTracing {
   def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] =
     // TODO: consider inlining this conditional at call-sites
     if (tracingEnabled) {
-      val frame = tracingMode match {
-        case TracingMode.Rabbit => buildCachedFrame(lambdaRef)
-        case TracingMode.Slug   => buildFrame()
+      tracingMode match {
+        case TracingMode.Disabled => source
+        case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(lambdaRef))
+        case TracingMode.Slug     => IO.Trace(source, buildFrame())
       }
-      IO.Trace(source, frame)
     } else {
       source
     }
