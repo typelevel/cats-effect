@@ -364,7 +364,9 @@ private[effect] object IORunLoop {
    * It's an ugly, mutable implementation.
    * For internal use only, here be dragons!
    */
-  final private class RestartCallback(connInit: IOConnection, ctx: IOContext, cb: Callback) extends Callback with Runnable {
+  final private class RestartCallback(connInit: IOConnection, ctx: IOContext, cb: Callback)
+      extends Callback
+      with Runnable {
     import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch

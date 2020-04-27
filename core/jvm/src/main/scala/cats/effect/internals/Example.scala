@@ -20,21 +20,24 @@ import cats.effect.{ExitCode, IO, IOApp}
 
 object Example extends IOApp {
 
-  def program: IO[Unit] = for {
-    _ <- IO.delay(println("1"))
-    _ <- IO.delay(println("2"))
-    _ <- IO.shift
-    _ <- IO.unit.bracket(_ => IO.delay(println("3"))
-      .flatMap(_ => IO.unit))(_ => IO.unit)
-    _ <- IO.delay(println("4"))
-    _ <- IO.delay(println("5"))
-  } yield ()
+  def program: IO[Unit] =
+    for {
+      _ <- IO.delay(println("1"))
+      _ <- IO.delay(println("2"))
+      _ <- IO.shift
+      _ <- IO.unit.bracket(_ =>
+        IO.delay(println("3"))
+          .flatMap(_ => IO.unit)
+      )(_ => IO.unit)
+      _ <- IO.delay(println("4"))
+      _ <- IO.delay(println("5"))
+    } yield ()
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _     <- IO.suspend(program)
+      _ <- IO.suspend(program)
       trace <- IO.introspect
-      _     <- IO.delay(trace.printTrace())
+      _ <- IO.delay(trace.printTrace())
     } yield ExitCode.Success
 
 }

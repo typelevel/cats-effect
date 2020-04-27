@@ -25,18 +25,17 @@ import scala.collection.mutable
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] = {
+  def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] =
     // TODO: consider inlining this conditional at call-sites
     if (tracingEnabled) {
       val frame = tracingMode match {
         case TracingMode.Rabbit => buildCachedFrame(lambdaRef)
-        case TracingMode.Slug => buildFrame()
+        case TracingMode.Slug   => buildFrame()
       }
       IO.Trace(source, frame)
     } else {
       source
     }
-  }
 
   private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame =
     frameCache.get(lambdaRef) match {
@@ -49,9 +48,7 @@ private[effect] object IOTracing {
 
   private def buildFrame(): TraceFrame = {
     // TODO: proper trace calculation
-    val lines = new Throwable()
-      .getStackTrace
-      .toList
+    val lines = new Throwable().getStackTrace.toList
       .map(TraceLine.fromStackTraceElement)
 //      .filter(_.className.startsWith("cats.effect.internals.Main"))
 

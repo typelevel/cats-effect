@@ -31,10 +31,9 @@ final private[effect] class IOContext private () {
   // we should implement a ring buffer with a configurable frame buffer size
   @volatile var frames: List[TraceFrame] = Nil
 
-  def pushFrame(that: TraceFrame): Unit = {
+  def pushFrame(that: TraceFrame): Unit =
     // Accessed from at most one thread at a time
     frames = that :: frames
-  }
 
   def getTrace: IOTrace =
     IOTrace(frames)

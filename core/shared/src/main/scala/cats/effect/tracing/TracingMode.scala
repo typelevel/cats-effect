@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-private[effect] sealed abstract class TracingMode
+sealed abstract private[effect] class TracingMode
 
 private[effect] object TracingMode {
 
@@ -27,8 +27,8 @@ private[effect] object TracingMode {
   def fromString(value: String): Option[TracingMode] =
     value.toLowerCase() match {
       case "rabbit" => Some(Rabbit)
-      case "slug" => Some(Slug)
-      case _ => None
+      case "slug"   => Some(Slug)
+      case _        => None
     }
 
 }

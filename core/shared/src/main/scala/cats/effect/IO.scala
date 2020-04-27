@@ -1571,7 +1571,6 @@ object IO extends IOInstances {
   def introspect: IO[IOTrace] =
     Introspect
 
-
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
 
