@@ -147,7 +147,7 @@ private[effect] object IORunLoop {
 
         case Trace(source, currTrace) =>
           if (ctx eq null) ctx = IOContext.newContext
-          ctx.pushTrace(currTrace)
+          ctx.pushFrame(currTrace)
           currentIO = source
 
         case Introspect =>
@@ -256,7 +256,7 @@ private[effect] object IORunLoop {
 
         case Trace(source, currTrace) =>
           if (ctx eq null) ctx = IOContext.newContext
-          ctx.pushTrace(currTrace)
+          ctx.pushFrame(currTrace)
           currentIO = source
 
         case Introspect =>

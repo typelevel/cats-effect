@@ -16,16 +16,21 @@
 
 package cats.effect.internals
 
-import cats.effect.tracing.IOTrace
+import cats.effect.tracing.{IOTrace, TraceFrame}
 
+/**
+ * IOContext holds state related to the execution of an IO and
+ * should be threaded across multiple invocations of the run-loop
+ * for the same fiber.
+ */
 final private[effect] class IOContext private () {
 
   // This is declared volatile but it is accessed
   // from at most one thread at a time.
   @volatile var trace: IOTrace = IOTrace.Empty
 
-  def pushTrace(that: IOTrace): Unit = {
-    trace = trace.push(that)
+  def pushFrame(that: TraceFrame): Unit = {
+    trace = trace.pushFrame(that)
   }
 
 }

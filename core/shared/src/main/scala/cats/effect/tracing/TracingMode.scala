@@ -16,20 +16,19 @@
 
 package cats.effect.tracing
 
-final case class IOTrace(frames: List[TraceFrame]) {
-  def pushFrame(frame: TraceFrame): IOTrace =
-    IOTrace(frame :: frames)
+private[effect] sealed abstract class TracingMode
 
-  def printTrace(): Unit = {
-    frames.foreach { f =>
-      println("New frame")
-      f.lines.foreach { l =>
-        println(s"\t${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
-      }
+private[effect] object TracingMode {
+
+  case object Rabbit extends TracingMode
+
+  case object Slug extends TracingMode
+
+  def fromString(value: String): Option[TracingMode] =
+    value.toLowerCase() match {
+      case "rabbit" => Some(Rabbit)
+      case "slug" => Some(Slug)
+      case _ => None
     }
-  }
-}
 
-object IOTrace {
-  val Empty = IOTrace(List())
 }

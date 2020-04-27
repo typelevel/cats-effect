@@ -16,20 +16,4 @@
 
 package cats.effect.tracing
 
-final case class IOTrace(frames: List[TraceFrame]) {
-  def pushFrame(frame: TraceFrame): IOTrace =
-    IOTrace(frame :: frames)
-
-  def printTrace(): Unit = {
-    frames.foreach { f =>
-      println("New frame")
-      f.lines.foreach { l =>
-        println(s"\t${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
-      }
-    }
-  }
-}
-
-object IOTrace {
-  val Empty = IOTrace(List())
-}
+final case class TraceFrame(lines: List[TraceLine])

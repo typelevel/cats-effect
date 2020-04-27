@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.IOTrace
+import cats.effect.tracing.{IOTrace, TraceFrame}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -1628,7 +1628,7 @@ object IO extends IOInstances {
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
 
-  final private[effect] case class Trace[+A](source: IO[A], stackTrace: IOTrace) extends IO[A]
+  final private[effect] case class Trace[+A](source: IO[A], frame: TraceFrame) extends IO[A]
 
   final private[effect] case object Introspect extends IO[IOTrace]
 

@@ -17,8 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.tracing.{IOTrace, TraceLine}
+import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
 import cats.effect.internals.TracingPlatform.tracingEnabled
+import cats.effect.internals.TracingFlagsPlatform.tracingMode
 
 import scala.collection.mutable
 
@@ -28,42 +29,42 @@ private[effect] object IOTracing {
   // calculating this key has a cost. inline the checks
   def apply[A](source: IO[A], lambda: AnyRef): IO[A] = {
     if (tracingEnabled) {
-      val cachedTrace = traceCache.get(lambda)
-      cachedTrace match {
-        case Some(trace) =>
-          IO.Trace(source, trace)
-        case None => {
-          val fiberTrace = buildTrace()
-          traceCache.put(lambda, fiberTrace)
-          IO.Trace(source, fiberTrace)
-        }
+      val frame = tracingMode match {
+        case TracingMode.Rabbit =>
+          frameCache.get(lambda) match {
+            case Some(fr) => fr
+            case None => {
+              val fr = buildFrame()
+              frameCache.put(lambda, fr)
+              fr
+            }
+          }
+        case TracingMode.Slug => buildFrame()
       }
+
+      IO.Trace(source, frame)
     } else {
       source
     }
   }
 
-  private def buildTrace(): IOTrace = {
+  private def buildFrame(): TraceFrame = {
     // TODO: proper trace calculation
     val lines = new Throwable()
       .getStackTrace
       .toList
       .map(TraceLine.fromStackTraceElement)
-      .filter(_.className.startsWith("cats.effect.internals.Main"))
+//      .filter(_.className.startsWith("cats.effect.internals.Main"))
 
-    IOTrace(lines)
+    TraceFrame(lines)
   }
 
   /**
-   * Global, thread-safe cache for traces. Keys are generally
-   * lambda references.
+   * Cache for trace frames. Keys are object references for lambdas.
    *
-   * TODO: Could this be a thread-local?
-   * If every thread eventually calculates its own set,
-   * there should be no issue?
-   *
+   * TODO: Switch to thread-local or j.u.chm?
    * TODO: Bound the cache.
    */
-  private val traceCache: mutable.Map[AnyRef, IOTrace] = new mutable.HashMap()
+  private val frameCache: mutable.Map[AnyRef, TraceFrame] = new mutable.HashMap()
 
 }

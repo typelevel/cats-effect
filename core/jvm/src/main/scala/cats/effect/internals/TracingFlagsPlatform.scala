@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect.internals
 
-private[effect] sealed abstract class TracingStatus
+import cats.effect.tracing.TracingMode
 
-private[effect] object TracingStatus {
+// TODO: Extend `TracingPlatform` and inspect bytecode for static final field access
+private[effect] object TracingFlagsPlatform {
 
-  case object Rabbit extends TracingStatus
-
-  case object Slug extends TracingStatus
-
-  def fromString(value: String): TracingStatus =
-    value.toLowerCase() match {
-      case "rabbit" => Rabbit
-      case "slug" => Slug
-      case _ => Rabbit
-    }
+  val tracingMode: TracingMode =
+    Option(System.getProperty("cats.effect.tracing.mode"))
+      .flatMap(TracingMode.fromString)
+      .getOrElse(TracingMode.Rabbit)
 
 }
