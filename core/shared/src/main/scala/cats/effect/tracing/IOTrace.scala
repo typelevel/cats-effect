@@ -16,19 +16,11 @@
 
 package cats.effect.tracing
 
-private[effect] sealed abstract class TracingStatus
+final case class IOTrace(lines: List[TraceElement]) {
+  def and(that: IOTrace): IOTrace =
+    IOTrace(that.lines ++ lines)
+}
 
-private[effect] object TracingStatus {
-
-  case object Rabbit extends TracingStatus
-
-  case object Slug extends TracingStatus
-
-  def fromString(value: String): TracingStatus =
-    value.toLowerCase() match {
-      case "rabbit" => Rabbit
-      case "slug" => Slug
-      case _ => Rabbit
-    }
-
+object IOTrace {
+  val Empty = IOTrace(List())
 }

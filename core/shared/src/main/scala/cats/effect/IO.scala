@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.TraceElement
+import cats.effect.tracing.IOTrace
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -134,7 +134,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
     val source = Bind(this, f)
-    IOTracing.check(source, f.asInstanceOf[AnyRef])
+    IOTracing.apply(source, f.asInstanceOf[AnyRef])
   }
 
   /**
@@ -1207,12 +1207,15 @@ object IO extends IOInstances {
    *
    * @see [[asyncF]] and [[cancelable]]
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    Async { (_, cb) =>
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
+    val source = Async[A] { (_, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
+
+    IOTracing(source, k)
+  }
 
   /**
    * Suspends an asynchronous side effect in `IO`, this being a variant
@@ -1238,8 +1241,8 @@ object IO extends IOInstances {
    *
    * @see [[async]] and [[cancelable]]
    */
-  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
-    Async { (conn, cb) =>
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
+    val source = Async[A] { (conn, cb) =>
       // Must create new connection, otherwise we can have a race
       // condition b/t the bind continuation and `startCancelable` below
       val conn2 = IOConnection()
@@ -1251,6 +1254,9 @@ object IO extends IOInstances {
         catch { case NonFatal(t) => IO(cb2(Left(t))) }
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
+
+    IOTracing(source, k)
+  }
 
   /**
    * Builds a cancelable `IO`.
@@ -1291,8 +1297,8 @@ object IO extends IOInstances {
    * @see [[asyncF]] for a more potent version that does hook into
    *      the underlying cancelation model
    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] =
-    Async { (conn, cb) =>
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
+    val source = Async[A] { (conn, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
@@ -1311,6 +1317,8 @@ object IO extends IOInstances {
       else
         ref.complete(IO.unit)
     }
+    IOTracing.apply(source, k)
+  }
 
   /**
    * Constructs an `IO` which sequences the specified exception.
@@ -1561,7 +1569,7 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
-  def introspect: IO[List[TraceElement]] =
+  def introspect: IO[IOTrace] =
     Introspect
 
 
@@ -1621,9 +1629,9 @@ object IO extends IOInstances {
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
 
-  final private[effect] case class Trace[+A](source: IO[A], stackTrace: List[TraceElement]) extends IO[A]
+  final private[effect] case class Trace[+A](source: IO[A], stackTrace: IOTrace) extends IO[A]
 
-  final private[effect] case object Introspect extends IO[List[TraceElement]]
+  final private[effect] case object Introspect extends IO[IOTrace]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 

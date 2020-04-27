@@ -34,6 +34,12 @@ class TracingPlatform {
      */
     public static final boolean tracingEnabled;
 
+    // TODO: The following variables can probably be kept in Scala
+    // because they'll only be used when tracing and tracing is
+    // pretty expensive anyway.
+
+    public static final int tracingMode;
+
     /**
      * Global, thread-safe cache for traces. Keys are generally
      * lambda references.
@@ -51,6 +57,11 @@ class TracingPlatform {
                 .filter(x -> !x.isEmpty())
                 .map(x -> Boolean.valueOf(x)) // TODO: this can throw
                 .orElse(false);
+
+        tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracingMode"))
+                .filter(x -> !x.isEmpty())
+                .map(x -> Integer.valueOf(x)) // TODO: this can throw
+                .orElse(0);
 
         traceCache = new HashMap<>();
     }

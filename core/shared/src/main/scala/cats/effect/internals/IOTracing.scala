@@ -17,28 +17,32 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.tracing.TraceElement
+import cats.effect.tracing.{IOTrace, TraceElement}
 import TracingPlatform.{tracingEnabled, traceCache}
 
 private[effect] object IOTracing {
 
   // TODO: Lazily evaluate key?
   // calculating this key has a cost. inline the checks
-  def check[A](source: IO[A], key: AnyRef): IO[A] = {
+  def apply[A](source: IO[A], lambda: AnyRef): IO[A] = {
     if (tracingEnabled) {
-      // The userspace method invocation is at least two frames away
-      // TODO: filtering here?
-      val cachedRef = traceCache.get(key)
-      if (cachedRef eq null) {
-        val stackTrace = new Throwable().getStackTrace.toList.map(TraceElement.fromStackTraceElement)
-        traceCache.put(key, stackTrace)
-        IO.Trace(source, stackTrace)
+      val traceRef = traceCache.get(lambda)
+      if (traceRef eq null) {
+        val fiberTrace = createTrace()
+        traceCache.put(lambda, fiberTrace)
+        IO.Trace(source, fiberTrace)
       } else {
-        IO.Trace(source, cachedRef.asInstanceOf[List[TraceElement]])
+        IO.Trace(source, traceRef.asInstanceOf[IOTrace])
       }
     } else {
       source
     }
+  }
+
+  def createTrace(): IOTrace = {
+    // TODO: calculate trace here
+    val lines = new Throwable().getStackTrace.toList.map(TraceElement.fromStackTraceElement)
+    IOTrace(lines)
   }
 
 }

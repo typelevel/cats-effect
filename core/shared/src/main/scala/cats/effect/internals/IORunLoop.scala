@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.TraceElement
+import cats.effect.tracing.IOTrace
 
 import scala.util.control.NonFatal
 
@@ -27,7 +27,6 @@ private[effect] object IORunLoop {
   private type Bind = Any => IO[Any]
   private type CallStack = ArrayStack[Bind]
   // TODO: replace with a mutable ring buffer
-  private type FiberTrace = List[TraceElement]
   private type Callback = Either[Throwable, Any] => Unit
 
   /**
@@ -58,7 +57,7 @@ private[effect] object IORunLoop {
     rcbRef: RestartCallback,
     bFirstRef: Bind,
     bRestRef: CallStack,
-    traceRef: FiberTrace
+    traceRef: IOTrace
   ): Unit = {
     var currentIO: Current = source
     // Can change on a context switch
@@ -66,7 +65,7 @@ private[effect] object IORunLoop {
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
-    var trace: FiberTrace = traceRef
+    var trace: IOTrace = traceRef
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -141,15 +140,15 @@ private[effect] object IORunLoop {
               currentIO = Bind(next, new RestoreContext(old, restore))
           }
 
-        case Trace(source, stackTrace) =>
-          if (trace eq null) trace = Nil
-          trace = stackTrace ++ trace
+        case Trace(source, currTrace) =>
+          if (trace eq null) trace = IOTrace.Empty
+          trace = trace.and(currTrace)
           currentIO = source
 
         case Introspect =>
-          val returnTrace: List[TraceElement] = if (trace eq null) Nil else trace
+          val retTrace = if (trace eq null) IOTrace.Empty else trace
           hasUnboxed = true
-          unboxed = returnTrace
+          unboxed = retTrace
       }
 
       if (hasUnboxed) {
@@ -187,7 +186,7 @@ private[effect] object IORunLoop {
     var currentIO: Current = source
     var bFirst: Bind = null
     var bRest: CallStack = null
-    var trace: FiberTrace = null
+    var trace: IOTrace = null
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -250,15 +249,15 @@ private[effect] object IORunLoop {
           // we may not need to concern ourselves with tracing status here?
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest, trace)
 
-        case Trace(source, stackTrace) =>
-          if (trace eq null) trace = Nil
-          trace = stackTrace ++ trace
+        case Trace(source, currTrace) =>
+          if (trace eq null) trace = IOTrace.Empty
+          trace = trace.and(currTrace)
           currentIO = source
 
         case Introspect =>
-          val returnTrace: List[TraceElement] = if (trace eq null) Nil else trace
+          val retTrace = if (trace eq null) IOTrace.Empty else trace
           hasUnboxed = true
-          unboxed = returnTrace
+          unboxed = retTrace
 
         case _ =>
           return Async { (conn, cb) =>
@@ -287,7 +286,7 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack, trace: FiberTrace): IO[A] =
+  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack, trace: IOTrace): IO[A] =
     // Hitting an async boundary means we have to stop, however
     // if we had previous `flatMap` operations then we need to resume
     // the loop with the collected stack
@@ -368,7 +367,7 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
-    private[this] var trace: FiberTrace = _
+    private[this] var trace: IOTrace = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -376,7 +375,7 @@ private[effect] object IORunLoop {
     def contextSwitch(conn: IOConnection): Unit =
       this.conn = conn
 
-    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack, trace: FiberTrace): Unit = {
+    def start(task: IO.Async[Any], bFirst: Bind, bRest: CallStack, trace: IOTrace): Unit = {
       canCall = true
       this.bFirst = bFirst
       this.bRest = bRest
