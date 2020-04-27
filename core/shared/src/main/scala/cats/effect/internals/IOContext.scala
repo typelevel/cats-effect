@@ -25,13 +25,19 @@ import cats.effect.tracing.{IOTrace, TraceFrame}
  */
 final private[effect] class IOContext private () {
 
-  // This is declared volatile but it is accessed
-  // from at most one thread at a time.
-  @volatile var trace: IOTrace = IOTrace.Empty
+  // We had to do this because of IOBracket implementation
+  // and how it invokes a new run-loop.
+  // TODO: for infinite loops, `frames` represents an unbounded memory leak
+  // we should implement a ring buffer with a configurable frame buffer size
+  @volatile var frames: List[TraceFrame] = Nil
 
   def pushFrame(that: TraceFrame): Unit = {
-    trace = trace.pushFrame(that)
+    // Accessed from at most one thread at a time
+    frames = that :: frames
   }
+
+  def getTrace: IOTrace =
+    IOTrace(frames)
 
 }
 

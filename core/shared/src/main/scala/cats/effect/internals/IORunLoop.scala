@@ -153,7 +153,7 @@ private[effect] object IORunLoop {
         case Introspect =>
           if (ctx eq null) ctx = IOContext.newContext
           hasUnboxed = true
-          unboxed = ctx.trace
+          unboxed = ctx.getTrace
       }
 
       if (hasUnboxed) {
@@ -260,9 +260,10 @@ private[effect] object IORunLoop {
           currentIO = source
 
         case Introspect =>
+          // This can be implemented in terms of Async now
           if (ctx eq null) ctx = IOContext.newContext
           hasUnboxed = true
-          unboxed = ctx.trace
+          unboxed = ctx.getTrace
 
         case _ =>
           return Async { (conn, ctx, cb) =>

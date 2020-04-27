@@ -17,21 +17,13 @@
 package cats.effect.tracing
 
 final case class IOTrace(frames: List[TraceFrame]) {
-  // TODO: for infinite loops, frames represents an unbounded memory leak
-  // we should implement a ring buffer with a configurable frame buffer size
-  def pushFrame(frame: TraceFrame): IOTrace =
-    IOTrace(frame :: frames)
 
-  def printTrace(): Unit = {
+  def printTrace(): Unit =
     frames.foreach { f =>
       println("New frame")
       f.lines.foreach { l =>
         println(s"\t${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
       }
     }
-  }
-}
 
-object IOTrace {
-  val Empty = IOTrace(List())
 }
