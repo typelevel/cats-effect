@@ -19,24 +19,20 @@ package cats.effect.internals;
 import java.util.Optional;
 
 /**
- *
- * Motivation:
- * In Scala, object-level variable reads cause a volatile read.
- * Instead,
+ * Scala companion object field accesses cost a volatile read.
+ * Since this flag is read at the construction of IO nodes,
+ * we are opting to source this flag from a Java class to
+ * bypass the volatile read and squeeze out as much performance
+ * as possible.
  */
 class TracingPlatform {
 
     /**
-     * A boolean variable that controls tracing globally. For tracing to
-     * take effect, this flag must be enabled.
+     * A boolean flag that controls tracing for a JVM process.
      */
-    public static final boolean tracingEnabled;
-
-    static {
-        tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
-            .filter(x -> !x.isEmpty())
-            .map(x -> Boolean.valueOf(x))
-            .orElse(true);
-    }
+    public static final boolean tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
+        .filter(x -> !x.isEmpty())
+        .map(x -> Boolean.valueOf(x))
+        .orElse(true);
 
 }
