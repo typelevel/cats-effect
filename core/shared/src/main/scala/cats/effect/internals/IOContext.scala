@@ -14,11 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect.internals
 
-final case class TraceElement(className: String, methodName: String, fileName: String, lineNumber: Int)
+import cats.effect.tracing.IOTrace
 
-object TraceElement {
-  def fromStackTraceElement(ste: StackTraceElement): TraceElement =
-    TraceElement(ste.getClassName, ste.getMethodName, ste.getFileName, ste.getLineNumber)
+final private[effect] class IOContext private () {
+
+  // This is declared volatile but it is accessed
+  // from at most one thread at a time.
+  @volatile var trace: IOTrace = IOTrace.Empty
+
+  def pushTrace(that: IOTrace): Unit = {
+    trace = trace.push(that)
+  }
+
+}
+
+object IOContext {
+  def newContext: IOContext =
+    new IOContext
 }

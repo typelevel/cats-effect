@@ -30,7 +30,7 @@ private[effect] object IOBracket {
    * Implementation for `IO.bracketCase`.
    */
   def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-    IO.Async { (conn, cb) =>
+    IO.Async { (conn, ctx, cb) =>
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
       conn.push(deferredRelease.cancel)
@@ -40,7 +40,7 @@ private[effect] object IOBracket {
       if (!conn.isCanceled) {
         // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
         // (in other words it is disconnected from our IOConnection)
-        IORunLoop.start[A](acquire, new BracketStart(use, release, conn, deferredRelease, cb))
+        IORunLoop.restart[A](acquire, ctx, new BracketStart(use, release, conn, ctx, deferredRelease, cb))
       } else {
         deferredRelease.complete(IO.unit)
       }
@@ -51,6 +51,7 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
+    ctx: IOContext,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
   ) extends (Either[Throwable, A] => Unit)
@@ -88,7 +89,7 @@ private[effect] object IOBracket {
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.startCancelable(onNext, conn, cb)
+          IORunLoop.restartCancelable(onNext, conn, ctx, cb)
         }
 
       case error @ Left(_) =>
@@ -101,7 +102,7 @@ private[effect] object IOBracket {
    * Implementation for `IO.guaranteeCase`.
    */
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] =
-    IO.Async { (conn, cb) =>
+    IO.Async { (conn, _, cb) =>
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
         def run(): Unit = {

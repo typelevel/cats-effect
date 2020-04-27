@@ -26,7 +26,7 @@ private[effect] object IOStart {
    * Implementation for `IO.start`.
    */
   def apply[A](cs: ContextShift[IO], fa: IO[A]): IO[Fiber[IO, A]] = {
-    val start: Start[Fiber[IO, A]] = (_, cb) => {
+    val start: Start[Fiber[IO, A]] = (_, _, cb) => {
       // Memoization
       val p = Promise[Either[Throwable, A]]()
 

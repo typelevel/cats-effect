@@ -16,8 +16,6 @@
 
 package cats.effect.internals;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,36 +32,11 @@ class TracingPlatform {
      */
     public static final boolean tracingEnabled;
 
-    // TODO: The following variables can probably be kept in Scala
-    // because they'll only be used when tracing and tracing is
-    // pretty expensive anyway.
-
-    public static final int tracingMode;
-
-    /**
-     * Global, thread-safe cache for traces. Keys are generally
-     * lambda references.
-     *
-     * TODO: Could this be a thread-local?
-     * If every thread eventually calculates its own set,
-     * there should be no issue?
-     *
-     * TODO: Bound the cache.
-     */
-    public static final Map<Object, Object> traceCache;
-
     static {
-        tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracingEnabled"))
-                .filter(x -> !x.isEmpty())
-                .map(x -> Boolean.valueOf(x)) // TODO: this can throw
-                .orElse(false);
-
-        tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracingMode"))
-                .filter(x -> !x.isEmpty())
-                .map(x -> Integer.valueOf(x)) // TODO: this can throw
-                .orElse(0);
-
-        traceCache = new HashMap<>();
+        tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
+            .filter(x -> !x.isEmpty())
+            .map(x -> Boolean.valueOf(x))
+            .orElse(true);
     }
 
 }

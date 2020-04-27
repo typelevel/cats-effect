@@ -17,8 +17,10 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.tracing.{IOTrace, TraceElement}
-import TracingPlatform.{tracingEnabled, traceCache}
+import cats.effect.tracing.{IOTrace, TraceLine}
+import cats.effect.internals.TracingPlatform.tracingEnabled
+
+import scala.collection.mutable
 
 private[effect] object IOTracing {
 
@@ -26,23 +28,42 @@ private[effect] object IOTracing {
   // calculating this key has a cost. inline the checks
   def apply[A](source: IO[A], lambda: AnyRef): IO[A] = {
     if (tracingEnabled) {
-      val traceRef = traceCache.get(lambda)
-      if (traceRef eq null) {
-        val fiberTrace = createTrace()
-        traceCache.put(lambda, fiberTrace)
-        IO.Trace(source, fiberTrace)
-      } else {
-        IO.Trace(source, traceRef.asInstanceOf[IOTrace])
+      val cachedTrace = traceCache.get(lambda)
+      cachedTrace match {
+        case Some(trace) =>
+          IO.Trace(source, trace)
+        case None => {
+          val fiberTrace = buildTrace()
+          traceCache.put(lambda, fiberTrace)
+          IO.Trace(source, fiberTrace)
+        }
       }
     } else {
       source
     }
   }
 
-  def createTrace(): IOTrace = {
-    // TODO: calculate trace here
-    val lines = new Throwable().getStackTrace.toList.map(TraceElement.fromStackTraceElement)
+  private def buildTrace(): IOTrace = {
+    // TODO: proper trace calculation
+    val lines = new Throwable()
+      .getStackTrace
+      .toList
+      .map(TraceLine.fromStackTraceElement)
+      .filter(_.className.startsWith("cats.effect.internals.Main"))
+
     IOTrace(lines)
   }
+
+  /**
+   * Global, thread-safe cache for traces. Keys are generally
+   * lambda references.
+   *
+   * TODO: Could this be a thread-local?
+   * If every thread eventually calculates its own set,
+   * there should be no issue?
+   *
+   * TODO: Bound the cache.
+   */
+  private val traceCache: mutable.Map[AnyRef, IOTrace] = new mutable.HashMap()
 
 }

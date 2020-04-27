@@ -35,11 +35,11 @@ final private[effect] class ForwardCancelable private () {
   private[this] val state = new AtomicReference[State](init)
 
   val cancel: CancelToken[IO] = {
-    @tailrec def loop(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+    @tailrec def loop(conn: IOConnection, ctx: IOContext, cb: Callback.T[Unit]): Unit =
       state.get() match {
         case current @ Empty(list) =>
           if (!state.compareAndSet(current, Empty(cb :: list)))
-            loop(conn, cb)
+            loop(conn, ctx, cb)
 
         case Active(token) =>
           state.lazySet(finished) // GC purposes

@@ -25,7 +25,7 @@ private[effect] object IOShift {
   /** Implementation for `IO.shift`. */
   def apply(ec: ExecutionContext): IO[Unit] =
     IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, cb: Callback.T[Unit]): Unit =
+      def apply(conn: IOConnection, ctx: IOContext, cb: Callback.T[Unit]): Unit =
         ec.execute(new Tick(cb))
     })
 

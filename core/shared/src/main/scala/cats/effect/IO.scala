@@ -102,8 +102,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = {
-//    val source =
-    this match {
+    val source = this match {
       case Map(source, g, index) =>
         // Allowed to do fixed number of map operations fused before
         // resetting the counter in order to avoid stack overflows;
@@ -114,7 +113,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
         Map(this, f, 0)
     }
 
-//    IOTracing.check(source, f.asInstanceOf[AnyRef])
+    IOTracing.apply(source, f.asInstanceOf[AnyRef])
   }
 
   /**
@@ -1208,7 +1207,7 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    val source = Async[A] { (_, cb) =>
+    val source = Async[A] { (_, _, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
@@ -1242,7 +1241,7 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
-    val source = Async[A] { (conn, cb) =>
+    val source = Async[A] { (conn, _, cb) =>
       // Must create new connection, otherwise we can have a race
       // condition b/t the bind continuation and `startCancelable` below
       val conn2 = IOConnection()
@@ -1298,7 +1297,7 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
-    val source = Async[A] { (conn, cb) =>
+    val source = Async[A] { (conn, _, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
@@ -1488,7 +1487,7 @@ object IO extends IOInstances {
    * }}}
    */
   val cancelBoundary: IO[Unit] = {
-    val start: Start[Unit] = (_, cb) => cb(Callback.rightUnit)
+    val start: Start[Unit] = (_, _, cb) => cb(Callback.rightUnit)
     Async(start, trampolineAfter = true)
   }
 
@@ -1612,7 +1611,7 @@ object IO extends IOInstances {
    *        signal downstream
    */
   final private[effect] case class Async[+A](
-    k: (IOConnection, Either[Throwable, A] => Unit) => Unit,
+    k: (IOConnection, IOContext, Either[Throwable, A] => Unit) => Unit,
     trampolineAfter: Boolean = false
   ) extends IO[A]
 

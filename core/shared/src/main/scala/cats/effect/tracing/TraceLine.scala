@@ -16,17 +16,10 @@
 
 package cats.effect.tracing
 
-final case class IOTrace(lines: List[TraceLine]) {
-  def push(that: IOTrace): IOTrace =
-    IOTrace(that.lines ++ lines)
+// TODO: Track information about what combinator was used etc.
+final case class TraceLine(className: String, methodName: String, fileName: String, lineNumber: Int)
 
-  def printTrace(): Unit = {
-    lines.foreach { line =>
-      println(s"\t${line.className}.${line.methodName} (${line.fileName}:${line.lineNumber})")
-    }
-  }
-}
-
-object IOTrace {
-  val Empty = IOTrace(List())
+object TraceLine {
+  def fromStackTraceElement(ste: StackTraceElement): TraceLine =
+    TraceLine(ste.getClassName, ste.getMethodName, ste.getFileName, ste.getLineNumber)
 }

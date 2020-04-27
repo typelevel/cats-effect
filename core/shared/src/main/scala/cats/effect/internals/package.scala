@@ -22,5 +22,5 @@ package object internals {
    * Handy alias for the registration functions of [[IO.Async]].
    */
   private[effect] type Start[+A] =
-    (IOConnection, Callback.T[A]) => Unit
+    (IOConnection, IOContext, Callback.T[A]) => Unit
 }
