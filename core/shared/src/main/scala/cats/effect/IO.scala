@@ -102,7 +102,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = {
-    val source = this match {
+//    val source =
+    this match {
       case Map(source, g, index) =>
         // Allowed to do fixed number of map operations fused before
         // resetting the counter in order to avoid stack overflows;
@@ -113,7 +114,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
         Map(this, f, 0)
     }
 
-    IOTracing.check(source)
+//    IOTracing.check(source, f.asInstanceOf[AnyRef])
   }
 
   /**
@@ -133,7 +134,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
     val source = Bind(this, f)
-    IOTracing.check(source)
+    IOTracing.check(source, f.asInstanceOf[AnyRef])
   }
 
   /**
@@ -745,9 +746,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
     IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
-
-  def traced: IO[A] =
-    IOTracing(this)
 
   override def toString: String = this match {
     case Pure(a)       => s"IO($a)"

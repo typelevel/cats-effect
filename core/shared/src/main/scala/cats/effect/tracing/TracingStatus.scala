@@ -16,8 +16,10 @@
 
 package cats.effect.tracing
 
-sealed abstract class TracingStatus
+private[effect] sealed abstract class TracingStatus
 
-object TracingStatus {
+private[effect] object TracingStatus {
   case object None extends TracingStatus
+
+  case object Slug extends TracingStatus
 }

@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.{FiberTracing, TraceElement}
+import cats.effect.tracing.TraceElement
 
 import scala.util.control.NonFatal
 
@@ -106,7 +106,6 @@ private[effect] object IORunLoop {
         case RaiseError(ex) =>
           findErrorHandler(bFirst, bRest) match {
             case null =>
-              FiberTracing.reset()
               cb(Left(ex))
               return
             case bind =>
@@ -369,7 +368,6 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
-    private[this] var tracingStatus: Boolean = false
     private[this] var trace: FiberTrace = _
 
     // Used in combination with trampolineAfter = true
@@ -384,8 +382,6 @@ private[effect] object IORunLoop {
       this.bRest = bRest
       this.trace = trace
       this.trampolineAfter = task.trampolineAfter
-      // Save the bound tracing status to recover after the continuation completes
-      this.tracingStatus = FiberTracing.getAndReset()
 
       // Go, go, go
       task.k(conn, this)
@@ -399,11 +395,6 @@ private[effect] object IORunLoop {
       this.bFirst = null
       this.bRest = null
       this.trace = null
-
-      // TODO: Set only if tracing?
-      // Recover tracing status
-      println("recovering status")
-      FiberTracing.set(tracingStatus)
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation

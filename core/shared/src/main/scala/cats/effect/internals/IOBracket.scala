@@ -24,8 +24,6 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
-import cats.effect.tracing.FiberTracing
-
 private[effect] object IOBracket {
 
   /**
@@ -61,7 +59,6 @@ private[effect] object IOBracket {
     // This class switches from being a Callback to a Runnable, but relies on
     // the internal IO callback protocol to be respected (called at most once)
     private[this] var result: Either[Throwable, A] = _
-    private[this] var tracingStatus: Boolean = _
 
     def apply(ea: Either[Throwable, A]): Unit = {
       if (result ne null) {

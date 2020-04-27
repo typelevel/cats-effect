@@ -16,48 +16,26 @@
 
 package cats.effect.internals
 
-import cats.effect.{ExitCase, IO}
-import cats.effect.IO.Trace
-import cats.effect.tracing.{FiberTracing, TraceElement}
+import cats.effect.IO
+import cats.effect.tracing.TraceElement
+import TracingPlatform.{tracingEnabled, traceCache}
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A]): IO[A] =
-    IOBracket(enable)(_ => source)(disable)
-
-  private def enable: IO[Boolean] =
-    IO.delay {
-      val os = FiberTracing.get()
-      FiberTracing.set(true)
-      os
-    }
-
-  // TODO: This finalizer doesn't actually work in the
-  // case of cancellation because it is invoked by the thread
-  // that initiated cancellation.
-  // This leaves the thread the cancelled fiber was bound to in
-  // an invalid state, so instead we have to reset the status when we
-  // begin interpreting a new IO.
-  private def disable(oldStatus: Boolean, exitCase: ExitCase[Throwable]): IO[Unit] =
-    IO.delay {
-      val isSameFiber = exitCase match {
-        case ExitCase.Completed => true
-        case ExitCase.Error(_) => true
-        case _ => false
-      }
-
-      if (isSameFiber)
-        FiberTracing.set(oldStatus)
-
-      ()
-    }
-
-  def check[A](source: IO[A]): IO[A] = {
-    if (FiberTracing.get()) {
+  // TODO: Lazily evaluate key?
+  // calculating this key has a cost. inline the checks
+  def check[A](source: IO[A], key: AnyRef): IO[A] = {
+    if (tracingEnabled) {
       // The userspace method invocation is at least two frames away
       // TODO: filtering here?
-      val stackTrace = new Throwable().getStackTrace.toList.map(TraceElement.fromStackTraceElement)
-      Trace(source, stackTrace)
+      val cachedRef = traceCache.get(key)
+      if (cachedRef eq null) {
+        val stackTrace = new Throwable().getStackTrace.toList.map(TraceElement.fromStackTraceElement)
+        traceCache.put(key, stackTrace)
+        IO.Trace(source, stackTrace)
+      } else {
+        IO.Trace(source, cachedRef.asInstanceOf[List[TraceElement]])
+      }
     } else {
       source
     }
