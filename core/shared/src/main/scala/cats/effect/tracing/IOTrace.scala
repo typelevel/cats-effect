@@ -17,6 +17,8 @@
 package cats.effect.tracing
 
 final case class IOTrace(frames: List[TraceFrame]) {
+  // TODO: for infinite loops, frames represents an unbounded memory leak
+  // we should implement a ring buffer with a configurable frame buffer size
   def pushFrame(frame: TraceFrame): IOTrace =
     IOTrace(frame :: frames)
 

@@ -25,28 +25,27 @@ import scala.collection.mutable
 
 private[effect] object IOTracing {
 
-  // TODO: Lazily evaluate key?
-  // calculating this key has a cost. inline the checks
-  def apply[A](source: IO[A], lambda: AnyRef): IO[A] = {
+  def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] = {
+    // TODO: consider inlining this conditional at call-sites
     if (tracingEnabled) {
       val frame = tracingMode match {
-        case TracingMode.Rabbit =>
-          frameCache.get(lambda) match {
-            case Some(fr) => fr
-            case None => {
-              val fr = buildFrame()
-              frameCache.put(lambda, fr)
-              fr
-            }
-          }
+        case TracingMode.Rabbit => buildCachedFrame(lambdaRef)
         case TracingMode.Slug => buildFrame()
       }
-
       IO.Trace(source, frame)
     } else {
       source
     }
   }
+
+  private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame =
+    frameCache.get(lambdaRef) match {
+      case Some(fr) => fr
+      case None =>
+        val fr = buildFrame()
+        frameCache.put(lambdaRef, fr)
+        fr
+    }
 
   private def buildFrame(): TraceFrame = {
     // TODO: proper trace calculation
