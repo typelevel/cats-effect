@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package org.simpleapp.example
 
 import cats.effect.{ExitCode, IO, IOApp}
 
@@ -36,7 +36,7 @@ object Example extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     for {
       _ <- IO.suspend(program)
-      trace <- IO.introspect
+      trace <- IO.backtrace
       _ <- IO.delay(trace.printTrace())
     } yield ExitCode.Success
 

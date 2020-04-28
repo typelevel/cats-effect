@@ -135,7 +135,6 @@ private[effect] object IORunLoop {
           return
 
         case ContextSwitch(next, modify, restore) =>
-          // TODO: any tracing implications here?
           val old = if (conn ne null) conn else IOConnection()
           conn = modify(old)
           currentIO = next
@@ -159,7 +158,6 @@ private[effect] object IORunLoop {
       if (hasUnboxed) {
         popNextBind(bFirst, bRest) match {
           case null =>
-            // TODO: reset status here?
             cb(Right(unboxed))
             return
           case bind =>
@@ -250,8 +248,6 @@ private[effect] object IORunLoop {
         case Async(_, _) =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          // TODO: Since IO.traced is implemented in terms of IOBracket
-          // we may not need to concern ourselves with tracing status here?
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
 
         case Trace(source, currTrace) =>
@@ -260,7 +256,7 @@ private[effect] object IORunLoop {
           currentIO = source
 
         case Introspect =>
-          // This can be implemented in terms of Async now
+          // TODO: This can be implemented in terms of Async now
           if (ctx eq null) ctx = IOContext.newContext
           hasUnboxed = true
           unboxed = ctx.getTrace

@@ -25,7 +25,7 @@ import java.util.Optional;
  * bypass the volatile read and squeeze out as much performance
  * as possible.
  */
-class TracingPlatform {
+public class TracingPlatformFast {
 
     /**
      * A boolean flag that controls tracing for a JVM process.
@@ -33,6 +33,6 @@ class TracingPlatform {
     public static final boolean tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
         .map(x -> Boolean.valueOf(x))
-        .orElse(true);
+        .orElse(false);
 
 }

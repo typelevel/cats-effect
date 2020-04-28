@@ -1568,7 +1568,7 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
-  def introspect: IO[IOTrace] =
+  def backtrace: IO[IOTrace] =
     Introspect
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

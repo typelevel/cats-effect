@@ -16,12 +16,12 @@
 
 package cats.effect.internals
 
+import java.util.concurrent.ConcurrentHashMap
+
 import cats.effect.IO
 import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
-import cats.effect.internals.TracingPlatform.tracingEnabled
-import cats.effect.internals.TracingFlagsPlatform.tracingMode
-
-import scala.collection.mutable
+import cats.effect.internals.TracingPlatform.tracingMode
+import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 private[effect] object IOTracing {
 
@@ -37,20 +37,23 @@ private[effect] object IOTracing {
       source
     }
 
-  private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame =
-    frameCache.get(lambdaRef) match {
-      case Some(fr) => fr
-      case None =>
-        val fr = buildFrame()
-        frameCache.put(lambdaRef, fr)
-        fr
+  private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame = {
+    val cachedFr = frameCache.get(lambdaRef)
+    if (cachedFr eq null) {
+      val fr = buildFrame()
+      frameCache.put(lambdaRef, fr)
+      fr
+    } else {
+      cachedFr
     }
+  }
 
   private def buildFrame(): TraceFrame = {
     // TODO: proper trace calculation
     val lines = new Throwable().getStackTrace.toList
       .map(TraceLine.fromStackTraceElement)
-      .filter(_.className.startsWith("cats.effect.internals.Example"))
+      .find(l => !classBlacklist.exists(b => l.className.startsWith(b)))
+      .toList
 
     TraceFrame(lines)
   }
@@ -58,9 +61,17 @@ private[effect] object IOTracing {
   /**
    * Cache for trace frames. Keys are object references for lambdas.
    *
-   * TODO: Switch to thread-local or j.u.chm?
+   * TODO: Consider thread-local or a regular, mutable map.h
    * TODO: Bound the cache.
    */
-  private val frameCache: mutable.Map[AnyRef, TraceFrame] = new mutable.HashMap()
+  private val frameCache: ConcurrentHashMap[AnyRef, TraceFrame] = new ConcurrentHashMap[AnyRef, TraceFrame]()
+
+  private val classBlacklist = List(
+    "cats.effect.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
 
 }

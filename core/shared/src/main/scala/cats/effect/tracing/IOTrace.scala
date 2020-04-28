@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-final case class IOTrace(frames: List[TraceFrame]) {
+final case class IOTrace(frames: Vector[TraceFrame]) {
 
   def printTrace(): Unit =
     frames.foreach { f =>

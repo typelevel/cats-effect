@@ -18,14 +18,12 @@ package cats.effect.internals
 
 import cats.effect.tracing.TracingMode
 
-private[effect] object TracingFlagsPlatform {
+private[effect] object TracingPlatform {
 
-  // TODO: Extend `TracingPlatform` and inspect bytecode for static final field access
-
-  // TODO: Configure this lexically and introduce a Disabled mode.
+  // TODO: Configure this lexically
   val tracingMode: TracingMode =
     Option(System.getProperty("cats.effect.tracing.mode"))
       .flatMap(TracingMode.fromString)
-      .getOrElse(TracingMode.Rabbit)
+      .getOrElse(TracingMode.Disabled)
 
 }
