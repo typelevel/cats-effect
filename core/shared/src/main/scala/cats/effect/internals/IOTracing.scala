@@ -50,7 +50,7 @@ private[effect] object IOTracing {
     // TODO: proper trace calculation
     val lines = new Throwable().getStackTrace.toList
       .map(TraceLine.fromStackTraceElement)
-//      .filter(_.className.startsWith("cats.effect.internals.Main"))
+      .filter(_.className.startsWith("cats.effect.internals.Example"))
 
     TraceFrame(lines)
   }

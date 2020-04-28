@@ -33,7 +33,7 @@ final private[effect] class IOContext private () {
 
   def pushFrame(that: TraceFrame): Unit =
     // Accessed from at most one thread at a time
-    frames = that :: frames
+    frames = (that :: frames)
 
   def getTrace: IOTrace =
     IOTrace(frames)

@@ -20,7 +20,7 @@ final case class IOTrace(frames: List[TraceFrame]) {
 
   def printTrace(): Unit =
     frames.foreach { f =>
-      println("New frame")
+//      println("New frame")
       f.lines.foreach { l =>
         println(s"\t${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
       }
