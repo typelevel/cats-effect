@@ -19,16 +19,16 @@ package cats.effect.internals;
 import java.util.Optional;
 
 /**
- * Scala companion object field accesses cost a volatile read.
- * Since this flag is read at the construction of IO nodes,
- * we are opting to source this flag from a Java class to
- * bypass the volatile read and squeeze out as much performance
- * as possible.
+ * Scala object field accesses cost a volatile read across modules.
+ * Since this flag is read during construction of IO nodes, we are opting to
+ * hold this flag in a Java class to bypass the volatile read.
  */
 public class TracingPlatformFast {
 
     /**
-     * A boolean flag that controls tracing for a JVM process.
+     * A boolean flag that enables or disables tracing for a JVM process.
+     * Since it is declared static and final, the JIT compiler has the liberty
+     * to completely eliminate code paths consequent to the conditional.
      */
     public static final boolean tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
