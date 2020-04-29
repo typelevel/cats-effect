@@ -20,26 +20,26 @@ object Test {
   class Base()
   case class Derived() extends Base
 
-  def fBase[F[+ _]](implicit F: Sync[F]): F[Either[Base, Nothing]] = F.delay(Left(new Base()))
-  def fDerived[F[+ _]](implicit F: Sync[F]): F[Either[Derived, Nothing]] = F.delay(Left(Derived()))
+  def fBase[F[+_]](implicit F: Sync[F]): F[Either[Base, Nothing]] = F.delay(Left(new Base()))
+  def fDerived[F[+_]](implicit F: Sync[F]): F[Either[Derived, Nothing]] = F.delay(Left(Derived()))
 
-  def f[F[+ _]](implicit F: Sync[F]): F[Either[Base, Nothing]] =
+  def f[F[+_]](implicit F: Sync[F]): F[Either[Base, Nothing]] =
     if (true) {
       fBase
     } else {
       fDerived
     }
 
-  def g2[F[+_, +_]](implicit F: Sync[F[Throwable, ?]]): Resource[F[Throwable, ?], Either[Base, Nothing]] = {
-    Resource.liftF[F[Throwable, +?], Either[Base, Nothing]](f[F[Throwable, +?]])
+  def g2[F[+_, +_]](implicit F: Sync[F[Throwable, ?]]): Resource[F[Throwable, ?], Either[Base, Nothing]] =
+    Resource
+      .liftF[F[Throwable, +?], Either[Base, Nothing]](f[F[Throwable, +?]])
       .map(x => x)
-  }
 
   // this one fails, but not the above
-  def g[F[+_]](implicit F: Sync[F]): Resource[F, Either[Base, Nothing]] = {
-    Resource.liftF[F, Either[Base, Nothing]](f[F])
+  def g[F[+_]](implicit F: Sync[F]): Resource[F, Either[Base, Nothing]] =
+    Resource
+      .liftF[F, Either[Base, Nothing]](f[F])
       .map(x => x)
       .flatMap(x => Resource.pure[F, Either[Base, Nothing]](x))
-  }
 
 }
