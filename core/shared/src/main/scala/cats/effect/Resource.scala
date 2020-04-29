@@ -138,7 +138,7 @@ sealed abstract class Resource[+F[_], +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G[?], Throwable]): G[B] =
     fold[G, B](f, identity)
 
   /**
@@ -169,8 +169,8 @@ sealed abstract class Resource[+F[_], +A] {
    *
    **/
   def parZip[G[x] >: F[x]: Sync: Parallel, B](
-    that: Resource[G, B]
-  ): Resource[G, (A, B)] = {
+    that: Resource[G[?], B]
+  ): Resource[G[?], (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
 
     def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
@@ -192,7 +192,7 @@ sealed abstract class Resource[+F[_], +A] {
    * Implementation for the `flatMap` operation, as described via the
    * `cats.Monad` type class.
    */
-  def flatMap[G[x] >: F[x], B](f: A => Resource[G, B]): Resource[G, B] =
+  def flatMap[G[x] >: F[x], B](f: A => Resource[G[?], B]): Resource[G[?], B] =
     Bind(this, f)
 
   /**
@@ -201,7 +201,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    *  This is the standard `Functor.map`.
    */
-  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, B] =
+  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G[?]]): Resource[G[?], B] =
     flatMap(a => Resource.pure[G, B](f(a)))
 
   @deprecated("Use the overload that doesn't require Bracket", "2.2.0")
@@ -250,7 +250,7 @@ sealed abstract class Resource[+F[_], +A] {
    * resource.
    *
    */
-  def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
+  def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G[?], Throwable]): G[(B, G[Unit])] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
       loop(current, stack, release)
@@ -290,14 +290,14 @@ sealed abstract class Resource[+F[_], +A] {
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatMap` on `F[A]` while maintaining the resource context
    */
-  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
+  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[?]]): Resource[G[?], B] =
     this.flatMap(a => Resource.liftF(f(a)))
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a
    * `flatTap` on `F[A]` while maintaining the resource context
    */
-  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, A] =
+  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[?]]): Resource[G[?], A] =
     this.evalMap(a => f(a).as(a))
 }
 
