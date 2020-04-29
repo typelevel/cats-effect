@@ -61,8 +61,8 @@ private[effect] object IOTracing {
   /**
    * Cache for trace frames. Keys are object references for lambdas.
    *
-   * TODO: Consider thread-local or a regular, mutable map.h
-   * TODO: Bound the cache.
+   * TODO: Consider thread-local or a regular, mutable map.
+   * TODO: LRU max-bounded cache.
    */
   private val frameCache: ConcurrentHashMap[AnyRef, TraceFrame] = new ConcurrentHashMap[AnyRef, TraceFrame]()
 
