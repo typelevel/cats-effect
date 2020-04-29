@@ -45,7 +45,7 @@ sealed abstract private[effect] class IOConnection {
   def cancel: CancelToken[IO]
 
   /**
-   * @return true in case this cancelable hasn't been canceled,
+   * @return true in case this cancelable has been canceled,
    *         or false otherwise.
    */
   def isCanceled: Boolean
