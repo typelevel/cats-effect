@@ -24,6 +24,8 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
+import cats.effect.tracing.TracingMode
+
 private[effect] object IOBracket {
 
   /**
@@ -40,7 +42,8 @@ private[effect] object IOBracket {
       if (!conn.isCanceled) {
         // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
         // (in other words it is disconnected from our IOConnection)
-        IORunLoop.restart[A](acquire, ctx, new BracketStart(use, release, conn, ctx, deferredRelease, cb))
+        val tMode = IOTracing.getLocalTracingMode()
+        IORunLoop.restart[A](acquire, ctx, tMode, new BracketStart(use, release, conn, ctx, tMode, deferredRelease, cb))
       } else {
         deferredRelease.complete(IO.unit)
       }
@@ -52,6 +55,7 @@ private[effect] object IOBracket {
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
     ctx: IOContext,
+    mode: TracingMode,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
   ) extends (Either[Throwable, A] => Unit)
@@ -89,7 +93,7 @@ private[effect] object IOBracket {
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.restartCancelable(onNext, conn, ctx, cb)
+          IORunLoop.restartCancelable(onNext, conn, ctx, mode, cb)
         }
 
       case error @ Left(_) =>

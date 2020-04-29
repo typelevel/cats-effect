@@ -47,6 +47,6 @@ final private[effect] class IOContext private () {
 }
 
 object IOContext {
-  def newContext: IOContext =
+  def apply(): IOContext =
     new IOContext
 }

@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.{IOTrace, TraceFrame}
+import cats.effect.tracing.{IOTrace, TraceFrame, TracingMode}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -785,6 +785,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * */
   def <&[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[A] =
     p.parProductL(this)(another)
+
+  def slugTrace: IO[A] =
+    IOTracing.tracedLocally(this, TracingMode.Slug)
+
+  def rabbitTrace: IO[A] =
+    IOTracing.tracedLocally(this, TracingMode.Rabbit)
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {

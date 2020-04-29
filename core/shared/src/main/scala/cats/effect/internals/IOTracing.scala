@@ -20,7 +20,6 @@ import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
 import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
-import cats.effect.internals.TracingPlatform.tracingMode
 import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 private[effect] object IOTracing {
@@ -28,13 +27,37 @@ private[effect] object IOTracing {
   def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] =
     // TODO: consider inlining this conditional at call-sites
     if (tracingEnabled) {
-      tracingMode match {
+      localTracingMode.get() match {
         case TracingMode.Disabled => source
         case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(lambdaRef))
         case TracingMode.Slug     => IO.Trace(source, buildFrame())
       }
     } else {
       source
+    }
+
+  def tracedLocally[A](source: IO[A], mode: TracingMode): IO[A] =
+    if (tracingEnabled) {
+      IO.suspend {
+        val old = localTracingMode.get()
+        localTracingMode.set(mode)
+
+        // We don't need to reset the status here in the event of cancellation.
+        source.attempt.flatMap { e =>
+          localTracingMode.set(old)
+          IO.fromEither(e)
+        }
+      }
+    } else {
+      source
+    }
+
+  def getLocalTracingMode(): TracingMode =
+    localTracingMode.get()
+
+  def setLocalTracingMode(mode: TracingMode): Unit =
+    if (tracingEnabled) {
+      localTracingMode.set(mode)
     }
 
   private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame = {
@@ -59,12 +82,17 @@ private[effect] object IOTracing {
   }
 
   /**
-   * Cache for trace frames. Keys are object references for lambdas.
+   * Cache for trace frames. Keys are references to:
+   * - lambdas
    *
    * TODO: Consider thread-local or a regular, mutable map.
-   * TODO: LRU max-bounded cache.
+   * TODO: LRU entry-bounded cache.
    */
   private val frameCache: ConcurrentHashMap[AnyRef, TraceFrame] = new ConcurrentHashMap[AnyRef, TraceFrame]()
+
+  private val localTracingMode: ThreadLocal[TracingMode] = new ThreadLocal[TracingMode] {
+    override def initialValue(): TracingMode = TracingMode.Disabled
+  }
 
   private val classBlacklist = List(
     "cats.effect.",

@@ -35,7 +35,12 @@ object Example extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _ <- IO.suspend(program)
+      _ <- IO.suspend(program).rabbitTrace
+      _ <- IO.delay("10")
+      _ <- IO.delay("11")
+      _ <- IO.delay("12")
+      _ <- IO.delay("13")
+      _ <- IO.delay("14")
       trace <- IO.backtrace
       _ <- IO.delay(trace.printTrace())
     } yield ExitCode.Success

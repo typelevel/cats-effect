@@ -18,6 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
+import cats.effect.tracing.TracingMode
 
 import scala.util.control.NonFatal
 
@@ -32,21 +33,29 @@ private[effect] object IORunLoop {
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
-  def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
+  def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit = {
+    IOTracing.setLocalTracingMode(TracingMode.Disabled)
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
+  }
 
-  def restart[A](source: IO[A], ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
+  def restart[A](source: IO[A], ctx: IOContext, mode: TracingMode, cb: Either[Throwable, A] => Unit): Unit = {
+    IOTracing.setLocalTracingMode(mode)
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], ctx, null, null, null)
+  }
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
-  def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
+  def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit = {
+    IOTracing.setLocalTracingMode(TracingMode.Disabled)
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
+  }
 
-  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
+  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, mode: TracingMode, cb: Either[Throwable, A] => Unit): Unit = {
+    IOTracing.setLocalTracingMode(mode)
     loop(source, conn, cb.asInstanceOf[Callback], ctx, null, null, null)
+  }
 
   /**
    * Loop for evaluating an `IO` value.
@@ -130,6 +139,7 @@ private[effect] object IORunLoop {
 
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
+          if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, ctx, cb.asInstanceOf[Callback])
           rcb.start(async, bFirst, bRest)
           return
@@ -145,14 +155,15 @@ private[effect] object IORunLoop {
           }
 
         case Trace(source, currTrace) =>
-          if (ctx eq null) ctx = IOContext.newContext
+          if (ctx eq null) ctx = IOContext()
           ctx.pushFrame(currTrace)
           currentIO = source
 
         case Introspect =>
-          if (ctx eq null) ctx = IOContext.newContext
+          if (ctx eq null) ctx = IOContext()
           hasUnboxed = true
           unboxed = ctx.getTrace
+
       }
 
       if (hasUnboxed) {
@@ -251,13 +262,13 @@ private[effect] object IORunLoop {
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
 
         case Trace(source, currTrace) =>
-          if (ctx eq null) ctx = IOContext.newContext
+          if (ctx eq null) ctx = IOContext()
           ctx.pushFrame(currTrace)
           currentIO = source
 
         case Introspect =>
           // TODO: This can be implemented in terms of Async now
-          if (ctx eq null) ctx = IOContext.newContext
+          if (ctx eq null) ctx = IOContext()
           hasUnboxed = true
           unboxed = ctx.getTrace
 
@@ -371,6 +382,7 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
+    private[this] var tMode: TracingMode = _
 
     // Used in combination with trampolineAfter = true
     private[this] var value: Either[Throwable, Any] = _
@@ -383,6 +395,7 @@ private[effect] object IORunLoop {
       this.bFirst = bFirst
       this.bRest = bRest
       this.trampolineAfter = task.trampolineAfter
+      this.tMode = IOTracing.getLocalTracingMode()
 
       // Go, go, go
       task.k(conn, ctx, this)
@@ -394,6 +407,11 @@ private[effect] object IORunLoop {
       val bRest = this.bRest
       this.bFirst = null
       this.bRest = null
+
+      // The continuation may have been invoked on a new execution context,
+      // so let's recover the tracing mode here.
+      IOTracing.setLocalTracingMode(this.tMode)
+      this.tMode = null
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
