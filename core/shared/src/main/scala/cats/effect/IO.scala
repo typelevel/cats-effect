@@ -1627,4 +1627,11 @@ object IO extends IOInstances {
     override def recover(e: Throwable) =
       Pure(Left(e))
   }
+
+  /**
+   * Nice little syntax to do `IO(mkFuture).liftFutureIO` instead of `IO.fromFuture(IO(mkFuture))`.
+   */
+  implicit final class FutureOps[A](private val iof: IO[Future[A]]) extends AnyVal {
+    def liftFutureIO(implicit cs: ContextShift[IO]): IO[A] = iof.flatMap(IOFromFuture.apply).guarantee(cs.shift)
+  }
 }
