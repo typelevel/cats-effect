@@ -19,6 +19,7 @@ package cats.effect.internals
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.TracingMode
+import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 import scala.util.control.NonFatal
 
@@ -34,12 +35,16 @@ private[effect] object IORunLoop {
    * with the result when completed.
    */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit = {
-    IOTracing.setLocalTracingMode(TracingMode.Disabled)
+    if (tracingEnabled) {
+      IOTracing.setLocalTracingMode(TracingMode.Disabled)
+    }
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
   }
 
   def restart[A](source: IO[A], ctx: IOContext, mode: TracingMode, cb: Either[Throwable, A] => Unit): Unit = {
-    IOTracing.setLocalTracingMode(mode)
+    if (tracingEnabled) {
+      IOTracing.setLocalTracingMode(mode)
+    }
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], ctx, null, null, null)
   }
 
@@ -48,12 +53,16 @@ private[effect] object IORunLoop {
    * with the result when completed.
    */
   def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit = {
-    IOTracing.setLocalTracingMode(TracingMode.Disabled)
+    if (tracingEnabled) {
+      IOTracing.setLocalTracingMode(TracingMode.Disabled)
+    }
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
   }
 
   def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, mode: TracingMode, cb: Either[Throwable, A] => Unit): Unit = {
-    IOTracing.setLocalTracingMode(mode)
+    if (tracingEnabled) {
+      IOTracing.setLocalTracingMode(mode)
+    }
     loop(source, conn, cb.asInstanceOf[Callback], ctx, null, null, null)
   }
 
@@ -94,6 +103,10 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
+//          if (tracingEnabled) {
+//            if (ctx eq null) ctx = IOContext()
+//            ctx.pushFrame(bind.trace)
+//          }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
@@ -134,11 +147,17 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
+//          if (tracingEnabled) {
+//            if (ctx eq null) ctx = IOContext()
+//            ctx.pushFrame(bindNext.trace)
+//          }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
+          // We need to initialize an IOContext because the continuation
+          // may produce trace frames.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, ctx, cb.asInstanceOf[Callback])
           rcb.start(async, bFirst, bRest)
@@ -154,9 +173,9 @@ private[effect] object IORunLoop {
               currentIO = Bind(next, new RestoreContext(old, restore))
           }
 
-        case Trace(source, currTrace) =>
+        case Trace(source, frame) =>
           if (ctx eq null) ctx = IOContext()
-          ctx.pushFrame(currTrace)
+          ctx.pushFrame(frame)
           currentIO = source
 
         case Introspect =>
@@ -261,9 +280,9 @@ private[effect] object IORunLoop {
           // box those vars in scala.runtime.ObjectRef!
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
 
-        case Trace(source, currTrace) =>
+        case Trace(source, frame) =>
           if (ctx eq null) ctx = IOContext()
-          ctx.pushFrame(currTrace)
+          ctx.pushFrame(frame)
           currentIO = source
 
         case Introspect =>
@@ -395,7 +414,9 @@ private[effect] object IORunLoop {
       this.bFirst = bFirst
       this.bRest = bRest
       this.trampolineAfter = task.trampolineAfter
-      this.tMode = IOTracing.getLocalTracingMode()
+      if (tracingEnabled) {
+        this.tMode = IOTracing.getLocalTracingMode()
+      }
 
       // Go, go, go
       task.k(conn, ctx, this)
@@ -408,10 +429,12 @@ private[effect] object IORunLoop {
       this.bFirst = null
       this.bRest = null
 
-      // The continuation may have been invoked on a new execution context,
-      // so let's recover the tracing mode here.
-      IOTracing.setLocalTracingMode(this.tMode)
-      this.tMode = null
+      if (tracingEnabled) {
+        // The continuation may have been invoked on a new execution context,
+        // so let's recover the tracing mode here.
+        IOTracing.setLocalTracingMode(this.tMode)
+        this.tMode = null
+      }
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation

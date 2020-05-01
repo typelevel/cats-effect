@@ -18,12 +18,13 @@ package cats.effect.tracing
 
 final case class IOTrace(frames: Vector[TraceFrame]) {
 
-  def printTrace(): Unit =
+  def printTrace(): Unit = {
+    System.err.println("IOTrace")
     frames.foreach { f =>
-//      println("New frame")
       f.lines.foreach { l =>
-        println(s"\t${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
+        System.err.println(s"\tat ${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
       }
     }
+  }
 
 }

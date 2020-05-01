@@ -20,6 +20,12 @@ import cats.effect.{ExitCode, IO, IOApp}
 
 object Example extends IOApp {
 
+  def program2: IO[Unit] =
+    for {
+      _ <- IO.delay(println("7"))
+      _ <- IO.delay(println("8"))
+    } yield ()
+
   def program: IO[Unit] =
     for {
       _ <- IO.delay(println("1"))
@@ -27,7 +33,7 @@ object Example extends IOApp {
       _ <- IO.shift
       _ <- IO.unit.bracket(_ =>
         IO.delay(println("3"))
-          .flatMap(_ => IO.unit)
+          .flatMap(_ => program2)
       )(_ => IO.unit)
       _ <- IO.delay(println("4"))
       _ <- IO.delay(println("5"))
@@ -37,10 +43,6 @@ object Example extends IOApp {
     for {
       _ <- IO.suspend(program).rabbitTrace
       _ <- IO.delay("10")
-      _ <- IO.delay("11")
-      _ <- IO.delay("12")
-      _ <- IO.delay("13")
-      _ <- IO.delay("14")
       trace <- IO.backtrace
       _ <- IO.delay(trace.printTrace())
     } yield ExitCode.Success

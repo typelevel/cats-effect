@@ -27,6 +27,7 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
 import cats.effect.tracing.{IOTrace, TraceFrame, TracingMode}
+import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -102,18 +103,22 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = {
-    val source = this match {
-      case Map(source, g, index) =>
-        // Allowed to do fixed number of map operations fused before
-        // resetting the counter in order to avoid stack overflows;
-        // See `IOPlatform` for details on this maximum.
-        if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-        else Map(this, f, 0)
-      case _ =>
-        Map(this, f, 0)
+    if (tracingEnabled) {
+      // Don't perform map fusion when tracing is enabled.
+      // We may not actually have to do this
+      IOTracing(Map(this, f, 0), f)
+    } else {
+      this match {
+        case Map(source, g, index) =>
+          // Allowed to do fixed number of map operations fused before
+          // resetting the counter in order to avoid stack overflows;
+          // See `IOPlatform` for details on this maximum.
+          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
+          else Map(this, f, 0)
+        case _ =>
+          Map(this, f, 0)
+      }
     }
-
-    IOTracing.apply(source, f.asInstanceOf[AnyRef])
   }
 
   /**
@@ -132,8 +137,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val source = Bind(this, f)
-    IOTracing.apply(source, f.asInstanceOf[AnyRef])
+    val nextIo = Bind(this, f)
+    if (tracingEnabled) {
+      IOTracing(nextIo, f)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -787,10 +796,18 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     p.parProductL(this)(another)
 
   def slugTrace: IO[A] =
-    IOTracing.tracedLocally(this, TracingMode.Slug)
+    if (tracingEnabled) {
+      IOTracing.tracedLocally(this, TracingMode.Slug)
+    } else {
+      this
+    }
 
   def rabbitTrace: IO[A] =
-    IOTracing.tracedLocally(this, TracingMode.Rabbit)
+    if (tracingEnabled) {
+      IOTracing.tracedLocally(this, TracingMode.Rabbit)
+    } else {
+      this
+    }
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
@@ -1213,13 +1230,17 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    val source = Async[A] { (_, _, cb) =>
+    val nextIo = Async[A] { (_, _, cb) =>
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
-    IOTracing(source, k)
+    if (tracingEnabled) {
+      IOTracing(nextIo, k)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -1247,7 +1268,7 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
-    val source = Async[A] { (conn, _, cb) =>
+    val nextIo = Async[A] { (conn, _, cb) =>
       // Must create new connection, otherwise we can have a race
       // condition b/t the bind continuation and `startCancelable` below
       val conn2 = IOConnection()
@@ -1260,7 +1281,11 @@ object IO extends IOInstances {
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
-    IOTracing(source, k)
+    if (tracingEnabled) {
+      IOTracing(nextIo, k)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -1303,7 +1328,7 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
-    val source = Async[A] { (conn, _, cb) =>
+    val nextIo = Async[A] { (conn, _, cb) =>
       val cb2 = Callback.asyncIdempotent(conn, cb)
       val ref = ForwardCancelable()
       conn.push(ref.cancel)
@@ -1322,7 +1347,12 @@ object IO extends IOInstances {
       else
         ref.complete(IO.unit)
     }
-    IOTracing.apply(source, k)
+
+    if (tracingEnabled) {
+      IOTracing(nextIo, k)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -1598,7 +1628,7 @@ object IO extends IOInstances {
   /** Corresponds to [[IO.map]]. */
   final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
     override def apply(value: E): IO[A] =
-      new Pure(f(value))
+      Pure(f(value))
   }
 
   /**
@@ -1633,7 +1663,7 @@ object IO extends IOInstances {
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
 
-  final private[effect] case class Trace[+A](source: IO[A], frame: TraceFrame) extends IO[A]
+  final private[effect] case class Trace[A](source: IO[A], frame: TraceFrame) extends IO[A]
 
   final private[effect] case object Introspect extends IO[IOTrace]
 

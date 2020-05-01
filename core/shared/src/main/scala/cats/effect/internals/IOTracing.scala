@@ -20,45 +20,35 @@ import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
 import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
-import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A], lambdaRef: AnyRef): IO[A] =
-    // TODO: consider inlining this conditional at call-sites
-    if (tracingEnabled) {
-      localTracingMode.get() match {
-        case TracingMode.Disabled => source
-        case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(lambdaRef))
-        case TracingMode.Slug     => IO.Trace(source, buildFrame())
-      }
-    } else {
-      source
+  def apply[A](source: IO[A], ref: AnyRef): IO[A] =
+    localTracingMode.get() match {
+      case TracingMode.Disabled => source
+      case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(ref))
+      case TracingMode.Slug     => IO.Trace(source, buildFrame())
     }
 
   def tracedLocally[A](source: IO[A], mode: TracingMode): IO[A] =
-    if (tracingEnabled) {
-      IO.suspend {
-        val old = localTracingMode.get()
-        localTracingMode.set(mode)
+    IO.suspend {
+      val old = localTracingMode.get()
+      localTracingMode.set(mode)
 
-        // We don't need to reset the status here in the event of cancellation.
-        source.attempt.flatMap { e =>
-          localTracingMode.set(old)
-          IO.fromEither(e)
-        }
+      // Rethrow any exceptions that `source` produces after resettubg nide,
+      // In the event of cancellation, the mode will be reset when the
+      // thread grabs a new task to run (via Async).
+      source.attempt.flatMap { e =>
+        localTracingMode.set(old)
+        IO.fromEither(e)
       }
-    } else {
-      source
     }
 
   def getLocalTracingMode(): TracingMode =
     localTracingMode.get()
 
   def setLocalTracingMode(mode: TracingMode): Unit =
-    if (tracingEnabled) {
-      localTracingMode.set(mode)
-    }
+    localTracingMode.set(mode)
 
   private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame = {
     val cachedFr = frameCache.get(lambdaRef)
