@@ -378,11 +378,11 @@ object playground {
               )
             )
 
-            fa2 = start0(fa, fiberBVar0.read[PureConc[E, *]]){ (a, fiberB) =>
+            fa2 = start0(fa, fiberBVar.read){ (a, fiberB) =>
               Left((a, fiberB))
             }
 
-            fb2 = start0(fb, fiberAVar0.read[PureConc[E, *]]){ (b, fiberA) =>
+            fb2 = start0(fb, fiberAVar.read){ (b, fiberA) =>
               Right((fiberA, b))
             }
 
