@@ -25,14 +25,15 @@ import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
 import cats.effect.tracing.TracingMode
+import cats.effect.internals.TracingPlatformFast.tracingEnabled
 
 private[effect] object IOBracket {
 
   /**
    * Implementation for `IO.bracketCase`.
    */
-  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-    IO.Async { (conn, ctx, cb) =>
+  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
+    val nextIo = IO.Async[B] { (conn, ctx, cb) =>
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
       conn.push(deferredRelease.cancel)
@@ -42,12 +43,23 @@ private[effect] object IOBracket {
       if (!conn.isCanceled) {
         // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
         // (in other words it is disconnected from our IOConnection)
-        val tMode = IOTracing.getLocalTracingMode()
-        IORunLoop.restart[A](acquire, ctx, tMode, new BracketStart(use, release, conn, ctx, tMode, deferredRelease, cb))
+        val mode = if (tracingEnabled) {
+          IOTracing.getLocalTracingMode()
+        } else {
+          TracingMode.Disabled
+        }
+        IORunLoop.restart[A](acquire, ctx, mode, new BracketStart(use, release, conn, ctx, mode, deferredRelease, cb))
       } else {
         deferredRelease.complete(IO.unit)
       }
     }
+
+    if (tracingEnabled) {
+      IOTracing(nextIo, use)
+    } else {
+      nextIo
+    }
+  }
 
   // Internals of `IO.bracketCase`.
   final private class BracketStart[A, B](

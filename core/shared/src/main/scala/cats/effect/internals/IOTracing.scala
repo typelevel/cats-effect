@@ -26,8 +26,8 @@ private[effect] object IOTracing {
   def apply[A](source: IO[A], ref: AnyRef): IO[A] =
     localTracingMode.get() match {
       case TracingMode.Disabled => source
-      case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(ref))
-      case TracingMode.Slug     => IO.Trace(source, buildFrame())
+      case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(source, ref))
+      case TracingMode.Slug     => IO.Trace(source, buildFrame(source))
     }
 
   def tracedLocally[A](source: IO[A], mode: TracingMode): IO[A] =
@@ -50,10 +50,10 @@ private[effect] object IOTracing {
   def setLocalTracingMode(mode: TracingMode): Unit =
     localTracingMode.set(mode)
 
-  private def buildCachedFrame(lambdaRef: AnyRef): TraceFrame = {
+  private def buildCachedFrame(source: IO[Any], lambdaRef: AnyRef): TraceFrame = {
     val cachedFr = frameCache.get(lambdaRef)
     if (cachedFr eq null) {
-      val fr = buildFrame()
+      val fr = buildFrame(source)
       frameCache.put(lambdaRef, fr)
       fr
     } else {
@@ -61,14 +61,21 @@ private[effect] object IOTracing {
     }
   }
 
-  private def buildFrame(): TraceFrame = {
+  private def buildFrame(source: IO[Any]): TraceFrame = {
     // TODO: proper trace calculation
-    val lines = new Throwable().getStackTrace.toList
+    val line = new Throwable().getStackTrace.toList
       .map(TraceLine.fromStackTraceElement)
       .find(l => !classBlacklist.exists(b => l.className.startsWith(b)))
-      .toList
+      .headOption
 
-    TraceFrame(lines)
+    val op = source match {
+      case _: IO.Map[_, _] => "map"
+      case _: IO.Bind[_, _] => "bind"
+      case _: IO.Async[_] => "async"
+      case _ => "unknown"
+    }
+
+    TraceFrame(op, line)
   }
 
   /**

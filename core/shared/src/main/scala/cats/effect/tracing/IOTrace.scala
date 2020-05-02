@@ -21,8 +21,8 @@ final case class IOTrace(frames: Vector[TraceFrame]) {
   def printTrace(): Unit = {
     System.err.println("IOTrace")
     frames.foreach { f =>
-      f.lines.foreach { l =>
-        System.err.println(s"\tat ${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
+      f.line.foreach { l =>
+        System.err.println(s"\t${f.op} at ${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")
       }
     }
   }

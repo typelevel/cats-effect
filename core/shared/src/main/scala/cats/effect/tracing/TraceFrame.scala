@@ -16,4 +16,4 @@
 
 package cats.effect.tracing
 
-final case class TraceFrame(lines: List[TraceLine])
+final case class TraceFrame(op: String, line: Option[TraceLine])

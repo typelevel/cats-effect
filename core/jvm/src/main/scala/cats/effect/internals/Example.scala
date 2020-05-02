@@ -20,23 +20,26 @@ import cats.effect.{ExitCode, IO, IOApp}
 
 object Example extends IOApp {
 
+  def print(msg: String): IO[Unit] =
+    IO.delay(println(msg))
+
   def program2: IO[Unit] =
     for {
-      _ <- IO.delay(println("7"))
-      _ <- IO.delay(println("8"))
+      _ <- print("7")
+      _ <- print("8")
     } yield ()
 
   def program: IO[Unit] =
     for {
-      _ <- IO.delay(println("1"))
-      _ <- IO.delay(println("2"))
+      _ <- print("1")
+      _ <- print("2")
       _ <- IO.shift
       _ <- IO.unit.bracket(_ =>
-        IO.delay(println("3"))
+        print("3")
           .flatMap(_ => program2)
       )(_ => IO.unit)
-      _ <- IO.delay(println("4"))
-      _ <- IO.delay(println("5"))
+      _ <- print("4")
+      _ <- print("5")
     } yield ()
 
   override def run(args: List[String]): IO[ExitCode] =
