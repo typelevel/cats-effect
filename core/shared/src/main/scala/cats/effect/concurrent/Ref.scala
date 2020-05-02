@@ -24,8 +24,10 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import cats.effect.concurrent.Ref.TransformedRef
 import cats.instances.tuple._
 import cats.instances.function._
+import cats.instances.either._
 import cats.syntax.functor._
 import cats.syntax.bifunctor._
+import cats.syntax.flatMap._
 
 import scala.annotation.tailrec
 
@@ -120,19 +122,9 @@ abstract class Ref[F[_], A] {
   def update(f: A => A): F[Unit]
 
   /**
-   * Like `update`, but can terminate early with an error value without retrying.
-   */
-  def updateOr[E](f: A => Either[E, A]): F[Option[E]]
-
-  /**
    * Like `tryModify` but does not complete until the update has been successfully made.
    */
   def modify[B](f: A => (A, B)): F[B]
-
-  /**
-   * Like `modify`, but can terminate early with an error value without retrying.
-   */
-  def modifyOr[E, B](f: A => Either[E, (A, B)]): F[Either[E, B]]
 
   /**
    * Update the value of this ref with a state computation.
@@ -274,9 +266,6 @@ object Ref {
       (f(a), ())
     }
 
-    def updateOr[E](f: A => Either[E, A]): F[Option[E]] =
-      modifyOr(a => f(a).map((_, ()))).map(_.left.toOption)
-
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec
       def spin: B = {
@@ -284,21 +273,6 @@ object Ref {
         val (u, b) = f(c)
         if (!ar.compareAndSet(c, u)) spin
         else b
-      }
-      F.delay(spin)
-    }
-
-    def modifyOr[E, B](f: A => Either[E, (A, B)]): F[Either[E, B]] = {
-      @tailrec
-      def spin: Either[E, B] = {
-        val c = ar.get
-        f(c) match {
-          case Right((u, b)) => {
-            if (!ar.compareAndSet(c, u)) spin
-            else Right(b)
-          }
-          case Left(e) => Left(e)
-        }
       }
       F.delay(spin)
     }
@@ -314,6 +288,44 @@ object Ref {
     }
   }
 
+  implicit class RefOps[F[_], A](val ref: Ref[F, A]) extends AnyVal {
+
+    /**
+     * Like `update`, but can terminate early without retrying.
+     * Returns whether or not the update short-circuited.
+     */
+    def updateMaybe(f: A => Option[A])(implicit F: Monad[F]): F[Boolean] =
+      updateOr(a => f(a).toRight(())).map(_.isEmpty)
+
+    /**
+     * Like `modify`, but can terminate early without retrying.
+     * Returns an optional value if the update completed.
+     */
+    def modifyMaybe[B](f: A => Option[(A, B)])(implicit F: Monad[F]): F[Option[B]] =
+      modifyOr(a => f(a).toRight(())).map(_.toOption)
+
+    /**
+     * Like `update`, but can terminate early with an error value without retrying.
+     * Returns an optional error if the update short-circuited.
+     */
+    def updateOr[E](f: A => Either[E, A])(implicit F: Monad[F]): F[Option[E]] =
+      modifyOr(a => f(a).tupleRight(())).map(_.swap.toOption)
+
+    /**
+     * Like `modify`, but can terminate early with an error value without retrying.
+     * Returns a value or error based on whether the update short-circuited.
+     */
+    def modifyOr[E, B](f: A => Either[E, (A, B)])(implicit F: Monad[F]): F[Either[E, B]] =
+      ref.access.flatMap {
+        case (a, set) =>
+          f(a) match {
+            case Right((a, b)) => set(a).ifM(F.pure(Right(b)), modifyOr(f))
+            case Left(e)       => F.pure(Left(e))
+          }
+      }
+
+  }
+
   final private[concurrent] class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)(
     implicit F: Functor[F]
   ) extends Ref[G, A] {
@@ -323,9 +335,7 @@ object Ref {
     override def tryUpdate(f: A => A): G[Boolean] = trans(underlying.tryUpdate(f))
     override def tryModify[B](f: A => (A, B)): G[Option[B]] = trans(underlying.tryModify(f))
     override def update(f: A => A): G[Unit] = trans(underlying.update(f))
-    override def updateOr[E](f: A => Either[E, A]): G[Option[E]] = trans(underlying.updateOr(f))
     override def modify[B](f: A => (A, B)): G[B] = trans(underlying.modify(f))
-    override def modifyOr[E, B](f: A => Either[E, (A, B)]): G[Either[E, B]] = trans(underlying.modifyOr(f))
     override def tryModifyState[B](state: State[A, B]): G[Option[B]] = trans(underlying.tryModifyState(state))
     override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
 
@@ -348,12 +358,8 @@ object Ref {
             fa.tryModify(f2.compose(f).map(_.leftMap(g)))
           override def update(f2: B => B): F[Unit] =
             fa.update(g.compose(f2).compose(f))
-          override def updateOr[E](f2: B => Either[E, B]): F[Option[E]] =
-            fa.updateOr(f2.compose(f).map(_.map(g)))
           override def modify[C](f2: B => (B, C)): F[C] =
             fa.modify(f2.compose(f).map(_.leftMap(g)))
-          override def modifyOr[E, C](f2: B => Either[E, (B, C)]): F[Either[E, C]] =
-            fa.modifyOr(f2.compose(f).map(_.map(_.leftMap(g))))
           override def tryModifyState[C](state: State[B, C]): F[Option[C]] =
             fa.tryModifyState(state.dimap(f)(g))
           override def modifyState[C](state: State[B, C]): F[C] =
