@@ -270,11 +270,11 @@ object playground {
       ) {
         // we play careful tricks here to forward the masks on from the parent to the child
         // this is necessary because start drops masks
-        def apply[L, R](
+        def apply[L, OtherFiber](
           that: PureConc[E, L],
-          otherFiber: MVar[Fiber[PureConc[E, *], E, R]]
+          getOtherFiber: PureConc[E, OtherFiber]
         )(
-          toResult: (L, Fiber[PureConc[E, *], E, R]) => Result
+          toResult: (L, OtherFiber) => Result
         ): PureConc[E, L] = withCtx { (ctx2: FiberCtx[E]) =>
           val body = bracketCase(unit)(_ => that) {
             case (_, Outcome.Completed(fa)) =>
@@ -283,7 +283,7 @@ object playground {
                 foldResult(Outcome.Canceled),
                 for {
                   a <- fa
-                  fiberB <- otherFiber[PureConc[E, *]].read
+                  fiberB <- getOtherFiber
                   _ <- foldResult(Outcome.Completed[Id, Result](toResult(a, fiberB)))
                 } yield ()
               )
@@ -378,11 +378,11 @@ object playground {
               )
             )
 
-            fa2 = start0[A, B](fa, fiberBVar0){ (a, fiberB) =>
+            fa2 = start0(fa, fiberBVar0.read[PureConc[E, *]]){ (a, fiberB) =>
               Left((a, fiberB))
             }
 
-            fb2 = start0[B, A](fb, fiberAVar0){ (b, fiberA) =>
+            fb2 = start0(fb, fiberAVar0.read[PureConc[E, *]]){ (b, fiberA) =>
               Right((fiberA, b))
             }
 
