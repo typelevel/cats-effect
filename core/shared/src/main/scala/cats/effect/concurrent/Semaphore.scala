@@ -220,9 +220,9 @@ object Semaphore {
               (u, (old, u))
             }
             .map {
-              case (_, Left(_)) => false
+              case (_, Left(_))         => false
               case (Right(m), Right(n)) => n != m
-              case (Left(_), _) => false //TODO: how-to test it ?
+              case (Left(_), _)         => false //TODO: how-to test it ?
             }
       }
 
