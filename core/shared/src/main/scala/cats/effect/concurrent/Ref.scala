@@ -288,7 +288,7 @@ object Ref {
     }
   }
 
-  implicit class RefOps[F[_], A](val ref: Ref[F, A]) extends AnyVal {
+  implicit final class RefOps[F[_], A](private val ref: Ref[F, A]) extends AnyVal {
 
     /**
      * Like `update`, but can terminate early without retrying.
@@ -319,7 +319,7 @@ object Ref {
       ref.access.flatMap {
         case (a, set) =>
           f(a) match {
-            case Right((a, b)) => set(a).ifM(F.pure(Right(b)), modifyOr(f))
+            case Right((a, b)) => set(a).ifM(ifTrue = F.pure(Right(b)), ifFalse = modifyOr(f))
             case Left(e)       => F.pure(Left(e))
           }
       }

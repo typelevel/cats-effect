@@ -139,10 +139,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("updateMaybe - successful") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.updateMaybe {
-        case 0 => Some(1)
-        case _ => None
-      }
+      result <- r.updateMaybe(_ => Some(1))
     } yield result
 
     run(op.map(_ shouldBe true).void)
@@ -151,10 +148,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("updateMaybe - short-circuit") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.updateMaybe {
-        case 0 => None
-        case _ => Some(1)
-      }
+      result <- r.updateMaybe(_ => None)
     } yield result
 
     run(op.map(_ shouldBe false).void)
@@ -162,10 +156,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("modifyMaybe - successful") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.modifyMaybe {
-        case 0 => Some((1, 2))
-        case _ => None
-      }
+      result <- r.modifyMaybe(_ => Some((1, 2)))
     } yield result
 
     run(op.map(_ shouldBe Some(2)).void)
@@ -174,10 +165,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("modifyMaybe - short-circuit") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.modifyMaybe {
-        case 0 => None
-        case _ => Some((1, 2))
-      }
+      result <- r.modifyMaybe(_ => None)
     } yield result
 
     run(op.map(_ shouldBe None).void)
@@ -186,10 +174,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("updateOr - successful") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.updateOr {
-        case 0 => Right(1)
-        case _ => Left("fail")
-      }
+      result <- r.updateOr(_ => Right(1))
     } yield result
 
     run(op.map(_ shouldBe None).void)
@@ -198,10 +183,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("updateOr - short-circuit") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.updateOr {
-        case 0 => Left("fail")
-        case _ => Right(1)
-      }
+      result <- r.updateOr(_ => Left("fail"))
     } yield result
 
     run(op.map(_ shouldBe Some("fail")).void)
@@ -210,10 +192,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("modifyOr - successful") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.modifyOr {
-        case 0 => Right((1, "success"))
-        case _ => Left("fail")
-      }
+      result <- r.modifyOr(_ => Right((1, "success")))
     } yield result
 
     run(op.map(_ shouldBe Right("success")).void)
@@ -222,10 +201,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   test("modifyOr - short-circuit") {
     val op = for {
       r <- Ref[IO].of(0)
-      result <- r.modifyOr {
-        case 0 => Left("fail")
-        case _ => Right((1, true))
-      }
+      result <- r.modifyOr(_ => Left("fail"))
     } yield result
 
     run(op.map(_ shouldBe Left("fail")).void)
