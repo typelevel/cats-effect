@@ -370,13 +370,14 @@ object playground {
               }
             }
 
-            start0 = startOne[Result](ctx.masks)(
-              foldResult = _.fold(
+            resultReg: (Outcome[Id, E, Result] => PureConc[E, Unit]) =
+              _.fold(
                 cancelReg,
                 errorReg,
                 result => results.tryPut(Outcome.Completed[Id, Result](result)).void
               )
-            )
+
+            start0 = startOne[Result](ctx.masks)(resultReg)
 
             fa2 = start0(fa, fiberBVar.read){ (a, fiberB) =>
               Left((a, fiberB))
