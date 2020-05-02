@@ -36,14 +36,19 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
+  implicit val generators: Generators[PureConc[Int, *], Int] = new Generators[PureConc[Int, *], Int](λ[PureConc[Int, *] ~> Outcome[Option, Int, *]](run(_)))
+
   import Generators._
+  import generators.cogenPureConc
 
   checkAll(
     "PureConc",
     ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
 
-  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
-    Arbitrary(genPureConc[E, A](0))
+  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen](
+    implicit generators: Generators[PureConc[E, *], E]
+  ): Arbitrary[PureConc[E, A]] =
+    Arbitrary(generators.genF[A](0))
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
