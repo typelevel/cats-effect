@@ -33,6 +33,6 @@ public class TracingPlatformFast {
     public static final boolean tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
         .map(x -> Boolean.valueOf(x))
-        .orElse(true);
+        .orElse(false);
 
 }
