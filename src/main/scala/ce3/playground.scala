@@ -258,6 +258,51 @@ object playground {
       def never[A]: PureConc[E, A] =
         Thread.done[A]
 
+      private def startOne[Result](
+        ctx: FiberCtx[E],
+        errorReg: E => PureConc[E, Unit],
+        cancelReg: PureConc[E, Unit],
+        successReg: Outcome.Completed[Id, Result] => PureConc[E, Boolean]): StartOnePartiallyApplied[Result] =
+        new StartOnePartiallyApplied(ctx, errorReg, cancelReg, successReg)
+
+      // Using the partially applied pattern to defer the choice of L/R
+      final class StartOnePartiallyApplied[Result](
+        ctx: FiberCtx[E],
+        errorReg: E => PureConc[E, Unit],
+        cancelReg: PureConc[E, Unit],
+        successReg: Outcome.Completed[Id, Result] => PureConc[E, Boolean]
+      ) {
+        // we play careful tricks here to forward the masks on from the parent to the child
+        // this is necessary because start drops masks
+        def apply[L, R](
+          that: PureConc[E, L],
+          otherFiber: MVar[Fiber[PureConc[E, *], E, R]]
+        )(
+          toResult: (L, Fiber[PureConc[E, *], E, R]) => Result
+        ): PureConc[E, L] = withCtx { (ctx2: FiberCtx[E]) =>
+          val body = bracketCase(unit)(_ => that) {
+            case (_, Outcome.Completed(fa)) =>
+              // we need to do special magic to make cancelation distribute over race analogously to uncancelable
+              ctx2.self.canceled.ifM(
+                cancelReg,
+                for {
+                  a <- fa
+                  fiberB <- otherFiber[PureConc[E, *]].read
+                  _ <- successReg(Outcome.Completed[Id, Result](toResult(a, fiberB)))
+                } yield ()
+              )
+
+            case (_, Outcome.Errored(e)) =>
+              errorReg(e)
+
+            case (_, Outcome.Canceled) =>
+              cancelReg
+          }
+
+          localCtx(ctx2.copy(masks = ctx2.masks ::: ctx.masks), body)
+        }
+      }
+
       /**
        * Whereas `start` ignores the cancelability of the parent fiber
        * when forking off the child, `racePair` inherits cancelability.
@@ -329,50 +374,14 @@ object playground {
               }
             }
 
-            // we play careful tricks here to forward the masks on from the parent to the child
-            // this is necessary because start drops masks
-            fa2 = withCtx { (ctx2: FiberCtx[E]) =>
-              val body = bracketCase(unit)(_ => fa) {
-                case (_, Outcome.Completed(fa)) =>
-                  // we need to do special magic to make cancelation distribute over race analogously to uncancelable
-                  ctx2.self.canceled.ifM(
-                    cancelReg,
-                    for {
-                      a <- fa
-                      fiberB <- fiberBVar.read
-                      _ <- results.tryPut(Outcome.Completed[Id, Result](Left((a, fiberB))))
-                    } yield ())
+            start0 = startOne[Result](ctx, errorReg, cancelReg, results.tryPut)
 
-                case (_, Outcome.Errored(e)) =>
-                  errorReg(e)
-
-                case (_, Outcome.Canceled) =>
-                  cancelReg
-              }
-
-              localCtx(ctx2.copy(masks = ctx2.masks ::: ctx.masks), body)
+            fa2 = start0[A, B](fa, fiberBVar0){ (a, fiberB) =>
+              Left((a, fiberB))
             }
 
-            fb2 = withCtx { (ctx2: FiberCtx[E]) =>
-              val body = bracketCase(unit)(_ => fb) {
-                case (_, Outcome.Completed(fb)) =>
-                  // we need to do special magic to make cancelation distribute over race analogously to uncancelable
-                  ctx2.self.canceled.ifM(
-                    cancelReg,
-                    for {
-                      b <- fb
-                      fiberA <- fiberAVar.read
-                      _ <- results.tryPut(Outcome.Completed[Id, Result](Right((fiberA, b))))
-                    } yield ())
-
-                case (_, Outcome.Errored(e)) =>
-                  errorReg(e)
-
-                case (_, Outcome.Canceled) =>
-                  cancelReg
-              }
-
-              localCtx(ctx2.copy(masks = ctx2.masks ::: ctx.masks), body)
+            fb2 = start0[B, A](fb, fiberAVar0){ (b, fiberA) =>
+              Right((fiberA, b))
             }
 
             back <- uncancelable { poll =>
