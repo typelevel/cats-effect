@@ -26,6 +26,7 @@ import cats.Applicative
 import cats.Functor
 import cats.ApplicativeError
 import scala.collection.immutable.SortedMap
+import cats.MonadError
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -126,7 +127,17 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
     } yield F.handleErrorWith(fa)(f)
   }
 }
-trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
+
+trait MonadErrorGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] with MonadGenerators[F] {
+  implicit val F: MonadError[F, E]
+}
+
+trait SafeGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+  implicit val F: Safe[F, E]
+  type Case[_]
+}
+
+trait BracketGenerators[F[_], E] extends SafeGenerators[F, E] {
   implicit val F: Bracket[F, E]
   type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
@@ -146,7 +157,16 @@ trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   }
 }
 
-trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
+trait RegionGenerators[R[_[_], _], F[_], E] extends SafeGenerators[R[F, *], E] {
+  implicit val F: Region[R, F, E]
+  type Case[A] = F.Case[A]
+
+  def GenKF: GenK[F]
+
+
+}
+
+trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Concurrent[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = List(
@@ -208,6 +228,7 @@ trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
     } yield back
 }
 
+
 object OutcomeGenerators {
   def outcomeGenerators[F[_]: Applicative, E: Arbitrary: Cogen] = new ApplicativeErrorGenerators[Outcome[F, E, *], E] {
     val arbitraryE: Arbitrary[E] = implicitly
@@ -227,6 +248,60 @@ object OutcomeGenerators {
   implicit def cogenOutcome[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
     case Outcome.Canceled => None
     case Outcome.Completed(fa) => Some(Right(fa))
-    case Outcome.Errored(e) => Some(Left(e))
+    case Outcome.Errored(e)    => Some(Left(e))
   }
+}
+
+object ResourceGenerators {
+
+  def resourceGenerators[F[_], Case[_], E: Arbitrary: Cogen](
+    implicit
+    bracket: Bracket.Aux[F, E, Case],
+    genKF: GenK[F]
+  ) = new RegionGenerators[Resource, F, E] {
+    val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
+    val cogenE: Cogen[E] = Cogen[E]
+    
+    val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource(bracket)
+    val GenKF: GenK[F] = genKF
+  }
+  // def genResource[F[_]: Bracket.Aux[*[_], E, Case], Case[_], E, A: Arbitrary: Cogen](
+  //     implicit arbEffect: Arbitrary[F[Resource[F, A]]],
+  //     arbAlloate: Arbitrary[F[(A, Case[_] => F[Unit])]]
+  // ): Gen[Resource[F, A]] = {
+  //   val self = Gen.delay(genResource[F, Case, E, A])
+  //   Gen.frequency(
+  //     1 -> genPureResource[F, E, A],
+  //     1 -> genSuspendResource[F, E, A],
+  //     1 -> genApplyResource[F, Case, E, A],
+  //     1 -> genFlatMapResource[F, E, A](
+  //       self,
+  //       Arbitrary.arbFunction1(Arbitrary(self), Cogen[A]).arbitrary
+  //     )
+  //   )
+  // }
+
+  // def genPureResource[F[_]: Bracket[*[_], E], E, A: Arbitrary]
+  //     : Gen[Resource[F, A]] =
+  //   Arbitrary.arbitrary[A].map(Resource.pure[F, A](_))
+
+  // def genSuspendResource[F[_]: Bracket[*[_], E], E, A](
+  //     implicit arbEffect: Arbitrary[F[Resource[F, A]]]
+  // ): Gen[Resource[F, A]] =
+  //   arbEffect.arbitrary.map(Resource.suspend)
+
+  // def genApplyResource[F[_]: Bracket.Aux[*[_], E, Case], Case[_], E, A](
+  //     implicit arbFA: Arbitrary[F[(A, Case[_] => F[Unit])]]
+  // ): Gen[Resource[F, A]] =
+  //   arbFA.arbitrary.map(Resource.applyCase[F, Case, E, A](_))
+
+  // def genFlatMapResource[F[_]: Bracket[*[_], E], E, A](
+  //     baseGen: Gen[Resource[F, A]],
+  //     genFunction: Gen[A => Resource[F, A]]
+  // ): Gen[Resource[F, A]] =
+  //   for {
+  //     base <- baseGen
+  //     f <- genFunction
+  //   } yield base.flatMap(f)
+
 }
