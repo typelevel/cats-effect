@@ -259,18 +259,14 @@ object playground {
         Thread.done[A]
 
       private def startOne[Result](
-        ctx: FiberCtx[E],
-        errorReg: E => PureConc[E, Unit],
-        cancelReg: PureConc[E, Unit],
-        successReg: Outcome.Completed[Id, Result] => PureConc[E, Boolean]): StartOnePartiallyApplied[Result] =
-        new StartOnePartiallyApplied(ctx, errorReg, cancelReg, successReg)
+        parentMasks: List[MaskId]
+      )(foldResult: Outcome[Id, E, Result] => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =
+        new StartOnePartiallyApplied(parentMasks, foldResult)
 
       // Using the partially applied pattern to defer the choice of L/R
       final class StartOnePartiallyApplied[Result](
-        ctx: FiberCtx[E],
-        errorReg: E => PureConc[E, Unit],
-        cancelReg: PureConc[E, Unit],
-        successReg: Outcome.Completed[Id, Result] => PureConc[E, Boolean]
+        parentMasks: List[MaskId],
+        foldResult: Outcome[Id, E, Result] => PureConc[E, Unit]
       ) {
         // we play careful tricks here to forward the masks on from the parent to the child
         // this is necessary because start drops masks
@@ -284,22 +280,22 @@ object playground {
             case (_, Outcome.Completed(fa)) =>
               // we need to do special magic to make cancelation distribute over race analogously to uncancelable
               ctx2.self.canceled.ifM(
-                cancelReg,
+                foldResult(Outcome.Canceled),
                 for {
                   a <- fa
                   fiberB <- otherFiber[PureConc[E, *]].read
-                  _ <- successReg(Outcome.Completed[Id, Result](toResult(a, fiberB)))
+                  _ <- foldResult(Outcome.Completed[Id, Result](toResult(a, fiberB)))
                 } yield ()
               )
 
             case (_, Outcome.Errored(e)) =>
-              errorReg(e)
+              foldResult(Outcome.Errored(e))
 
             case (_, Outcome.Canceled) =>
-              cancelReg
+              foldResult(Outcome.Canceled)
           }
 
-          localCtx(ctx2.copy(masks = ctx2.masks ::: ctx.masks), body)
+          localCtx(ctx2.copy(masks = ctx2.masks ::: parentMasks), body)
         }
       }
 
@@ -374,7 +370,13 @@ object playground {
               }
             }
 
-            start0 = startOne[Result](ctx, errorReg, cancelReg, results.tryPut)
+            start0 = startOne[Result](ctx.masks)(
+              foldResult = _.fold(
+                cancelReg,
+                errorReg,
+                result => results.tryPut(Outcome.Completed[Id, Result](result)).void
+              )
+            )
 
             fa2 = start0[A, B](fa, fiberBVar0){ (a, fiberB) =>
               Left((a, fiberB))
