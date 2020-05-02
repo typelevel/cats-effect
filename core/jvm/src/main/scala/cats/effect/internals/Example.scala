@@ -27,12 +27,12 @@ object Example extends IOApp {
   def program: IO[Unit] =
     for {
       ref <- FiberRef.of(5)
-      a1  <- ref.get
-      _   <- print(a1)
-      _   <- ref.set(10)
-      _   <- IO.shift
-      a2  <- ref.get
-      _   <- print(a2)
+      a1 <- ref.get
+      _ <- print(a1)
+      _ <- ref.set(10)
+      _ <- IO.shift
+      a2 <- ref.get
+      _ <- print(a2)
     } yield ()
 
   override def run(args: List[String]): IO[ExitCode] =
