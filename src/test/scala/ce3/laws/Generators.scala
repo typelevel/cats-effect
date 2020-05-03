@@ -50,7 +50,7 @@ trait Generators1[F[_]] {
     
     val gens =
       if(depth > maxDepth) baseGen[A]
-      else baseGen[A] ++ recursiveGen[A](genK)
+      else baseGen[A] ++ recursiveGen[A](genK) 
 
     Gen.oneOf(gens).flatMap(identity)
   }
@@ -71,15 +71,15 @@ trait ApplicativeGenerators[F[_]] extends Generators1[F] {
       genAp[A](deeper)
     )    
 
-  def genPure[A: Arbitrary]: Gen[F[A]] =
+  private def genPure[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(_.pure[F])
 
-  def genMap[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = for {
+  private def genMap[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = for {
     fa <- deeper[A]
     f <- Arbitrary.arbitrary[A => A]
   } yield F.map(fa)(f)
 
-  def genAp[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = for {
+  private def genAp[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = for {
     fa <- deeper[A]
     ff <- deeper[A => A]
   } yield F.ap(ff)(fa)
@@ -93,7 +93,7 @@ trait MonadGenerators[F[_]] extends ApplicativeGenerators[F]{
     genFlatMap(deeper)
   ) ++ super.recursiveGen(deeper)
 
-  def genFlatMap[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
+  private def genFlatMap[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
     for {
       fa <- deeper[A]
       f <- Gen.function1[A, F[A]](deeper[A])
@@ -115,11 +115,10 @@ trait MonadErrorGenerators[F[_], E] extends MonadGenerators[F] {
     genHandleErrorWith[A](deeper),
   ) ++ super.recursiveGen(deeper)
 
-
-  def genRaiseError[A]: Gen[F[A]] =
+  private def genRaiseError[A]: Gen[F[A]] =
     arbitrary[E].map(F.raiseError[A](_))
 
-  def genHandleErrorWith[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
+  private def genHandleErrorWith[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
     for {
       fa <- deeper[A]
       f <- Gen.function1[E, F[A]](deeper[A])
@@ -138,7 +137,7 @@ trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
 
   import OutcomeGenerators._
 
-  def genBracketCase[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
+  private def genBracketCase[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
     for {
       acquire <- deeper[A]
       use <- Gen.function1[A, F[A]](deeper[A])
@@ -163,30 +162,30 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
     genJoin[A](deeper),
   ) ++ super.recursiveGen(deeper)
 
-  def genCanceled[A: Arbitrary]: Gen[F[A]] =
+  private def genCanceled[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(F.canceled.as(_))
 
-  def genCede[A: Arbitrary]: Gen[F[A]] =
+  private def genCede[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(F.cede.as(_))
 
-  def genNever[A]: Gen[F[A]] =
+  private def genNever[A]: Gen[F[A]] =
     F.never[A]
 
   // TODO we can't really use poll :-( since we can't Cogen FunctionK
-  def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+  private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     deeper[A].map(pc => F.uncancelable(_ => pc))
 
-  def genStart[A: Arbitrary](deeper: GenK[F]): Gen[F[A]] =
+  private def genStart[A: Arbitrary](deeper: GenK[F]): Gen[F[A]] =
     deeper[Unit].flatMap(pc => arbitrary[A].map(a => F.start(pc).as(a)))
 
-  def genJoin[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+  private def genJoin[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
       fiber <- deeper[A]
       cont <- deeper[Unit]
       a <- arbitrary[A]
     } yield F.start(fiber).flatMap(f => cont >> f.join).as(a)
 
-  def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+  private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
       fa <- deeper[A]
       fb <- deeper[A]
