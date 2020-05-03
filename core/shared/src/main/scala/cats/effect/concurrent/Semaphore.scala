@@ -213,16 +213,11 @@ object Semaphore {
         else
           state
             .modify { old =>
-              val u = old match {
-                case Right(m) if m >= n => Right(m - n)
-                case w                  => w
+              val (newState, result) = old match {
+                case Right(m) if m >= n => (Right(m - n), m != n)
+                case _                  => (old, false)
               }
-              (u, (old, u))
-            }
-            .map {
-              case (_, Left(_))         => false
-              case (Right(m), Right(n)) => n != m
-              case (Left(_), _)         => false //TODO: how-to test it ?
+              (newState, result)
             }
       }
 

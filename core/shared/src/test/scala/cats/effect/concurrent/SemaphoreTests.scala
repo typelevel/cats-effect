@@ -46,9 +46,9 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
       sc(20)
         .flatMap { s =>
           for {
-            _ <- (0 until n).toList.traverse(_ => s.acquire).void
-            _ <- s.acquire.start
-            x <- (IO.shift *> s.available).start
+            _ <- s.acquire.replicateA(n).void
+            _ <- s.acquire.start //TODO: how-to avoid race conditions?
+            x <- s.available.start
             t <- x.join
           } yield t
 
@@ -187,7 +187,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
   tests("concurrent", n => Semaphore[IO](n))
 
-  test("concurrent - acquire does not leak permits upon cancellation") {
+  test("concurrent - acquire does not leak permits upon cancelation") {
     Semaphore[IO](1L)
       .flatMap { s =>
         // acquireN(2) will get 1 permit and then timeout waiting for another,
@@ -200,11 +200,11 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
       .map(_ shouldBe 2L)
   }
 
-  test("concurrent - withPermit does not leak fibers or permits upon cancellation") {
+  test("concurrent - withPermit does not leak fibers or permits upon cancelation") {
     Semaphore[IO](0L)
       .flatMap { s =>
         // The inner s.release should never be run b/c the timeout will be reached before a permit
-        // is available. After the timeout and hence cancellation of s.withPermit(...), we release
+        // is available. After the timeout and hence cancelation of s.withPermit(...), we release
         // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
         // cancel, the permit count will be 2, otherwise 1
         s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
