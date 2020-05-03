@@ -26,16 +26,8 @@ import cats.Functor
 import cats.MonadError
 import cats.Traverse
 
-final case class ArbitraryCogen[A](arbitrary: Arbitrary[A], cogen: Cogen[A])
-
-object ArbitraryCogen {
-  def apply[A](implicit A: ArbitraryCogen[A]): ArbitraryCogen[A] = A
-
-  implicit def deriveFromArbitraryAndCogen[A](implicit arb: Arbitrary[A], cogen: Cogen[A]): ArbitraryCogen[A] = ArbitraryCogen(arb,cogen)
-}
-
 trait GenK[F[_]] {
-  def apply[A: ArbitraryCogen]: Gen[F[A]]
+  def apply[A: Arbitrary: Cogen]: Gen[F[A]]
 }
 
 // Generators for * -> * kinded types
@@ -53,7 +45,7 @@ trait Generators1[F[_]] {
   //All generators possible at depth [[depth]]
   private def gen[A: Arbitrary: Cogen](depth: Int): Gen[F[A]] = {
     val genK: GenK[F] = new GenK[F] {
-      def apply[B: ArbitraryCogen]: Gen[F[B]] = Gen.delay(gen(depth + 1)(ArbitraryCogen[B].arbitrary, ArbitraryCogen[B].cogen))
+      def apply[B: Arbitrary: Cogen]: Gen[F[B]] = Gen.delay(gen(depth + 1))
     }
     
     val gens =
