@@ -31,11 +31,12 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
   private def lockSemaphore(n: Long, s: Semaphore[IO]): IO[Boolean] = {
-    def lock(m: Long): IO[Boolean] = if (m == -n) {
-      IO(true)
-    } else {
-      s.count.flatMap(lock)
-    }
+    def lock(m: Long): IO[Boolean] =
+      if (m == -n) {
+        IO(true)
+      } else {
+        s.count.flatMap(lock)
+      }
     s.acquireN(n).start *> lock(n).timeout(10.millis)
   }
 
@@ -50,15 +51,13 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .map(_ shouldBe 0)
     }
 
-
-
     test(s"$label - available with no available permits") {
       val n = 20
       sc(20)
         .flatMap { s =>
           for {
             _ <- s.acquire.replicateA(n).void
-            isLocked  <- lockSemaphore(1, s)
+            isLocked <- lockSemaphore(1, s)
             t <- s.available
           } yield (isLocked, t)
 
