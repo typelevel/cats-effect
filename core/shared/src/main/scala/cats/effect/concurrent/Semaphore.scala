@@ -215,7 +215,7 @@ object Semaphore {
                   val newValue = m - n
 
                   (Right(newValue), Right((m, newValue)))
-                case w => (w, w)
+                case _ => (old, old)
               }
 
               (newState, previousAndNow)
