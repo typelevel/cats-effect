@@ -83,7 +83,7 @@ object Generators {
     genPureConc[E, A](depth).map(pc => F[E].uncancelable(_ => pc))
 
   def genCanceled[E, A: Arbitrary]: Gen[PureConc[E, A]] =
-    arbitrary[A].map(F[E].canceled(_))
+    arbitrary[A].map(F[E].canceled.as(_))
 
   def genCede[E]: Gen[PureConc[E, Unit]] =
     F[E].cede

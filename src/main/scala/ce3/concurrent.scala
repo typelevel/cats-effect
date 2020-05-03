@@ -38,9 +38,9 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
   // produces an effect which is already canceled (and doesn't introduce an async boundary)
   // this is effectively a way for a fiber to commit suicide and yield back to its parent
-  // The fallback value is produced if the effect is sequenced into a block in which
+  // The fallback (unit) value is produced if the effect is sequenced into a block in which
   // cancelation is suppressed.
-  def canceled[A](fallback: A): F[A]
+  def canceled: F[Unit]
 
   // produces an effect which never returns
   def never[A]: F[A]
@@ -61,7 +61,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Left((a, f)) =>
         flatMap(f.join) { c =>
           c.fold(
-            flatMap(canceled(()))(_ => never),    // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
+            flatMap(canceled)(_ => never),    // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
             e => raiseError[(A, B)](e),
             tupleLeft(_, a))
         }
@@ -69,7 +69,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Right((f, b)) =>
         flatMap(f.join) { c =>
           c.fold(
-            flatMap(canceled(()))(_ => never),
+            flatMap(canceled)(_ => never),
             e => raiseError[(A, B)](e),
             tupleRight(_, b))
         }

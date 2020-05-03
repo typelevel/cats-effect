@@ -244,12 +244,12 @@ object playground {
         }
       }
 
-      def canceled[A](fallback: A): PureConc[E, A] =
+      def canceled: PureConc[E, Unit] =
         withCtx { ctx =>
           if (ctx.masks.isEmpty)
             ctx.self.cancel >> ctx.self.runFinalizers >> Thread.done
           else
-            ctx.self.cancel.as(fallback)
+            ctx.self.cancel
         }
 
       def cede: PureConc[E, Unit] =
@@ -307,8 +307,8 @@ object playground {
        *
        * race(cede >> raiseError(e1), raiseError(e2)) <-> raiseError(e1)
        * race(raiseError(e1), cede >> raiseError(e2)) <-> raiseError(e2)
-       * race(canceled(()), raiseError(e)) <-> raiseError(e)
-       * race(raiseError(e), canceled(())) <-> raiseError(e)
+       * race(canceled, raiseError(e)) <-> raiseError(e)
+       * race(raiseError(e), canceled) <-> raiseError(e)
        */
       def racePair[A, B](
           fa: PureConc[E, A],
@@ -408,7 +408,7 @@ object playground {
                   /*
                    * This is REALLY tricky, but poll isn't enough here. For example:
                    *
-                   * uncancelable(p => racePair(p(canceled(())), p(canceled(())))) <-> canceled(())
+                   * uncancelable(p => racePair(p(canceled), p(canceled))) <-> canceled
                    *
                    * This semantic is pretty natural, but we can't do it here without
                    * directly manipulating the masks because we don't have the outer poll!
@@ -419,7 +419,7 @@ object playground {
                    * that they were similarly polled here.
                    */
                   case Outcome.Canceled =>
-                    localCtx(ctx.copy(masks = Nil), canceled(()) >> never[Result])
+                    localCtx(ctx.copy(masks = Nil), canceled >> never[Result])
                 }
               } yield back
             }
@@ -463,7 +463,7 @@ object playground {
           val ctx2 = ctx.copy(masks = mask :: ctx.masks)
 
           localCtx(ctx2, body(poll)) <*
-            ctx.self.canceled.ifM(canceled(()), unit)   // double-check cancelation whenever we exit a block
+            ctx.self.canceled.ifM(canceled, unit)   // double-check cancelation whenever we exit a block
         }
       }
 
