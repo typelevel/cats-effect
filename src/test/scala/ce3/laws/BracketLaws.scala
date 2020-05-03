@@ -44,8 +44,8 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketBodyIdentity[A](fa: F[A]) =
     F.bracketCase(F.unit)(_ => fa)((_, _) => F.unit) <-> fa
 
-  def onCaseDefinedByBracketCase[A](fa: F[A], body: F[Unit], p: F.Case[A] => Boolean) =
-    F.onCase(fa, body)(p) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => if (p(c)) body else F.unit)
+  def onCaseDefinedByBracketCase[A](fa: F[A], pf: PartialFunction[F.Case[A], F[Unit]]) =
+    F.onCase(fa)(pf) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => pf.lift(c).getOrElse(F.unit))
 }
 
 object BracketLaws {
