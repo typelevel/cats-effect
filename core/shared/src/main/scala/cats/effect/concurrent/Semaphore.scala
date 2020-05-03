@@ -210,22 +210,19 @@ object Semaphore {
         else
           state
             .modify { old =>
-              val u = old match {
-                case Right(m) if m >= n => Right(m - n)
-                case w                  => w
+              val (newState, previousAndNow) = old match {
+                case Right(m) if m >= n =>
+                  val newValue = m - n
+
+                  (Right(newValue), Right((m, newValue)))
+                case w                  => (w, w)
               }
-              (u, (old, u))
+
+              (newState, previousAndNow)
             }
             .map {
-              case (previous, now) =>
-                now match {
-                  case Left(_) => false
-                  case Right(n) =>
-                    previous match {
-                      case Left(_)  => false
-                      case Right(m) => n != m
-                    }
-                }
+              case Right((previous, now)) if now != previous => true
+              case _ => false
             }
       }
 
