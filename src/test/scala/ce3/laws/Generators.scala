@@ -23,8 +23,7 @@ import cats.~>
 import cats.Monad
 import cats.Applicative
 import cats.Functor
-import cats.MonadError
-import cats.Traverse
+import cats.ApplicativeError
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -101,11 +100,11 @@ trait MonadGenerators[F[_]] extends ApplicativeGenerators[F]{
   }
 }
 
-trait MonadErrorGenerators[F[_], E] extends MonadGenerators[F] {
+trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
   implicit val arbitraryE: Arbitrary[E]
   implicit val cogenE: Cogen[E]
 
-  implicit val F: MonadError[F, E]
+  implicit val F: ApplicativeError[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]] = List(
     genRaiseError[A]
@@ -125,8 +124,7 @@ trait MonadErrorGenerators[F[_], E] extends MonadGenerators[F] {
     } yield F.handleErrorWith(fa)(f)
   }
 }
-
-trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   implicit val F: Bracket[F, E]
   type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
@@ -146,7 +144,7 @@ trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   }
 }
 
-trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   implicit val F: Concurrent[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]] = List(
@@ -209,17 +207,17 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
 }
 
 object OutcomeGenerators {
-  def outcomeGenerators[F[_]: Traverse: Monad, E: Arbitrary: Cogen] = new MonadErrorGenerators[Outcome[F, E, *], E] {
+  def outcomeGenerators[F[_]: Applicative, E: Arbitrary: Cogen] = new ApplicativeErrorGenerators[Outcome[F, E, *], E] {
     val arbitraryE: Arbitrary[E] = implicitly
     val cogenE: Cogen[E] = implicitly
-    implicit val F: MonadError[Outcome[F, E, *], E] = Outcome.monadError[F, E]
+    implicit val F: ApplicativeError[Outcome[F, E, *], E] = Outcome.applicativeError[F, E]
 
     override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[Outcome[F,E,A]]] = List(
       Gen.const(Outcome.Canceled)
     ) ++ super.baseGen[A]
   }
   
-  implicit def arbitraryOutcome[F[_]: Traverse: Monad, E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[Outcome[F, E, A]] =
+  implicit def arbitraryOutcome[F[_]: Applicative, E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[Outcome[F, E, A]] =
     Arbitrary {
       outcomeGenerators[F, E].generators[A]
     }

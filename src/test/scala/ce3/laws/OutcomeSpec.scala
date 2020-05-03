@@ -37,8 +37,7 @@ class OutcomeSpec extends Specification with Discipline {
     "Outcome[Option, Int, ?]",
     MonadErrorTests[Outcome[Option, Int, ?], Int].monadError[Int, Int, Int])
 
-  //I'll need a moment to define ApplicativeErrorGenerators...
-  // checkAll(
-  //   "Outcome[Eval, Int, ?]",
-  //   ApplicativeErrorTests[Outcome[Eval, Int, ?], Int].applicativeError[Int, Int, Int])
+  checkAll(
+    "Outcome[Eval, Int, ?]",
+    ApplicativeErrorTests[Outcome[Eval, Int, ?], Int].applicativeError[Int, Int, Int])
 }
