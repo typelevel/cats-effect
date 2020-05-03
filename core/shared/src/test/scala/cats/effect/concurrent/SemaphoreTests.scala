@@ -47,9 +47,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquire.replicateA(n).void
-            _ <- s.acquire.start //TODO: how-to avoid race conditions?
-            x <- s.available.start
-            t <- x.join
+            _  <- s.acquire.start
+            t <- timer.sleep(10.millis) *> s.available
           } yield t
 
         }
@@ -151,9 +150,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquireN(n).void
-            _ <- (s.acquireN(n).void).start
-            x <- (IO.shift *> s.count).start
-            t <- x.join
+            _ <- s.acquireN(n).start
+            t <- timer.sleep(10.millis) *> s.count
           } yield t
         }
         .unsafeToFuture()
