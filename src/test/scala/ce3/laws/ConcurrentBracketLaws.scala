@@ -37,7 +37,7 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
   def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, Outcome[F, E, B]) => F[Unit]) = {
     val identity = F uncancelable { poll =>
       acq flatMap { a =>
-        val finalized = F.onCase(poll(use(a)), release(a, Outcome.Canceled))(Outcome.Canceled ==)
+        val finalized = F.onCase(poll(use(a))) { case Outcome.Canceled => release(a, Outcome.Canceled) }
         val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
         handled.flatMap(b => release(a, Outcome.Completed(F.pure(b))).attempt.as(b))
       }
@@ -49,19 +49,19 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
   def onCaseShapeConsistentWithJoin[A](fa: F[A], handler: F[Unit]) = {
     val started = F.start(fa).flatMap(_.join) flatMap {
       case Outcome.Completed(_) =>
-        F.onCase(fa, handler) {
-          case Outcome.Completed(_) => true
-          case _ => false
+        F.onCase(fa) {
+          case Outcome.Completed(_) => handler
         }
 
       case Outcome.Errored(_) =>
-        F.onCase(fa, handler) {
-          case Outcome.Errored(_) => true
-          case _ => false
+        F.onCase(fa) {
+          case Outcome.Errored(_) => handler
         }
 
       case Outcome.Canceled =>
-        F.onCase(fa, handler)(Outcome.Canceled ==)
+        F.onCase(fa) {
+          case Outcome.Canceled => handler
+        }
     }
 
     started <-> (fa.attempt <* F.uncancelable(_ => handler.attempt)).rethrow

@@ -41,8 +41,8 @@ trait Bracket[F[_], E] extends Safe[F, E] {
       : F[B] =
     bracketCase(acquire)(use)((a, _) => release(a))
 
-  def onCase[A](fa: F[A], body: F[Unit])(p: Case[A] => Boolean): F[A] =
-    bracketCase(unit)(_ => fa)((_, c) => if (p(c)) body else unit)
+  def onCase[A](fa: F[A])(pf: PartialFunction[Case[A], F[Unit]]): F[A] =
+    bracketCase(unit)(_ => fa)((_, c) => pf.lift(c).getOrElse(unit))
 }
 
 object Bracket {

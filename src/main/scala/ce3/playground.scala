@@ -222,11 +222,15 @@ object playground {
         }
 
       def onCancel[A](fa: PureConc[E, A], body: PureConc[E, Unit]): PureConc[E, A] =
-        onCase(fa, body)(Outcome.Canceled ==)
+        onCase(fa) { case Outcome.Canceled => body }
 
-      override def onCase[A](fa: PureConc[E, A], body: PureConc[E, Unit])(p: Outcome[PureConc[E, ?], E, A] => Boolean): PureConc[E, A] = {
+      override def onCase[A](
+          fa: PureConc[E, A])(
+          pf: PartialFunction[Outcome[PureConc[E, ?], E, A], PureConc[E, Unit]])
+          : PureConc[E, A] = {
+
         def pbody(oc: Outcome[PureConc[E, ?], E, A]) =    // ...and Sherman
-          if (p(oc)) body.attempt.void else unit
+          pf.lift(oc).map(_.attempt.void).getOrElse(unit)
 
         val finalizer: Finalizer[E] =
           ec => uncancelable(_ => pbody(ec) >> withCtx(_.self.popFinalizer))
