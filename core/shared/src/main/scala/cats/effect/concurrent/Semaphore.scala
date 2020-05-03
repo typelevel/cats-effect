@@ -215,14 +215,14 @@ object Semaphore {
                   val newValue = m - n
 
                   (Right(newValue), Right((m, newValue)))
-                case w                  => (w, w)
+                case w => (w, w)
               }
 
               (newState, previousAndNow)
             }
             .map {
               case Right((previous, now)) if now != previous => true
-              case _ => false
+              case _                                         => false
             }
       }
 
