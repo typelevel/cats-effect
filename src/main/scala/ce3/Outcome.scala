@@ -37,6 +37,7 @@ private[ce3] trait LowPriorityImplicits {
   implicit def applicativeError[F[_]: Applicative, E]: ApplicativeError[Outcome[F, E, ?], E] =
     new ExitCaseApplicativeError[F, E]
 
+  //todo needs renaming
   protected class ExitCaseApplicativeError[F[_]: Applicative, E] extends ApplicativeError[Outcome[F, E, ?], E] {
 
     def pure[A](x: A): Outcome[F, E, A] = Completed(x.pure[F])
