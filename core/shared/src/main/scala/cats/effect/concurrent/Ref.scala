@@ -28,6 +28,7 @@ import cats.instances.either._
 import cats.syntax.functor._
 import cats.syntax.bifunctor._
 import cats.syntax.flatMap._
+import cats.syntax.either._
 
 import scala.annotation.tailrec
 
@@ -320,7 +321,7 @@ object Ref {
         case (a, set) =>
           f(a) match {
             case Right((a, b)) => set(a).ifM(ifTrue = F.pure(Right(b)), ifFalse = modifyOr(f))
-            case Left(e)       => F.pure(Left(e))
+            case l @ Left(_)   => F.pure(l.rightCast[B])
           }
       }
 
