@@ -60,7 +60,7 @@ abstract class Ref[F[_], A] {
   def set(a: A): F[Unit]
 
   /**
-   * Updates the current value using `f` and returns the value that was updated.
+   * Updates the current value using `f` and returns the previous value.
    *
    * In case of retries caused by concurrent modifications,
    * the returned value will be the last one before a successful update.
