@@ -16,15 +16,23 @@
 
 package ce3
 
+import cats.Show
 import cats.implicits._
 
 import playground._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
+import org.scalacheck.util.Pretty
 
 object Generators {
 
   private[this] def F[E] = ConcurrentBracket[PureConc[E, ?], E]
+
+  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
+    Arbitrary(genPureConc[E, A](0))
+
+  implicit def prettyFromShow[A: Show](a: A): Pretty =
+    Pretty.prettyString(a.show)
 
   def genPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen](depth: Int): Gen[PureConc[E, A]] = {
     if (depth > 10) {

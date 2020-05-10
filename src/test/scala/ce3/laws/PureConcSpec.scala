@@ -27,7 +27,6 @@ import coop.ThreadT
 import playground._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
-import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
 import org.specs2.matcher.Matcher
@@ -41,12 +40,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "PureConc",
     ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
-
-  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
-    Arbitrary(genPureConc[E, A](0))
-
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
 
   def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
 

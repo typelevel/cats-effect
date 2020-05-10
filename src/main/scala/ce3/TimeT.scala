@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{~>, Functor}
+import cats.{~>, Functor, Group, Monad, Monoid}
 import cats.data.Kleisli
 import cats.implicits._
 
@@ -40,6 +40,18 @@ object TimeT {
 
   def run[F[_], A](tfa: TimeT[F, A]): F[A] =
     tfa.run(new Time(0.millis))
+
+  implicit def groupTimeT[F[_]: Monad, A](implicit A: Group[A]): Group[TimeT[F, A]] =
+    new Group[TimeT[F, A]] {
+
+      def empty = Monoid[A].empty.pure[TimeT[F, ?]]
+
+      def combine(left: TimeT[F, A], right: TimeT[F, A]) =
+        (left, right).mapN(_ |+| _)
+
+      def inverse(a: TimeT[F, A]) =
+        a.map(_.inverse)
+    }
 
   implicit def temporalB[F[_], E](implicit F: ConcurrentBracket[F, E]): TemporalBracket[TimeT[F, ?], E] =
     new Temporal[TimeT[F, ?], E] with Bracket[TimeT[F, ?], E] {
