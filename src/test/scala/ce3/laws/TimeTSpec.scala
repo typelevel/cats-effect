@@ -32,11 +32,13 @@ import org.specs2.ScalaCheck
 import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
-import org.scalacheck.{Arbitrary, Cogen}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
+
+import java.util.concurrent.TimeUnit
 
 private[laws] trait LowPriorityInstances {
 
@@ -50,6 +52,18 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
   checkAll(
     "TimeT[PureConc, ?]",
     TemporalBracketTests[TimeT[PureConc[Int, ?], ?], Int].temporalBracket[Int, Int, Int](0.millis))
+
+  implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
+    import TimeUnit._
+
+    val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+
+    Arbitrary {
+      genTU flatMap { u =>
+        Gen.posNum[Long].map(FiniteDuration(_, u))
+      }
+    }
+  }
 
   implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
     Order.by(TimeT.run(_))
