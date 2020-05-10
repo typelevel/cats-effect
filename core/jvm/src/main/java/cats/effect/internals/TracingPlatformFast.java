@@ -23,7 +23,7 @@ import java.util.Optional;
  * Since this flag is read during construction of IO nodes, we are opting to
  * hold this flag in a Java class to bypass the volatile read.
  */
-public class TracingPlatformFast {
+public final class TracingPlatformFast {
 
     /**
      * A boolean flag that enables or disables tracing for a JVM process.
