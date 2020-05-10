@@ -41,6 +41,12 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
+    test(s"$label - do not allow negative n") {
+      sc(-42).attempt.unsafeToFuture().map { r =>
+        r should be('left)
+      }
+    }
+
     test(s"$label - acquire n synchronously") {
       val n = 20
       sc(20)
@@ -194,6 +200,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", n => Semaphore[IO](n))
+  tests("concurrent in", n => Semaphore.in[IO, IO](n))
+  tests(s"concurrent imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
 
   test("concurrent - acquire does not leak permits upon cancelation") {
     Semaphore[IO](1L)
@@ -222,4 +230,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("async", n => Semaphore.uncancelable[IO](n))
+  tests("async in", n => Semaphore.uncancelableIn[IO, IO](n))
+  tests(s"async imapK", n => Semaphore.uncancelable[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
+
 }
