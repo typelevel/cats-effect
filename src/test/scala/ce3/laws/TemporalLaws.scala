@@ -15,15 +15,23 @@
  */
 
 package ce3
+package laws
 
-package object laws {
+import cats.MonadError
+import cats.implicits._
+import cats.laws.MonadErrorLaws
 
-  // override the one in cats
-  implicit final class IsEqArrow[A](private val lhs: A) extends AnyVal {
-    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
-  }
+import scala.concurrent.duration.FiniteDuration
 
-  implicit final class IsEqishArrow[A](private val lhs: A) extends AnyVal {
-    def <~>(rhs: A): IsEqish[A] = IsEqish(lhs, rhs)
-  }
+trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] {
+
+  implicit val F: Temporal[F, E]
+
+  def nowSleepSumIdentity(delta: FiniteDuration) =
+    F.sleep(delta) >> F.now <~> F.now.map(delta +)
+}
+
+object TemporalLaws {
+  def apply[F[_], E](implicit F0: Temporal[F, E]): TemporalLaws[F, E] =
+    new TemporalLaws[F, E] { val F = F0 }
 }
