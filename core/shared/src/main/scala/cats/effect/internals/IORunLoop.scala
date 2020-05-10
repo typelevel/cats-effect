@@ -27,7 +27,6 @@ private[effect] object IORunLoop {
   private type Current = IO[Any]
   private type Bind = Any => IO[Any]
   private type CallStack = ArrayStack[Bind]
-  // TODO: replace with a mutable ring buffer
   private type Callback = Either[Throwable, Any] => Unit
 
   /**
@@ -36,7 +35,7 @@ private[effect] object IORunLoop {
    */
   def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit = {
     if (tracingEnabled) {
-      IOTracing.setLocalTracingMode(TracingMode.Disabled)
+      IOTracing.setLocalTracingMode(TracingDisabled)
     }
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
   }
@@ -54,12 +53,16 @@ private[effect] object IORunLoop {
    */
   def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit = {
     if (tracingEnabled) {
-      IOTracing.setLocalTracingMode(TracingMode.Disabled)
+      IOTracing.setLocalTracingMode(TracingDisabled)
     }
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
   }
 
-  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, mode: TracingMode, cb: Either[Throwable, A] => Unit): Unit = {
+  def restartCancelable[A](source: IO[A],
+                           conn: IOConnection,
+                           ctx: IOContext,
+                           mode: TracingMode,
+                           cb: Either[Throwable, A] => Unit): Unit = {
     if (tracingEnabled) {
       IOTracing.setLocalTracingMode(mode)
     }
@@ -481,4 +484,6 @@ private[effect] object IORunLoop {
    * cancelled status, to interrupt synchronous flatMap loops.
    */
   private[this] val maxAutoCancelableBatchSize = 512
+
+  private[this] val TracingDisabled = TracingMode.Disabled
 }

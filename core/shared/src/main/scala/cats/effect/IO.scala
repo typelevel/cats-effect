@@ -102,11 +102,11 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def map[B](f: A => B): IO[B] = {
+  final def map[B](f: A => B): IO[B] =
     if (tracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
       // We may not actually have to do this
-      IOTracing(Map(this, f, 0), f)
+      IOTracing(Map(this, f, 0), f.getClass)
     } else {
       this match {
         case Map(source, g, index) =>
@@ -119,7 +119,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
           Map(this, f, 0)
       }
     }
-  }
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -139,7 +138,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def flatMap[B](f: A => IO[B]): IO[B] = {
     val nextIo = Bind(this, f)
     if (tracingEnabled) {
-      IOTracing(nextIo, f)
+      IOTracing(nextIo, f.getClass)
     } else {
       nextIo
     }
@@ -797,14 +796,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
 
   def slugTrace: IO[A] =
     if (tracingEnabled) {
-      IOTracing.tracedLocally(this, TracingMode.Slug)
+      IOTracing.locallyTraced(this, TracingMode.Slug)
     } else {
       this
     }
 
   def rabbitTrace: IO[A] =
     if (tracingEnabled) {
-      IOTracing.tracedLocally(this, TracingMode.Rabbit)
+      IOTracing.locallyTraced(this, TracingMode.Rabbit)
     } else {
       this
     }
@@ -1237,7 +1236,7 @@ object IO extends IOInstances {
     }
 
     if (tracingEnabled) {
-      IOTracing(nextIo, k)
+      IOTracing(nextIo, k.getClass)
     } else {
       nextIo
     }
@@ -1282,7 +1281,7 @@ object IO extends IOInstances {
     }
 
     if (tracingEnabled) {
-      IOTracing(nextIo, k)
+      IOTracing(nextIo, k.getClass)
     } else {
       nextIo
     }
@@ -1349,7 +1348,7 @@ object IO extends IOInstances {
     }
 
     if (tracingEnabled) {
-      IOTracing(nextIo, k)
+      IOTracing(nextIo, k.getClass)
     } else {
       nextIo
     }
@@ -1604,7 +1603,7 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
-  def backtrace: IO[IOTrace] =
+  val backtrace: IO[IOTrace] =
     Introspect
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

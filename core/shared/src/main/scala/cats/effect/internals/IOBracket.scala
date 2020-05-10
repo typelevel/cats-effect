@@ -46,7 +46,7 @@ private[effect] object IOBracket {
         val mode = if (tracingEnabled) {
           IOTracing.getLocalTracingMode()
         } else {
-          TracingMode.Disabled
+          TracingDisabled
         }
         IORunLoop.restart[A](acquire, ctx, mode, new BracketStart(use, release, conn, ctx, mode, deferredRelease, cb))
       } else {
@@ -55,7 +55,7 @@ private[effect] object IOBracket {
     }
 
     if (tracingEnabled) {
-      IOTracing(nextIo, use)
+      IOTracing(nextIo, use.getClass)
     } else {
       nextIo
     }
@@ -209,4 +209,6 @@ private[effect] object IOBracket {
       old.pop()
       old
     }
+
+  private[this] val TracingDisabled: TracingMode = TracingMode.Disabled
 }

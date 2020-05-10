@@ -20,6 +20,29 @@ import cats.effect.{ExitCode, IO, IOApp}
 
 object Example extends IOApp {
 
+  /*
+  The output of this program should be:
+  1
+  2
+  3
+  7
+  8
+  4
+  5
+  IOTrace
+    map at org.simpleapp.example.Example$.$anonfun$program$8 (Example.scala:42)
+    bind at org.simpleapp.example.Example$.$anonfun$program$7 (Example.scala:41)
+    map at org.simpleapp.example.Example$.$anonfun$program2$1 (Example.scala:29)
+    bind at org.simpleapp.example.Example$.program2 (Example.scala:28)
+    bind at org.simpleapp.example.Example$.$anonfun$program$4 (Example.scala:39)
+    async at org.simpleapp.example.Example$.$anonfun$program$3 (Example.scala:40)
+    bind at org.simpleapp.example.Example$.$anonfun$program$3 (Example.scala:37)
+    bind at org.simpleapp.example.Example$.$anonfun$program$2 (Example.scala:36)
+    bind at org.simpleapp.example.Example$.$anonfun$program$1 (Example.scala:35)
+    bind at org.simpleapp.example.Example$.program (Example.scala:34)
+    bind at org.simpleapp.example.Example$.run (Example.scala:47)
+   */
+
   def print(msg: String): IO[Unit] =
     IO.delay(println(msg))
 
