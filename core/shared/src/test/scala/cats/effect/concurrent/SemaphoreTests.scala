@@ -43,7 +43,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
       sc(-42).attempt.unsafeToFuture().map { r =>
-        r should be('left)
+        r.left.value should be(a[IllegalArgumentException])
       }
     }
 
