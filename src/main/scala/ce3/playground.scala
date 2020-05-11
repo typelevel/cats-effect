@@ -493,7 +493,7 @@ object playground {
   implicit def groupPureConc[E, A: Group]: Group[PureConc[E, A]] =
     new Group[PureConc[E, A]] {
 
-      def empty = Monoid[A].empty.pure[PureConc[E, ?]]
+      val empty = Monoid[A].empty.pure[PureConc[E, ?]]
 
       def combine(left: PureConc[E, A], right: PureConc[E, A]) =
         (left, right).mapN(_ |+| _)

@@ -31,13 +31,13 @@ sealed trait IsEqish[A] {
     case IsEqish.Assert(lhs, rhs) =>
       if (lhs <= rhs && (rhs |-| lhs) <= tolerance.value) {
         Prop.proved
-      } else if (rhs > lhs && (lhs |-| rhs) <= tolerance.value) {
+      } else if (lhs > rhs && (lhs |-| rhs) <= tolerance.value) {
         Prop.proved
       } else {
         Prop.falsified :| {
           val exp = Pretty.pretty[A](rhs, Pretty.Params(0))
           val act = Pretty.pretty[A](lhs, Pretty.Params(0))
-          s"Expected: $exp += ${tolerance.value}\n" + s"Received: $act"
+          s"Expected: $exp ± ${tolerance.value}\n" + s"Received: $act"
         }
       }
 

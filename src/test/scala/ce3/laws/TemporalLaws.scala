@@ -30,8 +30,8 @@ trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] {
   def nowSleepSumIdentity(delta: FiniteDuration) =
     F.sleep(delta) >> F.now <~> F.now.map(delta +)
 
-  def sleepRaceMaximum(d1: FiniteDuration, d2: FiniteDuration) =
-    F.race(F.sleep(d1), F.sleep(d2)) >> F.now <~> F.now.map(d1.max(d2) +)
+  def sleepRaceMinimum(d1: FiniteDuration, d2: FiniteDuration) =
+    F.race(F.sleep(d1), F.sleep(d2)) >> F.now <~> F.now.map(d1.min(d2) +)
 
   def startSleepMaximum(d1: FiniteDuration, d2: FiniteDuration) =
     F.start(F.sleep(d1)).flatMap(f => F.sleep(d2) >> f.join) >> F.now <~> F.now.map(d1.max(d2) +)

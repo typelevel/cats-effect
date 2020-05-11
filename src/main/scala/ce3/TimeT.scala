@@ -44,7 +44,7 @@ object TimeT {
   implicit def groupTimeT[F[_]: Monad, A](implicit A: Group[A]): Group[TimeT[F, A]] =
     new Group[TimeT[F, A]] {
 
-      def empty = Monoid[A].empty.pure[TimeT[F, ?]]
+      val empty = Monoid[A].empty.pure[TimeT[F, ?]]
 
       def combine(left: TimeT[F, A], right: TimeT[F, A]) =
         (left, right).mapN(_ |+| _)
@@ -115,6 +115,7 @@ object TimeT {
         val forkA = time.fork()
         val forkB = time.fork()
 
+        // TODO this doesn't work (yet) because we need to force the "faster" effect to win the race, which right now isn't happening
         F.racePair(fa.run(forkA), fb.run(forkB)) map {
           case Left((a, delegate)) =>
             time.now = forkA.now
