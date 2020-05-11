@@ -24,6 +24,7 @@ import cats.Monad
 import cats.Applicative
 import cats.Functor
 import cats.ApplicativeError
+import scala.collection.immutable.SortedMap
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -36,10 +37,10 @@ trait Generators1[F[_]] {
   //todo: uniqueness based on... names, I guess. Have to solve the diamond problem somehow
 
   //Generators of base cases, with no recursion
-  protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]]
+  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])]
 
   //Only recursive generators - the argument is a generator of the next level of depth
-  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]]
+  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])]
 
   //All generators possible at depth [[depth]]
   private def gen[A: Arbitrary: Cogen](depth: Int): Gen[F[A]] = {
@@ -51,7 +52,7 @@ trait Generators1[F[_]] {
       if(depth > maxDepth) baseGen[A]
       else baseGen[A] ++ recursiveGen[A](genK) 
 
-    Gen.oneOf(gens).flatMap(identity)
+    Gen.oneOf(SortedMap(gens:_*).map(_._2)).flatMap(identity)
   }
 
   //All generators possible at depth 0 - the only public method
@@ -62,12 +63,12 @@ trait Generators1[F[_]] {
 trait ApplicativeGenerators[F[_]] extends Generators1[F] {
   implicit val F: Applicative[F]
 
-  protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]] = List(genPure[A])
+  protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = List("pure" -> genPure[A])
 
-  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]] = 
+  protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] =
     List(
-      genMap[A](deeper),
-      genAp[A](deeper)
+      "map" -> genMap[A](deeper),
+      "ap" -> genAp[A](deeper)
     )    
 
   private def genPure[A: Arbitrary]: Gen[F[A]] =
@@ -88,8 +89,8 @@ trait MonadGenerators[F[_]] extends ApplicativeGenerators[F]{
 
   implicit val F: Monad[F]
   
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]] = List(
-    genFlatMap(deeper)
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
+    "flatMap" -> genFlatMap(deeper)
   ) ++ super.recursiveGen(deeper)
 
   private def genFlatMap[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
@@ -106,12 +107,12 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
 
   implicit val F: ApplicativeError[F, E]
 
-  override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]] = List(
-    genRaiseError[A]
+  override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = List(
+    "raiseError" -> genRaiseError[A]
   ) ++ super.baseGen[A]
 
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]] = List(
-    genHandleErrorWith[A](deeper),
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
+    "handleErrorWith" -> genHandleErrorWith[A](deeper),
   ) ++ super.recursiveGen(deeper)
 
   private def genRaiseError[A]: Gen[F[A]] =
@@ -129,8 +130,8 @@ trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
   
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]] = List(
-    genBracketCase[A](deeper)
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
+    "bracketCase" -> genBracketCase[A](deeper)
   ) ++ super.recursiveGen[A](deeper)
 
   import OutcomeGenerators._
@@ -147,17 +148,17 @@ trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
 trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   implicit val F: Concurrent[F, E]
 
-  override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[F[A]]] = List(
-    genCanceled[A],
-    genCede[A],
-    genNever[A]
+  override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = List(
+    "canceled" -> genCanceled[A],
+    "cede" -> genCede[A],
+    "never" -> genNever[A]
   ) ++ super.baseGen[A]
   
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[Gen[F[A]]] = List(
-    genUncancelable[A](deeper),
-    genRacePair[A](deeper),
-    genStart[A](deeper),
-    genJoin[A](deeper),
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
+    "uncancelable" -> genUncancelable[A](deeper),
+    "racePair" -> genRacePair[A](deeper),
+    "start" -> genStart[A](deeper),
+    "join" -> genJoin[A](deeper),
   ) ++ super.recursiveGen(deeper)
 
   private def genCanceled[A: Arbitrary]: Gen[F[A]] =
@@ -212,8 +213,8 @@ object OutcomeGenerators {
     val cogenE: Cogen[E] = implicitly
     implicit val F: ApplicativeError[Outcome[F, E, *], E] = Outcome.applicativeError[F, E]
 
-    override protected def baseGen[A: Arbitrary: Cogen]: List[Gen[Outcome[F,E,A]]] = List(
-      Gen.const(Outcome.Canceled)
+    override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[Outcome[F,E,A]])] = List(
+      "const(Canceled)" -> Gen.const(Outcome.Canceled)
     ) ++ super.baseGen[A]
   }
   
