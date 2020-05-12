@@ -26,6 +26,10 @@ val CatsVersion = "2.1.1"
 
 addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
 
+scalacOptions ++= Seq(
+  "-Xcheckinit"
+)
+
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % CatsVersion,
   "org.typelevel" %% "cats-free" % CatsVersion,

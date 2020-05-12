@@ -36,14 +36,24 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
-  import Generators._
+  type F[A] = PureConc[Int, A]
 
-  checkAll(
-    "PureConc",
-    ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
+  import OutcomeGenerators._
 
-  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
-    Arbitrary(genPureConc[E, A](0))
+  implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] = Cogen[Outcome[Option, E, A]].contramap(run(_))
+
+  val generators = new ConcurrentGenerators[F, Int] with BracketGenerators[F, Int] {
+    
+    val arbitraryE: Arbitrary[Int] = implicitly[Arbitrary[Int]]
+    
+    val cogenE: Cogen[Int] = Cogen[Int]
+    
+    val F: ConcurrentBracket[F, Int] = concurrentBForPureConc[Int]
+
+    def cogenCase[A: Cogen]: Cogen[Outcome[F, Int, A]] = OutcomeGenerators.cogenOutcome[F, Int, A]
+  }
+
+  implicit def arbitraryPureConc[A: Arbitrary: Cogen]: Arbitrary[F[A]] = Arbitrary(generators.generators[A])
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
@@ -52,4 +62,8 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   def be_===[A: Eq: Show](expect: A): Matcher[A] = (result: A) =>
     (result === expect, s"${result.show} === ${expect.show}", s"${result.show} !== ${expect.show}")
+
+  checkAll(
+    "PureConc",
+    ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
 }

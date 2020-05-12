@@ -27,7 +27,7 @@ import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class OutcomeSpec extends Specification with Discipline {
-  import Generators._
+  import OutcomeGenerators._
 
   checkAll(
     "Outcome[Id, Int, ?]",
