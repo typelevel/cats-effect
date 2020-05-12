@@ -27,7 +27,7 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
 import cats.effect.tracing.{IOTrace, TraceFrame, TracingMode}
-import cats.effect.internals.TracingPlatformFast.tracingEnabled
+import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -103,7 +103,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] =
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
       // We may not actually have to do this
       IOTracing(Map(this, f, 0), f.getClass)
@@ -137,7 +137,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
     val nextIo = Bind(this, f)
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing(nextIo, f.getClass)
     } else {
       nextIo
@@ -795,14 +795,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     p.parProductL(this)(another)
 
   def slugTrace: IO[A] =
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing.locallyTraced(this, TracingMode.Slug)
     } else {
       this
     }
 
   def rabbitTrace: IO[A] =
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing.locallyTraced(this, TracingMode.Rabbit)
     } else {
       this
@@ -1235,7 +1235,7 @@ object IO extends IOInstances {
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing(nextIo, k.getClass)
     } else {
       nextIo
@@ -1280,7 +1280,7 @@ object IO extends IOInstances {
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing(nextIo, k.getClass)
     } else {
       nextIo
@@ -1347,7 +1347,7 @@ object IO extends IOInstances {
         ref.complete(IO.unit)
     }
 
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing(nextIo, k.getClass)
     } else {
       nextIo

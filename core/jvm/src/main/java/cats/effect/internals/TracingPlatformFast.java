@@ -30,7 +30,7 @@ public final class TracingPlatformFast {
      * Since it is declared static and final, the JIT compiler has the liberty
      * to completely eliminate code paths consequent to the conditional.
      */
-    public static final boolean tracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
+    public static final boolean isTracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
         .map(x -> Boolean.valueOf(x))
         .orElse(true);

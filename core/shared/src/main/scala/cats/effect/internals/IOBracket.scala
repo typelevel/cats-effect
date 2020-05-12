@@ -25,7 +25,7 @@ import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
 import cats.effect.tracing.TracingMode
-import cats.effect.internals.TracingPlatformFast.tracingEnabled
+import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 private[effect] object IOBracket {
 
@@ -43,7 +43,7 @@ private[effect] object IOBracket {
       if (!conn.isCanceled) {
         // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
         // (in other words it is disconnected from our IOConnection)
-        val mode = if (tracingEnabled) {
+        val mode = if (isTracingEnabled) {
           IOTracing.getLocalTracingMode()
         } else {
           TracingDisabled
@@ -54,7 +54,7 @@ private[effect] object IOBracket {
       }
     }
 
-    if (tracingEnabled) {
+    if (isTracingEnabled) {
       IOTracing(nextIo, use.getClass)
     } else {
       nextIo
