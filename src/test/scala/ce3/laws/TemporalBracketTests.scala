@@ -81,7 +81,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
       : RuleSet = {
 
     new RuleSet {
-      val name = "temporalBracket"
+      val name = "temporal (bracket)"
       val bases = Nil
       val parents = Seq(temporal[A, B, C](tolerance), bracket[A, B, C])
 
