@@ -29,7 +29,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
 
   val laws: SyncLaws[F]
 
-  def bracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
