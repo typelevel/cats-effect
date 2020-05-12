@@ -23,7 +23,7 @@ import cats.laws.MonadErrorLaws
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] {
+trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] with ClockLaws[F] {
 
   implicit val F: Temporal[F, E]
 

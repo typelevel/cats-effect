@@ -68,6 +68,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
       EqFInt: Eq[F[Int]],
       OrdFFD: Order[F[FiniteDuration]],
       GroupFD: Group[F[FiniteDuration]],
+      exec: F[Boolean] => Prop,
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
@@ -82,7 +83,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
     new RuleSet {
       val name = "temporalBracket"
       val bases = Nil
-      val parents = Seq(temporal[A, B, C](tolerance))
+      val parents = Seq(temporal[A, B, C](tolerance), bracket[A, B, C])
 
       val props = Seq()
     }

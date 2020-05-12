@@ -32,7 +32,7 @@ import org.specs2.ScalaCheck
 import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -52,6 +52,9 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
   checkAll(
     "TimeT[PureConc, ?]",
     TemporalBracketTests[TimeT[PureConc[Int, ?], ?], Int].temporalBracket[Int, Int, Int](0.millis))
+
+  implicit def exec(fb: TimeT[PureConc[Int, ?], Boolean]): Prop =
+    Prop(playground.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._

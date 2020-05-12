@@ -28,7 +28,7 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] {
+trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
 
   val laws: TemporalLaws[F, E]
 
@@ -68,6 +68,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] {
       EqFInt: Eq[F[Int]],
       OrdFFD: Order[F[FiniteDuration]],
       GroupFD: Group[F[FiniteDuration]],
+      exec: F[Boolean] => Prop,
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,
       fuPP: F[Unit] => Pretty,
@@ -89,7 +90,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] {
     new RuleSet {
       val name = "temporal"
       val bases = Nil
-      val parents = Seq(concurrent[A, B, C])
+      val parents = Seq(concurrent[A, B, C], clock[A, B, C])
 
       val props = Seq(
         "now sleep sum identity" -> forAll(laws.nowSleepSumIdentity _),
