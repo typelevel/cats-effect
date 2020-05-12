@@ -47,7 +47,8 @@ private[laws] trait LowPriorityInstances {
 }
 
 class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPriorityInstances {
-  import Generators._
+  import OutcomeGenerators._
+  import PureConcGenerators._
 
   checkAll(
     "TimeT[PureConc, ?]",
