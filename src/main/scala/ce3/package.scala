@@ -17,7 +17,10 @@
 import cats.data.Kleisli
 
 package object ce3 {
-  type ConcurrentE[F[_]] = Concurrent[F, Throwable]
+  type BracketThrow[F[_]] = Bracket[F, Throwable]
+  type RegionThrow[R[_[_], _], F[_]] = Region[R, F, Throwable]
+
+  type ConcurrentThrow[F[_]] = Concurrent[F, Throwable]
 
   type ConcurrentBracket[F[_], E] = Concurrent[F, E] with Bracket[F, E]
 
@@ -31,7 +34,7 @@ package object ce3 {
     def apply[R[_[_], _], F[_], E](implicit R: ConcurrentRegion[R, F, E]): ConcurrentRegion[R, F, E] = R
   }
 
-  type TemporalE[F[_]] = Temporal[F, Throwable]
+  type TemporalThrow[F[_]] = Temporal[F, Throwable]
 
   type TemporalBracket[F[_], E] = Temporal[F, E] with Bracket[F, E]
 
