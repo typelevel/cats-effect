@@ -20,13 +20,13 @@ import cats.~>
 
 trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
 
-  def to[G[_]]: EffectPartiallyApplied[F, G] =
-    new EffectPartiallyApplied[F, G](this)
+  def to[G[_]]: PartiallyApplied[G] =
+    new PartiallyApplied[G]
 
   def toK[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
-}
 
-final class EffectPartiallyApplied[F[_], G[_]](F: Effect[F]) {
-  def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
-    F.toK(G)(fa)
+  final class PartiallyApplied[G[_]] {
+    def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
+      toK(G)(fa)
+  }
 }
