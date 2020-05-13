@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020 Daniel Spiewak
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,21 @@
  */
 
 package ce3
+package laws
 
-import cats.~>
+import cats.implicits._
 
-trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
+import scala.concurrent.ExecutionContext
+import scala.util.{Left, Right}
 
-  def to[G[_]]: EffectPartiallyApplied[F, G] =
-    new EffectPartiallyApplied[F, G](this)
+trait EffectLaws[F[_]] extends AsyncLaws[F] with BracketLaws[F, Throwable] {
+  implicit val F: Effect[F]
 
-  def toK[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
+  def roundTrip[A](fa: F[A]) =
+    F.to[F](fa) <-> fa
 }
 
-final class EffectPartiallyApplied[F[_], G[_]](F: Effect[F]) {
-  def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
-    F.toK(G)(fa)
+object EffectLaws {
+  def apply[F[_]](implicit F0: Effect[F]): EffectLaws[F] =
+    new EffectLaws[F] { val F = F0 }
 }
