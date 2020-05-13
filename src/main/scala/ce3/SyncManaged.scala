@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Typelevel
+ * Copyright 2020 Daniel Spiewak
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,18 +19,14 @@ package ce3
 import cats.~>
 import cats.implicits._
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
+trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, ?]] with Region[R, F, Throwable] {
   type Case[A] = Either[Throwable, A]
 
   def CaseInstance = catsStdInstancesForEither[Throwable]
 
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
+  def to[S[_[_], _]]: PartiallyApplied[S]
 
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
-
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
-      toK[G](G)(fa)
+  trait PartiallyApplied[S[_[_], _]] {
+    def apply[A](rfa: R[F, A])(implicit S: Sync[S[F, ?]] with Region[S, F, Throwable]): S[F, A]
   }
 }
