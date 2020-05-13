@@ -45,5 +45,17 @@ package object ce3 {
     def apply[R[_[_], _], F[_], E](implicit R: TemporalRegion[R, F, E]): TemporalRegion[R, F, E] = R
   }
 
+  type AsyncBracket[F[_]] = Async[F] with Bracket[F, Throwable]
+
+  object AsyncBracket {
+    def apply[F[_]](implicit F: AsyncBracket[F]): AsyncBracket[F] = F
+  }
+
+  type AsyncRegion[R[_[_], _], F[_]] = Async[R[F, ?]] with Region[R, F, Throwable]
+
+  object AsyncRegion {
+    def apply[R[_[_], _], F[_]](implicit R: AsyncRegion[R, F]): AsyncRegion[R, F] = R
+  }
+
   type TimeT[F[_], A] = Kleisli[F, Time, A]
 }

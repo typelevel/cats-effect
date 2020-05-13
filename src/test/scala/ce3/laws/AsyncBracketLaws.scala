@@ -22,14 +22,11 @@ import cats.implicits._
 import scala.concurrent.ExecutionContext
 import scala.util.{Left, Right}
 
-trait EffectLaws[F[_]] extends AsyncBracketLaws[F] {
-  implicit val F: Effect[F]
-
-  def roundTrip[A](fa: F[A]) =
-    F.to[F](fa) <-> fa
+trait AsyncBracketLaws[F[_]] extends AsyncLaws[F] with TemporalBracketLaws[F, Throwable] {
+  implicit val F: AsyncBracket[F]
 }
 
-object EffectLaws {
-  def apply[F[_]](implicit F0: Effect[F]): EffectLaws[F] =
-    new EffectLaws[F] { val F = F0 }
+object AsyncBracketLaws {
+  def apply[F[_]](implicit F0: AsyncBracket[F]): AsyncBracketLaws[F] =
+    new AsyncBracketLaws[F] { val F = F0 }
 }

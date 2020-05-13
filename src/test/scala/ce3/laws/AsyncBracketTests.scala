@@ -29,11 +29,11 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait EffectTests[F[_]] extends AsyncBracketTests[F] {
+trait AsyncBracketTests[F[_]] extends AsyncTests[F] with TemporalBracketTests[F, Throwable] {
 
-  val laws: EffectLaws[F]
+  val laws: AsyncBracketLaws[F]
 
-  def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
+  def asyncBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
     implicit
       ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
@@ -84,17 +84,17 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
       : RuleSet = {
 
     new RuleSet {
-      val name = "effect"
+      val name = "async (bracket)"
       val bases = Nil
-      val parents = Seq(asyncBracket[A, B, C](tolerance))
+      val parents = Seq(async[A, B, C](tolerance), temporalBracket[A, B, C](tolerance))
 
-      val props = Seq("round trip" -> forAll(laws.roundTrip[A] _))
+      val props = Seq()
     }
   }
 }
 
-object EffectTests {
-  def apply[F[_]](implicit F0: Effect[F]): EffectTests[F] = new EffectTests[F] {
-    val laws = EffectLaws[F]
+object AsyncBracketTests {
+  def apply[F[_]](implicit F0: AsyncBracket[F]): AsyncBracketTests[F] = new AsyncBracketTests[F] {
+    val laws = AsyncBracketLaws[F]
   }
 }
