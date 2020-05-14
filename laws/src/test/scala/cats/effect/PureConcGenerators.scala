@@ -23,19 +23,22 @@ import org.scalacheck.{Arbitrary, Cogen}
 object PureConcGenerators {
   import OutcomeGenerators._
 
-  implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] = Cogen[Outcome[Option, E, A]].contramap(run(_))
+  implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] =
+    Cogen[Outcome[Option, E, A]].contramap(run(_))
 
-  val generators = new ConcurrentGenerators[PureConc[Int, ?], Int] with BracketGenerators[PureConc[Int, ?], Int] {
+  def generators[E: Arbitrary: Cogen] =
+    new ConcurrentGenerators[PureConc[E, ?], E] with BracketGenerators[PureConc[E, ?], E] {
 
-    val arbitraryE: Arbitrary[Int] = implicitly[Arbitrary[Int]]
+      val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
 
-    val cogenE: Cogen[Int] = Cogen[Int]
+      val cogenE: Cogen[E] = Cogen[E]
 
-    val F: ConcurrentBracket[PureConc[Int, ?], Int] = concurrentBForPureConc[Int]
+      val F: ConcurrentBracket[PureConc[E, ?], E] = concurrentBForPureConc[E]
 
-    def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[Int, ?], Int, A]] = OutcomeGenerators.cogenOutcome[PureConc[Int, ?], Int, A]
-  }
+      def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[E, ?], E, A]] =
+        OutcomeGenerators.cogenOutcome[PureConc[E, ?], E, A]
+    }
 
-  implicit def arbitraryPureConc[A: Arbitrary: Cogen]: Arbitrary[PureConc[Int, A]] =
-    Arbitrary(generators.generators[A])
+  implicit def arbitraryPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
+    Arbitrary(generators[E].generators[A])
 }

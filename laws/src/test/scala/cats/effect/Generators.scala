@@ -122,7 +122,12 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
     } yield F.handleErrorWith(fa)(f)
   }
 }
-trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
+
+trait MonadErrorGenerators[F[_], E] extends MonadGenerators[F] with ApplicativeErrorGenerators[F, E] {
+  implicit val F: MonadError[F, E]
+}
+
+trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Bracket[F, E]
   type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
@@ -140,7 +145,7 @@ trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
   }
 }
 
-trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
+trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Concurrent[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] = List(
