@@ -523,6 +523,9 @@ object pure {
         M.tailRecM(a)(f)
     }
 
+  implicit def eqFreeSync[F[_]: Monad, A](implicit F: Eq[F[A]]): Eq[FreeT[Eval, F, A]] =
+    Eq.by(runSync(_))
+
   implicit def eqPureConc[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
 
   implicit def showPureConc[E: Show, A: Show]: Show[PureConc[E, A]] =

@@ -133,13 +133,12 @@ trait ClockGenerators[F[_]] extends ApplicativeGenerators[F] {
   implicit val F: Clock[F]
 
   protected implicit val arbitraryFD: Arbitrary[FiniteDuration]
-  protected implicit val cogenFD: Cogen[FiniteDuration]
 
   override protected def baseGen[A: Arbitrary: Cogen] =
     ("now" -> genNow[A]) :: super.baseGen[A]
 
   private def genNow[A: Arbitrary] =
-    arbitrary[FiniteDuration => A].map(F.now.map(_))
+    arbitrary[A].map(F.now.as(_))
 }
 
 trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with ClockGenerators[F] {
