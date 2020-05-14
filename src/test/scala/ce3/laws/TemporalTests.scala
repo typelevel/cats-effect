@@ -93,7 +93,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
       val parents = Seq(concurrent[A, B, C], clock[A, B, C])
 
       val props = Seq(
-        "now sleep sum identity" -> forAll(laws.nowSleepSumIdentity _),
+        "monotonic sleep sum identity" -> forAll(laws.monotonicSleepSumIdentity _),
         "sleep race minimum" -> forAll(laws.sleepRaceMinimum _),
         "start sleep maximum" -> forAll(laws.startSleepMaximum _))
     }

@@ -25,7 +25,7 @@ import scala.concurrent.duration.FiniteDuration
 trait ClockLaws[F[_]] extends ApplicativeLaws[F] {
   implicit val F: Clock[F]
 
-  def nowIsMonotone = (F.now, F.now).mapN(_ <= _)
+  def monotonicity = (F.monotonic, F.monotonic).mapN(_ <= _)
 }
 
 object ClockLaws {

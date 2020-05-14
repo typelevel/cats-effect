@@ -54,7 +54,7 @@ trait ClockTests[F[_]] extends ApplicativeTests[F] {
       val parents = Seq(applicative[A, B, C])
 
       val props = Seq(
-        "now is monotone" -> laws.nowIsMonotone)
+        "monotonicity" -> laws.monotonicity)
     }
   }
 }
