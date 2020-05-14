@@ -22,6 +22,8 @@ import cats.implicits._
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 
 import scala.collection.immutable.SortedMap
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -127,6 +129,26 @@ trait MonadErrorGenerators[F[_], E] extends MonadGenerators[F] with ApplicativeE
   implicit val F: MonadError[F, E]
 }
 
+trait ClockGenerators[F[_]] extends ApplicativeGenerators[F] {
+  implicit val F: Clock[F]
+
+  protected implicit val arbitraryFD: Arbitrary[FiniteDuration]
+  protected implicit val cogenFD: Cogen[FiniteDuration]
+
+  override protected def baseGen[A: Arbitrary: Cogen] =
+    ("now" -> genNow[A]) :: super.baseGen[A]
+
+  private def genNow[A: Arbitrary] =
+    arbitrary[FiniteDuration => A].map(F.now.map(_))
+}
+
+trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with ClockGenerators[F] {
+  implicit val F: Sync[F]
+
+  override protected def baseGen[A: Arbitrary: Cogen] =
+    ("delay" -> arbitrary[A].map(F.delay(_))) :: super.baseGen[A]
+}
+
 trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Bracket[F, E]
   type Case[A] = F.Case[A]
@@ -205,6 +227,48 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
             f.join.as(a)
       }
     } yield back
+}
+
+trait TemporalGenerators[F[_], E] extends ConcurrentGenerators[F, E] with ClockGenerators[F] {
+  implicit val F: Temporal[F, E]
+
+  override protected def baseGen[A: Arbitrary: Cogen] =
+    ("sleep" -> genSleep[A]) :: super.baseGen[A]
+
+  private def genSleep[A: Arbitrary] =
+    for {
+      t <- arbitraryFD.arbitrary
+      a <- arbitrary[A]
+    } yield F.sleep(t).as(a)
+}
+
+trait AsyncGenerators[F[_]] extends TemporalGenerators[F, Throwable] with SyncGenerators[F] {
+  implicit val F: Async[F]
+
+  protected implicit val arbitraryEC: Arbitrary[ExecutionContext]
+  protected implicit val cogenFU: Cogen[F[Unit]]
+
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]) =
+    List(
+      "async" -> genAsync[A](deeper),
+      "evalOn" -> genEvalOn[A](deeper)) ++ super.recursiveGen[A](deeper)
+
+  private def genAsync[A: Arbitrary: Cogen](deeper: GenK[F]) =
+    for {
+      result <- arbitrary[Either[Throwable, A]]
+
+      fo <- deeper[Option[F[Unit]]](
+        Arbitrary(
+          Gen.option[F[Unit]](
+            deeper[Unit](Arbitrary(arbitrary[Unit]), Cogen.cogenUnit))),
+        Cogen.cogenOption(cogenFU))
+    } yield F.async[A](k => F.delay(k(result)) >> fo)
+
+  private def genEvalOn[A: Arbitrary: Cogen](deeper: GenK[F]) =
+    for {
+      fa <- deeper[A]
+      ec <- arbitraryEC.arbitrary
+    } yield F.evalOn(fa, ec)
 }
 
 object OutcomeGenerators {
