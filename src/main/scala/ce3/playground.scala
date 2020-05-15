@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{~>, Eq, Functor, Id, Monad, MonadError, Show}
+import cats.{~>, Eq, Functor, Group, Id, Monad, MonadError, Monoid, Show}
 import cats.data.{Kleisli, WriterT}
 import cats.free.FreeT
 import cats.implicits._
@@ -478,7 +478,7 @@ object playground {
         M.tailRecM(a)(f)
     }
 
-  implicit def pureConcEq[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
+  implicit def eqPureConc[E: Eq, A: Eq]: Eq[PureConc[E, A]] = Eq.by(run(_))
 
   implicit def showPureConc[E: Show, A: Show]: Show[PureConc[E, A]] =
     Show show { pc =>
@@ -488,6 +488,18 @@ object playground {
         str => str.replace('╭', '├'))
 
       run(pc).show + "\n│\n" + trace
+    }
+
+  implicit def groupPureConc[E, A: Group]: Group[PureConc[E, A]] =
+    new Group[PureConc[E, A]] {
+
+      val empty = Monoid[A].empty.pure[PureConc[E, ?]]
+
+      def combine(left: PureConc[E, A], right: PureConc[E, A]) =
+        (left, right).mapN(_ |+| _)
+
+      def inverse(a: PureConc[E, A]) =
+        a.map(_.inverse)
     }
 
   private[this] def mvarLiftF[F[_], A](fa: F[A]): MVarR[F, A] =

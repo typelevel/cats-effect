@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package ce3
+package ce3.laws
 
-package object laws {
+import cats.Applicative
+import cats.implicits._
 
-  // override the one in cats
-  implicit final class IsEqArrow[A](private val lhs: A) extends AnyVal {
-    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
-  }
+final case class Tolerance[+A](value: A)
 
-  implicit final class IsEqishArrow[A](private val lhs: A) extends AnyVal {
-    def <~>(rhs: A): IsEqish[A] = IsEqish(lhs, rhs)
-  }
+object Tolerance {
+
+  def apply[A](implicit A: Tolerance[A]): Tolerance[A] = A
+
+  implicit def lift[F[_]: Applicative, A: Tolerance]: Tolerance[F[A]] =
+    Tolerance(Tolerance[A].value.pure[F])
 }

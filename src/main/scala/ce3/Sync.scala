@@ -18,9 +18,13 @@ package ce3
 
 import cats.{Defer, MonadError}
 
-trait Sync[F[_]] extends MonadError[F, Throwable] with Defer[F] {
+trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
   def delay[A](thunk: => A): F[A]
 
   def defer[A](thunk: => F[A]): F[A] =
     flatMap(delay(thunk))(x => x)
+}
+
+object Sync {
+  def apply[F[_]](implicit F: Sync[F]): Sync[F] = F
 }

@@ -16,7 +16,7 @@
 
 package ce3
 
-import cats.{~>, Applicative, ApplicativeError, Eq, Eval, Monad, MonadError, Show, Traverse}
+import cats.{~>, Applicative, ApplicativeError, Eq, Eval, Monad, MonadError, Order, Show, Traverse}
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -32,6 +32,13 @@ private[ce3] trait LowPriorityImplicits {
     case Canceled => "Canceled"
     case Errored(left) => s"Errored(${left.show})"
     case Completed(right) => s"Completed(<unknown>)"
+  }
+
+  implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] = Eq instance {
+    case (Canceled, Canceled) => true
+    case (Errored(left), Errored(right)) => left === right
+    case (Completed(left), Completed(right)) => left === right
+    case _ => false
   }
 
   implicit def applicativeError[F[_]: Applicative, E]: ApplicativeError[Outcome[F, E, ?], E] =
@@ -91,12 +98,17 @@ object Outcome extends LowPriorityImplicits {
     }
   }
 
-  implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] = Eq instance {
-    case (Canceled, Canceled) => true
-    case (Errored(left), Errored(right)) => left === right
-    case (Completed(left), Completed(right)) => left === right
-    case _ => false
-  }
+  implicit def order[F[_], E: Order, A](implicit FA: Order[F[A]]): Order[Outcome[F, E, A]] =
+    Order from {
+      case (Canceled, Canceled) => 0
+      case (Errored(left), Errored(right)) => left.compare(right)
+      case (Completed(left), Completed(right)) => left.compare(right)
+
+      case (Canceled, _) => -1
+      case (_, Canceled) => 1
+      case (Errored(_), Completed(_)) => -1
+      case (Completed(_), Errored(_)) => 1
+    }
 
   implicit def show[F[_], E: Show, A](implicit FA: Show[F[A]]): Show[Outcome[F, E, A]] = Show show {
     case Canceled => "Canceled"

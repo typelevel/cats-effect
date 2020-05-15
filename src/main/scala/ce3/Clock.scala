@@ -16,14 +16,21 @@
 
 package ce3
 
-package object laws {
+import cats.Applicative
 
-  // override the one in cats
-  implicit final class IsEqArrow[A](private val lhs: A) extends AnyVal {
-    def <->(rhs: A): IsEq[A] = IsEq(lhs, rhs)
-  }
+import scala.concurrent.duration.FiniteDuration
 
-  implicit final class IsEqishArrow[A](private val lhs: A) extends AnyVal {
-    def <~>(rhs: A): IsEqish[A] = IsEqish(lhs, rhs)
-  }
+import java.time.Instant
+
+trait Clock[F[_]] extends Applicative[F] {
+
+  // (monotonic, monotonic).mapN(_ <= _)
+  def monotonic: F[FiniteDuration]
+
+  // lawless (unfortunately), but meant to represent current (when sequenced) system time
+  def realTime: F[Instant]
+}
+
+object Clock {
+  def apply[F[_]](implicit F: Clock[F]): Clock[F] = F
 }

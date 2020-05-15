@@ -16,6 +16,7 @@
 
 package ce3
 
+import cats.Show
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
