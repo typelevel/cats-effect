@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Daniel Spiewak
+ * Copyright 2020 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 name := "ce3"
 
-baseVersion in ThisBuild := "0.1"
+ThisBuild / baseVersion := "0.1"
 
-organization in ThisBuild := "com.codecommit"
-publishGithubUser in ThisBuild := "djspiewak"
-publishFullName in ThisBuild := "Daniel Spiewak"
+ThisBuild / organization := "com.codecommit"
+ThisBuild / publishGithubUser := "djspiewak"
+ThisBuild / publishFullName := "Daniel Spiewak"
+
+ThisBuild / organizationName := "Typelevel"
 
 val CatsVersion = "2.1.1"
 
