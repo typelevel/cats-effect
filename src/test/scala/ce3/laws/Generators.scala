@@ -253,7 +253,7 @@ object OutcomeGenerators {
 }
 
 object ResourceGenerators {
-
+/* 
   def resourceGenerators[F[_], Case[_], E: Arbitrary: Cogen](
     implicit
     bracket: Bracket.Aux[F, E, Case],
@@ -264,7 +264,7 @@ object ResourceGenerators {
     
     val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource(bracket)
     val GenKF: GenK[F] = genKF
-  }
+  } */
   // def genResource[F[_]: Bracket.Aux[*[_], E, Case], Case[_], E, A: Arbitrary: Cogen](
   //     implicit arbEffect: Arbitrary[F[Resource[F, A]]],
   //     arbAlloate: Arbitrary[F[(A, Case[_] => F[Unit])]]
