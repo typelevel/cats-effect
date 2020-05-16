@@ -19,20 +19,16 @@ package cats.effect.internals
 import cats.effect.tracing.{IOTrace, TraceFrame}
 
 /**
- * IOContext holds state related to the execution of an IO and
- * should be threaded across multiple invocations of the run-loop
- * for the same fiber.
+ * INTERNAL API — Holds state related to the execution of
+ * an IO and should be threaded across multiple invocations
+ * of the run-loop associated with the same fiber.
  */
 final private[effect] class IOContext private () {
 
-  // We have to use a volatile here because of IOBracket implementation
-  // and how it invokes a new run-loop "asynchronously."
-  // Ideally we could use a mutable, ring buffer here.
-  @volatile var frames: Vector[TraceFrame] = Vector.empty
+  // TODO: Replace this with a performant mutable ring buffer
+  private var frames: Vector[TraceFrame] = Vector.empty
 
   def pushFrame(fr: TraceFrame): Unit = {
-    // Accessed from at most one thread at a time,
-    // so no race condition will occur
     val currFrames = frames
     if (currFrames.length >= 1000) {
       frames = fr +: currFrames.dropRight(1)

@@ -97,6 +97,7 @@ private[effect] object IOTracing {
 
   private val classBlacklist = List(
     "cats.effect.",
+    "cats.",
     "sbt.",
     "java.",
     "sun.",

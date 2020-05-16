@@ -16,6 +16,7 @@
 
 package cats.effect.internals
 
+import cats.implicits._
 import cats.effect.IO.ContextSwitch
 import cats.effect.{CancelToken, ExitCase, IO}
 import cats.effect.internals.TrampolineEC.immediate
@@ -29,6 +30,8 @@ import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 private[effect] object IOBracket {
 
+  private[this] type Acquire[A] = (A, IOContext)
+
   /**
    * Implementation for `IO.bracketCase`.
    */
@@ -41,14 +44,17 @@ private[effect] object IOBracket {
       // was cancelled already, to ensure that `cancel` really blocks if we
       // start `acquire` — n.b. `isCanceled` is visible here due to `push`
       if (!conn.isCanceled) {
-        // Note `acquire` is uncancelable due to usage of `IORunLoop.start`
+        // Note `acquireWithContext` is uncancelable due to usage of `IORunLoop.restart`
         // (in other words it is disconnected from our IOConnection)
-        val mode = if (isTracingEnabled) {
-          IOTracing.getLocalTracingMode()
-        } else {
-          TracingDisabled
-        }
-        IORunLoop.restart[A](acquire, ctx, mode, new BracketStart(use, release, conn, ctx, mode, deferredRelease, cb))
+        val acquireWithContext = acquire.product(ioContext)
+        val tracingMode = activeTracingMode
+
+        IORunLoop.restart[Acquire[A]](
+          acquireWithContext,
+          ctx,
+          tracingMode,
+          new BracketStart(use, release, conn, tracingMode, deferredRelease, cb)
+        )
       } else {
         deferredRelease.complete(IO.unit)
       }
@@ -66,18 +72,17 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
-    ctx: IOContext,
-    mode: TracingMode,
+    tracingMode: TracingMode,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
-  ) extends (Either[Throwable, A] => Unit)
+  ) extends (Either[Throwable, Acquire[A]] => Unit)
       with Runnable {
     // This runnable is a dirty optimization to avoid some memory allocations;
     // This class switches from being a Callback to a Runnable, but relies on
     // the internal IO callback protocol to be respected (called at most once)
-    private[this] var result: Either[Throwable, A] = _
+    private[this] var result: Either[Throwable, Acquire[A]] = _
 
-    def apply(ea: Either[Throwable, A]): Unit = {
+    def apply(ea: Either[Throwable, Acquire[A]]): Unit = {
       if (result ne null) {
         throw new IllegalStateException("callback called multiple times!")
       }
@@ -90,7 +95,7 @@ private[effect] object IOBracket {
 
     def run(): Unit = result match {
       case Right(a) =>
-        val frame = new BracketReleaseFrame[A, B](a, release)
+        val frame = new BracketReleaseFrame[A, B](a._1, release)
 
         // Registering our cancelable token ensures that in case
         // cancellation is detected, `release` gets called
@@ -100,12 +105,12 @@ private[effect] object IOBracket {
         if (!conn.isCanceled) {
           val onNext = {
             val fb =
-              try use(a)
+              try use(a._1)
               catch { case NonFatal(e) => IO.raiseError(e) }
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.restartCancelable(onNext, conn, ctx, mode, cb)
+          IORunLoop.restartCancelable(onNext, conn, a._2, tracingMode, cb)
         }
 
       case error @ Left(_) =>
@@ -118,7 +123,7 @@ private[effect] object IOBracket {
    * Implementation for `IO.guaranteeCase`.
    */
   def guaranteeCase[A](source: IO[A], release: ExitCase[Throwable] => IO[Unit]): IO[A] =
-    IO.Async { (conn, _, cb) =>
+    IO.Async { (conn, ctx, cb) =>
       // Light async boundary, otherwise this will trigger a StackOverflowException
       ec.execute(new Runnable {
         def run(): Unit = {
@@ -131,10 +136,11 @@ private[effect] object IOBracket {
           // the connection was already cancelled — n.b. we don't need
           // to trigger `release` otherwise, because it already happened
           if (!conn.isCanceled) {
-            IORunLoop.startCancelable(onNext, conn, cb)
+            IORunLoop.restartCancelable(onNext, conn, ctx, activeTracingMode, cb)
           }
         }
       })
+      // TODO: Trace here?
     }
 
   final private class BracketReleaseFrame[A, B](a: A, releaseFn: (A, ExitCase[Throwable]) => IO[Unit])
@@ -210,5 +216,17 @@ private[effect] object IOBracket {
       old
     }
 
+  private[this] val ioContext: IO[IOContext] =
+    IO.Async { (_, ctx, cb) =>
+      cb(Right(ctx))
+    }
+
   private[this] val TracingDisabled: TracingMode = TracingMode.Disabled
+
+  private def activeTracingMode: TracingMode =
+    if (isTracingEnabled) {
+      IOTracing.getLocalTracingMode()
+    } else {
+      TracingDisabled
+    }
 }
