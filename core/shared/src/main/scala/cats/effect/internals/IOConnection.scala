@@ -17,7 +17,7 @@
 package cats.effect
 package internals
 
-import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.annotation.tailrec
 import scala.concurrent.Promise
@@ -74,15 +74,19 @@ sealed abstract private[effect] class IOConnection {
    */
   def pop(): CancelToken[IO]
 
+  /**
+   * @return true if the connection is guarded within a bracket
+   *         acquisition region, or false otherwise.
+   */
   def isGuarded: Boolean
 
   /**
-   *
+   * Sets the guard field to true.
    */
   def guard(): Unit
 
   /**
-   *
+   * Sets the guard field to false.
    */
   def unguard(): Unit
 }
@@ -112,9 +116,11 @@ private[effect] object IOConnection {
   }
 
   final private class Impl extends IOConnection {
-    private[this] val guards = new AtomicLong(0)
     private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
     private[this] val p: Promise[Unit] = Promise()
+    // This field is accessed only by the thread a fiber is bound to,
+    // therefore we can declare it non-volatile.
+    private[this] var guarded = false
 
     val cancel = IO.suspend {
       state.getAndSet(null) match {
@@ -151,15 +157,15 @@ private[effect] object IOConnection {
       }
 
     def isGuarded: Boolean =
-      guards.get() > 0
+      guarded
 
     def guard(): Unit = {
-      guards.incrementAndGet()
+      guarded = true
       ()
     }
 
     def unguard(): Unit = {
-      guards.decrementAndGet()
+      guarded = false
       ()
     }
   }
