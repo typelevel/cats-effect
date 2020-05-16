@@ -139,7 +139,6 @@ private[effect] object IORunLoop {
         case Bracket(acquire, use, release) =>
           if (conn eq null) conn = IOConnection()
 
-          // TODO: We can check for a guard here.
           val deferredRelease = ForwardCancelable()
           conn.push(deferredRelease.cancel)
           if (conn.isCanceled) {
@@ -147,10 +146,14 @@ private[effect] object IORunLoop {
             return
           }
 
+          // NOTE: it is guaranteed that the IOConnection is unguarded
+          // at this point in the run-loop.
           conn.guard()
 
           val frame = new BracketUseFrame(conn, deferredRelease, use, release)
-          // Uncancelable in the case of asynchronous computations that are cancelled via token.
+          // Uncancelable to ensure that asynchronous computations
+          // resume the run-loop and complete the ForwardCancelable.
+          // Otherwise canceller fibers may never terminate.
           currentIO = Bind(acquire.uncancelable, frame)
       }
 

@@ -33,27 +33,29 @@ private[effect] object IOBracket {
     release: (Any, ExitCase[Throwable]) => IO[Unit]
   ) extends IOFrame[Any, IO[Any]] {
 
-    override def apply(a: Any): IO[Any] = {
-      conn.unguard()
+    override def apply(a: Any): IO[Any] =
+      IO.suspend {
+        conn.unguard()
 
-      val frame = new BracketReleaseFrame(a, release)
-      deferredRelease.complete(frame.cancel)
+        val frame = new BracketReleaseFrame(a, release)
+        deferredRelease.complete(frame.cancel)
 
-      if (!conn.isCanceled || conn.isGuarded) {
-        val onUse =
-          try use(a)
-          catch { case NonFatal(ex) => RaiseError(ex) }
-        onUse.flatMap(frame)
-      } else {
-        IO.unit
+        if (!conn.isCanceled) {
+          val onUse =
+            try use(a)
+            catch { case NonFatal(ex) => RaiseError(ex) }
+          onUse.flatMap(frame)
+        } else {
+          IO.never
+        }
       }
-    }
 
-    override def recover(e: Throwable): IO[Any] = {
-      conn.unguard()
-      deferredRelease.complete(IO.unit)
-      IO.raiseError(e)
-    }
+    override def recover(e: Throwable): IO[Any] =
+      IO.suspend {
+        conn.unguard()
+        deferredRelease.complete(IO.unit)
+        IO.raiseError(e)
+      }
 
   }
 

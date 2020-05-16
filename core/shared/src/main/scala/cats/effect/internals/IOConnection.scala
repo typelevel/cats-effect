@@ -29,7 +29,8 @@ import scala.concurrent.Promise
  * Implementation notes:
  *
  *  - `cancel()` is idempotent
- *  - all methods are thread-safe / atomic
+ *  - cancellation methods ARE thread-safe / atomic
+ *  - guard methods ARE NOT thread-safe
  *
  * Used in the implementation of `cats.effect.IO`. Inspired by the
  * implementation of `StackedCancelable` from the Monix library.
