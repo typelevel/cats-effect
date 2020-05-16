@@ -30,7 +30,7 @@ private[effect] object IOShift {
     })
 
   def shiftOn[A](cs: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-    IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
+    IOShift(cs).bracketCase(_ => io)((_, _) => IOShift(targetEc))
 
   final private[internals] class Tick(cb: Either[Throwable, Unit] => Unit) extends Runnable {
     def run() = cb(Callback.rightUnit)

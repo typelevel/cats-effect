@@ -17,7 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
+import cats.effect.IO.{Async, Bind, Bracket, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend}
+import cats.effect.internals.IOBracket.BracketUseFrame
+
 import scala.util.control.NonFatal
 
 private[effect] object IORunLoop {
@@ -133,6 +135,23 @@ private[effect] object IORunLoop {
             if (restore ne null)
               currentIO = Bind(next, new RestoreContext(old, restore))
           }
+
+        case Bracket(acquire, use, release) =>
+          if (conn eq null) conn = IOConnection()
+
+          // TODO: We can check for a guard here.
+          val deferredRelease = ForwardCancelable()
+          conn.push(deferredRelease.cancel)
+          if (conn.isCanceled) {
+            deferredRelease.complete(IO.unit)
+            return
+          }
+
+          conn.guard()
+
+          val frame = new BracketUseFrame(conn, deferredRelease, use, release)
+          // Uncancelable in the case of asynchronous computations that are cancelled via token.
+          currentIO = Bind(acquire.uncancelable, frame)
       }
 
       if (hasUnboxed) {
@@ -154,7 +173,7 @@ private[effect] object IORunLoop {
       // Auto-cancellation logic
       currentIndex += 1
       if (currentIndex == maxAutoCancelableBatchSize) {
-        if (conn.isCanceled) return
+        if (conn.isCanceled && !conn.isGuarded) return
         currentIndex = 0
       }
       true
@@ -361,7 +380,7 @@ private[effect] object IORunLoop {
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation
-      if (!conn.isCanceled) either match {
+      if (!conn.isCanceled || conn.isGuarded) either match {
         case Right(success) =>
           loop(Pure(success), conn, cb, this, bFirst, bRest)
         case Left(e) =>

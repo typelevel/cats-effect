@@ -17,7 +17,8 @@
 package cats.effect
 package internals
 
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+
 import scala.annotation.tailrec
 import scala.concurrent.Promise
 
@@ -72,6 +73,18 @@ sealed abstract private[effect] class IOConnection {
    * @return the cancelable reference that was removed.
    */
   def pop(): CancelToken[IO]
+
+  def isGuarded: Boolean
+
+  /**
+   *
+   */
+  def guard(): Unit
+
+  /**
+   *
+   */
+  def unguard(): Unit
 }
 
 private[effect] object IOConnection {
@@ -88,14 +101,18 @@ private[effect] object IOConnection {
     new Uncancelable
 
   final private class Uncancelable extends IOConnection {
-    def cancel = IO.unit
+    def cancel: IO[Unit] = IO.unit
     def isCanceled: Boolean = false
     def push(token: CancelToken[IO]): Unit = ()
     def pop(): CancelToken[IO] = IO.unit
     def pushPair(lh: IOConnection, rh: IOConnection): Unit = ()
+    def isGuarded: Boolean = false
+    def guard(): Unit = ()
+    def unguard(): Unit = ()
   }
 
   final private class Impl extends IOConnection {
+    private[this] val guards = new AtomicLong(0)
     private[this] val state = new AtomicReference(List.empty[CancelToken[IO]])
     private[this] val p: Promise[Unit] = Promise()
 
@@ -132,5 +149,18 @@ private[effect] object IOConnection {
           if (!state.compareAndSet(current, xs)) pop()
           else x
       }
+
+    def isGuarded: Boolean =
+      guards.get() > 0
+
+    def guard(): Unit = {
+      guards.incrementAndGet()
+      ()
+    }
+
+    def unguard(): Unit = {
+      guards.decrementAndGet()
+      ()
+    }
   }
 }

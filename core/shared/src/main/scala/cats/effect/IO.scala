@@ -599,7 +599,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        (cancellation, error or successful result)
    */
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-    IOBracket(this)(use)(release)
+    Bracket(this, use, release)
+//    cats.effect.internals.IOBracket(this)(use)(release)
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -658,7 +659,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[bracketCase]] for the more general operation
    */
   def guaranteeCase(finalizer: ExitCase[Throwable] => IO[Unit]): IO[A] =
-    IOBracket.guaranteeCase(this, finalizer)
+    unit.bracketCase(_ => this)((_, e) => finalizer(e))
 
   /**
    * Replaces failures in this IO with an empty Option.
@@ -1297,7 +1298,7 @@ object IO extends IOInstances {
       // Race condition test — no need to execute `k` if it was already cancelled,
       // ensures that fiber.cancel will always wait for the finalizer if `k`
       // is executed — note that `isCanceled` is visible here due to `push`
-      if (!conn.isCanceled)
+      if (!conn.isCanceled || conn.isGuarded)
         ref.complete(
           try k(cb2)
           catch {
@@ -1614,6 +1615,13 @@ object IO extends IOInstances {
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
+
+  /** Corresponds to [[IO.bracketCase]] */
+  final private[effect] case class Bracket[A, B](
+    acquire: IO[A],
+    use: A => IO[B],
+    release: (A, ExitCase[Throwable]) => IO[Unit]
+  ) extends IO[B]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
