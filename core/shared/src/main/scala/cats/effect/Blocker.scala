@@ -28,7 +28,8 @@ import cats.effect.internals.BlockerPlatform
  * that require a special `ExecutionContext` for evaluation, while discouraging the
  * use of a shared, general purpose pool (e.g. the global context).
  *
- * Instances of this class should *not* be passed implicitly.
+ * Instances of this class should *NOT* be passed implicitly, because it hold state
+ * and in some cases your application may need different instances of [[Blocker]].
  */
 final class Blocker private (val blockingContext: ExecutionContext) extends AnyVal {
 
