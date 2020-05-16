@@ -42,69 +42,55 @@ import org.specs2.mutable._
 import playground._
 import org.typelevel.discipline.specs2.mutable.Discipline
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
-/* 
+
+
+trait CogenK[F[_]] {
+  def cogen[A: Cogen]: Cogen[F[A]]
+}
+
+object ResourceGenerators {
+
+  def resourceGenerators[F[_], Case0[_], E: Arbitrary: Cogen](
+    implicit
+    bracket: Bracket.Aux[F, E, Case0],
+    genKF: GenK[F],
+    cogenCase0: CogenK[Case0]
+  ): RegionGenerators[Resource, F, E] = new RegionGenerators[Resource, F, E] {
+    override type Case[A] = Case0[A]
+
+    val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
+    val cogenE: Cogen[E] = Cogen[E]
+    def cogenCase[A: Cogen]: Cogen[Case[A]] = cogenCase0.cogen[A]
+    val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource[F, E](bracket)
+    val GenKF: GenK[F] = genKF
+  }
+
+  import PureConcGenerators.cogenKPureConc
+  import PureConcGenerators.genKPureConc
+  import OutcomeGenerators.cogenKOutcome
+
+  implicit def pureConcResourceArb[A: Arbitrary: Cogen]: Arbitrary[Resource[PureConc[Int, *], A]] =
+    Arbitrary {
+      resourceGenerators[PureConc[Int, *], Outcome[PureConc[Int, *], Int, *], Int].generators[A]
+    }
+}
+
 class ResourceSpec extends Specification with Discipline with ScalaCheck {
-  import Generators._
+  import ResourceGenerators._
+  import PureConcGenerators._
 
-  def arbOutcomeFEFUniversal[F[_]: Applicative, E, A](
-      implicit arbOutcome: Arbitrary[Outcome[F, E, A]]
-  ): Arbitrary[Outcome[F, E, _]] =
-    Arbitrary(arbOutcome.arbitrary.map(_.widen[Any]))
-
-  def cogenOutcomeFEFUniversal[F[_]: Applicative, E](
-      implicit cogenOutcome: Cogen[Outcome[F, E, Unit]]
-  ): Cogen[Outcome[F, E, _]] =
-    cogenOutcome.contramap(_.void)
+  implicit def Cogen: Cogen[Outcome[PureConc[Int, *], Int, _]] =
+    OutcomeGenerators.cogenOutcome[PureConc[Int, *], Int, Unit].contramap(_.void)
 
   checkAll(
-    "Resource", {
-
-      def i[A](implicit a: A): a.type = a
-
-      type F[A] = PureConc[Int, A]
-
-      type RF[A] = Resource[F, A]
-
-      implicit def cogenFinalizer[A](
-          implicit arbFA: Arbitrary[F[A]]
-      ): Cogen[Outcome[F, Int, _] => F[Unit]] =
-        Cogen.function1[Outcome[F, Int, _], F[Unit]](
-          arbOutcomeFEFUniversal[F, Int, A],
-          Cogen[F[Unit]]
-        )
-
-      implicit def arbRFA[A: Arbitrary: Cogen]: Arbitrary[RF[A]] =
-        arbResource[F, Outcome[F, Int, *], Int, A](
-          i[Arbitrary[A]],
-          Cogen[A],
-          i[Bracket[F, Int]],
-          Arbitrary(Gen.delay(i[Arbitrary[F[RF[A]]]].arbitrary)),
-          arbPureConc[Int, (A, Outcome[F, Int, _] => F[Unit])](
-            i[Arbitrary[Int]],
-            Cogen[Int],
-            i[Arbitrary[(A, Outcome[F, Int, _] => F[Unit])]],
-            Cogen.tuple2[A, Outcome[F, Int, _] => F[Unit]](
-              Cogen[A],
-              cogenFinalizer[A]
-            )
-          )
-        )
-
-      implicit def cogenOutcomeFE[E: Cogen]: Cogen[Outcome[F, E, _]] =
-        cogenOutcomeFEFUniversal[F, E]
-
+    "Resource", 
       RegionTests[
         Resource,
         PureConc[Int, *],
         Outcome[PureConc[Int, *], Int, *],
         Int
       ].region[Int, Int, Int]
-    }
   )
-
-  implicit def arbPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]
-      : Arbitrary[PureConc[E, A]] =
-    Arbitrary(genPureConc[E, A](0))
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
@@ -118,13 +104,6 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
         s"${result.show} === ${expect.show}",
         s"${result.show} !== ${expect.show}"
       )
-
-  implicit def arbResource[F[_], Case[_], E, A: Arbitrary: Cogen](
-      implicit
-      bracket: Bracket.Aux[F, E, Case],
-      arbEffect: Arbitrary[F[Resource[F, A]]],
-      arbAlloc: Arbitrary[F[(A, Case[_] => F[Unit])]]
-  ): Arbitrary[Resource[F, A]] = Arbitrary(genResource[F, Case, E, A])
 
   implicit def cogenResource[F[_], E, A](
       implicit
@@ -174,4 +153,3 @@ object Demo extends App {
     prog[PureConc[Int, *], Int, Int, String](42, "hello", -5).show
   }
 }
- */

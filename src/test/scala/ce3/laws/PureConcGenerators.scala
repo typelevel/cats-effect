@@ -17,6 +17,13 @@
 package ce3
 package laws
 
+import coop.UnsafeRef
+import org.scalacheck.Gen
+
+import ce3.laws.CogenK
+import cats.data.Kleisli
+import coop.{MVar, UnsafeRef}
+
 import playground._
 
 import org.scalacheck.{Arbitrary, Cogen}
@@ -26,6 +33,10 @@ object PureConcGenerators {
   import OutcomeGenerators._
 
   implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] = Cogen[Outcome[Option, E, A]].contramap(run(_))
+
+  implicit def cogenKPureConc[E: Cogen]: CogenK[PureConc[E, *]] = new CogenK[PureConc[E, *]] {
+    def cogen[A: Cogen]: Cogen[PureConc[E, A]] = cogenPureConc[E, A]
+  }
 
   val generators = new ConcurrentGenerators[PureConc[Int, ?], Int] with BracketGenerators[PureConc[Int, ?], Int] {
 
@@ -39,5 +50,10 @@ object PureConcGenerators {
   }
 
   implicit def arbitraryPureConc[A: Arbitrary: Cogen]: Arbitrary[PureConc[Int, A]] =
-    Arbitrary(generators.generators[A])
+    Arbitrary(genKPureConc.apply[A])
+
+  implicit val genKPureConc: GenK[PureConc[Int, *]] = new GenK[PureConc[Int, *]] {
+    def apply[A: Arbitrary: Cogen]: Gen[PureConc[Int, A]] =
+      generators.generators[A]
+  }
 }

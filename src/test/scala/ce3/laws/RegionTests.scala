@@ -17,6 +17,8 @@
 package ce3
 package laws
 
+import org.scalacheck.rng.Seed
+
 import cats.Eq
 import cats.data.EitherT
 import cats.laws.discipline._

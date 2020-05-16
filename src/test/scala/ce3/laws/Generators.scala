@@ -27,6 +27,7 @@ import cats.Functor
 import cats.ApplicativeError
 import scala.collection.immutable.SortedMap
 import cats.MonadError
+import ce3.laws.CogenK
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -160,10 +161,34 @@ trait BracketGenerators[F[_], E] extends SafeGenerators[F, E] {
 trait RegionGenerators[R[_[_], _], F[_], E] extends SafeGenerators[R[F, *], E] {
   implicit val F: Region[R, F, E]
   type Case[A] = F.Case[A]
+  implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
 
   def GenKF: GenK[F]
+  type RF[A] = R[F, A]
 
+  override def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[R[F,A]])] = List(
+    "openCase" -> genOpenCase[A],
+    "liftF" -> genLiftF[A]
+  ) ++ super.baseGen[A]
 
+  override def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[RF]): List[(String, Gen[R[F,A]])] = List(
+    "supersededBy" -> genSupersededBy[A](deeper)
+  ) ++ super.recursiveGen[A](deeper)
+
+  private def genOpenCase[A: Arbitrary: Cogen]: Gen[RF[A]] =
+    for {
+      acquire <- GenKF[A]
+      release <- Gen.function2[A, Case[Unit], F[Unit]](GenKF[Unit])
+    } yield F.openCase(acquire)((a, c) => release(a, F.CaseInstance.void(c)))
+
+  private def genLiftF[A: Arbitrary: Cogen]: Gen[RF[A]] =
+    GenKF[A].map(F.liftF)
+
+  private def genSupersededBy[A: Arbitrary: Cogen](deeper: GenK[RF]): Gen[RF[A]] =
+    for {
+      rfa <- deeper[Unit]
+      rfb <- deeper[A]
+    } yield F.supersededBy(rfa, rfb)
 }
 
 trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
@@ -250,58 +275,8 @@ object OutcomeGenerators {
     case Outcome.Completed(fa) => Some(Right(fa))
     case Outcome.Errored(e)    => Some(Left(e))
   }
-}
 
-object ResourceGenerators {
-/* 
-  def resourceGenerators[F[_], Case[_], E: Arbitrary: Cogen](
-    implicit
-    bracket: Bracket.Aux[F, E, Case],
-    genKF: GenK[F]
-  ) = new RegionGenerators[Resource, F, E] {
-    val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
-    val cogenE: Cogen[E] = Cogen[E]
-    
-    val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource(bracket)
-    val GenKF: GenK[F] = genKF
-  } */
-  // def genResource[F[_]: Bracket.Aux[*[_], E, Case], Case[_], E, A: Arbitrary: Cogen](
-  //     implicit arbEffect: Arbitrary[F[Resource[F, A]]],
-  //     arbAlloate: Arbitrary[F[(A, Case[_] => F[Unit])]]
-  // ): Gen[Resource[F, A]] = {
-  //   val self = Gen.delay(genResource[F, Case, E, A])
-  //   Gen.frequency(
-  //     1 -> genPureResource[F, E, A],
-  //     1 -> genSuspendResource[F, E, A],
-  //     1 -> genApplyResource[F, Case, E, A],
-  //     1 -> genFlatMapResource[F, E, A](
-  //       self,
-  //       Arbitrary.arbFunction1(Arbitrary(self), Cogen[A]).arbitrary
-  //     )
-  //   )
-  // }
-
-  // def genPureResource[F[_]: Bracket[*[_], E], E, A: Arbitrary]
-  //     : Gen[Resource[F, A]] =
-  //   Arbitrary.arbitrary[A].map(Resource.pure[F, A](_))
-
-  // def genSuspendResource[F[_]: Bracket[*[_], E], E, A](
-  //     implicit arbEffect: Arbitrary[F[Resource[F, A]]]
-  // ): Gen[Resource[F, A]] =
-  //   arbEffect.arbitrary.map(Resource.suspend)
-
-  // def genApplyResource[F[_]: Bracket.Aux[*[_], E, Case], Case[_], E, A](
-  //     implicit arbFA: Arbitrary[F[(A, Case[_] => F[Unit])]]
-  // ): Gen[Resource[F, A]] =
-  //   arbFA.arbitrary.map(Resource.applyCase[F, Case, E, A](_))
-
-  // def genFlatMapResource[F[_]: Bracket[*[_], E], E, A](
-  //     baseGen: Gen[Resource[F, A]],
-  //     genFunction: Gen[A => Resource[F, A]]
-  // ): Gen[Resource[F, A]] =
-  //   for {
-  //     base <- baseGen
-  //     f <- genFunction
-  //   } yield base.flatMap(f)
-
+  implicit def cogenKOutcome[F[_], E: Cogen](implicit cogenKF: CogenK[F]): CogenK[Outcome[F, E, *]] = new CogenK[Outcome[F, E, *]] {
+    def cogen[A: Cogen]: Cogen[Outcome[F,E,A]] = cogenOutcome[F, E, A](Cogen[E], cogenKF.cogen[A])
+  }
 }
