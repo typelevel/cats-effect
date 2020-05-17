@@ -16,10 +16,10 @@
 
 package cats.effect.tracing
 
-final case class IOTrace(frames: Vector[TraceFrame]) {
+final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
 
   def printTrace(): Unit = {
-    System.err.println("IOTrace")
+    System.err.println(s"IOTrace: $omitted omitted frames")
     frames.foreach { f =>
       f.line.foreach { l =>
         System.err.println(s"\t${f.op} at ${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})")

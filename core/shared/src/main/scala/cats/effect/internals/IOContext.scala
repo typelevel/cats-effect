@@ -17,6 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.tracing.{IOTrace, TraceFrame}
+import cats.effect.internals.TracingPlatformFast.maxTraceFrameSize
 
 /**
  * INTERNAL API — Holds state related to the execution of
@@ -25,20 +26,18 @@ import cats.effect.tracing.{IOTrace, TraceFrame}
  */
 final private[effect] class IOContext private () {
 
-  // TODO: Replace this with a performant mutable ring buffer
-  private var frames: Vector[TraceFrame] = Vector.empty
+  private val frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceFrameSize)
+  private var omitted: Int = 0
 
   def pushFrame(fr: TraceFrame): Unit = {
-    val currFrames = frames
-    if (currFrames.length >= 1000) {
-      frames = fr +: currFrames.dropRight(1)
-    } else {
-      frames = fr +: currFrames
+    val a = frames.push(fr)
+    if (a != null) {
+      omitted += 1
     }
   }
 
   def getTrace: IOTrace =
-    IOTrace(frames)
+    IOTrace(frames.toList.toVector, omitted)
 
 }
 

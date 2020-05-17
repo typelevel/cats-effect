@@ -35,4 +35,20 @@ public final class TracingPlatformFast {
         .map(x -> Boolean.valueOf(x))
         .orElse(true);
 
+    /**
+     * The number of trace lines to retain during tracing. If more trace
+     * lines are produced, then the oldest trace lines will be discarded.
+     * Automatically rounded up to the nearest power of 2.
+     */
+    public static final int maxTraceFrameSize = Optional.ofNullable(System.getProperty("cats.effect.tracing.maxTraceFrameSize"))
+        .filter(x -> !x.isEmpty())
+        .flatMap(x -> {
+            try {
+                return Optional.of(Integer.valueOf(x));
+            } catch (Exception e) {
+                return Optional.empty();
+            }
+        })
+        .orElse(512);
+
 }
