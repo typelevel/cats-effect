@@ -23,6 +23,8 @@ import cats.Functor
 import cats.Applicative
 import cats.Monad
 import cats.data.AndThen
+import cats.MonadError
+import cats.~>
 
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
@@ -74,7 +76,7 @@ sealed abstract class Resource[+F[_], +A] {
     use(_ => F.unit)
 }
 
-object Resource {
+object Resource extends ResourceInstances1 {
 
   /**
     * Creates a resource from an allocating effect.
@@ -237,79 +239,116 @@ object Resource {
   final case class Suspend[F[_], A](resource: F[Resource[F, A]])
       extends Resource[F, A]
 
-  implicit def regionForResource[F[_], E](
-      implicit F: Bracket[F, E]
-  ): Region.Aux[Resource, F, E, F.Case] =
-    new Region[Resource, F, E] {
-      override type Case[A] = F.Case[A]
-
-      def pure[A](x: A): Resource[F, A] = Resource.pure[F, A](x)
-
-      def raiseError[A](e: E): Resource[F, A] = Resource.liftF(F.raiseError(e))
-
-      def handleErrorWith[A](
-          fa: Resource[F, A]
-      )(f: E => Resource[F, A]): Resource[F, A] =
-        flatMap(attempt(fa)) {
-          case Right(a) => pure(a)
-          case Left(e)  => f(e)
-        }
-
-      override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-        fa match {
-          case alloc: Allocate[F, F.Case, b] @unchecked =>
-            Allocate[F, F.Case, Either[E, A]](
-              F.map(F.attempt(alloc.resource)) {
-                case Left(error) =>
-                  (error.asLeft[A], (_: F.Case[_]) => F.unit)
-                case Right((a, release)) => (Right(a), release)
-              }
-            )
-          case Bind(
-              source: Resource[F, Any] @unchecked,
-              fs: (Any => Resource[F, A]) @unchecked
-              ) =>
-            Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
-              Bind(
-                attempt(source),
-                (r: Either[E, Any]) =>
-                  r match {
-                    case Left(error) => pure(Left(error))
-                    case Right(s) => attempt(fs(s))
-                  }
-              )
-            })
-
-          case s: Suspend[F, a] =>
-            Suspend(F.map(F.attempt(s.resource)) {
-              case Left(error) => pure(Left(error))
-              case Right(fa)   => attempt(fa)
-            })
-        }
-
-      def flatMap[A, B](fa: Resource[F, A])(
-          f: A => Resource[F, B]
-      ): Resource[F, B] = Bind(fa, f)
-
-      def tailRecM[A, B](
-          a: A
-      )(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
-        Resource.tailRecM(a)(f)
-
-      implicit val CaseInstance: ApplicativeError[Case, E] =
-        F.CaseInstance
-
-      def openCase[A](acquire: F[A])(
-          release: (A, Case[_]) => F[Unit]
-      ): Resource[F, A] =
-        Allocate[F, Case, A](acquire.map(a => (a, release(a, _))))
-
-      def liftF[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
-
-      def supersededBy[B](
-          rfa: Resource[F, _],
-          rfb: Resource[F, B]
-      ): Resource[F, B] = Resource.liftF(rfa.use(_ => F.unit)) *> rfb
-
+  implicit def concurrentRegionForResource[F[_], E](
+      implicit concBracketF: ConcurrentBracket[F, E]
+  ): Concurrent[Resource[F, *], E] =
+    new ResourceConcurrentRegion[F, E] {
+      val F: concBracketF.type = concBracketF
     }
+}
+
+trait ResourceInstances1 {
+  implicit def regionForResource[F[_], E](
+      implicit bracketF: Bracket[F, E]
+  ): Region.Aux[Resource, F, E, bracketF.Case] =
+    new ResourceRegion[F, E] with ResourceMonadError[F, E]{
+      val F: bracketF.type = bracketF
+      override type Case[A] = F.Case[A]
+      val CaseInstance: ApplicativeError[Case, E] = F.CaseInstance
+    }
+
+}
+
+trait ResourceConcurrentRegion[F[_], E] extends ResourceRegion[F, E] with Concurrent[Resource[F, *], E] {
+  override implicit val F: ConcurrentBracket[F, E]
+
+  def start[A](fa: Resource[F, A]): Resource[F, Fiber[ce3.Resource[F, *], E, A]] = ???
+  
+  def uncancelable[A](body: ce3.Resource[F, *] ~> ce3.Resource[F, *] => Resource[F, A]): Resource[F, A] = ???
+  
+  def canceled: Resource[F, Unit] = Resource.liftF(F.canceled)
+  
+  def never[A]: Resource[F, A] = Resource.liftF(F.never[A])
+  
+  def cede: Resource[F, Unit] = Resource.liftF(F.cede)
+  
+  def racePair[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[(A, Fiber[ce3.Resource[F, *], E, B]), (Fiber[ce3.Resource[F, *], E, A], B)]] = 
+    ???
+}
+
+trait ResourceRegion[F[_], E] extends ResourceMonadError[F, E] with Region[Resource, F, E] {
+  implicit val F: Bracket[F, E]
+  import Resource._
+
+  def openCase[A](acquire: F[A])(
+      release: (A, Case[_]) => F[Unit]
+  ): Resource[F, A] =
+    Allocate[F, Case, A](acquire.map(a => (a, release(a, _))))
+
+  def liftF[A](fa: F[A]): Resource[F, A] = Resource.liftF(fa)
+
+  def supersededBy[B](
+      rfa: Resource[F, _],
+      rfb: Resource[F, B]
+  ): Resource[F, B] = Resource.liftF(rfa.use(_ => F.unit)) *> rfb
+
+}
+
+trait ResourceMonadError[F[_], E] extends MonadError[Resource[F, *], E] {
+  import Resource._
+  implicit val F: Bracket[F, E]
+
+  def pure[A](x: A): Resource[F, A] = Resource.pure[F, A](x)
+
+  def raiseError[A](e: E): Resource[F, A] = Resource.liftF(F.raiseError(e))
+
+  def handleErrorWith[A](
+      fa: Resource[F, A]
+  )(f: E => Resource[F, A]): Resource[F, A] =
+    flatMap(attempt(fa)) {
+      case Right(a) => pure(a)
+      case Left(e)  => f(e)
+    }
+
+  override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
+    fa match {
+      case alloc: Allocate[F, F.Case, b] @unchecked =>
+        Allocate[F, F.Case, Either[E, A]](
+          F.map(F.attempt(alloc.resource)) {
+            case Left(error) =>
+              (error.asLeft[A], (_: F.Case[_]) => F.unit)
+            case Right((a, release)) => (Right(a), release)
+          }
+        )
+      case Bind(
+          source: Resource[F, Any] @unchecked,
+          fs: (Any => Resource[F, A]) @unchecked
+          ) =>
+        Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
+          Bind(
+            attempt(source),
+            (r: Either[E, Any]) =>
+              r match {
+                case Left(error) => pure(Left(error))
+                case Right(s) => attempt(fs(s))
+              }
+          )
+        })
+
+      case s: Suspend[F, a] =>
+        Suspend(F.map(F.attempt(s.resource)) {
+          case Left(error) => pure(Left(error))
+          case Right(fa)   => attempt(fa)
+        })
+    }
+
+  def flatMap[A, B](fa: Resource[F, A])(
+      f: A => Resource[F, B]
+  ): Resource[F, B] = Bind(fa, f)
+
+  def tailRecM[A, B](
+      a: A
+  )(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
+    Resource.tailRecM(a)(f)
+
 }
