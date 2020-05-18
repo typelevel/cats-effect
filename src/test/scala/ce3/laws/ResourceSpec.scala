@@ -80,7 +80,7 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
   import ResourceGenerators._
   import PureConcGenerators._
 
-  implicit def Cogen: Cogen[Outcome[PureConc[Int, *], Int, _]] =
+  implicit val Cogen: Cogen[Outcome[PureConc[Int, *], Int, _]] =
     OutcomeGenerators.cogenOutcome[PureConc[Int, *], Int, Unit].contramap(_.void)
 
   checkAll(
@@ -94,17 +94,7 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
   )
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
-
-  def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
-
-  def be_===[A: Eq: Show](expect: A): Matcher[A] =
-    (result: A) =>
-      (
-        result === expect,
-        s"${result.show} === ${expect.show}",
-        s"${result.show} !== ${expect.show}"
-      )
+    Pretty(_ => a.show)
 
   implicit def cogenResource[F[_], E, A](
       implicit
@@ -112,15 +102,16 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
       cogenF: Cogen[F[Unit]]
   ): Cogen[Resource[F, A]] = cogenF.contramap(_.used)
 
+  implicit def showResource[F[_]: Bracket[*[_], E], E, A](implicit ev: Show[F[Unit]]): Show[Resource[F, A]] =
+    _.used.show
+
   implicit def eqResource[F[_]: Bracket[*[_], E], E, A](
       implicit
       eqFUnit: Eq[F[Unit]]
-      /*  exhaustiveUse: ExhaustiveCheck[A => F[B]], */
-      // eqFListB: Eq[F[List[B]]]
   ): Eq[Resource[F, A]] =
     Eq.by(
       _.used
-    ) // { resource => exhaustiveUse.allValues.traverse(resource.use(_)) }
+    )
 
 }
 
@@ -149,7 +140,6 @@ object Demo extends App {
   // ├ Notify 0x6404F418
   // ├ Notify 0x2794EAB6
   // ╰ Pure Completed(hello)
-  //todo: shouldn't this raise an exception in the background? How does PureConc handle failures in finalizers?
   println {
     prog[PureConc[Int, *], Int, Int, String](42, "hello", -5).show
   }
