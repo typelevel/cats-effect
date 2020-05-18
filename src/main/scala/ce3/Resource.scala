@@ -66,11 +66,72 @@ sealed abstract class Resource[+F[_], +A] {
     loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
   }
 
+
+  /**
+   * Given a `Resource`, possibly built by composing multiple
+   * `Resource`s monadically, returns the acquired resource, as well
+   * as an action that runs all the finalizers for releasing it.
+   *
+   * If the outer `F` fails or is interrupted, `allocated` guarantees
+   * that the finalizers will be called. However, if the outer `F`
+   * succeeds, it's up to the user to ensure the returned `F[Unit]`
+   * is called once `A` needs to be released. If the returned
+   * `F[Unit]` is not called, the finalizers will not be run.
+   *
+   * For this reason, this is an advanced and potentially unsafe api
+   * which can cause a resource leak if not used correctly, please
+   * prefer [[use]] as the standard way of running a `Resource`
+   * program.
+   *
+   * Use cases include interacting with side-effectful apis that
+   * expect separate acquire and release actions (like the `before`
+   * and `after` methods of many test frameworks), or complex library
+   * code that needs to modify or move the finalizer for an existing
+   * resource.
+   *
+   */
+  //todo no explicit Outcome?
+  def allocated[G[x] >: F[x], B >: A, E](implicit F: Bracket.Aux2[G, E, Outcome[G, *, *]]): G[(B, G[Unit])] = {
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
+      loop(current, stack, release)
+
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(current: Resource[G, Any],
+                      stack: List[Any => Resource[G, Any]],
+                      release: G[Unit]): G[(Any, G[Unit])] =
+      current match {
+        case a: Allocate[G, F.Case, Any] @unchecked =>
+          F.bracketCase(a.resource) {
+            case (a, rel) =>
+              stack match {
+                //todo: .unit or something else?
+                case Nil => F.pure(a -> F.guarantee(rel(F.CaseInstance.unit))(release))
+                case l   => continue(l.head(a), l.tail, F.guarantee(rel(F.CaseInstance.unit))(release))
+              }
+          } {
+            case (_, Outcome.Completed(_)) =>
+              F.unit
+            case ((_, release), ec) =>
+              release(ec)
+          }
+        case b: Bind[G, _, Any] =>
+          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack, release)
+        case s: Suspend[G, Any] =>
+          s.resource.flatMap(continue(_, stack, release))
+      }
+
+    loop(this.asInstanceOf[Resource[F, Any]], Nil, F.unit).map {
+      case (a, release) =>
+        (a.asInstanceOf[A], release)
+    }
+  }
+
   def use[G[x] >: F[x], B, E](
       f: A => G[B]
   )(implicit F: Bracket[G, E]): G[B] =
     fold[G, B, E](f, identity)
-  //todo: allocated?
 
   def used[G[x] >: F[x], E](implicit F: Bracket[G, E]): G[Unit] =
     use(_ => F.unit)
