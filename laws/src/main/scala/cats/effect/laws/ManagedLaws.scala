@@ -17,10 +17,6 @@
 package cats.effect
 package laws
 
-import cats.MonadError
-import cats.implicits._
-import cats.laws.MonadErrorLaws
-
 trait ManagedLaws[R[_[_], _], F[_]] extends AsyncRegionLaws[R, F] {
   implicit val F: Managed[R, F]
 

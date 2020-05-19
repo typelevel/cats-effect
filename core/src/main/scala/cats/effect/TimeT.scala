@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, Functor, Group, Monad, Monoid}
+import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
 import cats.implicits._
 

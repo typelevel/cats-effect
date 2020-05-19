@@ -17,11 +17,6 @@
 package cats.effect
 package laws
 
-import cats.implicits._
-
-import scala.concurrent.ExecutionContext
-import scala.util.{Left, Right}
-
 trait AsyncBracketLaws[F[_]] extends AsyncLaws[F] with TemporalBracketLaws[F, Throwable] {
   implicit val F: AsyncBracket[F]
 }

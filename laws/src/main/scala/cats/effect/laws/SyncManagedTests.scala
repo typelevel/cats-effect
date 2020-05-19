@@ -18,12 +18,9 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.data.EitherT
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
-import org.scalacheck.util.Pretty
 
 trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, ?]] with RegionTests[R, F, Throwable] {
 

@@ -19,11 +19,9 @@ package laws
 
 import cats.Eq
 import cats.data.EitherT
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
-import org.scalacheck.util.Pretty
 
 trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable] {
 

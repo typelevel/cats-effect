@@ -20,8 +20,6 @@ package laws
 import cats.implicits._
 import cats.laws.ApplicativeLaws
 
-import scala.concurrent.duration.FiniteDuration
-
 trait ClockLaws[F[_]] extends ApplicativeLaws[F] {
   implicit val F: Clock[F]
 

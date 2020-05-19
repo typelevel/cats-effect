@@ -23,7 +23,6 @@ import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
-import org.scalacheck.util.Pretty
 
 trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
 

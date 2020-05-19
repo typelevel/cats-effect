@@ -17,14 +17,11 @@
 package cats.effect
 package laws
 
-import cats.{Eq, Group, Order}
-import cats.data.EitherT
-import cats.implicits._
+import cats.Eq
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
-import org.scalacheck._, Prop.forAll
-import org.scalacheck.util.Pretty
+import org.scalacheck._
 
 trait ClockTests[F[_]] extends ApplicativeTests[F] {
 
