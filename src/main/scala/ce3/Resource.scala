@@ -184,6 +184,9 @@ object Resource extends ResourceInstances1 {
       applyCase[F, Case, E, A](resource)(bracket)
   }
 
+  def liftK[F[_]: Applicative]: F ~> Resource[F, *] = new (F ~> Resource[F, *]) {
+    def apply[A](fa: F[A]): Resource[F,A] = Resource.liftF(fa)
+  }
   /**
     * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
     */
@@ -322,19 +325,76 @@ trait ResourceInstances1 {
 
 trait ResourceConcurrentRegion[F[_], E] extends ResourceRegion[F, E] with Concurrent[Resource[F, *], E] {
   override implicit val F: ConcurrentBracket[F, E]
+  
+  def start[A](rfa: Resource[F, A]): Resource[F, Fiber[Resource[F, ?], E, A]] = {
+    val delegateF = F start {
+      F.bracketCase(rfa.allocated)(x => x.pure[F]) {
+        case ((_, fin), Outcome.Canceled | Outcome.Errored(_)) => fin
+        case (_, Outcome.Completed(_)) => F.unit
+      }
+    }
 
-  def start[A](fa: Resource[F, A]): Resource[F, Fiber[ce3.Resource[F, *], E, A]] = ???
-  
-  def uncancelable[A](body: ce3.Resource[F, *] ~> ce3.Resource[F, *] => Resource[F, A]): Resource[F, A] = ???
-  
+    Resource.liftF(delegateF) map { delegate =>
+      new Fiber[Resource[F, *], E, A] {
+
+        val cancel: Resource[F, Unit] = Resource.liftF(delegate.cancel)
+
+        val join: Resource[F, Outcome[Resource[F, *], E, A]] =
+          Resource liftF {
+            delegate.join map {
+              case oc: Outcome.Canceled.type => oc
+              case oc @Outcome.Errored(_) => oc
+              case Outcome.Completed(allocF) => Outcome.Completed(Resource(allocF))
+            }
+          }
+      }
+    }
+  }
+
+  def uncancelable[A](body: Resource[F, ?] ~> Resource[F, ?] => Resource[F, A]): Resource[F, A] =
+    Resource {
+      F uncancelable { poll =>
+        val rpoll = λ[Resource[F, ?] ~> Resource[F, ?]] { rfa =>
+          Resource(poll(rfa.allocated))
+        }
+
+        body(rpoll).allocated
+      }
+    }
+
   def canceled: Resource[F, Unit] = Resource.liftF(F.canceled)
   
   def never[A]: Resource[F, A] = Resource.liftF(F.never[A])
   
   def cede: Resource[F, Unit] = Resource.liftF(F.cede)
-  
+
   def racePair[A, B](fa: Resource[F, A], fb: Resource[F, B]): Resource[F, Either[(A, Fiber[ce3.Resource[F, *], E, B]), (Fiber[ce3.Resource[F, *], E, A], B)]] = 
-    ???
+    uncancelable { poll =>
+      def liftFiber[X](fiber: Fiber[F, E, (X, F[Unit])]): Fiber[Resource[F, *], E, X] = new Fiber[Resource[F, *], E, X] {
+        val cancel: Resource[F,Unit] = liftF(fiber.cancel)
+
+        val join: Resource[F,Outcome[Resource[F, *], E, X]] =
+          liftF(fiber.join).map(_.mapK(Resource.liftK)).map {
+            _.fold(
+              Outcome.Canceled,
+              Outcome.Errored[E],
+              c => Outcome.Completed(c.flatMap(r => Resource(r.pure[F])))
+            )
+        }
+      }
+
+      val racedAllocations: F[Either[
+        ((A,F[Unit]), Fiber[F, E, (B,F[Unit])]),
+        (Fiber[F, E, (A,F[Unit])],(B,F[Unit]))
+      ]] = F.racePair(poll(fa).allocated, poll(fb).allocated)
+
+      liftF(racedAllocations).flatMap(
+        _.bitraverse(
+          _.map(liftFiber).leftTraverse(a => Resource(a.pure[F])),
+          _.leftMap(liftFiber).traverse(b => Resource(b.pure[F]))
+        )
+      )
+    }
 }
 
 trait ResourceRegion[F[_], E] extends ResourceMonadError[F, E] with Region[Resource, F, E] {
