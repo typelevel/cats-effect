@@ -15,10 +15,10 @@
  */
 
 package cats.effect
-package laws
 
 import cats.{~>, Applicative, ApplicativeError, Eq, FlatMap, Monad, Monoid, Show}
 import cats.data.{EitherK, StateT}
+import cats.effect.laws.ConcurrentBracketTests
 import cats.free.FreeT
 import cats.implicits._
 

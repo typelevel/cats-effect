@@ -15,10 +15,10 @@
  */
 
 package cats.effect
-package laws
 
 import cats.{~>, Applicative, ApplicativeError, Eq, FlatMap, Monad, Monoid, Order, Show}
 import cats.data.{EitherK, Kleisli, StateT}
+import cats.effect.laws.TemporalBracketTests
 import cats.free.FreeT
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
@@ -40,7 +40,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
 
-private[laws] trait LowPriorityInstances {
+private[effect] trait LowPriorityInstances {
 
   implicit def eqTimeT[F[_], A](implicit FA: Eq[F[A]]): Eq[TimeT[F, A]] =
     Eq.by(TimeT.run(_))

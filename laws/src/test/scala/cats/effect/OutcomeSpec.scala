@@ -15,7 +15,6 @@
  */
 
 package cats.effect
-package laws
 
 import cats.{Eval, Id}
 import cats.implicits._

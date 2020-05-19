@@ -15,7 +15,6 @@
  */
 
 package cats.effect
-package laws
 
 import playground._
 
