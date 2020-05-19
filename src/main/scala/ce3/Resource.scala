@@ -305,7 +305,7 @@ object Resource extends ResourceInstances1 {
 
   implicit def concurrentRegionForResource[F[_], E](
       implicit concBracketF: ConcurrentBracket[F, E]
-  ): Concurrent[Resource[F, *], E] =
+  ): ConcurrentRegion[Resource, F, E] =
     new ResourceConcurrentRegion[F, E] {
       val F: concBracketF.type = concBracketF
     }

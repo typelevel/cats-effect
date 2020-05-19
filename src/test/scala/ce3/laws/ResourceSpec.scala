@@ -49,31 +49,57 @@ trait CogenK[F[_]] {
   def cogen[A: Cogen]: Cogen[F[A]]
 }
 
+// object ResourceGenerators {
+
+//   def resourceGenerators[F[_], Case0[_], E: Arbitrary: Cogen](
+//     implicit
+//     bracket: Bracket.Aux[F, E, Case0],
+//     genKF: GenK[F],
+//     cogenCase0: CogenK[Case0]
+//   ): RegionGenerators[Resource, F, E] = new RegionGenerators[Resource, F, E] {
+//     override type Case[A] = Case0[A]
+
+//     val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
+//     val cogenE: Cogen[E] = Cogen[E]
+//     def cogenCase[A: Cogen]: Cogen[Case[A]] = cogenCase0.cogen[A]
+//     val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource[F, E](bracket)
+//     val GenKF: GenK[F] = genKF
+//   }
+
 object ResourceGenerators {
 
-  def resourceGenerators[F[_], Case0[_], E: Arbitrary: Cogen](
+  def resourceGenerators[F[_], E: Arbitrary: Cogen](
     implicit
-    bracket: Bracket.Aux[F, E, Case0],
+    bracket: ConcurrentBracket[F, E],
     genKF: GenK[F],
-    cogenCase0: CogenK[Case0]
-  ): RegionGenerators[Resource, F, E] = new RegionGenerators[Resource, F, E] {
-    override type Case[A] = Case0[A]
+    cogenK: CogenK[F],
+  ): ConcurrentRegionGenerators[Resource, F, E] = new ConcurrentRegionGenerators[Resource, F, E] {
 
     val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
     val cogenE: Cogen[E] = Cogen[E]
-    def cogenCase[A: Cogen]: Cogen[Case[A]] = cogenCase0.cogen[A]
-    val F: Region.Aux[Resource,F,E, Case] = Resource.regionForResource[F, E](bracket)
+    def cogenCase[A: Cogen]: Cogen[Outcome[Resource[F, *], E, A]] = {
+      implicit val cogenFunit: Cogen[F[Unit]] = cogenK.cogen[Unit] //foo foo bar bar
+      OutcomeGenerators.cogenOutcome[Resource[F, *], E, A]
+    }
+    val F: ConcurrentRegion[Resource,F,E] = Resource.concurrentRegionForResource[F, E](bracket)
     val GenKF: GenK[F] = genKF
   }
 
-  import PureConcGenerators.cogenKPureConc
-  import PureConcGenerators.genKPureConc
+  import PureConcGenerators._
   import OutcomeGenerators.cogenKOutcome
 
   implicit def pureConcResourceArb[A: Arbitrary: Cogen]: Arbitrary[Resource[PureConc[Int, *], A]] =
     Arbitrary {
-      resourceGenerators[PureConc[Int, *], Outcome[PureConc[Int, *], Int, *], Int].generators[A]
+      resourceGenerators[PureConc[Int, *], Int].generators[A]
     }
+
+
+  implicit def cogenResource[F[_], E, A](
+      implicit
+      bracket: Bracket[F, E],
+      cogenF: Cogen[F[Unit]]
+  ): Cogen[Resource[F, A]] = cogenF.contramap(_.used)
+
 }
 
 class ResourceSpec extends Specification with Discipline with ScalaCheck {
@@ -84,7 +110,7 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
     OutcomeGenerators.cogenOutcome[PureConc[Int, *], Int, Unit].contramap(_.void)
 
   checkAll(
-    "Resource", 
+    "Resource (region)", 
       RegionTests[
         Resource,
         PureConc[Int, *],
@@ -92,15 +118,18 @@ class ResourceSpec extends Specification with Discipline with ScalaCheck {
         Int
       ].region[Int, Int, Int]
   )
+  
+  // import OutcomeGenerators.cogenOutcome
+  // checkAll(
+  //   "Resource (concurrent)", 
+  //     ConcurrentTests[
+  //       Resource[PureConc[Int, *], *],
+  //       Int
+  //     ].concurrent[Int, Int, Int]
+  // )
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty(_ => a.show)
-
-  implicit def cogenResource[F[_], E, A](
-      implicit
-      bracket: Bracket[F, E],
-      cogenF: Cogen[F[Unit]]
-  ): Cogen[Resource[F, A]] = cogenF.contramap(_.used)
 
   implicit def showResource[F[_]: Bracket[*[_], E], E, A](implicit ev: Show[F[Unit]]): Show[Resource[F, A]] =
     _.used.show

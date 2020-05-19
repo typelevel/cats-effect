@@ -28,6 +28,7 @@ import cats.ApplicativeError
 import scala.collection.immutable.SortedMap
 import cats.MonadError
 import ce3.laws.CogenK
+import ce3.laws.ResourceGenerators
 
 trait GenK[F[_]] {
   def apply[A: Arbitrary: Cogen]: Gen[F[A]]
@@ -135,12 +136,11 @@ trait MonadErrorGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] wit
 
 trait SafeGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Safe[F, E]
-  type Case[_]
+  type Case[A] = F.Case[A]
 }
 
 trait BracketGenerators[F[_], E] extends SafeGenerators[F, E] {
   implicit val F: Bracket[F, E]
-  type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
   
   override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
@@ -160,18 +160,17 @@ trait BracketGenerators[F[_], E] extends SafeGenerators[F, E] {
 
 trait RegionGenerators[R[_[_], _], F[_], E] extends SafeGenerators[R[F, *], E] {
   implicit val F: Region[R, F, E]
-  type Case[A] = F.Case[A]
   implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
 
   def GenKF: GenK[F]
   type RF[A] = R[F, A]
 
-  override def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[R[F,A]])] = List(
+  override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[R[F,A]])] = List(
     "openCase" -> genOpenCase[A],
     "liftF" -> genLiftF[A]
   ) ++ super.baseGen[A]
 
-  override def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[RF]): List[(String, Gen[R[F,A]])] = List(
+  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[RF]): List[(String, Gen[R[F,A]])] = List(
     "supersededBy" -> genSupersededBy[A](deeper)
   ) ++ super.recursiveGen[A](deeper)
 
@@ -253,6 +252,10 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
     } yield back
 }
 
+trait ConcurrentRegionGenerators[R[_[_], _], F[_], E] extends RegionGenerators[R, F, E] with ConcurrentGenerators[R[F, *], E]  {
+  implicit val F: ConcurrentRegion[R, F, E]
+  override type Case[A] = F.Case[A]
+}
 
 object OutcomeGenerators {
   def outcomeGenerators[F[_]: Applicative, E: Arbitrary: Cogen] = new ApplicativeErrorGenerators[Outcome[F, E, *], E] {
