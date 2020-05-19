@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-name := "cats-effect"
-
 ThisBuild / baseVersion := "3.0"
 
 ThisBuild / organization := "org.typelevel"
@@ -33,18 +31,22 @@ Global / scmInfo := Some(
 
 val CatsVersion = "2.1.1"
 
-addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0")
+lazy val root = project.in(file(".")).aggregate(core, laws)
 
-scalacOptions ++= Seq(
-  "-Xcheckinit"
-)
+lazy val core = project.in(file("core"))
+  .settings(
+    name := "cats-effect",
 
-libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats-core" % CatsVersion,
-  "org.typelevel" %% "cats-free" % CatsVersion,
+    libraryDependencies ++= Seq(
+      "org.typelevel" %% "cats-core" % CatsVersion,
+      "org.typelevel" %% "cats-free" % CatsVersion,
 
-  "com.codecommit" %% "coop" % "0.4.0",
+      "com.codecommit" %% "coop" % "0.4.0",
 
-  "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
-  "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
-  "org.specs2"    %% "specs2-scalacheck" % "4.8.1"     % Test)
+      "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
+      "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
+      "org.specs2"    %% "specs2-scalacheck" % "4.8.1"     % Test))
+
+lazy val laws = project.in(file("laws"))
+  .dependsOn(core)
+  .settings(name := "cats-effect-laws")
