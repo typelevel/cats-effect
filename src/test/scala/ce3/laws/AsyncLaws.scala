@@ -46,7 +46,7 @@ trait AsyncLaws[F[_]] extends TemporalLaws[F, Throwable] with SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async(_ => F.pure(None))
 
-  def executionContextCommutivity[A](fa: F[A]) =
+  def executionContextCommutativity[A](fa: F[A]) =
     (fa *> F.executionContext) <-> (F.executionContext <* fa)
 
   def evalOnLocalPure(ec: ExecutionContext) =

@@ -99,7 +99,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
 
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
 
-        "executionContext commutivity" -> forAll(laws.executionContextCommutivity[A] _),
+        "executionContext commutativity" -> forAll(laws.executionContextCommutativity[A] _),
 
         "evalOn local pure" -> forAll(laws.evalOnLocalPure _),
 
