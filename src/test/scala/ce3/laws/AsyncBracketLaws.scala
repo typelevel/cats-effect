@@ -15,22 +15,18 @@
  */
 
 package ce3
+package laws
 
-import cats.~>
 import cats.implicits._
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
-  type Case[A] = Either[Throwable, A]
+import scala.concurrent.ExecutionContext
+import scala.util.{Left, Right}
 
-  def CaseInstance = catsStdInstancesForEither[Throwable]
+trait AsyncBracketLaws[F[_]] extends AsyncLaws[F] with TemporalBracketLaws[F, Throwable] {
+  implicit val F: AsyncBracket[F]
+}
 
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
-
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
-
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
-      toK[G](G)(fa)
-  }
+object AsyncBracketLaws {
+  def apply[F[_]](implicit F0: AsyncBracket[F]): AsyncBracketLaws[F] =
+    new AsyncBracketLaws[F] { val F = F0 }
 }

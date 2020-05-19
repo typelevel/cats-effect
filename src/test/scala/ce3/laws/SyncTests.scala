@@ -1,0 +1,76 @@
+/*
+ * Copyright 2020 Typelevel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package ce3
+package laws
+
+import cats.Eq
+import cats.data.EitherT
+import cats.laws.discipline._
+import cats.laws.discipline.SemigroupalTests.Isomorphisms
+
+import org.scalacheck._, Prop.forAll
+import org.scalacheck.util.Pretty
+
+trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
+
+  val laws: SyncLaws[F]
+
+  def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+    implicit
+      ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[Throwable],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenC: Cogen[C],
+      CogenE: Cogen[Throwable],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqE: Eq[Throwable],
+      EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
+      EqFEitherEA: Eq[F[Either[Throwable, A]]],
+      EqEitherTFEA: Eq[EitherT[F, Throwable, A]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      exec: F[Boolean] => Prop,
+      iso: Isomorphisms[F])
+      : RuleSet = {
+
+    new RuleSet {
+      val name = "sync"
+      val bases = Nil
+      val parents = Seq(monadError[A, B, C], clock[A, B, C])
+
+      val props = Seq(
+        "delay value is pure" -> forAll(laws.delayValueIsPure[A] _),
+        "delay throw is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
+        "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
+        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _))
+    }
+  }
+}
+
+object SyncTests {
+  def apply[F[_]](implicit F0: Sync[F]): SyncTests[F] = new SyncTests[F] {
+    val laws = SyncLaws[F]
+  }
+}

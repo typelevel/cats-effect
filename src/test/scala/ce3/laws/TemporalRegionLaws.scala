@@ -15,22 +15,27 @@
  */
 
 package ce3
+package laws
 
-import cats.~>
+import cats.MonadError
 import cats.implicits._
+import cats.laws.MonadErrorLaws
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
-  type Case[A] = Either[Throwable, A]
+trait TemporalRegionLaws[R[_[_], _], F[_], E] extends TemporalLaws[R[F, ?], E] with ConcurrentRegionLaws[R, F, E] {
+  implicit val F: Temporal[R[F, ?], E] with Region[R, F, E]
+}
 
-  def CaseInstance = catsStdInstancesForEither[Throwable]
-
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
-
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
-
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
-      toK[G](G)(fa)
-  }
+object TemporalRegionLaws {
+  def apply[
+      R[_[_], _],
+      F[_],
+      E](
+    implicit
+      F0: Temporal[R[F, ?], E] with Region[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, ?], E, ?]])
+      : TemporalRegionLaws[R, F, E] =
+    new TemporalRegionLaws[R, F, E] {
+      val F = F0
+      val B = B0
+    }
 }

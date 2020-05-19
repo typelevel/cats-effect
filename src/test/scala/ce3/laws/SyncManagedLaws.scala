@@ -15,22 +15,25 @@
  */
 
 package ce3
+package laws
 
-import cats.~>
 import cats.implicits._
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
-  type Case[A] = Either[Throwable, A]
+trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, ?]] with RegionLaws[R, F, Throwable] {
+  implicit val F: SyncManaged[R, F]
 
-  def CaseInstance = catsStdInstancesForEither[Throwable]
+  def roundTrip[A](fa: R[F, A]) =
+    F.to[R](fa) <-> fa
+}
 
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
-
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
-
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
-      toK[G](G)(fa)
-  }
+object SyncManagedLaws {
+  def apply[R[_[_], _], F[_]](
+    implicit
+      F0: SyncManaged[R, F],
+      B0: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] })
+      : SyncManagedLaws[R, F] =
+    new SyncManagedLaws[R, F] {
+      val F = F0
+      val B = B0
+    }
 }
