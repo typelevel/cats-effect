@@ -14,15 +14,22 @@
  * limitations under the License.
  */
 
-name := "ce3"
+name := "cats-effect"
 
-ThisBuild / baseVersion := "0.1"
+ThisBuild / baseVersion := "3.0"
 
-ThisBuild / organization := "com.codecommit"
+ThisBuild / organization := "org.typelevel"
+ThisBuild / organizationName := "Typelevel"
+
 ThisBuild / publishGithubUser := "djspiewak"
 ThisBuild / publishFullName := "Daniel Spiewak"
 
-ThisBuild / organizationName := "Typelevel"
+Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
+
+Global / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/typelevel/cats-effect"),
+    "git@github.com:typelevel/cats-effect.git"))
 
 val CatsVersion = "2.1.1"
 
