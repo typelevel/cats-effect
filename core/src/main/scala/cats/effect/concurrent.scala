@@ -76,4 +76,5 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
 object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
+  def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
 }

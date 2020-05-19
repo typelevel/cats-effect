@@ -25,3 +25,7 @@ trait Managed[R[_[_], _], F[_]] extends Async[R[F, ?]] with Region[R, F, Throwab
     def apply[A](rfa: R[F, A])(implicit S: Async[S[F, ?]] with Region[S, F, Throwable]): S[F, A]
   }
 }
+
+object Managed {
+  def apply[R[_[_], _], F[_]](implicit R: Managed[R, F]): R.type = R
+}

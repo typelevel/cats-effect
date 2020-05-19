@@ -25,4 +25,5 @@ trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E
 
 object Temporal {
   def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
+  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
 }

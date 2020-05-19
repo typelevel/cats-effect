@@ -50,6 +50,7 @@ object Bracket {
   type Aux2[F[_], E, Case0[_, _]] = Bracket[F, E] { type Case[A] = Case0[E, A] }
 
   def apply[F[_], E](implicit F: Bracket[F, E]): F.type = F
+  def apply[F[_]](implicit F: Bracket[F, _], d: DummyImplicit): F.type = F
 }
 
 trait Region[R[_[_], _], F[_], E] extends Safe[R[F, ?], E] {
@@ -74,4 +75,7 @@ trait Region[R[_[_], _], F[_], E] extends Safe[R[F, ?], E] {
 object Region {
   type Aux[R[_[_], _], F[_], E, Case0[_]] = Region[R, F, E] { type Case[A] = Case0[A] }
   type Aux2[R[_[_], _], F[_], E, Case0[_, _]] = Region[R, F, E] { type Case[A] = Case0[E, A] }
+
+  def apply[R[_[_], _], F[_], E](implicit R: Region[R, F, E]): R.type = R
+  def apply[R[_[_], _], F[_]](implicit R: Region[R, F, _], d1: DummyImplicit): R.type = R
 }

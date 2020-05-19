@@ -26,5 +26,5 @@ trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
 }
 
 object Sync {
-  def apply[F[_]](implicit F: Sync[F]): Sync[F] = F
+  def apply[F[_]](implicit F: Sync[F]): F.type = F
 }

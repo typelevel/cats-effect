@@ -30,3 +30,7 @@ trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
       toK(G)(fa)
   }
 }
+
+object Effect {
+  def apply[F[_]](implicit F: Effect[F]): F.type = F
+}
