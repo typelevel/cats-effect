@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Daniel Spiewak
+ * Copyright 2020 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-package ce3
+package cats.effect
 package laws
 
-import cats.{~>, Applicative, ApplicativeError, Eq, Eval, FlatMap, Monad, Monoid, Show}
-import cats.data.{EitherK, StateT}
-import cats.free.FreeT
+import cats.{Eq, Show}
 import cats.implicits._
 
-import coop.ThreadT
+import freeEval._
 
-import playground._
-
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
+import org.scalacheck.Prop
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
@@ -38,8 +34,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
   import FreeSyncGenerators._
 
-  type FreeEitherSync[A] = FreeT[Eval, Either[Throwable, ?], A]
-
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
@@ -47,7 +41,7 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
     Eq.fromUniversalEquals
 
   implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
-    runSync(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
+    run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
 
   def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
 
@@ -55,6 +49,8 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
     (result === expect, s"${result.show} === ${expect.show}", s"${result.show} !== ${expect.show}")
 
   Eq[Either[Throwable, Int]]
+
+  cats.Invariant[FreeEitherSync]
 
   checkAll(
     "FreeEitherSync",

@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, ApplicativeError, Monad}
+import cats.{Applicative, ApplicativeError, Monad, MonadError}
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
@@ -135,10 +135,15 @@ trait ClockGenerators[F[_]] extends ApplicativeGenerators[F] {
   protected implicit val arbitraryFD: Arbitrary[FiniteDuration]
 
   override protected def baseGen[A: Arbitrary: Cogen] =
-    ("now" -> genNow[A]) :: super.baseGen[A]
+    List(
+      "monotonic" -> genMonotonic[A],
+      "realTime" -> genRealTime[A]) ++ super.baseGen[A]
 
-  private def genNow[A: Arbitrary] =
-    arbitrary[A].map(F.now.as(_))
+  private def genMonotonic[A: Arbitrary] =
+    arbitrary[A].map(F.monotonic.as(_))
+
+  private def genRealTime[A: Arbitrary] =
+    arbitrary[A].map(F.realTime.as(_))
 }
 
 trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with ClockGenerators[F] {

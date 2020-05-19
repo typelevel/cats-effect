@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Daniel Spiewak
+ * Copyright 2020 Typelevel
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,25 +14,23 @@
  * limitations under the License.
  */
 
-package ce3
+package cats.effect
 package laws
 
 import cats.{Eval, Monad, MonadError}
 import cats.free.FreeT
 
-import playground._
+import freeEval._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}
-import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
 object FreeSyncGenerators {
-  import OutcomeGenerators._
 
   implicit def cogenFreeSync[F[_]: Monad, A: Cogen](implicit C: Cogen[F[A]]): Cogen[FreeT[Eval, F, A]] =
-    C.contramap(runSync(_))
+    C.contramap(run(_))
 
   def generators[F[_]](implicit F0: MonadError[F, Throwable]) =
     new SyncGenerators[FreeT[Eval, F, ?]] {
