@@ -17,10 +17,6 @@
 package cats.effect
 package laws
 
-import cats.MonadError
-import cats.implicits._
-import cats.laws.MonadErrorLaws
-
 trait AsyncRegionLaws[R[_[_], _], F[_]] extends AsyncLaws[R[F, ?]] with TemporalRegionLaws[R, F, Throwable] {
   implicit val F: Async[R[F, ?]] with Region[R, F, Throwable]
 }

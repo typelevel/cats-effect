@@ -16,17 +16,12 @@
 
 package cats.effect
 
-import cats.{~>, Applicative, ApplicativeError, Eq, FlatMap, Monad, Monoid, Show}
-import cats.data.{EitherK, StateT}
+import cats.{Eq, Show}
 import cats.effect.laws.ConcurrentBracketTests
-import cats.free.FreeT
 import cats.implicits._
-
-import coop.ThreadT
 
 import pure._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck

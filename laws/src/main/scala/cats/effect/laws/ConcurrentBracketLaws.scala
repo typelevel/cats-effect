@@ -17,9 +17,7 @@
 package cats.effect
 package laws
 
-import cats.MonadError
 import cats.implicits._
-import cats.laws.MonadErrorLaws
 
 trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLaws[F, E] {
 

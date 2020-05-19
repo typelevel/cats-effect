@@ -19,7 +19,6 @@ package cats.effect
 import pure._
 
 import org.scalacheck.{Arbitrary, Cogen}
-import org.scalacheck.util.Pretty
 
 object PureConcGenerators {
   import OutcomeGenerators._

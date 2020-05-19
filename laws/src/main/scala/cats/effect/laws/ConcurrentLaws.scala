@@ -17,7 +17,6 @@
 package cats.effect
 package laws
 
-import cats.MonadError
 import cats.implicits._
 import cats.laws.MonadErrorLaws
 

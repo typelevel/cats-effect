@@ -16,15 +16,11 @@
 
 package cats.effect
 
-import cats.Show
+import cats.{Applicative, ApplicativeError, Monad}
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
-import cats.~>
-import cats.Monad
-import cats.Applicative
-import cats.Functor
-import cats.ApplicativeError
+
 import scala.collection.immutable.SortedMap
 
 trait GenK[F[_]] {
@@ -112,9 +108,9 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
     "raiseError" -> genRaiseError[A]
   ) ++ super.baseGen[A]
 
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
-    "handleErrorWith" -> genHandleErrorWith[A](deeper),
-  ) ++ super.recursiveGen(deeper)
+  override protected def recursiveGen[A](deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] = List(
+    "handleErrorWith" -> genHandleErrorWith[A](deeper)(AA, AC),
+  ) ++ super.recursiveGen(deeper)(AA, AC)
 
   private def genRaiseError[A]: Gen[F[A]] =
     arbitrary[E].map(F.raiseError[A](_))
@@ -135,8 +131,6 @@ trait BracketGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
     "bracketCase" -> genBracketCase[A](deeper)
   ) ++ super.recursiveGen[A](deeper)
 
-  import OutcomeGenerators._
-
   private def genBracketCase[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] = {
     for {
       acquire <- deeper[A]
@@ -155,12 +149,12 @@ trait ConcurrentGenerators[F[_], E] extends ApplicativeErrorGenerators[F, E] {
     "never" -> genNever[A]
   ) ++ super.baseGen[A]
 
-  override protected def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[F]): List[(String, Gen[F[A]])] = List(
+  override protected def recursiveGen[A](deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] = List(
     "uncancelable" -> genUncancelable[A](deeper),
     "racePair" -> genRacePair[A](deeper),
     "start" -> genStart[A](deeper),
     "join" -> genJoin[A](deeper),
-  ) ++ super.recursiveGen(deeper)
+  ) ++ super.recursiveGen(deeper)(AA, AC)
 
   private def genCanceled[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(F.canceled.as(_))
@@ -226,7 +220,7 @@ object OutcomeGenerators {
 
   implicit def cogenOutcome[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
     case Outcome.Canceled => None
-    case Outcome.Completed(fa) => Some(Right(fa))
+    case c: Outcome.Completed[F, A] => Some(Right(c.fa))
     case Outcome.Errored(e) => Some(Left(e))
   }
 }

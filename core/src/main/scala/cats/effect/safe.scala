@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{ApplicativeError, Monad, MonadError, Traverse}
+import cats.{ApplicativeError, MonadError}
 
 // represents the type Bracket | Region
 sealed trait Safe[F[_], E] extends MonadError[F, E] {

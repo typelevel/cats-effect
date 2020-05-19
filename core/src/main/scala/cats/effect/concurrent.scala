@@ -16,10 +16,8 @@
 
 package cats.effect
 
-import cats.{~>, ApplicativeError, MonadError, Traverse}
+import cats.{~>, ApplicativeError, MonadError}
 import cats.syntax.either._
-
-import scala.concurrent.duration.FiniteDuration
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]

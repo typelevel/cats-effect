@@ -17,11 +17,6 @@
 package cats.effect
 package laws
 
-import cats.implicits._
-
-import scala.concurrent.ExecutionContext
-import scala.util.{Left, Right}
-
 trait EffectLaws[F[_]] extends AsyncBracketLaws[F] {
   implicit val F: Effect[F]
 

@@ -17,10 +17,6 @@
 package cats.effect
 package laws
 
-import cats.MonadError
-import cats.implicits._
-import cats.laws.MonadErrorLaws
-
 trait ConcurrentRegionLaws[R[_[_], _], F[_], E] extends ConcurrentLaws[R[F, ?], E] with RegionLaws[R, F, E] {
   implicit val F: Concurrent[R[F, ?], E] with Region[R, F, E]
 }

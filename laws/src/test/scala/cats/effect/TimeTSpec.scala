@@ -16,14 +16,11 @@
 
 package cats.effect
 
-import cats.{~>, Applicative, ApplicativeError, Eq, FlatMap, Monad, Monoid, Order, Show}
-import cats.data.{EitherK, Kleisli, StateT}
+import cats.{Eq, Order, Show}
+import cats.data.Kleisli
 import cats.effect.laws.TemporalBracketTests
-import cats.free.FreeT
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
-
-import coop.ThreadT
 
 import pure._
 import TimeT._

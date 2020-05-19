@@ -21,7 +21,6 @@ import cats.data.{Kleisli, WriterT}
 import cats.free.FreeT
 import cats.implicits._
 
-import cats.mtl.ApplicativeAsk
 import cats.mtl.implicits._
 
 import coop.{ApplicativeThread, ThreadT, MVar}
@@ -45,6 +44,10 @@ object pure {
   final case class FiberCtx[E](self: PureFiber[E, _], masks: List[MaskId] = Nil)
 
   type ResolvedPC[E, A] = ThreadT[IdOC[E, ?], A]
+
+  // this is to hand-hold scala 2.12 a bit
+  implicit def monadErrorIdOC[E]: MonadError[IdOC[E, ?], E] =
+    Outcome.monadError[Id, E]
 
   def resolveMain[E, A](pc: PureConc[E, A]): ResolvedPC[E, IdOC[E, A]] = {
     /*
@@ -142,7 +145,8 @@ object pure {
       }
     }
 
-    scheduled.run.mapK(λ[Id ~> Option](Some(_))) flatMap {
+    // more 2.12 hand-holding
+    new Outcome.Syntax[Id, E, (List[IdOC[E, A]], Boolean)](scheduled.run).mapK(λ[Id ~> Option](Some(_))) flatMap {
       case (List(results), _) => results.mapK(λ[Id ~> Option](Some(_)))
       case (_, false) => Outcome.Completed(None)
 
@@ -482,7 +486,8 @@ object pure {
 
   implicit def showPureConc[E: Show, A: Show]: Show[PureConc[E, A]] =
     Show show { pc =>
-      val trace = ThreadT.prettyPrint(resolveMain(pc), limit = 1024).fold(
+      // ...and more 2.12 hand-holding
+      val trace = new Outcome.Syntax[Id, E, String](ThreadT.prettyPrint(resolveMain(pc), limit = 1024)).fold(
         "Canceled",
         e => s"Errored(${e.show})",
         str => str.replace('╭', '├'))

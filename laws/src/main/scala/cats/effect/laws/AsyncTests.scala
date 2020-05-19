@@ -18,9 +18,6 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
-import cats.data.EitherT
-import cats.implicits._
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
