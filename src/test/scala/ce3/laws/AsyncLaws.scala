@@ -46,11 +46,23 @@ trait AsyncLaws[F[_]] extends TemporalLaws[F, Throwable] with SyncLaws[F] {
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async(_ => F.pure(None))
 
-  def evalOnLocalIdentity(ec: ExecutionContext) =
-    F.evalOn(F.executionContext, ec) <-> F.pure(ec)
+  def executionContextCommutivity[A](fa: F[A]) =
+    (fa *> F.executionContext) <-> (F.executionContext <* fa)
 
-  def evalOnLocalScope(ec: ExecutionContext) =
-    F.evalOn(F.unit, ec) >> F.executionContext <-> F.executionContext
+  def evalOnLocalPure(ec: ExecutionContext) =
+    F.evalOn(F.executionContext, ec) <-> F.evalOn(F.pure(ec), ec)
+
+  def evalOnPureIdentity[A](a: A, ec: ExecutionContext) =
+    F.evalOn(F.pure(a), ec) <-> F.pure(a)
+
+  def evalOnRaiseErrorIdentity(e: Throwable, ec: ExecutionContext) =
+    F.evalOn(F.raiseError[Unit](e), ec) <-> F.raiseError[Unit](e)
+
+  def evalOnCanceledIdentity(ec: ExecutionContext) =
+    F.evalOn(F.canceled, ec) <-> F.canceled
+
+  def evalOnNeverIdentity(ec: ExecutionContext) =
+    F.evalOn(F.never[Unit], ec) <-> F.never[Unit]
 }
 
 object AsyncLaws {

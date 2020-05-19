@@ -99,8 +99,14 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
 
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
 
-        "evalOn local identity" -> forAll(laws.evalOnLocalIdentity _),
-        "evalOn local scope" -> forAll(laws.evalOnLocalScope _))
+        "executionContext commutivity" -> forAll(laws.executionContextCommutivity[A] _),
+
+        "evalOn local pure" -> forAll(laws.evalOnLocalPure _),
+
+        "evalOn pure identity" -> forAll(laws.evalOnPureIdentity[A] _),
+        "evalOn raiseError identity" -> forAll(laws.evalOnRaiseErrorIdentity _),
+        "evalOn canceled identity" -> forAll(laws.evalOnCanceledIdentity _),
+        "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _))
     }
   }
 }
