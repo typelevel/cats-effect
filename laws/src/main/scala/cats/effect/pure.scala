@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, Eq, Functor, Group, Id, Monad, MonadError, Monoid, Show}
+import cats.{~>, Eq, Eval, Functor, Group, Id, Monad, MonadError, Monoid, Show}
 import cats.data.{Kleisli, WriterT}
 import cats.free.FreeT
 import cats.implicits._
@@ -24,6 +24,8 @@ import cats.implicits._
 import cats.mtl.implicits._
 
 import coop.{ApplicativeThread, ThreadT, MVar}
+
+import scala.concurrent.duration._
 
 object pure {
 
@@ -198,6 +200,45 @@ object pure {
 
       def raiseError[A](e: E) =
         F.raiseError(e)
+    }
+
+  def runSync[F[_]: Monad, A](ft: FreeT[Eval, F, A]): F[A] =
+    ft.runM(_.value.pure[F])
+
+  implicit def syncForFreeT[F[_]](implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, ?]] =
+    new Sync[FreeT[Eval, F, ?]] {
+      private[this] val M: MonadError[FreeT[Eval, F, ?], Throwable] =
+        catsFreeMonadErrorForFreeT2
+
+      def pure[A](x: A): FreeT[Eval, F, A] =
+        M.pure(x)
+
+      def handleErrorWith[A](fa: FreeT[Eval, F, A])(f: Throwable => FreeT[Eval, F, A]): FreeT[Eval, F, A] =
+        M.handleErrorWith(fa)(f)
+
+      def raiseError[A](e: Throwable): FreeT[Eval, F, A] =
+        M.raiseError(e)
+
+      def now: FreeT[Eval, F, FiniteDuration] =
+        delay(System.nanoTime().nanos)
+
+      def flatMap[A, B](fa: FreeT[Eval, F, A])(f: A => FreeT[Eval, F, B]): FreeT[Eval, F, B] =
+        fa.flatMap(f)
+
+      def tailRecM[A, B](a: A)(f: A => FreeT[Eval, F, Either[A, B]]): FreeT[Eval, F, B] =
+        M.tailRecM(a)(f)
+
+      def delay[A](thunk: => A): FreeT[Eval, F, A] =
+        FreeT roll {
+          Eval always {
+            try {
+              pure(thunk)
+            } catch {
+              case t: Throwable =>
+                raiseError(t)
+            }
+          }
+        }
     }
 
   implicit def concurrentBForPureConc[E]: ConcurrentBracket[PureConc[E, ?], E] =
