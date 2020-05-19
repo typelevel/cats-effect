@@ -24,9 +24,10 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 
 ThisBuild / crossScalaVersions := Seq(/*"2.12.11",*/ "2.13.2")
 
-ThisBuild / githubWorkflowTargetBranches := Seq("ce3")    // for now
+ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11", "adopt@14", "graalvm@20.0.0")
 ThisBuild / githubWorkflowBuild := WorkflowStep.Sbt(List("ci"))
+ThisBuild / githubWorkflowPublishTargetBranches := Seq()    // disable the publication job
 
 Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
