@@ -25,7 +25,7 @@ import cats.laws.discipline.arbitrary._
 
 import coop.ThreadT
 
-import playground._
+import pure._
 import TimeT._
 
 import org.specs2.ScalaCheck
@@ -55,7 +55,7 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
     TemporalBracketTests[TimeT[PureConc[Int, ?], ?], Int].temporalBracket[Int, Int, Int](0.millis))
 
   implicit def exec(fb: TimeT[PureConc[Int, ?], Boolean]): Prop =
-    Prop(playground.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
+    Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
@@ -73,7 +73,7 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
     Order.by(TimeT.run(_))
 
   implicit def pureConcOrder[E: Order, A: Order]: Order[PureConc[E, A]] =
-    Order.by(playground.run(_))
+    Order.by(pure.run(_))
 
   implicit def cogenTime: Cogen[Time] =
     Cogen[FiniteDuration].contramap(_.now)

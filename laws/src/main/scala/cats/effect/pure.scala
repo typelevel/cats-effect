@@ -26,7 +26,7 @@ import cats.mtl.implicits._
 
 import coop.{ApplicativeThread, ThreadT, MVar}
 
-object playground {
+object pure {
 
   type IdOC[E, A] = Outcome[Id, E, A]                       // a fiber may complete, error, or cancel
   type FiberR[E, A] = Kleisli[IdOC[E, ?], FiberCtx[E], A]   // fiber context and results
@@ -529,10 +529,10 @@ object playground {
     private[this] val state = state0[PureConc[E, ?]]
     private[this] val finalizers = finalizers0[PureConc[E, ?]]
 
-    private[playground] val canceled: PureConc[E, Boolean] =
+    private[pure] val canceled: PureConc[E, Boolean] =
       state.tryRead.map(_.map(_.fold(true, _ => false, _ => false)).getOrElse(false))
 
-    private[playground] val realizeCancelation: PureConc[E, Boolean] = {
+    private[pure] val realizeCancelation: PureConc[E, Boolean] = {
       val checkM = withCtx[E, Boolean](_.masks.isEmpty.pure[PureConc[E, ?]])
 
       checkM.ifM(
@@ -545,13 +545,13 @@ object playground {
         false.pure[PureConc[E, ?]])
     }
 
-    private[playground] val runFinalizers: PureConc[E, Unit] =
+    private[pure] val runFinalizers: PureConc[E, Unit] =
       finalizers.take.flatMap(_.traverse_(_(Outcome.Canceled))) >> finalizers.put(Nil)
 
-    private[playground] def pushFinalizer(f: Finalizer[E]): PureConc[E, Unit] =
+    private[pure] def pushFinalizer(f: Finalizer[E]): PureConc[E, Unit] =
       finalizers.take.flatMap(fs => finalizers.put(f :: fs))
 
-    private[playground] val popFinalizer: PureConc[E, Unit] =
+    private[pure] val popFinalizer: PureConc[E, Unit] =
       finalizers.tryTake flatMap {
         case Some(fs) => finalizers.put(fs.drop(1))
         case None => ().pure[PureConc[E, ?]]   // this happens when we're being evaluated *as a finalizer* (in the traverse_ above) and we attempt to self-pop

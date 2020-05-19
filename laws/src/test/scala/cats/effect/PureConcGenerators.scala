@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import playground._
+import pure._
 
 import org.scalacheck.{Arbitrary, Cogen}
 import org.scalacheck.util.Pretty

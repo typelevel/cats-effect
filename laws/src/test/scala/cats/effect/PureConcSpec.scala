@@ -24,7 +24,7 @@ import cats.implicits._
 
 import coop.ThreadT
 
-import playground._
+import pure._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 import org.scalacheck.util.Pretty
