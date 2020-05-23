@@ -101,15 +101,15 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext, _) =>
+        case Bind(fa, bindNext, trace) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-//          if (isTracingEnabled) {
-//            if (ctx eq null) ctx = IOContext()
-//            ctx.pushFrame(bind.trace)
-//          }
+          if (isTracingEnabled) {
+            if (ctx eq null) ctx = IOContext()
+            if (trace ne null) ctx.pushFrame(trace)
+          }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
@@ -145,15 +145,15 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _, _) =>
+        case bindNext @ Map(fa, _, _, trace) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-//          if (isTracingEnabled) {
-//            if (ctx eq null) ctx = IOContext()
-//            ctx.pushFrame(bindNext.trace)
-//          }
+          if (isTracingEnabled) {
+            if (ctx eq null) ctx = IOContext()
+            if (trace ne null) ctx.pushFrame(trace)
+          }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
