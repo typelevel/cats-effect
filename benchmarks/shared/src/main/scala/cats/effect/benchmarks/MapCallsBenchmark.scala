@@ -40,13 +40,13 @@ class MapCallsBenchmark {
   import MapCallsBenchmark.test
 
   @Benchmark
-  def one(): Long = test(12000, 1)
+  def one(): Long = test(1, 1)
 
-  @Benchmark
-  def batch30(): Long = test(12000 / 30, 30)
-
-  @Benchmark
-  def batch120(): Long = test(12000 / 120, 120)
+//  @Benchmark
+//  def batch30(): Long = test(12000 / 30, 30)
+//
+//  @Benchmark
+//  def batch120(): Long = test(12000 / 120, 120)
 }
 
 object MapCallsBenchmark {

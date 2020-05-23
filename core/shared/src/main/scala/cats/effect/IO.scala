@@ -19,6 +19,7 @@ package effect
 
 import cats.effect.internals._
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
+import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -27,7 +28,6 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
 import cats.effect.tracing.{IOTrace, TraceFrame, TracingMode}
-import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -106,17 +106,22 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     if (isTracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
       // We may not actually have to do this
-      IOTracing(Map(this, f, 0), f.getClass)
+      val trace = if (isTracingEnabled) {
+        IOTracing(Map.getClass, f.getClass)
+      } else {
+        null
+      }
+      Map(this, f, 0, trace)
     } else {
       this match {
-        case Map(source, g, index) =>
+        case Map(source, g, index, _) =>
           // Allowed to do fixed number of map operations fused before
           // resetting the counter in order to avoid stack overflows;
           // See `IOPlatform` for details on this maximum.
-          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-          else Map(this, f, 0)
+          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1, null)
+          else Map(this, f, 0, null)
         case _ =>
-          Map(this, f, 0)
+          Map(this, f, 0, null)
       }
     }
 
@@ -136,12 +141,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val nextIo = Bind(this, f)
-    if (isTracingEnabled) {
-      IOTracing(nextIo, f.getClass)
+    val trace = if (isTracingEnabled) {
+      IOTracing(Bind.getClass, f.getClass)
     } else {
-      nextIo
+      null
     }
+    Bind(this, f, trace)
   }
 
   /**
@@ -158,7 +163,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]], null)
 
   /**
    * Produces an `IO` reference that should execute the source on
@@ -339,7 +344,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
-      case Pure(a)       => Some(a)
+      case Pure(a, _)    => Some(a)
       case RaiseError(e) => throw e
       case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
@@ -686,7 +691,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
-    IO.Bind(this, new IOFrame.ErrorHandler(f))
+    IO.Bind(this, new IOFrame.ErrorHandler(f), null)
 
   /**
    * Zips both this action and the parameter in parallel.
@@ -720,7 +725,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    IO.Bind(this, new IOFrame.Redeem(recover, map))
+    IO.Bind(this, new IOFrame.Redeem(recover, map), null)
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -752,10 +757,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case of success
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
+    IO.Bind(this, new IOFrame.RedeemWith(recover, bind), null)
 
   override def toString: String = this match {
-    case Pure(a)       => s"IO($a)"
+    case Pure(a, _)    => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
@@ -1140,7 +1145,7 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] =
-    Delay(() => body)
+    Delay(() => body, null)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1163,7 +1168,7 @@ object IO extends IOInstances {
    * (when evaluated) than `IO(42)`, due to avoiding the allocation of
    * extra thunks.
    */
-  def pure[A](a: A): IO[A] = Pure(a)
+  def pure[A](a: A): IO[A] = Pure(a, null)
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
@@ -1235,11 +1240,12 @@ object IO extends IOInstances {
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
-    if (isTracingEnabled) {
-      IOTracing(nextIo, k.getClass)
-    } else {
-      nextIo
-    }
+//    if (isTracingEnabled) {
+//      IOTracing(nextIo, k.getClass)
+//    } else {
+//      nextIo
+//    }
+    nextIo
   }
 
   /**
@@ -1280,11 +1286,12 @@ object IO extends IOInstances {
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
-    if (isTracingEnabled) {
-      IOTracing(nextIo, k.getClass)
-    } else {
-      nextIo
-    }
+//    if (isTracingEnabled) {
+//      IOTracing(nextIo, k.getClass)
+//    } else {
+//      nextIo
+//    }
+    nextIo
   }
 
   /**
@@ -1347,11 +1354,12 @@ object IO extends IOInstances {
         ref.complete(IO.unit)
     }
 
-    if (isTracingEnabled) {
-      IOTracing(nextIo, k.getClass)
-    } else {
-      nextIo
-    }
+//    if (isTracingEnabled) {
+//      IOTracing(nextIo, k.getClass)
+//    } else {
+//      nextIo
+//    }
+    nextIo
   }
 
   /**
@@ -1610,10 +1618,10 @@ object IO extends IOInstances {
   /* IO's internal encoding: */
 
   /** Corresponds to [[IO.pure]]. */
-  final private[effect] case class Pure[+A](a: A) extends IO[A]
+  final private[effect] case class Pure[+A](a: A, trace: TraceFrame) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
-  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
+  final private[effect] case class Delay[+A](thunk: () => A, trace: TraceFrame) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
@@ -1622,12 +1630,14 @@ object IO extends IOInstances {
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A]) extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: TraceFrame) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: TraceFrame)
+      extends IO[A]
+      with (E => IO[A]) {
     override def apply(value: E): IO[A] =
-      Pure(f(value))
+      Pure(f(value), null)
   }
 
   /**
@@ -1648,6 +1658,7 @@ object IO extends IOInstances {
     k: (IOConnection, IOContext, Either[Throwable, A] => Unit) => Unit,
     trampolineAfter: Boolean = false
   ) extends IO[A]
+      with TracedIO[A]
 
   /**
    * An internal state for that optimizes changes to
@@ -1662,9 +1673,11 @@ object IO extends IOInstances {
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
 
-  final private[effect] case class Trace[A](source: IO[A], frame: TraceFrame) extends IO[A]
-
   final private[effect] case object Introspect extends IO[IOTrace]
+
+  private[effect] trait TracedIO[+A] { self: IO[A] =>
+    private[effect] var trace: TraceFrame = null
+  }
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
@@ -1674,8 +1687,8 @@ object IO extends IOInstances {
    */
   private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {
     override def apply(a: Any) =
-      Pure(Right(a))
+      Pure(Right(a), null)
     override def recover(e: Throwable) =
-      Pure(Left(e))
+      Pure(Left(e), null)
   }
 }

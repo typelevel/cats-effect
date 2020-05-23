@@ -16,24 +16,28 @@
 
 package cats.effect.internals
 
-import java.util.concurrent.ConcurrentHashMap
+import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
 
 import cats.effect.IO
 import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A], clazz: Class[_]): IO[A] =
-    localTracingMode.get() match {
-      case TracingMode.Disabled => source
-      case TracingMode.Rabbit   => IO.Trace(source, buildCachedFrame(source, clazz))
-      case TracingMode.Slug     => IO.Trace(source, buildFrame(source))
+  def apply[A](source: Class[_], clazz: Class[_]): TraceFrame = {
+    val mode = localTracingMode.get()
+    if (mode == 1) {
+      buildCachedFrame(source, clazz)
+    } else if (mode == 2) {
+      buildFrame(source)
+    } else {
+      null
     }
+  }
 
   def locallyTraced[A](source: IO[A], newMode: TracingMode): IO[A] =
     IO.suspend {
       val oldMode = localTracingMode.get()
-      localTracingMode.set(newMode)
+      localTracingMode.set(newMode.tag)
 
       // In the event of cancellation, the tracing mode will be reset
       // when the thread grabs a new task to run (via Async).
@@ -52,47 +56,30 @@ private[effect] object IOTracing {
     }
 
   def getLocalTracingMode(): TracingMode =
-    localTracingMode.get()
+    TracingMode.fromInt(localTracingMode.get())
 
   def setLocalTracingMode(mode: TracingMode): Unit =
-    localTracingMode.set(mode)
+    localTracingMode.set(mode.tag)
 
-  private def buildCachedFrame(source: IO[Any], clazz: Class[_]): TraceFrame = {
-    val cachedFr = frameCache.get(clazz)
+  private def buildCachedFrame(sourceClass: Class[_], keyClass: Class[_]): TraceFrame = {
+    val cachedFr = frameCache.get(keyClass).asInstanceOf[TraceFrame]
     if (cachedFr eq null) {
-      val fr = buildFrame(source)
-      frameCache.put(clazz, fr)
+      val fr = buildFrame(sourceClass)
+      frameCache.put(keyClass, fr)
       fr
     } else {
       cachedFr
     }
   }
 
-  private def buildFrame(source: IO[Any]): TraceFrame = {
+  private def buildFrame(sourceClass: Class[_]): TraceFrame = {
     // TODO: proper trace calculation
     val line = new Throwable().getStackTrace.toList
       .map(TraceLine.fromStackTraceElement)
       .find(l => !classBlacklist.exists(b => l.className.startsWith(b)))
       .headOption
 
-    val op = source match {
-      case _: IO.Map[_, _]  => "map"
-      case _: IO.Bind[_, _] => "bind"
-      case _: IO.Async[_]   => "async"
-      case _                => "unknown"
-    }
-
-    TraceFrame(op, line)
-  }
-
-  /**
-   * Cache for trace frames. Keys are references to:
-   * - lambda classes
-   */
-  private val frameCache: ConcurrentHashMap[Class[_], TraceFrame] = new ConcurrentHashMap[Class[_], TraceFrame]()
-
-  private val localTracingMode: ThreadLocal[TracingMode] = new ThreadLocal[TracingMode] {
-    override def initialValue(): TracingMode = TracingMode.Rabbit
+    TraceFrame(sourceClass.getSimpleName, line)
   }
 
   private val classBlacklist = List(

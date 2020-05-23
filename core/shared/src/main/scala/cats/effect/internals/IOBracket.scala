@@ -60,11 +60,12 @@ private[effect] object IOBracket {
       }
     }
 
-    if (isTracingEnabled) {
-      IOTracing(nextIo, use.getClass)
-    } else {
-      nextIo
-    }
+//    if (isTracingEnabled) {
+//      IOTracing(nextIo, use.getClass)
+//    } else {
+//      nextIo
+//    }
+    nextIo
   }
 
   // Internals of `IO.bracketCase`.

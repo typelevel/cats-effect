@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend}
 import cats.effect.tracing.TracingMode
 import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
@@ -101,7 +101,7 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext) =>
+        case Bind(fa, bindNext, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -113,11 +113,11 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Pure(value) =>
+        case Pure(value, _) =>
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk) =>
+        case Delay(thunk, _) =>
           try {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
@@ -145,7 +145,7 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _) =>
+        case bindNext @ Map(fa, _, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -173,13 +173,8 @@ private[effect] object IORunLoop {
           if (conn ne old) {
             if (rcb ne null) rcb.contextSwitch(conn)
             if (restore ne null)
-              currentIO = Bind(next, new RestoreContext(old, restore))
+              currentIO = Bind(next, new RestoreContext(old, restore), null)
           }
-
-        case Trace(source, frame) =>
-          if (ctx eq null) ctx = IOContext()
-          ctx.pushFrame(frame)
-          currentIO = source
 
         case Introspect =>
           if (ctx eq null) ctx = IOContext()
@@ -230,7 +225,7 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext) =>
+        case Bind(fa, bindNext, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -238,11 +233,11 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Pure(value) =>
+        case Pure(value, _) =>
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk) =>
+        case Delay(thunk, _) =>
           try {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
@@ -270,7 +265,7 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _) =>
+        case bindNext @ Map(fa, _, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -282,11 +277,6 @@ private[effect] object IORunLoop {
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
-
-        case Trace(source, frame) =>
-          if (ctx eq null) ctx = IOContext()
-          ctx.pushFrame(frame)
-          currentIO = source
 
         case Introspect =>
           // TODO: This can be implemented in terms of Async now
@@ -303,7 +293,7 @@ private[effect] object IORunLoop {
       if (hasUnboxed) {
         popNextBind(bFirst, bRest) match {
           case null =>
-            return (if (currentIO ne null) currentIO else Pure(unboxed))
+            return (if (currentIO ne null) currentIO else Pure(unboxed, null))
               .asInstanceOf[IO[A]]
           case bind =>
             currentIO =
@@ -443,7 +433,7 @@ private[effect] object IORunLoop {
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {
         case Right(success) =>
-          loop(Pure(success), conn, cb, ctx, this, bFirst, bRest)
+          loop(Pure(success, null), conn, cb, ctx, this, bFirst, bRest)
         case Left(e) =>
           loop(RaiseError(e), conn, cb, ctx, this, bFirst, bRest)
       }
@@ -474,7 +464,7 @@ private[effect] object IORunLoop {
     restore: (Any, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IOFrame[Any, IO[Any]] {
     def apply(a: Any): IO[Any] =
-      ContextSwitch(Pure(a), current => restore(a, null, old, current), null)
+      ContextSwitch(Pure(a, null), current => restore(a, null, old, current), null)
     def recover(e: Throwable): IO[Any] =
       ContextSwitch(RaiseError(e), current => restore(null, e, old, current), null)
   }

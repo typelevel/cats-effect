@@ -17,6 +17,7 @@
 package cats.effect.internals;
 
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Scala object field accesses cost a volatile read across modules.
@@ -50,5 +51,13 @@ public final class TracingPlatformFast {
             }
         })
         .orElse(512);
+
+    /**
+     * Cache for trace frames. Keys are references to:
+     * - lambda classes
+     */
+    public static final ConcurrentHashMap<Class<?>, Object> frameCache = new ConcurrentHashMap<>();
+
+    public static final ThreadLocal<Integer> localTracingMode = ThreadLocal.withInitial(() -> 1);
 
 }
