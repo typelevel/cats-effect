@@ -16,4 +16,9 @@
 
 package cats.effect.tracing
 
-final case class TraceFrame(tag: TraceTag, stackTrace: List[StackTraceElement])
+sealed abstract class TraceTag(val name: String)
+
+object TraceTag {
+  case object Bind extends TraceTag("FlatMap")
+  case object Map extends TraceTag("Map")
+}

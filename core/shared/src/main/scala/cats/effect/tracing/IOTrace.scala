@@ -18,10 +18,32 @@ package cats.effect.tracing
 
 final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
 
-  def prettyPrint(): Unit = {
+  import IOTrace._
+
+  def rawPrint(): Unit = {
+    def renderStackTraceElement(ste: StackTraceElement): String = {
+      val className = ste.getClassName.replaceAll("\\$", "")
+      val methodName = anonfunRegex.findFirstMatchIn(ste.getMethodName) match {
+        case Some(mat) => mat.group(1)
+        case None      => ste.getMethodName
+      }
+
+      s"$className.$methodName (${ste.getFileName}:${ste.getLineNumber})"
+    }
+
     System.err.println(s"IOTrace: $omitted omitted frames")
+    frames.foreach { f =>
+      val desc = s"\t${f.tag.name} at " + f.stackTrace.headOption.map(renderStackTraceElement).getOrElse("(...)")
+      System.err.println(desc)
+    }
+    System.err.println()
+  }
+
+  def prettyPrint(): Unit = {
     val render = loop("", 0, true, frames.toList)
+    System.err.println(s"IOTrace: $omitted omitted frames")
     System.err.println(render)
+    System.err.println()
   }
 
   private def loop(acc: String, indent: Int, init: Boolean, rest: List[TraceFrame]): String = {
@@ -31,19 +53,32 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
     val Junction = "├"
     val Line = "│"
 
+    def renderStackTraceElement(ste: StackTraceElement, last: Boolean): String = {
+      val className = ste.getClassName.replaceAll("\\$", "")
+      val methodName = anonfunRegex.findFirstMatchIn(ste.getMethodName) match {
+        case Some(mat) => mat.group(1)
+        case None      => ste.getMethodName
+      }
+
+      val junc = if (last) TurnRight else Junction
+
+      Line + "  " + junc + s" $className.$methodName (${ste.getFileName}:${ste.getLineNumber})\n"
+    }
+
     rest match {
       case k :: ks => {
         val acc2 = if (init) {
-          InverseTurnRight + s" ${k.op}\n"
+          InverseTurnRight + s" ${k.tag.name}\n"
         } else {
-          Junction + s" ${k.op}\n"
+          Junction + s" ${k.tag.name}\n"
         }
 
         val inner = Line + " " + TurnRight + TurnDown + "\n"
-        val demangled = k.line.map(_.demangled)
-        val traceLine = Line + "  " + TurnRight + " " + demangled.map(l => s"${l.className}.${l.methodName} (${l.fileName}:${l.lineNumber})").mkString + "\n"
+        val innerLines = k.stackTrace.zipWithIndex.map {
+          case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)
+        }.mkString
 
-        loop(acc + acc2 + inner + traceLine + Line + "\n", indent, false, ks)
+        loop(acc + acc2 + inner + innerLines + Line + "\n", indent, false, ks)
       }
       case Nil => {
         acc + TurnRight + " Done"
@@ -51,4 +86,8 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
     }
   }
 
+}
+
+object IOTrace {
+  private[effect] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 }

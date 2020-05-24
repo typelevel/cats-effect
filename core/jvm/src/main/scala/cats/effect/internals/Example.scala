@@ -71,6 +71,7 @@ object Example extends IOApp {
       _ <- IO.delay("10")
       trace <- IO.backtrace
       _ <- IO.delay(trace.prettyPrint())
+      _ <- IO.delay(trace.rawPrint())
     } yield ExitCode.Success
 
 }

@@ -41,7 +41,7 @@ public final class TracingPlatformFast {
      * lines are produced, then the oldest trace lines will be discarded.
      * Automatically rounded up to the nearest power of 2.
      */
-    public static final int maxTraceFrameSize = Optional.ofNullable(System.getProperty("cats.effect.tracing.maxTraceFrameSize"))
+    public static final int maxTraceDepth = Optional.ofNullable(System.getProperty("cats.effect.tracing.maxTraceDepth"))
         .filter(x -> !x.isEmpty())
         .flatMap(x -> {
             try {

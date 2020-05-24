@@ -27,7 +27,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.{IOTrace, TraceFrame, TracingMode}
+import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag, TracingMode}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -142,7 +142,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def flatMap[B](f: A => IO[B]): IO[B] =
     if (isTracingEnabled) {
-      IOTracing(Bind(this, f), f.getClass)
+      IOTracing(Bind(this, f), TraceTag.Bind, f.getClass)
     } else {
       Bind(this, f)
     }

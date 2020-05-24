@@ -19,11 +19,11 @@ package cats.effect.internals
 import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
 import cats.effect.IO
 import cats.effect.IO.Trace
-import cats.effect.tracing.{TraceFrame, StackTraceLine, TracingMode}
+import cats.effect.tracing.{TraceFrame, TraceTag, TracingMode}
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A], clazz: Class[_]): IO[A] =
+  def apply[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] =
 //    val mode = localTracingMode.get()
 //    if (mode == 1) {
 //      Trace(source, buildCachedFrame(source.getClass, clazz))
@@ -32,7 +32,7 @@ private[effect] object IOTracing {
 //    } else {
 //      source
 //    }
-    Trace(source, buildCachedFrame(source.getClass, clazz))
+    Trace(source, buildCachedFrame(traceTag, clazz))
 
   def locallyTraced[A](source: IO[A], newMode: TracingMode): IO[A] =
     IO.suspend {
@@ -61,10 +61,10 @@ private[effect] object IOTracing {
   def setLocalTracingMode(mode: TracingMode): Unit =
     localTracingMode.set(mode.tag)
 
-  private def buildCachedFrame(sourceClass: Class[_], keyClass: Class[_]): TraceFrame = {
+  private def buildCachedFrame(traceTag: TraceTag, keyClass: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(keyClass).asInstanceOf[TraceFrame]
     if (cachedFr eq null) {
-      val fr = buildFrame(sourceClass)
+      val fr = buildFrame(traceTag)
       frameCache.put(keyClass, fr)
       fr
     } else {
@@ -72,14 +72,12 @@ private[effect] object IOTracing {
     }
   }
 
-  private def buildFrame(sourceClass: Class[_]): TraceFrame = {
+  private def buildFrame(traceTag: TraceTag): TraceFrame = {
     // TODO: proper trace calculation
-    val line = new Throwable().getStackTrace.toList
-      .map(StackTraceLine.fromStackTraceElement)
-      .find(l => !classBlacklist.exists(b => l.className.startsWith(b)))
-      .headOption
+    val stackTrace = new Throwable().getStackTrace.toList
+      .dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b)))
 
-    TraceFrame(sourceClass.getSimpleName, line)
+    TraceFrame(traceTag, stackTrace)
   }
 
   private val classBlacklist = List(

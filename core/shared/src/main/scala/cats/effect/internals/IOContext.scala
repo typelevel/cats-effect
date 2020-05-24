@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.tracing.{IOTrace, TraceFrame}
-import cats.effect.internals.TracingPlatformFast.maxTraceFrameSize
+import cats.effect.internals.TracingPlatformFast.maxTraceDepth
 
 /**
  * INTERNAL API — Holds state related to the execution of
@@ -26,7 +26,7 @@ import cats.effect.internals.TracingPlatformFast.maxTraceFrameSize
  */
 final private[effect] class IOContext private () {
 
-  private val frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceFrameSize)
+  private val frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
   private var omitted: Int = 0
 
   def pushFrame(fr: TraceFrame): Unit = {
