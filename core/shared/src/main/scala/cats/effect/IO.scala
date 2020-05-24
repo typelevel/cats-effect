@@ -344,7 +344,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
-      case Pure(a, _)    => Some(a)
+      case Pure(a)    => Some(a)
       case RaiseError(e) => throw e
       case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
@@ -760,7 +760,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     IO.Bind(this, new IOFrame.RedeemWith(recover, bind), null)
 
   override def toString: String = this match {
-    case Pure(a, _)    => s"IO($a)"
+    case Pure(a)    => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
@@ -1168,7 +1168,7 @@ object IO extends IOInstances {
    * (when evaluated) than `IO(42)`, due to avoiding the allocation of
    * extra thunks.
    */
-  def pure[A](a: A): IO[A] = Pure(a, null)
+  def pure[A](a: A): IO[A] = Pure(a)
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
@@ -1618,7 +1618,7 @@ object IO extends IOInstances {
   /* IO's internal encoding: */
 
   /** Corresponds to [[IO.pure]]. */
-  final private[effect] case class Pure[+A](a: A, trace: TraceFrame) extends IO[A]
+  final private[effect] case class Pure[+A](a: A) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
   final private[effect] case class Delay[+A](thunk: () => A, trace: TraceFrame) extends IO[A]
@@ -1637,7 +1637,7 @@ object IO extends IOInstances {
       extends IO[A]
       with (E => IO[A]) {
     override def apply(value: E): IO[A] =
-      Pure(f(value), null)
+      Pure(f(value))
   }
 
   /**
@@ -1687,8 +1687,8 @@ object IO extends IOInstances {
    */
   private object AttemptIO extends IOFrame[Any, IO[Either[Throwable, Any]]] {
     override def apply(a: Any) =
-      Pure(Right(a), null)
+      Pure(Right(a))
     override def recover(e: Throwable) =
-      Pure(Left(e), null)
+      Pure(Left(e))
   }
 }

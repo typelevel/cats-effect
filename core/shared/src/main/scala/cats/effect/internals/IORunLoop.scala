@@ -113,7 +113,7 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Pure(value, _) =>
+        case Pure(value) =>
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
@@ -233,7 +233,7 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Pure(value, _) =>
+        case Pure(value) =>
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
@@ -293,7 +293,7 @@ private[effect] object IORunLoop {
       if (hasUnboxed) {
         popNextBind(bFirst, bRest) match {
           case null =>
-            return (if (currentIO ne null) currentIO else Pure(unboxed, null))
+            return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
             currentIO =
@@ -433,7 +433,7 @@ private[effect] object IORunLoop {
       // we interrupt the bind continuation
       if (!conn.isCanceled) either match {
         case Right(success) =>
-          loop(Pure(success, null), conn, cb, ctx, this, bFirst, bRest)
+          loop(Pure(success), conn, cb, ctx, this, bFirst, bRest)
         case Left(e) =>
           loop(RaiseError(e), conn, cb, ctx, this, bFirst, bRest)
       }
@@ -464,7 +464,7 @@ private[effect] object IORunLoop {
     restore: (Any, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IOFrame[Any, IO[Any]] {
     def apply(a: Any): IO[Any] =
-      ContextSwitch(Pure(a, null), current => restore(a, null, old, current), null)
+      ContextSwitch(Pure(a), current => restore(a, null, old, current), null)
     def recover(e: Throwable): IO[Any] =
       ContextSwitch(RaiseError(e), current => restore(null, e, old, current), null)
   }
