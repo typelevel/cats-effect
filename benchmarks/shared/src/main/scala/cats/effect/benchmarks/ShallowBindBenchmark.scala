@@ -54,21 +54,21 @@ class ShallowBindBenchmark {
       .unsafeRunSync()
   }
 
-  @Benchmark
-  def delay(): Int = {
-    def loop(i: Int): IO[Int] =
-      if (i < size) IO(i + 1).flatMap(loop)
-      else IO(i)
-
-    IO(0).flatMap(loop).unsafeRunSync()
-  }
-
-  @Benchmark
-  def async(): Int = {
-    def loop(i: Int): IO[Int] =
-      if (i < size) IO.shift.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
-      else IO.shift.flatMap(_ => IO.pure(i))
-
-    IO(0).flatMap(loop).unsafeRunSync()
-  }
+//  @Benchmark
+//  def delay(): Int = {
+//    def loop(i: Int): IO[Int] =
+//      if (i < size) IO(i + 1).flatMap(loop)
+//      else IO(i)
+//
+//    IO(0).flatMap(loop).unsafeRunSync()
+//  }
+//
+//  @Benchmark
+//  def async(): Int = {
+//    def loop(i: Int): IO[Int] =
+//      if (i < size) IO.shift.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
+//      else IO.shift.flatMap(_ => IO.pure(i))
+//
+//    IO(0).flatMap(loop).unsafeRunSync()
+//  }
 }

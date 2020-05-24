@@ -106,22 +106,22 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     if (isTracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
       // We may not actually have to do this
-      val trace = if (isTracingEnabled) {
-        IOTracing(Map.getClass, f.getClass)
-      } else {
-        null
-      }
-      Map(this, f, 0, trace)
+//      val trace = if (isTracingEnabled) {
+//        IOTracing(Map.getClass, f.getClass)
+//      } else {
+//        null
+//      }
+      Map(this, f, 0)
     } else {
       this match {
-        case Map(source, g, index, _) =>
+        case Map(source, g, index) =>
           // Allowed to do fixed number of map operations fused before
           // resetting the counter in order to avoid stack overflows;
           // See `IOPlatform` for details on this maximum.
-          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1, null)
-          else Map(this, f, 0, null)
+          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
+          else Map(this, f, 0)
         case _ =>
-          Map(this, f, 0, null)
+          Map(this, f, 0)
       }
     }
 
@@ -140,14 +140,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val trace = if (isTracingEnabled) {
-      IOTracing(Bind.getClass, f.getClass)
+  final def flatMap[B](f: A => IO[B]): IO[B] =
+    if (isTracingEnabled) {
+      IOTracing(Bind(this, f), f.getClass)
     } else {
-      null
+      Bind(this, f)
     }
-    Bind(this, f, trace)
-  }
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -163,7 +161,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]], null)
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
 
   /**
    * Produces an `IO` reference that should execute the source on
@@ -344,7 +342,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def unsafeRunTimed(limit: Duration): Option[A] =
     IORunLoop.step(this) match {
-      case Pure(a)    => Some(a)
+      case Pure(a)       => Some(a)
       case RaiseError(e) => throw e
       case self @ Async(_, _) =>
         IOPlatform.unsafeResync(self, limit)
@@ -691,7 +689,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
-    IO.Bind(this, new IOFrame.ErrorHandler(f), null)
+    IO.Bind(this, new IOFrame.ErrorHandler(f))
 
   /**
    * Zips both this action and the parameter in parallel.
@@ -725,7 +723,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    IO.Bind(this, new IOFrame.Redeem(recover, map), null)
+    IO.Bind(this, new IOFrame.Redeem(recover, map))
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -757,10 +755,10 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case of success
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    IO.Bind(this, new IOFrame.RedeemWith(recover, bind), null)
+    IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
 
   override def toString: String = this match {
-    case Pure(a)    => s"IO($a)"
+    case Pure(a)       => s"IO($a)"
     case RaiseError(e) => s"IO(throw $e)"
     case _             => "IO$" + System.identityHashCode(this)
   }
@@ -1145,7 +1143,7 @@ object IO extends IOInstances {
    * into the `IO`.
    */
   def delay[A](body: => A): IO[A] =
-    Delay(() => body, null)
+    Delay(() => body)
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1621,7 +1619,7 @@ object IO extends IOInstances {
   final private[effect] case class Pure[+A](a: A) extends IO[A]
 
   /** Corresponds to [[IO.apply]]. */
-  final private[effect] case class Delay[+A](thunk: () => A, trace: TraceFrame) extends IO[A]
+  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A]
 
   /** Corresponds to [[IO.raiseError]]. */
   final private[effect] case class RaiseError(e: Throwable) extends IO[Nothing]
@@ -1630,12 +1628,10 @@ object IO extends IOInstances {
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: TraceFrame) extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: TraceFrame)
-      extends IO[A]
-      with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
     override def apply(value: E): IO[A] =
       Pure(f(value))
   }
@@ -1658,7 +1654,8 @@ object IO extends IOInstances {
     k: (IOConnection, IOContext, Either[Throwable, A] => Unit) => Unit,
     trampolineAfter: Boolean = false
   ) extends IO[A]
-      with TracedIO[A]
+
+  final private[effect] case class Trace[A](source: IO[A], frame: TraceFrame) extends IO[A]
 
   /**
    * An internal state for that optimizes changes to
@@ -1674,10 +1671,6 @@ object IO extends IOInstances {
   ) extends IO[A]
 
   final private[effect] case object Introspect extends IO[IOTrace]
-
-  private[effect] trait TracedIO[+A] { self: IO[A] =>
-    private[effect] var trace: TraceFrame = null
-  }
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 

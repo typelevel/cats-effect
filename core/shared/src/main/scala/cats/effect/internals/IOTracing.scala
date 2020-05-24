@@ -17,22 +17,22 @@
 package cats.effect.internals
 
 import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
-
 import cats.effect.IO
+import cats.effect.IO.Trace
 import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
 
 private[effect] object IOTracing {
 
-  def apply[A](source: Class[_], clazz: Class[_]): TraceFrame = {
-    val mode = localTracingMode.get()
-    if (mode == 1) {
-      buildCachedFrame(source, clazz)
-    } else if (mode == 2) {
-      buildFrame(source)
-    } else {
-      null
-    }
-  }
+  def apply[A](source: IO[A], clazz: Class[_]): IO[A] =
+//    val mode = localTracingMode.get()
+//    if (mode == 1) {
+//      Trace(source, buildCachedFrame(source.getClass, clazz))
+//    } else if (mode == 2) {
+//      Trace(source, buildFrame(source.getClass))
+//    } else {
+//      source
+//    }
+    Trace(source, buildCachedFrame(source.getClass, clazz))
 
   def locallyTraced[A](source: IO[A], newMode: TracingMode): IO[A] =
     IO.suspend {

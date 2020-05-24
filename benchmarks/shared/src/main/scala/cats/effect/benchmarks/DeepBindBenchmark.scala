@@ -43,16 +43,16 @@ class DeepBindBenchmark {
   @Param(Array("3000"))
   var size: Int = _
 
-  @Benchmark
-  def pure(): Int = {
-    def loop(i: Int): IO[Int] =
-      for {
-        j <- IO.pure(i)
-        _ <- if (j > size) IO.pure(j) else loop(j + 1)
-      } yield j
-
-    loop(0).unsafeRunSync()
-  }
+//  @Benchmark
+//  def pure(): Int = {
+//    def loop(i: Int): IO[Int] =
+//      for {
+//        j <- IO.pure(i)
+//        _ <- if (j > size) IO.pure(j) else loop(j + 1)
+//      } yield j
+//
+//    loop(0).unsafeRunSync()
+//  }
 
   @Benchmark
   def delay(): Int = {

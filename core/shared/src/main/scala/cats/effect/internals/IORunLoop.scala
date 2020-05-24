@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.TracingMode
 import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
@@ -101,14 +101,10 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext, trace) =>
+        case Bind(fa, bindNext) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
-          }
-          if (isTracingEnabled) {
-            if (ctx eq null) ctx = IOContext()
-            if (trace ne null) ctx.pushFrame(trace)
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -117,7 +113,7 @@ private[effect] object IORunLoop {
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk, _) =>
+        case Delay(thunk) =>
           try {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
@@ -145,14 +141,10 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _, trace) =>
+        case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
-          }
-          if (isTracingEnabled) {
-            if (ctx eq null) ctx = IOContext()
-            if (trace ne null) ctx.pushFrame(trace)
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -173,14 +165,18 @@ private[effect] object IORunLoop {
           if (conn ne old) {
             if (rcb ne null) rcb.contextSwitch(conn)
             if (restore ne null)
-              currentIO = Bind(next, new RestoreContext(old, restore), null)
+              currentIO = Bind(next, new RestoreContext(old, restore))
           }
+
+        case Trace(source, frame) =>
+          if (ctx eq null) ctx = IOContext()
+          ctx.pushFrame(frame)
+          currentIO = source
 
         case Introspect =>
           if (ctx eq null) ctx = IOContext()
           hasUnboxed = true
           unboxed = ctx.getTrace
-
       }
 
       if (hasUnboxed) {
@@ -225,7 +221,7 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext, _) =>
+        case Bind(fa, bindNext) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
@@ -237,7 +233,7 @@ private[effect] object IORunLoop {
           unboxed = value.asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Delay(thunk, _) =>
+        case Delay(thunk) =>
           try {
             unboxed = thunk().asInstanceOf[AnyRef]
             hasUnboxed = true
@@ -265,7 +261,7 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _, _) =>
+        case bindNext @ Map(fa, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
