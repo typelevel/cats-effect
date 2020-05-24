@@ -16,9 +16,17 @@
 
 package cats.effect.tracing
 
-sealed abstract class TraceTag(val name: String)
+final case class TraceTag(name: String)
 
 object TraceTag {
-  case object Bind extends TraceTag("FlatMap")
-  case object Map extends TraceTag("Map")
+  val Attempt = TraceTag("attempt")
+  val Bind = TraceTag("flatMap")
+  val Map = TraceTag("map")
+
+  val Async = TraceTag("async")
+  val AsyncF = TraceTag("asyncF")
+  val Cancelable = TraceTag("cancelable")
+
+  val Bracket = TraceTag("bracket")
+  val BracketCase = TraceTag("bracketCase")
 }

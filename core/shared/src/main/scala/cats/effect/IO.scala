@@ -106,12 +106,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     if (isTracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
       // We may not actually have to do this
-//      val trace = if (isTracingEnabled) {
-//        IOTracing(Map.getClass, f.getClass)
-//      } else {
-//        null
-//      }
-      Map(this, f, 0)
+      val nextIo = Map(this, f, 0)
+      if (isTracingEnabled) {
+        IOTracing(nextIo, TraceTag.Map, f.getClass)
+      } else {
+        nextIo
+      }
     } else {
       this match {
         case Map(source, g, index) =>
@@ -580,8 +580,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        canceled, receiving as input the resource that needs to
    *        be released
    */
-  final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
-    bracketCase(use)((a, _) => release(a))
+  final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] = {
+    val nextIo = IOBracket(this)(use)((a, _) => release(a))
+    if (isTracingEnabled) {
+      IOTracing(nextIo, TraceTag.Bracket, use.getClass)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Returns a new `IO` task that treats the source task as the
@@ -615,8 +621,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        release, along with the result of `use`
    *        (cancellation, error or successful result)
    */
-  def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
-    IOBracket(this)(use)(release)
+  def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
+    val nextIo = IOBracket(this)(use)(release)
+    if (isTracingEnabled) {
+      IOTracing(nextIo, TraceTag.BracketCase, use.getClass)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -1238,12 +1250,11 @@ object IO extends IOInstances {
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
-//    if (isTracingEnabled) {
-//      IOTracing(nextIo, k.getClass)
-//    } else {
-//      nextIo
-//    }
-    nextIo
+    if (isTracingEnabled) {
+      IOTracing(nextIo, TraceTag.Async, k.getClass)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -1284,12 +1295,11 @@ object IO extends IOInstances {
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
-//    if (isTracingEnabled) {
-//      IOTracing(nextIo, k.getClass)
-//    } else {
-//      nextIo
-//    }
-    nextIo
+    if (isTracingEnabled) {
+      IOTracing(nextIo, TraceTag.AsyncF, k.getClass)
+    } else {
+      nextIo
+    }
   }
 
   /**
@@ -1352,12 +1362,11 @@ object IO extends IOInstances {
         ref.complete(IO.unit)
     }
 
-//    if (isTracingEnabled) {
-//      IOTracing(nextIo, k.getClass)
-//    } else {
-//      nextIo
-//    }
-    nextIo
+    if (isTracingEnabled) {
+      IOTracing(nextIo, TraceTag.Cancelable, k.getClass)
+    } else {
+      nextIo
+    }
   }
 
   /**
