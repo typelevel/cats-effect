@@ -19,7 +19,7 @@ package cats.effect.internals
 import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
 import cats.effect.IO
 import cats.effect.IO.Trace
-import cats.effect.tracing.{TraceFrame, TraceLine, TracingMode}
+import cats.effect.tracing.{TraceFrame, StackTraceLine, TracingMode}
 
 private[effect] object IOTracing {
 
@@ -75,7 +75,7 @@ private[effect] object IOTracing {
   private def buildFrame(sourceClass: Class[_]): TraceFrame = {
     // TODO: proper trace calculation
     val line = new Throwable().getStackTrace.toList
-      .map(TraceLine.fromStackTraceElement)
+      .map(StackTraceLine.fromStackTraceElement)
       .find(l => !classBlacklist.exists(b => l.className.startsWith(b)))
       .headOption
 

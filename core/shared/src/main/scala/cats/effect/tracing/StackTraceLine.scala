@@ -17,9 +17,21 @@
 package cats.effect.tracing
 
 // TODO: Track information about what combinator was used etc.
-final case class TraceLine(className: String, methodName: String, fileName: String, lineNumber: Int)
+final case class StackTraceLine(className: String, methodName: String, fileName: String, lineNumber: Int) {
+  import StackTraceLine._
+  def demangled: StackTraceLine = {
+    val newClassName = className.replaceAll("\\$", "")
+    val newMethodName = anonfunRegex.findFirstMatchIn(methodName) match {
+      case Some(mat) => mat.group(1)
+      case None => methodName
+    }
+    StackTraceLine(newClassName, newMethodName, fileName, lineNumber)
+  }
+}
 
-object TraceLine {
-  def fromStackTraceElement(ste: StackTraceElement): TraceLine =
-    TraceLine(ste.getClassName, ste.getMethodName, ste.getFileName, ste.getLineNumber)
+object StackTraceLine {
+  val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
+
+  def fromStackTraceElement(ste: StackTraceElement): StackTraceLine =
+    StackTraceLine(ste.getClassName, ste.getMethodName, ste.getFileName, ste.getLineNumber)
 }

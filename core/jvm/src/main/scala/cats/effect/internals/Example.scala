@@ -70,7 +70,7 @@ object Example extends IOApp {
       _ <- IO.suspend(program).rabbitTrace
       _ <- IO.delay("10")
       trace <- IO.backtrace
-      _ <- IO.delay(trace.printTrace())
+      _ <- IO.delay(trace.prettyPrint())
     } yield ExitCode.Success
 
 }
