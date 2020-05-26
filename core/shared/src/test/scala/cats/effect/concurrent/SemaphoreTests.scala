@@ -30,15 +30,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
-  private def lockSemaphore(n: Long, s: Semaphore[IO]): IO[Boolean] = {
-    def lock(m: Long): IO[Boolean] =
-      if (m == -n) {
-        IO(true)
-      } else {
-        s.count.flatMap(lock)
-      }
-    s.acquireN(n).start *> lock(n).timeout(10.millis)
-  }
+  private def lockSemaphore(n: Long, s: Semaphore[IO]): IO[Boolean] =
+    s.acquireN(n).start.flatMap(_ => s.count.iterateUntil(_ < 0)).map(-n == _)
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
@@ -58,11 +51,11 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
     }
 
     test(s"$label - available with no available permits") {
-      val n = 20
-      sc(20)
+      val n = 20L
+      sc(n)
         .flatMap { s =>
           for {
-            _ <- s.acquire.replicateA(n).void
+            _ <- s.acquire.replicateA(n.toInt)
             isLocked <- lockSemaphore(1, s)
             t <- s.available
           } yield (isLocked, t)
@@ -201,7 +194,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
   tests("concurrent", n => Semaphore[IO](n))
   tests("concurrent in", n => Semaphore.in[IO, IO](n))
-  tests(s"concurrent imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
+  tests("concurrent imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
 
   test("concurrent - acquire does not leak permits upon cancelation") {
     Semaphore[IO](1L)
@@ -231,6 +224,6 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
   tests("async", n => Semaphore.uncancelable[IO](n))
   tests("async in", n => Semaphore.uncancelableIn[IO, IO](n))
-  tests(s"async imapK", n => Semaphore.uncancelable[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
+  tests("async imapK", n => Semaphore.uncancelable[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
 
 }
