@@ -23,7 +23,10 @@ import cats.effect.tracing.{TraceFrame, TraceTag, TracingMode}
 
 private[effect] object IOTracing {
 
-  def apply[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] =
+  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] =
+    Trace(source, buildFrame(traceTag))
+
+  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] =
 //    val mode = localTracingMode.get()
 //    if (mode == 1) {
 //      Trace(source, buildCachedFrame(source.getClass, clazz))
@@ -33,6 +36,9 @@ private[effect] object IOTracing {
 //      source
 //    }
     Trace(source, buildCachedFrame(traceTag, clazz))
+
+  def trace(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
+    buildCachedFrame(traceTag, clazz)
 
   def locallyTraced[A](source: IO[A], newMode: TracingMode): IO[A] =
     IO.suspend {

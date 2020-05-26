@@ -54,8 +54,8 @@ private[effect] object IOForkedStart {
     if (limit > 0) {
       task match {
         case IO.Async(k, _)                => k.isInstanceOf[IOForkedStart[_]]
-        case IO.Bind(other, _)             => detect(other, limit - 1)
-        case IO.Map(other, _, _)           => detect(other, limit - 1)
+        case IO.Bind(other, _, _)          => detect(other, limit - 1)
+        case IO.Map(other, _, _, _)        => detect(other, limit - 1)
         case IO.ContextSwitch(other, _, _) => detect(other, limit - 1)
         case _                             => false
       }

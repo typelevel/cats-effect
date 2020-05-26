@@ -20,21 +20,25 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Scala object field accesses cost a volatile read across modules.
- * Since this flag is read during construction of IO nodes, we are opting to
- * hold this flag in a Java class to bypass the volatile read.
+ * Holds platform-specific flags that control tracing behavior.
+ *
+ * The Scala compiler inserts a volatile bitmap access for module field accesses.
+ * Since several of these flags are read during IO node construction, we are opting
+ * to hold this flag in a Java class to bypass that and squeeze out more performance.
+ *
+ * INTERNAL API.
  */
 public final class TracingPlatformFast {
 
     /**
      * A boolean flag that enables or disables tracing for a JVM process.
-     * Since it is declared static and final, the JIT compiler has the liberty
+     * Since it is declared static and final, The JIT compiler has the liberty
      * to completely eliminate code paths consequent to the conditional.
      */
     public static final boolean isTracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
         .map(x -> Boolean.valueOf(x))
-        .orElse(true);
+        .orElse(false);
 
     /**
      * The number of trace lines to retain during tracing. If more trace
@@ -58,6 +62,10 @@ public final class TracingPlatformFast {
      */
     public static final ConcurrentHashMap<Class<?>, Object> frameCache = new ConcurrentHashMap<>();
 
+    /**
+     * Thread-local state that stores the lexical tracing
+     * mode for the fiber bound to the current thread.
+     */
     public static final ThreadLocal<Integer> localTracingMode = ThreadLocal.withInitial(() -> 1);
 
 }

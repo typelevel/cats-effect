@@ -105,23 +105,18 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def map[B](f: A => B): IO[B] =
     if (isTracingEnabled) {
       // Don't perform map fusion when tracing is enabled.
-      // We may not actually have to do this
-      val nextIo = Map(this, f, 0)
-      if (isTracingEnabled) {
-        IOTracing(nextIo, TraceTag.Map, f.getClass)
-      } else {
-        nextIo
-      }
+      // We may end up removing map fusion altogether.
+      Map(this, f, 0, IOTracing.trace(TraceTag.Map, f.getClass))
     } else {
       this match {
-        case Map(source, g, index) =>
+        case Map(source, g, index, null) =>
           // Allowed to do fixed number of map operations fused before
           // resetting the counter in order to avoid stack overflows;
           // See `IOPlatform` for details on this maximum.
-          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1)
-          else Map(this, f, 0)
+          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1, null)
+          else Map(this, f, 0, null)
         case _ =>
-          Map(this, f, 0)
+          Map(this, f, 0, null)
       }
     }
 
@@ -140,12 +135,14 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] =
-    if (isTracingEnabled) {
-      IOTracing(Bind(this, f), TraceTag.Bind, f.getClass)
+  final def flatMap[B](f: A => IO[B]): IO[B] = {
+    val trace = if (isTracingEnabled) {
+      IOTracing.trace(TraceTag.Bind, f.getClass)
     } else {
-      Bind(this, f)
+      null
     }
+    Bind(this, f, trace)
+  }
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -161,7 +158,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * @see [[IO.raiseError]]
    */
   def attempt: IO[Either[Throwable, A]] =
-    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]])
+    Bind(this, AttemptIO.asInstanceOf[A => IO[Either[Throwable, A]]], null)
 
   /**
    * Produces an `IO` reference that should execute the source on
@@ -583,7 +580,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] = {
     val nextIo = IOBracket(this)(use)((a, _) => release(a))
     if (isTracingEnabled) {
-      IOTracing(nextIo, TraceTag.Bracket, use.getClass)
+      IOTracing.cached(nextIo, TraceTag.Bracket, use.getClass)
     } else {
       nextIo
     }
@@ -624,7 +621,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
     val nextIo = IOBracket(this)(use)(release)
     if (isTracingEnabled) {
-      IOTracing(nextIo, TraceTag.BracketCase, use.getClass)
+      IOTracing.cached(nextIo, TraceTag.BracketCase, use.getClass)
     } else {
       nextIo
     }
@@ -701,7 +698,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Implements `ApplicativeError.handleErrorWith`.
    */
   def handleErrorWith[AA >: A](f: Throwable => IO[AA]): IO[AA] =
-    IO.Bind(this, new IOFrame.ErrorHandler(f))
+    IO.Bind(this, new IOFrame.ErrorHandler(f), null)
 
   /**
    * Zips both this action and the parameter in parallel.
@@ -735,7 +732,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case it ends in success
    */
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    IO.Bind(this, new IOFrame.Redeem(recover, map))
+    IO.Bind(this, new IOFrame.Redeem(recover, map), null)
 
   /**
    * Returns a new value that transforms the result of the source,
@@ -767,7 +764,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        in case of success
    */
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    IO.Bind(this, new IOFrame.RedeemWith(recover, bind))
+    IO.Bind(this, new IOFrame.RedeemWith(recover, bind), null)
 
   override def toString: String = this match {
     case Pure(a)       => s"IO($a)"
@@ -1154,8 +1151,14 @@ object IO extends IOInstances {
    * Any exceptions thrown by the effect will be caught and sequenced
    * into the `IO`.
    */
-  def delay[A](body: => A): IO[A] =
-    Delay(() => body)
+  def delay[A](body: => A): IO[A] = {
+    val nextIo = Delay(() => body)
+    if (isTracingEnabled) {
+      IOTracing.uncached(nextIo, TraceTag.Delay)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Suspends a synchronous side effect which produces an `IO` in `IO`.
@@ -1165,8 +1168,14 @@ object IO extends IOInstances {
    * thrown by the side effect will be caught and sequenced into the
    * `IO`.
    */
-  def suspend[A](thunk: => IO[A]): IO[A] =
-    Suspend(() => thunk)
+  def suspend[A](thunk: => IO[A]): IO[A] = {
+    val nextIo = Suspend(() => thunk)
+    if (isTracingEnabled) {
+      IOTracing.uncached(nextIo, TraceTag.Suspend)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Suspends a pure value in `IO`.
@@ -1178,7 +1187,12 @@ object IO extends IOInstances {
    * (when evaluated) than `IO(42)`, due to avoiding the allocation of
    * extra thunks.
    */
-  def pure[A](a: A): IO[A] = Pure(a)
+  def pure[A](a: A): IO[A] =
+    if (isTracingEnabled) {
+      IOTracing.uncached(Pure(a), TraceTag.Pure)
+    } else {
+      Pure(a)
+    }
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
@@ -1251,7 +1265,7 @@ object IO extends IOInstances {
     }
 
     if (isTracingEnabled) {
-      IOTracing(nextIo, TraceTag.Async, k.getClass)
+      IOTracing.cached(nextIo, TraceTag.Async, k.getClass)
     } else {
       nextIo
     }
@@ -1296,7 +1310,7 @@ object IO extends IOInstances {
     }
 
     if (isTracingEnabled) {
-      IOTracing(nextIo, TraceTag.AsyncF, k.getClass)
+      IOTracing.cached(nextIo, TraceTag.AsyncF, k.getClass)
     } else {
       nextIo
     }
@@ -1363,7 +1377,7 @@ object IO extends IOInstances {
     }
 
     if (isTracingEnabled) {
-      IOTracing(nextIo, TraceTag.Cancelable, k.getClass)
+      IOTracing.cached(nextIo, TraceTag.Cancelable, k.getClass)
     } else {
       nextIo
     }
@@ -1637,10 +1651,12 @@ object IO extends IOInstances {
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A]) extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: TraceFrame) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int) extends IO[A] with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: TraceFrame)
+      extends IO[A]
+      with (E => IO[A]) {
     override def apply(value: E): IO[A] =
       Pure(f(value))
   }

@@ -19,6 +19,10 @@ package cats.effect.tracing
 final case class TraceTag(name: String)
 
 object TraceTag {
+  val Pure = TraceTag("pure")
+  val Delay = TraceTag("delay")
+  val Suspend = TraceTag("suspend")
+
   val Attempt = TraceTag("attempt")
   val Bind = TraceTag("flatMap")
   val Map = TraceTag("map")
