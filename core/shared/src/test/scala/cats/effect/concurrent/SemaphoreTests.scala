@@ -30,9 +30,9 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
-  private def lockSemaphore(n: Long, s: Semaphore[IO]): IO[Boolean] =
+  private def withLock[T](n: Long, s: Semaphore[IO])(test: Long => IO[T]): IO[T] =
     //w/o cs.shift this hangs for coreJS
-    s.acquireN(n).start.flatMap(_ => cs.shift *> s.count.iterateUntil(_ < 0)).map(-n == _)
+    s.acquireN(n).background.use(_ => cs.shift *> s.count.iterateUntil(_ < 0).flatMap(test))
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
@@ -57,13 +57,14 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquire.replicateA(n.toInt)
-            isLocked <- lockSemaphore(1, s)
-            t <- s.available
-          } yield (isLocked, t)
+            res <- withLock(1, s) { t =>
+              s.available.map(t -> _)
+            }
+          } yield res
 
         }
         .unsafeToFuture()
-        .map(_ shouldBe ((true, 0)))
+        .map(_ shouldBe ((-1, 0)))
     }
 
     test(s"$label - tryAcquire with available permits") {
@@ -160,12 +161,13 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquireN(n).void
-            isLocked <- lockSemaphore(n, s)
-            t <- s.count
-          } yield (isLocked, t)
+            res <- withLock(n, s) { t =>
+              s.count.map(t -> _)
+            }
+          } yield res
         }
         .unsafeToFuture()
-        .map(count => count shouldBe ((true, -n)))
+        .map(count => count shouldBe ((-n, -n)))
     }
 
     test(s"$label - count with 0 available permits") {
