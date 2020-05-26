@@ -30,9 +30,9 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
-  private def withLock[T](n: Long, s: Semaphore[IO])(test: Long => IO[T]): IO[T] =
-    //w/o cs.shift this hangs for coreJS
-    s.acquireN(n).background.use(_ => cs.shift *> s.count.iterateUntil(_ < 0).flatMap(test))
+  //w/o cs.shift this hangs for coreJS
+  private def withLock[T](n: Long, s: Semaphore[IO]): Resource[IO, Long] =
+    s.acquireN(n).background *> Resource.liftF(cs.shift *> s.count.iterateUntil(_ < 0))
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
@@ -57,7 +57,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquire.replicateA(n.toInt)
-            res <- withLock(1, s) { t =>
+            res <- withLock(1, s).use { t =>
               s.available.map(t -> _)
             }
           } yield res
@@ -161,7 +161,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquireN(n).void
-            res <- withLock(n, s) { t =>
+            res <- withLock(n, s).use { t =>
               s.count.map(t -> _)
             }
           } yield res
