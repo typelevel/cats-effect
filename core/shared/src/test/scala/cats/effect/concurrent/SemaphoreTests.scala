@@ -31,7 +31,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
   private def lockSemaphore(n: Long, s: Semaphore[IO]): IO[Boolean] =
-    s.acquireN(n).start.flatMap(_ => s.count.iterateUntil(_ < 0)).map(-n == _)
+    //w/o timeout(1.second) this hangs for coreJS
+    s.acquireN(n).start.flatMap(_ => s.count.iterateUntil(_ < 0).timeout(1.second)).map(-n == _)
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
