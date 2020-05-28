@@ -25,18 +25,18 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
 
   import RingBuffer._
 
-  private[this] val capacity = nextPowerOfTwo(size)
-  private[this] val mask = capacity - 1
+  private[this] val length = nextPowerOfTwo(size)
+  private[this] val mask = length - 1
 
   // TODO: this can be an expensive allocation
   // either construct it lazily or expand it on-demand
-  private[this] val array: Array[AnyRef] = new Array(capacity)
+  private[this] val array: Array[AnyRef] = new Array(length)
   private[this] var writeIndex: Int = 0
   private[this] var readIndex: Int = 0
 
   def push(a: A): A = {
     val wi = writeIndex & mask
-    if (writeIndex == readIndex + capacity) {
+    if (writeIndex == readIndex + length) {
       val old = array(wi)
       array(wi) = a
       // TODO: overflow at int.maxvalue?
@@ -49,6 +49,12 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
       null.asInstanceOf[A]
     }
   }
+
+  def capacity: Int =
+    length
+
+  def isEmpty: Boolean =
+    readIndex == writeIndex
 
   // TODO: expose this as an iterator instead?
   def toList: List[A] =
