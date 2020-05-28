@@ -1633,7 +1633,7 @@ object IO extends IOInstances {
     IOContextShift(ec)
 
   val backtrace: IO[IOTrace] =
-    Introspect
+    IOTracing.backtrace
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
@@ -1694,8 +1694,6 @@ object IO extends IOInstances {
     modify: IOConnection => IOConnection,
     restore: (A, Throwable, IOConnection, IOConnection) => IOConnection
   ) extends IO[A]
-
-  final private[effect] case object Introspect extends IO[IOTrace]
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 

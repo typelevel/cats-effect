@@ -16,35 +16,38 @@
 
 package cats.effect.tracing
 
+import cats.effect.IO
+
 final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
 
   import IOTrace._
 
-  def rawPrint(): Unit = {
+  def compact: String = {
     def renderStackTraceElement(ste: StackTraceElement): String = {
-      val className = ste.getClassName.replaceAll("\\$", "")
-      val methodName = anonfunRegex.findFirstMatchIn(ste.getMethodName) match {
-        case Some(mat) => mat.group(1)
-        case None      => ste.getMethodName
-      }
-
+      val className = demangleClassName(ste.getClassName)
+      val methodName = demangleMethodName(ste.getMethodName)
       s"$className.$methodName (${ste.getFileName}:${ste.getLineNumber})"
     }
 
-    System.err.println(s"IOTrace: $omitted omitted frames")
-    frames.foreach { f =>
-      val desc = s"\t${f.tag.name} at " + f.stackTrace.headOption.map(renderStackTraceElement).getOrElse("(...)")
-      System.err.println(desc)
-    }
-    System.err.println()
+    val acc0 = s"IOTrace: $omitted omitted frames\n"
+    val acc1 = frames.foldLeft(acc0)((acc, f) =>
+      acc + s"\t${f.tag.name} at " + f.stackTrace.headOption.map(renderStackTraceElement).getOrElse("(...)") + "\n"
+    ) + "\n"
+
+    acc1
   }
 
-  def prettyPrint(): Unit = {
-    val render = loop("", 0, true, frames.toList)
-    System.err.println(s"IOTrace: $omitted omitted frames")
-    System.err.println(render)
-    System.err.println()
+  def compactPrint: IO[Unit] =
+    IO(System.err.println(compact))
+
+  def pretty: String = {
+    val acc0 = s"IOTrace: $omitted omitted frames"
+    val acc1 = acc0 + loop("", 0, true, frames.toList)
+    acc1
   }
+
+  def prettyPrint: IO[Unit] =
+    IO(System.err.println(pretty))
 
   private def loop(acc: String, indent: Int, init: Boolean, rest: List[TraceFrame]): String = {
     val TurnRight = "╰"
@@ -54,11 +57,8 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
     val Line = "│"
 
     def renderStackTraceElement(ste: StackTraceElement, last: Boolean): String = {
-      val className = ste.getClassName.replaceAll("\\$", "")
-      val methodName = anonfunRegex.findFirstMatchIn(ste.getMethodName) match {
-        case Some(mat) => mat.group(1)
-        case None      => ste.getMethodName
-      }
+      val className = demangleClassName(ste.getClassName)
+      val methodName = demangleMethodName(ste.getMethodName)
 
       val junc = if (last) TurnRight else Junction
 
@@ -80,11 +80,18 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
 
         loop(acc + acc2 + inner + innerLines + Line + "\n", indent, false, ks)
       }
-      case Nil => {
-        acc + TurnRight + " Done"
-      }
+      case Nil => acc
     }
   }
+
+  private def demangleClassName(className: String): String =
+    className.replaceAll("\\$", "")
+
+  private def demangleMethodName(methodName: String): String =
+    anonfunRegex.findFirstMatchIn(methodName) match {
+      case Some(mat) => mat.group(1)
+      case None      => methodName
+    }
 
 }
 

@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Introspect, Map, Pure, RaiseError, Suspend, Trace}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.TracingMode
 import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
@@ -180,11 +180,6 @@ private[effect] object IORunLoop {
           if (ctx eq null) ctx = IOContext()
           ctx.pushFrame(frame)
           currentIO = source
-
-        case Introspect =>
-          if (ctx eq null) ctx = IOContext()
-          hasUnboxed = true
-          unboxed = ctx.getTrace
       }
 
       if (hasUnboxed) {
@@ -289,12 +284,6 @@ private[effect] object IORunLoop {
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
-
-        case Introspect =>
-          // TODO: This can be implemented in terms of Async now
-          if (ctx eq null) ctx = IOContext()
-          hasUnboxed = true
-          unboxed = ctx.getTrace
 
         case _ =>
           return Async { (conn, ctx, cb) =>

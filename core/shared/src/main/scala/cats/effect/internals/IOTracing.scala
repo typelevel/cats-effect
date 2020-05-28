@@ -19,7 +19,7 @@ package cats.effect.internals
 import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
 import cats.effect.IO
 import cats.effect.IO.Trace
-import cats.effect.tracing.{TraceFrame, TraceTag, TracingMode}
+import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag, TracingMode}
 
 private[effect] object IOTracing {
 
@@ -41,31 +41,45 @@ private[effect] object IOTracing {
     buildCachedFrame(traceTag, clazz)
 
   def locallyTraced[A](source: IO[A], newMode: TracingMode): IO[A] =
-    IO.suspend {
-      val oldMode = localTracingMode.get()
-      localTracingMode.set(newMode.tag)
+    for {
+      _ <- resetTrace
+      a <- IO.suspend {
+        val oldMode = localTracingMode.get()
+        localTracingMode.set(newMode.tag)
 
-      // In the event of cancellation, the tracing mode will be reset
-      // when the thread grabs a new task to run (via Async).
-      source.redeemWith(
-        e =>
-          IO.suspend {
-            localTracingMode.set(oldMode)
-            IO.raiseError(e)
-          },
-        a =>
-          IO.suspend {
-            localTracingMode.set(oldMode)
-            IO.pure(a)
-          }
-      )
-    }
+        // In the event of cancellation, the tracing mode will be reset
+        // when the thread grabs a new task to run (via Async).
+        source.redeemWith(
+          e =>
+            IO.suspend {
+              localTracingMode.set(oldMode)
+              IO.raiseError(e)
+            },
+          a =>
+            IO.suspend {
+              localTracingMode.set(oldMode)
+              IO.pure(a)
+            }
+        )
+      }
+    } yield a
 
   def getLocalTracingMode(): TracingMode =
     TracingMode.fromInt(localTracingMode.get())
 
   def setLocalTracingMode(mode: TracingMode): Unit =
     localTracingMode.set(mode.tag)
+
+  val backtrace: IO[IOTrace] =
+    IO.Async { (_, ctx, cb) =>
+      cb(Right(ctx.getTrace))
+    }
+
+  private val resetTrace: IO[Unit] =
+    IO.Async { (_, ctx, cb) =>
+      ctx.resetTrace()
+      cb(Right(()))
+    }
 
   private def buildCachedFrame(traceTag: TraceTag, keyClass: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(keyClass).asInstanceOf[TraceFrame]

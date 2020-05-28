@@ -26,7 +26,7 @@ import cats.effect.internals.TracingPlatformFast.maxTraceDepth
  */
 final private[effect] class IOContext private () {
 
-  private val frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
+  private var frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
   private var omitted: Int = 0
 
   def pushFrame(fr: TraceFrame): Unit = {
@@ -34,6 +34,11 @@ final private[effect] class IOContext private () {
     if (a != null) {
       omitted += 1
     }
+  }
+
+  def resetTrace(): Unit = {
+    frames = new RingBuffer(maxTraceDepth)
+    omitted = 0
   }
 
   def getTrace: IOTrace =
