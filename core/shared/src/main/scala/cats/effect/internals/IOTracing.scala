@@ -24,19 +24,26 @@ import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag, TracingMode}
 
 private[effect] object IOTracing {
 
-  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] =
-    Trace(source, buildFrame(traceTag))
+  // TODO: It may be worth tracking mode in the global flag
+  // marking the ones we want. This avoids a thread-local on uncachable
+  // nodes which incurs the bulk of the performance hit.
+  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] = {
+    if (false) {
+      println(traceTag)
+    }
+//    Trace(source, buildFrame(traceTag))
+    source
+  }
 
-  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] =
-//    val mode = localTracingMode.get()
-//    if (mode == 1) {
-//      Trace(source, buildCachedFrame(source.getClass, clazz))
-//    } else if (mode == 2) {
-//      Trace(source, buildFrame(source.getClass))
-//    } else {
-//      source
+  // TODO: Avoid trace tag for primitive ops and rely on class
+  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] = {
+//    localTracingMode.get() match {
+//      case TracingMode.Rabbit => Trace(source, buildCachedFrame(traceTag, clazz))
+//      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
+//      case _ => source
 //    }
     Trace(source, buildCachedFrame(traceTag, clazz))
+  }
 
   def trace(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
     buildCachedFrame(traceTag, clazz)

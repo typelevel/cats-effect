@@ -101,12 +101,13 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext, trace) =>
+        case bind @ Bind(fa, bindNext, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
+            val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -145,12 +146,13 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _, trace) =>
+        case bindNext @ Map(fa, _, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
+            val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -224,12 +226,13 @@ private[effect] object IORunLoop {
 
     while ({
       currentIO match {
-        case Bind(fa, bindNext, trace) =>
+        case bind @ Bind(fa, bindNext, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
+            val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -268,12 +271,13 @@ private[effect] object IORunLoop {
               currentIO = fa
           }
 
-        case bindNext @ Map(fa, _, _, trace) =>
+        case bindNext @ Map(fa, _, _, _) =>
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
+            val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }

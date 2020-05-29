@@ -17,7 +17,6 @@
 package cats.effect.internals;
 
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Holds platform-specific flags that control tracing behavior.
