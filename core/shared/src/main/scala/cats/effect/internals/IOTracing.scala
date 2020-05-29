@@ -16,7 +16,8 @@
 
 package cats.effect.internals
 
-import cats.effect.internals.TracingPlatformFast.{frameCache, localTracingMode}
+import java.util.concurrent.ConcurrentHashMap
+
 import cats.effect.IO
 import cats.effect.IO.Trace
 import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag, TracingMode}
@@ -45,7 +46,7 @@ private[effect] object IOTracing {
       _ <- resetTrace
       a <- IO.suspend {
         val oldMode = localTracingMode.get()
-        localTracingMode.set(newMode.tag)
+        localTracingMode.set(newMode)
 
         // In the event of cancellation, the tracing mode will be reset
         // when the thread grabs a new task to run (via Async).
@@ -65,24 +66,18 @@ private[effect] object IOTracing {
     } yield a
 
   def getLocalTracingMode(): TracingMode =
-    TracingMode.fromInt(localTracingMode.get())
+    localTracingMode.get()
 
   def setLocalTracingMode(mode: TracingMode): Unit =
-    localTracingMode.set(mode.tag)
+    localTracingMode.set(mode)
 
   val backtrace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
       cb(Right(ctx.getTrace))
     }
 
-  private val resetTrace: IO[Unit] =
-    IO.Async { (_, ctx, cb) =>
-      ctx.resetTrace()
-      cb(Right(()))
-    }
-
   private def buildCachedFrame(traceTag: TraceTag, keyClass: Class[_]): TraceFrame = {
-    val cachedFr = frameCache.get(keyClass).asInstanceOf[TraceFrame]
+    val cachedFr = frameCache.get(keyClass)
     if (cachedFr eq null) {
       val fr = buildFrame(traceTag)
       frameCache.put(keyClass, fr)
@@ -100,7 +95,25 @@ private[effect] object IOTracing {
     TraceFrame(traceTag, stackTrace)
   }
 
-  private val classBlacklist = List(
+  private[this] val resetTrace: IO[Unit] =
+    IO.Async { (_, ctx, cb) =>
+      ctx.resetTrace()
+      cb(Right(()))
+    }
+
+  /**
+   * Cache for trace frames. Keys are references to:
+   * - lambda classes
+   */
+  private[this] val frameCache: ConcurrentHashMap[Class[_], TraceFrame] = new ConcurrentHashMap()
+
+  /**
+   * Thread-local state that stores the lexical tracing
+   * mode for the fiber bound to the current thread.
+   */
+  private[this] val localTracingMode: ThreadLocal[TracingMode] = ThreadLocal.withInitial(() => TracingMode.Rabbit)
+
+  private[this] val classBlacklist = List(
     "cats.effect.",
     "cats.",
     "sbt.",

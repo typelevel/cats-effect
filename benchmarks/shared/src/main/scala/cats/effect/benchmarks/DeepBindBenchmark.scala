@@ -54,16 +54,16 @@ class DeepBindBenchmark {
     loop(0).unsafeRunSync()
   }
 
-//  @Benchmark
-//  def delay(): Int = {
-//    def loop(i: Int): IO[Int] =
-//      for {
-//        j <- IO(i)
-//        _ <- if (j > size) IO(j) else loop(j + 1)
-//      } yield j
-//
-//    loop(0).unsafeRunSync()
-//  }
+  @Benchmark
+  def delay(): Int = {
+    def loop(i: Int): IO[Int] =
+      for {
+        j <- IO(i)
+        _ <- if (j > size) IO(j) else loop(j + 1)
+      } yield j
+
+    loop(0).unsafeRunSync()
+  }
 
 //  @Benchmark
 //  def async(): Int = {

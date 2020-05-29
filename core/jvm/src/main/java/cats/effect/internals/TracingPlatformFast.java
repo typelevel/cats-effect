@@ -38,7 +38,7 @@ public final class TracingPlatformFast {
     public static final boolean isTracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
         .filter(x -> !x.isEmpty())
         .map(x -> Boolean.valueOf(x))
-        .orElse(true);
+        .orElse(false);
 
     /**
      * The number of trace lines to retain during tracing. If more trace
@@ -55,17 +55,5 @@ public final class TracingPlatformFast {
             }
         })
         .orElse(512);
-
-    /**
-     * Cache for trace frames. Keys are references to:
-     * - lambda classes
-     */
-    public static final ConcurrentHashMap<Class<?>, Object> frameCache = new ConcurrentHashMap<>();
-
-    /**
-     * Thread-local state that stores the lexical tracing
-     * mode for the fiber bound to the current thread.
-     */
-    public static final ThreadLocal<Integer> localTracingMode = ThreadLocal.withInitial(() -> 1);
 
 }
