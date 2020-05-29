@@ -71,6 +71,7 @@ private[effect] object IOTracing {
   def setLocalTracingMode(mode: TracingMode): Unit =
     localTracingMode.set(mode)
 
+  // TODO: def might be faster than value
   val backtrace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
       cb(Right(ctx.getTrace))
