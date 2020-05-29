@@ -311,10 +311,9 @@ trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
 cancellation happens _while_ the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
-being closed by another thread. For more info about this problem see [Gotcha:
-Cancellation is a concurrent
-action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
-cats-effect site.
+being closed by another thread. For more info about this problem see 
+[Gotcha: Cancellation is a concurrent action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) 
+in cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
 that ensures that no stream will be closed while the `IO` returned by
@@ -391,10 +390,10 @@ Mark that while the `IO` returned by `copy` is cancelable (because so are `IO`
 instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
-functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
-explains how to create such cancelable `IO` instances (besides calling
-`Resource.use`, as we have done for our code).
+functions cancelable, section 
+[Building cancelable IO tasks](../datatypes/io.md#building-cancelable-io-tasks) 
+of `IO` documentation explains how to create such cancelable `IO` instances 
+(besides calling `Resource.use`, as we have done for our code).
 
 And that is it! We are done, now we can create a program that uses this
 `copy` function.
