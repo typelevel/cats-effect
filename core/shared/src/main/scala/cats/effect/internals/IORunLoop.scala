@@ -231,18 +231,18 @@ private[effect] object IORunLoop {
       }
 
       if (hasUnboxed) {
-        val _unboxed = unboxed
         popNextBind(bFirst, bRest) match {
           case null =>
-            return (if (currentIO ne null) currentIO else Pure(_unboxed))
+            return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
-            currentIO =
-              try bind(_unboxed)
+            val fa =
+              try bind(unboxed)
               catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
+            currentIO = fa
         }
       }
       true
