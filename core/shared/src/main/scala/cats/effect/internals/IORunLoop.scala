@@ -255,14 +255,9 @@ private[effect] object IORunLoop {
   private def suspendAsync[A](currentIO: IO[A], bFirst: Bind, bRest: CallStack): IO[A] =
     // Encountered an instruction that can't be interpreted synchronously,
     // so suspend it in an Async node that can be invoked later.
-    // If we had previous `flatMap` operations then we need to resume
-    // the loop with the collected stack.
-    if (bFirst != null || (bRest != null && !bRest.isEmpty))
-      Async { (conn, cb) =>
-        loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
-      }
-    else
-      currentIO
+    Async { (conn, cb) =>
+      loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+    }
 
   /**
    * Pops the next bind function from the stack, but filters out
