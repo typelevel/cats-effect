@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.TracingMode
+import cats.effect.tracing.{TraceFrame, TracingMode}
 import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 import scala.util.control.NonFatal
@@ -107,7 +107,7 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
-            val trace = bind.trace
+            val trace = bind.trace.asInstanceOf[TraceFrame]
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -152,7 +152,7 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
-            val trace = bindNext.trace
+            val trace = bindNext.trace.asInstanceOf[TraceFrame]
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -232,7 +232,7 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
-            val trace = bind.trace
+            val trace = bind.trace.asInstanceOf[TraceFrame]
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }
@@ -277,7 +277,7 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if (isTracingEnabled) {
-            val trace = bindNext.trace
+            val trace = bindNext.trace.asInstanceOf[TraceFrame]
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace)
           }

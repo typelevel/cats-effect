@@ -1651,10 +1651,10 @@ object IO extends IOInstances {
   final private[effect] case class Suspend[+A](thunk: () => IO[A]) extends IO[A]
 
   /** Corresponds to [[IO.flatMap]]. */
-  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: TraceFrame) extends IO[A]
+  final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: TraceFrame)
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: AnyRef)
       extends IO[A]
       with (E => IO[A]) {
     override def apply(value: E): IO[A] =
