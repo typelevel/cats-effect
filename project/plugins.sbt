@@ -3,7 +3,7 @@ addSbtPlugin("io.crashbox" % "sbt-gpg" % "0.2.1")
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "0.7.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.0")
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.11")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.12")
 val scalaJSVersion =
   Option(System.getenv("SCALAJS_VERSION")).filter(_.nonEmpty).getOrElse("1.0.1")
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalaJSVersion)
