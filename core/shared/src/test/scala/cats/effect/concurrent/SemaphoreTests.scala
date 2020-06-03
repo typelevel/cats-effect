@@ -22,6 +22,7 @@ import cats.implicits._
 import org.scalatest.{Assertion, EitherValues}
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
@@ -30,9 +31,11 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
-  //w/o cs.shift this hangs for coreJS
-  private def withLock[T](n: Long, s: Semaphore[IO]): Resource[IO, Long] =
-    s.acquireN(n).background *> Resource.liftF(cs.shift *> s.count.iterateUntil(_ < 0))
+  private def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
+    s.acquireN(n).background.use { _ =>
+      //w/o cs.shift this hangs for coreJS
+      cs.shift *> s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
+    }
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
@@ -57,9 +60,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquire.replicateA(n.toInt)
-            res <- withLock(1, s).use { t =>
-              s.available.map(t -> _)
-            }
+            res <- withLock(1, s, s.available)
           } yield res
 
         }
@@ -161,9 +162,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .flatMap { s =>
           for {
             _ <- s.acquireN(n).void
-            res <- withLock(n, s).use { t =>
-              s.count.map(t -> _)
-            }
+            res <- withLock(n, s, s.count)
           } yield res
         }
         .unsafeToFuture()
