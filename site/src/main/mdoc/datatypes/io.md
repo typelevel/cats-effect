@@ -181,7 +181,7 @@ An example would be reading / writing from / to the console, which on
 top of the JVM uses blocking I/O, so their execution is immediate:
 
 ```scala mdoc:silent
-def putStrlLn(value: String) = IO(println(value))
+def putStrLn(value: String) = IO(println(value))
 val readLn = IO(scala.io.StdIn.readLine)
 ```
 
@@ -190,9 +190,9 @@ purely functional way:
 
 ```scala mdoc:silent
 for {
-  _ <- putStrlLn("What's your name?")
+  _ <- putStrLn("What's your name?")
   n <- readLn
-  _ <- putStrlLn(s"Hello, $n!")
+  _ <- putStrLn(s"Hello, $n!")
 } yield ()
 ```
 
