@@ -241,7 +241,8 @@ private[effect] object IORunLoop {
           }
           if (isTracingEnabled && inTracingRegion) {
             if (ctx eq null) ctx = IOContext()
-            if (bind.trace ne null) ctx.pushFrame(bind.trace.asInstanceOf[TraceFrame])
+            val trace = bind.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -285,7 +286,8 @@ private[effect] object IORunLoop {
           }
           if (isTracingEnabled && inTracingRegion) {
             if (ctx eq null) ctx = IOContext()
-            if (bindNext.trace ne null) ctx.pushFrame(bindNext.trace.asInstanceOf[TraceFrame])
+            val trace = bindNext.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
