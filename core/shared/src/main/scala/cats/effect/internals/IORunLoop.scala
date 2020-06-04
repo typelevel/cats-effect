@@ -19,6 +19,8 @@ package cats.effect.internals
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.{TraceFrame, TracingMode}
+
+//TODO: define in a private variable?
 import cats.effect.internals.TracingPlatformFast.isTracingEnabled
 
 import scala.util.control.NonFatal
@@ -223,6 +225,12 @@ private[effect] object IORunLoop {
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
     var unboxed: AnyRef = null
+    val inTracingRegion: Boolean = if (isTracingEnabled) {
+      IOTracing.getLocalTracingMode() match {
+        case TracingMode.Disabled => false
+        case _ => true
+      }
+    } else false
 
     while ({
       currentIO match {
@@ -231,10 +239,9 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isTracingEnabled) {
-            val trace = bind.trace.asInstanceOf[TraceFrame]
+          if (isTracingEnabled && inTracingRegion) {
             if (ctx eq null) ctx = IOContext()
-            if (trace ne null) ctx.pushFrame(trace)
+            if (bind.trace ne null) ctx.pushFrame(bind.trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -276,13 +283,21 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isTracingEnabled) {
-            val trace = bindNext.trace.asInstanceOf[TraceFrame]
+          if (isTracingEnabled && inTracingRegion) {
             if (ctx eq null) ctx = IOContext()
-            if (trace ne null) ctx.pushFrame(trace)
+            if (bindNext.trace ne null) ctx.pushFrame(bindNext.trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
+
+        case Trace(source, frame) =>
+          // We should never see a Trace node where the following
+          // conditional evaluates to false.
+          if (isTracingEnabled && inTracingRegion) {
+            if (ctx eq null) ctx = IOContext()
+            ctx.pushFrame(frame)
+          }
+          currentIO = source
 
         case Async(_, _) =>
           // Cannot inline the code of this method — as it would

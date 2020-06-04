@@ -27,23 +27,19 @@ private[effect] object IOTracing {
   // TODO: It may be worth tracking mode in the global flag
   // marking the ones we want. This avoids a thread-local on uncachable
   // nodes which incurs the bulk of the performance hit.
-  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] = {
-    if (false) {
-      println(traceTag)
+  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] =
+    localTracingMode.get() match {
+      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
+      case _ => source
     }
-//    Trace(source, buildFrame(traceTag))
-    source
-  }
 
   // TODO: Avoid trace tag for primitive ops and rely on class
-  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] = {
-//    localTracingMode.get() match {
-//      case TracingMode.Rabbit => Trace(source, buildCachedFrame(traceTag, clazz))
-//      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
-//      case _ => source
-//    }
-    Trace(source, buildCachedFrame(traceTag, clazz))
-  }
+  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] =
+    localTracingMode.get() match {
+      case TracingMode.Rabbit => Trace(source, buildCachedFrame(traceTag, clazz))
+      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
+      case TracingMode.Disabled => source
+    }
 
   def trace(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
     buildCachedFrame(traceTag, clazz)
@@ -56,18 +52,16 @@ private[effect] object IOTracing {
         localTracingMode.set(newMode)
 
         // In the event of cancellation, the tracing mode will be reset
-        // when the thread grabs a new task to run (via Async).
+        // when the thread grabs a new task to run (via Async or IORunLoop.start).
         source.redeemWith(
-          e =>
-            IO.suspend {
-              localTracingMode.set(oldMode)
-              IO.raiseError(e)
-            },
-          a =>
-            IO.suspend {
-              localTracingMode.set(oldMode)
-              IO.pure(a)
-            }
+          e => IO.suspend {
+            localTracingMode.set(oldMode)
+            IO.raiseError(e)
+          },
+          a => IO.suspend {
+            localTracingMode.set(oldMode)
+            IO.pure(a)
+          }
         )
       }
     } yield a
@@ -95,7 +89,7 @@ private[effect] object IOTracing {
     }
   }
 
-  private def buildFrame(traceTag: TraceTag): TraceFrame = {
+  def buildFrame(traceTag: TraceTag): TraceFrame = {
     // TODO: proper trace calculation
     val stackTrace = new Throwable().getStackTrace.toList
       .dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b)))
@@ -119,7 +113,7 @@ private[effect] object IOTracing {
    * Thread-local state that stores the lexical tracing
    * mode for the fiber bound to the current thread.
    */
-  private[this] val localTracingMode: ThreadLocal[TracingMode] = ThreadLocal.withInitial(() => TracingMode.Rabbit)
+  private[this] val localTracingMode: ThreadLocal[TracingMode] = ThreadLocal.withInitial(() => TracingMode.Disabled)
 
   private[this] val classBlacklist = List(
     "cats.effect.",
