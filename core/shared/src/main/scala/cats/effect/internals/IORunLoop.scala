@@ -224,14 +224,10 @@ private[effect] object IORunLoop {
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case Async(_, _) =>
+        case _ =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
-          return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], bFirst, bRest)
-        case _ =>
-          return Async { (conn, cb) =>
-            loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
-          }
+          return suspendAsync(currentIO.asInstanceOf[IO[A]], bFirst, bRest)
       }
 
       if (hasUnboxed) {
@@ -240,12 +236,13 @@ private[effect] object IORunLoop {
             return (if (currentIO ne null) currentIO else Pure(unboxed))
               .asInstanceOf[IO[A]]
           case bind =>
-            currentIO =
+            val fa =
               try bind(unboxed)
               catch { case NonFatal(ex) => RaiseError(ex) }
             hasUnboxed = false
             unboxed = null
             bFirst = null
+            currentIO = fa
         }
       }
       true
@@ -255,16 +252,12 @@ private[effect] object IORunLoop {
     // $COVERAGE-ON$
   }
 
-  private def suspendAsync[A](currentIO: IO.Async[A], bFirst: Bind, bRest: CallStack): IO[A] =
-    // Hitting an async boundary means we have to stop, however
-    // if we had previous `flatMap` operations then we need to resume
-    // the loop with the collected stack
-    if (bFirst != null || (bRest != null && !bRest.isEmpty))
-      Async { (conn, cb) =>
-        loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
-      }
-    else
-      currentIO
+  private def suspendAsync[A](currentIO: IO[A], bFirst: Bind, bRest: CallStack): IO[A] =
+    // Encountered an instruction that can't be interpreted synchronously,
+    // so suspend it in an Async node that can be invoked later.
+    Async { (conn, cb) =>
+      loop(currentIO, conn, cb.asInstanceOf[Callback], null, bFirst, bRest)
+    }
 
   /**
    * Pops the next bind function from the stack, but filters out
