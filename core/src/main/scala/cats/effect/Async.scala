@@ -31,3 +31,7 @@ trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] { self: Safe[F, Th
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
   def executionContext: F[ExecutionContext]
 }
+
+object Async {
+  def apply[F[_]](implicit F: Async[F]): F.type = F
+}

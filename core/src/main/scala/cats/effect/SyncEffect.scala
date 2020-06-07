@@ -34,3 +34,7 @@ trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
       toK[G](G)(fa)
   }
 }
+
+object SyncEffect {
+  def apply[F[_]](implicit F: SyncEffect[F]): F.type = F
+}

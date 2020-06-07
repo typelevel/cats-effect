@@ -32,5 +32,5 @@ trait Clock[F[_]] extends Applicative[F] {
 }
 
 object Clock {
-  def apply[F[_]](implicit F: Clock[F]): Clock[F] = F
+  def apply[F[_]](implicit F: Clock[F]): F.type = F
 }

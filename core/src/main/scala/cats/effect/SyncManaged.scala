@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.~>
 import cats.implicits._
 
 trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, ?]] with Region[R, F, Throwable] {
@@ -29,4 +28,8 @@ trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, ?]] with Region[R, F, Thro
   trait PartiallyApplied[S[_[_], _]] {
     def apply[A](rfa: R[F, A])(implicit S: Sync[S[F, ?]] with Region[S, F, Throwable]): S[F, A]
   }
+}
+
+object SyncManaged {
+  def apply[R[_[_], _], F[_]](implicit R: SyncManaged[R, F]): R.type = R
 }
