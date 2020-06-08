@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eq, Show}
+import cats.Show
 import cats.effect.laws.ConcurrentBracketTests
 import cats.implicits._
 
@@ -25,7 +25,6 @@ import pure._
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -37,12 +36,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
-
-  def be_===[A: Eq: Show](expect: A): Matcher[A] = (result: A) =>
-    (result === expect, s"${result.show} === ${expect.show}", s"${result.show} !== ${expect.show}")
-
   checkAll(
     "PureConc",
-    ConcurrentBracketTests[PureConc[Int, ?], Int].concurrentBracket[Int, Int, Int])
+    ConcurrentBracketTests[PureConc[Int, *], Int].concurrentBracket[Int, Int, Int])
 }

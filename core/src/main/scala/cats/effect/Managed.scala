@@ -17,11 +17,11 @@
 package cats.effect
 
 // TODO names ("Managed" conflicts with ZIO, but honestly it's a better name for this than Resource or IsoRegion)
-trait Managed[R[_[_], _], F[_]] extends Async[R[F, ?]] with Region[R, F, Throwable] {
+trait Managed[R[_[_], _], F[_]] extends Async[R[F, *]] with Region[R, F, Throwable] {
 
   def to[S[_[_], _]]: PartiallyApplied[S]
 
   trait PartiallyApplied[S[_[_], _]] {
-    def apply[A](rfa: R[F, A])(implicit S: Async[S[F, ?]] with Region[S, F, Throwable]): S[F, A]
+    def apply[A](rfa: R[F, A])(implicit S: Async[S[F, *]] with Region[S, F, Throwable]): S[F, A]
   }
 }

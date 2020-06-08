@@ -22,8 +22,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [2.12.11, 2.13.2]
-        java: [adopt@1.8, adopt@11, adopt@14, graalvm@20.0.0]
+        scala: [2.12.11, 0.24.0-RC1, 2.13.2]
+        java: [adopt@1.8, adopt@11, adopt@14, graalvm@20.1.0]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (fast)

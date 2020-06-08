@@ -59,10 +59,10 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.start(F.raiseError[Unit](e)).flatMap(_.join) <-> F.pure(Outcome.Errored(e))
 
   def fiberCancelationIsOutcomeCanceled =
-    F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Canceled)
+    F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join) <-> F.pure(Outcome.Canceled())
 
   def fiberCanceledIsOutcomeCanceled =
-    F.start(F.canceled).flatMap(_.join) <-> F.pure(Outcome.Canceled)
+    F.start(F.canceled).flatMap(_.join) <-> F.pure(Outcome.Canceled())
 
   def fiberNeverIsNever =
     F.start(F.never[Unit]).flatMap(_.join) <-> F.never[Outcome[F, E, Unit]]
@@ -100,10 +100,10 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.uncancelable(p => F.race(fa, p(F.canceled))) <-> F.uncancelable(_ => fa.map(_.asLeft[Unit]))
 
   def uncancelableCancelCancels =
-    F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(Outcome.Canceled)
+    F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(Outcome.Canceled())
 
   def uncancelableStartIsCancelable =
-    F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(Outcome.Canceled)
+    F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(Outcome.Canceled())
 
   // the attempt here enforces the cancelation-dominates-over-errors semantic
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =

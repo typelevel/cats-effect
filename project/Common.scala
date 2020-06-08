@@ -16,13 +16,26 @@
 
 import sbt._, Keys._
 
+import dotty.tools.sbtplugin.DottyPlugin, DottyPlugin.autoImport._
+
 object Common extends AutoPlugin {
 
-  override def requires = plugins.JvmPlugin
+  override def requires = plugins.JvmPlugin && DottyPlugin
   override def trigger = allRequirements
 
   override def projectSettings =
     Seq(
-      addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"),
-      scalacOptions += "-Xcheckinit")
+      libraryDependencies ++= {
+        if (isDotty.value)
+          Nil
+        else
+          Seq(compilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.0"))
+      },
+
+      scalacOptions ++= {
+        if (isDotty.value)
+          Nil
+        else
+          Seq("-Xcheckinit")
+      })
 }

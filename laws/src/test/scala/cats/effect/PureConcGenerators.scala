@@ -25,15 +25,15 @@ object PureConcGenerators {
 
   implicit def cogenPureConc[E: Cogen, A: Cogen]: Cogen[PureConc[E, A]] = Cogen[Outcome[Option, E, A]].contramap(run(_))
 
-  val generators = new ConcurrentGenerators[PureConc[Int, ?], Int] with BracketGenerators[PureConc[Int, ?], Int] {
+  val generators = new ConcurrentGenerators[PureConc[Int, *], Int] with BracketGenerators[PureConc[Int, *], Int] {
 
     val arbitraryE: Arbitrary[Int] = implicitly[Arbitrary[Int]]
 
     val cogenE: Cogen[Int] = Cogen[Int]
 
-    val F: ConcurrentBracket[PureConc[Int, ?], Int] = concurrentBForPureConc[Int]
+    val F: ConcurrentBracket[PureConc[Int, *], Int] = concurrentBForPureConc[Int]
 
-    def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[Int, ?], Int, A]] = OutcomeGenerators.cogenOutcome[PureConc[Int, ?], Int, A]
+    def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[Int, *], Int, A]] = OutcomeGenerators.cogenOutcome[PureConc[Int, *], Int, A]
   }
 
   implicit def arbitraryPureConc[A: Arbitrary: Cogen]: Arbitrary[PureConc[Int, A]] =

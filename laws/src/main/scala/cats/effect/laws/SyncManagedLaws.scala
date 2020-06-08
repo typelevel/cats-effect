@@ -17,7 +17,7 @@
 package cats.effect
 package laws
 
-trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, ?]] with RegionLaws[R, F, Throwable] {
+trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, *]] with RegionLaws[R, F, Throwable] {
   implicit val F: SyncManaged[R, F]
 
   def roundTrip[A](fa: R[F, A]) =

@@ -52,23 +52,20 @@ object Bracket {
   def apply[F[_], E](implicit F: Bracket[F, E]): F.type = F
 }
 
-trait Region[R[_[_], _], F[_], E] extends Safe[R[F, ?], E] {
+trait Region[R[_[_], _], F[_], E] extends Safe[R[F, *], E] {
 
-  def openCase[A](acquire: F[A])(release: (A, Case[_]) => F[Unit]): R[F, A]
+  def openCase[A, e](acquire: F[A])(release: (A, Case[e]) => F[Unit]): R[F, A]
 
   def open[A](acquire: F[A])(release: A => F[Unit]): R[F, A] =
-    openCase(acquire)((a, _) => release(a))
+    openCase(acquire)((a: A, _: Case[Unit]) => release(a))
 
   def liftF[A](fa: F[A]): R[F, A]
 
   // this is analogous to *>, but with more constrained laws (closing the resource scope)
-  def supersededBy[B](rfa: R[F, _], rfb: R[F, B]): R[F, B]
-
-  //todo probably should remove one or the other
-  def supersede[B](rfb: R[F, B], rfa: R[F, _]): R[F, B] = supersededBy(rfa, rfb)
+  def supersededBy[B, e](rfa: R[F, e], rfb: R[F, B]): R[F, B]
 
   // this is analogous to void, but it closes the resource scope
-  def close(rfa: R[F, _]): R[F, Unit] = supersededBy(rfa, unit)
+  def close[e](rfa: R[F, e]): R[F, Unit] = supersededBy(rfa, unit)
 }
 
 object Region {

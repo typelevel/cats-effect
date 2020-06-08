@@ -29,14 +29,14 @@ class OutcomeSpec extends Specification with Discipline {
 
   // doesn't compile on scala 2.12
   // checkAll(
-  //   "Outcome[Id, Int, ?]",
-  //   MonadErrorTests[Outcome[Id, Int, ?], Int].monadError[Int, Int, Int])
+  //   "Outcome[Id, Int, *]",
+  //   MonadErrorTests[Outcome[Id, Int, *], Int].monadError[Int, Int, Int])
 
   checkAll(
-    "Outcome[Option, Int, ?]",
-    MonadErrorTests[Outcome[Option, Int, ?], Int].monadError[Int, Int, Int])
+    "Outcome[Option, Int, *]",
+    MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
 
   checkAll(
-    "Outcome[Eval, Int, ?]",
-    ApplicativeErrorTests[Outcome[Eval, Int, ?], Int].applicativeError[Int, Int, Int])
+    "Outcome[Eval, Int, *]",
+    ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
 }
