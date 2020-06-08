@@ -67,7 +67,7 @@ object Example extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _ <- IO.suspend(program).rabbitTrace
+      _ <- IO.suspend(program).traced
       _ <- IO.delay("10")
       trace <- IO.backtrace
       _ <- trace.prettyPrint

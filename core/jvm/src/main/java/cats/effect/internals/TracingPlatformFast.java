@@ -30,14 +30,22 @@ import java.util.Optional;
 public final class TracingPlatformFast {
 
     /**
-     * A boolean flag that enables or disables tracing for a JVM process.
-     * Since it is declared static and final, The JIT compiler has the liberty
-     * to completely eliminate code paths consequent to the conditional.
+     * An integer flag that sets a global tracing mode for a JVM process.
+     * 0 - DISABLED
+     * 1 - RABBIT
+     * 2 - SLUG
+     * TODO: move to enum
      */
-    public static final boolean isTracingEnabled = Optional.ofNullable(System.getProperty("cats.effect.tracing.enabled"))
-        .filter(x -> !x.isEmpty())
-        .map(x -> Boolean.valueOf(x))
-        .orElse(true);
+    public static final int tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+            .filter(x -> !x.isEmpty())
+            .flatMap(x -> {
+                try {
+                    return Optional.of(Integer.valueOf(x));
+                } catch (Exception e) {
+                    return Optional.empty();
+                }
+            })
+            .orElse(0);
 
     /**
      * The number of trace lines to retain during tracing. If more trace

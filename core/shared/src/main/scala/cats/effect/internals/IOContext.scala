@@ -28,6 +28,7 @@ final private[effect] class IOContext private () {
 
   private var frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
   private var omitted: Int = 0
+  private var collectTraces: Boolean = false
 
   def pushFrame(fr: TraceFrame): Unit = {
     val a = frames.push(fr)
@@ -43,6 +44,13 @@ final private[effect] class IOContext private () {
 
   def getTrace: IOTrace =
     IOTrace(frames.toList.toVector, omitted)
+
+  def isCollectingTraces: Boolean =
+    collectTraces
+
+  def setCollectTraces(b: Boolean): Unit = {
+    collectTraces = b
+  }
 
 }
 

@@ -25,9 +25,6 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NonFatal
 import java.util.concurrent.atomic.AtomicBoolean
 
-import cats.effect.tracing.TracingMode
-import cats.effect.internals.TracingPlatformFast.isTracingEnabled
-
 private[effect] object IOBracket {
 
   private[this] type Acquire[A] = (A, IOContext)
@@ -47,13 +44,11 @@ private[effect] object IOBracket {
         // Note `acquireWithContext` is uncancelable due to usage of `IORunLoop.restart`
         // (in other words it is disconnected from our IOConnection)
         val acquireWithContext = acquire.product(ioContext)
-        val tracingMode = activeTracingMode
 
         IORunLoop.restart[Acquire[A]](
           acquireWithContext,
           ctx,
-          tracingMode,
-          new BracketStart(use, release, conn, tracingMode, deferredRelease, cb)
+          new BracketStart(use, release, conn, deferredRelease, cb)
         )
       } else {
         deferredRelease.complete(IO.unit)
@@ -73,7 +68,6 @@ private[effect] object IOBracket {
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
     conn: IOConnection,
-    tracingMode: TracingMode,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
   ) extends (Either[Throwable, Acquire[A]] => Unit)
@@ -111,7 +105,7 @@ private[effect] object IOBracket {
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.restartCancelable(onNext, conn, a._2, tracingMode, cb)
+          IORunLoop.restartCancelable(onNext, conn, a._2, cb)
         }
 
       case error @ Left(_) =>
@@ -137,7 +131,7 @@ private[effect] object IOBracket {
           // the connection was already cancelled — n.b. we don't need
           // to trigger `release` otherwise, because it already happened
           if (!conn.isCanceled) {
-            IORunLoop.restartCancelable(onNext, conn, ctx, activeTracingMode, cb)
+            IORunLoop.restartCancelable(onNext, conn, ctx, cb)
           }
         }
       })
@@ -220,14 +214,5 @@ private[effect] object IOBracket {
   private[this] val ioContext: IO[IOContext] =
     IO.Async { (_, ctx, cb) =>
       cb(Right(ctx))
-    }
-
-  private[this] val TracingDisabled: TracingMode = TracingMode.Disabled
-
-  private def activeTracingMode: TracingMode =
-    if (isTracingEnabled) {
-      IOTracing.getLocalTracingMode()
-    } else {
-      TracingDisabled
     }
 }

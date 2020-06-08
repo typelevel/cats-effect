@@ -19,7 +19,7 @@ package effect
 
 import cats.effect.internals._
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
-import cats.effect.internals.TracingPlatformFast.isTracingEnabled
+import cats.effect.internals.TracingPlatformFast.tracingMode
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -27,7 +27,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag, TracingMode}
+import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -103,10 +103,12 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] =
-    if (isTracingEnabled) {
-      // Don't perform map fusion when tracing is enabled.
-      // We may end up removing map fusion altogether.
+    // Don't perform map fusion when tracing is enabled.
+    // We may end up removing map fusion altogether.
+    if (tracingMode == 1) {
       Map(this, f, 0, IOTracing.trace(TraceTag.Map, f.getClass))
+    } else if (tracingMode == 2) {
+      Map(this, f, 0, null)
     } else {
       this match {
         case Map(source, g, index, null) =>
@@ -135,12 +137,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def flatMap[B](f: A => IO[B]): IO[B] =
-    if (isTracingEnabled) {
-      Bind(this, f, IOTracing.trace(TraceTag.Bind, f.getClass))
+  final def flatMap[B](f: A => IO[B]): IO[B] = {
+    val trace = if (tracingMode == 1) {
+      IOTracing.trace(TraceTag.Bind, f.getClass)
+    } else if (tracingMode == 2) {
+      null
     } else {
-      Bind(this, f, null)
+      null
     }
+
+    Bind(this, f, trace)
+  }
 
   /**
    * Materializes any sequenced exceptions into value space, where
@@ -577,11 +584,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] = {
     val nextIo = IOBracket(this)(use)((a, _) => release(a))
-    if (isTracingEnabled) {
-      IOTracing.cached(nextIo, TraceTag.Bracket, use.getClass)
-    } else {
-      nextIo
-    }
+    nextIo
   }
 
   /**
@@ -618,11 +621,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
     val nextIo = IOBracket(this)(use)(release)
-    if (isTracingEnabled) {
-      IOTracing.cached(nextIo, TraceTag.BracketCase, use.getClass)
-    } else {
-      nextIo
-    }
+    nextIo
   }
 
   /**
@@ -804,19 +803,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   def <&[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[A] =
     p.parProductL(this)(another)
 
-  def slugTrace: IO[A] =
-    if (isTracingEnabled) {
-      IOTracing.locallyTraced(this, TracingMode.Slug)
-    } else {
-      this
-    }
-
-  def rabbitTrace: IO[A] =
-    if (isTracingEnabled) {
-      IOTracing.locallyTraced(this, TracingMode.Rabbit)
-    } else {
-      this
-    }
+  def traced: IO[A] =
+    IOTracing.traced(this)
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
@@ -1151,8 +1139,10 @@ object IO extends IOInstances {
    */
   def delay[A](body: => A): IO[A] = {
     val nextIo = Delay(() => body)
-    if (isTracingEnabled) {
+    if (tracingMode == 1) {
       IOTracing.uncached(nextIo, TraceTag.Delay)
+    } else if (tracingMode == 2) {
+      nextIo
     } else {
       nextIo
     }
@@ -1168,8 +1158,10 @@ object IO extends IOInstances {
    */
   def suspend[A](thunk: => IO[A]): IO[A] = {
     val nextIo = Suspend(() => thunk)
-    if (isTracingEnabled) {
+    if (tracingMode == 1) {
       IOTracing.uncached(nextIo, TraceTag.Suspend)
+    } else if (tracingMode == 2) {
+      nextIo
     } else {
       nextIo
     }
@@ -1185,12 +1177,16 @@ object IO extends IOInstances {
    * (when evaluated) than `IO(42)`, due to avoiding the allocation of
    * extra thunks.
    */
-  def pure[A](a: A): IO[A] =
-    if (isTracingEnabled) {
-      IOTracing.uncached(Pure(a), TraceTag.Pure)
+  def pure[A](a: A): IO[A] = {
+    val nextIo = Pure(a)
+    if (tracingMode == 1) {
+      IOTracing.uncached(nextIo, TraceTag.Pure)
+    } else if (tracingMode == 2) {
+      nextIo
     } else {
-      Pure(a)
+      nextIo
     }
+  }
 
   /** Alias for `IO.pure(())`. */
   val unit: IO[Unit] = pure(())
@@ -1262,11 +1258,7 @@ object IO extends IOInstances {
       catch { case NonFatal(t) => cb2(Left(t)) }
     }
 
-    if (isTracingEnabled) {
-      IOTracing.cached(nextIo, TraceTag.Async, k.getClass)
-    } else {
-      nextIo
-    }
+    nextIo
   }
 
   /**
@@ -1307,11 +1299,7 @@ object IO extends IOInstances {
       IORunLoop.startCancelable(fa, conn2, Callback.report)
     }
 
-    if (isTracingEnabled) {
-      IOTracing.cached(nextIo, TraceTag.AsyncF, k.getClass)
-    } else {
-      nextIo
-    }
+    nextIo
   }
 
   /**
@@ -1374,11 +1362,7 @@ object IO extends IOInstances {
         ref.complete(IO.unit)
     }
 
-    if (isTracingEnabled) {
-      IOTracing.cached(nextIo, TraceTag.Cancelable, k.getClass)
-    } else {
-      nextIo
-    }
+    nextIo
   }
 
   /**
@@ -1631,7 +1615,9 @@ object IO extends IOInstances {
     IOContextShift(ec)
 
   val backtrace: IO[IOTrace] =
-    IOTracing.backtrace
+    IO.Async { (_, ctx, cb) =>
+      cb(Right(ctx.getTrace))
+    }
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
@@ -1680,7 +1666,7 @@ object IO extends IOInstances {
 
   final private[effect] case class Trace[A](source: IO[A], frame: TraceFrame) extends IO[A]
 
-//  final private[effect] case class SetTracingMode(mode: TracingMode) extends IO[Nothing]
+  final private[effect] case class CollectTraces(collect: Boolean) extends IO[Unit]
 
   /**
    * An internal state for that optimizes changes to
