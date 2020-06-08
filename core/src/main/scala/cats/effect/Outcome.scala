@@ -51,13 +51,13 @@ private[effect] trait LowPriorityImplicits {
   implicit def showUnknown[F[_], E, A](implicit E: Show[E]): Show[Outcome[F, E, A]] = Show show {
     case Canceled() => "Canceled"
     case Errored(left) => s"Errored(${left.show})"
-    case c: Completed[_, _, _] => s"Completed(<unknown>)"
+    case Completed(_) => s"Completed(<unknown>)"
   }
 
   implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] = Eq instance {
     case (Canceled(), Canceled()) => true
     case (Errored(left), Errored(right)) => left === right
-    case (left: Completed[F, E, A], right: Completed[F, E, A]) => left.fa === right.fa
+    case (Completed(left), Completed(right)) => left === right
     case _ => false
   }
 
@@ -75,8 +75,8 @@ private[effect] trait LowPriorityImplicits {
 
     def ap[A, B](ff: Outcome[F, E, A => B])(fa: Outcome[F, E, A]): Outcome[F, E, B] =
       (ff, fa) match {
-        case (c: Completed[F, E, A => B], Completed(fa)) =>
-          Completed(c.fa.ap(fa))
+        case (Completed(cfa), Completed(fa)) =>
+          Completed(cfa.ap(fa))
 
         case (Errored(e), _) =>
           Errored(e)
@@ -121,35 +121,33 @@ object Outcome extends LowPriorityImplicits {
     Order from {
       case (Canceled(), Canceled()) => 0
       case (Errored(left), Errored(right)) => left.compare(right)
-      case (left: Completed[F, E, A], right: Completed[F, E, A]) => left.fa.compare(right.fa)
+      case (Completed(lfa), Completed(rfa)) => lfa.compare(rfa)
 
       case (Canceled(), _) => -1
       case (_, Canceled()) => 1
-      case (Errored(_), _: Completed[_, _, _]) => -1
-      case (_: Completed[_, _, _], Errored(_)) => 1
+      case (Errored(_), Completed(_)) => -1
+      case (Completed(_), Errored(_)) => 1
     }
 
   implicit def show[F[_], E, A](implicit FA: Show[F[A]], E: Show[E]): Show[Outcome[F, E, A]] = Show show {
     case Canceled() => "Canceled"
     case Errored(left) => s"Errored(${left.show})"
-    case right: Completed[F, E, A] => s"Completed(${right.fa.show})"
+    case Completed(right) => s"Completed(${right.show})"
   }
 
   implicit def monadError[F[_], E](implicit F: Monad[F], FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
     new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] = fa match {
-        case c: Completed[F, E, A] => Completed(F.map(c.fa)(f))
+        case Completed(fa) => Completed(F.map(fa)(f))
         case Errored(e) => Errored(e)
         case Canceled() => Canceled()
       }
 
       def flatMap[A, B](fa: Outcome[F, E, A])(f: A => Outcome[F, E, B]): Outcome[F, E, B] = fa match {
-        case ifac: Completed[F, E, A] =>
-          val ifa = ifac.fa
-
+        case Completed(ifa) =>
           Traverse[F].traverse(ifa)(f) match {
-            case ifaac: Completed[F, E, F[B]] => Completed(Monad[F].flatten(ifaac.fa))
+            case Completed(ifaa) => Completed(Monad[F].flatten(ifaa))
             case Errored(e) => Errored(e)
             case Canceled() => Canceled()
           }
@@ -161,8 +159,8 @@ object Outcome extends LowPriorityImplicits {
       @tailrec
       def tailRecM[A, B](a: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
         f(a) match {
-          case c: Completed[F, E, Either[A, B]] =>
-            Traverse[F].sequence[Either[A, *], B](c.fa) match {   // Dotty can't infer this
+          case Completed(fa) =>
+            Traverse[F].sequence[Either[A, *], B](fa) match {   // Dotty can't infer this
               case Left(a) => tailRecM(a)(f)
               case Right(fb) => Completed(fb)
             }
