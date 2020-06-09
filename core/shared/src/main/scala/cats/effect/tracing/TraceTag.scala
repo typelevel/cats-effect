@@ -23,14 +23,10 @@ object TraceTag {
   val Delay = TraceTag("delay")
   val Suspend = TraceTag("suspend")
 
-  val Attempt = TraceTag("attempt")
   val Bind = TraceTag("flatMap")
   val Map = TraceTag("map")
 
   val Async = TraceTag("async")
   val AsyncF = TraceTag("asyncF")
   val Cancelable = TraceTag("cancelable")
-
-  val Bracket = TraceTag("bracket")
-  val BracketCase = TraceTag("bracketCase")
 }

@@ -30,9 +30,10 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
     }
 
     val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = frames.foldLeft(acc0)((acc, f) =>
-      acc + s"\t${f.tag.name} at " + f.stackTrace.headOption.map(renderStackTraceElement).getOrElse("(...)") + "\n"
-    ) + "\n"
+    val acc1 = frames.foldLeft(acc0) { (acc, f) =>
+      val first = f.stackTrace.dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b))).headOption
+      acc + s"\t${f.tag.name} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
+    } + "\n"
 
     acc1
   }
@@ -92,6 +93,15 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
       case Some(mat) => mat.group(1)
       case None      => methodName
     }
+
+  private[this] val classBlacklist = List(
+    "cats.effect.",
+    "cats.",
+    "sbt.",
+    "java.",
+    "sun.",
+    "scala."
+  )
 
 }
 

@@ -27,7 +27,6 @@ private[effect] object IOTracing {
   def decorated[A](source: IO[A], traceTag: TraceTag): IO[A] =
     Trace(source, buildFrame(traceTag))
 
-  // TODO: Avoid trace tag for primitive ops and rely on class
   def uncached(traceTag: TraceTag): TraceFrame =
     buildFrame(traceTag)
 
@@ -48,12 +47,8 @@ private[effect] object IOTracing {
     }
   }
 
-  def buildFrame(traceTag: TraceTag): TraceFrame = {
-    val stackTrace = new Throwable().getStackTrace.toList
-      .dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b)))
-
-    TraceFrame(traceTag, stackTrace)
-  }
+  def buildFrame(traceTag: TraceTag): TraceFrame =
+    TraceFrame(traceTag, new Throwable())
 
   private[this] val incrementCollection: IO[Unit] = CollectTraces(true)
 
@@ -73,18 +68,8 @@ private[effect] object IOTracing {
     }
 
   /**
-   * Cache for trace frames. Keys are references to:
-   * - lambda classes
+   * Cache for trace frames. Keys are references to lambda classes.
    */
   private[this] val frameCache: ConcurrentHashMap[Class[_], TraceFrame] = new ConcurrentHashMap()
-
-  private[this] val classBlacklist = List(
-    "cats.effect.",
-    "cats.",
-    "sbt.",
-    "java.",
-    "sun.",
-    "scala."
-  )
 
 }

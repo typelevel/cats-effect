@@ -48,8 +48,8 @@ object Example extends IOApp {
 
   def program2: IO[Unit] =
     for {
-      _ <- print("7")
-      _ <- print("8")
+      _ <- print("3")
+      _ <- print("4")
     } yield ()
 
   def program: IO[Unit] =
@@ -58,11 +58,7 @@ object Example extends IOApp {
       _ <- print("2")
       _ <- IO.shift
       _ <- IO.async[Int](cb => cb(Right(32)))
-      _ <- IO.shift.bracket(_ =>
-        print("3")
-          .flatMap(_ => program2)
-      )(_ => IO.unit)
-      _ <- print("4")
+      _ <- IO.unit.bracket(_ => program2)(_ => IO.unit)
       _ <- print("5")
     } yield ()
 
