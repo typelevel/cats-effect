@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package cats.effect.tracing
+package cats.effect.internals;
 
-sealed abstract private[effect] class TracingMode(val tag: Int)
+import java.util.Optional;
 
-private[effect] object TracingMode {
+public enum TracingMode {
+    DISABLED,
+    RABBIT,
+    SLUG;
 
-  case object Disabled extends TracingMode(0)
-
-  case object Rabbit extends TracingMode(1)
-
-  case object Slug extends TracingMode(2)
-
-  def fromInt(value: Int): TracingMode =
-    value match {
-      case 1 => Rabbit
-      case 2 => Slug
-      case _ => Disabled
+    public static Optional<TracingMode> fromString(String value) {
+        try {
+            return Optional.of(valueOf(value.toUpperCase()));
+        } catch(IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
-
 }

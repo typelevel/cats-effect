@@ -30,22 +30,13 @@ import java.util.Optional;
 public final class TracingPlatformFast {
 
     /**
-     * An integer flag that sets a global tracing mode for a JVM process.
-     * 0 - DISABLED
-     * 1 - RABBIT
-     * 2 - SLUG
-     * TODO: move to enum
+     * A string flag that sets a global tracing mode for a JVM process.
+     * Acceptable values are: DISABLED, RABBIT, SLUG.
      */
-    public static final int tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+    public static final TracingMode tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
             .filter(x -> !x.isEmpty())
-            .flatMap(x -> {
-                try {
-                    return Optional.of(Integer.valueOf(x));
-                } catch (Exception e) {
-                    return Optional.empty();
-                }
-            })
-            .orElse(1);
+            .flatMap(TracingMode::fromString)
+            .orElse(TracingMode.RABBIT);
 
     /**
      * The number of trace lines to retain during tracing. If more trace

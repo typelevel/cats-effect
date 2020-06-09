@@ -18,8 +18,8 @@ package cats
 package effect
 
 import cats.effect.internals._
+import cats.effect.internals.Tracing.{isRabbitTracing, isSlugTracing}
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
-import cats.effect.internals.TracingPlatformFast.tracingMode
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -105,9 +105,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
   final def map[B](f: A => B): IO[B] =
     // Don't perform map fusion when tracing is enabled.
     // We may end up removing map fusion altogether.
-    if (tracingMode == 1) {
+    if (isRabbitTracing) {
       Map(this, f, 0, IOTracing.cached(TraceTag.Map, f.getClass))
-    } else if (tracingMode == 2) {
+    } else if (isSlugTracing) {
       Map(this, f, 0, IOTracing.uncached(TraceTag.Map))
     } else {
       this match {
@@ -138,9 +138,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val trace = if (tracingMode == 1) {
+    val trace = if (isRabbitTracing) {
       IOTracing.cached(TraceTag.Bind, f.getClass)
-    } else if (tracingMode == 2) {
+    } else if (isSlugTracing) {
       IOTracing.uncached(TraceTag.Bind)
     } else {
       null
@@ -1137,7 +1137,7 @@ object IO extends IOInstances {
    */
   def delay[A](body: => A): IO[A] = {
     val nextIo = Delay(() => body)
-    if (tracingMode == 2) {
+    if (isSlugTracing) {
       IOTracing.decorated(nextIo, TraceTag.Delay)
     } else {
       nextIo
@@ -1154,7 +1154,7 @@ object IO extends IOInstances {
    */
   def suspend[A](thunk: => IO[A]): IO[A] = {
     val nextIo = Suspend(() => thunk)
-    if (tracingMode == 2) {
+    if (isSlugTracing) {
       IOTracing.decorated(nextIo, TraceTag.Suspend)
     } else {
       nextIo
@@ -1173,7 +1173,7 @@ object IO extends IOInstances {
    */
   def pure[A](a: A): IO[A] = {
     val nextIo = Pure(a)
-    if (tracingMode == 2) {
+    if (isSlugTracing) {
       IOTracing.decorated(nextIo, TraceTag.Pure)
     } else {
       nextIo
@@ -1244,9 +1244,9 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    val trace = if (tracingMode == 1) {
+    val trace = if (isRabbitTracing) {
       IOTracing.cached(TraceTag.Async, k.getClass)
-    } else if (tracingMode == 2) {
+    } else if (isSlugTracing) {
       IOTracing.uncached(TraceTag.Async)
     } else {
       null
@@ -1284,9 +1284,9 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
-    val trace = if (tracingMode == 1) {
+    val trace = if (isRabbitTracing) {
       IOTracing.cached(TraceTag.AsyncF, k.getClass)
-    } else if (tracingMode == 2) {
+    } else if (isSlugTracing) {
       IOTracing.uncached(TraceTag.AsyncF)
     } else {
       null
@@ -1349,9 +1349,9 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
-    val trace = if (tracingMode == 1) {
+    val trace = if (isRabbitTracing) {
       IOTracing.cached(TraceTag.Cancelable, k.getClass)
-    } else if (tracingMode == 2) {
+    } else if (isSlugTracing) {
       IOTracing.uncached(TraceTag.Cancelable)
     } else {
       null

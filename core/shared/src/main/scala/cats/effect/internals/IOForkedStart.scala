@@ -53,7 +53,7 @@ private[effect] object IOForkedStart {
   @tailrec def detect(task: IO[_], limit: Int = 8): Boolean =
     if (limit > 0) {
       task match {
-        case IO.Async(k, _)                => k.isInstanceOf[IOForkedStart[_]]
+        case IO.Async(k, _, _)             => k.isInstanceOf[IOForkedStart[_]]
         case IO.Bind(other, _, _)          => detect(other, limit - 1)
         case IO.Map(other, _, _, _)        => detect(other, limit - 1)
         case IO.ContextSwitch(other, _, _) => detect(other, limit - 1)
