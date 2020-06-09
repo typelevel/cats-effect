@@ -26,15 +26,15 @@ import cats.effect.internals.TracingPlatformFast.maxTraceDepth
  */
 final private[effect] class IOContext private () {
 
-  private var frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
-  private var omitted: Int = 0
-  private var collectTraces: Boolean = false
+  var frames: RingBuffer[TraceFrame] = new RingBuffer(maxTraceDepth)
+  var captured: Int = 0
+  var omitted: Int = 0
+
+  var activeCollects: Int = 0
 
   def pushFrame(fr: TraceFrame): Unit = {
-    val a = frames.push(fr)
-    if (a != null) {
-      omitted += 1
-    }
+    captured += 1
+    if (frames.push(fr) != null) omitted += 1
   }
 
   def resetTrace(): Unit = {
@@ -42,15 +42,8 @@ final private[effect] class IOContext private () {
     omitted = 0
   }
 
-  def getTrace: IOTrace =
-    IOTrace(frames.toList.toVector, omitted)
-
-  def isCollectingTraces: Boolean =
-    collectTraces
-
-  def setCollectTraces(b: Boolean): Unit = {
-    collectTraces = b
-  }
+  def trace: IOTrace =
+    IOTrace(frames.toList.toVector, captured, omitted)
 
 }
 

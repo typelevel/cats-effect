@@ -18,7 +18,7 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
-final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
+final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int) {
 
   import IOTrace._
 
@@ -29,7 +29,7 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
       s"$className.$methodName (${ste.getFileName}:${ste.getLineNumber})"
     }
 
-    val acc0 = s"IOTrace: $omitted omitted frames\n"
+    val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
     val acc1 = frames.foldLeft(acc0)((acc, f) =>
       acc + s"\t${f.tag.name} at " + f.stackTrace.headOption.map(renderStackTraceElement).getOrElse("(...)") + "\n"
     ) + "\n"
@@ -41,7 +41,7 @@ final case class IOTrace(frames: Vector[TraceFrame], omitted: Int) {
     IO(System.err.println(compact))
 
   def pretty: String = {
-    val acc0 = s"IOTrace: $omitted omitted frames"
+    val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
     val acc1 = acc0 + loop("", 0, true, frames.toList)
     acc1
   }

@@ -34,25 +34,21 @@ private[effect] object IORunLoop {
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
-  def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit = {
+  def start[A](source: IO[A], cb: Either[Throwable, A] => Unit): Unit =
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], null, null, null, null)
-  }
 
-  def restart[A](source: IO[A], ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit = {
+  def restart[A](source: IO[A], ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, IOConnection.uncancelable, cb.asInstanceOf[Callback], ctx, null, null, null)
-  }
 
   /**
    * Evaluates the given `IO` reference, calling the given callback
    * with the result when completed.
    */
-  def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit = {
+  def startCancelable[A](source: IO[A], conn: IOConnection, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, conn, cb.asInstanceOf[Callback], null, null, null, null)
-  }
 
-  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit = {
+  def restartCancelable[A](source: IO[A], conn: IOConnection, ctx: IOContext, cb: Either[Throwable, A] => Unit): Unit =
     loop(source, conn, cb.asInstanceOf[Callback], ctx, null, null, null)
-  }
 
   /**
    * Loop for evaluating an `IO` value.
@@ -74,7 +70,7 @@ private[effect] object IORunLoop {
     // Can change on a context switch
     var conn: IOConnection = cancelable
     var ctx: IOContext = ctxRef
-    var collectTraces: Boolean = if (ctx ne null) ctx.isCollectingTraces else false
+    var activeCollects: Int = if (ctx ne null) ctx.activeCollects else 0
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -92,7 +88,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if ((tracingMode == 1 || tracingMode == 2) && collectTraces) {
+          if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
             val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -137,7 +133,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if ((tracingMode == 1 || tracingMode == 2) && collectTraces) {
+          if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
             val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -148,7 +144,7 @@ private[effect] object IORunLoop {
         case async @ Async(_, _) =>
           if (conn eq null) conn = IOConnection()
           // We need to initialize an IOContext because the continuation
-          // may produce trace frames.
+          // may produce trace frames e.g. IOBracket.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
           rcb.start(async, ctx, bFirst, bRest)
@@ -171,8 +167,13 @@ private[effect] object IORunLoop {
 
         case CollectTraces(collect) =>
           if (ctx eq null) ctx = IOContext()
-          ctx.setCollectTraces(collect)
-          collectTraces = collect
+          if (collect) {
+            activeCollects += 1
+            ctx.activeCollects += 1
+          } else {
+            activeCollects -= 1
+            ctx.activeCollects -= 1
+          }
           unboxed = ().asInstanceOf[AnyRef]
           hasUnboxed = true
       }
@@ -212,7 +213,7 @@ private[effect] object IORunLoop {
     var bFirst: Bind = null
     var bRest: CallStack = null
     var ctx: IOContext = null
-    var collectTraces: Boolean = false
+    var activeCollects: Int = 0
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -225,7 +226,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if ((tracingMode == 1 || tracingMode == 2) && collectTraces) {
+          if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
             val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -270,7 +271,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if ((tracingMode == 1 || tracingMode == 2) && collectTraces) {
+          if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
             val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -285,8 +286,13 @@ private[effect] object IORunLoop {
 
         case CollectTraces(collect) =>
           if (ctx eq null) ctx = IOContext()
-          ctx.setCollectTraces(collect)
-          collectTraces = collect
+          if (collect) {
+            activeCollects += 1
+            ctx.activeCollects += 1
+          } else {
+            activeCollects -= 1
+            ctx.activeCollects -= 1
+          }
           unboxed = ().asInstanceOf[AnyRef]
           hasUnboxed = true
 
@@ -395,9 +401,7 @@ private[effect] object IORunLoop {
    * It's an ugly, mutable implementation.
    * For internal use only, here be dragons!
    */
-  final private class RestartCallback(connInit: IOConnection, cb: Callback)
-      extends Callback
-      with Runnable {
+  final private class RestartCallback(connInit: IOConnection, cb: Callback) extends Callback with Runnable {
     import TrampolineEC.{immediate => ec}
 
     // can change on a ContextSwitch
@@ -406,7 +410,6 @@ private[effect] object IORunLoop {
     private[this] var trampolineAfter = false
     private[this] var bFirst: Bind = _
     private[this] var bRest: CallStack = _
-    // TODO: can this have an initial implementation ?
     private[this] var ctx: IOContext = _
 
     // Used in combination with trampolineAfter = true
@@ -430,8 +433,10 @@ private[effect] object IORunLoop {
       // Allow GC to collect
       val bFirst = this.bFirst
       val bRest = this.bRest
+      val ctx = this.ctx
       this.bFirst = null
       this.bRest = null
+      this.ctx = null
 
       // Auto-cancelable logic: in case the connection was cancelled,
       // we interrupt the bind continuation

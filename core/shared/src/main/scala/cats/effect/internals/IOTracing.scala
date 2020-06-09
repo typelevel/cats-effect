@@ -18,20 +18,18 @@ package cats.effect.internals
 
 import java.util.concurrent.ConcurrentHashMap
 
-import cats.implicits._
 import cats.effect.IO
 import cats.effect.IO.{CollectTraces, Pure, RaiseError, Trace}
 import cats.effect.tracing.{TraceFrame, TraceTag}
 
 private[effect] object IOTracing {
 
-  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] = {
+  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] =
 //    localTracingMode.get() match {
 //      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
 //      case _ => source
 //    }
     Trace(source, buildFrame(traceTag))
-  }
 
   // TODO: Avoid trace tag for primitive ops and rely on class
   def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] = {
@@ -48,7 +46,7 @@ private[effect] object IOTracing {
     buildCachedFrame(traceTag, clazz)
 
   def traced[A](source: IO[A]): IO[A] =
-    resetTrace *> enableCollection *> source.flatMap(DisableCollection.asInstanceOf[A => IO[A]])
+    resetTrace *> incrementCollection *> source.flatMap(DecrementTraceCollection.asInstanceOf[A => IO[A]])
 
   private def buildCachedFrame(traceTag: TraceTag, keyClass: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(keyClass)
@@ -62,22 +60,21 @@ private[effect] object IOTracing {
   }
 
   def buildFrame(traceTag: TraceTag): TraceFrame = {
-    // TODO: proper trace calculation
     val stackTrace = new Throwable().getStackTrace.toList
       .dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b)))
 
     TraceFrame(traceTag, stackTrace)
   }
 
-  private[this] val enableCollection: IO[Unit] = CollectTraces(true)
+  private[this] val incrementCollection: IO[Unit] = CollectTraces(true)
 
-  private[this] val disableCollection: IO[Unit] = CollectTraces(false)
+  private[this] val decrementCollection: IO[Unit] = CollectTraces(false)
 
-  private object DisableCollection extends IOFrame[Any, IO[Any]] {
+  private object DecrementTraceCollection extends IOFrame[Any, IO[Any]] {
     override def apply(a: Any) =
-      disableCollection *> Pure(a)
+      decrementCollection *> Pure(a)
     override def recover(e: Throwable) =
-      disableCollection *> RaiseError(e)
+      decrementCollection *> RaiseError(e)
   }
 
   private[this] val resetTrace: IO[Unit] =

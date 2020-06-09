@@ -582,10 +582,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        canceled, receiving as input the resource that needs to
    *        be released
    */
-  final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] = {
-    val nextIo = IOBracket(this)(use)((a, _) => release(a))
-    nextIo
-  }
+  final def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
+    IOBracket(this)(use)((a, _) => release(a))
 
   /**
    * Returns a new `IO` task that treats the source task as the
@@ -1140,9 +1138,9 @@ object IO extends IOInstances {
   def delay[A](body: => A): IO[A] = {
     val nextIo = Delay(() => body)
     if (tracingMode == 1) {
-      IOTracing.uncached(nextIo, TraceTag.Delay)
-    } else if (tracingMode == 2) {
       nextIo
+    } else if (tracingMode == 2) {
+      IOTracing.uncached(nextIo, TraceTag.Delay)
     } else {
       nextIo
     }
@@ -1159,9 +1157,9 @@ object IO extends IOInstances {
   def suspend[A](thunk: => IO[A]): IO[A] = {
     val nextIo = Suspend(() => thunk)
     if (tracingMode == 1) {
-      IOTracing.uncached(nextIo, TraceTag.Suspend)
-    } else if (tracingMode == 2) {
       nextIo
+    } else if (tracingMode == 2) {
+      IOTracing.uncached(nextIo, TraceTag.Suspend)
     } else {
       nextIo
     }
@@ -1180,9 +1178,9 @@ object IO extends IOInstances {
   def pure[A](a: A): IO[A] = {
     val nextIo = Pure(a)
     if (tracingMode == 1) {
-      IOTracing.uncached(nextIo, TraceTag.Pure)
-    } else if (tracingMode == 2) {
       nextIo
+    } else if (tracingMode == 2) {
+      IOTracing.uncached(nextIo, TraceTag.Pure)
     } else {
       nextIo
     }
@@ -1616,7 +1614,7 @@ object IO extends IOInstances {
 
   val backtrace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
-      cb(Right(ctx.getTrace))
+      cb(Right(ctx.trace))
     }
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

@@ -45,7 +45,7 @@ public final class TracingPlatformFast {
                     return Optional.empty();
                 }
             })
-            .orElse(0);
+            .orElse(1);
 
     /**
      * The number of trace lines to retain during tracing. If more trace
@@ -61,6 +61,6 @@ public final class TracingPlatformFast {
                 return Optional.empty();
             }
         })
-        .orElse(512);
+        .orElse(64);
 
 }

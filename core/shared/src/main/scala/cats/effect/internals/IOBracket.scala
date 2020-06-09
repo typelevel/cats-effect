@@ -16,7 +16,6 @@
 
 package cats.effect.internals
 
-import cats.implicits._
 import cats.effect.IO.ContextSwitch
 import cats.effect.{CancelToken, ExitCase, IO}
 import cats.effect.internals.TrampolineEC.immediate
@@ -27,13 +26,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private[effect] object IOBracket {
 
-  private[this] type Acquire[A] = (A, IOContext)
-
   /**
    * Implementation for `IO.bracketCase`.
    */
-  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
-    val nextIo = IO.Async[B] { (conn, ctx, cb) =>
+  def apply[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+    IO.Async[B] { (conn, ctx, cb) =>
       // Placeholder for the future finalizer
       val deferredRelease = ForwardCancelable()
       conn.push(deferredRelease.cancel)
@@ -41,43 +38,34 @@ private[effect] object IOBracket {
       // was cancelled already, to ensure that `cancel` really blocks if we
       // start `acquire` — n.b. `isCanceled` is visible here due to `push`
       if (!conn.isCanceled) {
-        // Note `acquireWithContext` is uncancelable due to usage of `IORunLoop.restart`
+        // Note `acquire` is uncancelable due to usage of `IORunLoop.restart`
         // (in other words it is disconnected from our IOConnection)
-        val acquireWithContext = acquire.product(ioContext)
-
-        IORunLoop.restart[Acquire[A]](
-          acquireWithContext,
-          ctx,
-          new BracketStart(use, release, conn, deferredRelease, cb)
-        )
+        // We don't need to explicitly pass back a reference to `ctx` because
+        // it is held in `RestartCallback` and `BracketStart`.
+        // Updates to it in the run-loop will be visible when the callback is
+        // invoked, even across asynchronous boundaries.
+        IORunLoop.restart(acquire, ctx, new BracketStart(use, release, ctx, conn, deferredRelease, cb))
       } else {
         deferredRelease.complete(IO.unit)
       }
     }
 
-//    if (isTracingEnabled) {
-//      IOTracing(nextIo, use.getClass)
-//    } else {
-//      nextIo
-//    }
-    nextIo
-  }
-
   // Internals of `IO.bracketCase`.
   final private class BracketStart[A, B](
     use: A => IO[B],
     release: (A, ExitCase[Throwable]) => IO[Unit],
+    ctx: IOContext,
     conn: IOConnection,
     deferredRelease: ForwardCancelable,
     cb: Callback.T[B]
-  ) extends (Either[Throwable, Acquire[A]] => Unit)
+  ) extends (Either[Throwable, A] => Unit)
       with Runnable {
     // This runnable is a dirty optimization to avoid some memory allocations;
     // This class switches from being a Callback to a Runnable, but relies on
     // the internal IO callback protocol to be respected (called at most once)
-    private[this] var result: Either[Throwable, Acquire[A]] = _
+    private[this] var result: Either[Throwable, A] = _
 
-    def apply(ea: Either[Throwable, Acquire[A]]): Unit = {
+    def apply(ea: Either[Throwable, A]): Unit = {
       if (result ne null) {
         throw new IllegalStateException("callback called multiple times!")
       }
@@ -90,7 +78,7 @@ private[effect] object IOBracket {
 
     def run(): Unit = result match {
       case Right(a) =>
-        val frame = new BracketReleaseFrame[A, B](a._1, release)
+        val frame = new BracketReleaseFrame[A, B](a, release)
 
         // Registering our cancelable token ensures that in case
         // cancellation is detected, `release` gets called
@@ -100,12 +88,12 @@ private[effect] object IOBracket {
         if (!conn.isCanceled) {
           val onNext = {
             val fb =
-              try use(a._1)
+              try use(a)
               catch { case NonFatal(e) => IO.raiseError(e) }
             fb.flatMap(frame)
           }
           // Actual execution
-          IORunLoop.restartCancelable(onNext, conn, a._2, cb)
+          IORunLoop.restartCancelable(onNext, conn, ctx, cb)
         }
 
       case error @ Left(_) =>
@@ -209,10 +197,5 @@ private[effect] object IOBracket {
     (_, _, old, _) => {
       old.pop()
       old
-    }
-
-  private[this] val ioContext: IO[IOContext] =
-    IO.Async { (_, ctx, cb) =>
-      cb(Right(ctx))
     }
 }

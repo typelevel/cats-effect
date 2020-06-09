@@ -57,7 +57,7 @@ object Example extends IOApp {
       _ <- print("1")
       _ <- print("2")
       _ <- IO.shift
-      _ <- IO.unit.bracket(_ =>
+      _ <- IO.shift.bracket(_ =>
         print("3")
           .flatMap(_ => program2)
       )(_ => IO.unit)
