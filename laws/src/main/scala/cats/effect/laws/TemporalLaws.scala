@@ -26,13 +26,13 @@ trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] with ClockLaws[F] {
   implicit val F: Temporal[F, E]
 
   def monotonicSleepSumIdentity(delta: FiniteDuration) =
-    F.sleep(delta) >> F.monotonic <~> F.monotonic.map(delta +)
+    F.sleep(delta) >> F.monotonic <~> F.monotonic.map(delta + _)
 
   def sleepRaceMinimum(d1: FiniteDuration, d2: FiniteDuration) =
-    F.race(F.sleep(d1), F.sleep(d2)) >> F.monotonic <~> F.monotonic.map(d1.min(d2) +)
+    F.race(F.sleep(d1), F.sleep(d2)) >> F.monotonic <~> F.monotonic.map(d1.min(d2) + _)
 
   def startSleepMaximum(d1: FiniteDuration, d2: FiniteDuration) =
-    F.start(F.sleep(d1)).flatMap(f => F.sleep(d2) >> f.join) >> F.monotonic <~> F.monotonic.map(d1.max(d2) +)
+    F.start(F.sleep(d1)).flatMap(f => F.sleep(d2) >> f.join) >> F.monotonic <~> F.monotonic.map(d1.max(d2) + _)
 }
 
 object TemporalLaws {

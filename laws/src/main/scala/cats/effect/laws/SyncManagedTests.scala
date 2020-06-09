@@ -22,7 +22,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, ?]] with RegionTests[R, F, Throwable] {
+trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionTests[R, F, Throwable] {
 
   val laws: SyncManagedLaws[R, F]
 
@@ -55,7 +55,7 @@ trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, ?]] with RegionT
       EqRFInt: Eq[R[F, Int]],
       EqRFUnit: Eq[R[F, Unit]],
       exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, ?]])
+      iso: Isomorphisms[R[F, *]])
       : RuleSet = {
 
     new RuleSet {

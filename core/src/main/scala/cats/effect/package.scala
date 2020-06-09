@@ -30,7 +30,7 @@ package object effect {
     def apply[F[_], E](implicit F: ConcurrentBracket[F, E]): ConcurrentBracket[F, E] = F
   }
 
-  type ConcurrentRegion[R[_[_], _], F[_], E] = Concurrent[R[F, ?], E] with Region[R, F, E]
+  type ConcurrentRegion[R[_[_], _], F[_], E] = Concurrent[R[F, *], E] with Region[R, F, E]
 
   object ConcurrentRegion {
     def apply[R[_[_], _], F[_], E](implicit R: ConcurrentRegion[R, F, E]): ConcurrentRegion[R, F, E] = R
@@ -44,7 +44,7 @@ package object effect {
     def apply[F[_], E](implicit F: TemporalBracket[F, E]): TemporalBracket[F, E] = F
   }
 
-  type TemporalRegion[R[_[_], _], F[_], E] = Temporal[R[F, ?], E] with Region[R, F, E]
+  type TemporalRegion[R[_[_], _], F[_], E] = Temporal[R[F, *], E] with Region[R, F, E]
 
   object TemporalRegion {
     def apply[R[_[_], _], F[_], E](implicit R: TemporalRegion[R, F, E]): TemporalRegion[R, F, E] = R
@@ -56,7 +56,7 @@ package object effect {
     def apply[F[_]](implicit F: AsyncBracket[F]): AsyncBracket[F] = F
   }
 
-  type AsyncRegion[R[_[_], _], F[_]] = Async[R[F, ?]] with Region[R, F, Throwable]
+  type AsyncRegion[R[_[_], _], F[_]] = Async[R[F, *]] with Region[R, F, Throwable]
 
   object AsyncRegion {
     def apply[R[_[_], _], F[_]](implicit R: AsyncRegion[R, F]): AsyncRegion[R, F] = R

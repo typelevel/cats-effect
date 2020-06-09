@@ -26,7 +26,7 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, ?]] with TemporalRegionTests[R, F, Throwable] {
+trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, *]] with TemporalRegionTests[R, F, Throwable] {
 
   val laws: AsyncRegionLaws[R, F]
 
@@ -51,9 +51,9 @@ trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, ?]] with Tempor
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
       CogenCase: Cogen[laws.F.Case[_]],
-      CogenCaseA: Cogen[Outcome[R[F, ?], Throwable, A]],
-      CogenCaseB: Cogen[Outcome[R[F, ?], Throwable, B]],
-      CogenCaseU: Cogen[Outcome[R[F, ?], Throwable, Unit]],
+      CogenCaseA: Cogen[Outcome[R[F, *], Throwable, A]],
+      CogenCaseB: Cogen[Outcome[R[F, *], Throwable, B]],
+      CogenCaseU: Cogen[Outcome[R[F, *], Throwable, Unit]],
       EqFA: Eq[R[F, A]],
       EqFB: Eq[R[F, B]],
       EqFC: Eq[R[F, C]],
@@ -67,23 +67,23 @@ trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, ?]] with Tempor
       EqFEitherAU: Eq[R[F, Either[A, Unit]]],
       EqFEitherEitherEAU: Eq[R[F, Either[Either[Throwable, A], Unit]]],
       EqFEitherUEitherEA: Eq[R[F, Either[Unit, Either[Throwable, A]]]],
-      EqFOutcomeEA: Eq[R[F, Outcome[R[F, ?], Throwable, A]]],
-      EqFOutcomeEU: Eq[R[F, Outcome[R[F, ?], Throwable, Unit]]],
+      EqFOutcomeEA: Eq[R[F, Outcome[R[F, *], Throwable, A]]],
+      EqFOutcomeEU: Eq[R[F, Outcome[R[F, *], Throwable, Unit]]],
       EqFABC: Eq[R[F, (A, B, C)]],
       EqFInt: Eq[R[F, Int]],
       OrdFFD: Order[R[F, FiniteDuration]],
       GroupFD: Group[R[F, FiniteDuration]],
       exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, ?]],
+      iso: Isomorphisms[R[F, *]],
       faPP: R[F, A] => Pretty,
       fbPP: R[F, B] => Pretty,
       fuPP: R[F, Unit] => Pretty,
       aFUPP: (A => R[F, Unit]) => Pretty,
       ePP: Throwable => Pretty,
-      foaPP: F[Outcome[R[F, ?], Throwable, A]] => Pretty,
+      foaPP: F[Outcome[R[F, *], Throwable, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, ?], Throwable, Unit]] => Pretty)
+      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty)
       : RuleSet = {
 
     new RuleSet {
@@ -101,8 +101,8 @@ object AsyncRegionTests {
       R[_[_], _],
       F[_]](
     implicit
-      F0: Async[R[F, ?]] with Region[R, F, Throwable],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, ?], Throwable, ?]])
+      F0: Async[R[F, *]] with Region[R, F, Throwable],
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
       : AsyncRegionTests[R, F] = new AsyncRegionTests[R, F] {
     val laws = AsyncRegionLaws[R, F]
   }

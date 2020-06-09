@@ -17,8 +17,8 @@
 package cats.effect
 package laws
 
-trait TemporalRegionLaws[R[_[_], _], F[_], E] extends TemporalLaws[R[F, ?], E] with ConcurrentRegionLaws[R, F, E] {
-  implicit val F: Temporal[R[F, ?], E] with Region[R, F, E]
+trait TemporalRegionLaws[R[_[_], _], F[_], E] extends TemporalLaws[R[F, *], E] with ConcurrentRegionLaws[R, F, E] {
+  implicit val F: Temporal[R[F, *], E] with Region[R, F, E]
 }
 
 object TemporalRegionLaws {
@@ -27,8 +27,8 @@ object TemporalRegionLaws {
       F[_],
       E](
     implicit
-      F0: Temporal[R[F, ?], E] with Region[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, ?], E, ?]])
+      F0: Temporal[R[F, *], E] with Region[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
       : TemporalRegionLaws[R, F, E] =
     new TemporalRegionLaws[R, F, E] {
       val F = F0

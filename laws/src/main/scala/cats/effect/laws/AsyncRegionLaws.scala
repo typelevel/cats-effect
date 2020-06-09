@@ -17,8 +17,8 @@
 package cats.effect
 package laws
 
-trait AsyncRegionLaws[R[_[_], _], F[_]] extends AsyncLaws[R[F, ?]] with TemporalRegionLaws[R, F, Throwable] {
-  implicit val F: Async[R[F, ?]] with Region[R, F, Throwable]
+trait AsyncRegionLaws[R[_[_], _], F[_]] extends AsyncLaws[R[F, *]] with TemporalRegionLaws[R, F, Throwable] {
+  implicit val F: Async[R[F, *]] with Region[R, F, Throwable]
 }
 
 object AsyncRegionLaws {
@@ -26,8 +26,8 @@ object AsyncRegionLaws {
       R[_[_], _],
       F[_]](
     implicit
-      F0: Async[R[F, ?]] with Region[R, F, Throwable],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, ?], Throwable, ?]])
+      F0: Async[R[F, *]] with Region[R, F, Throwable],
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
       : AsyncRegionLaws[R, F] =
     new AsyncRegionLaws[R, F] {
       val F = F0

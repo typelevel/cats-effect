@@ -30,7 +30,7 @@ object ManagedLaws {
       F[_]](
     implicit
       F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, ?], Throwable, ?]])
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
       : ManagedLaws[R, F] =
     new ManagedLaws[R, F] {
       val F = F0

@@ -281,8 +281,8 @@ object OutcomeGenerators {
     val cogenE: Cogen[E] = implicitly
     implicit val F: ApplicativeError[Outcome[F, E, *], E] = Outcome.applicativeError[F, E]
 
-    override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[Outcome[F,E,A]])] = List(
-      "const(Canceled)" -> Gen.const(Outcome.Canceled)
+    override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[Outcome[F, E, A]])] = List(
+      "const(Canceled)" -> Gen.const(Outcome.Canceled[F, E, A]())
     ) ++ super.baseGen[A]
   }
 
@@ -292,8 +292,8 @@ object OutcomeGenerators {
     }
 
   implicit def cogenOutcome[F[_], E: Cogen, A](implicit A: Cogen[F[A]]): Cogen[Outcome[F, E, A]] = Cogen[Option[Either[E, F[A]]]].contramap {
-    case Outcome.Canceled => None
-    case c: Outcome.Completed[F, A] => Some(Right(c.fa))
+    case Outcome.Canceled() => None
+    case Outcome.Completed(fa) => Some(Right(fa))
     case Outcome.Errored(e) => Some(Left(e))
   }
 }

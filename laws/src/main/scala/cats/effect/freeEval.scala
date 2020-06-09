@@ -26,14 +26,14 @@ import java.time.Instant
 object freeEval {
 
   type FreeSync[F[_], A] = FreeT[Eval, F, A]
-  type FreeEitherSync[A] = FreeSync[Either[Throwable, ?], A]
+  type FreeEitherSync[A] = FreeSync[Either[Throwable, *], A]
 
   def run[F[_]: Monad, A](ft: FreeT[Eval, F, A]): F[A] =
     ft.runM(_.value.pure[F])
 
-  implicit def syncForFreeT[F[_]](implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, ?]] =
-    new Sync[FreeT[Eval, F, ?]] {
-      private[this] val M: MonadError[FreeT[Eval, F, ?], Throwable] =
+  implicit def syncForFreeT[F[_]](implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
+    new Sync[FreeT[Eval, F, *]] {
+      private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
         cats.effect.pure.catsFreeMonadErrorForFreeT2
 
       def pure[A](x: A): FreeT[Eval, F, A] =

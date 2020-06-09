@@ -23,7 +23,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, ?], E] {
+trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, *], E] {
 
   val laws: RegionLaws[R, F, E]
 
@@ -44,7 +44,8 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, ?], E] {
       CogenB: Cogen[B],
       CogenC: Cogen[C],
       CogenE: Cogen[E],
-      CogenCase: Cogen[laws.F.Case[_]],
+      CogenCaseA: Cogen[laws.F.Case[A]],
+      CogenCaseB: Cogen[laws.F.Case[B]],
       EqRFA: Eq[R[F, A]],
       EqRFB: Eq[R[F, B]],
       EqRFC: Eq[R[F, C]],
@@ -54,7 +55,7 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, ?], E] {
       EqRFABC: Eq[R[F, (A, B, C)]],
       EqRFInt: Eq[R[F, Int]],
       EqRFUnit: Eq[R[F, Unit]],
-      iso: Isomorphisms[R[F, ?]])
+      iso: Isomorphisms[R[F, *]])
       : RuleSet = {
 
     new RuleSet {
@@ -66,7 +67,7 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, ?], E] {
         "empty is bracket . pure" -> forAll(laws.regionEmptyBracketPure[A, B] _),
         "nesting" -> forAll(laws.regionNested[A, B, C] _),
         "flatMap extends" -> forAll(laws.regionExtend[A, B] _),
-        "error coherence" -> forAll(laws.regionErrorCoherence[A] _),
+        "error coherence" -> forAll(laws.regionErrorCoherence[A, A] _),
         "liftF is open unit" -> forAll(laws.regionLiftFOpenUnit[A] _))
     }
   }

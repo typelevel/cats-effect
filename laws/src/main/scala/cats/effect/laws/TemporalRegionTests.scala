@@ -25,7 +25,7 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, ?], E] with ConcurrentRegionTests[R, F, E] {
+trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E] with ConcurrentRegionTests[R, F, E] {
 
   val laws: TemporalRegionLaws[R, F, E]
 
@@ -49,9 +49,9 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, ?], E]
       CogenC: Cogen[C],
       CogenE: Cogen[E],
       CogenCase: Cogen[laws.F.Case[_]],
-      CogenCaseA: Cogen[Outcome[R[F, ?], E, A]],
-      CogenCaseB: Cogen[Outcome[R[F, ?], E, B]],
-      CogenCaseU: Cogen[Outcome[R[F, ?], E, Unit]],
+      CogenCaseA: Cogen[Outcome[R[F, *], E, A]],
+      CogenCaseB: Cogen[Outcome[R[F, *], E, B]],
+      CogenCaseU: Cogen[Outcome[R[F, *], E, Unit]],
       EqFA: Eq[R[F, A]],
       EqFB: Eq[R[F, B]],
       EqFC: Eq[R[F, C]],
@@ -64,23 +64,23 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, ?], E]
       EqFEitherAU: Eq[R[F, Either[A, Unit]]],
       EqFEitherEitherEAU: Eq[R[F, Either[Either[E, A], Unit]]],
       EqFEitherUEitherEA: Eq[R[F, Either[Unit, Either[E, A]]]],
-      EqFOutcomeEA: Eq[R[F, Outcome[R[F, ?], E, A]]],
-      EqFOutcomeEU: Eq[R[F, Outcome[R[F, ?], E, Unit]]],
+      EqFOutcomeEA: Eq[R[F, Outcome[R[F, *], E, A]]],
+      EqFOutcomeEU: Eq[R[F, Outcome[R[F, *], E, Unit]]],
       EqFABC: Eq[R[F, (A, B, C)]],
       EqFInt: Eq[R[F, Int]],
       OrdFFD: Order[R[F, FiniteDuration]],
       GroupFD: Group[R[F, FiniteDuration]],
       exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, ?]],
+      iso: Isomorphisms[R[F, *]],
       faPP: R[F, A] => Pretty,
       fbPP: R[F, B] => Pretty,
       fuPP: R[F, Unit] => Pretty,
       aFUPP: (A => R[F, Unit]) => Pretty,
       ePP: E => Pretty,
-      foaPP: F[Outcome[R[F, ?], E, A]] => Pretty,
+      foaPP: F[Outcome[R[F, *], E, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, ?], E, Unit]] => Pretty)
+      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty)
       : RuleSet = {
 
     new RuleSet {
@@ -99,8 +99,8 @@ object TemporalRegionTests {
       F[_],
       E](
     implicit
-      F0: Temporal[R[F, ?], E] with Region[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, ?], E, ?]])
+      F0: Temporal[R[F, *], E] with Region[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
       : TemporalRegionTests[R, F, E] = new TemporalRegionTests[R, F, E] {
     val laws = TemporalRegionLaws[R, F, E]
   }

@@ -35,7 +35,7 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
   def bracketUncancelableFlatMapIdentity[A, B](acq: F[A], use: A => F[B], release: (A, Outcome[F, E, B]) => F[Unit]) = {
     val identity = F uncancelable { poll =>
       acq flatMap { a =>
-        val finalized = F.onCase(poll(use(a))) { case Outcome.Canceled => release(a, Outcome.Canceled) }
+        val finalized = F.onCase(poll(use(a))) { case Outcome.Canceled() => release(a, Outcome.Canceled()) }
         val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
         handled.flatMap(b => release(a, Outcome.Completed(F.pure(b))).attempt.as(b))
       }
@@ -56,9 +56,9 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
           case Outcome.Errored(_) => handler
         }
 
-      case Outcome.Canceled =>
+      case Outcome.Canceled() =>
         F.onCase(fa) {
-          case Outcome.Canceled => handler
+          case Outcome.Canceled() => handler
         }
     }
 
