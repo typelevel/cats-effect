@@ -57,6 +57,7 @@ object Example extends IOApp {
       _ <- print("1")
       _ <- print("2")
       _ <- IO.shift
+      _ <- IO.async[Int](cb => cb(Right(32)))
       _ <- IO.shift.bracket(_ =>
         print("3")
           .flatMap(_ => program2)

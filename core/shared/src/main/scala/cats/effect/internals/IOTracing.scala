@@ -24,35 +24,24 @@ import cats.effect.tracing.{TraceFrame, TraceTag}
 
 private[effect] object IOTracing {
 
-  def uncached[A](source: IO[A], traceTag: TraceTag): IO[A] =
-//    localTracingMode.get() match {
-//      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
-//      case _ => source
-//    }
+  def decorated[A](source: IO[A], traceTag: TraceTag): IO[A] =
     Trace(source, buildFrame(traceTag))
 
   // TODO: Avoid trace tag for primitive ops and rely on class
-  def cached[A](source: IO[A], traceTag: TraceTag, clazz: Class[_]): IO[A] = {
-//    localTracingMode.get() match {
-//      case TracingMode.Rabbit => Trace(source, buildCachedFrame(traceTag, clazz))
-//      case TracingMode.Slug => Trace(source, buildFrame(traceTag))
-//      case TracingMode.Disabled => source
-//    }
-    println(clazz)
-    Trace(source, buildFrame(traceTag))
-  }
+  def uncached(traceTag: TraceTag): TraceFrame =
+    buildFrame(traceTag)
 
-  def trace(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
+  def cached(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
     buildCachedFrame(traceTag, clazz)
 
   def traced[A](source: IO[A]): IO[A] =
     resetTrace *> incrementCollection *> source.flatMap(DecrementTraceCollection.asInstanceOf[A => IO[A]])
 
-  private def buildCachedFrame(traceTag: TraceTag, keyClass: Class[_]): TraceFrame = {
-    val cachedFr = frameCache.get(keyClass)
+  private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): TraceFrame = {
+    val cachedFr = frameCache.get(clazz)
     if (cachedFr eq null) {
       val fr = buildFrame(traceTag)
-      frameCache.put(keyClass, fr)
+      frameCache.put(clazz, fr)
       fr
     } else {
       cachedFr

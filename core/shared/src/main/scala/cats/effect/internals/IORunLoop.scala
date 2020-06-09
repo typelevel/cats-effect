@@ -89,8 +89,8 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
-            val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
+            val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -134,19 +134,23 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
-            val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
+            val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
 
-        case async @ Async(_, _) =>
+        case async @ Async(_, _, _) =>
           if (conn eq null) conn = IOConnection()
           // We need to initialize an IOContext because the continuation
           // may produce trace frames e.g. IOBracket.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
+          if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
+            val trace = async.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+          }
           rcb.start(async, ctx, bFirst, bRest)
           return
 
@@ -227,8 +231,8 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
-            val trace = bind.trace
             if (ctx eq null) ctx = IOContext()
+            val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -272,8 +276,8 @@ private[effect] object IORunLoop {
             bRest.push(bFirst)
           }
           if ((tracingMode == 1 || tracingMode == 2) && activeCollects > 0) {
-            val trace = bindNext.trace
             if (ctx eq null) ctx = IOContext()
+            val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
@@ -296,13 +300,13 @@ private[effect] object IORunLoop {
           unboxed = ().asInstanceOf[AnyRef]
           hasUnboxed = true
 
-        case Async(_, _) =>
+        case Async(_, _, _) =>
           // Cannot inline the code of this method — as it would
           // box those vars in scala.runtime.ObjectRef!
           return suspendAsync(currentIO.asInstanceOf[IO.Async[A]], ctx, bFirst, bRest)
 
         case _ =>
-          return Async { (conn, ctx, cb) =>
+          return Async { (conn, _, cb) =>
             loop(currentIO, conn, cb.asInstanceOf[Callback], ctx, null, bFirst, bRest)
           }
       }
@@ -334,7 +338,6 @@ private[effect] object IORunLoop {
     // the loop with the collected stack
     if (bFirst != null || (bRest != null && !bRest.isEmpty))
       Async { (conn, _, cb) =>
-        // TODO: Pass in old IOContext
         loop(currentIO, conn, cb.asInstanceOf[Callback], ctx, null, bFirst, bRest)
       }
     else
