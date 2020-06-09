@@ -98,25 +98,6 @@ object Outcome extends LowPriorityImplicits {
   def fromEither[F[_]: Applicative, E, A](either: Either[E, A]): Outcome[F, E, A] =
     either.fold(Errored(_), a => Completed(a.pure[F]))
 
-  /*implicit class Syntax[F[_], E, A](val self: Outcome[F, E, A]) extends AnyVal {
-
-    def fold[B](
-        canceled: => B,
-        errored: E => B,
-        completed: F[A] => B)
-        : B = self match {
-      case Canceled => canceled
-      case Errored(e) => errored(e)
-      case Completed(fa) => completed(fa)
-    }
-
-    def mapK[G[_]](f: F ~> G): Outcome[G, E, A] = self match {
-      case Outcome.Canceled => Outcome.Canceled
-      case Outcome.Errored(e) => Outcome.Errored(e)
-      case Outcome.Completed(fa) => Outcome.Completed(f(fa))
-    }
-  }*/
-
   implicit def order[F[_], E: Order, A](implicit FA: Order[F[A]]): Order[Outcome[F, E, A]] =
     Order from {
       case (Canceled(), Canceled()) => 0
