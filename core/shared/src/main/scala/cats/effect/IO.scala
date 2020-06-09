@@ -108,7 +108,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     if (tracingMode == 1) {
       Map(this, f, 0, IOTracing.cached(TraceTag.Map, f.getClass))
     } else if (tracingMode == 2) {
-      Map(this, f, 0, IOTracing.uncached(TraceTag.Map, f.getClass))
+      Map(this, f, 0, IOTracing.uncached(TraceTag.Map))
     } else {
       this match {
         case Map(source, g, index, null) =>
@@ -141,7 +141,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
     val trace = if (tracingMode == 1) {
       IOTracing.cached(TraceTag.Bind, f.getClass)
     } else if (tracingMode == 2) {
-      IOTracing.uncached(TraceTag.Bind, f.getClass)
+      IOTracing.uncached(TraceTag.Bind)
     } else {
       null
     }
