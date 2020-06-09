@@ -20,6 +20,9 @@ public class Tracing {
 
     private static final TracingMode globalTracingMode = TracingPlatformFast.tracingMode;
 
+    // Provide various views of the tracing mode
+    // that are used by IO constructors or run-loop.
+
     public static final boolean isRabbitTracing = globalTracingMode == TracingMode.RABBIT;
 
     public static final boolean isSlugTracing = globalTracingMode == TracingMode.SLUG;

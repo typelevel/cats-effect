@@ -36,7 +36,7 @@ public final class TracingPlatformFast {
     public static final TracingMode tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
             .filter(x -> !x.isEmpty())
             .flatMap(TracingMode::fromString)
-            .orElse(TracingMode.RABBIT);
+            .orElse(TracingMode.DISABLED);
 
     /**
      * The number of trace lines to retain during tracing. If more trace
