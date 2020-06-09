@@ -26,7 +26,6 @@ import org.scalacheck.Prop
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -42,15 +41,6 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
 
   implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
     run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
-
-  def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
-
-  def be_===[A: Eq: Show](expect: A): Matcher[A] = (result: A) =>
-    (result === expect, s"${result.show} === ${expect.show}", s"${result.show} !== ${expect.show}")
-
-  Eq[Either[Throwable, Int]]
-
-  cats.Invariant[FreeEitherSync]
 
   checkAll(
     "FreeEitherSync",

@@ -264,7 +264,7 @@ trait AsyncGenerators[F[_]] extends TemporalGenerators[F, Throwable] with SyncGe
       fo <- deeper[Option[F[Unit]]](
         Arbitrary(
           Gen.option[F[Unit]](
-            deeper[Unit](Arbitrary(arbitrary[Unit]), Cogen.cogenUnit))),
+            deeper[Unit])),
         Cogen.cogenOption(cogenFU))
     } yield F.async[A](k => F.delay(k(result)) >> fo)
 
