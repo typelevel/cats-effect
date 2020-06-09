@@ -44,15 +44,7 @@ lazy val core = project.in(file("core"))
   .settings(
     name := "cats-effect",
 
-    libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-core" % CatsVersion,
-      "org.typelevel" %% "cats-free" % CatsVersion,
-
-      "com.codecommit" %% "coop" % "0.4.0",
-
-      "org.typelevel" %% "cats-laws"         % CatsVersion % Test,
-      "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
-      "org.specs2"    %% "specs2-scalacheck" % "4.8.1"     % Test))
+    libraryDependencies += "org.typelevel" %% "cats-core" % CatsVersion)
 
 lazy val laws = project.in(file("laws"))
   .dependsOn(core)
@@ -61,6 +53,9 @@ lazy val laws = project.in(file("laws"))
 
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-laws" % CatsVersion,
+      "org.typelevel" %% "cats-free" % CatsVersion,
+
+      "com.codecommit" %% "coop" % "0.4.0",
 
       "org.typelevel" %% "discipline-specs2" % "1.0.0"     % Test,
       "org.specs2"    %% "specs2-scalacheck" % "4.8.1"     % Test))
