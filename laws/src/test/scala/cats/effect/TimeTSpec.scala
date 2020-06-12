@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
+import cats.{Eq, Order}
 import cats.data.Kleisli
 import cats.effect.laws.TemporalBracketTests
 import cats.implicits._
@@ -26,7 +26,6 @@ import pure._
 import TimeT._
 
 import org.specs2.ScalaCheck
-import org.specs2.matcher.Matcher
 import org.specs2.mutable._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -48,10 +47,10 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
   import PureConcGenerators._
 
   checkAll(
-    "TimeT[PureConc, ?]",
-    TemporalBracketTests[TimeT[PureConc[Int, ?], ?], Int].temporalBracket[Int, Int, Int](0.millis))
+    "TimeT[PureConc, *]",
+    TemporalBracketTests[TimeT[PureConc[Int, *], *], Int].temporalBracket[Int, Int, Int](0.millis))
 
-  implicit def exec(fb: TimeT[PureConc[Int, ?], Boolean]): Prop =
+  implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
 
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
@@ -80,9 +79,4 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
 
   implicit def cogenKleisli[F[_], R, A](implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
     cg.contramap(_.run)
-
-  def beEqv[A: Eq: Show](expect: A): Matcher[A] = be_===[A](expect)
-
-  def be_===[A: Eq: Show](expect: A): Matcher[A] = (result: A) =>
-    (result === expect, s"${result.show} === ${expect.show}", s"${result.show} !== ${expect.show}")
 }

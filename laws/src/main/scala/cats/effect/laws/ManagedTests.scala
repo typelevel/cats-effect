@@ -51,9 +51,9 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
       CogenCase: Cogen[laws.F.Case[_]],
-      CogenCaseA: Cogen[Outcome[R[F, ?], Throwable, A]],
-      CogenCaseB: Cogen[Outcome[R[F, ?], Throwable, B]],
-      CogenCaseU: Cogen[Outcome[R[F, ?], Throwable, Unit]],
+      CogenCaseA: Cogen[Outcome[R[F, *], Throwable, A]],
+      CogenCaseB: Cogen[Outcome[R[F, *], Throwable, B]],
+      CogenCaseU: Cogen[Outcome[R[F, *], Throwable, Unit]],
       EqFA: Eq[R[F, A]],
       EqFB: Eq[R[F, B]],
       EqFC: Eq[R[F, C]],
@@ -67,23 +67,23 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
       EqFEitherAU: Eq[R[F, Either[A, Unit]]],
       EqFEitherEitherEAU: Eq[R[F, Either[Either[Throwable, A], Unit]]],
       EqFEitherUEitherEA: Eq[R[F, Either[Unit, Either[Throwable, A]]]],
-      EqFOutcomeEA: Eq[R[F, Outcome[R[F, ?], Throwable, A]]],
-      EqFOutcomeEU: Eq[R[F, Outcome[R[F, ?], Throwable, Unit]]],
+      EqFOutcomeEA: Eq[R[F, Outcome[R[F, *], Throwable, A]]],
+      EqFOutcomeEU: Eq[R[F, Outcome[R[F, *], Throwable, Unit]]],
       EqFABC: Eq[R[F, (A, B, C)]],
       EqFInt: Eq[R[F, Int]],
       OrdFFD: Order[R[F, FiniteDuration]],
       GroupFD: Group[R[F, FiniteDuration]],
       exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, ?]],
+      iso: Isomorphisms[R[F, *]],
       faPP: R[F, A] => Pretty,
       fbPP: R[F, B] => Pretty,
       fuPP: R[F, Unit] => Pretty,
       aFUPP: (A => R[F, Unit]) => Pretty,
       ePP: Throwable => Pretty,
-      foaPP: F[Outcome[R[F, ?], Throwable, A]] => Pretty,
+      foaPP: F[Outcome[R[F, *], Throwable, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, ?], Throwable, Unit]] => Pretty)
+      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty)
       : RuleSet = {
 
     new RuleSet {
@@ -102,7 +102,7 @@ object ManagedTests {
       F[_]](
     implicit
       F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, ?], Throwable, ?]])
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
       : ManagedTests[R, F] = new ManagedTests[R, F] {
     val laws = ManagedLaws[R, F]
   }

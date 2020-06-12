@@ -33,7 +33,7 @@ object FreeSyncGenerators {
     C.contramap(run(_))
 
   def generators[F[_]](implicit F0: MonadError[F, Throwable]) =
-    new SyncGenerators[FreeT[Eval, F, ?]] {
+    new SyncGenerators[FreeT[Eval, F, *]] {
 
       val arbitraryE: Arbitrary[Throwable] =
         Arbitrary(Arbitrary.arbitrary[Int].map(TestException(_)))
@@ -53,7 +53,7 @@ object FreeSyncGenerators {
         }
       }
 
-      val F: Sync[FreeT[Eval, F, ?]] =
+      val F: Sync[FreeT[Eval, F, *]] =
         syncForFreeT[F]
     }
 

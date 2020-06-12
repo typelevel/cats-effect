@@ -27,7 +27,7 @@ trait Fiber[F[_], E, A] {
 trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   type Case[A] = Outcome[F, E, A]
 
-  final def CaseInstance: ApplicativeError[Outcome[F, E, ?], E] =
+  final def CaseInstance: ApplicativeError[Outcome[F, E, *], E] =
     Outcome.applicativeError[F, E](this)
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
