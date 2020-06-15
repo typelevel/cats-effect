@@ -20,9 +20,14 @@ import cats.effect.Fiber
 import cats.effect.Concurrent
 
 trait ConcurrentSyntax {
-  implicit class Ops[F[_], A, E](val wrapped: F[A])(implicit val F: Concurrent[F, E]) {
+  implicit def concurrentOps[F[_], A, E](
+      wrapped: F[A]
+  ): ConcurrentOps[F, A, E] =
+    new ConcurrentOps(wrapped)
+}
 
-    def start: F[Fiber[F, E, A]] = F.start(wrapped)
+final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
-  }
+  def start(implicit F: Concurrent[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
+
 }
