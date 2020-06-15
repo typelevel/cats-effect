@@ -16,6 +16,4 @@
 
 package cats.effect.syntax
 
-package object syntax extends AllSyntax {
-
-}
+package object syntax extends AllSyntax {}
