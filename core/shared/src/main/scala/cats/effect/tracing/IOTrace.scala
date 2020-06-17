@@ -22,7 +22,13 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
 
   import IOTrace._
 
+  // Number of lines to drop from the head of the stack trace.
+  private[this] val DropLines = 3
+
   def compact: String = {
+    val TurnRight = "╰"
+    val Junction = "├"
+
     def renderStackTraceElement(ste: StackTraceElement): String = {
       val className = demangleClassName(ste.getClassName)
       val methodName = demangleMethodName(ste.getMethodName)
@@ -30,9 +36,11 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
     }
 
     val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = frames.foldLeft(acc0) { (acc, f) =>
-      val first = f.stackTrace.dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b))).headOption
-      acc + s"\t${f.tag.name} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
+    val acc1 = frames.zipWithIndex.foldLeft(acc0) {
+      case (acc, (f, index)) =>
+        val junc = if (index == frames.length - 1) TurnRight else Junction
+        val first = f.stackTrace.dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b))).headOption
+        acc + s"  $junc ${f.tag.name} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
     } + "\n"
 
     acc1
@@ -53,7 +61,6 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
   private def loop(acc: String, indent: Int, init: Boolean, rest: List[TraceFrame]): String = {
     val TurnRight = "╰"
     val InverseTurnRight = "╭"
-    val TurnDown = "╮"
     val Junction = "├"
     val Line = "│"
 
@@ -68,18 +75,16 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
 
     rest match {
       case k :: ks => {
-        val acc2 = if (init) {
-          InverseTurnRight + s" ${k.tag.name}\n"
-        } else {
-          Junction + s" ${k.tag.name}\n"
-        }
+        val acc2 = if (init) InverseTurnRight + s" ${k.tag.name}\n" else Junction + s" ${k.tag.name}\n"
+        val innerLines = k.stackTrace
+          .drop(DropLines)
+          .zipWithIndex
+          .map {
+            case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)
+          }
+          .mkString
 
-        val inner = Line + " " + TurnRight + TurnDown + "\n"
-        val innerLines = k.stackTrace.zipWithIndex.map {
-          case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)
-        }.mkString
-
-        loop(acc + acc2 + inner + innerLines + Line + "\n", indent, false, ks)
+        loop(acc + acc2 + innerLines + Line + "\n", indent, false, ks)
       }
       case Nil => acc
     }

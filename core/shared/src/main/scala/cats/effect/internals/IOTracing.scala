@@ -19,7 +19,7 @@ package cats.effect.internals
 import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
-import cats.effect.IO.{CollectTraces, Pure, RaiseError, Trace}
+import cats.effect.IO.{Bind, CollectTraces, Pure, RaiseError, Trace}
 import cats.effect.tracing.{TraceFrame, TraceTag}
 
 private[effect] object IOTracing {
@@ -34,7 +34,7 @@ private[effect] object IOTracing {
     buildCachedFrame(traceTag, clazz)
 
   def traced[A](source: IO[A]): IO[A] =
-    resetTrace *> incrementCollection *> source.flatMap(DecrementTraceCollection.asInstanceOf[A => IO[A]])
+    resetTrace *> incrementCollection *> Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null)
 
   private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(clazz)
