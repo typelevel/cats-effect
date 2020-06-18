@@ -17,6 +17,11 @@
 package cats.effect
 
 import cats.{Defer, MonadError}
+import cats.data.OptionT
+
+import scala.concurrent.duration.FiniteDuration
+
+import java.time.Instant
 
 trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
   def delay[A](thunk: => A): F[A]
@@ -26,5 +31,35 @@ trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
 }
 
 object Sync {
+
   def apply[F[_]](implicit F: Sync[F]): F.type = F
+
+  implicit def syncForOptionT[F[_]](implicit F: Sync[F]): Sync[OptionT[F, *]] =
+    new Sync[OptionT[F, *]] {
+      private[this] val delegate = OptionT.catsDataMonadErrorForOptionT[F, Throwable]
+
+      def pure[A](x: A): OptionT[F, A] =
+        delegate.pure(x)
+
+      def handleErrorWith[A](fa: OptionT[F, A])(f: Throwable => OptionT[F, A]): OptionT[F, A] =
+        delegate.handleErrorWith(fa)(f)
+
+      def raiseError[A](e: Throwable): OptionT[F, A] =
+        delegate.raiseError(e)
+
+      def monotonic: OptionT[F, FiniteDuration] =
+      OptionT.liftF(F.monotonic)
+
+      def realTime: OptionT[F, Instant] =
+        OptionT.liftF(F.realTime)
+
+      def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
+        delegate.flatMap(fa)(f)
+
+      def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
+        delegate.tailRecM(a)(f)
+
+      def delay[A](thunk: => A): OptionT[F, A] =
+        OptionT.liftF(F.delay(thunk))
+    }
 }
