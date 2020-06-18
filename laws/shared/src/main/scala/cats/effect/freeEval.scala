@@ -21,8 +21,6 @@ import cats.free.FreeT
 import cats.implicits._
 
 import scala.concurrent.duration._
-import java.time.Instant
-
 object freeEval {
 
   type FreeSync[F[_], A] = FreeT[Eval, F, A]
@@ -48,8 +46,8 @@ object freeEval {
       def monotonic: FreeT[Eval, F, FiniteDuration] =
         delay(System.nanoTime().nanos)
 
-      def realTime: FreeT[Eval, F, Instant] =
-        delay(Instant.now())
+      def realTime: FreeT[Eval, F, FiniteDuration] =
+        delay(System.currentTimeMillis().millis)
 
       def flatMap[A, B](fa: FreeT[Eval, F, A])(f: A => FreeT[Eval, F, B]): FreeT[Eval, F, B] =
         fa.flatMap(f)

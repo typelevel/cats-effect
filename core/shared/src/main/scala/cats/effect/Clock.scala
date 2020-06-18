@@ -20,15 +20,13 @@ import cats.Applicative
 
 import scala.concurrent.duration.FiniteDuration
 
-import java.time.Instant
-
 trait Clock[F[_]] extends Applicative[F] {
 
   // (monotonic, monotonic).mapN(_ <= _)
   def monotonic: F[FiniteDuration]
 
   // lawless (unfortunately), but meant to represent current (when sequenced) system time
-  def realTime: F[Instant]
+  def realTime: F[FiniteDuration]
 }
 
 object Clock {
