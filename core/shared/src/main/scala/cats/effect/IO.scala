@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals._
-import cats.effect.internals.Tracing.{isRabbitTracing, isSlugTracing}
+import cats.effect.internals.TracingPlatform.{isRabbitTracing, isSlugTracing}
 import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance

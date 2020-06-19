@@ -27,15 +27,24 @@ import java.util.Optional;
  *
  * INTERNAL API.
  */
-final class TracingPlatform {
+public final class TracingPlatform {
 
     /**
      * A string flag that sets a global tracing mode for a JVM process.
      * Acceptable values are: DISABLED, RABBIT, SLUG.
+     *
+     * This field isn't accessed by other classes; instead use one of the
+     * more specific accessors defined below.
      */
-    public static final String tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+    private static final String tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
             .filter(x -> !x.isEmpty())
             .orElse("disabled");
+
+    public static final boolean isRabbitTracing = tracingMode.equalsIgnoreCase("rabbit");
+
+    public static final boolean isSlugTracing = tracingMode.equalsIgnoreCase("slug");
+
+    public static final boolean isTracing = isSlugTracing || isRabbitTracing;
 
     /**
      * The number of trace lines to retain during tracing. If more trace

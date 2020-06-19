@@ -16,6 +16,12 @@
 
 package cats.effect.internals
 
-private[effect] object TracingPlatform {
-  val maxTraceDepth: Int = 32
+object TracingPlatform {
+  final val isRabbitTracing: Boolean = false
+
+  final val isSlugTracing: Boolean = false
+
+  final val isTracing: Boolean = isSlugTracing || isRabbitTracing
+
+  final val maxTraceDepth: Int = 32
 }

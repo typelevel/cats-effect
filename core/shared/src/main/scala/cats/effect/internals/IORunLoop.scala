@@ -86,7 +86,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (Tracing.isTracing && activeCollects > 0) {
+          if (TracingPlatform.isTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -131,7 +131,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (Tracing.isTracing && activeCollects > 0) {
+          if (TracingPlatform.isTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -145,7 +145,7 @@ private[effect] object IORunLoop {
           // may produce trace frames e.g. IOBracket.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          if (Tracing.isTracing && activeCollects > 0) {
+          if (TracingPlatform.isTracing && activeCollects > 0) {
             val trace = async.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
           }
@@ -228,7 +228,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (Tracing.isTracing && activeCollects > 0) {
+          if (TracingPlatform.isTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
@@ -273,7 +273,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (Tracing.isTracing && activeCollects > 0) {
+          if (TracingPlatform.isTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
