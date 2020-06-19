@@ -14,20 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect.internals;
+package cats.effect.internals
 
-import java.util.Optional;
-
-public enum TracingMode {
-    DISABLED,
-    RABBIT,
-    SLUG;
-
-    public static Optional<TracingMode> fromString(String value) {
-        try {
-            return Optional.of(valueOf(value.toUpperCase()));
-        } catch(IllegalArgumentException ex) {
-            return Optional.empty();
-        }
-    }
+private[effect] object TracingPlatform {
+  val maxTraceDepth: Int = 32
 }

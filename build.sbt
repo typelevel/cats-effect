@@ -250,10 +250,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
           // https://github.com/scala/scala/pull/6606
           Nil
       }
-    },
-    unmanagedSourceDirectories in Compile += {
-      baseDirectory.value.getParentFile / "shared" / "src" / "main" / "java"
-    },
+    }
   )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(mimaSettings))

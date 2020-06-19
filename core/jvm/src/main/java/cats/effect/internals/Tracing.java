@@ -18,14 +18,12 @@ package cats.effect.internals;
 
 public class Tracing {
 
-    private static final TracingMode globalTracingMode = TracingPlatformFast.tracingMode;
+    // Provides accessors to the tracing mode
+    // that are used by IO constructors or the run-loop.
 
-    // Provide various views of the tracing mode
-    // that are used by IO constructors or run-loop.
+    public static final boolean isRabbitTracing = TracingPlatform.tracingMode.equalsIgnoreCase("rabbit");
 
-    public static final boolean isRabbitTracing = globalTracingMode == TracingMode.RABBIT;
-
-    public static final boolean isSlugTracing = globalTracingMode == TracingMode.SLUG;
+    public static final boolean isSlugTracing = TracingPlatform.tracingMode.equalsIgnoreCase("slug");
 
     public static final boolean isTracing = isSlugTracing || isRabbitTracing;
 

@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.tracing.{IOTrace, TraceFrame}
-import cats.effect.internals.TracingPlatformFast.maxTraceDepth
+import cats.effect.internals.TracingPlatform.maxTraceDepth
 
 /**
  * INTERNAL API — Holds state related to the execution of

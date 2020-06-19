@@ -22,8 +22,8 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
 
   import IOTrace._
 
-  // Number of lines to drop from the head of the stack trace.
-  private[this] val DropLines = 3
+  // Number of lines to drop from the top of the stack trace
+  private[this] val stackTraceIgnoreLines = 3
 
   def compact: String = {
     val TurnRight = "╰"
@@ -77,7 +77,7 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
       case k :: ks => {
         val acc2 = if (init) InverseTurnRight + s" ${k.tag.name}\n" else Junction + s" ${k.tag.name}\n"
         val innerLines = k.stackTrace
-          .drop(DropLines)
+          .drop(stackTraceIgnoreLines)
           .zipWithIndex
           .map {
             case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)

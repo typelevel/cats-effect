@@ -22,21 +22,20 @@ import java.util.Optional;
  * Holds platform-specific flags that control tracing behavior.
  *
  * The Scala compiler inserts a volatile bitmap access for module field accesses.
- * Since several of these flags are read during IO node construction, we are opting
- * to hold this flag in a Java class to bypass that and squeeze out more performance.
+ * Because the `tracingMode` flag is read in various IO combinators, we are opting
+ * to define it in a Java source file to avoid the volatile access.
  *
  * INTERNAL API.
  */
-public final class TracingPlatformFast {
+final class TracingPlatform {
 
     /**
      * A string flag that sets a global tracing mode for a JVM process.
      * Acceptable values are: DISABLED, RABBIT, SLUG.
      */
-    public static final TracingMode tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+    public static final String tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
             .filter(x -> !x.isEmpty())
-            .flatMap(TracingMode::fromString)
-            .orElse(TracingMode.RABBIT);
+            .orElse("disabled");
 
     /**
      * The number of trace lines to retain during tracing. If more trace
