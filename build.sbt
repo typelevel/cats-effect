@@ -225,7 +225,7 @@ lazy val sharedSourcesSettings = Seq(
 lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
-  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
+  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, tracingTestsJVM, tracingTestsJS)
   .settings(skipOnPublishSettings)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -284,6 +284,36 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
+
+lazy val SlugTest = config("slug") extend Test
+
+lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("tracing-tests"))
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(commonSettings: _*)
+  .settings(
+    name := "cats-effect-tracing-tests",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-laws" % CatsVersion,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+    )
+  )
+  .configs(SlugTest)
+  .settings(inConfig(SlugTest)(Defaults.testSettings): _*)
+  .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jvmConfigure(_.settings(lawsMimaSettings))
+  .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
+  .jsConfigure(_.settings(scalaJSSettings))
+  .jvmSettings(
+    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0")),
+    fork in Test := true,
+    fork in SlugTest := true,
+    javaOptions in Test += "-Dcats.effect.tracing.mode=rabbit",
+    javaOptions in SlugTest += "-Dcats.effect.tracing.mode=slug"
+  )
+
+lazy val tracingTestsJVM = tracingTests.jvm
+lazy val tracingTestsJS = tracingTests.js
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))

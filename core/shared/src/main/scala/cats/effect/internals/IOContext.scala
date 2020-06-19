@@ -43,7 +43,7 @@ final private[effect] class IOContext private () {
   }
 
   def trace: IOTrace =
-    IOTrace(frames.toList.toVector, captured, omitted)
+    IOTrace(frames.toList, captured, omitted)
 
 }
 

@@ -18,12 +18,9 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
-final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int) {
+final case class IOTrace(frames: List[TraceFrame], captured: Int, omitted: Int) {
 
   import IOTrace._
-
-  // Number of lines to drop from the top of the stack trace
-  private[this] val stackTraceIgnoreLines = 3
 
   def compact: String = {
     val TurnRight = "╰"
@@ -39,7 +36,7 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
     val acc1 = frames.zipWithIndex.foldLeft(acc0) {
       case (acc, (f, index)) =>
         val junc = if (index == frames.length - 1) TurnRight else Junction
-        val first = f.stackTrace.dropWhile(l => classBlacklist.exists(b => l.getClassName.startsWith(b))).headOption
+        val first = f.stackTrace.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
         acc + s"  $junc ${f.tag.name} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
     } + "\n"
 
@@ -99,7 +96,15 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
       case None      => methodName
     }
 
-  private[this] val classBlacklist = List(
+}
+
+private[effect] object IOTrace {
+  final val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
+
+  // Number of lines to drop from the top of the stack trace
+  final val stackTraceIgnoreLines = 3
+
+  final val stackTraceFilter = List(
     "cats.effect.",
     "cats.",
     "sbt.",
@@ -107,9 +112,4 @@ final case class IOTrace(frames: Vector[TraceFrame], captured: Int, omitted: Int
     "sun.",
     "scala."
   )
-
-}
-
-object IOTrace {
-  private[effect] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 }

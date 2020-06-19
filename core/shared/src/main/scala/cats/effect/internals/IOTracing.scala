@@ -34,7 +34,9 @@ private[effect] object IOTracing {
     buildCachedFrame(traceTag, clazz)
 
   def traced[A](source: IO[A]): IO[A] =
-    resetTrace *> incrementCollection *> Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null)
+    resetTrace *>
+      Bind(incrementCollection, (_: Unit) =>
+        Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null), null)
 
   private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(clazz)
@@ -56,9 +58,9 @@ private[effect] object IOTracing {
 
   private object DecrementTraceCollection extends IOFrame[Any, IO[Any]] {
     override def apply(a: Any) =
-      decrementCollection *> Pure(a)
+      Bind(decrementCollection, (_: Unit) => Pure(a), null)
     override def recover(e: Throwable) =
-      decrementCollection *> RaiseError(e)
+      Bind(decrementCollection, (_: Unit) => RaiseError(e), null)
   }
 
   private[this] val resetTrace: IO[Unit] =
