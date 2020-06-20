@@ -68,7 +68,7 @@ private[effect] object IORunLoop {
     // Can change on a context switch
     var conn: IOConnection = cancelable
     var ctx: IOContext = ctxRef
-    var activeCollects: Int = if (ctx ne null) ctx.activeCollects else 0
+    var activeCollects: Int = if (ctx ne null) ctx.activeTraces else 0
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -171,10 +171,10 @@ private[effect] object IORunLoop {
           if (ctx eq null) ctx = IOContext()
           if (collect) {
             activeCollects += 1
-            ctx.activeCollects += 1
+            ctx.enterTrace()
           } else {
             activeCollects -= 1
-            ctx.activeCollects -= 1
+            ctx.exitTrace()
           }
           unboxed = ().asInstanceOf[AnyRef]
           hasUnboxed = true
@@ -290,10 +290,10 @@ private[effect] object IORunLoop {
           if (ctx eq null) ctx = IOContext()
           if (collect) {
             activeCollects += 1
-            ctx.activeCollects += 1
+            ctx.enterTrace()
           } else {
             activeCollects -= 1
-            ctx.activeCollects -= 1
+            ctx.exitTrace()
           }
           unboxed = ().asInstanceOf[AnyRef]
           hasUnboxed = true

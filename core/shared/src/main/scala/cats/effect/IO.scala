@@ -1632,7 +1632,7 @@ object IO extends IOInstances {
 
   val backtrace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
-      cb(Right(ctx.trace))
+      cb(Right(ctx.trace()))
     }
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */

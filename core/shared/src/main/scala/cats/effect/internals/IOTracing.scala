@@ -35,8 +35,9 @@ private[effect] object IOTracing {
 
   def traced[A](source: IO[A]): IO[A] =
     resetTrace *>
-      Bind(incrementCollection, (_: Unit) =>
-        Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null), null)
+      Bind(incrementCollection,
+           (_: Unit) => Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null),
+           null)
 
   private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): TraceFrame = {
     val cachedFr = frameCache.get(clazz)
