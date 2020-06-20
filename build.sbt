@@ -22,7 +22,7 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / publishGithubUser := "djspiewak"
 ThisBuild / publishFullName := "Daniel Spiewak"
 
-ThisBuild / crossScalaVersions := Seq("0.25.0-RC1", "2.12.11", "2.13.2")
+ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", "2.13.2")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11", "adopt@14", "graalvm@20.1.0")
@@ -61,4 +61,4 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
       "org.specs2"    %%% "specs2-scalacheck" % "4.9.4" % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.0")
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.1")
