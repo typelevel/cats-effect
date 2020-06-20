@@ -300,6 +300,13 @@ lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
   )
   .configs(SlugTest)
   .settings(inConfig(SlugTest)(Defaults.testSettings): _*)
+  .jsSettings(inConfig(SlugTest)(ScalaJSPlugin.testConfigSettings): _*)
+  .settings(
+    test in Test := (test in Test).dependsOn(test in SlugTest).value,
+    unmanagedSourceDirectories in SlugTest += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "slug" / "scala"
+    }
+  )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
   .jvmConfigure(_.settings(lawsMimaSettings))
   .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
