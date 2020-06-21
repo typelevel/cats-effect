@@ -291,7 +291,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
 
-lazy val SlugTest = config("slug") extend Test
+lazy val SlugTest = config("slug").extend(Test)
 
 lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("tracing-tests"))
