@@ -57,8 +57,8 @@ can be converted to a string to render. This can aid in understanding the
 actions that a program takes.
 4. Thread tracking. A fiber is scheduled on potentially many threads throughout
 its lifetime. Knowing what thread a fiber is running on, and when it shifts
-threads is a powerful tool in understanding and debugging the concurrency of an
-application.
+threads is a powerful tool for understanding and debugging the concurrency of 
+an application.
 5. Tree rendering. By collecting a trace of all `IO` operations, a pretty tree
 or graph can be rendered to visualize fiber execution.
 6. Fiber identity. Fibers, like threads, are unique and can therefore assume an

@@ -19,7 +19,6 @@ package effect
 
 import cats.effect.internals._
 import cats.effect.internals.TracingPlatform.{isRabbitTracing, isSlugTracing}
-import cats.effect.internals.IOPlatform.fusionMaxStackDepth
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -102,25 +101,17 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * failures would be completely silent and `IO` references would
    * never terminate on evaluation.
    */
-  final def map[B](f: A => B): IO[B] =
-    // Don't perform map fusion when tracing is enabled.
-    // We may end up removing map fusion altogether.
-    if (isRabbitTracing) {
-      Map(this, f, 0, IOTracing.cached(TraceTag.Map, f.getClass))
+  final def map[B](f: A => B): IO[B] = {
+    val trace = if (isRabbitTracing) {
+      IOTracing.cached(TraceTag.Map, f.getClass)
     } else if (isSlugTracing) {
-      Map(this, f, 0, IOTracing.uncached(TraceTag.Map))
+      IOTracing.uncached(TraceTag.Map)
     } else {
-      this match {
-        case Map(source, g, index, null) =>
-          // Allowed to do fixed number of map operations fused before
-          // resetting the counter in order to avoid stack overflows;
-          // See `IOPlatform` for details on this maximum.
-          if (index != fusionMaxStackDepth) Map(source, g.andThen(f), index + 1, null)
-          else Map(this, f, 0, null)
-        case _ =>
-          Map(this, f, 0, null)
-      }
+      null
     }
+
+    Map(this, f, trace)
+  }
 
   /**
    * Monadic bind on `IO`, used for sequentially composing two `IO`
@@ -1654,9 +1645,7 @@ object IO extends IOInstances {
   final private[effect] case class Bind[E, +A](source: IO[E], f: E => IO[A], trace: AnyRef) extends IO[A]
 
   /** Corresponds to [[IO.map]]. */
-  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, index: Int, trace: AnyRef)
-      extends IO[A]
-      with (E => IO[A]) {
+  final private[effect] case class Map[E, +A](source: IO[E], f: E => A, trace: AnyRef) extends IO[A] with (E => IO[A]) {
     override def apply(value: E): IO[A] =
       Pure(f(value))
   }
