@@ -177,8 +177,11 @@ object Semaphore {
                 val u = old match {
                   case Left(waiting) => Left(waiting :+ (n -> gate))
                   case Right(m) =>
-                    if (n <= m) Right(m - n)
-                    else Left(Queue((n - m) -> gate))
+                    if (n <= m) {
+                      Right(m - n)
+                    } else {
+                      Left(Queue((n - m) -> gate))
+                    }
                 }
                 (u, u)
               }
@@ -210,22 +213,11 @@ object Semaphore {
         else
           state
             .modify { old =>
-              val u = old match {
-                case Right(m) if m >= n => Right(m - n)
-                case w                  => w
+              val (newState, result) = old match {
+                case Right(m) if m >= n => (Right(m - n), m != n)
+                case _                  => (old, false)
               }
-              (u, (old, u))
-            }
-            .map {
-              case (previous, now) =>
-                now match {
-                  case Left(_) => false
-                  case Right(n) =>
-                    previous match {
-                      case Left(_)  => false
-                      case Right(m) => n != m
-                    }
-                }
+              (newState, result)
             }
       }
 

@@ -18,8 +18,10 @@ package cats.effect
 package internals
 
 import java.util.concurrent.atomic.AtomicReference
-import cats.effect.concurrent.MVar
+
+import cats.effect.concurrent.MVar2
 import cats.effect.internals.Callback.rightUnit
+
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
@@ -27,7 +29,7 @@ import scala.collection.immutable.Queue
  * [[MVar]] implementation for [[Async]] data types.
  */
 final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State[A])(implicit F: Async[F])
-    extends MVar[F, A] {
+    extends MVar2[F, A] {
   import MVarAsync._
 
   /** Shared mutable state. */
@@ -54,6 +56,18 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
 
   def read: F[A] =
     F.async(unsafeRead)
+
+  def tryRead: F[Option[A]] = F.delay {
+    stateRef.get match {
+      case WaitForTake(value, _) => Some(value)
+      case WaitForPut(_, _)      => None
+    }
+  }
+
+  def swap(newValue: A): F[A] =
+    F.flatMap(take) { oldValue =>
+      F.map(put(newValue))(_ => oldValue)
+    }
 
   def isEmpty: F[Boolean] =
     F.delay {
@@ -226,11 +240,11 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
 private[effect] object MVarAsync {
 
   /** Builds an [[MVarAsync]] instance with an `initial` value. */
-  def apply[F[_], A](initial: A)(implicit F: Async[F]): MVar[F, A] =
+  def apply[F[_], A](initial: A)(implicit F: Async[F]): MVar2[F, A] =
     new MVarAsync[F, A](State(initial))
 
   /** Returns an empty [[MVarAsync]] instance. */
-  def empty[F[_], A](implicit F: Async[F]): MVar[F, A] =
+  def empty[F[_], A](implicit F: Async[F]): MVar2[F, A] =
     new MVarAsync[F, A](State.empty)
 
   /**

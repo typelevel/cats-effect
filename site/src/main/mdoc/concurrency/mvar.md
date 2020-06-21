@@ -3,25 +3,31 @@ layout: docsplus
 title:  "MVar"
 number: 12
 source: "shared/src/main/scala/cats/effect/concurrent/MVar.scala"
-scaladoc: "#cats.effect.concurrent.MVar"
+scaladoc: "#cats.effect.concurrent.MVar2"
 ---
 
 {:.responsive-pic}
 ![concurrency mvar](../img/concurrency-mvar.png)
 
-An `MVar` is a mutable location that can be empty or contain a value,
+An `MVar2` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.
 
 ```scala
-abstract class MVar[F[_], A] {
+abstract class MVar2[F[_], A] {
   def put(a: A): F[Unit]
+  def swap(b: A): F[A]
   def take: F[A]
   def read: F[A]
 
   def tryPut(a: A): F[Boolean]
   def tryTake: F[Option[A]]
+  def tryRead: F[Option[A]]
 }
 ```
+
+**Update 2.2.0:** `MVar2` adds new methods to the `MVar` interface 
+without breaking binary compatibility. Please upgrade to `MVar2` 
+that supports `tryRead` and `swap`.  
 
 ## Introduction
 
@@ -42,6 +48,8 @@ It has these fundamental (atomic) operations:
 - `read`: which reads the current value without modifying the `MVar`,
   assuming there is a value available, or otherwise it waits until a value
   is made available via `put`
+- `swap`: put a new value and return the taken one. It is not atomic.
+- `tryRead`: returns the value immediately and None if it is empty.
 - `tryPut` and `tryTake` variants of the above, that try
   those operation once and fail in case (semantic) blocking would
   be involved
@@ -80,7 +88,7 @@ implicit val cs = IO.contextShift(ec)
 import cats.effect._
 import cats.effect.concurrent._
 
-def sum(state: MVar[IO, Int], list: List[Int]): IO[Int] =
+def sum(state: MVar2[IO, Int], list: List[Int]): IO[Int] =
   list match {
     case Nil => state.take
     case x :: xs =>
@@ -110,7 +118,7 @@ The `take` operation can act as "acquire" and `put` can act as the "release".
 Let's do it:
 
 ```scala mdoc:silent
-final class MLock(mvar: MVar[IO, Unit]) {
+final class MLock(mvar: MVar2[IO, Unit]) {
   def acquire: IO[Unit] =
     mvar.take
 
@@ -141,7 +149,7 @@ import cats.effect._
 import cats.effect.concurrent._
 
 // Signaling option, because we need to detect completion
-type Channel[A] = MVar[IO, Option[A]]
+type Channel[A] = MVar2[IO, Option[A]]
 
 def producer(ch: Channel[Int], list: List[Int]): IO[Unit] =
   list match {

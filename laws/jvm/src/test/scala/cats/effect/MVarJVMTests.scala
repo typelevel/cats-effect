@@ -19,7 +19,7 @@ package cats.effect
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
-import cats.effect.concurrent.{Deferred, MVar}
+import cats.effect.concurrent.{Deferred, MVar, MVar2}
 import cats.implicits._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers
@@ -29,70 +29,70 @@ import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
 
 class MVarEmptyJVMParallelism1Tests extends BaseMVarJVMTests(1) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.empty[IO, Unit]
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableEmpty[IO, Unit]
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
 }
 
 class MVarEmptyJVMParallelism2Tests extends BaseMVarJVMTests(2) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.empty[IO, Unit]
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableEmpty[IO, Unit]
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
 }
 
 class MVarEmptyJVMParallelism4Tests extends BaseMVarJVMTests(4) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.empty[IO, Unit]
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableEmpty[IO, Unit]
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
 }
 
 // -----------------------------------------------------------------
 
 class MVarFullJVMParallelism1Tests extends BaseMVarJVMTests(1) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.of[IO, Unit](())
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableOf[IO, Unit](())
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
 }
 
 class MVarFullJVMParallelism2Tests extends BaseMVarJVMTests(2) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.of[IO, Unit](())
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableOf[IO, Unit](())
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
 }
 
 class MVarFullJVMParallelism4Tests extends BaseMVarJVMTests(4) {
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]] =
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]] =
     MVar.of[IO, Unit](())
-  def allocateUncancelable: IO[MVar[IO, Unit]] =
+  def allocateUncancelable: IO[MVar2[IO, Unit]] =
     MVar.uncancelableOf[IO, Unit](())
-  def acquire(ref: MVar[IO, Unit]): IO[Unit] =
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.put(())
-  def release(ref: MVar[IO, Unit]): IO[Unit] =
+  def release(ref: MVar2[IO, Unit]): IO[Unit] =
     ref.take
 }
 
@@ -137,10 +137,10 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 
-  def allocate(implicit cs: ContextShift[IO]): IO[MVar[IO, Unit]]
-  def allocateUncancelable: IO[MVar[IO, Unit]]
-  def acquire(ref: MVar[IO, Unit]): IO[Unit]
-  def release(ref: MVar[IO, Unit]): IO[Unit]
+  def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]]
+  def allocateUncancelable: IO[MVar2[IO, Unit]]
+  def acquire(ref: MVar2[IO, Unit]): IO[Unit]
+  def release(ref: MVar2[IO, Unit]): IO[Unit]
 
   // ----------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
-      def get(df: MVar[IO, Unit]) =
+      def get(df: MVar2[IO, Unit]) =
         for {
           _ <- IO(Thread.currentThread().getName shouldNot be(name))
           _ <- acquire(df)

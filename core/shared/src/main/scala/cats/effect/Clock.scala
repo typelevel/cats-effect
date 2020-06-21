@@ -139,13 +139,6 @@ object Clock extends LowPriorityImplicits {
         F.delay(unit.convert(System.nanoTime(), NANOSECONDS))
     }
 
-  /**
-   * Default implicit instance — given there's an implicit [[Timer]]
-   * in scope, extracts a [[Clock]] instance from it.
-   */
-  implicit def extractFromTimer[F[_]](implicit timer: Timer[F]): Clock[F] =
-    timer.clock
-
   implicit class ClockOps[F[_]](val self: Clock[F]) extends AnyVal {
 
     /**
@@ -158,7 +151,7 @@ object Clock extends LowPriorityImplicits {
   }
 }
 
-protected[effect] trait LowPriorityImplicits {
+protected[effect] trait LowPriorityImplicits extends LowerPriorityImplicits {
 
   /**
    * Derives a [[Clock]] instance for `cats.data.EitherT`,
@@ -252,4 +245,14 @@ protected[effect] trait LowPriorityImplicits {
       def monotonic(unit: TimeUnit): Resource[F, Long] =
         Resource.liftF(clock.monotonic(unit))
     }
+}
+
+protected[effect] trait LowerPriorityImplicits {
+
+  /**
+   * Default implicit instance — given there's an implicit [[Timer]]
+   * in scope, extracts a [[Clock]] instance from it.
+   */
+  implicit def extractFromTimer[F[_]](implicit timer: Timer[F]): Clock[F] =
+    timer.clock
 }

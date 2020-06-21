@@ -17,7 +17,7 @@
 package cats
 package effect
 
-import cats.data.Kleisli
+import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 /**
  * An extension of `MonadError` exposing the `bracket` operation,
@@ -248,6 +248,29 @@ object Bracket {
    */
   implicit def catsKleisliBracket[F[_], R, E](implicit ev: Bracket[F, E]): Bracket[Kleisli[F, R, *], E] =
     new KleisliBracket[F, R, E] { def F = ev }
+
+  // Note that the following implicits require a Sync instance for the underlying F as they use a Ref internally
+  // for implementing bracketCase and hence just forward to instances defined in Sync
+  // These proxies put them into the implicit scope for Bracket, needed when using Bracket syntax on monad transformers
+
+  implicit def catsEitherTBracketFromSync[F[_]: Sync, L]: Bracket[EitherT[F, L, *], Throwable] =
+    Sync.catsEitherTSync[F, L]
+
+  implicit def catsOptionTBracketFromSync[F[_]: Sync]: Bracket[OptionT[F, *], Throwable] =
+    Sync.catsOptionTSync[F]
+
+  implicit def catsStateTBracketFromSync[F[_]: Sync, S]: Bracket[StateT[F, S, *], Throwable] =
+    Sync.catsStateTSync[F, S]
+
+  implicit def catsWriterTBracketFromSync[F[_]: Sync, L: Monoid]: Bracket[WriterT[F, L, *], Throwable] =
+    Sync.catsWriterTSync[F, L]
+
+  implicit def catsIorTBracketFromSync[F[_]: Sync, L: Semigroup]: Bracket[IorT[F, L, *], Throwable] =
+    Sync.catsIorTSync[F, L]
+
+  implicit def catsReaderWriterStateTBracketFromSync[F[_]: Sync, E, L: Monoid, S]
+    : Bracket[ReaderWriterStateT[F, E, L, S, *], Throwable] =
+    Sync.catsReaderWriteStateTSync[F, E, L, S]
 
   abstract private[effect] class KleisliBracket[F[_], R, E] extends Bracket[Kleisli[F, R, *], E] {
     implicit protected def F: Bracket[F, E]

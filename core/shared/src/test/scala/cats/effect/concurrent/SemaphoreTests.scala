@@ -22,6 +22,7 @@ import cats.implicits._
 import org.scalatest.{Assertion, EitherValues}
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
@@ -30,7 +31,19 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
+  private def withLock[T](n: Long, s: Semaphore[IO], check: IO[T]): IO[(Long, T)] =
+    s.acquireN(n).background.use { _ =>
+      //w/o cs.shift this hangs for coreJS
+      cs.shift *> s.count.iterateUntil(_ < 0).flatMap(t => check.tupleLeft(t))
+    }
+
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
+    test(s"$label - do not allow negative n") {
+      sc(-42).attempt.unsafeToFuture().map { r =>
+        r.left.value should be(a[IllegalArgumentException])
+      }
+    }
+
     test(s"$label - acquire n synchronously") {
       val n = 20
       sc(20)
@@ -39,6 +52,20 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         }
         .unsafeToFuture()
         .map(_ shouldBe 0)
+    }
+
+    test(s"$label - available with no available permits") {
+      val n = 20L
+      sc(n)
+        .flatMap { s =>
+          for {
+            _ <- s.acquire.replicateA(n.toInt)
+            res <- withLock(1, s, s.available)
+          } yield res
+
+        }
+        .unsafeToFuture()
+        .map(_ shouldBe ((-1, 0)))
     }
 
     test(s"$label - tryAcquire with available permits") {
@@ -89,7 +116,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         .map(_ shouldBe 1)
     }
 
-    test(s"$label - available with no available permits") {
+    test(s"$label - available with 0 available permits") {
       sc(20)
         .flatMap { s =>
           for {
@@ -130,6 +157,19 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
     }
 
     test(s"$label - count with no available permits") {
+      val n: Long = 8
+      sc(n)
+        .flatMap { s =>
+          for {
+            _ <- s.acquireN(n).void
+            res <- withLock(n, s, s.count)
+          } yield res
+        }
+        .unsafeToFuture()
+        .map(count => count shouldBe ((-n, -n)))
+    }
+
+    test(s"$label - count with 0 available permits") {
       sc(20)
         .flatMap { s =>
           for {
@@ -155,6 +195,8 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("concurrent", n => Semaphore[IO](n))
+  tests("concurrent in", n => Semaphore.in[IO, IO](n))
+  tests("concurrent imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
 
   test("concurrent - acquire does not leak permits upon cancelation") {
     Semaphore[IO](1L)
@@ -183,4 +225,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   }
 
   tests("async", n => Semaphore.uncancelable[IO](n))
+  tests("async in", n => Semaphore.uncancelableIn[IO, IO](n))
+  tests("async imapK", n => Semaphore.uncancelable[IO](n).map(_.imapK[IO](Effect.toIOK, Effect.toIOK)))
+
 }
