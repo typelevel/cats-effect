@@ -17,6 +17,7 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.Bracket
 import cats.laws.MonadErrorLaws
 
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {

@@ -37,28 +37,63 @@ Global / scmInfo := Some(
 val CatsVersion = "2.1.1"
 
 lazy val root = project.in(file("."))
-  .aggregate(core.jvm, core.js, laws.jvm, laws.js)
+  .aggregate(kernel.jvm, kernel.js, testkit.jvm, testkit.js, laws.jvm, laws.js, core.jvm, core.js)
   .settings(noPublishSettings)
 
-lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
+/**
+ * The core abstractions and syntax. This is the most general definition of Cats Effect,
+ * without any concrete implementations. This is the "batteries not included" dependency.
+ */
+lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
   .settings(
-    name := "cats-effect",
-
+    name := "cats-effect-kernel",
     libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
+
+/**
+ * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
+ * generators, and useful tools for testing code written against Cats Effect.
+ */
+lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
+  .dependsOn(kernel)
+  .settings(
+    name := "cats-effect-testkit",
+
+    libraryDependencies ++= Seq(
+      "org.typelevel"  %%% "cats-free"  % CatsVersion,
+      "org.scalacheck" %%% "scalacheck" % "1.14.3"))
+  .settings(dottyLibrarySettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.1")
+
+/**
+ * The laws which constrain the abstractions. This is split from kernel to avoid
+ * jar file and dependency issues. As a consequence of this split, some things
+ * which are defined in testkit are *tested* in the Test scope of this project.
+ */
 lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
-  .dependsOn(core)
+  .dependsOn(kernel, testkit % Test)
   .settings(
     name := "cats-effect-laws",
 
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.typelevel" %%% "cats-free" % CatsVersion,
 
       "org.typelevel" %%% "discipline-specs2" % "1.1.0" % Test,
       "org.specs2"    %%% "specs2-scalacheck" % "4.9.4" % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.1")
+
+/**
+ * Concrete, production-grade implementations of the abstractions. Or, more
+ * simply-put: IO and Resource. Also contains some general datatypes built
+ * on top of IO which are useful in their own right, as well as some utilities
+ * (such as IOApp). This is the "batteries included" dependency.
+ */
+lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
+  .dependsOn(kernel, laws % Test, testkit % Test)
+  .settings(name := "cats-effect")
+  .settings(dottyLibrarySettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))

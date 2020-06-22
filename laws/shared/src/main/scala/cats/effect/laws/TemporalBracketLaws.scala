@@ -17,11 +17,13 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.TemporalBracket
+
 trait TemporalBracketLaws[F[_], E] extends TemporalLaws[F, E] with ConcurrentBracketLaws[F, E] {
-  implicit val F: Temporal[F, E] with Bracket[F, E]
+  implicit val F: TemporalBracket[F, E]
 }
 
 object TemporalBracketLaws {
-  def apply[F[_], E](implicit F0: Temporal[F, E] with Bracket[F, E]): TemporalBracketLaws[F, E] =
+  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketLaws[F, E] =
     new TemporalBracketLaws[F, E] { val F = F0 }
 }

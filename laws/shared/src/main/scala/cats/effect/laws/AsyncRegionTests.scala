@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
+import cats.effect.kernel.{AsyncRegion, Bracket, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
@@ -101,7 +102,7 @@ object AsyncRegionTests {
       R[_[_], _],
       F[_]](
     implicit
-      F0: Async[R[F, *]] with Region[R, F, Throwable],
+      F0: AsyncRegion[R, F],
       B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
       : AsyncRegionTests[R, F] = new AsyncRegionTests[R, F] {
     val laws = AsyncRegionLaws[R, F]

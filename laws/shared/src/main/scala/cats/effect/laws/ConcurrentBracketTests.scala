@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
+import cats.effect.kernel.{ConcurrentBracket, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -86,7 +87,7 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
 }
 
 object ConcurrentBracketTests {
-  def apply[F[_], E](implicit F0: Concurrent[F, E] with Bracket[F, E]): ConcurrentBracketTests[F, E] = new ConcurrentBracketTests[F, E] {
+  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketTests[F, E] = new ConcurrentBracketTests[F, E] {
     val laws = ConcurrentBracketLaws[F, E]
   }
 }

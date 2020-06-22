@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.testkit
 
 import cats.{~>, Eq, Functor, Group, Id, Monad, MonadError, Monoid, Show}
 import cats.data.{Kleisli, WriterT}
+import cats.effect.kernel._
 import cats.free.FreeT
 import cats.implicits._
 

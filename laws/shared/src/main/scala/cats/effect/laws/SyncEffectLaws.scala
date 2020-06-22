@@ -17,6 +17,8 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.SyncEffect
+
 trait SyncEffectLaws[F[_]] extends SyncLaws[F] with BracketLaws[F, Throwable] {
   implicit val F: SyncEffect[F]
 

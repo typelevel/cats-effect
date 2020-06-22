@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.testkit
 
-import pure._
+import cats.effect.kernel.{ConcurrentBracket, Outcome}
+import cats.effect.testkit.pure._
 
 import org.scalacheck.{Arbitrary, Cogen}
 

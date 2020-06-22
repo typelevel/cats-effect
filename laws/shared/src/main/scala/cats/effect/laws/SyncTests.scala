@@ -19,6 +19,7 @@ package laws
 
 import cats.Eq
 import cats.data.EitherT
+import cats.effect.kernel.Sync
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 

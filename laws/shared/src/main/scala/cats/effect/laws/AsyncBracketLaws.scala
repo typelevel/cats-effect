@@ -17,6 +17,8 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.AsyncBracket
+
 trait AsyncBracketLaws[F[_]] extends AsyncLaws[F] with TemporalBracketLaws[F, Throwable] {
   implicit val F: AsyncBracket[F]
 }

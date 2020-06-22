@@ -14,16 +14,27 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import scala.concurrent.duration.FiniteDuration
+import cats.~>
+import cats.implicits._
 
-trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
-  // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
-  def sleep(time: FiniteDuration): F[Unit]
+trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
+  type Case[A] = Either[Throwable, A]
+
+  def CaseInstance = catsStdInstancesForEither[Throwable]
+
+  def to[G[_]]: PartiallyApplied[G] =
+    new PartiallyApplied[G]
+
+  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
+
+  final class PartiallyApplied[G[_]] {
+    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
+      toK[G](G)(fa)
+  }
 }
 
-object Temporal {
-  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
+object SyncEffect {
+  def apply[F[_]](implicit F: SyncEffect[F]): F.type = F
 }

@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
+import cats.effect.kernel.{Bracket, Managed, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll

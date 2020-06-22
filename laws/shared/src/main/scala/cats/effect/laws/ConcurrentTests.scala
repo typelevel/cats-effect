@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
+import cats.effect.kernel.{Concurrent, Outcome}
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 

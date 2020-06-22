@@ -14,24 +14,22 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 import cats.implicits._
 
-import scala.concurrent.ExecutionContext
+trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, *]] with Region[R, F, Throwable] {
+  type Case[A] = Either[Throwable, A]
 
-trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] { self: Safe[F, Throwable] =>
+  def CaseInstance = catsStdInstancesForEither[Throwable]
 
-  // returns an optional cancelation token
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+  def to[S[_[_], _]]: PartiallyApplied[S]
 
-  def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
-
-  // evalOn(executionContext, ec) <-> pure(ec)
-  def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
-  def executionContext: F[ExecutionContext]
+  trait PartiallyApplied[S[_[_], _]] {
+    def apply[A](rfa: R[F, A])(implicit S: Sync[S[F, *]] with Region[S, F, Throwable]): S[F, A]
+  }
 }
 
-object Async {
-  def apply[F[_]](implicit F: Async[F]): F.type = F
+object SyncManaged {
+  def apply[R[_[_], _], F[_]](implicit R: SyncManaged[R, F]): R.type = R
 }

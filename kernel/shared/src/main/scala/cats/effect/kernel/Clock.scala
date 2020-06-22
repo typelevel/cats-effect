@@ -14,28 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect
-package laws
+package cats.effect.kernel
 
-import cats.effect.kernel.{Bracket, Managed, Outcome}
+import cats.Applicative
 
-trait ManagedLaws[R[_[_], _], F[_]] extends AsyncRegionLaws[R, F] {
-  implicit val F: Managed[R, F]
+import scala.concurrent.duration.FiniteDuration
 
-  def roundTrip[A](rfa: R[F, A]) =
-    F.to[R](rfa) <-> rfa
+trait Clock[F[_]] extends Applicative[F] {
+
+  // (monotonic, monotonic).mapN(_ <= _)
+  def monotonic: F[FiniteDuration]
+
+  // lawless (unfortunately), but meant to represent current (when sequenced) system time
+  def realTime: F[FiniteDuration]
 }
 
-object ManagedLaws {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : ManagedLaws[R, F] =
-    new ManagedLaws[R, F] {
-      val F = F0
-      val B = B0
-    }
+object Clock {
+  def apply[F[_]](implicit F: Clock[F]): F.type = F
 }

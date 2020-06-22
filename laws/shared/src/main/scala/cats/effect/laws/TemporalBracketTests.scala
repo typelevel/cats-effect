@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
+import cats.effect.kernel.{Outcome, TemporalBracket}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
@@ -88,7 +89,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
 }
 
 object TemporalBracketTests {
-  def apply[F[_], E](implicit F0: Temporal[F, E] with Bracket[F, E]): TemporalBracketTests[F, E] = new TemporalBracketTests[F, E] {
+  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketTests[F, E] = new TemporalBracketTests[F, E] {
     val laws = TemporalBracketLaws[F, E]
   }
 }

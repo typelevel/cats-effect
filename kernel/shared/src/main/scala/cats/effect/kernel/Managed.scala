@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import cats.implicits._
-
-trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, *]] with Region[R, F, Throwable] {
-  type Case[A] = Either[Throwable, A]
-
-  def CaseInstance = catsStdInstancesForEither[Throwable]
+// TODO names ("Managed" conflicts with ZIO, but honestly it's a better name for this than Resource or IsoRegion)
+trait Managed[R[_[_], _], F[_]] extends Async[R[F, *]] with Region[R, F, Throwable] {
 
   def to[S[_[_], _]]: PartiallyApplied[S]
 
   trait PartiallyApplied[S[_[_], _]] {
-    def apply[A](rfa: R[F, A])(implicit S: Sync[S[F, *]] with Region[S, F, Throwable]): S[F, A]
+    def apply[A](rfa: R[F, A])(implicit S: Async[S[F, *]] with Region[S, F, Throwable]): S[F, A]
   }
 }
 
-object SyncManaged {
-  def apply[R[_[_], _], F[_]](implicit R: SyncManaged[R, F]): R.type = R
+object Managed {
+  def apply[R[_[_], _], F[_]](implicit R: Managed[R, F]): R.type = R
 }
