@@ -19,10 +19,10 @@ package cats.effect.testkit
 import cats.{Eq, Order}
 import cats.data.Kleisli
 import cats.effect.laws.TemporalBracketTests
-import cats.effect.testkit.{pure, OutcomeGenerators, PureConcGenerators, TimeT}, pure.PureConc
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
 
+import pure.PureConc
 import TimeT._
 
 import org.specs2.ScalaCheck
