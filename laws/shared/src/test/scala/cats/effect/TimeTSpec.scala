@@ -36,7 +36,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
 
-private[effect] trait LowPriorityInstances {
+private[testkit] trait LowPriorityInstances {
 
   implicit def eqTimeT[F[_], A](implicit FA: Eq[F[A]]): Eq[TimeT[F, A]] =
     Eq.by(TimeT.run(_))
