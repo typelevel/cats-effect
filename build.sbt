@@ -36,8 +36,19 @@ Global / scmInfo := Some(
 
 val CatsVersion = "2.1.1"
 
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
+addCommandAlias("ciJS", "; project rootJS; headerCheck; clean; testIfRelevant")
+
 lazy val root = project.in(file("."))
-  .aggregate(kernel.jvm, kernel.js, testkit.jvm, testkit.js, laws.jvm, laws.js, core.jvm, core.js)
+  .aggregate(rootJVM, rootJS)
+  .settings(noPublishSettings)
+
+lazy val rootJVM = project
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm)
+  .settings(noPublishSettings)
+
+lazy val rootJS = project
+  .aggregate(kernel.js, testkit.js, laws.js, core.js)
   .settings(noPublishSettings)
 
 /**
