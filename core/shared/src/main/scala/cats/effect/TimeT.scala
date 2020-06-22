@@ -22,8 +22,6 @@ import cats.implicits._
 
 import scala.concurrent.duration._
 
-import java.time.Instant
-
 /*
  * NB: Even though we expect this to be usable on implementations which
  * interpret to multiple underlying threads, we never have to worry about
@@ -164,7 +162,7 @@ object TimeT {
       Kleisli.ask[F, Time].map(_.now)
 
     val realTime =
-      pure(Instant.ofEpochMilli(0L))   // TODO is there anything better here*
+      pure(0.millis)   // TODO is there anything better here?
 
     def sleep(time: FiniteDuration): TimeT[F, Unit] =
       Kleisli.ask[F, Time].map(_.now += time)   // what could go wrong*

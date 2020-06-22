@@ -22,12 +22,10 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / publishGithubUser := "djspiewak"
 ThisBuild / publishFullName := "Daniel Spiewak"
 
-ThisBuild / crossScalaVersions := Seq("2.12.11", "0.24.0-RC1", "2.13.2")
+ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", "2.13.2")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11", "adopt@14", "graalvm@20.1.0")
-ThisBuild / githubWorkflowBuild := WorkflowStep.Sbt(List("ci"))
-ThisBuild / githubWorkflowPublishTargetBranches := Seq()    // disable the publication job
 
 Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
@@ -38,26 +36,29 @@ Global / scmInfo := Some(
 
 val CatsVersion = "2.1.1"
 
-val dottySettings = Seq(libraryDependencies := libraryDependencies.value.map(_.withDottyCompat(scalaVersion.value)))
+lazy val root = project.in(file("."))
+  .aggregate(core.jvm, core.js, laws.jvm, laws.js)
+  .settings(noPublishSettings)
 
-lazy val root = project.in(file(".")).aggregate(core, laws)
-
-lazy val core = project.in(file("core"))
+lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .settings(
     name := "cats-effect",
-    libraryDependencies += "org.typelevel" %% "cats-core" % CatsVersion)
-  .settings(dottySettings)
 
-lazy val laws = project.in(file("laws"))
+    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+  .settings(dottyLibrarySettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+
+lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
   .dependsOn(core)
   .settings(
     name := "cats-effect-laws",
 
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-laws" % CatsVersion,
-      "org.typelevel" %% "cats-free" % CatsVersion,
+      "org.typelevel" %%% "cats-laws" % CatsVersion,
+      "org.typelevel" %%% "cats-free" % CatsVersion,
 
-      "org.typelevel" %% "discipline-specs2" % "1.0.0" % Test,
-      "org.specs2"    %% "specs2-scalacheck" % "4.8.1" % Test))
-  .settings(dottySettings)
-  .settings(libraryDependencies += "com.codecommit" %% "coop" % "0.5.0")
+      "org.typelevel" %%% "discipline-specs2" % "1.1.0" % Test,
+      "org.specs2"    %%% "specs2-scalacheck" % "4.9.4" % Test))
+  .settings(dottyLibrarySettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.1")
