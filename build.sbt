@@ -56,6 +56,7 @@ Global / scmInfo := Some(
 
 val CatsVersion = "2.1.1"
 val Specs2Version = "4.9.4"
+val DisciplineVersion = "1.1.0"
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; clean; testIfRelevant")
@@ -113,7 +114,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
 
-      "org.typelevel" %%% "discipline-specs2" % "1.1.0" % Test,
+      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
@@ -129,6 +130,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .settings(
     name := "cats-effect",
 
-    libraryDependencies += "org.specs2" %%% "specs2-core" % Specs2Version)
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
+      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version     % Test,
+      "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))

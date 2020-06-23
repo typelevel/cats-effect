@@ -16,14 +16,27 @@
 
 package cats.effect
 
-import cats.{Eq, Show}
-import cats.effect.testkit.TestContext
+import cats.{Eq, Order, Show}
+import cats.kernel.laws.discipline.GroupTests
+import cats.effect.laws.EffectTests
+import cats.effect.testkit.{AsyncGenerators, BracketGenerators, OutcomeGenerators, TestContext}
 import cats.implicits._
 
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+
+import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 import org.specs2.matcher.{Matcher, MatchersImplicits}, MatchersImplicits._
 
-class IOSpec extends Specification {
+import org.typelevel.discipline.specs2.mutable.Discipline
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+
+import java.util.concurrent.TimeUnit
+
+class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
+  import OutcomeGenerators._
 
   "io monad" should {
     "produce a pure value when run" in {
@@ -58,24 +71,108 @@ class IOSpec extends Specification {
     }
   }
 
+  {
+    implicit val ctx = TestContext()
+
+    checkAll(
+      "IO",
+      EffectTests[IO].effect[Int, Int, Int](10.millis))
+
+    checkAll(
+      "IO[Int]",
+      GroupTests[IO[Int]].group)
+  }
+
+  // TODO organize the below somewhat better
+
+  implicit def cogenIO[A: Cogen]: Cogen[IO[A]] =
+    Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
+
+  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]] = {
+    val generators =
+      new AsyncGenerators[IO] with BracketGenerators[IO, Throwable] {
+
+        val arbitraryE: Arbitrary[Throwable] = implicitly[Arbitrary[Throwable]]
+
+        val cogenE: Cogen[Throwable] = Cogen[Throwable]
+
+        val F: AsyncBracket[IO] = IO.effectForIO
+
+        def cogenCase[B: Cogen]: Cogen[Outcome[IO, Throwable, B]] =
+          OutcomeGenerators.cogenOutcome[IO, Throwable, B]
+
+        val arbitraryEC: Arbitrary[ExecutionContext] = outer.arbitraryEC
+
+        val cogenFU: Cogen[IO[Unit]] = cogenIO[Unit]
+
+        // TODO dedup with FreeSyncGenerators
+        val arbitraryFD: Arbitrary[FiniteDuration] = {
+          import TimeUnit._
+
+          val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+
+          Arbitrary {
+            genTU flatMap { u =>
+              Gen.posNum[Long].map(FiniteDuration(_, u))
+            }
+          }
+        }
+      }
+
+    Arbitrary(generators.generators[A])
+  }
+
+  implicit lazy val arbitraryEC: Arbitrary[ExecutionContext] =
+    Arbitrary(Gen.delay(Gen.const(TestContext())))
+
+  implicit lazy val eqThrowable: Eq[Throwable] =
+    Eq.fromUniversalEquals[Throwable]
+
+  implicit lazy val eqEC: Eq[ExecutionContext] =
+    Eq.fromUniversalEquals[ExecutionContext]
+
+  implicit lazy val ordIOFD: Order[IO[FiniteDuration]] =
+    Order by { ioa =>
+      unsafeRun(ioa).fold(
+        None,
+        _ => None,
+        fa => fa)
+    }
+
+  implicit def eqIOA[A: Eq]: Eq[IO[A]] =
+    Eq.by(unsafeRun(_))
+
+  // feel the rhythm, feel the rhyme...
+  implicit def boolRunnings(iob: IO[Boolean]): Prop =
+    Prop(unsafeRun(iob).fold(false, _ => false, _.getOrElse(false)))
+
   def completeAs[A: Eq: Show](expected: A): Matcher[IO[A]] =
-    tickTo(Some(Right(expected)))
+    tickTo(Outcome.Completed(Some(expected)))
 
   def failAs(expected: Throwable): Matcher[IO[Unit]] =
-    tickTo[Unit](Some(Left(expected)))
+    tickTo[Unit](Outcome.Errored(expected))
 
   def nonTerminate: Matcher[IO[Unit]] =
-    tickTo[Unit](None)
+    tickTo[Unit](Outcome.Completed(None))
 
-  def tickTo[A: Eq: Show](expected: Option[Either[Throwable, A]]): Matcher[IO[A]] = { (ioa: IO[A]) =>
+  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A]): Matcher[IO[A]] = { (ioa: IO[A]) =>
     implicit val st = Show.fromToString[Throwable]
-    implicit val et = Eq.fromUniversalEquals[Throwable]
 
+    val oc = unsafeRun(ioa)
+    (oc eqv expected, s"${oc.show} !== ${expected.show}")
+  }
+
+  def unsafeRun[A](ioa: IO[A]): Outcome[Option, Throwable, A] = {
     val ctx = TestContext()
-    var results: Option[Either[Throwable, A]] = None
-    ioa.unsafeRunAsync(ctx)(e => results = Some(e))
+
+    var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
+    ioa.unsafeRunAsync(ctx) {
+      case Left(t) => results = Outcome.Errored(t)
+      case Right(a) => results = Outcome.Completed(Some(a))
+    }
+
     ctx.tick()
 
-    (results eqv expected, s"${expected.show} !== ${results.show}")
+    results
   }
 }
