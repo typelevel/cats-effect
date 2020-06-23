@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.effect.internals._
-import cats.effect.internals.TracingPlatform.{isRabbitTracing, isSlugTracing}
+import cats.effect.internals.TracingPlatform.{isCachedStackTracing, isFullStackTracing}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.{IOTrace, TraceFrame, TraceTag}
+import cats.effect.tracing.{IOTrace, StackTraceFrame, TraceTag}
 
 /**
  * A pure abstraction representing the intention to perform a
@@ -102,9 +102,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def map[B](f: A => B): IO[B] = {
-    val trace = if (isRabbitTracing) {
+    val trace = if (isCachedStackTracing) {
       IOTracing.cached(TraceTag.Map, f.getClass)
-    } else if (isSlugTracing) {
+    } else if (isFullStackTracing) {
       IOTracing.uncached(TraceTag.Map)
     } else {
       null
@@ -129,9 +129,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * never terminate on evaluation.
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
-    val trace = if (isRabbitTracing) {
+    val trace = if (isCachedStackTracing) {
       IOTracing.cached(TraceTag.Bind, f.getClass)
-    } else if (isSlugTracing) {
+    } else if (isFullStackTracing) {
       IOTracing.uncached(TraceTag.Bind)
     } else {
       null
@@ -1133,7 +1133,7 @@ object IO extends IOInstances {
    */
   def delay[A](body: => A): IO[A] = {
     val nextIo = Delay(() => body)
-    if (isSlugTracing) {
+    if (isFullStackTracing) {
       IOTracing.decorated(nextIo, TraceTag.Delay)
     } else {
       nextIo
@@ -1150,7 +1150,7 @@ object IO extends IOInstances {
    */
   def suspend[A](thunk: => IO[A]): IO[A] = {
     val nextIo = Suspend(() => thunk)
-    if (isSlugTracing) {
+    if (isFullStackTracing) {
       IOTracing.decorated(nextIo, TraceTag.Suspend)
     } else {
       nextIo
@@ -1169,7 +1169,7 @@ object IO extends IOInstances {
    */
   def pure[A](a: A): IO[A] = {
     val nextIo = Pure(a)
-    if (isSlugTracing) {
+    if (isFullStackTracing) {
       IOTracing.decorated(nextIo, TraceTag.Pure)
     } else {
       nextIo
@@ -1240,9 +1240,9 @@ object IO extends IOInstances {
    * @see [[asyncF]] and [[cancelable]]
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    val trace = if (isRabbitTracing) {
+    val trace = if (isCachedStackTracing) {
       IOTracing.cached(TraceTag.Async, k.getClass)
-    } else if (isSlugTracing) {
+    } else if (isFullStackTracing) {
       IOTracing.uncached(TraceTag.Async)
     } else {
       null
@@ -1280,9 +1280,9 @@ object IO extends IOInstances {
    * @see [[async]] and [[cancelable]]
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
-    val trace = if (isRabbitTracing) {
+    val trace = if (isCachedStackTracing) {
       IOTracing.cached(TraceTag.AsyncF, k.getClass)
-    } else if (isSlugTracing) {
+    } else if (isFullStackTracing) {
       IOTracing.uncached(TraceTag.AsyncF)
     } else {
       null
@@ -1345,9 +1345,9 @@ object IO extends IOInstances {
    *      the underlying cancelation model
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
-    val trace = if (isRabbitTracing) {
+    val trace = if (isCachedStackTracing) {
       IOTracing.cached(TraceTag.Cancelable, k.getClass)
-    } else if (isSlugTracing) {
+    } else if (isFullStackTracing) {
       IOTracing.uncached(TraceTag.Cancelable)
     } else {
       null
@@ -1675,9 +1675,9 @@ object IO extends IOInstances {
     trace: AnyRef = null
   ) extends IO[A]
 
-  final private[effect] case class Trace[A](source: IO[A], frame: TraceFrame) extends IO[A]
+  final private[effect] case class Trace[A](source: IO[A], trace: StackTraceFrame) extends IO[A]
 
-  final private[effect] case class CollectTraces(collect: Boolean) extends IO[Unit]
+  final private[effect] case class SetTracing(collectStackTraces: Boolean) extends IO[Unit]
 
   /**
    * An internal state for that optimizes changes to

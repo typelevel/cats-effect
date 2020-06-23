@@ -17,11 +17,11 @@
 package cats.effect.internals
 
 object TracingPlatform {
-  final val isRabbitTracing: Boolean = false
+  final val isCachedStackTracing: Boolean = false
 
-  final val isSlugTracing: Boolean = false
+  final val isFullStackTracing: Boolean = false
 
-  final val isTracing: Boolean = isSlugTracing || isRabbitTracing
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
   final val maxTraceDepth: Int = 32
 }

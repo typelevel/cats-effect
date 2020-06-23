@@ -18,7 +18,7 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
-final case class IOTrace(frames: List[TraceFrame], captured: Int, omitted: Int) {
+final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: Int) {
 
   import IOTrace._
 
@@ -55,7 +55,7 @@ final case class IOTrace(frames: List[TraceFrame], captured: Int, omitted: Int) 
   def prettyPrint: IO[Unit] =
     IO(System.err.println(pretty))
 
-  private def loop(acc: String, indent: Int, init: Boolean, rest: List[TraceFrame]): String = {
+  private def loop(acc: String, indent: Int, init: Boolean, rest: List[StackTraceFrame]): String = {
     val TurnRight = "╰"
     val InverseTurnRight = "╭"
     val Junction = "├"

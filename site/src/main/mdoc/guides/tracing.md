@@ -7,7 +7,6 @@ position: 2
 <nav role="navigation" id="toc"></nav>
 
 ## Introduction
-
 Tracing is an advanced feature of `IO` that offers insight into the execution 
 graph of a fiber. This unlocks a lot of power for developers in the realm of 
 debugging and introspection, not only in local development environments 
@@ -23,7 +22,7 @@ trace is polluted with the details of the `IO` run-loop.
 `IO` solves this problem by collecting a stack trace at various `IO` 
 operations that a fiber executes, and knitting them together to produce a more 
 coherent view of the fiber's execution path. For example, here is a trace of a 
-sample program that is running in rabbit mode:
+sample program that is running in cached stack tracing mode:
 
 ```
 IOTrace: 13 frames captured, 0 omitted
@@ -80,10 +79,70 @@ debugging purposes.
 10. Monad transformer analysis.
 
 ## Usage
-Here is a sample program that demonstrates how tracing is instrumented for an 
-`IO` program:
+
+### Enable tracing
+A global system property must be set on JVM in order to enable any tracing
+facility:
+
+```
+-Dcats.effect.tracing=true
+```
+
+### Collecting traces
+To mark a region of a program for tracing, use the `traced` combinator. After
+that subprogram completes, use the `backtrace` combinator to collect the full
+fiber trace.
 
 ```scala
+for {
+  _     <- program.traced
+  trace <- IO.backtrace
+  _     <- trace.compactPrint
+} yield ()
+```
+
+### Asynchronous stack tracing
+The stack tracing mode of an application is configured by the system property
+`cats.effect.tracing.mode`. There are three stack tracing modes: `DISABLED`,
+`CACHED` and `FULL`.
+
+#### DISABLED
+No tracing is instrumented by the program. This is the default stack tracing 
+mode.
+
+#### CACHED
+When cached stack tracing is enabled, a stack trace is captured and cached for
+every `map`, `flatMap` and `async` call in a program. 
+
+The stack trace cache is keyed by the lambda class reference, so cached tracing
+may produce inaccurate fiber traces under several scenarios:
+1. Monad transformer composition
+2. A named function is supplied to `map`, `async` or `flatMap` at multiple
+call-sites
+
+When no collection is performed, we measured less than an 18% performance hit
+for a completely synchronous `IO` program, so it will most likely be negligible
+for any program that performs any sort of I/O.
+
+This is the recommended mode to run in production environments.
+
+#### FULL
+When full stack tracing is enabled, a stack trace is captured for every
+combinator traced in cached mode, but also `pure`, `delay`, `suspend` and other
+derived combinators.
+
+This mode will incur a heavy performance hit for most programs, and is
+recommended for use only in development environments.
+
+### Example
+Here is a sample program that demonstrates how to turn on tracing in an 
+application.
+
+```scala
+// Specify the following flags in your JVM:
+// -Dcats.effect.tracing=true
+// -Dcats.effect.stackTracingMode=full
+
 import cats.effect.{ExitCode, IO, IOApp}
 
 object Example extends IOApp {
@@ -115,15 +174,3 @@ object Example extends IOApp {
 
 }
 ```
-
-The tracing mode of an application is controlled by the system property 
-`cats.effect.tracing.mode`. There are three tracing modes:
-* `DISABLED`: No tracing is performed by the program. Negligible performance hit.
-This is the default mode.
-* `RABBIT`: Stack traces are collected once and cached for `map`, `flatMap` and
-the various `async` combinators. <18% performance hit. This is the recommended 
-mode to run in production.
-* `SLUG`: Stack traces are collected at every invocation of every `IO` 
-combinator. This is the recommended mode to run in development.
-
-TODO: explain the implications and capabilities of each tracing mode in more detail

@@ -291,7 +291,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
 
-lazy val SlugTest = config("slug").extend(Test)
+lazy val FullTracingTest = config("fulltracing").extend(Test)
 
 lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("tracing-tests"))
@@ -304,13 +304,13 @@ lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     )
   )
-  .configs(SlugTest)
-  .settings(inConfig(SlugTest)(Defaults.testSettings): _*)
-  .jsSettings(inConfig(SlugTest)(ScalaJSPlugin.testConfigSettings): _*)
+  .configs(FullTracingTest)
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .jsSettings(inConfig(FullTracingTest)(ScalaJSPlugin.testConfigSettings): _*)
   .settings(
-    test in Test := (test in Test).dependsOn(test in SlugTest).value,
-    unmanagedSourceDirectories in SlugTest += {
-      baseDirectory.value.getParentFile / "shared" / "src" / "slug" / "scala"
+    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
+    unmanagedSourceDirectories in FullTracingTest += {
+      baseDirectory.value.getParentFile / "shared" / "src" / "fulltracing" / "scala"
     }
   )
   .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
@@ -320,9 +320,15 @@ lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0")),
     fork in Test := true,
-    fork in SlugTest := true,
-    javaOptions in Test += "-Dcats.effect.tracing.mode=rabbit",
-    javaOptions in SlugTest += "-Dcats.effect.tracing.mode=slug"
+    fork in FullTracingTest := true,
+    javaOptions in Test ++= Seq(
+      "-Dcats.effect.tracing=true",
+      "-Dcats.effect.stackTracingMode=cached"
+    ),
+    javaOptions in FullTracingTest ++= Seq(
+      "-Dcats.effect.tracing=true",
+      "-Dcats.effect.stackTracingMode=full"
+    )
   )
 
 lazy val tracingTestsJVM = tracingTests.jvm

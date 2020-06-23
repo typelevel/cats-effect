@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import cats.effect.tracing.{TraceFrame, TraceTag}
+import cats.effect.tracing.{StackTraceFrame, TraceTag}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,8 +28,8 @@ class IOContextTests extends AnyFunSuite with Matchers {
   test("push traces") {
     val ctx = IOContext()
 
-    val t1 = TraceFrame(TraceTag.Pure, throwable)
-    val t2 = TraceFrame(TraceTag.Suspend, throwable)
+    val t1 = StackTraceFrame(TraceTag.Pure, throwable)
+    val t2 = StackTraceFrame(TraceTag.Suspend, throwable)
 
     ctx.pushFrame(t1)
     ctx.pushFrame(t2)
@@ -44,7 +44,7 @@ class IOContextTests extends AnyFunSuite with Matchers {
     val ctx = IOContext()
 
     for (_ <- 0 until (maxTraceDepth + 10)) {
-      ctx.pushFrame(TraceFrame(TraceTag.Pure, throwable))
+      ctx.pushFrame(StackTraceFrame(TraceTag.Pure, throwable))
     }
 
     val trace = ctx.trace()
@@ -56,8 +56,8 @@ class IOContextTests extends AnyFunSuite with Matchers {
   test("reset tracing") {
     val ctx = IOContext()
 
-    val t1 = TraceFrame(TraceTag.Pure, throwable)
-    val t2 = TraceFrame(TraceTag.Suspend, throwable)
+    val t1 = StackTraceFrame(TraceTag.Pure, throwable)
+    val t2 = StackTraceFrame(TraceTag.Suspend, throwable)
 
     ctx.pushFrame(t1)
     ctx.pushFrame(t2)

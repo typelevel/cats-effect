@@ -30,28 +30,35 @@ import java.util.Optional;
 public final class TracingPlatform {
 
     /**
-     * A string flag that sets a global tracing mode for a JVM process.
-     * Acceptable values are: DISABLED, RABBIT, SLUG.
-     *
-     * This field isn't accessed by other classes; instead use one of the
-     * more specific accessors defined below.
+     * Sets the global tracing mode for a JVM process.
+     * If this flag isn't enabled, no tracing is instrumented.
      */
-    private static final String tracingMode = Optional.ofNullable(System.getProperty("cats.effect.tracing.mode"))
+    public static final boolean isTracing = Optional.ofNullable(System.getProperty("cats.effect.tracing"))
             .filter(x -> !x.isEmpty())
-            .orElse("disabled");
+            .map(Boolean::valueOf)
+            .orElse(false);
 
-    public static final boolean isRabbitTracing = tracingMode.equalsIgnoreCase("rabbit");
+    /**
+     * Sets stack tracing mode for a JVM process, which controls
+     * how much stack trace information is captured.
+     * Acceptable values are: NONE, CACHED, FULL.
+     */
+    private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.stackTracingMode"))
+            .filter(x -> !x.isEmpty())
+            .orElse("none");
 
-    public static final boolean isSlugTracing = tracingMode.equalsIgnoreCase("slug");
+    public static final boolean isCachedStackTracing = isTracing && stackTracingMode.equalsIgnoreCase("cached");
 
-    public static final boolean isTracing = isSlugTracing || isRabbitTracing;
+    public static final boolean isFullStackTracing = isTracing && stackTracingMode.equalsIgnoreCase("full");
+
+    public static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
 
     /**
      * The number of trace lines to retain during tracing. If more trace
      * lines are produced, then the oldest trace lines will be discarded.
      * Automatically rounded up to the nearest power of 2.
      */
-    public static final int maxTraceDepth = Optional.ofNullable(System.getProperty("cats.effect.tracing.maxTraceDepth"))
+    public static final int maxTraceDepth = Optional.ofNullable(System.getProperty("cats.effect.maxTraceDepth"))
         .filter(x -> !x.isEmpty())
         .flatMap(x -> {
             try {

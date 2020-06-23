@@ -17,8 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, CollectTraces, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.TraceFrame
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, SetTracing, Suspend, Trace}
+import cats.effect.tracing.StackTraceFrame
+import cats.effect.internals.TracingPlatform.isStackTracing
 
 import scala.util.control.NonFatal
 
@@ -86,10 +87,10 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (TracingPlatform.isTracing && activeCollects > 0) {
+          if (isStackTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -131,10 +132,10 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (TracingPlatform.isTracing && activeCollects > 0) {
+          if (isStackTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -145,9 +146,9 @@ private[effect] object IORunLoop {
           // may produce trace frames e.g. IOBracket.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          if (TracingPlatform.isTracing && activeCollects > 0) {
+          if (isStackTracing && activeCollects > 0) {
             val trace = async.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           rcb.start(async, ctx, bFirst, bRest)
           return
@@ -167,7 +168,7 @@ private[effect] object IORunLoop {
           ctx.pushFrame(frame)
           currentIO = source
 
-        case CollectTraces(collect) =>
+        case SetTracing(collect) =>
           if (ctx eq null) ctx = IOContext()
           if (collect) {
             activeCollects += 1
@@ -228,10 +229,10 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (TracingPlatform.isTracing && activeCollects > 0) {
+          if (isStackTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -273,10 +274,10 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (TracingPlatform.isTracing && activeCollects > 0) {
+          if (isStackTracing && activeCollects > 0) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[TraceFrame])
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -286,7 +287,7 @@ private[effect] object IORunLoop {
           ctx.pushFrame(frame)
           currentIO = source
 
-        case CollectTraces(collect) =>
+        case SetTracing(collect) =>
           if (ctx eq null) ctx = IOContext()
           if (collect) {
             activeCollects += 1

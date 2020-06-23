@@ -19,18 +19,18 @@ package cats.effect.internals
 import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
-import cats.effect.IO.{Bind, CollectTraces, Pure, RaiseError, Trace}
-import cats.effect.tracing.{TraceFrame, TraceTag}
+import cats.effect.IO.{Bind, Pure, RaiseError, SetTracing, Trace}
+import cats.effect.tracing.{StackTraceFrame, TraceTag}
 
 private[effect] object IOTracing {
 
   def decorated[A](source: IO[A], traceTag: TraceTag): IO[A] =
     Trace(source, buildFrame(traceTag))
 
-  def uncached(traceTag: TraceTag): TraceFrame =
+  def uncached(traceTag: TraceTag): StackTraceFrame =
     buildFrame(traceTag)
 
-  def cached(traceTag: TraceTag, clazz: Class[_]): TraceFrame =
+  def cached(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame =
     buildCachedFrame(traceTag, clazz)
 
   def traced[A](source: IO[A]): IO[A] =
@@ -39,23 +39,23 @@ private[effect] object IOTracing {
            (_: Unit) => Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null),
            null)
 
-  private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): TraceFrame = {
-    val cachedFr = frameCache.get(clazz)
-    if (cachedFr eq null) {
-      val fr = buildFrame(traceTag)
-      frameCache.put(clazz, fr)
-      fr
+  private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame = {
+    val cf = frameCache.get(clazz)
+    if (cf eq null) {
+      val f = buildFrame(traceTag)
+      frameCache.put(clazz, f)
+      f
     } else {
-      cachedFr
+      cf
     }
   }
 
-  def buildFrame(traceTag: TraceTag): TraceFrame =
-    TraceFrame(traceTag, new Throwable())
+  def buildFrame(traceTag: TraceTag): StackTraceFrame =
+    StackTraceFrame(traceTag, new Throwable())
 
-  private[this] val incrementCollection: IO[Unit] = CollectTraces(true)
+  private[this] val incrementCollection: IO[Unit] = SetTracing(true)
 
-  private[this] val decrementCollection: IO[Unit] = CollectTraces(false)
+  private[this] val decrementCollection: IO[Unit] = SetTracing(false)
 
   private object DecrementTraceCollection extends IOFrame[Any, IO[Any]] {
     override def apply(a: Any) =
@@ -73,6 +73,6 @@ private[effect] object IOTracing {
   /**
    * Cache for trace frames. Keys are references to lambda classes.
    */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], TraceFrame] = new ConcurrentHashMap()
+  private[this] val frameCache: ConcurrentHashMap[Class[_], StackTraceFrame] = new ConcurrentHashMap()
 
 }

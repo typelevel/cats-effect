@@ -22,7 +22,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class RabbitTracingTests extends AsyncFunSuite with Matchers {
+class FullStackTracingTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
@@ -33,30 +33,57 @@ class RabbitTracingTests extends AsyncFunSuite with Matchers {
       t <- IO.backtrace
     } yield t
 
-  test("rabbit tracing captures map frames") {
+  test("full stack tracing captures map frames") {
     val task = IO.pure(0).map(_ + 1).map(_ + 1)
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 2
+      r.captured shouldBe 3
       r.frames.filter(_.tag == TraceTag.Map).length shouldBe 2
     }
   }
 
-  test("rabbit tracing captures bind frames") {
+  test("full stack tracing captures bind frames") {
     val task = IO.pure(0).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 2
+      r.captured shouldBe 5
       r.frames.filter(_.tag == TraceTag.Bind).length shouldBe 2
     }
   }
 
-  test("rabbit tracing captures async frames") {
+  test("full stack tracing captures async frames") {
     val task = IO.async[Int](_(Right(0))).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 3
+      r.captured shouldBe 5
       r.frames.filter(_.tag == TraceTag.Async).length shouldBe 1
+    }
+  }
+
+  test("full stack tracing captures pure frames") {
+    val task = IO.pure(0).flatMap(a => IO.pure(a + 1))
+
+    for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 3
+      r.frames.filter(_.tag == TraceTag.Pure).length shouldBe 2
+    }
+  }
+
+  test("full stack tracing captures delay frames") {
+    val task = IO(0).flatMap(a => IO(a + 1))
+
+    for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 3
+      r.frames.filter(_.tag == TraceTag.Delay).length shouldBe 2
+    }
+  }
+
+  test("full stack tracing captures suspend frames") {
+    val task = IO.suspend(IO(1)).flatMap(a => IO.suspend(IO(a + 1)))
+
+    for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 5
+      r.frames.filter(_.tag == TraceTag.Suspend).length shouldBe 2
     }
   }
 }
