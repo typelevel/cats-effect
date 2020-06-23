@@ -527,14 +527,6 @@ class IOTests extends BaseTestsSuite {
     io.unsafeRunSync() shouldBe 1
   }
 
-  test("map is stack-safe for unsafeRunSync") {
-    import IOPlatform.{fusionMaxStackDepth => max}
-    val f = (x: Int) => x + 1
-    val io = (0 until (max * 10000)).foldLeft(IO(0))((acc, _) => acc.map(f))
-
-    io.unsafeRunSync() shouldEqual max * 10000
-  }
-
   testAsync("parMap2 for successful values") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 

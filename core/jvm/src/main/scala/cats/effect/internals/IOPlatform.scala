@@ -74,37 +74,6 @@ private[effect] object IOPlatform {
   }
 
   /**
-   * Establishes the maximum stack depth for `IO#map` operations.
-   *
-   * The default is `128`, from which we subtract one as an
-   * optimization. This default has been reached like this:
-   *
-   *  - according to official docs, the default stack size on 32-bits
-   *    Windows and Linux was 320 KB, whereas for 64-bits it is 1024 KB
-   *  - according to measurements chaining `Function1` references uses
-   *    approximately 32 bytes of stack space on a 64 bits system;
-   *    this could be lower if "compressed oops" is activated
-   *  - therefore a "map fusion" that goes 128 in stack depth can use
-   *    about 4 KB of stack space
-   *
-   * If this parameter becomes a problem, it can be tuned by setting
-   * the `cats.effect.fusionMaxStackDepth` system property when
-   * executing the Java VM:
-   *
-   * <pre>
-   *   java -Dcats.effect.fusionMaxStackDepth=32 \
-   *        ...
-   * </pre>
-   */
-  final val fusionMaxStackDepth =
-    Option(System.getProperty("cats.effect.fusionMaxStackDepth", ""))
-      .filter(s => s != null && s.nonEmpty)
-      .flatMap(s => Try(s.toInt).toOption)
-      .filter(_ > 0)
-      .map(_ - 1)
-      .getOrElse(127)
-
-  /**
    * Returns `true` if the underlying platform is the JVM,
    * `false` if it's JavaScript.
    */

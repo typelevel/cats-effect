@@ -154,14 +154,6 @@ class SyncIOTests extends BaseTestsSuite {
     io.unsafeRunSync() shouldEqual 2
   }
 
-  test("map is stack-safe for unsafeRunSync") {
-    import IOPlatform.{fusionMaxStackDepth => max}
-    val f = (x: Int) => x + 1
-    val io = (0 until (max * 10000)).foldLeft(SyncIO(0))((acc, _) => acc.map(f))
-
-    io.unsafeRunSync() shouldEqual max * 10000
-  }
-
   testAsync("IO#redeem(throw, f) <-> IO#map") { implicit ec =>
     check { (io: IO[Int], f: Int => Int) =>
       io.redeem(e => throw e, f) <-> io.map(f)
