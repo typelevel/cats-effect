@@ -61,7 +61,7 @@ private[effect] final class IOFiber[A](heapCur0: IO[A], name: String) extends Fi
 
           val cb = conts.pop()
           try {
-            cb(true, cur.thunk)
+            cb(true, cur.thunk())
           } catch {
             case NonFatal(t) =>
               cb(false, t)
