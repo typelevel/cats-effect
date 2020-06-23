@@ -22,16 +22,21 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / publishGithubUser := "djspiewak"
 ThisBuild / publishFullName := "Daniel Spiewak"
 
-val ScalaJSOS = "ubuntu-latest"
+val PrimaryOS = "ubuntu-latest"
+
 val ScalaJSScala = "2.13.2"
 val ScalaJSJava = "adopt@1.8"
 
 ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", ScalaJSScala)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
-ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, "adopt@11", "adopt@14", "graalvm@20.1.0")
 
-ThisBuild / githubWorkflowOSes := Seq(ScalaJSOS)
+val LTSJava = "adopt@11"
+val LatestJava = "adopt@14"
+val GraalVM8 = "graalvm8@20.1.0"
+
+ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
+ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
 ThisBuild / githubWorkflowBuild := Seq(WorkflowStep.Sbt(List("${{ matrix.ci }}")))
 
@@ -39,7 +44,7 @@ ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM")
 
 ThisBuild / githubWorkflowBuildMatrixInclusions +=
   MatrixInclude(
-    Map("os" -> ScalaJSOS, "java" -> ScalaJSJava, "scala" -> ScalaJSScala),
+    Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> ScalaJSScala),
     Map("ci" -> "ciJS"))
 
 Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))

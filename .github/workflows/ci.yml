@@ -23,7 +23,11 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         scala: [0.25.0-RC2, 2.12.11, 2.13.2]
-        java: [adopt@1.8, adopt@11, adopt@14, graalvm@20.1.0]
+        java:
+          - adopt@1.8
+          - adopt@11
+          - adopt@14
+          - graalvm8@20.1.0
         ci: [ciJVM]
         include:
           - os: ubuntu-latest
