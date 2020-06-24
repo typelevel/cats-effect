@@ -377,6 +377,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * consider in the example above what would happen if the first task
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
+   * 
+   * Cancelling the resulting `Fiber` will block until all finalizers
+   * have run.
    *
    * Also see [[background]] for a safer alternative.
    */
@@ -387,7 +390,7 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * Returns a resource that will start execution of this IO in the background.
    *
    * In case the resource is closed while this IO is still running (e.g. due to a failure in `use`),
-   * the background action will be canceled.
+   * the background action will be canceled and all finalizers run.
    *
    * @see [[cats.effect.Concurrent#background]] for the generic version.
    */
