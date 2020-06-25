@@ -225,7 +225,6 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 // if we get an error before the callback, then propagate
                 val cb = conts.pop()
                 cb(b, ar)
-              } else {
               }
             } else {
               if (state.compareAndSet(null, Left(null))) {
