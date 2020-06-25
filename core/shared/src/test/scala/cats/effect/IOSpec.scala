@@ -105,6 +105,12 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     "start and ignore a non-terminating fiber" in {
       IO.never.start.as(42) must completeAs(42)
     }
+
+    "start a fiber then continue with its results" in {
+      IO.pure(42).start.flatMap(_.join) flatMap { oc =>
+        oc.fold(IO.pure(0), _ => IO.pure(-1), ioa => ioa)
+      } must completeAs(42)
+    }
   }
 
   /*{

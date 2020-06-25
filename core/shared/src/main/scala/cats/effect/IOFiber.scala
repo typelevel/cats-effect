@@ -132,7 +132,6 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
     runLoop(cur, ctxs, conts)
   }
 
-  @tailrec
   private[this] def runLoop(
       cur00: IO[Any],
       ctxs: ArrayStack[ExecutionContext],
@@ -203,11 +202,13 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
             val ec = ctxs.peek()
 
             ec execute { () =>
-
               e match {
                 case Left(t) => cb(false, t)
                 case Right(a) => cb(true, a)
               }
+
+              // the runloop will have already terminated; pick it back up *here*
+              runLoop(null, ctxs, conts)
             }
           }
 
