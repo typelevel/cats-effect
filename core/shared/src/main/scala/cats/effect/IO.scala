@@ -23,6 +23,8 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
+import java.util.concurrent.atomic.AtomicInteger
+
 sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
@@ -34,7 +36,17 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
-  def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] = ???
+  def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
+    IO.executionContext flatMap { ec =>
+      IO {
+        val fiber = new IOFiber(
+          this,
+          s"child-${IO.childCount.getAndIncrement()}")
+
+        ec.execute(() => fiber.run(ec))
+        fiber
+      }
+    }
 
   def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] = ???
 
@@ -44,13 +56,12 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
   def to[F[_]: AsyncBracket]: F[A @uncheckedVariance] = ???
 
   def unsafeRunAsync(ec: ExecutionContext)(cb: Either[Throwable, A] => Unit): Unit = {
-    val ctxs = new ArrayStack[ExecutionContext](2)
-    ctxs.push(ec)
-
-    val conts = new ArrayStack[(Boolean, Any) => Unit](16)   // TODO tune
-    conts.push((b, ar) => cb(if (b) Right(ar.asInstanceOf[A]) else Left(ar.asInstanceOf[Throwable])))
-
-    new IOFiber(this, "main").runLoop(this, ctxs, conts)
+    new IOFiber(
+      this,
+      oc => oc.fold(
+        (),
+        e => cb(Left(e)),
+        ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value)))).run(ec)
   }
 }
 
@@ -76,6 +87,8 @@ private[effect] trait IOLowPriorityImplicits1 extends IOLowPriorityImplicits0 {
 }
 
 object IO extends IOLowPriorityImplicits1 {
+
+  private val childCount = new AtomicInteger(0)
 
   def pure[A](value: A): IO[A] = Pure(value)
 

@@ -40,6 +40,10 @@ private[effect] final class ArrayStack[A <: AnyRef](initBound: Int) {
 
   def isEmpty(): Boolean = index <= 0
 
+  // to allow for external iteration
+  def unsafeBuffer(): Array[A] = buffer.asInstanceOf[Array[A]]
+  def unsafeIndex(): Int = index
+
   private[this] def checkAndGrow(): Unit = {
     if (index >= buffer.length) {
       val len = buffer.length

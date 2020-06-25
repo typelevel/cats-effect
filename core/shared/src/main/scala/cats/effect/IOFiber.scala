@@ -22,19 +22,117 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-private[effect] final class IOFiber[A](heapCur0: IO[A], name: String) extends Fiber[IO, Throwable, A] {
+private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable, A] {
   import IO._
 
-  private[this] var heapCur: IO[Any] = heapCur0
+  private[this] var heapCur: IO[Any] = _
   private[this] var canceled: Boolean = false
+
+  // (Outcome[IO, Throwable, A] => Unit) | ArrayStack[Outcome[IO, Throwable, A] => Unit]
+  private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
+
+  private[this] var outcome: AtomicReference[Outcome[IO, Throwable, A]] = new AtomicReference()
+
+  def this(heapCur0: IO[A], cb: Outcome[IO, Throwable, A] => Unit) = {
+    this("main")
+    heapCur = heapCur0
+    callback.set(cb)
+  }
+
+  def this(heapCur0: IO[A], name: String) = {
+    this(name)
+    heapCur = heapCur0
+  }
 
   final def cancel: IO[Unit] = Delay(() => canceled = true)
 
   // this needs to push handlers onto the *tail* of the continuation stack...
-  final def join: IO[Outcome[IO, Throwable, A]] = ???
+  final def join: IO[Outcome[IO, Throwable, A]] =
+    IO async { cb =>
+      IO {
+        if (outcome.get() == null) {
+          val toPush = { (oc: Outcome[IO, Throwable, A]) => cb(Right(oc)) }
+
+          @tailrec
+          def loop(): Unit = {
+            if (callback.get() == null) {
+              if (!callback.compareAndSet(null, toPush)) {
+                loop()
+              }
+            } else {
+              val old0 = callback.get()
+              if (old0.isInstanceOf[Function1[_, _]]) {
+                val old = old0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
+
+                val stack = new ArrayStack[Outcome[IO, Throwable, A] => Unit](4)
+                stack.push(old)
+                stack.push(toPush)
+
+                if (!callback.compareAndSet(old, stack)) {
+                  loop()
+                }
+              } else {
+                val stack = old0.asInstanceOf[ArrayStack[Outcome[IO, Throwable, A] => Unit]]
+                stack.push(toPush)    // TODO this isn't thread-safe
+              }
+            }
+          }
+
+          loop()
+
+          // double-check
+          if (outcome.get() != null) {
+            cb(Right(outcome.get()))    // the implementation of async saves us from double-calls
+          }
+        } else {
+          cb(Right(outcome.get()))
+        }
+
+        None
+      }
+    }
+
+  private[effect] def run(ec: ExecutionContext): Unit = {
+    val cur = heapCur
+    heapCur = null
+
+    val ctxs = new ArrayStack[ExecutionContext](2)
+    ctxs.push(ec)
+
+    val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+
+    conts push { (b, ar) =>
+      if (b)
+        outcome.compareAndSet(null, Outcome.Completed(IO.pure(ar.asInstanceOf[A])))
+      else
+        outcome.compareAndSet(null, Outcome.Errored(ar.asInstanceOf[Throwable]))
+
+      val cb0 = callback.get()
+      if (cb0.isInstanceOf[Function1[_, _]]) {
+        val cb = cb0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
+        cb(outcome.get())
+      } else if (cb0.isInstanceOf[ArrayStack[_]]) {
+        val stack = cb0.asInstanceOf[ArrayStack[Outcome[IO, Throwable, A] => Unit]]
+
+        val buffer = stack.unsafeBuffer()
+        val bound = stack.unsafeIndex()
+
+        val oc = outcome.get()
+        var i = 0
+        while (i < bound) {
+          buffer(i)(oc)
+          i += 1
+        }
+      }
+
+      callback.set(null)    // avoid leaks
+    }
+
+    runLoop(cur, ctxs, conts)
+  }
 
   @tailrec
-  private[effect] def runLoop(
+  private[this] def runLoop(
       cur00: IO[Any],
       ctxs: ArrayStack[ExecutionContext],
       conts: ArrayStack[(Boolean, Any) => Unit])
