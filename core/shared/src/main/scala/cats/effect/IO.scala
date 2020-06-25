@@ -110,6 +110,8 @@ object IO extends IOLowPriorityImplicits1 {
 
   val executionContext: IO[ExecutionContext] = IO.ReadEC
 
+  val never: IO[Nothing] = async(_ => pure(None))
+
   implicit def groupForIO[A: Group]: Group[IO[A]] =
     new IOGroup[A]
 

@@ -31,7 +31,8 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
   // (Outcome[IO, Throwable, A] => Unit) | ArrayStack[Outcome[IO, Throwable, A] => Unit]
   private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
 
-  private[this] var outcome: AtomicReference[Outcome[IO, Throwable, A]] = new AtomicReference()
+  private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
+    new AtomicReference()
 
   def this(heapCur0: IO[A], cb: Outcome[IO, Throwable, A] => Unit) = {
     this("main")
@@ -44,10 +45,10 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
     heapCur = heapCur0
   }
 
-  final def cancel: IO[Unit] = Delay(() => canceled = true)
+  val cancel: IO[Unit] = IO { canceled = true }
 
   // this needs to push handlers onto the *tail* of the continuation stack...
-  final def join: IO[Outcome[IO, Throwable, A]] =
+  val join: IO[Outcome[IO, Throwable, A]] =
     IO async { cb =>
       IO {
         if (outcome.get() == null) {
@@ -146,7 +147,8 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
       cur00
     }
 
-    if (!conts.isEmpty()) {
+    // cur0 will be null when we're semantically blocked
+    if (!conts.isEmpty() && cur0 != null) {
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]

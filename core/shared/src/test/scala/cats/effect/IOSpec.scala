@@ -88,6 +88,23 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       case object TestException extends RuntimeException
       (IO.raiseError(TestException): IO[Unit]).attempt must completeAs(Left(TestException))
     }
+
+    "start and join on a successful fiber" in {
+      IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(Outcome.Completed(IO.pure(43)))
+    }
+
+    "start and join on a failed fiber" in {
+      case object TestException extends RuntimeException
+      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.Errored(TestException))
+    }
+
+    "implement never with non-terminating semantics" in {
+      IO.never must nonTerminate
+    }
+
+    "start and ignore a non-terminating fiber" in {
+      IO.never.start.as(42) must completeAs(42)
+    }
   }
 
   /*{
