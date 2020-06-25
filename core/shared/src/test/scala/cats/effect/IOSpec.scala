@@ -60,6 +60,15 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       IO(throw TestException) must failAs(TestException)
     }
 
+    "resume value continuation within async" in {
+      IO.async[Int](k => IO(k(Right(42))).map(_ => None)) must completeAs(42)
+    }
+
+    "resume error continuation within async" in {
+      case object TestException extends RuntimeException
+      IO.async[Unit](k => IO(k(Left(TestException))).as(None)) must failAs(TestException)
+    }
+
     "map results to a new type" in {
       IO.pure(42).map(_.toString) must completeAs("42")
     }
@@ -69,9 +78,19 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       IO.pure(42).flatMap(i2 => IO { i = i2 }) must completeAs(())
       i mustEqual 42
     }
+
+    "raiseError propagates out" in {
+      case object TestException extends RuntimeException
+      IO.raiseError(TestException).void must failAs(TestException)
+    }
+
+    "errors can be handled" in {
+      case object TestException extends RuntimeException
+      (IO.raiseError(TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+    }
   }
 
-  {
+  /*{
     implicit val ctx = TestContext()
 
     checkAll(
@@ -81,7 +100,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     checkAll(
       "IO[Int]",
       GroupTests[IO[Int]].group)
-  }
+  }*/
 
   // TODO organize the below somewhat better
 
@@ -128,6 +147,9 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   implicit lazy val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals[Throwable]
 
+  implicit lazy val shThrowable: Show[Throwable] =
+    Show.fromToString[Throwable]
+
   implicit lazy val eqEC: Eq[ExecutionContext] =
     Eq.fromUniversalEquals[ExecutionContext]
 
@@ -156,8 +178,6 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     tickTo[Unit](Outcome.Completed(None))
 
   def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A]): Matcher[IO[A]] = { (ioa: IO[A]) =>
-    implicit val st = Show.fromToString[Throwable]
-
     val oc = unsafeRun(ioa)
     (oc eqv expected, s"${oc.show} !== ${expected.show}")
   }

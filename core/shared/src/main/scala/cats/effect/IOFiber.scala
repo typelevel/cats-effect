@@ -20,7 +20,7 @@ import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 private[effect] final class IOFiber[A](heapCur0: IO[A], name: String) extends Fiber[IO, Throwable, A] {
   import IO._
@@ -78,22 +78,69 @@ private[effect] final class IOFiber[A](heapCur0: IO[A], name: String) extends Fi
         case 3 =>
           val cur = cur0.asInstanceOf[Async[Any]]
 
-          val cb = conts.pop()
-          val ec = ctxs.peek()
           val done = new AtomicBoolean()
 
-          val next = cur.k { e =>
-            if (!done.getAndSet(true)) {
-              ec execute { () =>
-                e match {
-                  case Left(t) => cb(false, t)
-                  case Right(a) => cb(true, a)
-                }
+          /*
+           * Three states here:
+           *
+           * - null (no one has completed, or everyone has)
+           * - Left(null) (registration has completed but not callback)
+           * - anything else (callback has completed but not registration)
+           *
+           * The purpose of this buffer is to ensure that registration takes
+           * primacy over callbacks in the event that registration produces
+           * errors in sequence. This implements a "queueing" semantic to
+           * the callbacks, implying that the callback is sequenced after
+           * registration has fully completed, giving us deterministic
+           * serialization.
+           */
+          val state = new AtomicReference[Either[Throwable, Any]]()
+
+          def continue(e: Either[Throwable, Any]): Unit = {
+            state.lazySet(null)   // avoid leaks
+
+            val cb = conts.pop()
+            val ec = ctxs.peek()
+
+            ec execute { () =>
+
+              e match {
+                case Left(t) => cb(false, t)
+                case Right(a) => cb(true, a)
               }
             }
           }
 
-          // TODO cancelation handling? (in a continuation)
+          val next = cur.k { e =>
+            if (!done.getAndSet(true)) {
+              if (state.getAndSet(e) != null) {    // registration already completed, we're good to go
+                continue(e)
+              }
+            }
+          }
+
+          conts push { (b, ar) =>
+            if (!b) {
+              if (!done.getAndSet(true)) {
+                // if we get an error before the callback, then propagate
+                val cb = conts.pop()
+                cb(b, ar)
+              } else {
+              }
+            } else {
+              if (state.compareAndSet(null, Left(null))) {
+                ar.asInstanceOf[Option[IO[Unit]]] match {
+                  case Some(cancelToken) =>
+                    // TODO register handler
+
+                  case None => ()
+                }
+              } else {
+                // the callback was invoked before registration
+                continue(state.get())
+              }
+            }
+          }
 
           runLoop(next, ctxs, conts)
 

@@ -36,7 +36,7 @@ private[effect] final class ArrayStack[A <: AnyRef](initBound: Int) {
     back
   }
 
-  def peek(): A = buffer(index).asInstanceOf[A]
+  def peek(): A = buffer(index - 1).asInstanceOf[A]
 
   def isEmpty(): Boolean = index <= 0
 

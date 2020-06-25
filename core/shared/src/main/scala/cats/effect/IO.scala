@@ -19,10 +19,11 @@ package cats.effect
 import cats.{~>, Group, Monoid, Semigroup, StackSafeMonad}
 import cats.implicits._
 
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-sealed abstract class IO[+A](private[effect] val tag: Int) {
+sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
@@ -32,6 +33,15 @@ sealed abstract class IO[+A](private[effect] val tag: Int) {
     IO.HandleErrorWith(this, f)
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
+
+  def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] = ???
+
+  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] = ???
+
+  def onCancel(body: IO[Unit]): IO[A] =
+    onCase { case Outcome.Canceled() => body }
+
+  def to[F[_]: AsyncBracket]: F[A @uncheckedVariance] = ???
 
   def unsafeRunAsync(ec: ExecutionContext)(cb: Either[Throwable, A] => Unit): Unit = {
     val ctxs = new ArrayStack[ExecutionContext](2)
@@ -69,11 +79,21 @@ object IO extends IOLowPriorityImplicits1 {
 
   def pure[A](value: A): IO[A] = Pure(value)
 
+  def unit: IO[Unit] = pure(())
+
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
   def raiseError(t: Throwable): IO[Nothing] = Error(t)
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
+
+  def canceled: IO[Unit] = ???
+
+  // in theory we can probably do a bit better than this; being lazy for now
+  def cede: IO[Unit] =
+    async(k => apply(k(Right(()))).map(_ => None))
+
+  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] = ???
 
   val executionContext: IO[ExecutionContext] = IO.ReadEC
 
@@ -104,7 +124,14 @@ object IO extends IOLowPriorityImplicits1 {
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 
-    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] = ???
+    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+      uncancelable { poll =>
+        acquire flatMap { a =>
+          val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
+          val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
+          handled.flatMap(b => release(a, Outcome.Completed(pure(b))).attempt.as(b))
+        }
+      }
 
     def monotonic: IO[FiniteDuration] =
       IO(System.nanoTime().nanoseconds)
@@ -114,17 +141,23 @@ object IO extends IOLowPriorityImplicits1 {
 
     def sleep(time: FiniteDuration): IO[Unit] = ???
 
-    def canceled: IO[Unit] = ???
+    def canceled: IO[Unit] =
+      IO.canceled
 
-    def cede: IO[Unit] = ???
+    def cede: IO[Unit] = IO.cede
 
     def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] = ???
 
-    def start[A](fa: IO[A]): IO[Fiber[IO, Throwable, A]] = ???
+    def start[A](fa: IO[A]): IO[Fiber[IO, Throwable, A]] =
+      fa.start
 
-    def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] = ???
+    def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+      IO.uncancelable(body)
 
-    def toK[G[_]](implicit G: AsyncBracket[G]): IO ~> G = ???
+    def toK[G[_]](implicit G: AsyncBracket[G]): IO ~> G =
+      new (IO ~> G) {
+        def apply[A](ioa: IO[A]) = ioa.to[G]
+      }
 
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)
