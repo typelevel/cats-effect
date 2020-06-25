@@ -195,7 +195,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
            */
           val state = new AtomicReference[Either[Throwable, Any]]()
 
-          def continue(e: Either[Throwable, Any]): Unit = {
+          def continue(e: Either[Throwable, Any], wasBlocked: Boolean): Unit = {
             state.lazySet(null)   // avoid leaks
 
             val cb = conts.pop()
@@ -207,15 +207,17 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 case Right(a) => cb(true, a)
               }
 
-              // the runloop will have already terminated; pick it back up *here*
-              runLoop(null, ctxs, conts)
+              if (wasBlocked) {
+                // the runloop will have already terminated; pick it back up *here*
+                runLoop(null, ctxs, conts)
+              } // else the runloop is still in process, because we're in the registration
             }
           }
 
           val next = cur.k { e =>
             if (!done.getAndSet(true)) {
               if (state.getAndSet(e) != null) {    // registration already completed, we're good to go
-                continue(e)
+                continue(e, true)
               }
             }
           }
@@ -226,6 +228,12 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 // if we get an error before the callback, then propagate
                 val cb = conts.pop()
                 cb(b, ar)
+              } else {
+                // we got the error *after* the callback, but we have queueing semantics
+                // therefore, side-channel the callback results
+                // println(state.get())
+
+                continue(Left(ar.asInstanceOf[Throwable]), false)
               }
             } else {
               if (state.compareAndSet(null, Left(null))) {
@@ -237,7 +245,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 }
               } else {
                 // the callback was invoked before registration
-                continue(state.get())
+                continue(state.get(), false)
               }
             }
           }

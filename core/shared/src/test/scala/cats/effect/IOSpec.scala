@@ -111,6 +111,15 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         oc.fold(IO.pure(0), _ => IO.pure(-1), ioa => ioa)
       } must completeAs(42)
     }
+
+    "continue from the results of an async produced prior to registration" in {
+      IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
+    }
+
+    "produce a failure when the registration raises an error after callback" in {
+      case object TestException extends RuntimeException
+      IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException))).void must failAs(TestException)
+    }
   }
 
   /*{
