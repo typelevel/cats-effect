@@ -16,7 +16,6 @@
 
 package cats.effect
 
-// not currently safe to observe from multiple threads
 private[effect] final class ArrayStack[A <: AnyRef](initBound: Int) {
 
   private[this] var buffer: Array[AnyRef] = new Array[AnyRef](initBound)

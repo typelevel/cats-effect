@@ -28,7 +28,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
   private[this] var heapCur: IO[Any] = _
   private[this] var canceled: Boolean = false
 
-  // (Outcome[IO, Throwable, A] => Unit) | ArrayStack[Outcome[IO, Throwable, A] => Unit]
+  // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
   private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
 
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
@@ -65,7 +65,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               if (old0.isInstanceOf[Function1[_, _]]) {
                 val old = old0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
 
-                val stack = new ArrayStack[Outcome[IO, Throwable, A] => Unit](4)
+                val stack = new SafeArrayStack[Outcome[IO, Throwable, A] => Unit](4)
                 stack.push(old)
                 stack.push(toPush)
 
@@ -73,8 +73,8 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                   loop()
                 }
               } else {
-                val stack = old0.asInstanceOf[ArrayStack[Outcome[IO, Throwable, A] => Unit]]
-                stack.push(toPush)    // TODO this isn't thread-safe
+                val stack = old0.asInstanceOf[SafeArrayStack[Outcome[IO, Throwable, A] => Unit]]
+                stack.push(toPush)
               }
             }
           }
@@ -112,11 +112,11 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
       if (cb0.isInstanceOf[Function1[_, _]]) {
         val cb = cb0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
         cb(outcome.get())
-      } else if (cb0.isInstanceOf[ArrayStack[_]]) {
-        val stack = cb0.asInstanceOf[ArrayStack[Outcome[IO, Throwable, A] => Unit]]
+      } else if (cb0.isInstanceOf[SafeArrayStack[_]]) {
+        val stack = cb0.asInstanceOf[SafeArrayStack[Outcome[IO, Throwable, A] => Unit]]
 
-        val buffer = stack.unsafeBuffer()
         val bound = stack.unsafeIndex()
+        val buffer = stack.unsafeBuffer()
 
         val oc = outcome.get()
         var i = 0
