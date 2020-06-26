@@ -378,8 +378,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * finishes in error. In that case the second task doesn't get canceled,
    * which creates a potential memory leak.
    * 
-   * Cancelling the resulting `Fiber` will block until all finalizers
-   * have run.
+   * Cancelling the resulting `Fiber` will run all finalizers
+   * before completing.
    *
    * Also see [[background]] for a safer alternative.
    */
