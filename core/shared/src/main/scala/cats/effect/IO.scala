@@ -48,7 +48,8 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
       }
     }
 
-  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] = ???
+  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
+    IO.OnCase(this, { oc => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit })
 
   def onCancel(body: IO[Unit]): IO[A] =
     onCase { case Outcome.Canceled() => body }
@@ -100,13 +101,14 @@ object IO extends IOLowPriorityImplicits1 {
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
-  def canceled: IO[Unit] = ???
+  def canceled: IO[Unit] = Canceled
 
   // in theory we can probably do a bit better than this; being lazy for now
   def cede: IO[Unit] =
     async(k => apply(k(Right(()))).map(_ => None))
 
-  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] = ???
+  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+    Uncancelable(body)
 
   val executionContext: IO[ExecutionContext] = IO.ReadEC
 
@@ -192,4 +194,8 @@ object IO extends IOLowPriorityImplicits1 {
   private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A](7)
 
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A]) extends IO[A](8)
+  private[effect] final case class OnCase[A](ioa: IO[A], f: Outcome[IO, Throwable, A] => IO[Unit]) extends IO[A](9)
+
+  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A](10)
+  private[effect] case object Canceled extends IO[Unit](11)
 }

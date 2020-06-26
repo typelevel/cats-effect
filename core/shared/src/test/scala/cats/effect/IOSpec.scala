@@ -120,6 +120,47 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       case object TestException extends RuntimeException
       IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException))).void must failAs(TestException)
     }
+
+    "cancel an infinite chain of right-binds" in {
+      lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
+      infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.Canceled())
+    }
+
+    "cancel never" in {
+      (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.Canceled())
+    }
+
+    "cancel never after scheduling" in {
+      val ioa = IO(TestContext()) flatMap { ec =>
+        for {
+          f <- (IO.never: IO[Unit]).start.evalOn(ec)
+          _ <- IO(ec.tick())
+          _ <- f.cancel
+          oc <- f.join
+        } yield oc
+      }
+
+      ioa must completeAs(Outcome.Canceled())
+    }
+
+    "sequence async cancel token upon cancelation" in {
+      var affected = false
+
+      val target = IO.async[Unit] { _ =>
+        IO.pure(Some(IO { affected = true }))
+      }
+
+      val ioa = IO(TestContext()) flatMap { ec =>
+        for {
+          f <- target.start.evalOn(ec)
+          _ <- IO(ec.tick())
+          _ <- f.cancel
+        } yield ()
+      }
+
+      ioa must completeAs(())
+      affected must beTrue
+    }
   }
 
   /*{
