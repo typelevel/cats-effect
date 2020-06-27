@@ -27,10 +27,10 @@ trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
   def to[G[_]]: PartiallyApplied[G] =
     new PartiallyApplied[G]
 
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
+  def toK[G[_]: SyncEffect]: F ~> G
 
   final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
+    def apply[A](fa: F[A])(implicit G: SyncEffect[G]): G[A] =
       toK[G](G)(fa)
   }
 }

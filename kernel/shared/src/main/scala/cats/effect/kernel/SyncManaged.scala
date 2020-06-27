@@ -26,7 +26,7 @@ trait SyncManaged[R[_[_], _], F[_]] extends Sync[R[F, *]] with Region[R, F, Thro
   def to[S[_[_], _]]: PartiallyApplied[S]
 
   trait PartiallyApplied[S[_[_], _]] {
-    def apply[A](rfa: R[F, A])(implicit S: Sync[S[F, *]] with Region[S, F, Throwable]): S[F, A]
+    def apply[A](rfa: R[F, A])(implicit S: SyncManaged[S, F]): S[F, A]
   }
 }
 

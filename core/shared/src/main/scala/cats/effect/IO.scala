@@ -19,6 +19,7 @@ package cats.effect
 import cats.{~>, Group, Monoid, Semigroup, StackSafeMonad}
 import cats.implicits._
 
+import scala.annotation.switch
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -53,21 +54,89 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
           (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
 
-  def to[F[_]: AsyncBracket]: F[A @uncheckedVariance] = ???
+  def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
+    /*if (F eq IO.effectForIO) {
+      asInstanceOf
+    } else {*/
+      def fiberFrom[A](f: Fiber[F, Throwable, A]): Fiber[IO, Throwable, A] =
+        new Fiber[IO, Throwable, A] {
+          val cancel = F.to[IO](f.cancel)
+          val join = F.to[IO](f.join).map(_.mapK(F.toK[IO]))
+        }
+
+      // the casting is unfortunate, but required to work around GADT unification bugs
+      this match {
+        case IO.Pure(a) => F.pure(a)
+        case IO.Delay(thunk) => F.delay(thunk())
+        case IO.Error(t) => F.raiseError(t)
+        case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
+
+        case IO.ReadEC => F.executionContext.asInstanceOf[F[A]]
+        case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
+
+        case IO.Map(ioe, f) => ioe.to[F].map(f)
+        case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
+        case IO.HandleErrorWith(ioa, f) => ioa.to[F].handleErrorWith(f.andThen(_.to[F]))
+
+        case IO.OnCase(ioa, f) =>
+          val back = F.onCase(ioa.to[F]) {
+            case oc => f(oc.mapK(F.toK[IO])).to[F]
+          }
+
+          back.asInstanceOf[F[A]]
+
+        case IO.Uncancelable(body) =>
+          F uncancelable { poll =>
+            val poll2 = new (IO ~> IO) {
+              def apply[A](ioa: IO[A]): IO[A] =
+                F.to[IO](poll(ioa.to[F]))
+            }
+
+            body(poll2).to[F]
+          }
+
+        case IO.Canceled => F.canceled.asInstanceOf[F[A]]
+
+        case IO.Start(ioa) =>
+          F.start(ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
+
+        case IO.RacePair(ioa, iob) =>
+          val back = F.racePair(ioa.to[F], iob.to[F]) map { e =>
+            e.bimap(
+              { case (a, f) => (a, fiberFrom(f)) },
+              { case (f, b) => (fiberFrom(f), b) })
+          }
+
+          back.asInstanceOf[F[A]]
+
+        case IO.Sleep(delay) => F.sleep(delay).asInstanceOf[F[A]]
+      }
+    // }
+  }
 
   def unsafeRunAsync(
       ec: ExecutionContext,
       timer: UnsafeTimer)(
       cb: Either[Throwable, A] => Unit)
-      : Unit = {
+      : Unit =
+    unsafeRunFiber(ec, timer)(cb)
 
-    new IOFiber(
+  private def unsafeRunFiber(
+      ec: ExecutionContext,
+      timer: UnsafeTimer)(
+      cb: Either[Throwable, A] => Unit)
+      : IOFiber[A @uncheckedVariance] = {
+
+    val fiber = new IOFiber(
       this,
       timer,
       oc => oc.fold(
         (),
         e => cb(Left(e)),
-        ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value)))).run(ec)
+        ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))))
+
+    fiber.run(ec)
+    fiber
   }
 }
 
@@ -119,6 +188,11 @@ object IO extends IOLowPriorityImplicits1 {
 
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
+
+  def toK[F[_]: Effect]: IO ~> F =
+    new (IO ~> F) {
+      def apply[A](ioa: IO[A]) = ioa.to[F]
+    }
 
   implicit def groupForIO[A: Group]: Group[IO[A]] =
     new IOGroup[A]
@@ -179,10 +253,8 @@ object IO extends IOLowPriorityImplicits1 {
     def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
       IO.uncancelable(body)
 
-    def toK[G[_]](implicit G: AsyncBracket[G]): IO ~> G =
-      new (IO ~> G) {
-        def apply[A](ioa: IO[A]) = ioa.to[G]
-      }
+    def toK[G[_]](implicit G: Effect[G]): IO ~> G =
+      IO.toK[G]
 
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)
