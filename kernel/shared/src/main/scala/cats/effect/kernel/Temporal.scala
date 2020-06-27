@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-// TODO names ("Managed" conflicts with ZIO, but honestly it's a better name for this than Resource or IsoRegion)
-trait Managed[R[_[_], _], F[_]] extends Async[R[F, *]] with Region[R, F, Throwable] {
+import scala.concurrent.duration.FiniteDuration
 
-  def to[S[_[_], _]]: PartiallyApplied[S]
-
-  trait PartiallyApplied[S[_[_], _]] {
-    def apply[A](rfa: R[F, A])(implicit S: Async[S[F, *]] with Region[S, F, Throwable]): S[F, A]
-  }
+trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
+  // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
+  def sleep(time: FiniteDuration): F[Unit]
 }
 
-object Managed {
-  def apply[R[_[_], _], F[_]](implicit R: Managed[R, F]): R.type = R
+object Temporal {
+  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
+  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
 }

@@ -17,6 +17,8 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.Effect
+
 trait EffectLaws[F[_]] extends AsyncBracketLaws[F] {
   implicit val F: Effect[F]
 

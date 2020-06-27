@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.syntax
 
-import scala.concurrent.duration.FiniteDuration
+import cats.effect.kernel.Async
 
-trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
-  // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
-  def sleep(time: FiniteDuration): F[Unit]
+import scala.concurrent.ExecutionContext
+
+trait AsyncSyntax {
+  implicit def asyncOps[F[_], A](wrapped: F[A]): AsyncOps[F, A] =
+    new AsyncOps(wrapped)
 }
 
-object Temporal {
-  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
+final class AsyncOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+  def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
+    Async[F].evalOn(wrapped, ec)
 }

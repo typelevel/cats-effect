@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.testkit
 
 import cats.{Eq, Eval, Monad, MonadError}
+import cats.effect.kernel._
 import cats.free.FreeT
 import cats.implicits._
 
 import scala.concurrent.duration._
+
+
 object freeEval {
 
   type FreeSync[F[_], A] = FreeT[Eval, F, A]
@@ -32,7 +35,7 @@ object freeEval {
   implicit def syncForFreeT[F[_]](implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
     new Sync[FreeT[Eval, F, *]] {
       private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
-        cats.effect.pure.catsFreeMonadErrorForFreeT2
+        cats.effect.testkit.pure.catsFreeMonadErrorForFreeT2
 
       def pure[A](x: A): FreeT[Eval, F, A] =
         M.pure(x)

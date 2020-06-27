@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats.effect.kernel
 
-import cats.effect.Fiber
-import cats.effect.Concurrent
+import cats.Applicative
 
-trait ConcurrentSyntax {
-  implicit def concurrentOps[F[_], A, E](
-    wrapped: F[A]
-  ): ConcurrentOps[F, A, E] =
-    new ConcurrentOps(wrapped)
+import scala.concurrent.duration.FiniteDuration
+
+trait Clock[F[_]] extends Applicative[F] {
+
+  // (monotonic, monotonic).mapN(_ <= _)
+  def monotonic: F[FiniteDuration]
+
+  // lawless (unfortunately), but meant to represent current (when sequenced) system time
+  def realTime: F[FiniteDuration]
 }
 
-final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
-
-  def start(implicit F: Concurrent[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
-
+object Clock {
+  def apply[F[_]](implicit F: Clock[F]): F.type = F
 }

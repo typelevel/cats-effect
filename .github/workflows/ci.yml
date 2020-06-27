@@ -23,7 +23,17 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         scala: [0.25.0-RC2, 2.12.11, 2.13.2]
-        java: [adopt@1.8, adopt@11, adopt@14, graalvm@20.1.0]
+        java:
+          - adopt@1.8
+          - adopt@11
+          - adopt@14
+          - graalvm8@20.1.0
+        ci: [ciJVM]
+        include:
+          - os: ubuntu-latest
+            java: adopt@1.8
+            scala: 2.13.2
+            ci: ciJS
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (fast)
@@ -76,4 +86,4 @@ jobs:
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
-      - run: sbt ++${{ matrix.scala }} ci
+      - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'

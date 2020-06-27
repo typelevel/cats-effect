@@ -17,6 +17,7 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.Clock
 import cats.implicits._
 import cats.laws.ApplicativeLaws
 

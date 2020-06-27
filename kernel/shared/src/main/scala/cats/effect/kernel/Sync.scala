@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 import cats.{Defer, MonadError}
 import cats.data.OptionT

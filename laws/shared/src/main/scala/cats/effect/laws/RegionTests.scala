@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
+import cats.effect.kernel.{Bracket, Region}
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
@@ -80,8 +81,8 @@ object RegionTests {
       Case0[_],
       E](
     implicit
-      F0: Region[R, F, E] { type Case[A] = Case0[A] },
-      B: Bracket[F, E] { type Case[A] = Case0[A] })
+      F0: Region.Aux[R, F, E, Case0],
+      B: Bracket.Aux[F, E, Case0])
       : RegionTests[R, F, E] =
     new RegionTests[R, F, E] {
       val laws = RegionLaws[R, F, Case0, E]

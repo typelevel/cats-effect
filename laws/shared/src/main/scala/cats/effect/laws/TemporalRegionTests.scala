@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
+import cats.effect.kernel.{Bracket, Outcome, TemporalRegion}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
@@ -99,7 +100,7 @@ object TemporalRegionTests {
       F[_],
       E](
     implicit
-      F0: Temporal[R[F, *], E] with Region[R, F, E],
+      F0: TemporalRegion[R, F, E],
       B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
       : TemporalRegionTests[R, F, E] = new TemporalRegionTests[R, F, E] {
     val laws = TemporalRegionLaws[R, F, E]

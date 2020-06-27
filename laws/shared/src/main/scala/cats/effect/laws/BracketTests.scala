@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
+import cats.effect.kernel.Bracket
 import cats.data.EitherT
 import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms

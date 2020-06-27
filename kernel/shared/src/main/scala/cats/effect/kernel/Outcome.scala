@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 import cats.{~>, Applicative, ApplicativeError, Eq, Monad, MonadError, Order, Show, Traverse}
 import cats.implicits._
@@ -44,7 +44,7 @@ sealed trait Outcome[F[_], E, A] extends Product with Serializable {
     }
 }
 
-private[effect] trait LowPriorityImplicits {
+private[kernel] trait LowPriorityImplicits {
   import Outcome.{Canceled, Completed, Errored}
 
   // variant for when F[A] doesn't have a Show (which is, like, most of the time)

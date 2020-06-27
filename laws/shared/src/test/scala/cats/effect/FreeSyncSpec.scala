@@ -18,9 +18,8 @@ package cats.effect
 package laws
 
 import cats.{Eq, Show}
+import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
 import cats.implicits._
-
-import freeEval._
 
 import org.scalacheck.Prop
 import org.scalacheck.util.Pretty

@@ -14,28 +14,19 @@
  * limitations under the License.
  */
 
-package cats.effect
-package laws
+package cats.effect.syntax
 
-import cats.effect.kernel.{Bracket, Managed, Outcome}
+import cats.effect.kernel.{Concurrent, Fiber}
 
-trait ManagedLaws[R[_[_], _], F[_]] extends AsyncRegionLaws[R, F] {
-  implicit val F: Managed[R, F]
-
-  def roundTrip[A](rfa: R[F, A]) =
-    F.to[R](rfa) <-> rfa
+trait ConcurrentSyntax {
+  implicit def concurrentOps[F[_], A, E](
+    wrapped: F[A]
+  ): ConcurrentOps[F, A, E] =
+    new ConcurrentOps(wrapped)
 }
 
-object ManagedLaws {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : ManagedLaws[R, F] =
-    new ManagedLaws[R, F] {
-      val F = F0
-      val B = B0
-    }
+final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
+
+  def start(implicit F: Concurrent[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
+
 }

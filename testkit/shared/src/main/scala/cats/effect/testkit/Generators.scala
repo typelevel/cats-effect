@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.testkit
 
 import cats.{Applicative, ApplicativeError, Monad, MonadError}
+import cats.effect.kernel._
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary

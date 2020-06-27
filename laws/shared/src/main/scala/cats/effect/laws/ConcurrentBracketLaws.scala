@@ -17,11 +17,12 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.{ConcurrentBracket, Outcome}
 import cats.implicits._
 
 trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLaws[F, E] {
 
-  implicit val F: Concurrent[F, E] with Bracket[F, E]
+  implicit val F: ConcurrentBracket[F, E]
 
   // TODO this test is unobservable (because F.unit === F.uncancelable(_ => release))
   // ...also it's unexpectedly failing randomly?
@@ -67,6 +68,6 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
 }
 
 object ConcurrentBracketLaws {
-  def apply[F[_], E](implicit F0: Concurrent[F, E] with Bracket[F, E]): ConcurrentBracketLaws[F, E] =
+  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketLaws[F, E] =
     new ConcurrentBracketLaws[F, E] { val F = F0 }
 }

@@ -16,25 +16,8 @@
 
 package cats.effect
 
-import cats.~>
-import cats.implicits._
+import cats.data.Kleisli
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
-  type Case[A] = Either[Throwable, A]
-
-  def CaseInstance = catsStdInstancesForEither[Throwable]
-
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
-
-  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
-
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
-      toK[G](G)(fa)
-  }
-}
-
-object SyncEffect {
-  def apply[F[_]](implicit F: SyncEffect[F]): F.type = F
+package object testkit {
+  type TimeT[F[_], A] = Kleisli[F, Time, A]
 }

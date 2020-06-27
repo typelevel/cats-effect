@@ -17,6 +17,8 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.{Bracket, SyncManaged}
+
 trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, *]] with RegionLaws[R, F, Throwable] {
   implicit val F: SyncManaged[R, F]
 

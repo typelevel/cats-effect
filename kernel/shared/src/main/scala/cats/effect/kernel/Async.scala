@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import cats.~>
+import cats.implicits._
 
-trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
+import scala.concurrent.ExecutionContext
 
-  def to[G[_]]: PartiallyApplied[G] =
-    new PartiallyApplied[G]
+trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] { self: Safe[F, Throwable] =>
 
-  def toK[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
+  // returns an optional cancelation token
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
 
-  final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
-      toK(G)(fa)
-  }
+  def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
+
+  // evalOn(executionContext, ec) <-> pure(ec)
+  def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
+  def executionContext: F[ExecutionContext]
 }
 
-object Effect {
-  def apply[F[_]](implicit F: Effect[F]): F.type = F
+object Async {
+  def apply[F[_]](implicit F: Async[F]): F.type = F
 }

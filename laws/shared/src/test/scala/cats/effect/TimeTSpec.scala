@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.testkit
 
 import cats.{Eq, Order}
 import cats.data.Kleisli
@@ -22,7 +22,7 @@ import cats.effect.laws.TemporalBracketTests
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
 
-import pure._
+import pure.PureConc
 import TimeT._
 
 import org.specs2.ScalaCheck
@@ -36,7 +36,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit
 
-private[effect] trait LowPriorityInstances {
+private[testkit] trait LowPriorityInstances {
 
   implicit def eqTimeT[F[_], A](implicit FA: Eq[F[A]]): Eq[TimeT[F, A]] =
     Eq.by(TimeT.run(_))

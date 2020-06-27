@@ -17,6 +17,7 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.Temporal
 import cats.implicits._
 
 import scala.concurrent.duration.FiniteDuration

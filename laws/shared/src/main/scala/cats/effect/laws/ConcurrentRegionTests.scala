@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.Eq
+import cats.effect.kernel.{Bracket, ConcurrentRegion, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._
@@ -93,7 +94,7 @@ object ConcurrentRegionTests {
       F[_],
       E](
     implicit
-      F0: Concurrent[R[F, *], E] with Region[R, F, E],
+      F0: ConcurrentRegion[R, F, E],
       B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
       : ConcurrentRegionTests[R, F, E] = new ConcurrentRegionTests[R, F, E] {
     val laws = ConcurrentRegionLaws[R, F, E]

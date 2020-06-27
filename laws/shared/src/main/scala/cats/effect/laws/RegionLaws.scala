@@ -17,6 +17,7 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.{Bracket, Region}
 import cats.implicits._
 import cats.laws.MonadErrorLaws
 
@@ -54,8 +55,8 @@ object RegionLaws {
       Case0[_],
       E](
     implicit
-      F0: Region[R, F, E] { type Case[A] = Case0[A] },
-      B0: Bracket[F, E] { type Case[A] = Case0[A] })    // this is legit-annoying
+      F0: Region.Aux[R, F, E, Case0],
+      B0: Bracket.Aux[F, E, Case0])    // this is legit-annoying
       : RegionLaws[R, F, E] =
     new RegionLaws[R, F, E] { val F: F0.type = F0; val B: B0.type = B0 }
 }

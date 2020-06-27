@@ -17,8 +17,10 @@
 package cats.effect
 package laws
 
+import cats.effect.kernel.{Bracket, ConcurrentRegion, Outcome}
+
 trait ConcurrentRegionLaws[R[_[_], _], F[_], E] extends ConcurrentLaws[R[F, *], E] with RegionLaws[R, F, E] {
-  implicit val F: Concurrent[R[F, *], E] with Region[R, F, E]
+  implicit val F: ConcurrentRegion[R, F, E]
 }
 
 object ConcurrentRegionLaws {
@@ -27,7 +29,7 @@ object ConcurrentRegionLaws {
       F[_],
       E](
     implicit
-      F0: Concurrent[R[F, *], E] with Region[R, F, E],
+      F0: ConcurrentRegion[R, F, E],
       B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
       : ConcurrentRegionLaws[R, F, E] =
     new ConcurrentRegionLaws[R, F, E] {

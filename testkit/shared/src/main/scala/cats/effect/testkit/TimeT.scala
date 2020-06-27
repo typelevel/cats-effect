@@ -15,9 +15,11 @@
  */
 
 package cats.effect
+package testkit
 
 import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
+import cats.effect.kernel.{Concurrent, ConcurrentBracket, ConcurrentRegion, Bracket, Fiber, Outcome, Region, Safe, Temporal, TemporalBracket, TemporalRegion}
 import cats.implicits._
 
 import scala.concurrent.duration._

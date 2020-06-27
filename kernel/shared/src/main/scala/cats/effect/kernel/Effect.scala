@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import cats.Applicative
+import cats.~>
 
-import scala.concurrent.duration.FiniteDuration
+trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
 
-trait Clock[F[_]] extends Applicative[F] {
+  def to[G[_]]: PartiallyApplied[G] =
+    new PartiallyApplied[G]
 
-  // (monotonic, monotonic).mapN(_ <= _)
-  def monotonic: F[FiniteDuration]
+  def toK[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
 
-  // lawless (unfortunately), but meant to represent current (when sequenced) system time
-  def realTime: F[FiniteDuration]
+  final class PartiallyApplied[G[_]] {
+    def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
+      toK(G)(fa)
+  }
 }
 
-object Clock {
-  def apply[F[_]](implicit F: Clock[F]): F.type = F
+object Effect {
+  def apply[F[_]](implicit F: Effect[F]): F.type = F
 }

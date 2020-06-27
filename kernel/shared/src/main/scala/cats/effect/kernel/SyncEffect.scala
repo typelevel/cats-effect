@@ -14,17 +14,27 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats.effect.kernel
 
-import scala.concurrent.ExecutionContext
-import cats.effect.Async
+import cats.~>
+import cats.implicits._
 
-trait AsyncSyntax {
-  implicit def asyncOps[F[_], A](wrapped: F[A]): AsyncOps[F, A] =
-    new AsyncOps(wrapped)
+trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
+  type Case[A] = Either[Throwable, A]
+
+  def CaseInstance = catsStdInstancesForEither[Throwable]
+
+  def to[G[_]]: PartiallyApplied[G] =
+    new PartiallyApplied[G]
+
+  def toK[G[_]](implicit G: Sync[G] with Bracket[G, Throwable]): F ~> G
+
+  final class PartiallyApplied[G[_]] {
+    def apply[A](fa: F[A])(implicit G: Sync[G] with Bracket[G, Throwable]): G[A] =
+      toK[G](G)(fa)
+  }
 }
 
-final class AsyncOps[F[_], A](val wrapped: F[A]) extends AnyVal {
-  def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
-    Async[F].evalOn(wrapped, ec)
+object SyncEffect {
+  def apply[F[_]](implicit F: SyncEffect[F]): F.type = F
 }

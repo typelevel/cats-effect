@@ -19,6 +19,7 @@ package laws
 
 import cats.Eq
 import cats.data.EitherT
+import cats.effect.kernel.SyncEffect
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
