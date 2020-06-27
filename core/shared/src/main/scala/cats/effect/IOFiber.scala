@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.~>
+import cats.implicits._
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
@@ -27,15 +28,21 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable, A] {
   import IO._
 
+  // I would rather have this on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
+  private[this] var ctxs: ArrayStack[ExecutionContext] = _
+
   private[this] var heapCur: IO[Any] = _
   private[this] var canceled: Boolean = false
 
   // TODO optimize to int or something
   private[this] val masks = new ArrayStack[AnyRef](2)
-  private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)
+  private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
   // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
   private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
+
+  // true when semantically blocking (ensures that we only unblock *once*)
+  private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
 
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
@@ -52,7 +59,10 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
   }
 
   val cancel: IO[Unit] =
-    (IO { canceled = true }).flatMap(_ => join.map(_ => ()))
+    IO { canceled = true } >>
+      IO(suspended.compareAndSet(true, false)).ifM(
+        IO(runCancelation()),
+        join.void)    // someone else is in charge of the runloop; wait for them to cancel
 
   val join: IO[Outcome[IO, Throwable, A]] =
     IO async { cb =>
@@ -103,7 +113,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
     val cur = heapCur
     heapCur = null
 
-    val ctxs = new ArrayStack[ExecutionContext](2)
+    ctxs = new ArrayStack[ExecutionContext](2)
     ctxs.push(ec)
 
     val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
@@ -117,7 +127,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
       done(outcome.get())
     }
 
-    runLoop(cur, ctxs, conts)
+    runLoop(cur, conts)
   }
 
   private[this] def done(oc: Outcome[IO, Throwable, A]): Unit = {
@@ -141,38 +151,9 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
     }
   }
 
-  private[this] def runLoop(
-      cur00: IO[Any],
-      ctxs: ArrayStack[ExecutionContext],
-      conts: ArrayStack[(Boolean, Any) => Unit])
-      : Unit = {
-
+  private[this] def runLoop(cur00: IO[Any], conts: ArrayStack[(Boolean, Any) => Unit]): Unit = {
     if (canceled && masks.isEmpty()) {
-      val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
-      if (outcome.compareAndSet(null, oc.asInstanceOf)) {
-        heapCur = null
-
-        if (finalizers.isEmpty()) {
-          done(oc.asInstanceOf)
-        } else {
-          masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
-
-          val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
-
-          conts push { (_, _) =>
-            done(oc.asInstanceOf)
-            masks.pop()
-          }
-
-          conts push { (_, _) =>
-            if (!finalizers.isEmpty()) {
-              heapCur = finalizers.pop()(oc.asInstanceOf)
-            }
-          }
-
-          runLoop(finalizers.pop()(oc.asInstanceOf), ctxs, conts)
-        }
-      }
+      runCancelation()
     } else {
       val cur0 = if (cur00 == null) {
         val back = heapCur
@@ -189,7 +170,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
             val cur = cur0.asInstanceOf[Pure[Any]]
 
             conts.pop()(true, cur.value)
-            runLoop(null, ctxs, conts)
+            runLoop(null, conts)
 
           case 1 =>
             val cur = cur0.asInstanceOf[Delay[Any]]
@@ -202,13 +183,13 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 cb(false, t)
             }
 
-            runLoop(null, ctxs, conts)
+            runLoop(null, conts)
 
           case 2 =>
             val cur = cur0.asInstanceOf[Error]
 
             conts.pop()(false, cur.t)
-            runLoop(null, ctxs, conts)
+            runLoop(null, conts)
 
           case 3 =>
             val cur = cur0.asInstanceOf[Async[Any]]
@@ -245,7 +226,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
 
                 if (wasBlocked) {
                   // the runloop will have already terminated; pick it back up *here*
-                  runLoop(null, ctxs, conts)
+                  runLoop(null, conts)
                 } // else the runloop is still in process, because we're in the registration
               }
             }
@@ -253,7 +234,8 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
             val next = cur.k { e =>
               // do an extra cancel check here just to preemptively avoid scheduler load
               if (!done.getAndSet(true) && !(canceled && masks.isEmpty())) {
-                if (state.getAndSet(e) != null) {    // registration already completed, we're good to go
+                if (state.getAndSet(e) != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
+                  // we're the only one attempting to continue because of the suspended gate
                   continue(e, true)
                 }
               }
@@ -273,31 +255,45 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                   continue(Left(ar.asInstanceOf[Throwable]), false)
                 }
               } else {
-                ar.asInstanceOf[Option[IO[Unit]]] match {
-                  case Some(cancelToken) =>
-                    finalizers.push(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
+                if (masks.isEmpty()) {
+                  ar.asInstanceOf[Option[IO[Unit]]] match {
+                    case Some(cancelToken) =>
+                      finalizers.push(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
-                    if (!state.compareAndSet(null, Left(null))) {
-                      // the callback was invoked before registration
-                      finalizers.pop()
-                      continue(state.get(), false)
-                    }
+                      if (!state.compareAndSet(null, Left(null))) {
+                        // the callback was invoked before registration
+                        finalizers.pop()
+                        continue(state.get(), false)
+                      } else {
+                        suspended.set(true)
+                      }
 
-                  case None =>
-                    if (!state.compareAndSet(null, Left(null))) {
-                      // the callback was invoked before registration
-                      continue(state.get(), false)
-                    }
+                    case None =>
+                      if (!state.compareAndSet(null, Left(null))) {
+                        // the callback was invoked before registration
+                        continue(state.get(), false)
+                      } else {
+                        suspended.set(true)
+                      }
+                  }
+                } else {
+                  // if we're masked, then don't even bother registering the cancel token
+                  if (!state.compareAndSet(null, Left(null))) {
+                    // the callback was invoked before registration
+                    continue(state.get(), false)
+                  } else {
+                    suspended.set(true)
+                  }
                 }
               }
             }
 
-            runLoop(next, ctxs, conts)
+            runLoop(next, conts)
 
           // ReadEC
           case 4 =>
             conts.pop()(true, ctxs.peek())
-            runLoop(null, ctxs, conts)
+            runLoop(null, conts)
 
           case 5 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
@@ -309,7 +305,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               conts.pop()(b, ar)
             }
 
-            runLoop(cur.ioa, ctxs, conts)
+            runLoop(cur.ioa, conts)
 
           case 6 =>
             val cur = cur0.asInstanceOf[Map[Any, Any]]
@@ -330,7 +326,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               }
             }
 
-            runLoop(cur.ioe, ctxs, conts)
+            runLoop(cur.ioe, conts)
 
           case 7 =>
             val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
@@ -348,7 +344,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               }
             }
 
-            runLoop(cur.ioe, ctxs, conts)
+            runLoop(cur.ioe, conts)
 
           case 8 =>
             val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
@@ -360,7 +356,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
                 heapCur = cur.f(ar.asInstanceOf[Throwable])
             }
 
-            runLoop(cur.ioa, ctxs, conts)
+            runLoop(cur.ioa, conts)
 
           case 9 =>
             val cur = cur0.asInstanceOf[OnCase[Any]]
@@ -376,7 +372,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               finalizers.pop()(oc)
             }
 
-            runLoop(cur.ioa, ctxs, conts)
+            runLoop(cur.ioa, conts)
 
           case 10 =>
             val cur = cur0.asInstanceOf[Uncancelable[Any]]
@@ -397,14 +393,44 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
               conts.pop()(b, ar)
             }
 
-            runLoop(cur.body(poll), ctxs, conts)
+            runLoop(cur.body(poll), conts)
 
           // Canceled
           case 11 =>
             canceled = true
             conts.pop()(true, ())
-            runLoop(null, ctxs, conts)
+            runLoop(null, conts)
         }
+      } else {
+        // we're being suspended
+      }
+    }
+  }
+
+  private[this] def runCancelation(): Unit = {
+    val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
+    if (outcome.compareAndSet(null, oc.asInstanceOf)) {
+      heapCur = null
+
+      if (finalizers.isEmpty()) {
+        done(oc.asInstanceOf)
+      } else {
+        masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
+
+        val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+
+        conts push { (_, _) =>
+          done(oc.asInstanceOf)
+          masks.pop()
+        }
+
+        conts push { (_, _) =>
+          if (!finalizers.isEmpty()) {
+            heapCur = finalizers.pop()(oc.asInstanceOf)
+          }
+        }
+
+        runLoop(finalizers.pop()(oc.asInstanceOf), conts)
       }
     }
   }
