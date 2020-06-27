@@ -247,6 +247,14 @@ final class TestContext private () extends ExecutionContext { self =>
     }
   }
 
+  def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
+    synchronized {
+      val current: State = stateRef
+      val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
+      stateRef = newState
+      cancelable
+    }
+
   private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>
@@ -263,9 +271,10 @@ final class TestContext private () extends ExecutionContext { self =>
         None
     }
 
-  private def cancelTask(t: Task): Unit = synchronized {
-    stateRef = stateRef.copy(tasks = stateRef.tasks - t)
-  }
+  private def cancelTask(t: Task): Unit =
+    synchronized {
+      stateRef = stateRef.copy(tasks = stateRef.tasks - t)
+    }
 }
 
 object TestContext {
@@ -290,6 +299,28 @@ object TestContext {
       val newID = lastID + 1
       val task = Task(newID, runnable, clock)
       copy(lastID = newID, tasks = tasks + task)
+    }
+
+    /**
+     * Returns a new state with a scheduled task included.
+     */
+    private[TestContext] def scheduleOnce(
+        delay: FiniteDuration,
+        r: Runnable,
+        cancelTask: Task => Unit)
+        : (() => Unit, State) = {
+
+      val d = if (delay >= Duration.Zero) delay else Duration.Zero
+      val newID = lastID + 1
+
+      val task = Task(newID, r, this.clock + d)
+      val cancelable = () => cancelTask(task)
+
+      (cancelable,
+       copy(
+         lastID = newID,
+         tasks = tasks + task
+       ))
     }
   }
 

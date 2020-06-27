@@ -161,9 +161,21 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       ioa must completeAs(())
       affected must beTrue
     }
+
+    "preserve contexts through start" in {
+      val ec = TestContext()
+
+      val ioa = for {
+        f <- IO.executionContext.start.evalOn(ec)
+        _ <- IO(ec.tick())
+        oc <- f.join
+      } yield oc
+
+      ioa must completeAs(Outcome.Completed(IO.pure(ec)))
+    }
   }
 
-  /*{
+  {
     implicit val ctx = TestContext()
 
     checkAll(
@@ -173,7 +185,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     checkAll(
       "IO[Int]",
       GroupTests[IO[Int]].group)
-  }*/
+  }
 
   // TODO organize the below somewhat better
 
@@ -258,8 +270,15 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   def unsafeRun[A](ioa: IO[A]): Outcome[Option, Throwable, A] = {
     val ctx = TestContext()
 
+    val timer = new UnsafeTimer {
+      def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
+        val cancel = ctx.schedule(delay, action)
+        new Runnable { def run() = cancel() }
+      }
+    }
+
     var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
-    ioa.unsafeRunAsync(ctx) {
+    ioa.unsafeRunAsync(ctx, timer) {
       case Left(t) => results = Outcome.Errored(t)
       case Right(a) => results = Outcome.Completed(Some(a))
     }

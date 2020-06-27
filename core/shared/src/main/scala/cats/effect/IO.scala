@@ -37,28 +37,33 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
   def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
-    IO.executionContext flatMap { ec =>
-      IO {
-        val fiber = new IOFiber(
-          this,
-          s"child-${IO.childCount.getAndIncrement()}")
-
-        ec.execute(() => fiber.run(ec))
-        fiber
-      }
-    }
+    IO.Start(this)
 
   def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
-    IO.OnCase(this, { oc => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit })
+    IO.OnCase(this, oc => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
 
   def onCancel(body: IO[Unit]): IO[A] =
     onCase { case Outcome.Canceled() => body }
 
+  def racePair[B](
+      that: IO[B])
+      : IO[
+        Either[
+          (A @uncheckedVariance, Fiber[IO, Throwable, B]),
+          (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
+    IO.RacePair(this, that)
+
   def to[F[_]: AsyncBracket]: F[A @uncheckedVariance] = ???
 
-  def unsafeRunAsync(ec: ExecutionContext)(cb: Either[Throwable, A] => Unit): Unit = {
+  def unsafeRunAsync(
+      ec: ExecutionContext,
+      timer: UnsafeTimer)(
+      cb: Either[Throwable, A] => Unit)
+      : Unit = {
+
     new IOFiber(
       this,
+      timer,
       oc => oc.fold(
         (),
         e => cb(Left(e)),
@@ -89,8 +94,6 @@ private[effect] trait IOLowPriorityImplicits1 extends IOLowPriorityImplicits0 {
 
 object IO extends IOLowPriorityImplicits1 {
 
-  private val childCount = new AtomicInteger(0)
-
   def pure[A](value: A): IO[A] = Pure(value)
 
   def unit: IO[Unit] = pure(())
@@ -110,9 +113,12 @@ object IO extends IOLowPriorityImplicits1 {
   def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
     Uncancelable(body)
 
-  val executionContext: IO[ExecutionContext] = IO.ReadEC
+  val executionContext: IO[ExecutionContext] = ReadEC
 
   val never: IO[Nothing] = async(_ => pure(None))
+
+  def sleep(delay: FiniteDuration): IO[Unit] =
+    Sleep(delay)
 
   implicit def groupForIO[A: Group]: Group[IO[A]] =
     new IOGroup[A]
@@ -156,14 +162,16 @@ object IO extends IOLowPriorityImplicits1 {
     def realTime: IO[FiniteDuration] =
       IO(System.currentTimeMillis().millis)
 
-    def sleep(time: FiniteDuration): IO[Unit] = ???
+    def sleep(time: FiniteDuration): IO[Unit] =
+      IO.sleep(time)
 
     def canceled: IO[Unit] =
       IO.canceled
 
     def cede: IO[Unit] = IO.cede
 
-    def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] = ???
+    def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+      fa.racePair(fb)
 
     def start[A](fa: IO[A]): IO[Fiber[IO, Throwable, A]] =
       fa.start
@@ -198,4 +206,9 @@ object IO extends IOLowPriorityImplicits1 {
 
   private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A](10)
   private[effect] case object Canceled extends IO[Unit](11)
+
+  private[effect] final case class Start[A](ioa: IO[A]) extends IO[Fiber[IO, Throwable, A]](12)
+  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]](13)
+
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](14)
 }

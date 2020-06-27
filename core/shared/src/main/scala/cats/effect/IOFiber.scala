@@ -23,9 +23,9 @@ import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
-private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable, A] {
+private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends Fiber[IO, Throwable, A] {
   import IO._
 
   // I would rather have this on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -47,14 +47,14 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
 
-  def this(heapCur0: IO[A], cb: Outcome[IO, Throwable, A] => Unit) = {
-    this("main")
+  def this(heapCur0: IO[A], timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit) = {
+    this("main", timer)
     heapCur = heapCur0
     callback.set(cb)
   }
 
-  def this(heapCur0: IO[A], name: String) = {
-    this(name)
+  def this(heapCur0: IO[A], name: String, timer: UnsafeTimer) = {
+    this(name, timer)
     heapCur = heapCur0
   }
 
@@ -232,7 +232,7 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
             }
 
             val next = cur.k { e =>
-              // do an extra cancel check here just to preemptively avoid scheduler load
+              // do an extra cancel check here just to preemptively avoid timer load
               if (!done.getAndSet(true) && !(canceled && masks.isEmpty())) {
                 if (state.getAndSet(e) != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
                   // we're the only one attempting to continue because of the suspended gate
@@ -400,9 +400,40 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
             canceled = true
             conts.pop()(true, ())
             runLoop(null, conts)
+
+          case 12 =>
+            val cur = cur0.asInstanceOf[Start[Any]]
+
+            val fiber = new IOFiber(
+              cur.ioa,
+              s"child-${IOFiber.childCount.getAndIncrement()}",
+              timer)
+
+            val ec = ctxs.peek()
+            ec.execute(() => fiber.run(ec))
+
+            conts.pop()(true, fiber)
+            runLoop(null, conts)
+
+          case 13 =>
+            val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+
+            val ioa = cur.ioa
+            val iob = cur.iob
+
+            // TODO
+            ()
+
+          case 14 =>
+            val cur = cur0.asInstanceOf[Sleep]
+
+            runLoop(IO.async[Unit] { cb =>
+              IO {
+                val cancel = timer.sleep(cur.delay, () => cb(Right(())))
+                Some(IO(cancel.run()))
+              }
+            }, conts)
         }
-      } else {
-        // we're being suspended
       }
     }
   }
@@ -434,4 +465,8 @@ private[effect] final class IOFiber[A](name: String) extends Fiber[IO, Throwable
       }
     }
   }
+}
+
+private object IOFiber {
+  private val childCount = new AtomicInteger(0)
 }
