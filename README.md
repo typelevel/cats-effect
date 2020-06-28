@@ -110,7 +110,7 @@ platform, but assuming you have ruby installed it could be as simple as `gem
 install jekyll`.
 
 Start a local server by navigating to `site/target/site`, then run `jekyll
-serve`. Finally point your browser at
+serve -b /cats-effect`. Finally point your browser at
 [http://localhost:4000/cats-effect/](http://localhost:4000/cats-effect/). Any
 changes should be picked up immediately when you re-run `sbt
 microsite/makeMicrosite`.
