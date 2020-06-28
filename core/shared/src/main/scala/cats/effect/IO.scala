@@ -138,7 +138,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
         e => cb(Left(e)),
         ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))))
 
-    fiber.run(ec)
+    ec.execute(() => fiber.run(ec))
     fiber
   }
 }
@@ -176,11 +176,13 @@ object IO extends IOLowPriorityImplicits1 {
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
+  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+    async(cb => apply { k(cb); None })
+
   def canceled: IO[Unit] = Canceled
 
   // in theory we can probably do a bit better than this; being lazy for now
-  def cede: IO[Unit] =
-    async(k => apply(k(Right(()))).map(_ => None))
+  def cede: IO[Unit] = async_(_(Right(())))
 
   def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
     Uncancelable(body)
@@ -258,6 +260,9 @@ object IO extends IOLowPriorityImplicits1 {
 
     def toK[G[_]](implicit G: Effect[G]): IO ~> G =
       IO.toK[G]
+
+    override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
+      fa.map(f)
 
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)

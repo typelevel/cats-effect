@@ -35,7 +35,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 
 class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   import OutcomeGenerators._
@@ -246,6 +246,81 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       seed.as(42) must completeAs(42)
 
       affected must beTrue
+    }
+
+    "run multiple nested finalizers on cancel" in {
+      var inner = false
+      var outer = false
+
+      IO.canceled.guarantee(IO { inner = true }).guarantee(IO { outer = true }) must nonTerminate
+
+      inner must beTrue
+      outer must beTrue
+    }
+
+    "run multiple nested finalizers on completion exactly once" in {
+      var inner = 0
+      var outer = 0
+
+      IO.unit.guarantee(IO { inner += 1 }).guarantee(IO { outer += 1 }) must completeAs(())
+
+      inner mustEqual 1
+      outer mustEqual 1
+    }
+
+    "shift delay evaluation within evalOn" in {
+      val Exec1Name = "testing executor 1"
+      val exec1 = Executors newSingleThreadExecutor { r =>
+        val t = new Thread(r)
+        t.setName(Exec1Name)
+        t
+      }
+
+      val Exec2Name = "testing executor 2"
+      val exec2 = Executors newSingleThreadExecutor { r =>
+        val t = new Thread(r)
+        t.setName(Exec2Name)
+        t
+      }
+
+      val Exec3Name = "testing executor 3"
+      val exec3 = Executors newSingleThreadExecutor { r =>
+        val t = new Thread(r)
+        t.setName(Exec3Name)
+        t
+      }
+
+      val nameF = IO(Thread.currentThread().getName())
+
+      val test = nameF flatMap { outer1 =>
+        val inner1F = nameF flatMap { inner1 =>
+          val inner2F = nameF map { inner2 =>
+            (outer1, inner1, inner2)
+          }
+
+          inner2F.evalOn(ExecutionContext.fromExecutor(exec2))
+        }
+
+        inner1F.evalOn(ExecutionContext.fromExecutor(exec1)) flatMap {
+          case (outer1, inner1, inner2) =>
+            nameF.map(outer2 => (outer1, inner1, inner2, outer2))
+        }
+      }
+
+      implicit val t4s: Show[(String, String, String, String)] =
+        Show.fromToString
+
+      var result: Either[Throwable, (String, String, String, String)] = null
+      val latch = new CountDownLatch(1)
+
+      // this test is weird because we're making our own contexts, so we can't use TestContext at all
+      test.unsafeRunAsync(ExecutionContext.fromExecutor(exec3), UnsafeTimer.fromScheduledExecutor(Executors.newScheduledThreadPool(1))) { e =>
+        result = e
+        latch.countDown()
+      }
+
+      latch.await()
+      result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
     }
   }
 

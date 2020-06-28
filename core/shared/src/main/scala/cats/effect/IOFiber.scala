@@ -155,6 +155,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
   private[this] def runLoop(cur00: IO[Any], conts: ArrayStack[(Boolean, Any) => Unit]): Unit = {
     if (canceled && masks.isEmpty()) {
+      // TODO because this is not TCO'd, we don't release conts (or cur00) until after the finalizers have run
       runCancelation()
     } else {
       val cur0 = if (cur00 == null) {
@@ -164,6 +165,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
       } else {
         cur00
       }
+
+      // println(s"looping on $cur0")
 
       // cur0 will be null when we're semantically blocked
       if (!conts.isEmpty() && cur0 != null) {
@@ -300,10 +303,15 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             conts push { (b, ar) =>
               ctxs.pop()
-              conts.pop()(b, ar)
+
+              conts push { (_, _) =>
+                conts.pop()(b, ar)
+              }
+
+              heapCur = IO.cede
             }
 
-            runLoop(cur.ioa, conts)
+            runLoop(IO.cede.flatMap(_ => cur.ioa), conts)
 
           case 6 =>
             val cur = cur0.asInstanceOf[Map[Any, Any]]
@@ -453,11 +461,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           masks.pop()
         }
 
-        conts push { (_, _) =>
+        def loop(b: Boolean, ar: Any): Unit = {
           if (!finalizers.isEmpty()) {
-            heapCur = finalizers.pop()(oc.asInstanceOf)
+            conts.push(loop)
+            runLoop(finalizers.pop()(oc.asInstanceOf), conts)
           }
         }
+
+        conts.push(loop)
 
         runLoop(finalizers.pop()(oc.asInstanceOf), conts)
       }
