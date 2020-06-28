@@ -23,8 +23,10 @@ import cats.effect.testkit.{AsyncGenerators, BracketGenerators, OutcomeGenerator
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
+import org.specs2.scalacheck.Parameters
 import org.specs2.mutable.Specification
 import org.specs2.matcher.{Matcher, MatchersImplicits}, MatchersImplicits._
 
@@ -173,14 +175,90 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
       ioa must completeAs(Outcome.Completed(IO.pure(ec)))
     }
+
+    // TODO override Effect#map to not delegate to flatMap
+    "preserve monad identity on async" in {
+      val fa = IO.async[Int](cb => IO(cb(Right(42))).as(None))
+      fa.flatMap(i => IO.pure(i)) must completeAs(42)
+      fa must completeAs(42)
+    }
+
+    "preserve monad right identity on uncancelable" in {
+      val fa = IO.uncancelable(_ => IO.canceled)
+      fa.flatMap(IO.pure(_)) must nonTerminate
+      fa must nonTerminate
+    }
+
+    "cancel flatMap continuations following a canceled uncancelable block" in {
+      IO.uncancelable(_ => IO.canceled).flatMap(_ => IO.pure(())) must nonTerminate
+    }
+
+    "cancel map continuations following a canceled uncancelable block" in {
+      IO.uncancelable(_ => IO.canceled).map(_ => ()) must nonTerminate
+    }
+
+    "mapping something with a finalizer should complete" in {
+      IO.pure(42).onCancel(IO.unit).as(()) must completeAs(())
+    }
+
+    "uncancelable canceled with finalizer within fiber should not block" in {
+      val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
+
+      fab must completeAs(Outcome.Canceled())
+    }
+
+    "uncancelable canceled with finalizer within fiber should flatMap another day" in {
+      val fa = IO.pure(42)
+      val fab: IO[Int => Int] =
+        IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join).flatMap(_ => IO.pure((i: Int) => i))
+
+      fab.ap(fa) must completeAs(42)
+      fab.flatMap(f => fa.map(f)) must completeAs(42)
+    }
+
+    "sleep for ten seconds" in {
+      IO.sleep(10.seconds).as(1) must completeAs(1)
+    }
+
+    "sleep for ten seconds and continue" in {
+      var affected = false
+      (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
+      affected must beTrue
+    }
+
+    "run an identity finalizer" in {
+      var affected = false
+
+      IO.unit onCase {
+        case _ => IO { affected = true }
+      } must completeAs(())
+
+      affected must beTrue
+    }
+
+    "run an identity finalizer and continue" in {
+      var affected = false
+
+      val seed = IO.unit onCase {
+        case _ => IO { affected = true }
+      }
+
+      seed.as(42) must completeAs(42)
+
+      affected must beTrue
+    }
   }
 
   {
     implicit val ctx = TestContext()
 
+    /*checkAll(
+      "IO",
+      EffectTests[IO].effect[Int, Int, Int](10.millis))*/
+
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))
+      EffectTests[IO].monadError[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("CiCH6RsqCJHxaHaDKpC3-wx4l3muqZ3I95iqyi_iJDG=").get)))*/
 
     checkAll(
       "IO[Int]",
@@ -227,7 +305,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   }
 
   implicit lazy val arbitraryEC: Arbitrary[ExecutionContext] =
-    Arbitrary(Gen.delay(Gen.const(TestContext())))
+    Arbitrary(Gen.delay(Gen.const(ExecutionContext.parasitic)))
 
   implicit lazy val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals[Throwable]
@@ -246,8 +324,25 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         fa => fa)
     }
 
-  implicit def eqIOA[A: Eq]: Eq[IO[A]] =
+  implicit def eqIOA[A: Eq]: Eq[IO[A]] = {
+    /*Eq instance { (left: IO[A], right: IO[A]) =>
+      val leftR = unsafeRun(left)
+      println("====================================")
+      println("====================================")
+      println("====================================")
+      val rightR = unsafeRun(right)
+
+      val back = leftR eqv rightR
+      if (!back) {
+        println(s"$left != $right")
+        println(s"$leftR != $rightR")
+      }
+
+      back
+    }*/
+
     Eq.by(unsafeRun(_))
+  }
 
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean]): Prop =
@@ -283,7 +378,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       case Right(a) => results = Outcome.Completed(Some(a))
     }
 
-    ctx.tick()
+    ctx.tick(Long.MaxValue.nanoseconds)
 
     results
   }

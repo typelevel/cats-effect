@@ -46,6 +46,9 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
   def onCancel(body: IO[Unit]): IO[A] =
     onCase { case Outcome.Canceled() => body }
 
+  def guarantee(finalizer: IO[Unit]): IO[A] =
+    onCase({ case _ => finalizer })
+
   def racePair[B](
       that: IO[B])
       : IO[

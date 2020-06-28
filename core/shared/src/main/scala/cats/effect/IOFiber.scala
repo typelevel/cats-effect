@@ -68,7 +68,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     IO async { cb =>
       IO {
         if (outcome.get() == null) {
-          val toPush = { (oc: Outcome[IO, Throwable, A]) => cb(Right(oc)) }
+          val toPush = (oc: Outcome[IO, Throwable, A]) => cb(Right(oc))
 
           @tailrec
           def loop(): Unit = {
@@ -119,7 +119,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
 
     conts push { (b, ar) =>
-      if (b)
+      if (canceled)   // this can happen if we don't check the canceled flag before completion
+        outcome.compareAndSet(null, Outcome.Canceled())
+      else if (b)
         outcome.compareAndSet(null, Outcome.Completed(IO.pure(ar.asInstanceOf[A])))
       else
         outcome.compareAndSet(null, Outcome.Errored(ar.asInstanceOf[Throwable]))
@@ -212,7 +214,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
              */
             val state = new AtomicReference[Either[Throwable, Any]]()
 
-            def continue(e: Either[Throwable, Any], wasBlocked: Boolean): Unit = {
+            def continue(e: Either[Throwable, Any]): Unit = {
               state.lazySet(null)   // avoid leaks
 
               val cb = conts.pop()
@@ -224,10 +226,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                   case Right(a) => cb(true, a)
                 }
 
-                if (wasBlocked) {
-                  // the runloop will have already terminated; pick it back up *here*
-                  runLoop(null, conts)
-                } // else the runloop is still in process, because we're in the registration
+                runLoop(null, conts)
               }
             }
 
@@ -235,8 +234,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               // do an extra cancel check here just to preemptively avoid timer load
               if (!done.getAndSet(true) && !(canceled && masks.isEmpty())) {
                 if (state.getAndSet(e) != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
-                  // we're the only one attempting to continue because of the suspended gate
-                  continue(e, true)
+                  continue(e)
                 }
               }
             }
@@ -252,7 +250,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                   // therefore, side-channel the callback results
                   // println(state.get())
 
-                  continue(Left(ar.asInstanceOf[Throwable]), false)
+                  continue(Left(ar.asInstanceOf[Throwable]))
                 }
               } else {
                 if (masks.isEmpty()) {
@@ -263,7 +261,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                       if (!state.compareAndSet(null, Left(null))) {
                         // the callback was invoked before registration
                         finalizers.pop()
-                        continue(state.get(), false)
+                        continue(state.get())
                       } else {
                         suspended.set(true)
                       }
@@ -271,7 +269,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                     case None =>
                       if (!state.compareAndSet(null, Left(null))) {
                         // the callback was invoked before registration
-                        continue(state.get(), false)
+                        continue(state.get())
                       } else {
                         suspended.set(true)
                       }
@@ -280,7 +278,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                   // if we're masked, then don't even bother registering the cancel token
                   if (!state.compareAndSet(null, Left(null))) {
                     // the callback was invoked before registration
-                    continue(state.get(), false)
+                    continue(state.get())
                   } else {
                     suspended.set(true)
                   }
@@ -369,7 +367,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               else
                 Outcome.Errored(ar.asInstanceOf[Throwable])
 
-              finalizers.pop()(oc)
+              heapCur = finalizers.pop()(oc)
+
+              conts push { (_, _) =>
+                conts.pop()(b, ar)
+              }
             }
 
             runLoop(cur.ioa, conts)
@@ -380,11 +382,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             val id = new AnyRef
             val poll = new (IO ~> IO) {
               def apply[A](ioa: IO[A]) =
-                IO(masks.pop()) flatMap { id =>
-                  ioa flatMap { a =>
-                    IO(masks.push(id)).map(_ => a)
-                  }
-                }
+                IO(masks.pop()) *> ioa.guarantee(IO(masks.push(id)))
             }
 
             masks.push(id)
