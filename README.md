@@ -107,7 +107,9 @@ You can build the microsite with `sbt microsite/makeMicrosite`.
 To preview your changes you need to have
 [jekyll](https://github.com/jekyll/jekyll) installed. This depends on your
 platform, but assuming you have ruby installed it could be as simple as `gem
-install jekyll`.
+install jekyll`. Alternatively, you can use the provided
+[Gemfile](https://bundler.io/gemfile.html) under `site` to install jekyll
+and the required plugins.
 
 Start a local server by navigating to `site/target/site`, then run `jekyll
 serve -b /cats-effect`. Finally point your browser at
