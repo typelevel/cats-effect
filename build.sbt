@@ -336,6 +336,9 @@ lazy val siteSettings = Seq(
       Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
     )
   ),
+  micrositeConfigYaml := ConfigYml(
+    yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
+  ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
   fork in mdoc := true,
