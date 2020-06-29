@@ -16,15 +16,39 @@
 
 package cats.effect.laws
 
-import cats.Eq
+import cats.{Applicative, Eq, Group, Order}
+import cats.implicits._
 
 import org.scalacheck.Prop
 import org.scalacheck.util.Pretty
 
 sealed trait IsEq[A] {
 
-  def ||(rhs: IsEq[A]): IsEq[A] = IsEq.Or(this, rhs)
-  def &&(rhs: IsEq[A]): IsEq[A] = IsEq.And(this, rhs)
+  def toPropTolerant[F[_], B](
+      implicit ev: A =:= F[B],
+      F: Applicative[F],
+      ord: Order[F[B]],
+      g: Group[B],
+      tolerance: Tolerance[B],
+      pp: A => Pretty)
+      : Prop =
+    this match {
+      case IsEq.Assert(lhs0, rhs0) =>
+        val lhs = ev(lhs0)
+        val rhs = ev(rhs0)
+
+        if (lhs <= rhs && (rhs, lhs).mapN(_ |-| _) <= tolerance.value) {
+          Prop.proved
+        } else if (lhs > rhs && (lhs, rhs).mapN(_ |-| _) <= tolerance.value) {
+          Prop.proved
+        } else {
+          Prop.falsified :| {
+            val exp = Pretty.pretty[A](rhs0, Pretty.Params(0))
+            val act = Pretty.pretty[A](lhs0, Pretty.Params(0))
+            s"Expected: $exp ± ${tolerance.value}\n" + s"Received: $act"
+          }
+        }
+    }
 
   def toProp(implicit A: Eq[A], pp: A => Pretty): Prop = this match {
     case IsEq.Assert(lhs, rhs) =>
@@ -35,24 +59,28 @@ sealed trait IsEq[A] {
           soe.printStackTrace()
           throw soe
       }
-
-    case IsEq.Or(lhs, rhs) =>
-      lhs.toProp || rhs.toProp
-
-    case IsEq.And(lhs, rhs) =>
-      lhs.toProp && rhs.toProp
   }
 }
 
-object IsEq {
+private[laws] trait IsEqLowPriorityImplicits {
+  implicit def toProp[A: Eq](isEq: IsEq[A])(implicit pp: A => Pretty): Prop =
+    isEq.toProp
+}
+
+object IsEq extends IsEqLowPriorityImplicits {
+
+  implicit def toPropTolerant[F[_], A](
+      isEq: IsEq[F[A]])(
+      implicit F: Applicative[F],
+      ord: Order[F[A]],
+      g: Group[A],
+      tolerance: Tolerance[A],
+      pp: F[A] => Pretty)
+      : Prop =
+    isEq.toPropTolerant
 
   def apply[A](lhs: A, rhs: A): IsEq[A] =
     Assert(lhs, rhs)
 
-  implicit def toProp[A: Eq](isEq: IsEq[A])(implicit pp: A => Pretty): Prop =
-    isEq.toProp
-
   final case class Assert[A](lhs: A, rhs: A) extends IsEq[A]
-  final case class Or[A](lhs: IsEq[A], rhs: IsEq[A]) extends IsEq[A]
-  final case class And[A](lhs: IsEq[A], rhs: IsEq[A]) extends IsEq[A]
 }

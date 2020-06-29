@@ -82,10 +82,6 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
 
     implicit val t = Tolerance(tolerance)
 
-    // bugs in scalac*
-    implicit val help: Tolerance[F[FiniteDuration]] =
-      Tolerance[F[FiniteDuration]](Tolerance.lift[F, FiniteDuration])
-
     new RuleSet {
       val name = "temporal"
       val bases = Nil

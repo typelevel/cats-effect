@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.kernel.laws.discipline.GroupTests
+import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.EffectTests
 import cats.effect.testkit.{AsyncGenerators, BracketGenerators, OutcomeGenerators, TestContext}
 import cats.implicits._
@@ -333,7 +333,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO[Int]",
-      GroupTests[IO[Int]].group)
+      MonoidTests[IO[Int]].monoid)
   }
 
   // TODO organize the below somewhat better

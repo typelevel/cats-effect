@@ -143,7 +143,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
   }
 }
 
-private[effect] trait IOLowPriorityImplicits0 {
+private[effect] trait IOLowPriorityImplicits {
 
   implicit def semigroupForIO[A: Semigroup]: Semigroup[IO[A]] =
     new IOSemigroup[A]
@@ -154,17 +154,7 @@ private[effect] trait IOLowPriorityImplicits0 {
   }
 }
 
-private[effect] trait IOLowPriorityImplicits1 extends IOLowPriorityImplicits0 {
-
-  implicit def monoidForIO[A: Monoid]: Monoid[IO[A]] =
-    new IOMonoid[A]
-
-  protected class IOMonoid[A](override implicit val A: Monoid[A]) extends IOSemigroup[A] with Monoid[IO[A]] {
-    def empty = IO.pure(A.empty)
-  }
-}
-
-object IO extends IOLowPriorityImplicits1 {
+object IO extends IOLowPriorityImplicits {
 
   def pure[A](value: A): IO[A] = Pure(value)
 
@@ -199,11 +189,11 @@ object IO extends IOLowPriorityImplicits1 {
       def apply[A](ioa: IO[A]) = ioa.to[F]
     }
 
-  implicit def groupForIO[A: Group]: Group[IO[A]] =
-    new IOGroup[A]
+  implicit def monoidForIO[A: Monoid]: Monoid[IO[A]] =
+    new IOMonoid[A]
 
-  protected class IOGroup[A](override implicit val A: Group[A]) extends IOMonoid[A] with Group[IO[A]] {
-    def inverse(ioa: IO[A]) = ioa.map(A.inverse(_))
+  protected class IOMonoid[A](override implicit val A: Monoid[A]) extends IOSemigroup[A] with Monoid[IO[A]] {
+    def empty = IO.pure(A.empty)
   }
 
   implicit val effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
