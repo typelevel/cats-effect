@@ -367,6 +367,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           case 9 =>
             val cur = cur0.asInstanceOf[OnCase[Any]]
 
+            // TODO probably wrap this in try/catch
             finalizers.push(cur.f)
 
             conts push { (b, ar) =>
@@ -377,7 +378,10 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
               heapCur = finalizers.pop()(oc)
 
+              // mask cancelation until the finalizer is complete
+              masks.push(new AnyRef)
               conts push { (_, _) =>
+                masks.pop()
                 conts.pop()(b, ar)
               }
             }
@@ -444,6 +448,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     }
   }
 
+  // TODO ensure each finalizer runs on the appropriate context
   private[this] def runCancelation(): Unit = {
     val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
     if (outcome.compareAndSet(null, oc.asInstanceOf)) {

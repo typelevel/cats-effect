@@ -133,14 +133,13 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     }
 
     "cancel never after scheduling" in {
-      val ioa = IO(TestContext()) flatMap { ec =>
-        for {
-          f <- (IO.never: IO[Unit]).start.evalOn(ec)
-          _ <- IO(ec.tick())
-          _ <- f.cancel
-          oc <- f.join
-        } yield oc
-      }
+      val ioa = for {
+        f <- (IO.never: IO[Unit]).start
+        ec <- IO.executionContext
+        _ <- IO(ec.asInstanceOf[TestContext].tick())
+        _ <- f.cancel
+        oc <- f.join
+      } yield oc
 
       ioa must completeAs(Outcome.Canceled())
     }
@@ -152,31 +151,28 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         IO.pure(Some(IO { affected = true }))
       }
 
-      val ioa = IO(TestContext()) flatMap { ec =>
-        for {
-          f <- target.start.evalOn(ec)
-          _ <- IO(ec.tick())
-          _ <- f.cancel
-        } yield ()
-      }
+      val ioa = for {
+        f <- target.start
+        ec <- IO.executionContext
+        _ <- IO(ec.asInstanceOf[TestContext].tick())
+        _ <- f.cancel
+      } yield ()
 
       ioa must completeAs(())
       affected must beTrue
     }
 
     "preserve contexts through start" in {
-      val ec = TestContext()
+      val ec = ExecutionContext.parasitic
 
       val ioa = for {
         f <- IO.executionContext.start.evalOn(ec)
-        _ <- IO(ec.tick())
         oc <- f.join
       } yield oc
 
       ioa must completeAs(Outcome.Completed(IO.pure(ec)))
     }
 
-    // TODO override Effect#map to not delegate to flatMap
     "preserve monad identity on async" in {
       val fa = IO.async[Int](cb => IO(cb(Right(42))).as(None))
       fa.flatMap(i => IO.pure(i)) must completeAs(42)
@@ -333,7 +329,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO",
-      EffectTests[IO].monadError[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("CiCH6RsqCJHxaHaDKpC3-wx4l3muqZ3I95iqyi_iJDG=").get)))*/
+      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("CiCH6RsqCJHxaHaDKpC3-wx4l3muqZ3I95iqyi_iJDG=").get)))*/
 
     checkAll(
       "IO[Int]",
