@@ -71,8 +71,8 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "bracket pure coherence" -> forAll(laws.bracketPureCoherence[A, B] _),
-        "bracket error coherence" -> forAll(laws.bracketErrorCoherence[A] _),
+        "onCase pure coherence" -> forAll(laws.onCasePureCoherence[A] _),
+        "onCase error coherence" -> forAll(laws.onCaseErrorCoherence[A] _),
         "bracket acquire raiseError identity" -> forAll(laws.bracketAcquireErrorIdentity[A, B] _),
         "bracket release raiseError ignore" -> forAll(laws.bracketReleaseErrorIgnore _),
         "bracket body identity" -> forAll(laws.bracketBodyIdentity[A] _),

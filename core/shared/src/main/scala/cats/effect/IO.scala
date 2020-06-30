@@ -216,6 +216,9 @@ object IO extends IOLowPriorityImplicits {
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 
+    override def onCase[A](ioa: IO[A])(pf: PartialFunction[Outcome[IO, Throwable, A], IO[Unit]]): IO[A] =
+      ioa.onCase(pf)
+
     def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
       uncancelable { poll =>
         acquire flatMap { a =>

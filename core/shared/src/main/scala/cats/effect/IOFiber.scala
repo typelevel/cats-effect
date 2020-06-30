@@ -67,6 +67,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
   val join: IO[Outcome[IO, Throwable, A]] =
     IO async { cb =>
       IO {
+        // println(s"joining on $name")
+
         if (outcome.get() == null) {
           val toPush = (oc: Outcome[IO, Throwable, A]) => cb(Right(oc))
 
@@ -166,7 +168,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
         cur00
       }
 
-      // println(s"looping on $cur0")
+      // println(s"<$name> looping on $cur0")
 
       // cur0 will be null when we're semantically blocked
       if (!conts.isEmpty() && cur0 != null) {
@@ -202,10 +204,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             val done = new AtomicBoolean()
 
             /*
-             * Three states here:
+             * Four states here:
              *
              * - null (no one has completed, or everyone has)
-             * - Left(null) (registration has completed but not callback)
+             * - Left(null) (registration has completed without cancelToken but not callback)
+             * - Right(null) (registration has completed with cancelToken but not callback)
              * - anything else (callback has completed but not registration)
              *
              * The purpose of this buffer is to ensure that registration takes
@@ -234,9 +237,17 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             }
 
             val next = cur.k { e =>
+              // println(s"<$name> callback run with $e")
               // do an extra cancel check here just to preemptively avoid timer load
               if (!done.getAndSet(true) && !(canceled && masks.isEmpty())) {
-                if (state.getAndSet(e) != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
+                val s = state.getAndSet(e)
+                if (s != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
+                  if (s.isRight) {
+                    // we completed and were not canceled, so we pop the finalizer
+                    // note that we're safe to do so since we own the runloop
+                    finalizers.pop()
+                  }
+
                   continue(e)
                 }
               }
@@ -261,7 +272,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                     case Some(cancelToken) =>
                       finalizers.push(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
-                      if (!state.compareAndSet(null, Left(null))) {
+                      // indicate the presence of the cancel token by pushing Right instead of Left
+                      if (!state.compareAndSet(null, Right(null))) {
                         // the callback was invoked before registration
                         finalizers.pop()
                         continue(state.get())
@@ -376,7 +388,10 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               else
                 Outcome.Errored(ar.asInstanceOf[Throwable])
 
-              heapCur = finalizers.pop()(oc)
+              val f = finalizers.pop()
+              // println(s"continuing onCase with $ar ==> ${f(oc)}")
+
+              heapCur = f(oc)
 
               // mask cancelation until the finalizer is complete
               masks.push(new AnyRef)
@@ -408,16 +423,20 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           // Canceled
           case 11 =>
             canceled = true
-            conts.pop()(true, ())
+            val k = conts.pop()
+            k(true, ())
             runLoop(null, conts)
 
           case 12 =>
             val cur = cur0.asInstanceOf[Start[Any]]
 
+            val childName = s"child-${IOFiber.childCount.getAndIncrement()}"
             val fiber = new IOFiber(
               cur.ioa,
-              s"child-${IOFiber.childCount.getAndIncrement()}",
+              childName,
               timer)
+
+            // println(s"<$name> spawning <$childName>")
 
             val ec = ctxs.peek()
             ec.execute(() => fiber.run(ec))
@@ -450,6 +469,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
   // TODO ensure each finalizer runs on the appropriate context
   private[this] def runCancelation(): Unit = {
+    // println(s"running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+
     val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
     if (outcome.compareAndSet(null, oc.asInstanceOf)) {
       heapCur = null

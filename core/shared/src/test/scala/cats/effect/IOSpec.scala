@@ -318,18 +318,58 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       latch.await()
       result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
     }
+
+    "sequence onCancel when canceled before registration" in {
+      var passed = false
+      val test = IO uncancelable { poll =>
+        IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
+      }
+
+      test must nonTerminate
+      passed must beTrue
+    }
+
+    "break out of uncancelable when canceled before poll" in {
+      var passed = true
+      val test = IO uncancelable { poll =>
+        IO.canceled >> poll(IO.unit) >> IO { passed = false }
+      }
+
+      test must nonTerminate
+      passed must beTrue
+    }
+
+    "invoke onCase finalizer when cancelable async returns" in {
+      var passed = false
+
+      // convenient proxy for an async that returns a cancelToken
+      val test = IO.sleep(1.day) onCase {
+        case Outcome.Completed(_) => IO { passed = true }
+      }
+
+      test must completeAs(())
+      passed must beTrue
+    }
+
+    "hold onto errors through multiple finalizers" in {
+      case object TestException extends RuntimeException
+      IO.raiseError(TestException).guarantee(IO.unit).guarantee(IO.unit) must failAs(TestException)
+    }
+
+    "cede unit in a finalizer" in {
+      val body = IO.sleep(1.second).start.flatMap(_.join).map(_ => 42)
+      body.guarantee(IO.cede.map(_ => ())) must completeAs(42)
+    }
   }
 
   {
-    implicit val ctx = TestContext()
-
     /*checkAll(
       "IO",
       EffectTests[IO].effect[Int, Int, Int](10.millis))*/
 
     checkAll(
       "IO",
-      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("CiCH6RsqCJHxaHaDKpC3-wx4l3muqZ3I95iqyi_iJDG=").get)))*/
+      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("LsPGNSyL0OzopTIU5uJsC6gCynUKAZCuob95XB4DARD=").get)))*/
 
     checkAll(
       "IO[Int]",
@@ -345,7 +385,8 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     val generators =
       new AsyncGenerators[IO] with BracketGenerators[IO, Throwable] {
 
-        val arbitraryE: Arbitrary[Throwable] = implicitly[Arbitrary[Throwable]]
+        val arbitraryE: Arbitrary[Throwable] =
+          arbitraryThrowable
 
         val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
@@ -374,6 +415,9 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     Arbitrary(generators.generators[A])
   }
+
+  implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
+    Arbitrary(Arbitrary.arbitrary[Int].map(TestException))
 
   implicit lazy val arbitraryEC: Arbitrary[ExecutionContext] =
     Arbitrary(Gen.delay(Gen.const(ExecutionContext.parasitic)))
@@ -451,6 +495,10 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     ctx.tick(Long.MaxValue.nanoseconds)
 
+    // println(s"completed ioa with $results")
+
     results
   }
 }
+
+final case class TestException(i: Int) extends RuntimeException

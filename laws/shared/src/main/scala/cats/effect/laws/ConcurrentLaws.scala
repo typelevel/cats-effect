@@ -106,6 +106,8 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelableStartIsCancelable =
     F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(Outcome.Canceled())
 
+  // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
+
   // the attempt here enforces the cancelation-dominates-over-errors semantic
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
     F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <-> (F.uncancelable(_ => f(a).attempt) >> F.canceled)
