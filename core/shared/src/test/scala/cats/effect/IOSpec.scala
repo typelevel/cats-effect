@@ -360,6 +360,18 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       val body = IO.sleep(1.second).start.flatMap(_.join).map(_ => 42)
       body.guarantee(IO.cede.map(_ => ())) must completeAs(42)
     }
+
+    "not invoke onCancel when previously canceled within uncancelable" in {
+      var failed = false
+      IO.uncancelable(_ => IO.canceled >> IO.unit.onCancel(IO { failed = true })) must nonTerminate
+      failed must beFalse
+    }
+
+    "complete a fiber with Canceled under finalizer on poll" in {
+      val ioa = IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
+
+      ioa must completeAs(Outcome.Canceled())
+    }
   }
 
   {
@@ -369,7 +381,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO",
-      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("LsPGNSyL0OzopTIU5uJsC6gCynUKAZCuob95XB4DARD=").get)))*/
+      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("FfWicOo43iLap1wStrvtd62jh13XycmVikdQ1nwYdDJ=").get)))*/
 
     checkAll(
       "IO[Int]",

@@ -491,6 +491,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           if (!finalizers.isEmpty()) {
             conts.push(loop)
             runLoop(finalizers.pop()(oc.asInstanceOf), conts)
+          } else {
+            conts.pop()(true, ())
           }
         }
 

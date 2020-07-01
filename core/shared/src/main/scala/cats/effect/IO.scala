@@ -158,7 +158,7 @@ object IO extends IOLowPriorityImplicits {
 
   def pure[A](value: A): IO[A] = Pure(value)
 
-  def unit: IO[Unit] = pure(())
+  val unit: IO[Unit] = pure(())
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
@@ -169,10 +169,14 @@ object IO extends IOLowPriorityImplicits {
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     async(cb => apply { k(cb); None })
 
-  def canceled: IO[Unit] = Canceled
+  val canceled: IO[Unit] = Canceled
 
-  // in theory we can probably do a bit better than this; being lazy for now
-  def cede: IO[Unit] = async_(_(Right(())))
+  /*
+   * TODO we can do better here (or rather, in IOFiber) by simply submitting
+   * directly to the executor and resuming the runloop. Async has a lot of
+   * overhead which is just unnecessary in this case (e.g. dealing with double-dispatch).
+   */
+  val cede: IO[Unit] = async_(_(Right(())))
 
   def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
     Uncancelable(body)
