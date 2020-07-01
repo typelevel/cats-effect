@@ -40,6 +40,10 @@ import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   import OutcomeGenerators._
 
+  sequential
+
+  val ctx = TestContext()
+
   "io monad" should {
     "produce a pure value when run" in {
       IO.pure(42) must completeAs(42)
@@ -163,10 +167,11 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     }
 
     "preserve contexts through start" in {
-      val ec = ExecutionContext.parasitic
+      val ec = ctx.derive()
 
       val ioa = for {
         f <- IO.executionContext.start.evalOn(ec)
+        _ <- IO(ctx.tick())
         oc <- f.join
       } yield oc
 
@@ -381,7 +386,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO",
-      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("FfWicOo43iLap1wStrvtd62jh13XycmVikdQ1nwYdDJ=").get)))*/
+      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("E_io0gq5LVd4Z_SwVLYxcuQ3MXdugm_juRiHFlLdIsL=").get)))*/
 
     checkAll(
       "IO[Int]",
@@ -415,11 +420,11 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         val arbitraryFD: Arbitrary[FiniteDuration] = {
           import TimeUnit._
 
-          val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+          val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
 
           Arbitrary {
             genTU flatMap { u =>
-              Gen.posNum[Long].map(FiniteDuration(_, u))
+              Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u))
             }
           }
         }
@@ -432,7 +437,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     Arbitrary(Arbitrary.arbitrary[Int].map(TestException))
 
   implicit lazy val arbitraryEC: Arbitrary[ExecutionContext] =
-    Arbitrary(Gen.delay(Gen.const(ExecutionContext.parasitic)))
+    Arbitrary(Gen.const(ctx.derive()))
 
   implicit lazy val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals[Throwable]
@@ -454,13 +459,11 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   implicit def eqIOA[A: Eq]: Eq[IO[A]] = {
     /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
-      println("====================================")
-      println("====================================")
-      println("====================================")
       val rightR = unsafeRun(right)
 
       val back = leftR eqv rightR
-      if (!back) {
+
+      if (!back && IO.trace) {
         println(s"$left != $right")
         println(s"$leftR != $rightR")
       }
@@ -490,8 +493,6 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   }
 
   def unsafeRun[A](ioa: IO[A]): Outcome[Option, Throwable, A] = {
-    val ctx = TestContext()
-
     val timer = new UnsafeTimer {
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
@@ -505,9 +506,11 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       case Right(a) => results = Outcome.Completed(Some(a))
     }
 
-    ctx.tick(Long.MaxValue.nanoseconds)
+    ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
 
+    // println("====================================")
     // println(s"completed ioa with $results")
+    // println("====================================")
 
     results
   }

@@ -315,15 +315,15 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             conts push { (b, ar) =>
               ctxs.pop()
-
-              conts push { (_, _) =>
+              ctxs.peek() execute { () =>
                 conts.pop()(b, ar)
+                runLoop(null, conts)
               }
-
-              heapCur = IO.cede
             }
 
-            runLoop(IO.cede.flatMap(_ => cur.ioa), conts)
+            cur.ec execute { () =>
+              runLoop(cur.ioa, conts)
+            }
 
           case 6 =>
             val cur = cur0.asInstanceOf[Map[Any, Any]]
@@ -462,6 +462,15 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                 Some(IO(cancel.run()))
               }
             }, conts)
+
+          // Cede
+          case 15 =>
+            ctxs.peek() execute { () =>
+              // println("continuing from cede ")
+
+              conts.pop()(true, ())
+              runLoop(null, conts)
+            }
         }
       }
     }
@@ -469,7 +478,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
   // TODO ensure each finalizer runs on the appropriate context
   private[this] def runCancelation(): Unit = {
-    // println(s"running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
     val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
     if (outcome.compareAndSet(null, oc.asInstanceOf)) {
@@ -482,17 +491,13 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
         val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
 
-        conts push { (_, _) =>
-          done(oc.asInstanceOf)
-          masks.pop()
-        }
-
         def loop(b: Boolean, ar: Any): Unit = {
           if (!finalizers.isEmpty()) {
             conts.push(loop)
             runLoop(finalizers.pop()(oc.asInstanceOf), conts)
           } else {
-            conts.pop()(true, ())
+            done(oc.asInstanceOf)
+            masks.pop()
           }
         }
 

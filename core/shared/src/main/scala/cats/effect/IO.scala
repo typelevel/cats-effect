@@ -113,6 +113,8 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
           back.asInstanceOf[F[A]]
 
         case IO.Sleep(delay) => F.sleep(delay).asInstanceOf[F[A]]
+
+        case IO.Cede => F.cede.asInstanceOf[F[A]]
       }
     // }
   }
@@ -171,12 +173,7 @@ object IO extends IOLowPriorityImplicits {
 
   val canceled: IO[Unit] = Canceled
 
-  /*
-   * TODO we can do better here (or rather, in IOFiber) by simply submitting
-   * directly to the executor and resuming the runloop. Async has a lot of
-   * overhead which is just unnecessary in this case (e.g. dealing with double-dispatch).
-   */
-  val cede: IO[Unit] = async_(_(Right(())))
+  val cede: IO[Unit] = Cede
 
   def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
     Uncancelable(body)
@@ -288,4 +285,6 @@ object IO extends IOLowPriorityImplicits {
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]](13)
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](14)
+
+  private[effect] case object Cede extends IO[Unit](15)
 }

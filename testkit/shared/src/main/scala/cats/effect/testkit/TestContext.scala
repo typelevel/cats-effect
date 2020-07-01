@@ -245,6 +245,11 @@ final class TestContext private () extends ExecutionContext { self =>
           hasTasks = false
       }
     }
+
+    // some of our tasks may have enqueued more tasks
+    if (!this.stateRef.tasks.isEmpty) {
+      tick(time)
+    }
   }
 
   def schedule(delay: FiniteDuration, r: Runnable): () => Unit =
@@ -253,6 +258,12 @@ final class TestContext private () extends ExecutionContext { self =>
       val (cancelable, newState) = current.scheduleOnce(delay, r, cancelTask)
       stateRef = newState
       cancelable
+    }
+
+  def derive(): ExecutionContext =
+    new ExecutionContext {
+      def execute(runnable: Runnable): Unit = self.execute(runnable)
+      def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
   private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
