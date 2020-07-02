@@ -266,6 +266,8 @@ final class TestContext private () extends ExecutionContext { self =>
       def reportFailure(cause: Throwable): Unit = self.reportFailure(cause)
     }
 
+  def now(): FiniteDuration = stateRef.clock
+
   private def extractOneTask(current: State, clock: FiniteDuration): Option[(Task, SortedSet[Task])] =
     current.tasks.headOption.filter(_.runsAt <= clock) match {
       case Some(value) =>

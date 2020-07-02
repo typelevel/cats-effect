@@ -414,7 +414,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO",
-      EffectTests[IO].concurrentBracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("0JMdHY7eFQljZCMPo4FSrVgoMf28Eg3-I6fFbMNvyrE=").get)))*/
+      EffectTests[IO].temporalBracket[Int, Int, Int](10.millis))(Parameters(seed = Some(Seed.fromBase64("VnkiClahC7xaGXXlpV0uafy0qHMqySEDsk-oTPSwVqE=").get)))
 
     checkAll(
       "IO[Int]",
@@ -445,20 +445,22 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         val cogenFU: Cogen[IO[Unit]] = cogenIO[Unit]
 
         // TODO dedup with FreeSyncGenerators
-        val arbitraryFD: Arbitrary[FiniteDuration] = {
-          import TimeUnit._
-
-          val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
-
-          Arbitrary {
-            genTU flatMap { u =>
-              Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u))
-            }
-          }
-        }
+        val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
       }
 
     Arbitrary(generators.generators[A])
+  }
+
+  implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
+    import TimeUnit._
+
+    val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
+
+    Arbitrary {
+      genTU flatMap { u =>
+        Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u))
+      }
+    }
   }
 
   implicit lazy val arbitraryThrowable: Arbitrary[Throwable] =
@@ -522,10 +524,14 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
   def unsafeRun[A](ioa: IO[A]): Outcome[Option, Throwable, A] = {
     val timer = new UnsafeTimer {
+
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
         new Runnable { def run() = cancel() }
       }
+
+      def nowMillis() = ctx.now().toMillis
+      def monotonicNanos() = ctx.now().toNanos
     }
 
     var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)

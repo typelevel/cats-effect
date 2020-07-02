@@ -73,7 +73,7 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
       EqFABC: Eq[R[F, (A, B, C)]],
       EqFInt: Eq[R[F, Int]],
       OrdFFD: Order[R[F, FiniteDuration]],
-      GroupFD: Group[R[F, FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
       exec: R[F, Boolean] => Prop,
       iso: Isomorphisms[R[F, *]],
       faPP: R[F, A] => Pretty,

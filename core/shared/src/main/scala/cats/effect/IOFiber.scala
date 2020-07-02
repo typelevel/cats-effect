@@ -21,6 +21,7 @@ import cats.implicits._
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
@@ -525,8 +526,18 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               }
             }, conts)
 
-          // Cede
+          // RealTime
           case 15 =>
+            conts.pop()(true, timer.nowMillis().millis)
+            runLoop(null, conts)
+
+          // Monotonic
+          case 16 =>
+            conts.pop()(true, timer.monotonicNanos().nanos)
+            runLoop(null, conts)
+
+          // Cede
+          case 17 =>
             ctxs.peek() execute { () =>
               // println("continuing from cede ")
 
@@ -534,7 +545,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               runLoop(null, conts)
             }
 
-          case 16 =>
+          case 18 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
 
             if (masks.peek() eq cur.id) {

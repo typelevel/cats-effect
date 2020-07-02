@@ -65,7 +65,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       OrdFFD: Order[F[FiniteDuration]],
-      GroupFD: Group[F[FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
       exec: F[Boolean] => Prop,
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,

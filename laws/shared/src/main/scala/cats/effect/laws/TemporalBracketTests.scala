@@ -65,7 +65,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       OrdFFD: Order[F[FiniteDuration]],
-      GroupFD: Group[F[FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
       exec: F[Boolean] => Prop,
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,

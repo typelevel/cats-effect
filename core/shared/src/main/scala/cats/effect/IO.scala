@@ -113,6 +113,8 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
           back.asInstanceOf[F[A]]
 
         case IO.Sleep(delay) => F.sleep(delay).asInstanceOf[F[A]]
+        case IO.RealTime => F.realTime.asInstanceOf[F[A]]
+        case IO.Monotonic => F.monotonic.asInstanceOf[F[A]]
 
         case IO.Cede => F.cede.asInstanceOf[F[A]]
 
@@ -184,6 +186,10 @@ object IO extends IOLowPriorityImplicits {
 
   val never: IO[Nothing] = async(_ => pure(None))
 
+  val monotonic: IO[FiniteDuration] = Monotonic
+
+  val realTime: IO[FiniteDuration] = RealTime
+
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
@@ -231,11 +237,9 @@ object IO extends IOLowPriorityImplicits {
         }
       }
 
-    def monotonic: IO[FiniteDuration] =
-      IO(System.nanoTime().nanoseconds)
+    val monotonic: IO[FiniteDuration] = IO.monotonic
 
-    def realTime: IO[FiniteDuration] =
-      IO(System.currentTimeMillis().millis)
+    val realTime: IO[FiniteDuration] = IO.realTime
 
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
@@ -287,9 +291,11 @@ object IO extends IOLowPriorityImplicits {
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B]) extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]](13)
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](14)
+  private[effect] case object RealTime extends IO[FiniteDuration](15)
+  private[effect] case object Monotonic extends IO[FiniteDuration](16)
 
-  private[effect] case object Cede extends IO[Unit](15)
+  private[effect] case object Cede extends IO[Unit](17)
 
   // INTERNAL
-  private[effect] final case class Unmask[+A](ioa: IO[A], id: AnyRef) extends IO[A](16)
+  private[effect] final case class Unmask[+A](ioa: IO[A], id: AnyRef) extends IO[A](18)
 }

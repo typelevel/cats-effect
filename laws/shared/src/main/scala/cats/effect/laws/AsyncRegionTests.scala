@@ -73,7 +73,7 @@ trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, *]] with Tempor
       EqFABC: Eq[R[F, (A, B, C)]],
       EqFInt: Eq[R[F, Int]],
       OrdFFD: Order[R[F, FiniteDuration]],
-      GroupFD: Group[R[F, FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
       exec: R[F, Boolean] => Prop,
       iso: Isomorphisms[R[F, *]],
       faPP: R[F, A] => Pretty,

@@ -27,6 +27,10 @@ trait UnsafeTimer {
    * another side-effect which cancels the scheduling.
    */
   def sleep(delay: FiniteDuration, task: Runnable): Runnable
+
+  def nowMillis(): Long
+
+  def monotonicNanos(): Long
 }
 
 object UnsafeTimer {
@@ -36,5 +40,9 @@ object UnsafeTimer {
         val future = scheduler.schedule(task, delay.length, delay.unit)
         () => future.cancel(false)
       }
+
+      def nowMillis() = System.currentTimeMillis()
+
+      def monotonicNanos() = System.nanoTime()
     }
 }

@@ -68,7 +68,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       OrdFFD: Order[F[FiniteDuration]],
-      GroupFD: Group[F[FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
       exec: F[Boolean] => Prop,
       iso: Isomorphisms[F],
       faPP: F[A] => Pretty,

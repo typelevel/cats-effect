@@ -37,9 +37,9 @@ sealed trait IsEq[A] {
         val lhs = ev(lhs0)
         val rhs = ev(rhs0)
 
-        if (lhs <= rhs && (rhs, lhs).mapN(_ |-| _) <= tolerance.value) {
+        if (lhs <= rhs && (rhs, lhs).mapN(_ |-| _) <= tolerance.value.pure[F]) {
           Prop.proved
-        } else if (lhs > rhs && (lhs, rhs).mapN(_ |-| _) <= tolerance.value) {
+        } else if (lhs > rhs && (lhs, rhs).mapN(_ |-| _) <= tolerance.value.pure[F]) {
           Prop.proved
         } else {
           Prop.falsified :| {
