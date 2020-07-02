@@ -118,7 +118,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
         case IO.Cede => F.cede.asInstanceOf[F[A]]
 
-        case IO.Unmask(_, _) => sys.error("impossible")
+        case IO.Unmask(ioa, _) => ioa.to[F]   // polling should be handled by F
       }
     // }
   }

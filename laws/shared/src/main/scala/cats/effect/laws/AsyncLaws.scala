@@ -41,8 +41,9 @@ trait AsyncLaws[F[_]] extends TemporalLaws[F, Throwable] with SyncLaws[F] {
   def asyncCancelTokenIsUnsequencedOnError[A](e: Throwable, fu: F[Unit]) =
     F.async[A](k => F.delay(k(Left(e))) >> F.pure(Some(fu))) <-> F.raiseError(e)
 
-  def asyncCancelTokenIsSequencedOnCancel(fu: F[Unit]) =
-    F.start(F.async[Unit](_ => F.pure(Some(fu)))).flatMap(_.cancel) <-> fu.attempt.void
+  // commented out until we can figure out how to ensure cancelation *during* the suspension
+  /*def asyncCancelTokenIsSequencedOnCancel(fu: F[Unit]) =
+    F.start(F.async[Unit](_ => F.pure(Some(fu)))).flatMap(_.cancel) <-> fu.attempt.void*/
 
   def neverIsDerivedFromAsync[A] =
     F.never[A] <-> F.async[A](_ => F.pure(None))

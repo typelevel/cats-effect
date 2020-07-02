@@ -408,13 +408,9 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
   }
 
   {
-    /*checkAll(
-      "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))*/
-
     checkAll(
       "IO",
-      EffectTests[IO].temporalBracket[Int, Int, Int](10.millis))(Parameters(seed = Some(Seed.fromBase64("VnkiClahC7xaGXXlpV0uafy0qHMqySEDsk-oTPSwVqE=").get)))
+      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("xVWOncCpfJjjnCnMZSIunWBaXm0YGxHF_lfXmGQWwxO=").get)))*/
 
     checkAll(
       "IO[Int]",
