@@ -63,7 +63,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     IO { canceled = true } >>
       IO(suspended.compareAndSet(true, false)).ifM(
         IO {
-          // TODO ensure each finalizer runs on the appropriate context
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
           val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
@@ -188,7 +187,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
   private[this] def runLoop(cur00: IO[Any], conts: ArrayStack[(Boolean, Any) => Unit]): Unit = {
     if (canceled && masks.isEmpty()) {
-      // TODO make sure everything is run in its own context
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
@@ -443,8 +441,19 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           case 9 =>
             val cur = cur0.asInstanceOf[OnCase[Any]]
 
-            // TODO probably wrap this in try/catch
-            finalizers.push(cur.f)
+            val ec = ctxs.peek()
+            finalizers push { oc =>
+              val iou = try {
+                cur.f(oc)
+              } catch {
+                case NonFatal(e) => IO.unit
+              }
+
+              if (ec eq ctxs.peek())
+                iou
+              else
+                EvalOn(iou, ec)
+            }
             // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
             conts push { (b, ar) =>
