@@ -32,6 +32,10 @@ jobs:
         include:
           - os: ubuntu-latest
             java: adopt@1.8
+            scala: 2.12.11
+            ci: ciJS
+          - os: ubuntu-latest
+            java: adopt@1.8
             scala: 2.13.2
             ci: ciJS
     runs-on: ${{ matrix.os }}
