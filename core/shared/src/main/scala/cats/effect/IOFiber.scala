@@ -412,7 +412,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             val id = new AnyRef
             val poll = new (IO ~> IO) {
-              def apply[A](ioa: IO[A]) = IO.Unmask(ioa, id)
+              def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
             }
 
             masks.push(id)
@@ -464,7 +464,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                 def listener(left: Boolean)(oc: Outcome[IO, Throwable, Any]): Unit = {
                   // println(s"listener fired (left = $left; oc = $oc)")
 
-                  if (oc.isInstanceOf[Outcome.Completed[_, _, _]]) {
+                  if (oc.isInstanceOf[Outcome.Completed[IO, Throwable, Any]]) {
                     val result = oc.asInstanceOf[Outcome.Completed[IO, Throwable, Any]].fa.asInstanceOf[IO.Pure[Any]].value
 
                     val wrapped = if (left)
@@ -473,7 +473,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                       Right((fiberA, result))
 
                     cb(Right(wrapped))
-                  } else if (oc.isInstanceOf[Outcome.Errored[_, _, _]]) {
+                  } else if (oc.isInstanceOf[Outcome.Errored[IO, Throwable, Any]]) {
                     val error = oc.asInstanceOf[Outcome.Errored[IO, Throwable, Any]].e
 
                     if (!firstError.compareAndSet(null, error)) {
@@ -568,11 +568,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
     val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
-    if (outcome.compareAndSet(null, oc.asInstanceOf)) {
+    if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
       heapCur = null
 
       if (finalizers.isEmpty()) {
-        done(oc.asInstanceOf)
+        done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
       } else {
         masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
 
@@ -581,16 +581,16 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
         def loop(b: Boolean, ar: Any): Unit = {
           if (!finalizers.isEmpty()) {
             conts.push(loop)
-            runLoop(finalizers.pop()(oc.asInstanceOf), conts)
+            runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
           } else {
-            done(oc.asInstanceOf)
+            done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
             masks.pop()
           }
         }
 
         conts.push(loop)
 
-        runLoop(finalizers.pop()(oc.asInstanceOf), conts)
+        runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
       }
     }
   }

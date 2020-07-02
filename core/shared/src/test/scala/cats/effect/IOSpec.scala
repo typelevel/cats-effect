@@ -28,16 +28,16 @@ import org.scalacheck.rng.Seed
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
 import org.specs2.mutable.Specification
-import org.specs2.matcher.{Matcher, MatchersImplicits}, MatchersImplicits._
+import org.specs2.matcher.Matcher
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.TimeUnit
 
-class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
+class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { outer =>
   import OutcomeGenerators._
 
   sequential
@@ -96,12 +96,12 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     }
 
     "start and join on a successful fiber" in {
-      IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(Outcome.Completed(IO.pure(43)))
+      IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(Outcome.completed[IO, Throwable, Int](IO.pure(43)))
     }
 
     "start and join on a failed fiber" in {
       case object TestException extends RuntimeException
-      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.Errored(TestException))
+      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.errored[IO, Throwable, Unit](TestException))
     }
 
     "implement never with non-terminating semantics" in {
@@ -129,11 +129,11 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     "cancel an infinite chain of right-binds" in {
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
-      infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.Canceled())
+      infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel never" in {
-      (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.Canceled())
+      (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel never after scheduling" in {
@@ -145,7 +145,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         oc <- f.join
       } yield oc
 
-      ioa must completeAs(Outcome.Canceled())
+      ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "sequence async cancel token upon cancelation" in {
@@ -175,7 +175,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         oc <- f.join
       } yield oc
 
-      ioa must completeAs(Outcome.Completed(IO.pure(ec)))
+      ioa must completeAs(Outcome.completed[IO, Throwable, ExecutionContext](IO.pure(ec)))
     }
 
     "preserve monad identity on async" in {
@@ -205,7 +205,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     "uncancelable canceled with finalizer within fiber should not block" in {
       val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
 
-      fab must completeAs(Outcome.Canceled())
+      fab must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "uncancelable canceled with finalizer within fiber should flatMap another day" in {
@@ -269,61 +269,6 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       outer mustEqual 1
     }
 
-    "shift delay evaluation within evalOn" in {
-      val Exec1Name = "testing executor 1"
-      val exec1 = Executors newSingleThreadExecutor { r =>
-        val t = new Thread(r)
-        t.setName(Exec1Name)
-        t
-      }
-
-      val Exec2Name = "testing executor 2"
-      val exec2 = Executors newSingleThreadExecutor { r =>
-        val t = new Thread(r)
-        t.setName(Exec2Name)
-        t
-      }
-
-      val Exec3Name = "testing executor 3"
-      val exec3 = Executors newSingleThreadExecutor { r =>
-        val t = new Thread(r)
-        t.setName(Exec3Name)
-        t
-      }
-
-      val nameF = IO(Thread.currentThread().getName())
-
-      val test = nameF flatMap { outer1 =>
-        val inner1F = nameF flatMap { inner1 =>
-          val inner2F = nameF map { inner2 =>
-            (outer1, inner1, inner2)
-          }
-
-          inner2F.evalOn(ExecutionContext.fromExecutor(exec2))
-        }
-
-        inner1F.evalOn(ExecutionContext.fromExecutor(exec1)) flatMap {
-          case (outer1, inner1, inner2) =>
-            nameF.map(outer2 => (outer1, inner1, inner2, outer2))
-        }
-      }
-
-      implicit val t4s: Show[(String, String, String, String)] =
-        Show.fromToString
-
-      var result: Either[Throwable, (String, String, String, String)] = null
-      val latch = new CountDownLatch(1)
-
-      // this test is weird because we're making our own contexts, so we can't use TestContext at all
-      test.unsafeRunAsync(ExecutionContext.fromExecutor(exec3), UnsafeTimer.fromScheduledExecutor(Executors.newScheduledThreadPool(1))) { e =>
-        result = e
-        latch.countDown()
-      }
-
-      latch.await()
-      result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
-    }
-
     "sequence onCancel when canceled before registration" in {
       var passed = false
       val test = IO uncancelable { poll =>
@@ -375,7 +320,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     "complete a fiber with Canceled under finalizer on poll" in {
       val ioa = IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
 
-      ioa must completeAs(Outcome.Canceled())
+      ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "return the left when racing against never" in {
@@ -383,7 +328,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     }
 
     "produce Canceled from start of canceled" in {
-      IO.canceled.start.flatMap(_.join) must completeAs(Outcome.Canceled())
+      IO.canceled.start.flatMap(_.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel an already canceled fiber" in {
@@ -409,6 +354,8 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
     "produce the left when the right errors in racePair" in {
       (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
+
+    platformSpecs
   }
 
   {
@@ -447,8 +394,8 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
         // TODO dedup with FreeSyncGenerators
         val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
 
-        override def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[IO]) =
-          super.recursiveGen[A](deeper).filterNot(_._1 == "racePair")   // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
+        override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
+          super.recursiveGen[B](deeper).filterNot(_._1 == "racePair")   // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
 
     Arbitrary(generators.generators[A])

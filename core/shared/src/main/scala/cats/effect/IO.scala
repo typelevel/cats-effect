@@ -16,15 +16,12 @@
 
 package cats.effect
 
-import cats.{~>, Group, Monoid, Semigroup, StackSafeMonad}
+import cats.{~>, Monoid, Semigroup, StackSafeMonad}
 import cats.implicits._
 
-import scala.annotation.switch
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
-import java.util.concurrent.atomic.AtomicInteger
 
 sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
@@ -41,7 +38,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
     IO.Start(this)
 
   def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
-    IO.OnCase(this, oc => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
+    IO.OnCase(this, (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
 
   def onCancel(body: IO[Unit]): IO[A] =
     onCase { case Outcome.Canceled() => body }
@@ -59,10 +56,10 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
     /*if (F eq IO.effectForIO) {
-      asInstanceOf
+      asInstanceOf[F[A]]
     } else {*/
-      def fiberFrom[A](f: Fiber[F, Throwable, A]): Fiber[IO, Throwable, A] =
-        new Fiber[IO, Throwable, A] {
+      def fiberFrom[B](f: Fiber[F, Throwable, B]): Fiber[IO, Throwable, B] =
+        new Fiber[IO, Throwable, B] {
           val cancel = F.to[IO](f.cancel)
           val join = F.to[IO](f.join).map(_.mapK(F.toK[IO]))
         }
@@ -74,7 +71,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
         case IO.Error(t) => F.raiseError(t)
         case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
 
-        case IO.ReadEC => F.executionContext.asInstanceOf[F[A]]
+        case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
         case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
 
         case IO.Map(ioe, f) => ioe.to[F].map(f)
@@ -91,20 +88,20 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
         case IO.Uncancelable(body) =>
           F uncancelable { poll =>
             val poll2 = new (IO ~> IO) {
-              def apply[A](ioa: IO[A]): IO[A] =
+              def apply[B](ioa: IO[B]): IO[B] =
                 F.to[IO](poll(ioa.to[F]))
             }
 
             body(poll2).to[F]
           }
 
-        case IO.Canceled => F.canceled.asInstanceOf[F[A]]
+        case _: IO.Canceled.type => F.canceled.asInstanceOf[F[A]]
 
-        case IO.Start(ioa) =>
-          F.start(ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
+        case self: IO.Start[_] =>
+          F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
 
-        case IO.RacePair(ioa, iob) =>
-          val back = F.racePair(ioa.to[F], iob.to[F]) map { e =>
+        case self: IO.RacePair[a, b] =>
+          val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
             e.bimap(
               { case (a, f) => (a, fiberFrom(f)) },
               { case (f, b) => (fiberFrom(f), b) })
@@ -112,11 +109,11 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
           back.asInstanceOf[F[A]]
 
-        case IO.Sleep(delay) => F.sleep(delay).asInstanceOf[F[A]]
-        case IO.RealTime => F.realTime.asInstanceOf[F[A]]
-        case IO.Monotonic => F.monotonic.asInstanceOf[F[A]]
+        case self: IO.Sleep => F.sleep(self.delay).asInstanceOf[F[A]]
+        case _: IO.RealTime.type => F.realTime.asInstanceOf[F[A]]
+        case _: IO.Monotonic.type => F.monotonic.asInstanceOf[F[A]]
 
-        case IO.Cede => F.cede.asInstanceOf[F[A]]
+        case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
         case IO.Unmask(ioa, _) => ioa.to[F]   // polling should be handled by F
       }
@@ -139,7 +136,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
     val fiber = new IOFiber(
       this,
       timer,
-      oc => oc.fold(
+      (oc: Outcome[IO, Throwable, A]) => oc.fold(
         (),
         e => cb(Left(e)),
         ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))))

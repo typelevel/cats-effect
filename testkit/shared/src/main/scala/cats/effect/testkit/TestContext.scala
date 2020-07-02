@@ -18,7 +18,7 @@ package cats.effect.testkit
 
 import scala.collection.immutable.SortedSet
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.{Duration, FiniteDuration, TimeUnit}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.Random
 import scala.util.control.NonFatal
 

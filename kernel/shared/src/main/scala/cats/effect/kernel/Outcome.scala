@@ -95,6 +95,15 @@ private[kernel] trait LowPriorityImplicits {
 
 object Outcome extends LowPriorityImplicits {
 
+  def completed[F[_], E, A](fa: F[A]): Outcome[F, E, A] =
+    Completed(fa)
+
+  def errored[F[_], E, A](e: E): Outcome[F, E, A] =
+    Errored(e)
+
+  def canceled[F[_], E, A]: Outcome[F, E, A] =
+    Canceled()
+
   def fromEither[F[_]: Applicative, E, A](either: Either[E, A]): Outcome[F, E, A] =
     either.fold(Errored(_), a => Completed(a.pure[F]))
 
