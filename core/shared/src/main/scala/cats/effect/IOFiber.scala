@@ -432,10 +432,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
               heapCur = f(oc)
 
-              // mask cancelation until the finalizer is complete
-              masks.push(new AnyRef)
               conts push { (_, _) =>
-                masks.pop()
                 conts.pop()(b, ar)
               }
             }

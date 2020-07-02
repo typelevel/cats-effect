@@ -254,12 +254,10 @@ object pure {
           ec => uncancelable(_ => pbody(Functor[Outcome[PureConc[E, *], E, *]].widen(ec)) >> withCtx(_.self.popFinalizer))
 
         uncancelable { poll =>
-          val handled = poll(fa).handleErrorWith(e => finalizer(Outcome.Errored(e)) >> raiseError[A](e))
+          val handled = poll(fa).handleErrorWith(e => withCtx[E, Unit](_.self.popFinalizer) >> poll(pbody(Outcome.Errored(e))) >> raiseError[A](e))
 
           val completed = handled flatMap { a =>
-            uncancelable { _ =>
-              pbody(Outcome.Completed(pure(a))).as(a) <* withCtx(_.self.popFinalizer)
-            }
+            withCtx[E, Unit](_.self.popFinalizer) >> poll(pbody(Outcome.Completed(pure(a))).as(a))
           }
 
           withCtx[E, Unit](_.self.pushFinalizer(finalizer)) >> completed

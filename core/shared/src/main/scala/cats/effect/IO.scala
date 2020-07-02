@@ -44,7 +44,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
     onCase { case Outcome.Canceled() => body }
 
   def guarantee(finalizer: IO[Unit]): IO[A] =
-    onCase({ case _ => finalizer })
+    IO.uncancelable(p => p(this).onCase({ case _ => finalizer }))
 
   def racePair[B](
       that: IO[B])
