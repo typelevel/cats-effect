@@ -19,7 +19,7 @@ package cats.effect
 import cats.{Eq, Order, Show}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.EffectTests
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -405,12 +405,16 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
       test must completeAs(())
       passed must beTrue
     }
+
+    "produce the left when the right errors in racePair" in {
+      (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
+    }
   }
 
   {
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("xVWOncCpfJjjnCnMZSIunWBaXm0YGxHF_lfXmGQWwxO=").get)))*/
+      EffectTests[IO].effect[Int, Int, Int](10.millis))(Parameters(seed = Some(Seed.fromBase64("ruT4-iapzrTOZCQlbccRRKVkjJmaPNlEOVVKmm50zVJ=").get)))
 
     checkAll(
       "IO[Int]",
@@ -442,6 +446,9 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
         // TODO dedup with FreeSyncGenerators
         val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
+
+        override def recursiveGen[A: Arbitrary: Cogen](deeper: GenK[IO]) =
+          super.recursiveGen[A](deeper).filterNot(_._1 == "racePair")   // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
 
     Arbitrary(generators.generators[A])

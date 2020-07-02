@@ -183,7 +183,7 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
 
   override protected def recursiveGen[A](deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] = List(
     "uncancelable" -> genUncancelable[A](deeper),
-    // "racePair" -> genRacePair[A](deeper),
+    "racePair" -> genRacePair[A](deeper),
     "start" -> genStart[A](deeper),
     "join" -> genJoin[A](deeper),
   ) ++ super.recursiveGen(deeper)(AA, AC)
