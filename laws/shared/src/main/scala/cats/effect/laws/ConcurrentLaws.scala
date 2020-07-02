@@ -25,13 +25,22 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: Concurrent[F, E]
 
-  def raceIsRacePairCancelIdentity[A, B](fa: F[A], fb: F[B]) = {
-    val identity = F.racePair(fa, fb) flatMap {
-      case Left((a, f)) => f.cancel.as(a.asLeft[B])
+  def raceIsRacePairCancelIdentityLeft[A](fa: F[A]) = {
+    val identity = F.racePair(fa, F.never[Unit]) flatMap {
+      case Left((a, f)) => f.cancel.as(a.asLeft[Unit])
       case Right((f, b)) => f.cancel.as(b.asRight[A])
     }
 
-    F.race(fa, fb) <-> identity
+    F.race(fa, F.never[Unit]) <-> identity
+  }
+
+  def raceIsRacePairCancelIdentityRight[A](fa: F[A]) = {
+    val identity = F.racePair(F.never[Unit], fa) flatMap {
+      case Left((a, f)) => f.cancel.as(a.asLeft[A])
+      case Right((f, b)) => f.cancel.as(b.asRight[Unit])
+    }
+
+    F.race(F.never[Unit], fa) <-> identity
   }
 
   def raceCanceledIdentityLeft[A](fa: F[A]) =
@@ -85,11 +94,15 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelablePollInverseNestIsUncancelable[A](fa: F[A]) =
     F.uncancelable(op => F.uncancelable(ip => op(ip(fa)))) <-> F.uncancelable(_ => fa)
 
+  // TODO PureConc *passes* this as-written... and shouldn't (never is masked, meaning cancelation needs to wait for it, meaning this *should* be <-> F.never)
+  /*def uncancelableDistributesOverRaceAttemptLeft[A](fa: F[A]) =
+    F.uncancelable(_ => F.race(fa.attempt, F.never[Unit])) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))*/
+
   def uncancelableDistributesOverRaceAttemptLeft[A](fa: F[A]) =
-    F.uncancelable(_ => F.race(fa.attempt, F.never[Unit])) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))
+    F.uncancelable(p => F.race(fa.attempt, p(F.never[Unit]))) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))
 
   def uncancelableDistributesOverRaceAttemptRight[A](fa: F[A]) =
-    F.uncancelable(_ => F.race(F.never[Unit], fa.attempt)) <-> F.uncancelable(_ => fa.attempt.map(_.asRight[Unit]))
+    F.uncancelable(p => F.race(p(F.never[Unit]), fa.attempt)) <-> F.uncancelable(_ => fa.attempt.map(_.asRight[Unit]))
 
   def uncancelableRaceDisplacesCanceled =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.canceled

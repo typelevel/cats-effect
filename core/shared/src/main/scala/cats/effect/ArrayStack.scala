@@ -16,10 +16,10 @@
 
 package cats.effect
 
-private[effect] final class ArrayStack[A <: AnyRef](initBound: Int) {
+private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Array[AnyRef], private[this] var index: Int) {
 
-  private[this] var buffer: Array[AnyRef] = new Array[AnyRef](initBound)
-  private[this] var index: Int = 0
+  def this(initBound: Int) =
+    this(new Array[AnyRef](initBound), 0)
 
   def push(a: A): Unit = {
     checkAndGrow()
@@ -42,6 +42,18 @@ private[effect] final class ArrayStack[A <: AnyRef](initBound: Int) {
   // to allow for external iteration
   def unsafeBuffer(): Array[A] = buffer.asInstanceOf[Array[A]]
   def unsafeIndex(): Int = index
+
+  def copy(): ArrayStack[A] = {
+    val buffer2 = if (index == 0) {
+      new Array[AnyRef](buffer.length)
+    } else {
+      val buffer2 = new Array[AnyRef](buffer.length)
+      System.arraycopy(buffer, 0, buffer2, 0, buffer.length)
+      buffer2
+    }
+
+    new ArrayStack[A](buffer2, index)
+  }
 
   private[this] def checkAndGrow(): Unit = {
     if (index >= buffer.length) {

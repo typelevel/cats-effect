@@ -115,6 +115,8 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
         case IO.Sleep(delay) => F.sleep(delay).asInstanceOf[F[A]]
 
         case IO.Cede => F.cede.asInstanceOf[F[A]]
+
+        case IO.Unmask(_, _) => sys.error("impossible")
       }
     // }
   }
@@ -287,4 +289,7 @@ object IO extends IOLowPriorityImplicits {
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit](14)
 
   private[effect] case object Cede extends IO[Unit](15)
+
+  // INTERNAL
+  private[effect] final case class Unmask[+A](ioa: IO[A], id: AnyRef) extends IO[A](16)
 }

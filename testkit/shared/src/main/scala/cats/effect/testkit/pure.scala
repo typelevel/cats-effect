@@ -357,7 +357,6 @@ object pure {
             cancelVar0 <- MVar.empty[PureConc[E, *], Unit]
             errorVar0 <- MVar.empty[PureConc[E, *], E]
 
-
             cancelVar = cancelVar0[PureConc[E, *]]
             errorVar = errorVar0[PureConc[E, *]]
 

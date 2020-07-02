@@ -377,6 +377,34 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
       ioa must completeAs(Outcome.Canceled())
     }
+
+    "return the left when racing against never" in {
+      IO.pure(42).racePair(IO.never: IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
+    }
+
+    "produce Canceled from start of canceled" in {
+      IO.canceled.start.flatMap(_.join) must completeAs(Outcome.Canceled())
+    }
+
+    "cancel an already canceled fiber" in {
+      val test = for {
+        f <- IO.canceled.start
+        _ <- IO(ctx.tick())
+        _ <- f.cancel
+      } yield ()
+
+      test must completeAs(())
+    }
+
+    "only unmask within current fiber" in {
+      var passed = false
+      val test = IO uncancelable { poll =>
+        IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true })).start.flatMap(_.join).void
+      }
+
+      test must completeAs(())
+      passed must beTrue
+    }
   }
 
   {
@@ -386,7 +414,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     checkAll(
       "IO",
-      EffectTests[IO].bracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("E_io0gq5LVd4Z_SwVLYxcuQ3MXdugm_juRiHFlLdIsL=").get)))*/
+      EffectTests[IO].concurrentBracket[Int, Int, Int])/*(Parameters(seed = Some(Seed.fromBase64("0JMdHY7eFQljZCMPo4FSrVgoMf28Eg3-I6fFbMNvyrE=").get)))*/
 
     checkAll(
       "IO[Int]",
@@ -463,7 +491,7 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
       val back = leftR eqv rightR
 
-      if (!back && IO.trace) {
+      if (!back) {
         println(s"$left != $right")
         println(s"$leftR != $rightR")
       }
@@ -508,9 +536,9 @@ class IOSpec extends Specification with Discipline with ScalaCheck { outer =>
 
     ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
 
-    // println("====================================")
-    // println(s"completed ioa with $results")
-    // println("====================================")
+    /*println("====================================")
+    println(s"completed ioa with $results")
+    println("====================================")*/
 
     results
   }
