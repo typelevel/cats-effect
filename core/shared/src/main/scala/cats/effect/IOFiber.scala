@@ -62,7 +62,34 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
   val cancel: IO[Unit] =
     IO { canceled = true } >>
       IO(suspended.compareAndSet(true, false)).ifM(
-        IO(runCancelation()),
+        IO {
+          // TODO ensure each finalizer runs on the appropriate context
+          // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+
+          val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
+          if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
+            if (finalizers.isEmpty()) {
+              done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+            } else {
+              masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
+
+              val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+
+              def loop(b: Boolean, ar: Any): Unit = {
+                if (!finalizers.isEmpty()) {
+                  conts.push(loop)
+                  runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
+                } else {
+                  done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+                }
+              }
+
+              conts.push(loop)
+
+              runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
+            }
+          }
+        },
         join.void)    // someone else is in charge of the runloop; wait for them to cancel
 
   val join: IO[Outcome[IO, Throwable, A]] =
@@ -164,7 +191,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
       // TODO make sure everything is run in its own context
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-      // this code is all redundant with runCancelation for purposes of TCO
+      // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
       val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
       if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
         heapCur = null
@@ -592,37 +619,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             runLoop(cur.ioa, conts)
         }
-      }
-    }
-  }
-
-  // TODO ensure each finalizer runs on the appropriate context
-  private[this] def runCancelation(): Unit = {
-    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
-
-    val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
-    if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
-      heapCur = null
-
-      if (finalizers.isEmpty()) {
-        done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-      } else {
-        masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
-
-        val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
-
-        def loop(b: Boolean, ar: Any): Unit = {
-          if (!finalizers.isEmpty()) {
-            conts.push(loop)
-            runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
-          } else {
-            done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-          }
-        }
-
-        conts.push(loop)
-
-        runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
       }
     }
   }
