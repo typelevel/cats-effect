@@ -27,7 +27,6 @@ import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
-import org.specs2.mutable.Specification
 import org.specs2.matcher.Matcher
 
 import org.typelevel.discipline.specs2.mutable.Discipline

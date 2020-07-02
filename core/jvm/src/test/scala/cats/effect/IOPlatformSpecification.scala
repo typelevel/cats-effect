@@ -22,7 +22,7 @@ import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext
 
-import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.{CountDownLatch, Executors}
 
 abstract class IOPlatformSpecification extends Specification {
 
