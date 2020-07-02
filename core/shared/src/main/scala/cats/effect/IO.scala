@@ -55,9 +55,10 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
     IO.RacePair(this, that)
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
-    /*if (F eq IO.effectForIO) {
+    // re-comment this fast-path to test the implementation with IO itself
+    if (F eq IO.effectForIO) {
       asInstanceOf[F[A]]
-    } else {*/
+    } else {
       def fiberFrom[B](f: Fiber[F, Throwable, B]): Fiber[IO, Throwable, B] =
         new Fiber[IO, Throwable, B] {
           val cancel = F.to[IO](f.cancel)
@@ -117,7 +118,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
         case IO.Unmask(ioa, _) => ioa.to[F]   // polling should be handled by F
       }
-    // }
+    }
   }
 
   def unsafeRunAsync(
