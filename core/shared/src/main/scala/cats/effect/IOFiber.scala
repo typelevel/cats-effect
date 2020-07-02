@@ -67,9 +67,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
           val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
           if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
-            if (finalizers.isEmpty()) {
-              done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-            } else {
+            done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+
+            if (!finalizers.isEmpty()) {
               masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
 
               val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
@@ -91,11 +91,10 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
         },
         join.void)    // someone else is in charge of the runloop; wait for them to cancel
 
-  val join: IO[Outcome[IO, Throwable, A]] =
+  // this is swapped for an IO.pure(outcome.get()) when we complete
+  var join: IO[Outcome[IO, Throwable, A]] =
     IO async { cb =>
       IO {
-        // println(s"joining on $name")
-
         registerListener(oc => cb(Right(oc)))
         None    // TODO maybe we can unregister the listener? (if we don't, it's probably a memory leak via the enclosing async)
       }
@@ -163,7 +162,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
   }
 
   private[this] def done(oc: Outcome[IO, Throwable, A]): Unit = {
-    // println(s"invoking done($oc); callback = ${callback.get()}")
+    // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    join = IO.pure(oc)
 
     val cb0 = callback.get()
     if (cb0.isInstanceOf[Function1[_, _]]) {
@@ -190,13 +190,12 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
-      if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
+      val oc: Outcome[IO, Throwable, A] = Outcome.Canceled()
+      if (outcome.compareAndSet(null, oc)) {
+        done(oc)
         heapCur = null
 
-        if (finalizers.isEmpty()) {
-          done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-        } else {
+        if (!finalizers.isEmpty()) {
           masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
 
           val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
@@ -205,8 +204,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             if (!finalizers.isEmpty()) {
               conts.push(loop)
               runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
-            } else {
-              done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
             }
           }
 
