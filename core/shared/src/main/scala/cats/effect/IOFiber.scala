@@ -161,8 +161,35 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
   private[this] def runLoop(cur00: IO[Any], conts: ArrayStack[(Boolean, Any) => Unit]): Unit = {
     if (canceled && masks.isEmpty()) {
-      // TODO because this is not TCO'd, we don't release conts (or cur00) until after the finalizers have run
-      runCancelation()
+      // TODO make sure everything is run in its own context
+      // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+
+      // this code is all redundant with runCancelation for purposes of TCO
+      val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
+      if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
+        heapCur = null
+
+        if (finalizers.isEmpty()) {
+          done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+        } else {
+          masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
+
+          val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+
+          def loop(b: Boolean, ar: Any): Unit = {
+            if (!finalizers.isEmpty()) {
+              conts.push(loop)
+              runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
+            } else {
+              done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+            }
+          }
+
+          conts.push(loop)
+
+          runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
+        }
+      }
     } else {
       val cur0 = if (cur00 == null) {
         val back = heapCur
@@ -230,13 +257,15 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               val cb = conts.pop()
               val ec = ctxs.peek()
 
-              ec execute { () =>
-                e match {
-                  case Left(t) => cb(false, t)
-                  case Right(a) => cb(true, a)
-                }
+              if (!canceled || !masks.isEmpty()) {
+                ec execute { () =>
+                  e match {
+                    case Left(t) => cb(false, t)
+                    case Right(a) => cb(true, a)
+                  }
 
-                runLoop(null, conts)
+                  runLoop(null, conts)
+                }
               }
             }
 
@@ -319,9 +348,13 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             conts push { (b, ar) =>
               ctxs.pop()
-              ctxs.peek() execute { () =>
-                conts.pop()(b, ar)
-                runLoop(null, conts)
+
+              // special cancelation check to ensure we don't accidentally fork the runloop here
+              if (!canceled || !masks.isEmpty()) {
+                ctxs.peek() execute { () =>
+                  conts.pop()(b, ar)
+                  runLoop(null, conts)
+                }
               }
             }
 
@@ -385,6 +418,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             // TODO probably wrap this in try/catch
             finalizers.push(cur.f)
+            // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
             conts push { (b, ar) =>
               val oc: Outcome[IO, Throwable, Any] = if (b)
@@ -392,6 +426,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               else
                 Outcome.Errored(ar.asInstanceOf[Throwable])
 
+              // println(s"popping from finalizers: length = ${finalizers.unsafeIndex()}")
               val f = finalizers.pop()
               // println(s"continuing onCase with $ar ==> ${f(oc)}")
 
@@ -426,8 +461,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           // Canceled
           case 11 =>
             canceled = true
-            val k = conts.pop()
-            k(true, ())
+            if (!masks.isEmpty()) {
+              conts.pop()(true, ())
+            }
             runLoop(null, conts)
 
           case 12 =>
@@ -584,7 +620,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
           } else {
             done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-            masks.pop()
           }
         }
 

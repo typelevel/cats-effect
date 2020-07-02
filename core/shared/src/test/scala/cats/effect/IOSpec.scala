@@ -23,10 +23,10 @@ import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGen
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-import org.scalacheck.rng.Seed
+// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
+// import org.specs2.scalacheck.Parameters
 import org.specs2.matcher.Matcher
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -360,11 +360,11 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
   {
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))(Parameters(seed = Some(Seed.fromBase64("ruT4-iapzrTOZCQlbccRRKVkjJmaPNlEOVVKmm50zVJ=").get)))
+      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("OkAM86PPpgw3EooEAHsqnXhrqzQNmPltVf3Wf2xqJfK=").get)))*/
 
     checkAll(
       "IO[Int]",
-      MonoidTests[IO[Int]].monoid)
+      MonoidTests[IO[Int]].monoid)/*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
   }
 
   // TODO organize the below somewhat better
@@ -483,19 +483,25 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       def monotonicNanos() = ctx.now().toNanos
     }
 
-    var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
-    ioa.unsafeRunAsync(ctx, timer) {
-      case Left(t) => results = Outcome.Errored(t)
-      case Right(a) => results = Outcome.Completed(Some(a))
+    try {
+      var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
+      ioa.unsafeRunAsync(ctx, timer) {
+        case Left(t) => results = Outcome.Errored(t)
+        case Right(a) => results = Outcome.Completed(Some(a))
+      }
+
+      ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
+
+      /*println("====================================")
+      println(s"completed ioa with $results")
+      println("====================================")*/
+
+      results
+    } catch {
+      case t: Throwable =>
+        t.printStackTrace()
+        throw t
     }
-
-    ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
-
-    /*println("====================================")
-    println(s"completed ioa with $results")
-    println("====================================")*/
-
-    results
   }
 }
 
