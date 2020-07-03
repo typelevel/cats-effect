@@ -59,37 +59,44 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     heapCur = heapCur0
   }
 
-  val cancel: IO[Unit] =
-    IO { canceled = true } >>
-      IO(suspended.compareAndSet(true, false)).ifM(
-        IO {
-          // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+  var cancel: IO[Unit] = {
+    val prelude = IO {
+      canceled = true
+      cancel = IO.unit
+    }
 
-          val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
-          if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
-            done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+    val completion = IO(suspended.compareAndSet(true, false)).ifM(
+      IO {
+        // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-            if (!finalizers.isEmpty()) {
-              masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
+        val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
+        if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
+          done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
 
-              val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+          if (!finalizers.isEmpty()) {
+            masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
 
-              def loop(b: Boolean, ar: Any): Unit = {
-                if (!finalizers.isEmpty()) {
-                  conts.push(loop)
-                  runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
-                } else {
-                  done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-                }
+            val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
+
+            def loop(b: Boolean, ar: Any): Unit = {
+              if (!finalizers.isEmpty()) {
+                conts.push(loop)
+                runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
+              } else {
+                done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
               }
-
-              conts.push(loop)
-
-              runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
             }
+
+            conts.push(loop)
+
+            runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
           }
-        },
-        join.void)    // someone else is in charge of the runloop; wait for them to cancel
+        }
+      },
+      join.void)    // someone else is in charge of the runloop; wait for them to cancel
+
+    prelude *> completion
+  }
 
   // this is swapped for an IO.pure(outcome.get()) when we complete
   var join: IO[Outcome[IO, Throwable, A]] =
