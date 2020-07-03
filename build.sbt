@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import java.io.File
+
 ThisBuild / baseVersion := "3.0"
 
 ThisBuild / organization := "org.typelevel"
@@ -136,5 +138,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.specs2"    %%% "specs2-scalacheck" % Specs2Version     % Test,
       "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))
+  .jvmSettings(
+    Test / fork := true,
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
