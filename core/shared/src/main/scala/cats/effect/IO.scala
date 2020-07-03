@@ -54,6 +54,18 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
           (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
 
+  def bracketCase[B](use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+    IO uncancelable { poll =>
+      flatMap { a =>
+        val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
+        val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
+        handled.flatMap(b => release(a, Outcome.Completed(IO.pure(b))).attempt.as(b))
+      }
+    }
+
+  def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
+    bracketCase(use)((a, _) => release(a))
+
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
     // re-comment this fast-path to test the implementation with IO itself
     if (F eq IO.effectForIO) {
@@ -227,13 +239,7 @@ object IO extends IOLowPriorityImplicits {
       ioa.onCase(pf)
 
     def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
-      uncancelable { poll =>
-        acquire flatMap { a =>
-          val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-          val handled = finalized onError { case e => release(a, Outcome.Errored(e)).attempt.void }
-          handled.flatMap(b => release(a, Outcome.Completed(pure(b))).attempt.as(b))
-        }
-      }
+      acquire.bracketCase(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic
 

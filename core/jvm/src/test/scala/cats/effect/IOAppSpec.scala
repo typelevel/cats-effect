@@ -22,6 +22,7 @@ import org.specs2.mutable.Specification
 
 import scala.sys.process.{BasicIO, Process}
 
+import java.io.File
 import java.nio.file.Path
 
 class IOAppSpec extends Specification {
@@ -29,13 +30,52 @@ class IOAppSpec extends Specification {
   val JavaHome = System.getProperty("java.home")
   val ClassPath = System.getProperty("sbt.classpath")
 
-  "IOApp" should {
+  "IOApp (jvm)" should {
     import examples._
 
     "evaluate and print hello world" in {
       val h = java(HelloWorld, Nil)
       h.awaitStatus() mustEqual 0
       h.stdout() mustEqual "Hello, World!\n"
+    }
+
+    "pass all arguments to child" in {
+      val expected = List("the", "quick", "brown", "fox jumped", "over")
+      val h = java(Arguments, expected)
+      h.awaitStatus() mustEqual 0
+      h.stdout() mustEqual expected.mkString("", "\n", "\n")
+    }
+
+    "run finalizers on TERM" in {
+      import _root_.java.io.{BufferedReader, FileReader}
+
+      // we have to resort to this convoluted approach because Process#destroy kills listeners before killing the process
+      val test = File.createTempFile("cats-effect", "finalizer-test")
+      def readTest(): String = {
+        val reader = new BufferedReader(new FileReader(test))
+        try {
+          reader.readLine()
+        } finally {
+          reader.close()
+        }
+      }
+
+      val h = java(Finalizers, test.getAbsolutePath() :: Nil)
+
+      var i = 0
+      while (!h.stdout().contains("Started") && i < 100) {
+        Thread.sleep(100)
+        i += 1
+      }
+
+      h.term()
+      h.awaitStatus() mustEqual 143
+
+      i = 0
+      while (readTest() == null && i < 100) {
+        i += 1
+      }
+      readTest() must contain("Canceled")
     }
   }
 
@@ -61,8 +101,26 @@ class IOAppSpec extends Specification {
 }
 
 package examples {
+
   object HelloWorld extends IOApp {
     def run(args: List[String]): IO[Int] =
       IO(println("Hello, World!")).as(0)
+  }
+
+  object Arguments extends IOApp {
+    def run(args: List[String]): IO[Int] =
+      args.traverse(s => IO(println(s))).as(0)
+  }
+
+  object Finalizers extends IOApp {
+    import java.io.FileWriter
+
+    def writeToFile(string: String, file: File): IO[Unit] =
+      IO(new FileWriter(file)).bracket({ writer =>
+        IO(writer.write("Canceled"))
+      })(writer => IO(writer.close()))
+
+    def run(args: List[String]): IO[Int] =
+      (IO(println("Started")) >> IO.never).onCancel(writeToFile("canceled", new File(args.head))).as(0)
   }
 }
