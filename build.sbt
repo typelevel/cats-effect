@@ -70,11 +70,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, example.js)
   .settings(noPublishSettings)
 
 /**
@@ -143,3 +143,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+
+/**
+ * A trivial pair of trivial example apps primarily used to show that IOApp
+ * works as a practical runtime on both target platforms.
+ */
+lazy val example = crossProject(JSPlatform, JVMPlatform).in(file("example"))
+  .dependsOn(core)
+  .settings(name := "cats-effect-example")
+  .jsSettings(scalaJSUseMainModuleInitializer := true)
+  .settings(noPublishSettings)

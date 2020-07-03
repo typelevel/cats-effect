@@ -178,7 +178,7 @@ object IO extends IOLowPriorityImplicits {
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
-  def raiseError(t: Throwable): IO[Nothing] = Error(t)
+  def raiseError[A](t: Throwable): IO[A] = Error(t)
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
@@ -194,7 +194,8 @@ object IO extends IOLowPriorityImplicits {
 
   val executionContext: IO[ExecutionContext] = ReadEC
 
-  val never: IO[Nothing] = async(_ => pure(None))
+  private[this] val _never: IO[Nothing] = async(_ => pure(None))
+  def never[A]: IO[A] = _never
 
   val monotonic: IO[FiniteDuration] = Monotonic
 

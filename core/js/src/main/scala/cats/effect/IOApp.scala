@@ -22,7 +22,7 @@ import scala.scalajs.js.timers
 
 trait IOApp {
 
-  def run(args: List[String]): IO[Int]
+  val run: IO[Unit]
 
   final def main(args: Array[String]): Unit = {
     val context = JSExecutionContext.queue
@@ -37,9 +37,9 @@ trait IOApp {
       def monotonicNanos() = System.nanoTime()
     }
 
-    run(args.toList).unsafeRunAsync(context, timer) {
+    run.unsafeRunAsync(context, timer) {
       case Left(t) => throw t
-      case Right(code) => System.exit(code)
+      case Right(_) => ()
     }
   }
 }
