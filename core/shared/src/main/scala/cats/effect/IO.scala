@@ -128,7 +128,7 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
       : Unit =
     unsafeRunFiber(ec, timer)(cb)
 
-  private def unsafeRunFiber(
+  private[effect] def unsafeRunFiber(
       ec: ExecutionContext,
       timer: UnsafeTimer)(
       cb: Either[Throwable, A] => Unit)
