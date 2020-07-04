@@ -152,9 +152,10 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
       (oc: Outcome[IO, Throwable, A]) => oc.fold(
         (),
         e => cb(Left(e)),
-        ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))))
+        ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
+      0)
 
-    ec.execute(() => fiber.run(ec))
+    ec.execute(() => fiber.run(ec, 0))
     fiber
   }
 }
@@ -302,5 +303,5 @@ object IO extends IOLowPriorityImplicits {
   private[effect] case object Cede extends IO[Unit](17)
 
   // INTERNAL
-  private[effect] final case class Unmask[+A](ioa: IO[A], id: AnyRef) extends IO[A](18)
+  private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A](18)
 }

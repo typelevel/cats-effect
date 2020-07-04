@@ -26,7 +26,7 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
-private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends Fiber[IO, Throwable, A] {
+private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMask: Int) extends Fiber[IO, Throwable, A] {
   import IO._
 
   // I would rather have this on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -35,8 +35,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
   private[this] var heapCur: IO[Any] = _
   private[this] var canceled: Boolean = false
 
-  // TODO optimize to int or something
-  private var masks = new ArrayStack[AnyRef](2)
+  private[this] var masks: Int = _
   private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
   // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
@@ -48,14 +47,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
 
-  def this(heapCur0: IO[A], timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit) = {
-    this("main", timer)
+  def this(heapCur0: IO[A], timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
+    this("main", timer, initMask)
     heapCur = heapCur0
     callback.set(cb)
   }
 
-  def this(heapCur0: IO[A], name: String, timer: UnsafeTimer) = {
-    this(name, timer)
+  def this(heapCur0: IO[A], name: String, timer: UnsafeTimer, initMask: Int) = {
+    this(name, timer, initMask)
     heapCur = heapCur0
   }
 
@@ -74,8 +73,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
 
           if (!finalizers.isEmpty()) {
-            masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
-
             val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
 
             def loop(b: Boolean, ar: Any): Unit = {
@@ -89,6 +86,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             conts.push(loop)
 
+            masks += 1
             runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
           }
         }
@@ -145,7 +143,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     }
   }
 
-  private[effect] def run(ec: ExecutionContext): Unit = {
+  private[effect] def run(ec: ExecutionContext, masks: Int): Unit = {
     val cur = heapCur
     heapCur = null
 
@@ -165,6 +163,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
       done(outcome.get())
     }
 
+    this.masks = masks
     runLoop(cur, conts)
   }
 
@@ -192,8 +191,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
     }
   }
 
+  // masks encoding: initMask => no masks, ++ => push, -- => pop
   private[this] def runLoop(cur00: IO[Any], conts: ArrayStack[(Boolean, Any) => Unit]): Unit = {
-    if (canceled && masks.isEmpty()) {
+    if (canceled && masks == initMask) {
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
@@ -203,8 +203,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
         heapCur = null
 
         if (!finalizers.isEmpty()) {
-          masks.push(new AnyRef)    // suppress all subsequent cancelation on this fiber
-
           val conts = new ArrayStack[(Boolean, Any) => Unit](16)    // TODO tune!
 
           def loop(b: Boolean, ar: Any): Unit = {
@@ -216,6 +214,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
           conts.push(loop)
 
+          // suppress all subsequent cancelation on this fiber
+          masks += 1
           runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), conts)
         }
       }
@@ -286,7 +286,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               val cb = conts.pop()
               val ec = ctxs.peek()
 
-              if (!canceled || !masks.isEmpty()) {
+              if (!canceled || masks != initMask) {
                 ec execute { () =>
                   e match {
                     case Left(t) => cb(false, t)
@@ -301,7 +301,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             val next = cur.k { e =>
               // println(s"<$name> callback run with $e")
               // do an extra cancel check here just to preemptively avoid timer load
-              if (!done.getAndSet(true) && !(canceled && masks.isEmpty())) {
+              if (!done.getAndSet(true) && !(canceled && masks == initMask)) {
                 val s = state.getAndSet(e)
                 if (s != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
                   if (s.isRight) {
@@ -329,7 +329,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
                   continue(Left(ar.asInstanceOf[Throwable]))
                 }
               } else {
-                if (masks.isEmpty()) {
+                if (masks == initMask) {
                   ar.asInstanceOf[Option[IO[Unit]]] match {
                     case Some(cancelToken) =>
                       finalizers.push(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
@@ -379,7 +379,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
               ctxs.pop()
 
               // special cancelation check to ensure we don't accidentally fork the runloop here
-              if (!canceled || !masks.isEmpty()) {
+              if (!canceled || masks != initMask) {
                 ctxs.peek() execute { () =>
                   conts.pop()(b, ar)
                   runLoop(null, conts)
@@ -482,14 +482,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           case 10 =>
             val cur = cur0.asInstanceOf[Uncancelable[Any]]
 
-            val id = new AnyRef
+            masks += 1
+            val id = masks
             val poll = new (IO ~> IO) {
               def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
             }
 
-            masks.push(id)
             conts push { (b, ar) =>
-              masks.pop()
+              masks -= 1
               conts.pop()(b, ar)
             }
 
@@ -498,7 +498,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           // Canceled
           case 11 =>
             canceled = true
-            if (!masks.isEmpty()) {
+            if (masks != initMask) {
               conts.pop()(true, ())
             }
             runLoop(null, conts)
@@ -507,15 +507,23 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
             val cur = cur0.asInstanceOf[Start[Any]]
 
             val childName = s"start-${IOFiber.childCount.getAndIncrement()}"
+
+            // flip masking to negative and push it forward one tick to avoid potential conflicts with current fiber construction
+            val initMask2 = if (masks != Int.MaxValue)
+              -(masks + 1)
+            else
+              masks + 1   // will overflow
+
             val fiber = new IOFiber(
               cur.ioa,
               childName,
-              timer)
+              timer,
+              initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
             val ec = ctxs.peek()
-            ec.execute(() => fiber.run(ec))
+            ec.execute(() => fiber.run(ec, initMask2))
 
             conts.pop()(true, fiber)
             runLoop(null, conts)
@@ -525,11 +533,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
             val next = IO.async[Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] { cb =>
               IO {
-                val fiberA = new IOFiber(cur.ioa, s"racePair-left-${IOFiber.childCount.getAndIncrement()}", timer)
-                val fiberB = new IOFiber(cur.iob, s"racePair-right-${IOFiber.childCount.getAndIncrement()}", timer)
-
-                fiberA.masks = masks.copy()
-                fiberB.masks = masks.copy()
+                val fiberA = new IOFiber(cur.ioa, s"racePair-left-${IOFiber.childCount.getAndIncrement()}", timer, initMask)
+                val fiberB = new IOFiber(cur.iob, s"racePair-right-${IOFiber.childCount.getAndIncrement()}", timer, initMask)
 
                 val firstError = new AtomicReference[Throwable](null)
                 val firstCanceled = new AtomicBoolean(false)
@@ -580,8 +585,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
 
                 val ec = ctxs.peek()
 
-                ec.execute(() => fiberA.run(ec))
-                ec.execute(() => fiberB.run(ec))
+                ec.execute(() => fiberA.run(ec, masks))
+                ec.execute(() => fiberB.run(ec, masks))
 
                 Some(fiberA.cancel *> fiberB.cancel)
               }
@@ -621,12 +626,12 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer) extends
           case 18 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
 
-            if (masks.peek() eq cur.id) {
-              masks.pop()
+            if (masks == cur.id) {
+              masks -= 1
             }
 
             conts push { (b, ar) =>
-              masks.push(cur.id)
+              masks += 1
               conts.pop()(b, ar)
             }
 
