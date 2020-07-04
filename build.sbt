@@ -40,7 +40,18 @@ val GraalVM8 = "graalvm8@20.1.0"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
-ThisBuild / githubWorkflowBuild := Seq(WorkflowStep.Sbt(List("${{ matrix.ci }}")))
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(List("${{ matrix.ci }}")),
+
+  WorkflowStep.Run(
+    List("example/test-jvm.sh ${{ matrix.scala }}"),
+    name = Some("Test Example JVM App Within Sbt"),
+    cond = Some("matrix.ci == 'ciJVM'")),
+
+  WorkflowStep.Run(
+    List("example/test-js.sh ${{ matrix.scala }}"),
+    name = Some("Test Example JavaScript App Using Node"),
+    cond = Some("matrix.ci == 'ciJS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM")
 

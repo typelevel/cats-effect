@@ -26,11 +26,11 @@ await-output() {
 
 cd $(dirname $0)/..
 
-sbt 'show scalaVersion'   # force launcher fetching
+sbt ++$1 'show scalaVersion'   # force launcher fetching
 launcher=~/.sbt/launchers/$(cat project/build.properties | sed s/sbt.version=//)/sbt-launch.jar
 
 echo -e "\e[32mRunning sbt...\e[0m"
-java -jar $launcher exampleJVM/run &> >(tee $output) &
+java -jar $launcher ++$1 exampleJVM/run &> >(tee $output) &
 
 await-output started
 echo -e "\e[32mKilling sbt\e[0m"

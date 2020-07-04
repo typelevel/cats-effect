@@ -7,7 +7,7 @@ IFS=$'\n\t'        # http://redsymbol.net/articles/unofficial-bash-strict-mode/
 
 cd $(dirname $0)/..
 
-sbt exampleJS/compile
+sbt ++$1 exampleJS/compile
 
 output=$(mktemp)
 expected=$(mktemp)
