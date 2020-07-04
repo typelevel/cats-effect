@@ -26,7 +26,6 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 
 val PrimaryOS = "ubuntu-latest"
 
-val ScalaJSScalas = Seq("2.12.11", "2.13.2")
 val ScalaJSJava = "adopt@1.8"
 
 ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", "2.13.2")
