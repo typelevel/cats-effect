@@ -23,7 +23,6 @@ import org.specs2.mutable.Specification
 import scala.sys.process.{BasicIO, Process}
 
 import java.io.File
-import java.nio.file.Path
 
 class IOAppSpec extends Specification {
 

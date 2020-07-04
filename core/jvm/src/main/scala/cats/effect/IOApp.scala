@@ -19,7 +19,7 @@ package cats.effect
 import scala.concurrent.ExecutionContext
 
 import java.util.concurrent.{CountDownLatch, Executors}
-import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.AtomicInteger
 
 trait IOApp {
 
@@ -67,7 +67,7 @@ trait IOApp {
       executor.shutdown()
     }
 
-    val hook = new Thread(handleShutdown _)
+    val hook = new Thread(() => handleShutdown())
     hook.setName("io-cancel-hook")
 
     runtime.addShutdownHook(hook)
