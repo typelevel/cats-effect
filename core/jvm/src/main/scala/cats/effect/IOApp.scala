@@ -28,38 +28,6 @@ trait IOApp {
   final def main(args: Array[String]): Unit = {
     val runtime = Runtime.getRuntime()
 
-    // detect unforked sbt
-    if (Thread.currentThread().getName().startsWith("run-main")) {
-      try {
-        // the security manager will be sbt.TrapExit; use its classloader to jailbreak out and find sbt.EvaluateTask
-        val klass = System.getSecurityManager().getClass().getClassLoader().loadClass("sbt.EvaluateTask$")
-
-        val EvaluateTask = klass.getDeclaredField("MODULE$").get(null).asInstanceOf[{ val currentlyRunningEngine: AtomicReference[AnyRef] }]
-        val currentEngine = EvaluateTask.currentlyRunningEngine
-
-        val outer = Thread.currentThread()
-
-        val monitor = new Thread({ () =>
-          var continue = true
-          while (continue)  {
-            if (currentEngine.get() == null) {
-              continue = false
-              outer.interrupt()
-            }
-            Thread.sleep(100)
-          }
-        })
-
-        monitor.setName("ioapp-sbt-unforked-interrupt-monitor")
-        monitor.setPriority(Thread.MIN_PRIORITY)
-        monitor.setDaemon(true)
-
-        monitor.start()
-      } catch {
-        case _: Throwable => ()   // literally swallow anything that moves... (it probably means our detection failed, or sbt changed its internals)
-      }
-    }
-
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newFixedThreadPool(runtime.availableProcessors(), { (r: Runnable) =>
       val t = new Thread(r)
