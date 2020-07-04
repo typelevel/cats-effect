@@ -67,6 +67,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
   private[this] final val UncancelableK = IOFiber.UncancelableK
   private[this] final val UnmaskK = IOFiber.UnmaskK
 
+  // similar prefetch for Outcome
+  private[this] final val OutcomeCanceled = IOFiber.OutcomeCanceled
+  private[this] final val OutcomeErrored = IOFiber.OutcomeErrored
+  private[this] final val OutcomeCompleted = IOFiber.OutcomeCompleted
+
   def this(heapCur0: IO[A], timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
     this("main", timer, initMask)
     heapCur = heapCur0
@@ -88,7 +93,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
       IO {
         // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-        val oc: Outcome[IO, Throwable, Nothing] = Outcome.Canceled()
+        val oc = OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, Nothing]]
         if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
           done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
 
@@ -215,7 +220,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      val oc: Outcome[IO, Throwable, A] = Outcome.Canceled()
+      val oc = OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]]
       if (outcome.compareAndSet(null, oc)) {
         done(oc)
         heapCur = null
@@ -535,6 +540,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 private object IOFiber {
   private val childCount = new AtomicInteger(0)
 
+  // prefetch
+  private final val OutcomeCanceled = Outcome.Canceled()
+  private final val OutcomeErrored = Outcome.Errored
+  private final val OutcomeCompleted = Outcome.Completed
+
   ////////////////////////////////////////////////
   // preallocation of all necessary continuations
   ////////////////////////////////////////////////
@@ -567,14 +577,14 @@ private object IOFiber {
 
   private object RunTerminusK extends IOCont {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
-      import self._
+      import self.{canceled, done, outcome}
 
       if (canceled)   // this can happen if we don't check the canceled flag before completion
-        outcome.compareAndSet(null, Outcome.Canceled())
+        outcome.compareAndSet(null, OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]])
       else if (success)
-        outcome.compareAndSet(null, Outcome.Completed(IO.pure(result.asInstanceOf[A])))
+        outcome.compareAndSet(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
       else
-        outcome.compareAndSet(null, Outcome.Errored(result.asInstanceOf[Throwable]))
+        outcome.compareAndSet(null, OutcomeErrored(result.asInstanceOf[Throwable]))
 
       done(outcome.get())
     }
@@ -710,9 +720,9 @@ private object IOFiber {
       import self._
 
       val oc: Outcome[IO, Throwable, Any] = if (success)
-        Outcome.Completed(IO.pure(result))
+        OutcomeCompleted(IO.pure(result))
       else
-        Outcome.Errored(result.asInstanceOf[Throwable])
+        OutcomeErrored(result.asInstanceOf[Throwable])
 
       // println(s"popping from finalizers: length = ${finalizers.unsafeIndex()}")
       val f = finalizers.pop()
