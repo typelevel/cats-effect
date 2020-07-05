@@ -31,6 +31,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
   private var conts: ArrayStack[IOCont] = _
+
+  // fast-path to head
+  private var currentCtx: ExecutionContext = _
   private var ctxs: ArrayStack[ExecutionContext] = _
 
   private var canceled: Boolean = false
@@ -156,6 +159,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
     conts.push(RunTerminusK)
 
     ctxs = new ArrayStack[ExecutionContext](2)
+    currentCtx = ec
     ctxs.push(ec)
 
     this.masks = masks
@@ -190,7 +194,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
     state.lazySet(null)   // avoid leaks
 
     val cb = conts.pop()
-    val ec = ctxs.peek()
+    val ec = currentCtx
 
     if (!canceled || masks != initMask) {
       ec execute { () =>
@@ -298,7 +302,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
           // ReadEC
           case 4 =>
-            runLoop(conts.pop()(this, true, ctxs.peek()))
+            runLoop(conts.pop()(this, true, currentCtx))
 
           case 5 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
@@ -337,7 +341,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
           case 9 =>
             val cur = cur0.asInstanceOf[OnCase[Any]]
 
-            val ec = ctxs.peek()
+            val ec = currentCtx
             finalizers push { oc =>
               val iou = try {
                 cur.f(oc)
@@ -345,7 +349,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
                 case NonFatal(e) => IO.unit
               }
 
-              if (ec eq ctxs.peek())
+              if (ec eq currentCtx)
                 iou
               else
                 EvalOn(iou, ec)
@@ -395,7 +399,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
             // println(s"<$name> spawning <$childName>")
 
-            val ec = ctxs.peek()
+            val ec = currentCtx
             ec.execute(() => fiber.run(cur.ioa, ec, initMask2))
 
             runLoop(conts.pop()(this, true, fiber))
@@ -455,7 +459,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
                 fiberA.registerListener(listener(true))
                 fiberB.registerListener(listener(false))
 
-                val ec = ctxs.peek()
+                val ec = currentCtx
 
                 ec.execute(() => fiberA.run(cur.ioa, ec, masks))
                 ec.execute(() => fiberB.run(cur.iob, ec, masks))
@@ -486,7 +490,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
           // Cede
           case 17 =>
-            ctxs.peek() execute { () =>
+            currentCtx execute { () =>
               // println("continuing from cede ")
 
               runLoop(conts.pop()(this, true, ()))
@@ -630,10 +634,11 @@ private object IOFiber {
       import self._
 
       ctxs.pop()
+      currentCtx = ctxs.peek()
 
       // special cancelation check to ensure we don't accidentally fork the runloop here
       if (!canceled || masks != initMask) {
-        ctxs.peek() execute { () =>
+        currentCtx execute { () =>
           runLoop(conts.pop()(self, success, result))
         }
       }
