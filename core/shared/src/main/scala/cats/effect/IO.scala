@@ -166,7 +166,6 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPl
       : IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber(
-      this,
       timer,
       (oc: Outcome[IO, Throwable, A]) => oc.fold(
         (),
@@ -175,9 +174,9 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPl
       0)
 
     if (shift)
-      ec.execute(() => fiber.run(ec, 0))
+      ec.execute(() => fiber.run(this, ec, 0))
     else
-      fiber.run(ec, 0)
+      fiber.run(this, ec, 0)
 
     fiber
   }

@@ -33,7 +33,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
   private var conts: ArrayStack[IOCont] = _
   private var ctxs: ArrayStack[ExecutionContext] = _
 
-  private var heapCur: IO[Any] = _
   private var canceled: Boolean = false
 
   private var masks: Int = _
@@ -72,15 +71,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
   private[this] final val OutcomeErrored = IOFiber.OutcomeErrored
   private[this] final val OutcomeCompleted = IOFiber.OutcomeCompleted
 
-  def this(heapCur0: IO[A], timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
+  def this(timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
     this("main", timer, initMask)
-    heapCur = heapCur0
     callback.set(cb)
-  }
-
-  def this(heapCur0: IO[A], name: String, timer: UnsafeTimer, initMask: Int) = {
-    this(name, timer, initMask)
-    heapCur = heapCur0
   }
 
   var cancel: IO[Unit] = {
@@ -158,10 +151,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
     }
   }
 
-  private[effect] def run(ec: ExecutionContext, masks: Int): Unit = {
-    val cur = heapCur
-    heapCur = null
-
+  private[effect] def run(cur: IO[Any], ec: ExecutionContext, masks: Int): Unit = {
     conts = new ArrayStack[IOCont](16)    // TODO tune!
     conts.push(RunTerminusK)
 
@@ -204,18 +194,18 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
     if (!canceled || masks != initMask) {
       ec execute { () =>
-        e match {
+        val next = e match {
           case Left(t) => cb(this, false, t)
           case Right(a) => cb(this, true, a)
         }
 
-          runLoop(null)
+          runLoop(next)
         }
       }
     }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
-  private def runLoop(cur00: IO[Any]): Unit = {
+  private def runLoop(cur0: IO[Any]): Unit = {
     if (canceled && masks == initMask) {
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
@@ -223,7 +213,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
       val oc = OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]]
       if (outcome.compareAndSet(null, oc)) {
         done(oc)
-        heapCur = null
 
         if (!finalizers.isEmpty()) {
           conts = new ArrayStack[IOCont](16)    // TODO tune!
@@ -235,14 +224,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
         }
       }
     } else {
-      val cur0 = if (cur00 == null) {
-        val back = heapCur
-        heapCur = null
-        back
-      } else {
-        cur00
-      }
-
       // println(s"<$name> looping on $cur0")
 
       // cur0 will be null when we're semantically blocked
@@ -250,28 +231,24 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
         (cur0.tag: @switch) match {
           case 0 =>
             val cur = cur0.asInstanceOf[Pure[Any]]
-
-            conts.pop()(this, true, cur.value)
-            runLoop(null)
+            runLoop(conts.pop()(this, true, cur.value))
 
           case 1 =>
             val cur = cur0.asInstanceOf[Delay[Any]]
 
             val cb = conts.pop()
-            try {
+            val next = try {
               cb(this, true, cur.thunk())
             } catch {
               case NonFatal(t) =>
                 cb(this, false, t)
             }
 
-            runLoop(null)
+            runLoop(next)
 
           case 2 =>
             val cur = cur0.asInstanceOf[Error]
-
-            conts.pop()(this, false, cur.t)
-            runLoop(null)
+            runLoop(conts.pop()(this, false, cur.t))
 
           case 3 =>
             val cur = cur0.asInstanceOf[Async[Any]]
@@ -321,8 +298,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
           // ReadEC
           case 4 =>
-            conts.pop()(this, true, ctxs.peek())
-            runLoop(null)
+            runLoop(conts.pop()(this, true, ctxs.peek()))
 
           case 5 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
@@ -396,10 +372,10 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
           // Canceled
           case 11 =>
             canceled = true
-            if (masks != initMask) {
-              conts.pop()(this, true, ())
-            }
-            runLoop(null)
+            if (masks != initMask)
+              runLoop(conts.pop()(this, true, ()))
+            else
+              runLoop(null)   // trust the cancelation check at the start of the loop
 
           case 12 =>
             val cur = cur0.asInstanceOf[Start[Any]]
@@ -413,7 +389,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
               masks + 1   // will overflow
 
             val fiber = new IOFiber(
-              cur.ioa,
               childName,
               timer,
               initMask2)
@@ -421,18 +396,17 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
             // println(s"<$name> spawning <$childName>")
 
             val ec = ctxs.peek()
-            ec.execute(() => fiber.run(ec, initMask2))
+            ec.execute(() => fiber.run(cur.ioa, ec, initMask2))
 
-            conts.pop()(this, true, fiber)
-            runLoop(null)
+            runLoop(conts.pop()(this, true, fiber))
 
           case 13 =>
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
             val next = IO.async[Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] { cb =>
               IO {
-                val fiberA = new IOFiber(cur.ioa, s"racePair-left-${childCount.getAndIncrement()}", timer, initMask)
-                val fiberB = new IOFiber(cur.iob, s"racePair-right-${childCount.getAndIncrement()}", timer, initMask)
+                val fiberA = new IOFiber[Any](s"racePair-left-${childCount.getAndIncrement()}", timer, initMask)
+                val fiberB = new IOFiber[Any](s"racePair-right-${childCount.getAndIncrement()}", timer, initMask)
 
                 val firstError = new AtomicReference[Throwable](null)
                 val firstCanceled = new AtomicBoolean(false)
@@ -483,8 +457,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
                 val ec = ctxs.peek()
 
-                ec.execute(() => fiberA.run(ec, masks))
-                ec.execute(() => fiberB.run(ec, masks))
+                ec.execute(() => fiberA.run(cur.ioa, ec, masks))
+                ec.execute(() => fiberB.run(cur.iob, ec, masks))
 
                 Some(fiberA.cancel *> fiberB.cancel)
               }
@@ -504,21 +478,18 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
 
           // RealTime
           case 15 =>
-            conts.pop()(this, true, timer.nowMillis().millis)
-            runLoop(null)
+            runLoop(conts.pop()(this, true, timer.nowMillis().millis))
 
           // Monotonic
           case 16 =>
-            conts.pop()(this, true, timer.monotonicNanos().nanos)
-            runLoop(null)
+            runLoop(conts.pop()(this, true, timer.monotonicNanos().nanos))
 
           // Cede
           case 17 =>
             ctxs.peek() execute { () =>
               // println("continuing from cede ")
 
-              conts.pop()(this, true, ())
-              runLoop(null)
+              runLoop(conts.pop()(this, true, ()))
             }
 
           case 18 =>
@@ -550,7 +521,7 @@ private object IOFiber {
   ////////////////////////////////////////////////
 
   private object CancelationLoopK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val oc = outcome.get()
@@ -561,22 +532,26 @@ private object IOFiber {
       } else {
         done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
       }
+
+      null
     }
   }
 
   private object CancelationLoopNodoneK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       if (!finalizers.isEmpty()) {
         conts.push(this)
         runLoop(finalizers.pop()(outcome.get().asInstanceOf[Outcome[IO, Throwable, Any]]))
       }
+
+      null
     }
   }
 
   private object RunTerminusK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self.{canceled, done, outcome}
 
       if (canceled)   // this can happen if we don't check the canceled flag before completion
@@ -587,11 +562,13 @@ private object IOFiber {
         outcome.compareAndSet(null, OutcomeErrored(result.asInstanceOf[Throwable]))
 
       done(outcome.get())
+
+      null
     }
   }
 
   private object AsyncK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val state = objectState.pop().asInstanceOf[AtomicReference[Either[Throwable, Any]]]
@@ -607,6 +584,8 @@ private object IOFiber {
           // println(state.get())
 
           asyncContinue(state, Left(result.asInstanceOf[Throwable]))
+
+          null
         }
       } else {
         if (masks == initMask) {
@@ -640,12 +619,14 @@ private object IOFiber {
             suspended.set(true)
           }
         }
+
+        null
       }
     }
   }
 
   private object EvalOnK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       ctxs.pop()
@@ -653,16 +634,17 @@ private object IOFiber {
       // special cancelation check to ensure we don't accidentally fork the runloop here
       if (!canceled || masks != initMask) {
         ctxs.peek() execute { () =>
-          conts.pop()(self, success, result)
-          runLoop(null)
+          runLoop(conts.pop()(self, success, result))
         }
       }
+
+      null
     }
   }
 
   // NB: this means repeated map is stack-unsafe
   private object MapK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val cb = conts.pop()
@@ -683,14 +665,14 @@ private object IOFiber {
   }
 
   private object FlatMapK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val f = objectState.pop().asInstanceOf[Any => IO[Any]]
 
       if (success) {
         try {
-          heapCur = f(result)
+          f(result)
         } catch {
           case NonFatal(t) =>
             conts.pop()(self, false, t)
@@ -702,7 +684,7 @@ private object IOFiber {
   }
 
   private object HandleErrorWithK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
@@ -711,12 +693,12 @@ private object IOFiber {
         conts.pop()(self, success, result)    // if it's *not* an error, just pass it along
       else
         // TODO try/catch
-        heapCur = f(result.asInstanceOf[Throwable])
+        f(result.asInstanceOf[Throwable])
     }
   }
 
   private object OnCaseK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       val oc: Outcome[IO, Throwable, Any] = if (success)
@@ -728,24 +710,26 @@ private object IOFiber {
       val f = finalizers.pop()
       // println(s"continuing onCase with $result ==> ${f(oc)}")
 
-      heapCur = f(oc)
+      val back = f(oc)
 
       booleanState.push(success)
       objectState.push(result.asInstanceOf[AnyRef])
 
       conts.push(OnCaseForwarderK)
+
+      back
     }
   }
 
   private object OnCaseForwarderK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
       conts.pop()(self, booleanState.pop(), objectState.pop())
     }
   }
 
   private object UncancelableK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       masks -= 1
@@ -755,7 +739,7 @@ private object IOFiber {
 
   // [10] Unmask
   private object UnmaskK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       masks += 1

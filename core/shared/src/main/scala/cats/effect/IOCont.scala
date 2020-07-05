@@ -18,5 +18,5 @@ package cats.effect
 
 // specialized version of (IOFiber, Boolean, Any) => Unit
 private[effect] abstract class IOCont {
-  def apply[A](self: IOFiber[A], success: Boolean, result: Any): Unit
+  def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any]
 }
