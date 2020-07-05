@@ -23,7 +23,7 @@ import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPlatform[A] {
+sealed abstract class IO[+A] private (private[effect] val tag: Byte) extends IOPlatform[A] {
 
   def as[B](b: B): IO[B] =
     map(_ => b)
