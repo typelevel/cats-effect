@@ -25,49 +25,20 @@ import scala.concurrent.duration._
 
 sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPlatform[A] {
 
+  def as[B](b: B): IO[B] =
+    map(_ => b)
+
   def attempt: IO[Either[Throwable, A]] =
     map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
-
-  def map[B](f: A => B): IO[B] = IO.Map(this, f)
-
-  def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
-
-  def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
-    IO.HandleErrorWith(this, f)
-
-  def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
-
-  def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
-    IO.Start(this)
-
-  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
-    IO.OnCase(this, (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
-
-  def onCancel(body: IO[Unit]): IO[A] =
-    onCase { case Outcome.Canceled() => body }
-
-  def guarantee(finalizer: IO[Unit]): IO[A] =
-    IO.uncancelable(p => p(this).onCase({ case _ => finalizer }))
-
-  def racePair[B](
-      that: IO[B])
-      : IO[
-        Either[
-          (A @uncheckedVariance, Fiber[IO, Throwable, B]),
-          (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
-    IO.RacePair(this, that)
-
-  def race[B](that: IO[B]): IO[Either[A, B]] =
-    racePair(that) flatMap {
-      case Left((a, f)) => f.cancel.as(Left(a))
-      case Right((f, b)) => f.cancel.as(Right(b))
-    }
 
   def both[B](that: IO[B]): IO[(A, B)] =
     racePair(that) flatMap {
       case Left((a, f)) => f.joinAndEmbedNever.map((a, _))
       case Right((f, b)) => f.joinAndEmbedNever.map((_, b))
     }
+
+  def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
+    bracketCase(use)((a, _) => release(a))
 
   def bracketCase[B](use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
     IO uncancelable { poll =>
@@ -78,11 +49,40 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPl
       }
     }
 
-  def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
-    bracketCase(use)((a, _) => release(a))
+  def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
-  def uncancelable: IO[A] =
-    IO.uncancelable(_ => this)
+  def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
+
+  def guarantee(finalizer: IO[Unit]): IO[A] =
+    IO.uncancelable(p => p(this).onCase({ case _ => finalizer }))
+
+  def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
+    IO.HandleErrorWith(this, f)
+
+  def map[B](f: A => B): IO[B] = IO.Map(this, f)
+
+  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
+    IO.OnCase(this, (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
+
+  def onCancel(body: IO[Unit]): IO[A] =
+    onCase { case Outcome.Canceled() => body }
+
+  def race[B](that: IO[B]): IO[Either[A, B]] =
+    racePair(that) flatMap {
+      case Left((a, f)) => f.cancel.as(Left(a))
+      case Right((f, b)) => f.cancel.as(Right(b))
+    }
+
+  def racePair[B](
+      that: IO[B])
+      : IO[
+        Either[
+          (A @uncheckedVariance, Fiber[IO, Throwable, B]),
+          (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
+    IO.RacePair(this, that)
+
+  def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
+    IO.Start(this)
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
     // re-comment this fast-path to test the implementation with IO itself
@@ -150,6 +150,9 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPl
       }
     }
   }
+
+  def uncancelable: IO[A] =
+    IO.uncancelable(_ => this)
 
   def unsafeRunAsync(
       ec: ExecutionContext,
@@ -249,6 +252,9 @@ object IO extends IOLowPriorityImplicits {
   }
 
   implicit val effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
+
+    override def as[A, B](ioa: IO[A], b: B): IO[B] =
+      ioa.as(b)
 
     override def attempt[A](ioa: IO[A]) =
       ioa.attempt
