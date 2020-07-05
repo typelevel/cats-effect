@@ -16,14 +16,17 @@
 
 package cats.effect
 
-import cats.{~>, Monoid, Semigroup, StackSafeMonad}
+import cats.{~>, Monoid, /*Parallel,*/ Semigroup, StackSafeMonad}
 import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-sealed abstract class IO[+A] private (private[effect] val tag: Int) {
+sealed abstract class IO[+A] private (private[effect] val tag: Int) extends IOPlatform[A] {
+
+  def attempt: IO[Either[Throwable, A]] =
+    map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
@@ -54,6 +57,18 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
           (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
 
+  def race[B](that: IO[B]): IO[Either[A, B]] =
+    racePair(that) flatMap {
+      case Left((a, f)) => f.cancel.as(Left(a))
+      case Right((f, b)) => f.cancel.as(Right(b))
+    }
+
+  def both[B](that: IO[B]): IO[(A, B)] =
+    racePair(that) flatMap {
+      case Left((a, f)) => f.joinAndEmbedNever.map((a, _))
+      case Right((f, b)) => f.joinAndEmbedNever.map((_, b))
+    }
+
   def bracketCase[B](use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
     IO uncancelable { poll =>
       flatMap { a =>
@@ -65,6 +80,9 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
 
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
+
+  def uncancelable: IO[A] =
+    IO.uncancelable(_ => this)
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] = {
     // re-comment this fast-path to test the implementation with IO itself
@@ -138,11 +156,12 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
       timer: UnsafeTimer)(
       cb: Either[Throwable, A] => Unit)
       : Unit =
-    unsafeRunFiber(ec, timer)(cb)
+    unsafeRunFiber(ec, timer, true)(cb)
 
   private[effect] def unsafeRunFiber(
       ec: ExecutionContext,
-      timer: UnsafeTimer)(
+      timer: UnsafeTimer,
+      shift: Boolean)(
       cb: Either[Throwable, A] => Unit)
       : IOFiber[A @uncheckedVariance] = {
 
@@ -155,7 +174,11 @@ sealed abstract class IO[+A] private (private[effect] val tag: Int) {
         ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       0)
 
-    ec.execute(() => fiber.run(ec, 0))
+    if (shift)
+      ec.execute(() => fiber.run(ec, 0))
+    else
+      fiber.run(ec, 0)
+
     fiber
   }
 }
@@ -210,6 +233,15 @@ object IO extends IOLowPriorityImplicits {
       def apply[A](ioa: IO[A]) = ioa.to[F]
     }
 
+  def racePair[A, B](left: IO[A], right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+    left.racePair(right)
+
+  def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
+    left.race(right)
+
+  def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
+    left.both(right)
+
   implicit def monoidForIO[A: Monoid]: Monoid[IO[A]] =
     new IOMonoid[A]
 
@@ -218,6 +250,9 @@ object IO extends IOLowPriorityImplicits {
   }
 
   implicit val effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
+
+    override def attempt[A](ioa: IO[A]) =
+      ioa.attempt
 
     def pure[A](x: A): IO[A] =
       IO.pure(x)
@@ -257,6 +292,12 @@ object IO extends IOLowPriorityImplicits {
 
     def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
       fa.racePair(fb)
+
+    override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
+      fa.race(fb)
+
+    override def both[A, B](fa: IO[A], fb: IO[B]): IO[(A, B)] =
+      fa.both(fb)
 
     def start[A](fa: IO[A]): IO[Fiber[IO, Throwable, A]] =
       fa.start

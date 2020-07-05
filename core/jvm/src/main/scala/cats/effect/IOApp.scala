@@ -51,7 +51,8 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber(context, timer) { e =>
+    // false means we use the main thread until we hit an async boundary
+    val fiber = ioa.unsafeRunFiber(context, timer, false) { e =>
       results = e
       latch.countDown()
     }

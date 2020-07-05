@@ -80,7 +80,7 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
@@ -163,3 +163,12 @@ lazy val example = crossProject(JSPlatform, JVMPlatform).in(file("example"))
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
   .settings(noPublishSettings)
+
+/**
+ * JMH benchmarks for IO and other things.
+ */
+lazy val benchmarks = project.in(file("benchmarks"))
+  .dependsOn(core.jvm)
+  .settings(name := "cats-effect-benchmarks")
+  .settings(noPublishSettings)
+  .enablePlugins(JmhPlugin)

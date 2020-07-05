@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+def exec(cmd)
+  puts cmd
+  abort("Error encountered, aborting") unless system(cmd)
+end
+
+unless ARGV[0]
+    $stderr.puts "ERROR: Benchmark name missing!"
+    puts
+    puts "Example: project/run-benchmark CoevalFlatMapLongLoopBenchmark"
+    exit 1
+end
+
+Dir.chdir(File.absolute_path(File.join(File.dirname(__FILE__), "..")))
+
+name = ARGV[0]
+date = Time.now.strftime("%Y-%m-%d")
+
+exec("mkdir -p benchmarks/results/#{date}")
+exec(
+    "sbt ++2.12.4 " +
+    "benchmarksPrev/clean benchmarksNext/clean " +
+    "'benchmarksPrev/jmh:run -o ../results/#{date}/#{name}-Prev.txt  -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.#{name}' " +
+    "'benchmarksNext/jmh:run -o ../results/#{date}/#{name}-Next.txt  -i 10 -wi 10 -f 2 -t 1 cats.effect.benchmarks.#{name}'"
+)
