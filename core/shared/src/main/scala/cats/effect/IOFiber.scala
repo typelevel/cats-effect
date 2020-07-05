@@ -50,8 +50,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
 
-  private[this] val objectState = new ArrayStack[AnyRef](16)    // TODO tune
-  private[this] val booleanState = new BooleanArrayStack(16)    // TODO tune
+  private[this] val objectState = new ArrayStack[AnyRef](16)
+  private[this] val booleanState = new BooleanArrayStack(16)
 
   private[this] val childCount = IOFiber.childCount
 
@@ -94,7 +94,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
           done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
 
           if (!finalizers.isEmpty()) {
-            val conts = new ArrayStack[IOCont](16)    // TODO tune!
+            val conts = new ArrayStack[IOCont](16)
             conts.push(CancelationLoopK)
 
             masks += 1
@@ -155,7 +155,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   }
 
   private[effect] def run(cur: IO[Any], ec: ExecutionContext, masks: Int): Unit = {
-    conts = new ArrayStack[IOCont](16)    // TODO tune!
+    conts = new ArrayStack[IOCont](16)
     conts.push(RunTerminusK)
 
     ctxs = new ArrayStack[ExecutionContext](2)
@@ -219,7 +219,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
         done(oc)
 
         if (!finalizers.isEmpty()) {
-          conts = new ArrayStack[IOCont](16)    // TODO tune!
+          conts = new ArrayStack[IOCont](16)
           conts.push(CancelationLoopNodoneK)
 
           // suppress all subsequent cancelation on this fiber
