@@ -26,53 +26,53 @@ import scala.util.control.NonFatal
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
-private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private val initMask: Int) extends Fiber[IO, Throwable, A] {
+private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMask: Int) extends Fiber[IO, Throwable, A] {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
-  private var conts: ArrayStack[IOCont] = _
+  private[this] var conts: ArrayStack[IOCont] = _
 
   // fast-path to head
-  private var currentCtx: ExecutionContext = _
-  private var ctxs: ArrayStack[ExecutionContext] = _
+  private[this] var currentCtx: ExecutionContext = _
+  private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
-  private var canceled: Boolean = false
+  private[this] var canceled: Boolean = false
 
-  private var masks: Int = _
-  private val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
+  private[this] var masks: Int = _
+  private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
   // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
-  private val callback: AtomicReference[AnyRef] = new AtomicReference()
+  private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
 
   // true when semantically blocking (ensures that we only unblock *once*)
-  private val suspended: AtomicBoolean = new AtomicBoolean(false)
+  private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
 
-  private val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
+  private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
 
-  private val objectState = new ArrayStack[AnyRef](16)    // TODO tune
-  private val booleanState = new BooleanArrayStack(16)    // TODO tune
+  private[this] val objectState = new ArrayStack[AnyRef](16)    // TODO tune
+  private[this] val booleanState = new BooleanArrayStack(16)    // TODO tune
 
-  private[this] final val childCount = IOFiber.childCount
+  private[this] val childCount = IOFiber.childCount
 
   // pre-fetching of all continuations (to avoid memory barriers)
-  private[this] final val CancelationLoopK = IOFiber.CancelationLoopK
-  private[this] final val CancelationLoopNodoneK = IOFiber.CancelationLoopNodoneK
-  private[this] final val RunTerminusK = IOFiber.RunTerminusK
-  private[this] final val AsyncK = IOFiber.AsyncK
-  private[this] final val EvalOnK = IOFiber.EvalOnK
-  private[this] final val MapK = IOFiber.MapK
-  private[this] final val FlatMapK = IOFiber.FlatMapK
-  private[this] final val HandleErrorWithK = IOFiber.HandleErrorWithK
-  private[this] final val OnCaseK = IOFiber.OnCaseK
-  private[this] final val OnCaseForwarderK = IOFiber.OnCaseForwarderK
-  private[this] final val UncancelableK = IOFiber.UncancelableK
-  private[this] final val UnmaskK = IOFiber.UnmaskK
+  private[this] val CancelationLoopK = IOFiber.CancelationLoopK
+  private[this] val CancelationLoopNodoneK = IOFiber.CancelationLoopNodoneK
+  private[this] val RunTerminusK = IOFiber.RunTerminusK
+  private[this] val AsyncK = IOFiber.AsyncK
+  private[this] val EvalOnK = IOFiber.EvalOnK
+  private[this] val MapK = IOFiber.MapK
+  private[this] val FlatMapK = IOFiber.FlatMapK
+  private[this] val HandleErrorWithK = IOFiber.HandleErrorWithK
+  private[this] val OnCaseK = IOFiber.OnCaseK
+  private[this] val OnCaseForwarderK = IOFiber.OnCaseForwarderK
+  private[this] val UncancelableK = IOFiber.UncancelableK
+  private[this] val UnmaskK = IOFiber.UnmaskK
 
   // similar prefetch for Outcome
-  private[this] final val OutcomeCanceled = IOFiber.OutcomeCanceled
-  private[this] final val OutcomeErrored = IOFiber.OutcomeErrored
-  private[this] final val OutcomeCompleted = IOFiber.OutcomeCompleted
+  private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled
+  private[this] val OutcomeErrored = IOFiber.OutcomeErrored
+  private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
   def this(timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
     this("main", timer, initMask)
@@ -307,10 +307,12 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
           case 5 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
 
-            ctxs.push(cur.ec)
+            val ec = cur.ec
+            currentCtx = ec
+            ctxs.push(ec)
             conts.push(EvalOnK)
 
-            cur.ec execute { () =>
+            ec execute { () =>
               runLoop(cur.ioa)
             }
 
@@ -510,6 +512,63 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, private
       }
     }
   }
+
+  // we use these forwarders because direct field access (private[this]) is faster
+  private def isCanceled(): Boolean =
+    canceled
+
+  private def currentOutcome(): Outcome[IO, Throwable, A] =
+    outcome.get()
+
+  private def casOutcome(old: Outcome[IO, Throwable, A], value: Outcome[IO, Throwable, A]): Boolean =
+    outcome.compareAndSet(old, value)
+
+  private def hasFinalizers(): Boolean =
+    !finalizers.isEmpty()
+
+  private def pushFinalizer(f: Outcome[IO, Throwable, Any] => IO[Unit]): Unit =
+    finalizers.push(f)
+
+  private def popFinalizer(): Outcome[IO, Throwable, Any] => IO[Unit] =
+    finalizers.pop()
+
+  private def pushCont(cont: IOCont): Unit =
+    conts.push(cont)
+
+  private def popCont(): IOCont =
+    conts.pop()
+
+  private def pushObjectState(state: AnyRef): Unit =
+    objectState.push(state)
+
+  private def popObjectState(): AnyRef =
+    objectState.pop()
+
+  private def pushBooleanState(state: Boolean): Unit =
+    booleanState.push(state)
+
+  private def popBooleanState(): Boolean =
+    booleanState.pop()
+
+  private def isMasked(): Boolean =
+    masks == initMask
+
+  private def pushMask(): Unit =
+    masks += 1
+
+  private def popMask(): Unit =
+    masks -= 1
+
+  private def suspend(): Unit =
+    suspended.set(true)
+
+  // returns the *new* context, not the old
+  private def popContext(): ExecutionContext = {
+    ctxs.pop()
+    val ec = ctxs.peek()
+    currentCtx = ec
+    ec
+  }
 }
 
 private object IOFiber {
@@ -528,11 +587,11 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val oc = outcome.get()
+      val oc = currentOutcome()
 
-      if (!finalizers.isEmpty()) {
-        conts.push(this)
-        runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]))
+      if (hasFinalizers()) {
+        pushCont(this)
+        runLoop(popFinalizer()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]))
       } else {
         done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
       }
@@ -545,9 +604,9 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      if (!finalizers.isEmpty()) {
-        conts.push(this)
-        runLoop(finalizers.pop()(outcome.get().asInstanceOf[Outcome[IO, Throwable, Any]]))
+      if (hasFinalizers()) {
+        pushCont(this)
+        runLoop(popFinalizer()(currentOutcome().asInstanceOf[Outcome[IO, Throwable, Any]]))
       }
 
       null
@@ -556,16 +615,16 @@ private object IOFiber {
 
   private object RunTerminusK extends IOCont {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
-      import self.{canceled, done, outcome}
+      import self.{isCanceled, done, currentOutcome, casOutcome}
 
-      if (canceled)   // this can happen if we don't check the canceled flag before completion
-        outcome.compareAndSet(null, OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]])
+      if (isCanceled())   // this can happen if we don't check the canceled flag before completion
+        casOutcome(null, OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]])
       else if (success)
-        outcome.compareAndSet(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
+        casOutcome(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
       else
-        outcome.compareAndSet(null, OutcomeErrored(result.asInstanceOf[Throwable]))
+        casOutcome(null, OutcomeErrored(result.asInstanceOf[Throwable]))
 
-      done(outcome.get())
+      done(currentOutcome())
 
       null
     }
@@ -575,13 +634,13 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val state = objectState.pop().asInstanceOf[AtomicReference[Either[Throwable, Any]]]
-      val done = objectState.pop().asInstanceOf[AtomicBoolean]
+      val state = popObjectState().asInstanceOf[AtomicReference[Either[Throwable, Any]]]
+      val done = popObjectState().asInstanceOf[AtomicBoolean]
 
       if (!success) {
         if (!done.getAndSet(true)) {
           // if we get an error before the callback, then propagate
-          conts.pop()(self, success, result)
+          popCont()(self, success, result)
         } else {
           // we got the error *after* the callback, but we have queueing semantics
           // therefore, side-channel the callback results
@@ -592,18 +651,18 @@ private object IOFiber {
           null
         }
       } else {
-        if (masks == initMask) {
+        if (isMasked()) {
           result.asInstanceOf[Option[IO[Unit]]] match {
             case Some(cancelToken) =>
-              finalizers.push(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
+              pushFinalizer(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
               // indicate the presence of the cancel token by pushing Right instead of Left
               if (!state.compareAndSet(null, Right(null))) {
                 // the callback was invoked before registration
-                finalizers.pop()
+                popFinalizer()
                 asyncContinue(state, state.get())
               } else {
-                suspended.set(true)
+                suspend()
               }
 
             case None =>
@@ -611,7 +670,7 @@ private object IOFiber {
                 // the callback was invoked before registration
                 asyncContinue(state, state.get())
               } else {
-                suspended.set(true)
+                suspend()
               }
           }
         } else {
@@ -620,7 +679,7 @@ private object IOFiber {
             // the callback was invoked before registration
             asyncContinue(state, state.get())
           } else {
-            suspended.set(true)
+            suspend()
           }
         }
 
@@ -633,13 +692,12 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      ctxs.pop()
-      currentCtx = ctxs.peek()
+      val ec = popContext()
 
       // special cancelation check to ensure we don't accidentally fork the runloop here
-      if (!canceled || masks != initMask) {
-        currentCtx execute { () =>
-          runLoop(conts.pop()(self, success, result))
+      if (!isCanceled() || !isMasked()) {
+        ec execute { () =>
+          runLoop(popCont()(self, success, result))
         }
       }
 
@@ -652,8 +710,8 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val cb = conts.pop()
-      val f = objectState.pop().asInstanceOf[Any => Any]
+      val cb = popCont()
+      val f = popObjectState().asInstanceOf[Any => Any]
 
       if (success) {
         try {
@@ -673,17 +731,17 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val f = objectState.pop().asInstanceOf[Any => IO[Any]]
+      val f = popObjectState().asInstanceOf[Any => IO[Any]]
 
       if (success) {
         try {
           f(result)
         } catch {
           case NonFatal(t) =>
-            conts.pop()(self, false, t)
+            popCont()(self, false, t)
         }
       } else {
-        conts.pop()(self, success, result)    // I think this means error handling is stack-unsafe
+        popCont()(self, success, result)    // I think this means error handling is stack-unsafe
       }
     }
   }
@@ -692,10 +750,10 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
+      val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
 
       if (success)
-        conts.pop()(self, success, result)    // if it's *not* an error, just pass it along
+        popCont()(self, success, result)    // if it's *not* an error, just pass it along
       else
         // TODO try/catch
         f(result.asInstanceOf[Throwable])
@@ -712,15 +770,15 @@ private object IOFiber {
         OutcomeErrored(result.asInstanceOf[Throwable])
 
       // println(s"popping from finalizers: length = ${finalizers.unsafeIndex()}")
-      val f = finalizers.pop()
+      val f = popFinalizer()
       // println(s"continuing onCase with $result ==> ${f(oc)}")
 
       val back = f(oc)
 
-      booleanState.push(success)
-      objectState.push(result.asInstanceOf[AnyRef])
+      pushBooleanState(success)
+      pushObjectState(result.asInstanceOf[AnyRef])
 
-      conts.push(OnCaseForwarderK)
+      pushCont(OnCaseForwarderK)
 
       back
     }
@@ -729,7 +787,7 @@ private object IOFiber {
   private object OnCaseForwarderK extends IOCont {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
-      conts.pop()(self, booleanState.pop(), objectState.pop())
+      popCont()(self, popBooleanState(), popObjectState())
     }
   }
 
@@ -737,8 +795,8 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      masks -= 1
-      conts.pop()(self, success, result)
+      popMask()
+      popCont()(self, success, result)
     }
   }
 
@@ -747,8 +805,8 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      masks += 1
-      conts.pop()(self, success, result)
+      pushMask()
+      popCont()(self, success, result)
     }
   }
 }
