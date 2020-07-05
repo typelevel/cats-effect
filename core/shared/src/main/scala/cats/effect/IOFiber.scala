@@ -715,7 +715,6 @@ private object IOFiber {
 
       if (success) {
         try {
-          // TODO cur state
           cb(self, true, f(result))
         } catch {
           case NonFatal(t) =>
