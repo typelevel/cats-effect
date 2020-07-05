@@ -40,8 +40,18 @@ private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Ar
   def isEmpty(): Boolean = index <= 0
 
   // to allow for external iteration
-  def unsafeBuffer(): Array[A] = buffer.asInstanceOf[Array[A]]
+  def unsafeBuffer(): Array[AnyRef] = buffer
   def unsafeIndex(): Int = index
+
+  def unsafeSet(newI: Int): Unit = {
+    var i = newI
+    while (i < index) {
+      buffer(i) = null
+      i += 1
+    }
+
+    index = newI
+  }
 
   def copy(): ArrayStack[A] = {
     val buffer2 = if (index == 0) {

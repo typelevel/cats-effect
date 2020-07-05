@@ -86,12 +86,12 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
     "raiseError propagates out" in {
       case object TestException extends RuntimeException
-      IO.raiseError(TestException).void must failAs(TestException)
+      IO.raiseError(TestException).void.flatMap(_ => IO.pure(())) must failAs(TestException)
     }
 
     "errors can be handled" in {
       case object TestException extends RuntimeException
-      (IO.raiseError(TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+      IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
     }
 
     "start and join on a successful fiber" in {

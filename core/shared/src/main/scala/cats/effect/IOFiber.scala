@@ -193,14 +193,13 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private def asyncContinue(state: AtomicReference[Either[Throwable, Any]], e: Either[Throwable, Any]): Unit = {
     state.lazySet(null)   // avoid leaks
 
-    val cb = conts.pop()
     val ec = currentCtx
 
     if (!canceled || masks != initMask) {
       ec execute { () =>
         val next = e match {
-          case Left(t) => cb(this, false, t)
-          case Right(a) => cb(this, true, a)
+          case Left(t) => failed(t)
+          case Right(a) => conts.pop()(this, true, a)
         }
 
           runLoop(next)
@@ -240,19 +239,17 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
           case 1 =>
             val cur = cur0.asInstanceOf[Delay[Any]]
 
-            val cb = conts.pop()
             val next = try {
-              cb(this, true, cur.thunk())
+              conts.pop()(this, true, cur.thunk())
             } catch {
-              case NonFatal(t) =>
-                cb(this, false, t)
+              case NonFatal(t) => failed(t)
             }
 
             runLoop(next)
 
           case 2 =>
             val cur = cur0.asInstanceOf[Error]
-            runLoop(conts.pop()(this, false, cur.t))
+            runLoop(failed(cur.t))
 
           case 3 =>
             val cur = cur0.asInstanceOf[Async[Any]]
@@ -569,6 +566,27 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
     currentCtx = ec
     ec
   }
+
+  private def failed(error: Any): IO[Any] = {
+    // println(s"<$name> failed() with $error")
+    val buffer = conts.unsafeBuffer()
+
+    var i = conts.unsafeIndex() - 1
+    val orig = i
+    var k: IOCont = null
+
+    while (i >= 0 && k == null) {
+      if ((buffer(i) eq FlatMapK) || (buffer(i) eq MapK))
+        i -= 1
+      else
+        k = buffer(i).asInstanceOf[IOCont]
+    }
+
+    conts.unsafeSet(i)
+    objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
+
+    k(this, false, error)
+  }
 }
 
 private object IOFiber {
@@ -640,7 +658,7 @@ private object IOFiber {
       if (!success) {
         if (!done.getAndSet(true)) {
           // if we get an error before the callback, then propagate
-          popCont()(self, success, result)
+          failed(result)
         } else {
           // we got the error *after* the callback, but we have queueing semantics
           // therefore, side-channel the callback results
@@ -697,7 +715,10 @@ private object IOFiber {
       // special cancelation check to ensure we don't accidentally fork the runloop here
       if (!isCanceled() || !isMasked()) {
         ec execute { () =>
-          runLoop(popCont()(self, success, result))
+          if (success)
+            runLoop(popCont()(self, true, result))
+          else
+            runLoop(failed(result))
         }
       }
 
@@ -710,18 +731,12 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
-      val cb = popCont()
       val f = popObjectState().asInstanceOf[Any => Any]
 
-      if (success) {
-        try {
-          cb(self, true, f(result))
-        } catch {
-          case NonFatal(t) =>
-            cb(self, false, t)
-        }
-      } else {
-        cb(self, success, result)
+      try {
+        popCont()(self, true, f(result))
+      } catch {
+        case NonFatal(t) => failed(t)
       }
     }
   }
@@ -732,15 +747,10 @@ private object IOFiber {
 
       val f = popObjectState().asInstanceOf[Any => IO[Any]]
 
-      if (success) {
-        try {
-          f(result)
-        } catch {
-          case NonFatal(t) =>
-            popCont()(self, false, t)
-        }
-      } else {
-        popCont()(self, success, result)    // I think this means error handling is stack-unsafe
+      try {
+        f(result)
+      } catch {
+        case NonFatal(t) => failed(t)
       }
     }
   }
@@ -752,7 +762,7 @@ private object IOFiber {
       val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
 
       if (success)
-        popCont()(self, success, result)    // if it's *not* an error, just pass it along
+        popCont()(self, true, result)    // if it's *not* an error, just pass it along
       else
         // TODO try/catch
         f(result.asInstanceOf[Throwable])
@@ -786,7 +796,10 @@ private object IOFiber {
   private object OnCaseForwarderK extends IOCont {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
-      popCont()(self, popBooleanState(), popObjectState())
+      if (popBooleanState())
+        popCont()(self, true, popObjectState())
+      else
+        failed(popObjectState())
     }
   }
 
@@ -795,17 +808,22 @@ private object IOFiber {
       import self._
 
       popMask()
-      popCont()(self, success, result)
+      if (success)
+        popCont()(self, true, result)
+      else
+        failed(result)
     }
   }
 
-  // [10] Unmask
   private object UnmaskK extends IOCont {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any): IO[Any] = {
       import self._
 
       pushMask()
-      popCont()(self, success, result)
+      if (success)
+        popCont()(self, true, result)
+      else
+        failed(result)
     }
   }
 }
