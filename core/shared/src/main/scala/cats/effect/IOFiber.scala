@@ -240,7 +240,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             val cur = cur0.asInstanceOf[Delay[Any]]
 
             val next = try {
-              conts.pop()(this, true, cur.thunk())
+              val r = cur.thunk()   // don't inline; evaluation order is wonky here
+              conts.pop()(this, true, r)
             } catch {
               case NonFatal(t) => failed(t)
             }
