@@ -6,9 +6,9 @@ Cats Effect 3 (or "ce3") is an ongoing project designed to fully replace the exi
 
 ## Getting Started
 
-At present, no artifacts have been published. However, when they *are* published, they will be available under `org.typelevel::cats-effect:3.0-<hash>` where `<hash>` is some git hash from which the snapshot originated. All such hashes should be present in this repository. You can find a list of all of Cats Effect's artifacts published for Scala 2.13 [on search.maven.org](https://search.maven.org/artifact/org.typelevel/cats-effect_2.13).
+At present, no full releases have been published. However, Cats Effect adheres to a stable Git hash snapshot scheme. No guarantees are made about the actual *code* stability of snapshot releases, but the versions themselves are permanent. The latest snapshot release of Cats Effect 3 is [**3.0-3f2b25c**](https://github.com/typelevel/cats-effect/tree/3f2b25c). If you need a newer snapshot for whatever reason, get in touch with us [in Gitter](https://gitter.im/typelevel/cats-effect-dev)!
 
-At the present time, ce3 is cross-built for Scala 2.12, 2.13, and Dotty 0.24-RC1. It has not yet been cross-built for ScalaJS.
+At the present time, ce3 is cross-built for Scala 2.12, 2.13, and Dotty 0.25.0-RC2. ScalaJS cross-builds are available for Scala 2.12 and 2.13.
 
 ## Contributing
 
