@@ -43,7 +43,8 @@ ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
     "actions", "setup-node", "v2",
     name = Some("Setup NodeJS v14 LTS"),
-    params = Map("node-version" -> "14"))
+    params = Map("node-version" -> "14"),
+    cond = Some("matrix.ci == 'ciJS'"))
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),

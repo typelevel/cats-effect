@@ -88,6 +88,7 @@ jobs:
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
       - name: Setup NodeJS v14 LTS
+        if: matrix.ci == 'ciJS'
         uses: actions/setup-node@v2
         with:
           node-version: 14
