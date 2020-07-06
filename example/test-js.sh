@@ -12,7 +12,7 @@ sbt ++$1 exampleJS/compile
 output=$(mktemp)
 expected=$(mktemp)
 
-cd example/js/target/scala-2.13/
+cd example/js/target/scala-${1:0:4}/
 node cats-effect-example-fastopt.js > $output
 
 echo $'left
