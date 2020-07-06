@@ -41,7 +41,7 @@ ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
 ThisBuild / githubWorkflowBuildPreamble +=
   WorkflowStep.Use(
-    "actions", "setup-node", "v2",
+    "actions", "setup-node", "v2.1.0",
     name = Some("Setup NodeJS v14 LTS"),
     params = Map("node-version" -> "14"),
     cond = Some("matrix.ci == 'ciJS'"))
