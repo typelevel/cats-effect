@@ -17,8 +17,13 @@
 package cats.effect.kernel
 
 import cats.Applicative
+import cats.data._
 
 import scala.concurrent.duration.FiniteDuration
+
+import cats.kernel.Monoid
+import cats.kernel.Semigroup
+import cats.Monad
 
 trait Clock[F[_]] extends Applicative[F] {
 
@@ -31,4 +36,145 @@ trait Clock[F[_]] extends Applicative[F] {
 
 object Clock {
   def apply[F[_]](implicit F: Clock[F]): F.type = F
+
+  implicit def clockForOptionT[F[_]](implicit C: Clock[F] with Monad[F]): Clock[OptionT[F, *]] =
+    new OptionTClock[F] {
+      override def F: Clock[F] with Monad[F] = C
+    }
+
+  implicit def clockForEitherT[F[_], E](implicit C: Clock[F] with Monad[F]): Clock[EitherT[F, E, *]] =
+    new EitherTClock[F, E] {
+      override def F: Clock[F] with Monad[F] = C
+    }
+
+  implicit def clockForStateT[F[_], S](implicit C: Clock[F] with Monad[F]): Clock[StateT[F, S, *]] =
+    new StateTClock[F, S] {
+      override def F: Clock[F] with Monad[F] = C
+    }
+
+  implicit def clockForWriterT[F[_], S: Monoid](implicit C: Clock[F] with Monad[F]): Clock[WriterT[F, S, *]] =
+    new WriterTClock[F, S] {
+      override def F: Clock[F] with Monad[F] = C
+
+      override def S: Monoid[S] = Monoid[S]
+
+    }
+
+  implicit def clockForIorT[F[_], L: Semigroup](implicit C: Clock[F] with Monad[F]): Clock[IorT[F, L, *]] =
+    new IorTClock[F, L] {
+      override def F: Clock[F] with Monad[F] = C
+
+      override def L: Semigroup[L] = Semigroup[L]
+    }
+
+  implicit def clockForKleisli[F[_], R](implicit C: Clock[F] with Monad[F]): Clock[Kleisli[F, R, *]] =
+    new KleisliClock[F, R] {
+      override def F: Clock[F] with Monad[F] = C
+    }
+
+  trait OptionTClock[F[_]] extends Clock[OptionT[F, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+
+    val delegate = OptionT.catsDataMonadForOptionT[F]
+
+    override def ap[A, B](
+      ff: OptionT[F, A => B]
+    )(fa: OptionT[F, A]): OptionT[F, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): OptionT[F, A] = delegate.pure(x)
+
+    override def monotonic: OptionT[F, FiniteDuration] =
+      OptionT.liftF(F.monotonic)
+
+    override def realTime: OptionT[F, FiniteDuration] = OptionT.liftF(F.realTime)
+  }
+
+  trait EitherTClock[F[_], E] extends Clock[EitherT[F, E, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+
+    val delegate = EitherT.catsDataMonadErrorForEitherT[F, E]
+
+    override def ap[A, B](
+      ff: EitherT[F, E, A => B]
+    )(fa: EitherT[F, E, A]): EitherT[F, E, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): EitherT[F, E, A] = delegate.pure(x)
+
+    override def monotonic: EitherT[F, E, FiniteDuration] =
+      EitherT.liftF(F.monotonic)
+
+    override def realTime: EitherT[F, E, FiniteDuration] = EitherT.liftF(F.realTime)
+  }
+
+  trait StateTClock[F[_], S] extends Clock[StateT[F, S, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+
+    val delegate = IndexedStateT.catsDataMonadForIndexedStateT[F, S]
+
+    override def ap[A, B](
+      ff: IndexedStateT[F, S, S, A => B]
+    )(fa: IndexedStateT[F, S, S, A]): IndexedStateT[F, S, S, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): IndexedStateT[F, S, S, A] = delegate.pure(x)
+
+    override def monotonic: IndexedStateT[F, S, S, FiniteDuration] =
+      StateT.liftF(F.monotonic)
+
+    override def realTime: IndexedStateT[F, S, S, FiniteDuration] =
+      StateT.liftF(F.realTime)
+  }
+
+  trait WriterTClock[F[_], S] extends Clock[WriterT[F, S, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+    implicit protected def S: Monoid[S]
+
+    val delegate = WriterT.catsDataMonadForWriterT[F, S]
+
+    override def ap[A, B](
+      ff: WriterT[F, S, A => B]
+    )(fa: WriterT[F, S, A]): WriterT[F, S, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): WriterT[F, S, A] = delegate.pure(x)
+
+    override def monotonic: WriterT[F, S, FiniteDuration] =
+      WriterT.liftF(F.monotonic)
+
+    override def realTime: WriterT[F, S, FiniteDuration] = WriterT.liftF(F.realTime)
+  }
+
+  trait IorTClock[F[_], L] extends Clock[IorT[F, L, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+    implicit protected def L: Semigroup[L]
+
+    val delegate = IorT.catsDataMonadErrorForIorT[F, L]
+
+    override def ap[A, B](
+      ff: IorT[F, L, A => B]
+    )(fa: IorT[F, L, A]): IorT[F, L, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): IorT[F, L, A] = delegate.pure(x)
+
+    override def monotonic: IorT[F, L, FiniteDuration] = IorT.liftF(F.monotonic)
+
+    override def realTime: IorT[F, L, FiniteDuration] = IorT.liftF(F.realTime)
+
+  }
+
+  trait KleisliClock[F[_], R] extends Clock[Kleisli[F, R, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+
+    val delegate = Kleisli.catsDataMonadForKleisli[F, R]
+
+    override def ap[A, B](
+      ff: Kleisli[F, R, A => B]
+    )(fa: Kleisli[F, R, A]): Kleisli[F, R, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): Kleisli[F, R, A] = delegate.pure(x)
+
+    override def monotonic: Kleisli[F, R, FiniteDuration] =
+      Kleisli.liftF(F.monotonic)
+
+    override def realTime: Kleisli[F, R, FiniteDuration] = Kleisli.liftF(F.realTime)
+
+  }
 }
