@@ -51,8 +51,7 @@ trait IOApp {
 
     val ioa = run(args.toList)
 
-    // false means we use the main thread until we hit an async boundary
-    val fiber = ioa.unsafeRunFiber(context, timer, false) { e =>
+    val fiber = ioa.unsafeRunFiber(context, timer, true) { e =>
       results = e
       latch.countDown()
     }
@@ -74,7 +73,6 @@ trait IOApp {
     runtime.addShutdownHook(hook)
 
     try {
-      // TODO in theory it's possible to just fold the main thread into the pool; should we?
       latch.await()
 
       results.fold(

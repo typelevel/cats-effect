@@ -67,6 +67,8 @@ class IOAppSpec extends Specification {
         i += 1
       }
 
+      Thread.sleep(100)   // give thread scheduling just a sec to catch up and get us into the latch.await()
+
       h.term()
       h.awaitStatus() mustEqual 143
 
