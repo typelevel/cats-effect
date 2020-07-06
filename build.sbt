@@ -39,6 +39,12 @@ val GraalVM8 = "graalvm8@20.1.0"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
+ThisBuild / githubWorkflowBuildPreamble +=
+  WorkflowStep.Use(
+    "actions", "setup-node", "v2",
+    name = Some("Setup NodeJS v14 LTS"),
+    params = Map("node-version" -> "14"))
+
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
 
@@ -163,6 +169,7 @@ lazy val example = crossProject(JSPlatform, JVMPlatform).in(file("example"))
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
   .settings(noPublishSettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * JMH benchmarks for IO and other things.
