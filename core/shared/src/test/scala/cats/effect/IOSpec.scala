@@ -409,6 +409,22 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       loop(0) must completeAs(())
     }
 
+    "catch exceptions thrown in map functions" in {
+      case object TestException extends RuntimeException
+      IO.unit.map(_ => (throw TestException): Unit).attempt must completeAs(Left(TestException))
+    }
+
+    "catch exceptions thrown in flatMap functions" in {
+      case object TestException extends RuntimeException
+      IO.unit.flatMap(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+    }
+
+    "catch exceptions thrown in handleErrorWith functions" in {
+      case object TestException extends RuntimeException
+      case object WrongException extends RuntimeException
+      IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+    }
+
     platformSpecs
   }
 
