@@ -80,7 +80,7 @@ class AsyncBenchmark extends DefaultContexts {
     task.unsafeRunSync(ctx, timer)
   }*/
 
-  // @Benchmark
+  @Benchmark
   def race() = {
     val task = (0 until size).foldLeft(IO.never: IO[Int])((acc, _) =>
       IO.race(acc, IO(1)).map {
@@ -92,7 +92,7 @@ class AsyncBenchmark extends DefaultContexts {
     task.unsafeRunSync(ctx, timer)
   }
 
-  // @Benchmark
+  @Benchmark
   def racePair() = {
     val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.racePair(acc, IO(1)).flatMap {
@@ -104,7 +104,7 @@ class AsyncBenchmark extends DefaultContexts {
     task.unsafeRunSync(ctx, timer)
   }
 
-  // @Benchmark
+  @Benchmark
   def start() = {
     def loop(i: Int): IO[Int] =
       if (i < size)
