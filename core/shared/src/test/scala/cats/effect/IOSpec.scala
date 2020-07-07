@@ -354,6 +354,23 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
+    "run three finalizers when an async is canceled while suspended" in {
+      var results = List[Int]()
+
+      val body = IO.async[Nothing] { _ =>
+        IO.pure(Some(IO(results ::= 3)))
+      }
+
+      val test = for {
+        f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
+        _ <- IO(ctx.tick())
+        _ <- f.cancel
+        back <- IO(results)
+      } yield back
+
+      test must completeAs(List(1, 2, 3))
+    }
+
     platformSpecs
   }
 

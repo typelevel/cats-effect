@@ -94,7 +94,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
           done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
 
           if (!finalizers.isEmpty()) {
-            val conts = new ArrayStack[IOCont](16)
+            conts = new ArrayStack[IOCont](16)
             conts.push(CancelationLoopK)
 
             masks += 1
