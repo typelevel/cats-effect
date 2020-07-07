@@ -53,6 +53,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private[this] val objectState = new ArrayStack[AnyRef](16)
   private[this] val booleanState = new BooleanArrayStack(16)
 
+  private[this] val MaxStackDepth = IOFiber.MaxStackDepth
+
   private[this] val childCount = IOFiber.childCount
 
   // pre-fetching of all continuations (to avoid memory barriers)
@@ -603,6 +605,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
 private object IOFiber {
 
+  private val MaxStackDepth = 512
+
   private val childCount = new AtomicInteger(0)
 
   // prefetch
@@ -755,7 +759,7 @@ private object IOFiber {
         case NonFatal(t) => t
       }
 
-      if (depth > 512) {
+      if (depth > MaxStackDepth) {
         if (success)
           IO.Pure(transformed)
         else
@@ -789,11 +793,19 @@ private object IOFiber {
 
       val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
 
-      if (success)
-        popCont()(self, true, result, depth + 1)    // if it's *not* an error, just pass it along
-      else
-        // TODO try/catch
-        f(result.asInstanceOf[Throwable])
+      if (success) {
+        // if it's *not* an error, just pass it along
+        if (depth > MaxStackDepth)
+          IO.Pure(result)
+        else
+          popCont()(self, true, result, depth + 1)
+      } else {
+        try {
+          f(result.asInstanceOf[Throwable])
+        } catch {
+          case NonFatal(t) => failed(t, depth + 1)
+        }
+      }
     }
   }
 

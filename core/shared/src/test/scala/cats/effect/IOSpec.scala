@@ -399,6 +399,16 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       loop(0) must completeAs(())
     }
 
+    "evaluate 10,000 consecutive handleErrorWith continuations" in {
+      def loop(i: Int): IO[Unit] =
+        if (i < 10000)
+          IO.unit.flatMap(_ => loop(i + 1)).handleErrorWith(IO.raiseError(_))
+        else
+          IO.unit
+
+      loop(0) must completeAs(())
+    }
+
     platformSpecs
   }
 
