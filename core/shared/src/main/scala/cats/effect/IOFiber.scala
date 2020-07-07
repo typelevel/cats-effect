@@ -202,10 +202,10 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
           case Right(a) => conts.pop()(this, true, a)
         }
 
-          runLoop(next)
-        }
+        runLoop(next)
       }
     }
+  }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   private def runLoop(cur0: IO[Any]): Unit = {
