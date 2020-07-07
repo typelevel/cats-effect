@@ -21,9 +21,8 @@ import cats.data._
 
 import scala.concurrent.duration.FiniteDuration
 
-import cats.kernel.Monoid
-import cats.kernel.Semigroup
-import cats.Monad
+import cats.kernel.{Monoid, Semigroup}
+import cats.{Defer, Monad}
 
 trait Clock[F[_]] extends Applicative[F] {
 
@@ -37,39 +36,52 @@ trait Clock[F[_]] extends Applicative[F] {
 object Clock {
   def apply[F[_]](implicit F: Clock[F]): F.type = F
 
-  implicit def clockForOptionT[F[_]](implicit C: Clock[F] with Monad[F]): Clock[OptionT[F, *]] =
+  implicit def clockForOptionT[F[_]](implicit F0: Clock[F] with Monad[F]): Clock[OptionT[F, *]] =
     new OptionTClock[F] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForEitherT[F[_], E](implicit C: Clock[F] with Monad[F]): Clock[EitherT[F, E, *]] =
+  implicit def clockForEitherT[F[_], E](implicit F0: Clock[F] with Monad[F]): Clock[EitherT[F, E, *]] =
     new EitherTClock[F, E] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForStateT[F[_], S](implicit C: Clock[F] with Monad[F]): Clock[StateT[F, S, *]] =
+  implicit def clockForStateT[F[_], S](implicit F0: Clock[F] with Monad[F]): Clock[StateT[F, S, *]] =
     new StateTClock[F, S] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForWriterT[F[_], S: Monoid](implicit C: Clock[F] with Monad[F]): Clock[WriterT[F, S, *]] =
+  implicit def clockForWriterT[F[_], S](implicit F0: Clock[F] with Monad[F], S0: Monoid[S]): Clock[WriterT[F, S, *]] =
     new WriterTClock[F, S] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
 
-      override def S: Monoid[S] = Monoid[S]
+      implicit override def S: Monoid[S] = S0
 
     }
 
-  implicit def clockForIorT[F[_], L: Semigroup](implicit C: Clock[F] with Monad[F]): Clock[IorT[F, L, *]] =
+  implicit def clockForIorT[F[_], L](implicit F0: Clock[F] with Monad[F], L0: Semigroup[L]): Clock[IorT[F, L, *]] =
     new IorTClock[F, L] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
 
-      override def L: Semigroup[L] = Semigroup[L]
+      implicit override def L: Semigroup[L] = L0
     }
 
-  implicit def clockForKleisli[F[_], R](implicit C: Clock[F] with Monad[F]): Clock[Kleisli[F, R, *]] =
+  implicit def clockForKleisli[F[_], R](implicit F0: Clock[F] with Monad[F]): Clock[Kleisli[F, R, *]] =
     new KleisliClock[F, R] {
-      override def F: Clock[F] with Monad[F] = C
+      implicit override def F: Clock[F] with Monad[F] = F0
+    }
+
+  implicit def clockForContT[F[_], R](implicit F0: Clock[F] with Monad[F] with Defer[F]): Clock[ContT[F, R, *]] =
+    new ContTClock[F, R] {
+      implicit override def F: Clock[F] with Monad[F] with Defer[F] = F0
+    }
+
+  implicit def clockForReaderWriterStateT[F[_], R, L, S](implicit F0: Clock[F] with Monad[F],
+                                                         L0: Monoid[L]): Clock[ReaderWriterStateT[F, R, L, S, *]] =
+    new ReaderWriterStateTClock[F, R, L, S] {
+      implicit override def F: Clock[F] with Monad[F] = F0
+
+      implicit override def L: Monoid[L] = L0
     }
 
   trait OptionTClock[F[_]] extends Clock[OptionT[F, *]] {
@@ -175,6 +187,44 @@ object Clock {
       Kleisli.liftF(F.monotonic)
 
     override def realTime: Kleisli[F, R, FiniteDuration] = Kleisli.liftF(F.realTime)
+
+  }
+
+  trait ContTClock[F[_], R] extends Clock[ContT[F, R, *]] {
+    implicit protected def F: Clock[F] with Monad[F] with Defer[F]
+
+    val delegate = ContT.catsDataContTMonad[F, R]
+
+    override def ap[A, B](
+      ff: ContT[F, R, A => B]
+    )(fa: ContT[F, R, A]): ContT[F, R, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): ContT[F, R, A] = delegate.pure(x)
+
+    override def monotonic: ContT[F, R, FiniteDuration] =
+      ContT.liftF(F.monotonic)
+
+    override def realTime: ContT[F, R, FiniteDuration] = ContT.liftF(F.realTime)
+
+  }
+
+  trait ReaderWriterStateTClock[F[_], R, L, S] extends Clock[ReaderWriterStateT[F, R, L, S, *]] {
+    implicit protected def F: Clock[F] with Monad[F]
+
+    implicit protected def L: Monoid[L]
+
+    val delegate = IndexedReaderWriterStateT.catsDataMonadForRWST[F, R, L, S]
+
+    override def ap[A, B](
+      ff: ReaderWriterStateT[F, R, L, S, A => B]
+    )(fa: ReaderWriterStateT[F, R, L, S, A]): ReaderWriterStateT[F, R, L, S, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): ReaderWriterStateT[F, R, L, S, A] = delegate.pure(x)
+
+    override def monotonic: ReaderWriterStateT[F, R, L, S, FiniteDuration] =
+      IndexedReaderWriterStateT.liftF(F.monotonic)
+
+    override def realTime: ReaderWriterStateT[F, R, L, S, FiniteDuration] = IndexedReaderWriterStateT.liftF(F.realTime)
 
   }
 }
