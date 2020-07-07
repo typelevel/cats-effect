@@ -389,6 +389,16 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       test must completeAs(List(1, 2, 3))
     }
 
+    "evaluate 10,000 consecutive map continuations" in {
+      def loop(i: Int): IO[Unit] =
+        if (i < 10000)
+          IO.unit.flatMap(_ => loop(i + 1)).map(u => u)
+        else
+          IO.unit
+
+      loop(0) must completeAs(())
+    }
+
     platformSpecs
   }
 
