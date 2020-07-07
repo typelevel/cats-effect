@@ -171,21 +171,25 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
     join = IO.pure(oc)
 
     val cb0 = callback.get()
-    if (cb0.isInstanceOf[Function1[_, _]]) {
-      val cb = cb0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
-      cb(oc)
-    } else if (cb0.isInstanceOf[SafeArrayStack[_]]) {
-      val stack = cb0.asInstanceOf[SafeArrayStack[AnyRef]]
+    try {
+      if (cb0 == null) {
+        // println(s"<$name> completed with empty callback")
+      } else if (cb0.isInstanceOf[Function1[_, _]]) {
+        val cb = cb0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
+        cb(oc)
+      } else if (cb0.isInstanceOf[SafeArrayStack[_]]) {
+        val stack = cb0.asInstanceOf[SafeArrayStack[AnyRef]]
 
-      val bound = stack.unsafeIndex()
-      val buffer = stack.unsafeBuffer()
+        val bound = stack.unsafeIndex()
+        val buffer = stack.unsafeBuffer()
 
-      var i = 0
-      while (i < bound) {
-        buffer(i).asInstanceOf[Outcome[IO, Throwable, A] => Unit](oc)
-        i += 1
+        var i = 0
+        while (i < bound) {
+          buffer(i).asInstanceOf[Outcome[IO, Throwable, A] => Unit](oc)
+          i += 1
+        }
       }
-
+    } finally {
       callback.set(null)    // avoid leaks
     }
   }
@@ -265,6 +269,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
              * - Right(null) (registration has completed with cancelToken but not callback)
              * - anything else (callback has completed but not registration)
              *
+             * TODO write a test for null as a result or an error; I think this state machine needs to be less stupid
+             *
              * The purpose of this buffer is to ensure that registration takes
              * primacy over callbacks in the event that registration produces
              * errors in sequence. This implements a "queueing" semantic to
@@ -282,7 +288,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               // do an extra cancel check here just to preemptively avoid timer load
               if (!done.getAndSet(true) && !(canceled && masks == initMask)) {
                 val s = state.getAndSet(e)
-                if (s != null && suspended.compareAndSet(true, false)) {    // registration already completed, we're good to go
+                if (s != null) {    // registration already completed, we're good to go
                   if (s.isRight) {
                     // we completed and were not canceled, so we pop the finalizer
                     // note that we're safe to do so since we own the runloop
@@ -557,8 +563,13 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private def popMask(): Unit =
     masks -= 1
 
-  private def suspend(): Unit =
+  // when doubleCheck.get() == true *after* suspension, then roll back
+  private def suspend(doubleCheck: AtomicBoolean): Unit = {
     suspended.set(true)
+    if (doubleCheck.get()) {
+      suspended.set(false)    // our callback completed between checking done and now; unsuspend (because they have the runloop now)
+    }
+  }
 
   // returns the *new* context, not the old
   private def popContext(): ExecutionContext = {
@@ -591,6 +602,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 }
 
 private object IOFiber {
+
   private val childCount = new AtomicInteger(0)
 
   // prefetch
@@ -670,6 +682,7 @@ private object IOFiber {
           null
         }
       } else {
+        // TODO write a test that catches this bug (the negation is flipped!)
         if (isMasked()) {
           result.asInstanceOf[Option[IO[Unit]]] match {
             case Some(cancelToken) =>
@@ -681,7 +694,7 @@ private object IOFiber {
                 popFinalizer()
                 asyncContinue(state, state.get())
               } else {
-                suspend()
+                suspend(done)
               }
 
             case None =>
@@ -689,7 +702,7 @@ private object IOFiber {
                 // the callback was invoked before registration
                 asyncContinue(state, state.get())
               } else {
-                suspend()
+                suspend(done)
               }
           }
         } else {
@@ -698,7 +711,7 @@ private object IOFiber {
             // the callback was invoked before registration
             asyncContinue(state, state.get())
           } else {
-            suspend()
+            suspend(done)
           }
         }
 

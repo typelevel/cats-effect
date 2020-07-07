@@ -17,10 +17,12 @@
 package cats.effect
 
 import cats.Show
+import cats.implicits._
 
 import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 import java.util.concurrent.{CountDownLatch, Executors}
 
@@ -80,6 +82,52 @@ abstract class IOPlatformSpecification extends Specification {
 
       latch.await()
       result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
+    }
+
+    "start 1000 fibers in parallel and await them all" in {
+      val input = (0 until 1000).toList
+
+      val ioa = for {
+        fibers <- input.traverse(i => IO.pure(i).start)
+        _ <- fibers.traverse_(_.join.void)
+      } yield ()
+
+      unsafeRunRealistic(ioa) must beSome
+    }
+
+    "start 1000 fibers in series and await them all" in {
+      val input = (0 until 1000).toList
+      val ioa = input.traverse(i => IO.pure(i).start.flatMap(_.join))
+
+      unsafeRunRealistic(ioa) must beSome
+    }
+  }
+
+  def unsafeRunRealistic[A](ioa: IO[A]): Option[A] = {
+    // TODO this code is now in 3 places; should be in 1
+    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+      val t = new Thread(r)
+      t.setDaemon(true)
+      t
+    })
+
+    val ctx = ExecutionContext.fromExecutor(executor)
+
+    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
+      val t = new Thread(r)
+      t.setName("io-scheduler")
+      t.setDaemon(true)
+      t.setPriority(Thread.MAX_PRIORITY)
+      t
+    }
+
+    val timer = UnsafeTimer.fromScheduledExecutor(scheduler)
+
+    try {
+      ioa.unsafeRunTimed(10.seconds, ctx, timer)
+    } finally {
+      executor.shutdown()
+      scheduler.shutdown()
     }
   }
 }

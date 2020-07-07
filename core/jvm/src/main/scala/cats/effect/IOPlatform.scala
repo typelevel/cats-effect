@@ -17,12 +17,16 @@
 package cats.effect
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
 
-  final def unsafeRunSync(ec: ExecutionContext, timer: UnsafeTimer): A = {
+  final def unsafeRunSync(ec: ExecutionContext, timer: UnsafeTimer): A =
+    unsafeRunTimed(Long.MaxValue.nanos, ec, timer).get
+
+  final def unsafeRunTimed(limit: FiniteDuration, ec: ExecutionContext, timer: UnsafeTimer): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
@@ -32,9 +36,12 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
       latch.countDown()
     }
 
-    latch.await()
-    results.fold(
-      throw _,
-      a => a)
+    if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
+      results.fold(
+        throw _,
+        a => Some(a))
+    } else {
+      None
+    }
   }
 }
