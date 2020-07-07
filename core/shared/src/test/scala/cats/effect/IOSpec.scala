@@ -156,13 +156,31 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       val ioa = for {
         f <- target.start
-        ec <- IO.executionContext
-        _ <- IO(ec.asInstanceOf[TestContext].tick())
+        _ <- IO(ctx.tick())
         _ <- f.cancel
       } yield ()
 
       ioa must completeAs(())
       affected must beTrue
+    }
+
+    "suppress async cancel token upon cancelation in masked region" in {
+      var affected = false
+
+      val target = IO uncancelable { _ =>
+        IO.async[Unit] { _ =>
+          IO.pure(Some(IO { affected = true }))
+        }
+      }
+
+      val ioa = for {
+        f <- target.start
+        _ <- IO(ctx.tick())
+        _ <- f.cancel
+      } yield ()
+
+      ioa must completeAs(())
+      affected must beFalse
     }
 
     "preserve contexts through start" in {

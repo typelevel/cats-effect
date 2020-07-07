@@ -554,7 +554,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private def popBooleanState(): Boolean =
     booleanState.pop()
 
-  private def isMasked(): Boolean =
+  private def isUnmasked(): Boolean =
     masks == initMask
 
   private def pushMask(): Unit =
@@ -682,8 +682,7 @@ private object IOFiber {
           null
         }
       } else {
-        // TODO write a test that catches this bug (the negation is flipped!)
-        if (isMasked()) {
+        if (isUnmasked()) {
           result.asInstanceOf[Option[IO[Unit]]] match {
             case Some(cancelToken) =>
               pushFinalizer(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
@@ -727,7 +726,7 @@ private object IOFiber {
       val ec = popContext()
 
       // special cancelation check to ensure we don't accidentally fork the runloop here
-      if (!isCanceled() || !isMasked()) {
+      if (!isCanceled() || !isUnmasked()) {
         ec execute { () =>
           if (success)
             runLoop(popCont()(self, true, result))
