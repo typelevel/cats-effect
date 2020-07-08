@@ -41,16 +41,18 @@ class DeepBindBenchmark extends DefaultContexts {
 
   // NB: this benchmark is highly deceptive *without* better-monadic-for
 
-  @Param(Array("3000"))
+  @Param(Array("100000"))
   var size: Int = _
 
   @Benchmark
   def pure(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO.pure(i)
-        _ <- if (j > size) IO.pure(j) else loop(j + 1)
-      } yield j
+      IO.pure(i) flatMap { j =>
+        if (j > size)
+          IO.pure(j)
+        else
+          loop(j + 1)
+      }
 
     loop(0).unsafeRunSync(ctx, timer)
   }
@@ -58,10 +60,12 @@ class DeepBindBenchmark extends DefaultContexts {
   @Benchmark
   def delay(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO(i)
-        _ <- if (j > size) IO(j) else loop(j + 1)
-      } yield j
+      IO(i) flatMap { j =>
+        if (j > size)
+          IO.pure(j)
+        else
+          loop(j + 1)
+      }
 
     loop(0).unsafeRunSync(ctx, timer)
   }
@@ -69,11 +73,14 @@ class DeepBindBenchmark extends DefaultContexts {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO(i)
-        _ <- IO.cede
-        _ <- if (j > size) IO(j) else loop(j + 1)
-      } yield j
+      IO(i) flatMap { j =>
+        IO.cede flatMap { _ =>
+          if (j > size)
+            IO.pure(j)
+          else
+            loop(j + 1)
+        }
+      }
 
     loop(0).unsafeRunSync(ctx, timer)
   }
