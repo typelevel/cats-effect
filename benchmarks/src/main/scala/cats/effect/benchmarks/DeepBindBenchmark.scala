@@ -41,7 +41,7 @@ class DeepBindBenchmark extends DefaultContexts {
 
   // NB: this benchmark is highly deceptive *without* better-monadic-for
 
-  @Param(Array("100000"))
+  @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
