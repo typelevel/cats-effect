@@ -24,8 +24,63 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
+/*
+ * Rationale on memory barrier exploitation in this class...
+ *
+ * The runloop is held by a single thread at any moment in
+ * time. This is ensured by the `suspended` AtomicBoolean,
+ * which is set to `true` when evaluation of an `Async` causes
+ * us to semantically block. Releasing the runloop can thus
+ * only be done by passing through a write barrier (on `suspended`),
+ * and relocating that runloop can itself only be achieved by
+ * passing through that same read/write barrier (a CAS on
+ * `suspended`).
+ *
+ * Separate from this, the runloop may be *relocated* to a different
+ * thread – for example, when evaluating Cede. When this happens,
+ * we pass through a read/write barrier within the Executor as
+ * we enqueue the action to restart the runloop, and then again
+ * when that action is dequeued on the new thread. This ensures
+ * that everything is appropriately published.
+ *
+ * By this argument, the `conts` stack is non-volatile and can be
+ * safely implemented with an array. It is only accessed by one
+ * thread at a time (so there are no atomicity concerns), and it
+ * only becomes relevant to another thread after passing through
+ * either an executor or the `suspended` gate, both of which
+ * would ensure safe publication of writes. `ctxs`, `currentCtx`,
+ * `masks`, `objectState`, and `booleanState` are all subject to
+ * similar arguments. `cancel` and `join` are only made visible
+ * by the Executor read/write barriers, but their writes are
+ * merely a fast-path and are not necessary for correctness.
+ *
+ * TODO! There are two concurrency issues in this implementation.
+ * First, `canceled` is non-volatile. It can be set by the self
+ * fiber in the evaluation of `Canceled`, and this is obviously
+ * not problematic in any way. However, when it is set by another
+ * fiber, it may not be immediately visible. The canceling fiber
+ * will pass through a read/write barrier on `suspended` immediately
+ * after setting, and subsequently a read/write barrier in the
+ * Executor if the CAS fails, and thus `canceled` will be published
+ * to memory, but the *canceled* fiber will not pass through a read
+ * barrier on `suspended`, or anything else, until it hits an async
+ * boundary (where it would set `suspended`) or a Cede, where it
+ * would pass through the Executor. This means that cancelation of
+ * an active runloop has lower granularity than we would like. This
+ * is more a question of performance than correctness, since
+ * cancelation is a hint.
+ *
+ * The second concurrency issue is more severe. `callbacks` may be
+ * modified by multiple threads simultaneously in a case where
+ * several fibers `join` on a single fiber at once. This race is
+ * correctly handled in the case of the very first joiner and the
+ * second joiner, but a race between the nth joiner and the n+1th
+ * joiner where n > 1 will *not* be correctly handled, since it
+ * will result in a simultaneous `push` on `SafeArrayStack`.
+ */
 private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMask: Int) extends Fiber[IO, Throwable, A] {
   import IO._
 
@@ -36,24 +91,25 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private[this] var currentCtx: ExecutionContext = _
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
+  // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
   private[this] var masks: Int = _
   private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
+  // TODO SafeArrayStack isn't safe enough here since multiple threads may push at once
   // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
   private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
 
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
 
+  // TODO we may be able to weaken this to just a @volatile
   private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
     new AtomicReference()
 
   private[this] val objectState = new ArrayStack[AnyRef](16)
   private[this] val booleanState = new BooleanArrayStack(16)
-
-  private[this] val MaxStackDepth = IOFiber.MaxStackDepth
 
   private[this] val childCount = IOFiber.childCount
 
@@ -196,13 +252,13 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
     }
   }
 
-  private def asyncContinue(state: AtomicReference[Either[Throwable, Any]], e: Either[Throwable, Any]): Unit = {
-    state.lazySet(null)   // avoid leaks
+  private def asyncContinue(state: AtomicReference[AsyncState], e: Either[Throwable, Any]): Unit = {
+    state.lazySet(AsyncState.Initial)   // avoid leaks
 
     val ec = currentCtx
 
     if (!canceled || masks != initMask) {
-      ec execute { () =>
+      execute(ec) { () =>
         val next = e match {
           case Left(t) => failed(t, 0)
           case Right(a) => conts.pop()(this, true, a, 0)
@@ -247,7 +303,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             var success = false
             val r = try {
-              val r = cur.thunk()   // don't inline; evaluation order is wonky here
+              val r = cur.thunk()
               success = true
               r
             } catch {
@@ -271,15 +327,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             val done = new AtomicBoolean()
 
             /*
-             * Four states here:
-             *
-             * - null (no one has completed, or everyone has)
-             * - Left(null) (registration has completed without cancelToken but not callback)
-             * - Right(null) (registration has completed with cancelToken but not callback)
-             * - anything else (callback has completed but not registration)
-             *
-             * TODO write a test for null as a result or an error; I think this state machine needs to be less stupid
-             *
              * The purpose of this buffer is to ensure that registration takes
              * primacy over callbacks in the event that registration produces
              * errors in sequence. This implements a "queueing" semantic to
@@ -287,24 +334,46 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
              * registration has fully completed, giving us deterministic
              * serialization.
              */
-            val state = new AtomicReference[Either[Throwable, Any]]()
+            val state = new AtomicReference[AsyncState](AsyncState.Initial)
 
             objectState.push(done)
             objectState.push(state)
 
             val next = cur.k { e =>
               // println(s"<$name> callback run with $e")
-              // do an extra cancel check here just to preemptively avoid timer load
-              if (!done.getAndSet(true) && !(canceled && masks == initMask)) {
-                val s = state.getAndSet(e)
-                if (s != null) {    // registration already completed, we're good to go
-                  if (s.isRight) {
-                    // we completed and were not canceled, so we pop the finalizer
-                    // note that we're safe to do so since we own the runloop
-                    finalizers.pop()
-                  }
+              if (!done.getAndSet(true)) {
+                val old = state.getAndSet(AsyncState.Complete(e))
 
-                  asyncContinue(state, e)
+                /*
+                 * We *need* to own the runloop when we return, so we CAS loop
+                 * on suspended to break the race condition in AsyncK where
+                 * `state` is set but suspend() has not yet run. If `state` is
+                 * set then `suspend()` should be right behind it *unless* we
+                 * have been canceled. If we were canceled, then some other
+                 * fiber is taking care of our finalizers and will have
+                 * marked suspended as false, meaning that `canceled` will be set
+                 * to true. Either way, we won't own the runloop.
+                 */
+                @tailrec
+                def loop(): Unit = {
+                  if (suspended.compareAndSet(true, false)) {
+                    // double-check canceled. if it's true, then we were *already* canceled while suspended and all our finalizers already ran
+                    if (!canceled) {
+                      if (old == AsyncState.RegisteredWithFinalizer) {
+                        // we completed and were not canceled, so we pop the finalizer
+                        // note that we're safe to do so since we own the runloop
+                        finalizers.pop()
+                      }
+
+                      asyncContinue(state, e)
+                    }
+                  } else if (!canceled) {
+                    loop()
+                  }
+                }
+
+                if (old != AsyncState.Initial) {    // registration already completed, we're good to go
+                  loop()
                 }
               }
             }
@@ -325,7 +394,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             ctxs.push(ec)
             conts.push(EvalOnK)
 
-            ec execute { () =>
+            execute(ec) { () =>
               runLoop(cur.ioa)
             }
 
@@ -415,11 +484,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             // println(s"<$name> spawning <$childName>")
 
             val ec = currentCtx
-            ec.execute(() => fiber.run(cur.ioa, ec, initMask2))
+            execute(ec)(() => fiber.run(cur.ioa, ec, initMask2))
 
             runLoop(conts.pop()(this, true, fiber, 0))
 
           case 13 =>
+            // TODO self-cancelation within a nested poll could result in deadlocks in `both`
+            // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
+            // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
             val next = IO.async[Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] { cb =>
@@ -476,8 +548,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
                 val ec = currentCtx
 
-                ec.execute(() => fiberA.run(cur.ioa, ec, masks))
-                ec.execute(() => fiberB.run(cur.iob, ec, masks))
+                execute(ec)(() => fiberA.run(cur.ioa, ec, masks))
+                execute(ec)(() => fiberB.run(cur.iob, ec, masks))
 
                 Some(fiberA.cancel *> fiberB.cancel)
               }
@@ -572,13 +644,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private def popMask(): Unit =
     masks -= 1
 
-  // when doubleCheck.get() == true *after* suspension, then roll back
-  private def suspend(doubleCheck: AtomicBoolean): Unit = {
-    suspended.set(true)
-    if (doubleCheck.get()) {
-      suspended.set(false)    // our callback completed between checking done and now; unsuspend (because they have the runloop now)
-    }
-  }
+  private def suspend(): Unit = suspended.set(true)
 
   // returns the *new* context, not the old
   private def popContext(): ExecutionContext = {
@@ -607,6 +673,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
     objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
 
     k(this, false, error, depth)
+  }
+
+  private def execute(ec: ExecutionContext)(action: Runnable): Unit = {
+    try {
+      ec.execute(action)
+    } catch {
+      case _: RejectedExecutionException => ()    // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
+    }
   }
 }
 
@@ -676,7 +750,7 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
-      val state = popObjectState().asInstanceOf[AtomicReference[Either[Throwable, Any]]]
+      val state = popObjectState().asInstanceOf[AtomicReference[AsyncState]]
       val done = popObjectState().asInstanceOf[AtomicBoolean]
 
       if (!success) {
@@ -688,7 +762,9 @@ private object IOFiber {
           // therefore, side-channel the callback results
           // println(state.get())
 
-          asyncContinue(state, Left(result.asInstanceOf[Throwable]))
+          asyncContinue(
+            state,
+            Left(result.asInstanceOf[Throwable]))
 
           null
         }
@@ -699,29 +775,29 @@ private object IOFiber {
               pushFinalizer(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
               // indicate the presence of the cancel token by pushing Right instead of Left
-              if (!state.compareAndSet(null, Right(null))) {
+              if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredWithFinalizer)) {
                 // the callback was invoked before registration
                 popFinalizer()
-                asyncContinue(state, state.get())
+                asyncContinue(state, state.get().result)
               } else {
-                suspend(done)
+                suspend()
               }
 
             case None =>
-              if (!state.compareAndSet(null, Left(null))) {
+              if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredNoFinalizer)) {
                 // the callback was invoked before registration
-                asyncContinue(state, state.get())
+                asyncContinue(state, state.get().result)
               } else {
-                suspend(done)
+                suspend()
               }
           }
         } else {
           // if we're masked, then don't even bother registering the cancel token
-          if (!state.compareAndSet(null, Left(null))) {
+          if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredNoFinalizer)) {
             // the callback was invoked before registration
-            asyncContinue(state, state.get())
+            asyncContinue(state, state.get().result)
           } else {
-            suspend(done)
+            suspend()
           }
         }
 
@@ -738,7 +814,7 @@ private object IOFiber {
 
       // special cancelation check to ensure we don't accidentally fork the runloop here
       if (!isCanceled() || !isUnmasked()) {
-        ec execute { () =>
+        execute(ec) { () =>
           if (success)
             runLoop(popCont()(self, true, result, 0))
           else

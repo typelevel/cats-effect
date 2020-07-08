@@ -92,21 +92,44 @@ abstract class IOPlatformSpecification extends Specification {
         _ <- fibers.traverse_(_.join.void)
       } yield ()
 
-      unsafeRunRealistic(ioa) must beSome
+      unsafeRunRealistic(ioa)() must beSome
     }
 
     "start 1000 fibers in series and await them all" in {
       val input = (0 until 1000).toList
       val ioa = input.traverse(i => IO.pure(i).start.flatMap(_.join))
 
-      unsafeRunRealistic(ioa) must beSome
+      unsafeRunRealistic(ioa)() must beSome
+    }
+
+    "race many things" in {
+      @volatile
+      var errors = List[Throwable]()
+
+      val task = (0 until 100).foldLeft(IO.never[Int]) { (acc, _) =>
+        IO.race(acc, IO(1)).map {
+          case Left(i)  => i
+          case Right(i) => i
+        }
+      }
+
+      unsafeRunRealistic(task)(errors ::= _) must beSome
+      errors must beEmpty
     }
   }
 
-  def unsafeRunRealistic[A](ioa: IO[A]): Option[A] = {
+  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
     // TODO this code is now in 3 places; should be in 1
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
-      val t = new Thread(r)
+      val t = new Thread({ () =>
+        try {
+          r.run()
+        } catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            errors(t)
+        }
+      })
       t.setDaemon(true)
       t
     })

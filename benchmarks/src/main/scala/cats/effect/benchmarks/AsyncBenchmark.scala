@@ -82,7 +82,7 @@ class AsyncBenchmark extends DefaultContexts {
 
   @Benchmark
   def race() = {
-    val task = (0 until size).foldLeft(IO.never: IO[Int])((acc, _) =>
+    val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.race(acc, IO(1)).map {
         case Left(i)  => i
         case Right(i) => i
