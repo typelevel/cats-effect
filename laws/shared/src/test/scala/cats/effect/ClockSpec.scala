@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.data._
-import cats.{Eq, FlatMap, Monad, MonadError, Monoid, Show}
+import cats.{Eq, FlatMap, Monad, MonadError, Show}
 import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
