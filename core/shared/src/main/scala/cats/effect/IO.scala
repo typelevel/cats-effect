@@ -313,12 +313,13 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * As soon as an async blocking limit is hit, evaluation
    * ''immediately'' aborts and `None` is returned.
    *
-   * Please note that this function is intended for ''testing''; it
-   * should never appear in your mainline production code!  It is
-   * absolutely not an appropriate function to use if you want to
-   * implement timeouts, or anything similar. If you need that sort
-   * of functionality, you should be using a streaming library (like
-   * fs2 or Monix).
+   * This function should never appear in your mainline production code!
+   * If you want to implement timeouts, or anything similar, you should
+   * use `Concurrent.timeout` or `Concurrent.timeoutTo`, which implement
+   * a timeout ''within'' your `IO` program, while permitting proper
+   * resource cleanup and subsequent error handling. `unsafeRunTimed`
+   * should only be used for ''testing'', in cases where you want timeouts to
+   * cause immediate termination of the cats-effect runtime itself.
    *
    * @see [[unsafeRunSync]]
    * @see [[timeout]] for pure and safe version
