@@ -132,6 +132,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private[this] val OutcomeErrored = IOFiber.OutcomeErrored
   private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
+  // similar prefetch for AsyncState
+  private[this] val AsyncStateInitial = AsyncState.Initial
+  private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
+  private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
+
   def this(timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
     this("main", timer, initMask)
     callback.set(cb)
@@ -225,7 +230,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   }
 
   private def done(oc: Outcome[IO, Throwable, A]): Unit = {
-    // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
 
     val cb0 = callback.get()
@@ -253,7 +258,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   }
 
   private def asyncContinue(state: AtomicReference[AsyncState], e: Either[Throwable, Any]): Unit = {
-    state.lazySet(AsyncState.Initial)   // avoid leaks
+    state.lazySet(AsyncStateInitial)   // avoid leaks
 
     val ec = currentCtx
 
@@ -289,7 +294,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
         }
       }
     } else {
-      // println(s"<$name> looping on $cur0")
+      println(s"<$name> looping on $cur0")
 
       // cur0 will be null when we're semantically blocked
       if (!conts.isEmpty() && cur0 != null) {
@@ -334,7 +339,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
              * registration has fully completed, giving us deterministic
              * serialization.
              */
-            val state = new AtomicReference[AsyncState](AsyncState.Initial)
+            val state = new AtomicReference[AsyncState](AsyncStateInitial)
 
             objectState.push(done)
             objectState.push(state)
@@ -359,7 +364,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
                   if (suspended.compareAndSet(true, false)) {
                     // double-check canceled. if it's true, then we were *already* canceled while suspended and all our finalizers already ran
                     if (!canceled) {
-                      if (old == AsyncState.RegisteredWithFinalizer) {
+                      if (old == AsyncStateRegisteredWithFinalizer) {
                         // we completed and were not canceled, so we pop the finalizer
                         // note that we're safe to do so since we own the runloop
                         finalizers.pop()
@@ -372,7 +377,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
                   }
                 }
 
-                if (old != AsyncState.Initial) {    // registration already completed, we're good to go
+                if (old != AsyncStateInitial) {    // registration already completed, we're good to go
                   loop()
                 }
               }
@@ -775,7 +780,7 @@ private object IOFiber {
               pushFinalizer(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
               // indicate the presence of the cancel token by pushing Right instead of Left
-              if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredWithFinalizer)) {
+              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
                 // the callback was invoked before registration
                 popFinalizer()
                 asyncContinue(state, state.get().result)
@@ -784,7 +789,7 @@ private object IOFiber {
               }
 
             case None =>
-              if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredNoFinalizer)) {
+              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
                 // the callback was invoked before registration
                 asyncContinue(state, state.get().result)
               } else {
@@ -793,7 +798,7 @@ private object IOFiber {
           }
         } else {
           // if we're masked, then don't even bother registering the cancel token
-          if (!state.compareAndSet(AsyncState.Initial, AsyncState.RegisteredNoFinalizer)) {
+          if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
             // the callback was invoked before registration
             asyncContinue(state, state.get().result)
           } else {
