@@ -147,7 +147,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, concurrent % Test, laws % Test, testkit % Test)
+  .dependsOn(kernel, concurrent, laws % Test, testkit % Test)
   .settings(
     name := "cats-effect",
 
@@ -166,17 +166,8 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
  * terms of cats effect typeclasses (no dependency on IO)
  */
 lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"))
-  .dependsOn(kernel, laws % Test, testkit % Test)
-  .settings(
-    name := "cats-effect-concurrent",
-
-    libraryDependencies ++= Seq(
-      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
-      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version     % Test,
-      "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))
-  .jvmSettings(
-    Test / fork := true,
-    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+  .dependsOn(kernel)
+  .settings(name := "cats-effect-concurrent")
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
