@@ -87,11 +87,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, concurrent.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, example.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, concurrent.js, example.js)
   .settings(noPublishSettings)
 
 /**
