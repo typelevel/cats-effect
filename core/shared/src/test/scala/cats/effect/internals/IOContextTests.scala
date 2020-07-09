@@ -22,7 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class IOContextTests extends AnyFunSuite with Matchers {
 
-  val maxTraceDepth: Int = cats.effect.internals.TracingPlatform.maxTraceDepth
+  val traceBufferSize: Int = cats.effect.internals.TracingPlatform.traceBufferSize
   val throwable = new Throwable()
 
   test("push traces") {
@@ -43,46 +43,14 @@ class IOContextTests extends AnyFunSuite with Matchers {
   test("track omitted frames") {
     val ctx = IOContext()
 
-    for (_ <- 0 until (maxTraceDepth + 10)) {
+    for (_ <- 0 until (traceBufferSize + 10)) {
       ctx.pushFrame(StackTraceFrame(TraceTag.Pure, throwable))
     }
 
     val trace = ctx.trace()
-    trace.frames.length shouldBe maxTraceDepth
-    trace.captured shouldBe (maxTraceDepth + 10)
+    trace.frames.length shouldBe traceBufferSize
+    trace.captured shouldBe (traceBufferSize + 10)
     trace.omitted shouldBe 10
   }
 
-  test("reset tracing") {
-    val ctx = IOContext()
-
-    val t1 = StackTraceFrame(TraceTag.Pure, throwable)
-    val t2 = StackTraceFrame(TraceTag.Suspend, throwable)
-
-    ctx.pushFrame(t1)
-    ctx.pushFrame(t2)
-
-    ctx.resetTrace()
-
-    val trace = ctx.trace()
-    trace.frames shouldBe List()
-    trace.captured shouldBe 0
-    trace.omitted shouldBe 0
-  }
-
-  test("track tracing regions") {
-    val ctx = IOContext()
-
-    ctx.activeTraces() shouldBe 0
-
-    ctx.enterTrace()
-    ctx.activeTraces() shouldBe 1
-    ctx.enterTrace()
-    ctx.activeTraces() shouldBe 2
-
-    ctx.exitTrace()
-    ctx.activeTraces() shouldBe 1
-    ctx.exitTrace()
-    ctx.activeTraces() shouldBe 0
-  }
 }

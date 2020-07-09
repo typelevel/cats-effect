@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.tracing.{IOTrace, StackTraceFrame}
-import cats.effect.internals.TracingPlatform.maxTraceDepth
+import cats.effect.internals.TracingPlatform.traceBufferSize
 
 /**
  * INTERNAL API — Holds state related to the execution of
@@ -26,34 +26,17 @@ import cats.effect.internals.TracingPlatform.maxTraceDepth
  */
 final private[effect] class IOContext private () {
 
-  private var frames: RingBuffer[StackTraceFrame] = new RingBuffer(maxTraceDepth)
+  private val frames: RingBuffer[StackTraceFrame] = new RingBuffer(traceBufferSize)
   private var captured: Int = 0
   private var omitted: Int = 0
-
-  private var activeCollects: Int = 0
 
   def pushFrame(fr: StackTraceFrame): Unit = {
     captured += 1
     if (frames.push(fr) != null) omitted += 1
   }
 
-  def resetTrace(): Unit = {
-    frames = new RingBuffer(maxTraceDepth)
-    captured = 0
-    omitted = 0
-  }
-
   def trace(): IOTrace =
     IOTrace(frames.toList, captured, omitted)
-
-  def activeTraces(): Int =
-    activeCollects
-
-  def enterTrace(): Unit =
-    activeCollects += 1
-
-  def exitTrace(): Unit =
-    activeCollects -= 1
 
 }
 

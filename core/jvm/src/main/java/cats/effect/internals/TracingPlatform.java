@@ -30,26 +30,17 @@ import java.util.Optional;
 public final class TracingPlatform {
 
     /**
-     * Sets the global tracing mode for a JVM process.
-     * If this flag isn't enabled, no tracing is instrumented.
-     */
-    public static final boolean isTracing = Optional.ofNullable(System.getProperty("cats.effect.tracing"))
-            .filter(x -> !x.isEmpty())
-            .map(Boolean::valueOf)
-            .orElse(false);
-
-    /**
      * Sets stack tracing mode for a JVM process, which controls
      * how much stack trace information is captured.
      * Acceptable values are: NONE, CACHED, FULL.
      */
     private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.stackTracingMode"))
             .filter(x -> !x.isEmpty())
-            .orElse("none");
+            .orElse("full");
 
-    public static final boolean isCachedStackTracing = isTracing && stackTracingMode.equalsIgnoreCase("cached");
+    public static final boolean isCachedStackTracing = stackTracingMode.equalsIgnoreCase("cached");
 
-    public static final boolean isFullStackTracing = isTracing && stackTracingMode.equalsIgnoreCase("full");
+    public static final boolean isFullStackTracing = stackTracingMode.equalsIgnoreCase("full");
 
     public static final boolean isStackTracing = isFullStackTracing || isCachedStackTracing;
 
@@ -58,7 +49,7 @@ public final class TracingPlatform {
      * lines are produced, then the oldest trace lines will be discarded.
      * Automatically rounded up to the nearest power of 2.
      */
-    public static final int maxTraceDepth = Optional.ofNullable(System.getProperty("cats.effect.maxTraceDepth"))
+    public static final int traceBufferSize = Optional.ofNullable(System.getProperty("cats.effect.traceBufferSize"))
         .filter(x -> !x.isEmpty())
         .flatMap(x -> {
             try {
@@ -67,6 +58,6 @@ public final class TracingPlatform {
                 return Optional.empty();
             }
         })
-        .orElse(64);
+        .orElse(128);
 
 }

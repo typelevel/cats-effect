@@ -30,14 +30,14 @@ class TracingTests extends AsyncFunSuite with Matchers {
   def traced[A](io: IO[A]): IO[IOTrace] =
     for {
       _ <- io.traced
-      t <- IO.backtrace
+      t <- IO.trace
     } yield t
 
   test("trace is empty when no traces are captured") {
     val task = for {
       _ <- IO.pure(1)
       _ <- IO.pure(1)
-      t <- IO.backtrace
+      t <- IO.trace
     } yield t
 
     for (r <- task.unsafeToFuture()) yield {
@@ -65,9 +65,9 @@ class TracingTests extends AsyncFunSuite with Matchers {
 
     val task = for {
       _ <- op.traced
-      _ <- IO.backtrace
+      _ <- IO.trace
       _ <- op.traced
-      t <- IO.backtrace
+      t <- IO.trace
     } yield t.frames.length
 
     for (r <- task.unsafeToFuture()) yield {

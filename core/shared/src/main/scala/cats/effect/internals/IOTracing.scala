@@ -19,7 +19,7 @@ package cats.effect.internals
 import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
-import cats.effect.IO.{Bind, Pure, RaiseError, SetTracing, Trace}
+import cats.effect.IO.Trace
 import cats.effect.tracing.{StackTraceFrame, TraceTag}
 
 private[effect] object IOTracing {
@@ -32,12 +32,6 @@ private[effect] object IOTracing {
 
   def cached(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame =
     buildCachedFrame(traceTag, clazz)
-
-  def traced[A](source: IO[A]): IO[A] =
-    resetTrace *>
-      Bind(incrementCollection,
-           (_: Unit) => Bind(source, DecrementTraceCollection.asInstanceOf[A => IO[A]], null),
-           null)
 
   private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame = {
     val cf = frameCache.get(clazz)
@@ -52,23 +46,6 @@ private[effect] object IOTracing {
 
   def buildFrame(traceTag: TraceTag): StackTraceFrame =
     StackTraceFrame(traceTag, new Throwable())
-
-  private[this] val incrementCollection: IO[Unit] = SetTracing(true)
-
-  private[this] val decrementCollection: IO[Unit] = SetTracing(false)
-
-  private object DecrementTraceCollection extends IOFrame[Any, IO[Any]] {
-    override def apply(a: Any) =
-      Bind(decrementCollection, (_: Unit) => Pure(a), null)
-    override def recover(e: Throwable) =
-      Bind(decrementCollection, (_: Unit) => RaiseError(e), null)
-  }
-
-  private[this] val resetTrace: IO[Unit] =
-    IO.Async { (_, ctx, cb) =>
-      ctx.resetTrace()
-      cb(Right(()))
-    }
 
   /**
    * Cache for trace frames. Keys are references to lambda classes.

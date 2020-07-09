@@ -791,9 +791,6 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    * */
   def <&[B](another: IO[B])(implicit p: NonEmptyParallel[IO]): IO[A] =
     p.parProductL(this)(another)
-
-  def traced: IO[A] =
-    IOTracing.traced(this)
 }
 
 abstract private[effect] class IOParallelNewtype extends internals.IOTimerRef with internals.IOCompanionBinaryCompat {
@@ -1626,7 +1623,7 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
-  val backtrace: IO[IOTrace] =
+  val trace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
       cb(Right(ctx.trace()))
     }
@@ -1676,8 +1673,6 @@ object IO extends IOInstances {
   ) extends IO[A]
 
   final private[effect] case class Trace[A](source: IO[A], trace: StackTraceFrame) extends IO[A]
-
-  final private[effect] case class SetTracing(collectStackTraces: Boolean) extends IO[Unit]
 
   /**
    * An internal state for that optimizes changes to

@@ -30,7 +30,7 @@ class CachedStackTracingTests extends AsyncFunSuite with Matchers {
   def traced[A](io: IO[A]): IO[IOTrace] =
     for {
       _ <- io.traced
-      t <- IO.backtrace
+      t <- IO.trace
     } yield t
 
   test("cached stack tracing captures map frames") {

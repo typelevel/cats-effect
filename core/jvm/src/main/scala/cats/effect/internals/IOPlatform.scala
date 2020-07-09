@@ -20,7 +20,7 @@ import java.util.concurrent.locks.AbstractQueuedSynchronizer
 import cats.effect.IO
 import scala.concurrent.blocking
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.util.{Either, Try}
+import scala.util.Either
 
 private[effect] object IOPlatform {
 

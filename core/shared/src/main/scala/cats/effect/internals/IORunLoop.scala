@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, SetTracing, Suspend, Trace}
+import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.StackTraceFrame
 import cats.effect.internals.TracingPlatform.isStackTracing
 
@@ -69,7 +69,6 @@ private[effect] object IORunLoop {
     // Can change on a context switch
     var conn: IOConnection = cancelable
     var ctx: IOContext = ctxRef
-    var activeCollects: Int = if (ctx ne null) ctx.activeTraces else 0
     var bFirst: Bind = bFirstRef
     var bRest: CallStack = bRestRef
     var rcb: RestartCallback = rcbRef
@@ -87,7 +86,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isStackTracing && activeCollects > 0) {
+          if (isStackTracing) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
@@ -132,7 +131,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isStackTracing && activeCollects > 0) {
+          if (isStackTracing) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
@@ -146,7 +145,7 @@ private[effect] object IORunLoop {
           // may produce trace frames e.g. IOBracket.
           if (ctx eq null) ctx = IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
-          if (isStackTracing && activeCollects > 0) {
+          if (isStackTracing) {
             val trace = async.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
@@ -167,18 +166,6 @@ private[effect] object IORunLoop {
           if (ctx eq null) ctx = IOContext()
           ctx.pushFrame(frame)
           currentIO = source
-
-        case SetTracing(collect) =>
-          if (ctx eq null) ctx = IOContext()
-          if (collect) {
-            activeCollects += 1
-            ctx.enterTrace()
-          } else {
-            activeCollects -= 1
-            ctx.exitTrace()
-          }
-          unboxed = ().asInstanceOf[AnyRef]
-          hasUnboxed = true
       }
 
       if (hasUnboxed) {
@@ -216,7 +203,6 @@ private[effect] object IORunLoop {
     var bFirst: Bind = null
     var bRest: CallStack = null
     var ctx: IOContext = null
-    var activeCollects: Int = 0
     // Values from Pure and Delay are unboxed in this var,
     // for code reuse between Pure and Delay
     var hasUnboxed: Boolean = false
@@ -229,7 +215,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isStackTracing && activeCollects > 0) {
+          if (isStackTracing) {
             if (ctx eq null) ctx = IOContext()
             val trace = bind.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
@@ -274,7 +260,7 @@ private[effect] object IORunLoop {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isStackTracing && activeCollects > 0) {
+          if (isStackTracing) {
             if (ctx eq null) ctx = IOContext()
             val trace = bindNext.trace
             if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
@@ -286,18 +272,6 @@ private[effect] object IORunLoop {
           if (ctx eq null) ctx = IOContext()
           ctx.pushFrame(frame)
           currentIO = source
-
-        case SetTracing(collect) =>
-          if (ctx eq null) ctx = IOContext()
-          if (collect) {
-            activeCollects += 1
-            ctx.enterTrace()
-          } else {
-            activeCollects -= 1
-            ctx.exitTrace()
-          }
-          unboxed = ().asInstanceOf[AnyRef]
-          hasUnboxed = true
 
         case _ =>
           // Cannot inline the code of this method — as it would

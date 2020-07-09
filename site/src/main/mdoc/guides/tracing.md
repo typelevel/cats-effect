@@ -43,9 +43,10 @@ IOTrace: 13 frames captured, 0 omitted
 
 However, fiber tracing isn't limited to collecting stack traces. Tracing 
 has many use cases that improve developer experience and aid in understanding 
-how our applications work (coming soon!):
+how our applications work. These features are described below. A **bolded name**
+indicates that the feature has been merged into master.
 
-1. Asynchronous stack tracing. This is essentially what is described above,
+1. **Asynchronous stack tracing**. This is essentially what is described above,
 where stack frames are collected across asynchronous boundaries for a given
 fiber.
 2. Combinator inference. Stack traces can be walked to determine what
@@ -78,53 +79,45 @@ and trace information of all fibers in an application can be extracted for
 debugging purposes.
 10. Monad transformer analysis.
 
-## Usage
-
-### Enable tracing
-A global system property must be set on JVM in order to enable any tracing
-facility:
-
-```
--Dcats.effect.tracing=true
-```
-
-### Collecting traces
-To mark a region of a program for tracing, use the `traced` combinator. After
-that subprogram completes, use the `backtrace` combinator to collect the full
-fiber trace.
-
-```scala
-for {
-  _     <- program.traced
-  trace <- IO.backtrace
-  _     <- trace.compactPrint
-} yield ()
-```
-
-### Asynchronous stack tracing
+## Asynchronous stack tracing
+### Configuration
 The stack tracing mode of an application is configured by the system property
-`cats.effect.tracing.mode`. There are three stack tracing modes: `DISABLED`,
-`CACHED` and `FULL`.
+`cats.effect.stackTracingMode`. There are three stack tracing modes: `DISABLED`,
+`CACHED` and `FULL`. These values are case-insensitive.
+
+To prevent unbounded memory usage, stack traces for a fiber are accumulated 
+in an internal buffer as execution proceeds. If more traces are collected than
+the buffer can retain, then the older traces will be overwritten. The default
+size for the buffer is 128, but can be changed via the system property 
+`cats.effect.traceBufferSize`.  
+
+For example, to enable full stack tracing and a trace buffer size of 1024,
+specify the following system properties:
+```
+-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferSize=1024
+```
 
 #### DISABLED
-No tracing is instrumented by the program. This is the default stack tracing 
-mode.
+No tracing is instrumented by the program and so incurs negligible impact to
+performance. If a trace is requested, it will be empty.
 
 #### CACHED
 When cached stack tracing is enabled, a stack trace is captured and cached for
 every `map`, `flatMap` and `async` call in a program. 
 
-The stack trace cache is keyed by the lambda class reference, so cached tracing
-may produce inaccurate fiber traces under several scenarios:
+The stack trace cache is indexed by the lambda class reference, so cached
+tracing may produce inaccurate fiber traces under several scenarios:
 1. Monad transformer composition
 2. A named function is supplied to `map`, `async` or `flatMap` at multiple
 call-sites
 
 When no collection is performed, we measured less than an 18% performance hit
 for a completely synchronous `IO` program, so it will most likely be negligible
-for any program that performs any sort of I/O.
+for any program that performs any sort of I/O. Nonetheless, we strongly
+recommend benchmarking applications that enable tracing.
 
-This is the recommended mode to run in production environments.
+This is the recommended mode to run in production environments and is enabled
+by default.
 
 #### FULL
 When full stack tracing is enabled, a stack trace is captured for every
@@ -132,44 +125,77 @@ combinator traced in cached mode, but also `pure`, `delay`, `suspend` and other
 derived combinators.
 
 This mode will incur a heavy performance hit for most programs, and is
-recommended for use only in development environments.
+recommended for use in development environments.
 
-### Example
-Here is a sample program that demonstrates how to turn on tracing in an 
-application.
+### Requesting and rendering traces
+Once the global tracing flag is configured, `IO` programs will automatically
+begin collecting traces. The trace for a fiber can be accessed at any point
+during its execution via the `IO.trace` combinator. This is the `IO` equivalent
+of capturing a thread's stack trace.
 
 ```scala
-// Specify the following flags in your JVM:
-// -Dcats.effect.tracing=true
+import cats.effect.IO
+
+def program: IO[Unit] =
+  for {
+    _     <- IO(println("Started the program"))
+    trace <- IO.trace
+  } yield ()
+```
+
+After a fiber trace is retrieved, we can print it to the console, just like how 
+exception stack traces can be printed with `printStackTrace`. `compactPrint`
+includes the most relevant stack trace element for each fiber operation that
+was performed. `prettyPrint` includes the entire stack trace for each fiber
+operation. These methods accept arguments that lets us customize how traces
+are printed.
+
+```scala
+import cats.effect.IO
+
+def program: IO[Unit] =
+  for {
+    _     <- IO(println("Started the program"))
+    trace <- IO.trace
+    _     <- trace.compactPrint
+    _     <- trace.prettyPrint()
+  } yield ()
+```
+
+Keep in mind that the scope and amount of information that traces hold will
+change over time as additional fiber tracing features are merged into master.
+
+### Complete example
+Here is a sample program that demonstrates tracing in action.
+
+```scala
+// Pass the following system property to your JVM:
 // -Dcats.effect.stackTracingMode=full
 
+import cats.implicits._
 import cats.effect.{ExitCode, IO, IOApp}
+import scala.util.Random
 
 object Example extends IOApp {
 
-  def print(msg: String): IO[Unit] =
-    IO(println(msg))
-
-  def program2: IO[Unit] =
-    for {
-      _ <- print("3")
-      _ <- print("4")
-    } yield ()
-
+  def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
+    IO(a + b).flatMap { b2 =>
+      if (n > 0)
+        fib(n - 1, b, b2)
+      else
+        IO.pure(b2)
+    }
+  
   def program: IO[Unit] =
     for {
-      _ <- print("1")
-      _ <- print("2")
-      _ <- IO.shift
-      _ <- program2
-      _ <- print("5")
+      x <- fib(20)
+      _ <- IO(println(s"The 20th fibonacci number is $x"))
+      _ <- IO(Random.nextBoolean()).ifM(IO.raiseError(new Throwable("")), IO.unit)
     } yield ()
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _     <- IO.suspend(program).traced
-      trace <- IO.backtrace
-      _     <- trace.compactPrint
+      _     <- program.handleErrorWith(_ => IO.trace.flatMap(_.compactPrint))
     } yield ExitCode.Success
 
 }

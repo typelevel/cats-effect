@@ -22,14 +22,13 @@ final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: 
 
   import IOTrace._
 
-  def compact: String = {
+  def compact(): String = {
     val TurnRight = "╰"
     val Junction = "├"
 
     def renderStackTraceElement(ste: StackTraceElement): String = {
-      val className = demangleClassName(ste.getClassName)
-      val methodName = demangleMethodName(ste.getMethodName)
-      s"$className.$methodName (${ste.getFileName}:${ste.getLineNumber})"
+      val methodName = demangleMethod(ste.getMethodName)
+      s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
     }
 
     val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
@@ -43,31 +42,32 @@ final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: 
     acc1
   }
 
-  def compactPrint: IO[Unit] =
+  def compactPrint(): IO[Unit] =
     IO(System.err.println(compact))
 
-  def pretty: String = {
+  def pretty(maxStackTracesLines: Int = Int.MaxValue): String = {
     val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = acc0 + loop("", 0, true, frames.toList)
+    val acc1 = acc0 + loop("", 0, true, frames, maxStackTracesLines)
     acc1
   }
 
-  def prettyPrint: IO[Unit] =
-    IO(System.err.println(pretty))
+  def prettyPrint(maxStackTracesLines: Int = Int.MaxValue): IO[Unit] =
+    IO(System.err.println(pretty(maxStackTracesLines)))
 
-  private def loop(acc: String, indent: Int, init: Boolean, rest: List[StackTraceFrame]): String = {
+  private def loop(acc: String,
+                   indent: Int,
+                   init: Boolean,
+                   rest: List[StackTraceFrame],
+                   maxStackTraceLines: Int): String = {
     val TurnRight = "╰"
     val InverseTurnRight = "╭"
     val Junction = "├"
     val Line = "│"
 
     def renderStackTraceElement(ste: StackTraceElement, last: Boolean): String = {
-      val className = demangleClassName(ste.getClassName)
-      val methodName = demangleMethodName(ste.getMethodName)
-
+      val methodName = demangleMethod(ste.getMethodName)
       val junc = if (last) TurnRight else Junction
-
-      Line + "  " + junc + s" $className.$methodName (${ste.getFileName}:${ste.getLineNumber})\n"
+      Line + "  " + junc + s" ${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})\n"
     }
 
     rest match {
@@ -75,36 +75,28 @@ final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: 
         val acc2 = if (init) InverseTurnRight + s" ${k.tag.name}\n" else Junction + s" ${k.tag.name}\n"
         val innerLines = k.stackTrace
           .drop(stackTraceIgnoreLines)
+          .take(maxStackTraceLines)
           .zipWithIndex
           .map {
             case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)
           }
           .mkString
 
-        loop(acc + acc2 + innerLines + Line + "\n", indent, false, ks)
+        loop(acc + acc2 + innerLines + Line + "\n", indent, false, ks, maxStackTraceLines)
       }
       case Nil => acc
     }
   }
 
-  private def demangleClassName(className: String): String =
-    className.replaceAll("\\$", "")
-
-  private def demangleMethodName(methodName: String): String =
-    anonfunRegex.findFirstMatchIn(methodName) match {
-      case Some(mat) => mat.group(1)
-      case None      => methodName
-    }
-
 }
 
 private[effect] object IOTrace {
-  final val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
+  private val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 
   // Number of lines to drop from the top of the stack trace
-  final val stackTraceIgnoreLines = 3
+  private val stackTraceIgnoreLines = 3
 
-  final val stackTraceFilter = List(
+  private val stackTraceFilter = List(
     "cats.effect.",
     "cats.",
     "sbt.",
@@ -112,4 +104,10 @@ private[effect] object IOTrace {
     "sun.",
     "scala."
   )
+
+  def demangleMethod(methodName: String): String =
+    anonfunRegex.findFirstMatchIn(methodName) match {
+      case Some(mat) => mat.group(1)
+      case None      => methodName
+    }
 }

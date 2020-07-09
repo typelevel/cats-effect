@@ -23,5 +23,5 @@ object TracingPlatform {
 
   final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
-  final val maxTraceDepth: Int = 32
+  final val traceBufferSize: Int = 32
 }
