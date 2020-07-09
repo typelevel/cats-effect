@@ -1623,6 +1623,9 @@ object IO extends IOInstances {
   def contextShift(ec: ExecutionContext): ContextShift[IO] =
     IOContextShift(ec)
 
+  /**
+   * Returns the accumulated trace of the currently active fiber.
+   */
   val trace: IO[IOTrace] =
     IO.Async { (_, ctx, cb) =>
       cb(Right(ctx.trace()))
