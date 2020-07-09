@@ -178,7 +178,7 @@ object pure {
       S: Functor[S])
       : MonadError[FreeT[S, M, *], E] =
     new MonadError[FreeT[S, M, *], E] {
-      private val F = FreeT.catsFreeMonadErrorForFreeT[S, M, E]
+      private val F = FreeT.catsFreeMonadErrorForFreeT2[S, M, E]
 
       def pure[A](x: A): FreeT[S, M, A] =
         F.pure(x)
