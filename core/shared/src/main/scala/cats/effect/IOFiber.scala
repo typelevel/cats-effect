@@ -230,7 +230,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   }
 
   private def done(oc: Outcome[IO, Throwable, A]): Unit = {
-    println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
 
     val cb0 = callback.get()
@@ -253,7 +253,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
         }
       }
     } finally {
-      callback.set(null)    // avoid leaks
+      callback.lazySet(null)    // avoid leaks
     }
   }
 
@@ -294,7 +294,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
         }
       }
     } else {
-      println(s"<$name> looping on $cur0")
+      // println(s"<$name> looping on $cur0")
 
       // cur0 will be null when we're semantically blocked
       if (!conts.isEmpty() && cur0 != null) {
@@ -348,6 +348,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               // println(s"<$name> callback run with $e")
               if (!done.getAndSet(true)) {
                 val old = state.getAndSet(AsyncState.Complete(e))
+                val unmasked = isUnmasked()
 
                 /*
                  * We *need* to own the runloop when we return, so we CAS loop
@@ -362,8 +363,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
                 @tailrec
                 def loop(): Unit = {
                   if (suspended.compareAndSet(true, false)) {
-                    // double-check canceled. if it's true, then we were *already* canceled while suspended and all our finalizers already ran
-                    if (!canceled) {
+                    if (outcome.get() == null) {    // double-check to see if we were canceled while suspended
                       if (old == AsyncStateRegisteredWithFinalizer) {
                         // we completed and were not canceled, so we pop the finalizer
                         // note that we're safe to do so since we own the runloop
@@ -372,7 +372,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
                       asyncContinue(state, e)
                     }
-                  } else if (!canceled) {
+                  } else if (!canceled || !unmasked) {
                     loop()
                   }
                 }
@@ -700,6 +700,11 @@ private object IOFiber {
   private final val OutcomeErrored = Outcome.Errored
   private final val OutcomeCompleted = Outcome.Completed
 
+  // similar prefetch for AsyncState
+  private[this] val AsyncStateInitial = AsyncState.Initial
+  private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
+  private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
+
   ////////////////////////////////////////////////
   // preallocation of all necessary continuations
   ////////////////////////////////////////////////
@@ -775,25 +780,31 @@ private object IOFiber {
         }
       } else {
         if (isUnmasked()) {
+          // TODO I think there's a race condition here when canceled = true
+
           result.asInstanceOf[Option[IO[Unit]]] match {
             case Some(cancelToken) =>
               pushFinalizer(_.fold(cancelToken, _ => IO.unit, _ => IO.unit))
 
-              // indicate the presence of the cancel token by pushing Right instead of Left
-              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
-                // the callback was invoked before registration
-                popFinalizer()
-                asyncContinue(state, state.get().result)
-              } else {
-                suspend()
+              if (!isCanceled()) {      // if canceled, just fall through back to the runloop for cancelation
+                // indicate the presence of the cancel token by pushing Right instead of Left
+                if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
+                  // the callback was invoked before registration
+                  popFinalizer()
+                  asyncContinue(state, state.get().result)
+                } else {
+                  suspend()
+                }
               }
 
             case None =>
-              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
-                // the callback was invoked before registration
-                asyncContinue(state, state.get().result)
-              } else {
-                suspend()
+              if (!isCanceled()) {
+                if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
+                  // the callback was invoked before registration
+                  asyncContinue(state, state.get().result)
+                } else {
+                  suspend()
+                }
               }
           }
         } else {

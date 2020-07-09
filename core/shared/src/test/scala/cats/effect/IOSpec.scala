@@ -23,10 +23,10 @@ import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGen
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-import org.scalacheck.rng.Seed
+// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
+// import org.specs2.scalacheck.Parameters
 import org.specs2.matcher.Matcher
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -431,7 +431,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
   {
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))
+      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
 
     checkAll(
       "IO[Int]",
@@ -507,7 +507,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     }
 
   implicit def eqIOA[A: Eq]: Eq[IO[A]] = {
-    Eq instance { (left: IO[A], right: IO[A]) =>
+    /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
 
@@ -519,9 +519,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       }
 
       back
-    }
+    }*/
 
-    // Eq.by(unsafeRun(_))
+    Eq.by(unsafeRun(_))
   }
 
   // feel the rhythm, feel the rhyme...
@@ -556,6 +556,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
+
       ioa.unsafeRunAsync(ctx, timer) {
         case Left(t) => results = Outcome.Errored(t)
         case Right(a) => results = Outcome.Completed(Some(a))
@@ -563,9 +564,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
 
-      println("====================================")
+      /*println("====================================")
       println(s"completed ioa with $results")
-      println("====================================")
+      println("====================================")*/
 
       results
     } catch {
