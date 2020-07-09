@@ -36,7 +36,7 @@ public final class TracingPlatform {
      */
     private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.stackTracingMode"))
             .filter(x -> !x.isEmpty())
-            .orElse("full");
+            .orElse("cached");
 
     public static final boolean isCachedStackTracing = stackTracingMode.equalsIgnoreCase("cached");
 
