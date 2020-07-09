@@ -1,5 +1,7 @@
 target/
 
+.sbtopts
+
 # vim
 *.sw?
 
@@ -8,3 +10,10 @@ target/
 
 # Ignore [ce]tags files
 tags
+
+# Metals
+.metals/
+.bloop/
+project/metals.sbt
+project/.bloop/
+project/.metals/

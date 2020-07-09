@@ -54,7 +54,7 @@ Global / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.1.1"
+val CatsVersion = "2.2.0-RC1"
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; clean; testIfRelevant")
