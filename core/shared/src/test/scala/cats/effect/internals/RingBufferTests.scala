@@ -40,7 +40,7 @@ class RingBufferTests extends AnyFunSuite with Matchers with TestUtils {
     new RingBuffer[Integer](13000).capacity shouldBe 16384
   }
 
-  test("reading and writing elements") {
+  test("writing elements") {
     val buffer = new RingBuffer[Integer](4)
     for (i <- 0 to 3) buffer.push(i)
     buffer.toList shouldBe List(0, 1, 2, 3)

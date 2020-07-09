@@ -28,48 +28,39 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
   private[this] val length = nextPowerOfTwo(size)
   private[this] val mask = length - 1
 
-  // TODO: this can be an expensive allocation
-  // either construct it lazily or expand it on-demand
   private[this] val array: Array[AnyRef] = new Array(length)
-  private[this] var writeIndex: Int = 0
-  private[this] var readIndex: Int = 0
+  private[this] var index: Int = 0
 
   def push(a: A): A = {
-    val wi = writeIndex & mask
-    if (writeIndex == readIndex + length) {
-      val old = array(wi)
-      array(wi) = a
-      // TODO: overflow at int.maxvalue?
-      writeIndex = writeIndex + 1
-      readIndex = readIndex + 1
-      old.asInstanceOf[A]
-    } else {
-      array(wi) = a
-      writeIndex = writeIndex + 1
-      null.asInstanceOf[A]
-    }
+    val wi = index & mask
+    val old = array(wi).asInstanceOf[A]
+    array(wi) = a
+    index += 1
+    old
   }
+
+  def isEmpty: Boolean =
+    index == 0
 
   def capacity: Int =
     length
 
-  def isEmpty: Boolean =
-    readIndex == writeIndex
-
-  // TODO: expose this as an iterator instead?
-  def toList: List[A] =
-    (readIndex until writeIndex).toList
+  def toList: List[A] = {
+    val end = index
+    val start = Math.max(end - length, 0)
+    (start until end).toList
       .map(i => array(i & mask).asInstanceOf[A])
+  }
 
 }
 
 object RingBuffer {
 
-  // TODO: bounds check at int.maxvalue ?
+  // N.B. this can overflow
   private def nextPowerOfTwo(i: Int): Int = {
     var n = 1
     while (n < i) {
-      n = n * 2
+      n *= 2
     }
     n
   }
