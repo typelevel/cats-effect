@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, Monoid, /*Parallel,*/ Semigroup, StackSafeMonad}
+import cats.{~>, Monoid, /*Parallel,*/ Semigroup, Show, StackSafeMonad}
 import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -163,6 +163,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       : Unit =
     unsafeRunFiber(ec, timer, true)(cb)
 
+  override def toString: String = "IO(...)"
+
   private[effect] def unsafeRunFiber(
       ec: ExecutionContext,
       timer: UnsafeTimer,
@@ -188,6 +190,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 }
 
 private[effect] trait IOLowPriorityImplicits {
+
+  implicit def showForIONoPure[A]: Show[IO[A]] =
+    Show.show(_ => "IO(...)")
 
   implicit def semigroupForIO[A: Semigroup]: Semigroup[IO[A]] =
     new IOSemigroup[A]
@@ -245,6 +250,12 @@ object IO extends IOLowPriorityImplicits {
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
     left.both(right)
+
+  implicit def showForIO[A: Show]: Show[IO[A]] =
+    Show show {
+      case Pure(a) => s"IO(${a.show})"
+      case _ => "IO(...)"
+    }
 
   implicit def monoidForIO[A: Monoid]: Monoid[IO[A]] =
     new IOMonoid[A]
@@ -324,7 +335,11 @@ object IO extends IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
-  private[effect] final case class Pure[+A](value: A) extends IO[A] { def tag = 0 }
+  private[effect] final case class Pure[+A](value: A) extends IO[A] {
+    def tag = 0
+    override def toString: String = s"IO($value)"
+  }
+
   private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
   private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 2 }
   private[effect] final case class Async[+A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]) extends IO[A] { def tag = 3 }
