@@ -20,7 +20,7 @@ import cats.{~>, Monoid, /*Parallel,*/ Semigroup, Show, StackSafeMonad}
 import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
@@ -163,6 +163,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       : Unit =
     unsafeRunFiber(ec, timer, true)(cb)
 
+  def unsafeToFuture(ec: ExecutionContext, timer: UnsafeTimer): Future[A] = {
+    val p = Promise[A]()
+
+    unsafeRunAsync(ec, timer) {
+      case Left(t) => p.failure(t)
+      case Right(a) => p.success(a)
+    }
+
+    p.future
+  }
+
   override def toString: String = "IO(...)"
 
   private[effect] def unsafeRunFiber(
@@ -243,6 +254,15 @@ object IO extends IOLowPriorityImplicits {
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
     left.both(right)
+
+  def fromFuture[A](fut: IO[Future[A]]): IO[A] =
+    fut flatMap { f =>
+      executionContext flatMap { implicit ec =>
+        async_[A] { cb =>
+          f.onComplete(t => cb(t.toEither))
+        }
+      }
+    }
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     left.race(right)

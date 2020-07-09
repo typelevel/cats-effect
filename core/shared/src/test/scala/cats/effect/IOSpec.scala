@@ -22,7 +22,7 @@ import cats.effect.laws.EffectTests
 import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
 import cats.implicits._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Prop.forAll
 // import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
@@ -425,6 +425,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
     }
 
+    "round trip through s.c.Future" in forAll { (ioa: IO[Int]) =>
+      ioa === IO.fromFuture(IO(ioa.unsafeToFuture(ctx, timer())))
+    }
+
     platformSpecs
   }
 
@@ -543,21 +547,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
   }
 
   def unsafeRun[A](ioa: IO[A]): Outcome[Option, Throwable, A] = {
-    val timer = new UnsafeTimer {
-
-      def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
-        val cancel = ctx.schedule(delay, action)
-        new Runnable { def run() = cancel() }
-      }
-
-      def nowMillis() = ctx.now().toMillis
-      def monotonicNanos() = ctx.now().toNanos
-    }
-
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
 
-      ioa.unsafeRunAsync(ctx, timer) {
+      ioa.unsafeRunAsync(ctx, timer()) {
         case Left(t) => results = Outcome.Errored(t)
         case Right(a) => results = Outcome.Completed(Some(a))
       }
@@ -575,6 +568,17 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
         throw t
     }
   }
+
+  def timer(): UnsafeTimer =
+    new UnsafeTimer {
+      def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
+        val cancel = ctx.schedule(delay, action)
+        new Runnable { def run() = cancel() }
+      }
+
+      def nowMillis() = ctx.now().toMillis
+      def monotonicNanos() = ctx.now().toNanos
+    }
 }
 
 final case class TestException(i: Int) extends RuntimeException
