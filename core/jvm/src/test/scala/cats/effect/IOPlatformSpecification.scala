@@ -131,12 +131,11 @@ abstract class IOPlatformSpecification extends Specification {
         if (n <= 0)
           IO.unit
         else
-          Box.increment.flatMap(_ => incrementor(n + 1))
+          Box.increment.flatMap(_ => incrementor(n - 1))
 
       val test = for {
         f <- (IO(latch.countDown()).flatMap(_ => incrementor(10000))).start
         _ <- IO(latch.await())
-        _ <- IO.cede
         _ <- f.cancel
       } yield ()
 
