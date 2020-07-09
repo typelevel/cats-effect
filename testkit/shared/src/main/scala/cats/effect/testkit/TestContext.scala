@@ -245,10 +245,14 @@ final class TestContext private () extends ExecutionContext { self =>
           hasTasks = false
       }
     }
+  }
+
+  def tickAll(time: FiniteDuration = Duration.Zero): Unit = {
+    tick(time)
 
     // some of our tasks may have enqueued more tasks
     if (!this.stateRef.tasks.isEmpty) {
-      tick(time)
+      tickAll(time)
     }
   }
 

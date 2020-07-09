@@ -139,7 +139,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       val ioa = for {
         f <- (IO.never: IO[Unit]).start
         ec <- IO.executionContext
-        _ <- IO(ec.asInstanceOf[TestContext].tick())
+        _ <- IO(ec.asInstanceOf[TestContext].tickAll())
         _ <- f.cancel
         oc <- f.join
       } yield oc
@@ -156,7 +156,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       val ioa = for {
         f <- target.start
-        _ <- IO(ctx.tick())
+        _ <- IO(ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
@@ -175,7 +175,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       val ioa = for {
         f <- target.start
-        _ <- IO(ctx.tick())
+        _ <- IO(ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
@@ -188,7 +188,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       val ioa = for {
         f <- IO.executionContext.start.evalOn(ec)
-        _ <- IO(ctx.tick())
+        _ <- IO(ctx.tickAll())
         oc <- f.join
       } yield oc
 
@@ -351,7 +351,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     "cancel an already canceled fiber" in {
       val test = for {
         f <- IO.canceled.start
-        _ <- IO(ctx.tick())
+        _ <- IO(ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
@@ -381,7 +381,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
 
       val test = for {
         f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
-        _ <- IO(ctx.tick())
+        _ <- IO(ctx.tickAll())
         _ <- f.cancel
         back <- IO(results)
       } yield back
@@ -562,7 +562,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
         case Right(a) => results = Outcome.Completed(Some(a))
       }
 
-      ctx.tick(3.days)    // longer than the maximum generator value of 48 hours
+      ctx.tickAll(3.days)
 
       /*println("====================================")
       println(s"completed ioa with $results")
