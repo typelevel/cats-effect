@@ -205,13 +205,9 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOLowPriorityImplicits {
 
-  def pure[A](value: A): IO[A] = Pure(value)
-
-  val unit: IO[Unit] = pure(())
+  // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
-
-  def raiseError[A](t: Throwable): IO[A] = Error(t)
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
@@ -222,34 +218,44 @@ object IO extends IOLowPriorityImplicits {
 
   val cede: IO[Unit] = Cede
 
-  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
-    Uncancelable(body)
-
   val executionContext: IO[ExecutionContext] = ReadEC
+
+  val monotonic: IO[FiniteDuration] = Monotonic
 
   private[this] val _never: IO[Nothing] = async(_ => pure(None))
   def never[A]: IO[A] = _never
 
-  val monotonic: IO[FiniteDuration] = Monotonic
+  def pure[A](value: A): IO[A] = Pure(value)
+
+  def raiseError[A](t: Throwable): IO[A] = Error(t)
 
   val realTime: IO[FiniteDuration] = RealTime
 
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
+  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+    Uncancelable(body)
+
+  val unit: IO[Unit] = pure(())
+
+  // utilities
+
+  def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
+    left.both(right)
+
+  def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
+    left.race(right)
+
+  def racePair[A, B](left: IO[A], right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+    left.racePair(right)
+
   def toK[F[_]: Effect]: IO ~> F =
     new (IO ~> F) {
       def apply[A](ioa: IO[A]) = ioa.to[F]
     }
 
-  def racePair[A, B](left: IO[A], right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
-    left.racePair(right)
-
-  def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
-    left.race(right)
-
-  def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
-    left.both(right)
+  // instances
 
   implicit def showForIO[A: Show]: Show[IO[A]] =
     Show show {
@@ -334,6 +340,8 @@ object IO extends IOLowPriorityImplicits {
 
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
+
+  // implementations
 
   private[effect] final case class Pure[+A](value: A) extends IO[A] {
     def tag = 0
