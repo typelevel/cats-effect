@@ -42,6 +42,11 @@ private[effect] final class BooleanArrayStack(private[this] var buffer: Array[Bo
   def unsafeBuffer(): Array[Boolean] = buffer.asInstanceOf[Array[Boolean]]
   def unsafeIndex(): Int = index
 
+  def invalidate(): Unit = {
+    index = 0
+    buffer = null
+  }
+
   def copy(): BooleanArrayStack = {
     val buffer2 = if (index == 0) {
       new Array[Boolean](buffer.length)

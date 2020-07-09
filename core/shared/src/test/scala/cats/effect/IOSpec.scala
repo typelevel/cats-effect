@@ -147,7 +147,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "sequence async cancel token upon cancelation" in {
+    "sequence async cancel token upon cancelation during suspension" in {
       var affected = false
 
       val target = IO.async[Unit] { _ =>

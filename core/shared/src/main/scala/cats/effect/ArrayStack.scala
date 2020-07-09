@@ -53,6 +53,11 @@ private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Ar
     index = newI
   }
 
+  def invalidate(): Unit = {
+    index = 0
+    buffer = null
+  }
+
   def copy(): ArrayStack[A] = {
     val buffer2 = if (index == 0) {
       new Array[AnyRef](buffer.length)

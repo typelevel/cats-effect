@@ -115,7 +115,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
   // pre-fetching of all continuations (to avoid memory barriers)
   private[this] val CancelationLoopK = IOFiber.CancelationLoopK
-  private[this] val CancelationLoopNodoneK = IOFiber.CancelationLoopNodoneK
   private[this] val RunTerminusK = IOFiber.RunTerminusK
   private[this] val AsyncK = IOFiber.AsyncK
   private[this] val EvalOnK = IOFiber.EvalOnK
@@ -262,14 +261,14 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
     val ec = currentCtx
 
-    if (!canceled || masks != initMask) {
+    if (outcome.get() == null) {    // hard cancelation check, basically
       execute(ec) { () =>
-        val next = e match {
-          case Left(t) => failed(t, 0)
-          case Right(a) => conts.pop()(this, true, a, 0)
+        runLoop {
+          e match {
+            case Left(t) => failed(t, 0)
+            case Right(a) => conts.pop()(this, true, a, 0)
+          }
         }
-
-        runLoop(next)
       }
     }
   }
@@ -286,7 +285,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
         if (!finalizers.isEmpty()) {
           conts = new ArrayStack[IOCont](16)
-          conts.push(CancelationLoopNodoneK)
+          conts.push(CancelationLoopK)
 
           // suppress all subsequent cancelation on this fiber
           masks += 1
@@ -348,7 +347,6 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               // println(s"<$name> callback run with $e")
               if (!done.getAndSet(true)) {
                 val old = state.getAndSet(AsyncState.Complete(e))
-                val unmasked = isUnmasked()
 
                 /*
                  * We *need* to own the runloop when we return, so we CAS loop
@@ -372,7 +370,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
                       asyncContinue(state, e)
                     }
-                  } else if (!canceled || !unmasked) {
+                  } else if (outcome.get() == null) {
                     loop()
                   }
                 }
@@ -536,6 +534,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
                     if (!firstCanceled.compareAndSet(false, true)) {
                       // both are canceled, and we're the second, then cancel the outer fiber
                       canceled = true
+                      // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
                       // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
                       runLoop(null)
                     } else {
@@ -681,12 +680,48 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   }
 
   private def execute(ec: ExecutionContext)(action: Runnable): Unit = {
+    readBarrier()
+
     try {
       ec.execute(action)
     } catch {
       case _: RejectedExecutionException => ()    // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
     }
   }
+
+  // TODO figure out if the JVM ever optimizes this away
+  private def readBarrier(): Unit =
+    suspended.get()
+
+  private def invalidate(): Unit = {
+    // reenable any cancelation checks that fall through higher up in the call-stack
+    masks = initMask
+
+    // clear out literally everything to avoid any possible memory leaks
+    conts.invalidate()
+    currentCtx = null
+    ctxs = null
+
+    objectState.invalidate()
+    booleanState.invalidate()
+
+    finalizers.invalidate()
+  }
+
+  /*private[effect] def debug(): Unit = {
+    println("================")
+    println(s"fiber: $name")
+    println("================")
+    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == null)}")
+    println(s"canceled = $canceled")
+    println(s"masks = $masks (out of initMask = $initMask)")
+    println(s"suspended = ${suspended.get()}")
+    println(s"outcome = ${outcome.get()}")
+    println(s"leftListenerValue = ${leftListenerValue.get()}")
+    println(s"rightListenerValue = ${rightListenerValue.get()}")
+    println(s"callback = ${callback.get()}")
+    println(s"ranWithCallback = ${ranWithCallback.get()}")
+  }*/
 }
 
 private object IOFiber {
@@ -713,26 +748,11 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
-      val oc = currentOutcome()
-
-      if (hasFinalizers()) {
-        pushCont(this)
-        runLoop(popFinalizer()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]))
-      } else {
-        done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
-      }
-
-      null
-    }
-  }
-
-  private object CancelationLoopNodoneK extends IOCont {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
       if (hasFinalizers()) {
         pushCont(this)
         runLoop(popFinalizer()(currentOutcome().asInstanceOf[Outcome[IO, Throwable, Any]]))
+      } else {
+        invalidate()
       }
 
       null
