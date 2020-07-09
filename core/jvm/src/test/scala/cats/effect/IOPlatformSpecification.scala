@@ -116,6 +116,33 @@ abstract class IOPlatformSpecification extends Specification {
       unsafeRunRealistic(task)(errors ::= _) must beSome
       errors must beEmpty
     }
+
+    "cancel fiber sometime before 10000 pure delays have completed" in {
+      object Box {
+        // non-volatile
+        var count = 0
+
+        val increment: IO[Unit] = IO(count += 1)
+      }
+
+      val latch = new CountDownLatch(1)
+
+      def incrementor(n: Int): IO[Unit] =
+        if (n <= 0)
+          IO.unit
+        else
+          Box.increment.flatMap(_ => incrementor(n + 1))
+
+      val test = for {
+        f <- (IO(latch.countDown()).flatMap(_ => incrementor(10000))).start
+        _ <- IO(latch.await())
+        _ <- IO.cede
+        _ <- f.cancel
+      } yield ()
+
+      unsafeRunRealistic(test)() must beSome
+      Box.count must beLessThan(10000)
+    }
   }
 
   def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
