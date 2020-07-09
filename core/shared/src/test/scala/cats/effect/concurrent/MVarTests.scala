@@ -84,6 +84,55 @@ class MVarConcurrentTests extends BaseMVarTests {
       r shouldBe Right(0)
     }
   }
+
+  test("swap is cancelable on take") {
+    val task = for {
+      mVar <- empty[Int]
+      finished <- Deferred.uncancelable[IO, Int]
+      fiber <- mVar.swap(20).flatMap(finished.complete).start
+      _ <- fiber.cancel
+      _ <- mVar.put(10)
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe Right(10)
+    }
+  }
+
+  test("modify is cancelable on take") {
+    val task = for {
+      mVar <- empty[Int]
+      finished <- Deferred.uncancelable[IO, String]
+      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _ <- fiber.cancel
+      _ <- mVar.put(10)
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe Right(10)
+    }
+  }
+
+  test("modify is cancelable on f") {
+    val task = for {
+      mVar <- empty[Int]
+      finished <- Deferred.uncancelable[IO, String]
+      fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _ <- mVar.put(10)
+      _ <- IO.sleep(10.millis)
+      _ <- fiber.cancel
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe Right(10)
+    }
+  }
 }
 
 class MVarAsyncTests extends BaseMVarTests {
@@ -422,6 +471,38 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
     for (r <- task.unsafeToFuture()) yield {
       r shouldBe count * 2
+    }
+  }
+
+  test("put; take; modify; put") {
+    val task = for {
+      mVar <- empty[Int]
+      _ <- mVar.put(10)
+      _ <- mVar.take
+      fiber <- mVar.modify(n => IO.pure((n * 2, n.toString))).start
+      _ <- mVar.put(20)
+      s <- fiber.join
+      v <- mVar.take
+    } yield (s, v)
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe ("20" -> 40)
+    }
+  }
+
+  test("modify replaces the original value of the mvar on error") {
+    val error = new Exception("Boom!")
+    val task = for {
+      mVar <- empty[Int]
+      _ <- mVar.put(10)
+      finished <- Deferred.uncancelable[IO, String]
+      e <- mVar.modify(_ => IO.raiseError(error)).attempt
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield (e, v)
+
+    for (r <- task.unsafeToFuture()) yield {
+      r shouldBe (Left(error) -> Right(10))
     }
   }
 }

@@ -19,7 +19,7 @@ package internals
 
 import java.util.concurrent.atomic.AtomicReference
 
-import cats.effect.concurrent.MVar2
+import cats.effect.concurrent.{MVar2, Ref}
 import cats.effect.internals.Callback.rightUnit
 
 import scala.annotation.tailrec
@@ -77,9 +77,34 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
     }
 
   def swap(newValue: A): F[A] =
-    F.flatMap(take) { oldValue =>
-      F.map(put(newValue))(_ => oldValue)
+    F.continual(take) {
+      case Left(t)         => F.raiseError(t)
+      case Right(oldValue) => F.as(put(newValue), oldValue)
     }
+
+  def use[B](f: A => F[B]): F[B] =
+    modify(a => F.map(f(a))((a, _)))
+
+  def modify[B](f: A => F[(A, B)]): F[B] =
+    F.bracket(Ref[F].of[Option[A]](None)) { signal =>
+      F.flatMap(F.continual[A, A](take) {
+        case Left(t)  => F.raiseError(t)
+        case Right(a) => F.as(signal.set(Some(a)), a)
+      }) { a =>
+        F.continual[(A, B), B](f(a)) {
+          case Left(t)          => F.raiseError(t)
+          case Right((newA, b)) => F.as(signal.set(Some(newA)), b)
+        }
+      }
+    } { signal =>
+      F.flatMap(signal.get) {
+        case Some(a) => put(a)
+        case None    => F.unit
+      }
+    }
+
+  def modify_(f: A => F[A]): F[Unit] =
+    modify(a => F.map(f(a))((_, ())))
 
   @tailrec private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
