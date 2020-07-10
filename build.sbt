@@ -226,7 +226,7 @@ lazy val sharedSourcesSettings = Seq(
 lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
-  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, tracingTestsJVM, tracingTestsJS)
+  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, tracingTests)
   .settings(skipOnPublishSettings)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -293,12 +293,11 @@ lazy val lawsJS = laws.js
 
 lazy val FullTracingTest = config("fulltracing").extend(Test)
 
-lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
+lazy val tracingTests = project
   .in(file("tracing-tests"))
-  .dependsOn(core % "compile->compile;test->test")
-  .settings(commonSettings: _*)
+  .dependsOn(coreJVM)
+  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(
-    name := "cats-effect-tracing-tests",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
@@ -306,19 +305,11 @@ lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
   )
   .configs(FullTracingTest)
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
-  .jsSettings(inConfig(FullTracingTest)(ScalaJSPlugin.testConfigSettings): _*)
   .settings(
-    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
     unmanagedSourceDirectories in FullTracingTest += {
       baseDirectory.value.getParentFile / "shared" / "src" / "fulltracing" / "scala"
-    }
-  )
-  .jvmConfigure(_.enablePlugins(AutomateHeaderPlugin))
-  .jvmConfigure(_.settings(lawsMimaSettings))
-  .jsConfigure(_.enablePlugins(AutomateHeaderPlugin))
-  .jsConfigure(_.settings(scalaJSSettings))
-  .jvmSettings(
-    skip.in(publish) := customScalaJSVersion.forall(_.startsWith("1.0")),
+    },
+    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
     fork in Test := true,
     fork in FullTracingTest := true,
     javaOptions in Test ++= Seq(
@@ -330,9 +321,6 @@ lazy val tracingTests = crossProject(JSPlatform, JVMPlatform)
       "-Dcats.effect.stackTracingMode=full"
     )
   )
-
-lazy val tracingTestsJVM = tracingTests.jvm
-lazy val tracingTestsJS = tracingTests.js
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
