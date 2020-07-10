@@ -32,7 +32,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type
     def nowMillis() = System.currentTimeMillis()
     def monotonicNanos() = System.nanoTime()
   }
-  object Globals {
-    implicit val runtime: IORuntime = IORuntime(defaultComputeExecutionContext, defaultScheduler, () => ())
-  }
+
+  lazy val global: IORuntime = IORuntime(defaultComputeExecutionContext, defaultScheduler, () => ())
 }

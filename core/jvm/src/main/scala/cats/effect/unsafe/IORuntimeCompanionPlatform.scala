@@ -45,7 +45,5 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  object Globals {
-    implicit val runtime: IORuntime = IORuntime(createDefaultComputeExecutionContext()._1, createDefaultScheduler()._1, () => ())
-  }
+  lazy val global: IORuntime = IORuntime(createDefaultComputeExecutionContext()._1, createDefaultScheduler()._1, () => ())
 }
