@@ -214,7 +214,7 @@ private[effect] trait IOLowPriorityImplicits {
   }
 }
 
-object IO extends IOLowPriorityImplicits {
+object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // constructors
 

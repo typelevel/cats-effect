@@ -16,10 +16,11 @@
 
 package cats.effect
 
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.{CountDownLatch, CompletableFuture, TimeUnit}
 
 private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
 
@@ -43,5 +44,16 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
     } else {
       None
     }
+  }
+
+  final def unsafeToCompletableFuture(ec: ExecutionContext, timer: UnsafeTimer): CompletableFuture[A @uncheckedVariance] = {
+    val cf = new CompletableFuture[A]()
+
+    unsafeRunAsync(ec, timer) {
+      case Left(t) => cf.completeExceptionally(t)
+      case Right(a) => cf.complete(a)
+    }
+
+    cf
   }
 }

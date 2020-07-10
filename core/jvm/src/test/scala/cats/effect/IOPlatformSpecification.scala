@@ -16,9 +16,13 @@
 
 package cats.effect
 
-import cats.Show
+import cats.{Eq, Show}
+import cats.effect.testkit.TestContext
 import cats.implicits._
 
+import org.scalacheck.{Arbitrary, Cogen, Prop}, Prop.forAll
+
+import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 
 import scala.concurrent.ExecutionContext
@@ -26,7 +30,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.{CountDownLatch, Executors}
 
-abstract class IOPlatformSpecification extends Specification {
+abstract class IOPlatformSpecification extends Specification with ScalaCheck {
 
   def platformSpecs = {
     "shift delay evaluation within evalOn" in {
@@ -142,6 +146,10 @@ abstract class IOPlatformSpecification extends Specification {
       unsafeRunRealistic(test)() must beSome
       Box.count must beLessThan(10000)
     }
+
+    "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
+      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(ctx, timer())))
+    }
   }
 
   def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
@@ -179,4 +187,10 @@ abstract class IOPlatformSpecification extends Specification {
       scheduler.shutdown()
     }
   }
+
+  val ctx: TestContext
+  def timer(): UnsafeTimer
+
+  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]]
+  implicit def eqIOA[A: Eq]: Eq[IO[A]]
 }
