@@ -25,10 +25,10 @@ trait IOApp {
 
   def run(args: List[String]): IO[Int]
 
-  protected def platform: unsafe.IOPlatform = unsafe.IOPlatform.Globals.platform
+  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.Globals.runtime
 
   final def main(args: Array[String]): Unit = {
-    val runtime = Runtime.getRuntime()
+    val rt = Runtime.getRuntime()
 
     val latch = new CountDownLatch(1)
     @volatile var results: Either[Throwable, Int] = null
@@ -38,22 +38,22 @@ trait IOApp {
     val fiber = ioa.unsafeRunFiber(true) { e =>
       results = e
       latch.countDown()
-    }(platform)
+    }(runtime)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
-        fiber.cancel.unsafeRunAsync { _ => cancelLatch.countDown() }(platform)
+        fiber.cancel.unsafeRunAsync { _ => cancelLatch.countDown() }(runtime)
         cancelLatch.await()
       }
 
-      platform.shutdown()
+      runtime.shutdown()
     }
 
     val hook = new Thread(() => handleShutdown())
     hook.setName("io-cancel-hook")
 
-    runtime.addShutdownHook(hook)
+    rt.addShutdownHook(hook)
 
     try {
       latch.await()
@@ -65,7 +65,7 @@ trait IOApp {
       // this handles sbt when fork := false
       case _: InterruptedException =>
         hook.start()
-        runtime.removeShutdownHook(hook)
+        rt.removeShutdownHook(hook)
         Thread.currentThread().interrupt()
     }
   }

@@ -82,7 +82,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       val platform = {
         val ec = ExecutionContext.fromExecutor(exec3)
         val ses = Executors.newScheduledThreadPool(1)
-        unsafe.IOPlatform(ExecutionContext.fromExecutor(exec3), unsafe.Scheduler.fromScheduledExecutor(ses), () => ses.shutdown())
+        unsafe.IORuntime(ExecutionContext.fromExecutor(exec3), unsafe.Scheduler.fromScheduledExecutor(ses), () => ses.shutdown())
       }
       test.unsafeRunAsync { e =>
         result = e
@@ -154,7 +154,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
     }
 
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(unsafe.IOPlatform(ctx, scheduler(), () => ()))))
+      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(unsafe.IORuntime(ctx, scheduler(), () => ()))))
     }
   }
 
@@ -185,7 +185,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
     }
 
     try {
-      ioa.unsafeRunTimed(10.seconds)(unsafe.IOPlatform(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()

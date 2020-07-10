@@ -17,19 +17,17 @@
 package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
-import scala.scalajs.concurrent.JSExecutionContext
-import scala.scalajs.js.timers
 
-private[unsafe] abstract class GlobalsPlatform { self: IOPlatform.Globals.type => 
-  protected val compute: ExecutionContext = JSExecutionContext.queue
-  protected val scheduler: Scheduler = new Scheduler {
-    def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-      val handle = timers.setTimeout(delay)(task.run())
-      () => timers.clearTimeout(handle)
-    }
+@annotation.implicitNotFound("Could not find an implicit IORuntime.")
+final class IORuntime private (
+  val compute: ExecutionContext, 
+  val scheduler: Scheduler,
+  val shutdown: () => Unit) {
 
-    def nowMillis() = System.currentTimeMillis()
-    def monotonicNanos() = System.nanoTime()
-  }
+  override def toString: String = s"IORuntime($compute, $scheduler)"
+}
+
+object IORuntime extends IORuntimeCompanionPlatform {
+  def apply(compute: ExecutionContext, scheduler: Scheduler, shutdown: () => Unit): IORuntime =
+    new IORuntime(compute, scheduler, shutdown)
 }

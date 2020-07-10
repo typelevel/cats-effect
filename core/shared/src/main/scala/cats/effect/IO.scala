@@ -178,10 +178,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   // unsafe stuff
 
-  def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(implicit platform: unsafe.IOPlatform): Unit =
+  def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunFiber(true)(cb)
 
-  def unsafeToFuture(implicit platform: unsafe.IOPlatform): Future[A] = {
+  def unsafeToFuture(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
 
     unsafeRunAsync {
@@ -194,11 +194,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def unsafeRunFiber(
       shift: Boolean)(
-      cb: Either[Throwable, A] => Unit)(implicit platform: unsafe.IOPlatform)
+      cb: Either[Throwable, A] => Unit)(implicit runtime: unsafe.IORuntime)
       : IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber(
-      platform.scheduler,
+      runtime.scheduler,
       (oc: Outcome[IO, Throwable, A]) => oc.fold(
         (),
         e => cb(Left(e)),
@@ -206,9 +206,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       0)
 
     if (shift)
-      platform.compute.execute(() => fiber.run(this, platform.compute, 0))
+      runtime.compute.execute(() => fiber.run(this, runtime.compute, 0))
     else
-      fiber.run(this, platform.compute, 0)
+      fiber.run(this, runtime.compute, 0)
 
     fiber
   }

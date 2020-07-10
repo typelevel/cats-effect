@@ -22,26 +22,30 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.{Executors, ScheduledExecutorService}
 import java.util.concurrent.atomic.AtomicInteger
 
-private[unsafe] abstract class GlobalsPlatform { self: IOPlatform.Globals.type => 
-  protected val compute: ExecutionContext = {
+private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type => 
+  def createDefaultComputeExecutionContext(threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
       val t = new Thread(r)
-      t.setName(s"io-compute-${threadCount.getAndIncrement()}")
+      t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
       t.setDaemon(true)
       t
     })
-    ExecutionContext.fromExecutor(executor)
+    (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
   }
 
-  protected val scheduler: Scheduler = {
+  def createDefaultScheduler(threadName: String = "io-scheduler"): (Scheduler, () => Unit) = {
     val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
       val t = new Thread(r)
-      t.setName("io-scheduler")
+      t.setName(threadName)
       t.setDaemon(true)
       t.setPriority(Thread.MAX_PRIORITY)
       t
     } 
-    Scheduler.fromScheduledExecutor(scheduler)
+    (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
+  }
+
+  object Globals {
+    implicit val runtime: IORuntime = IORuntime(createDefaultComputeExecutionContext()._1, createDefaultScheduler()._1, () => ())
   }
 }

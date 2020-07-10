@@ -24,6 +24,6 @@ trait IOApp {
     run.unsafeRunAsync {
       case Left(t) => throw t
       case Right(_) => ()
-    }(unsafe.IOPlatform.Globals.platform)
+    }(unsafe.IORuntime.Globals.runtime)
   }
 }
