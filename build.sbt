@@ -296,7 +296,7 @@ lazy val FullTracingTest = config("fulltracing").extend(Test)
 lazy val tracingTests = project
   .in(file("tracing-tests"))
   .dependsOn(coreJVM)
-  .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
+  .settings(commonSettings ++ skipOnPublishSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
@@ -307,7 +307,7 @@ lazy val tracingTests = project
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
   .settings(
     unmanagedSourceDirectories in FullTracingTest += {
-      baseDirectory.value.getParentFile / "shared" / "src" / "fulltracing" / "scala"
+      baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
     },
     test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
     fork in Test := true,
