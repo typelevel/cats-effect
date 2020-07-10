@@ -137,14 +137,20 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
         else
           Box.increment.flatMap(_ => incrementor(n - 1))
 
+      val executor = Executors.newSingleThreadExecutor()
+      val childEC = ExecutionContext.fromExecutor(executor)
+
       val test = for {
         f <- (IO(latch.countDown()).flatMap(_ => incrementor(10000))).start
-        _ <- IO(latch.await())
-        _ <- f.cancel
+        _ <- (IO(latch.await()) >> f.cancel).evalOn(childEC)
       } yield ()
 
-      unsafeRunRealistic(test)() must beSome
-      Box.count must beLessThan(10000)
+      try {
+        unsafeRunRealistic(test)() must beSome
+        Box.count must beLessThan(10000)
+      } finally {
+        executor.shutdown()
+      }
     }
 
     "reliably cancel infinite IO.unit(s)" in {
