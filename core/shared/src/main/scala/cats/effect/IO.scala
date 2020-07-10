@@ -608,10 +608,8 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    *        release, along with the result of `use`
    *        (cancellation, error or successful result)
    */
-  def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] = {
-    val nextIo = IOBracket(this)(use)(release)
-    nextIo
-  }
+  def bracketCase[B](use: A => IO[B])(release: (A, ExitCase[Throwable]) => IO[Unit]): IO[B] =
+    IOBracket(this)(use)(release)
 
   /**
    * Executes the given `finalizer` when the source is finished,
@@ -1633,6 +1631,9 @@ object IO extends IOInstances {
 
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
+  // In the Bind, Map, and Async constructors, you will notice that traces
+  // are typed as an `AnyRef`. This seems to avoid a performance hit when
+  // tracing is disabled, specifically with the C2 JIT compiler.
 
   /** Corresponds to [[IO.pure]]. */
   final private[effect] case class Pure[+A](a: A) extends IO[A]
