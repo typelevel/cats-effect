@@ -470,11 +470,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             val childName = s"start-${childCount.getAndIncrement()}"
 
-            // flip masking to negative and push it forward one tick to avoid potential conflicts with current fiber construction
-            val initMask2 = if (masks != Int.MaxValue)
-              -(masks + 1)
-            else
-              masks + 1   // will overflow
+            // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
+            // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+            val initMask2 = initMask + 255
 
             val fiber = new IOFiber(
               childName,
