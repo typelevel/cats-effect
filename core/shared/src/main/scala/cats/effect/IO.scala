@@ -230,13 +230,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     async(cb => apply { k(cb); None })
 
-  val canceled: IO[Unit] = Canceled
+  def canceled: IO[Unit] = Canceled
 
-  val cede: IO[Unit] = Cede
+  def cede: IO[Unit] = Cede
 
-  val executionContext: IO[ExecutionContext] = ReadEC
+  def executionContext: IO[ExecutionContext] = ReadEC
 
-  val monotonic: IO[FiniteDuration] = Monotonic
+  def monotonic: IO[FiniteDuration] = Monotonic
 
   private[this] val _never: IO[Nothing] = async(_ => pure(None))
   def never[A]: IO[A] = _never
@@ -245,7 +245,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def raiseError[A](t: Throwable): IO[A] = Error(t)
 
-  val realTime: IO[FiniteDuration] = RealTime
+  def realTime: IO[FiniteDuration] = RealTime
 
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
