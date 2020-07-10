@@ -16,22 +16,5 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.duration.FiniteDuration
-
-import java.util.concurrent.ScheduledExecutorService
-
 private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type => 
-
-  def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
-    new Scheduler {
-      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-        val future = scheduler.schedule(task, delay.length, delay.unit)
-        () => future.cancel(false)
-      }
-
-      def nowMillis() = System.currentTimeMillis()
-
-      def monotonicNanos() = System.nanoTime()
-    }
 }
- 
