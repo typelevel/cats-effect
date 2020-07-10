@@ -29,12 +29,12 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
 
   def platformSpecs = {
     "round trip through js.Promise" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromPromise(IO(ioa.unsafeToPromise(ctx, timer())))
+      ioa eqv IO.fromPromise(IO(ioa.unsafeToPromise(unsafe.IOPlatform(ctx, scheduler(), () => ()))))
     }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
   }
 
   val ctx: TestContext
-  def timer(): UnsafeTimer
+  def scheduler(): unsafe.Scheduler
 
   implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]]
   implicit def eqIOA[A: Eq]: Eq[IO[A]]

@@ -27,6 +27,15 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   private[effect] def tag: Byte
 
+  def <*[B](that: IO[B]): IO[A] =
+   productL(that)
+
+  def *>[B](that: IO[B]): IO[B] =
+   productR(that)
+
+  def >>[B](that: => IO[B]): IO[B] =
+     flatMap(_ => that)
+
   def as[B](b: B): IO[B] =
     map(_ => b)
 
@@ -82,6 +91,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           (A @uncheckedVariance, Fiber[IO, Throwable, B]),
           (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
+
+  def productL[B](that: IO[B]): IO[A] =
+    flatMap(a => that.as(a))
+
+  def productR[B](that: IO[B]): IO[B] =
+    flatMap(_ => that)
 
   def start: IO[Fiber[IO, Throwable, A @uncheckedVariance]] =
     IO.Start(this)
@@ -159,19 +174,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def void: IO[Unit] =
     map(_ => ())
 
+  override def toString: String = "IO(...)"
+
   // unsafe stuff
 
-  def unsafeRunAsync(
-      ec: ExecutionContext,
-      timer: UnsafeTimer)(
-      cb: Either[Throwable, A] => Unit)
-      : Unit =
-    unsafeRunFiber(ec, timer, true)(cb)
+  def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(implicit platform: unsafe.IOPlatform): Unit =
+    unsafeRunFiber(true)(cb)
 
-  def unsafeToFuture(ec: ExecutionContext, timer: UnsafeTimer): Future[A] = {
+  def unsafeToFuture(implicit platform: unsafe.IOPlatform): Future[A] = {
     val p = Promise[A]()
 
-    unsafeRunAsync(ec, timer) {
+    unsafeRunAsync {
       case Left(t) => p.failure(t)
       case Right(a) => p.success(a)
     }
@@ -179,17 +192,13 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     p.future
   }
 
-  override def toString: String = "IO(...)"
-
   private[effect] def unsafeRunFiber(
-      ec: ExecutionContext,
-      timer: UnsafeTimer,
       shift: Boolean)(
-      cb: Either[Throwable, A] => Unit)
+      cb: Either[Throwable, A] => Unit)(implicit platform: unsafe.IOPlatform)
       : IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber(
-      timer,
+      platform.scheduler,
       (oc: Outcome[IO, Throwable, A]) => oc.fold(
         (),
         e => cb(Left(e)),
@@ -197,9 +206,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       0)
 
     if (shift)
-      ec.execute(() => fiber.run(this, ec, 0))
+      platform.compute.execute(() => fiber.run(this, platform.compute, 0))
     else
-      fiber.run(this, ec, 0)
+      fiber.run(this, platform.compute, 0)
 
     fiber
   }

@@ -16,30 +16,14 @@
 
 package cats.effect
 
-import scala.concurrent.duration.FiniteDuration
-import scala.scalajs.concurrent.JSExecutionContext
-import scala.scalajs.js.timers
-
 trait IOApp {
 
   val run: IO[Unit]
 
   final def main(args: Array[String]): Unit = {
-    val context = JSExecutionContext.queue
-
-    val timer = new UnsafeTimer {
-      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-        val handle = timers.setTimeout(delay)(task.run())
-        () => timers.clearTimeout(handle)
-      }
-
-      def nowMillis() = System.currentTimeMillis()
-      def monotonicNanos() = System.nanoTime()
-    }
-
-    run.unsafeRunAsync(context, timer) {
+    run.unsafeRunAsync {
       case Left(t) => throw t
       case Right(_) => ()
-    }
+    }(unsafe.IOPlatform.Globals.platform)
   }
 }

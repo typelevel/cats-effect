@@ -426,7 +426,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     }
 
     "round trip through s.c.Future" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture(ctx, timer())))
+      ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture(unsafe.IOPlatform(ctx, scheduler(), () => ()))))
     }
 
     platformSpecs
@@ -550,10 +550,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
 
-      ioa.unsafeRunAsync(ctx, timer()) {
+      ioa.unsafeRunAsync {
         case Left(t) => results = Outcome.Errored(t)
         case Right(a) => results = Outcome.Completed(Some(a))
-      }
+      }(unsafe.IOPlatform(ctx, scheduler(), () => ()))
 
       ctx.tickAll(3.days)
 
@@ -569,8 +569,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     }
   }
 
-  def timer(): UnsafeTimer =
-    new UnsafeTimer {
+  def scheduler(): unsafe.Scheduler =
+    new unsafe.Scheduler {
       def sleep(delay: FiniteDuration, action: Runnable): Runnable = {
         val cancel = ctx.schedule(delay, action)
         new Runnable { def run() = cancel() }

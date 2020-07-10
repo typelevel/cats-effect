@@ -79,12 +79,18 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       val latch = new CountDownLatch(1)
 
       // this test is weird because we're making our own contexts, so we can't use TestContext at all
-      test.unsafeRunAsync(ExecutionContext.fromExecutor(exec3), UnsafeTimer.fromScheduledExecutor(Executors.newScheduledThreadPool(1))) { e =>
+      val platform = {
+        val ec = ExecutionContext.fromExecutor(exec3)
+        val ses = Executors.newScheduledThreadPool(1)
+        unsafe.IOPlatform(ExecutionContext.fromExecutor(exec3), unsafe.Scheduler.fromScheduledExecutor(ses), () => ses.shutdown())
+      }
+      test.unsafeRunAsync { e =>
         result = e
         latch.countDown()
-      }
+      }(platform)
 
       latch.await()
+      platform.shutdown()
       result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
     }
 
@@ -148,7 +154,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
     }
 
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(ctx, timer())))
+      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(unsafe.IOPlatform(ctx, scheduler(), () => ()))))
     }
   }
 
@@ -178,10 +184,8 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       t
     }
 
-    val timer = UnsafeTimer.fromScheduledExecutor(scheduler)
-
     try {
-      ioa.unsafeRunTimed(10.seconds, ctx, timer)
+      ioa.unsafeRunTimed(10.seconds)(unsafe.IOPlatform(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()
@@ -189,7 +193,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
   }
 
   val ctx: TestContext
-  def timer(): UnsafeTimer
+  def scheduler(): unsafe.Scheduler
 
   implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]]
   implicit def eqIOA[A: Eq]: Eq[IO[A]]

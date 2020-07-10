@@ -24,15 +24,15 @@ import java.util.concurrent.{CountDownLatch, CompletableFuture, TimeUnit}
 
 private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
 
-  final def unsafeRunSync(ec: ExecutionContext, timer: UnsafeTimer): A =
-    unsafeRunTimed(Long.MaxValue.nanos, ec, timer).get
+  final def unsafeRunSync(implicit platform: unsafe.IOPlatform): A =
+    unsafeRunTimed(Long.MaxValue.nanos).get
 
-  final def unsafeRunTimed(limit: FiniteDuration, ec: ExecutionContext, timer: UnsafeTimer): Option[A] = {
+  final def unsafeRunTimed(limit: FiniteDuration)(implicit platform: unsafe.IOPlatform): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
 
-    unsafeRunFiber(ec, timer, false) { e =>
+    unsafeRunFiber(false) { e =>
       results = e
       latch.countDown()
     }
@@ -46,10 +46,10 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
     }
   }
 
-  final def unsafeToCompletableFuture(ec: ExecutionContext, timer: UnsafeTimer): CompletableFuture[A @uncheckedVariance] = {
+  final def unsafeToCompletableFuture(implicit platform: unsafe.IOPlatform): CompletableFuture[A @uncheckedVariance] = {
     val cf = new CompletableFuture[A]()
 
-    unsafeRunAsync(ec, timer) {
+    unsafeRunAsync {
       case Left(t) => cf.completeExceptionally(t)
       case Right(a) => cf.complete(a)
     }

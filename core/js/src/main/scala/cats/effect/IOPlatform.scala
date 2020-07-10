@@ -16,14 +16,13 @@
 
 package cats.effect
 
-import scala.concurrent.ExecutionContext
 import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
 private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
 
-  def unsafeToPromise(ec: ExecutionContext, timer: UnsafeTimer): Promise[A] =
+  def unsafeToPromise(implicit platform: unsafe.IOPlatform): Promise[A] =
     new Promise[A]({ (resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
-      self.unsafeRunAsync(ec, timer) {
+      self.unsafeRunAsync {
         case Left(JavaScriptException(e)) =>
           reject(e)
 

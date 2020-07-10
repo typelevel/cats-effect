@@ -25,46 +25,29 @@ trait IOApp {
 
   def run(args: List[String]): IO[Int]
 
+  protected def platform: unsafe.IOPlatform = unsafe.IOPlatform.Globals.platform
+
   final def main(args: Array[String]): Unit = {
     val runtime = Runtime.getRuntime()
-
-    val threadCount = new AtomicInteger(0)
-    val executor = Executors.newFixedThreadPool(runtime.availableProcessors(), { (r: Runnable) =>
-      val t = new Thread(r)
-      t.setName(s"io-compute-${threadCount.getAndIncrement()}")
-      t.setDaemon(true)
-      t
-    })
-    val context = ExecutionContext.fromExecutor(executor)
-
-    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName("io-scheduler")
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
-    val timer = UnsafeTimer.fromScheduledExecutor(scheduler)
 
     val latch = new CountDownLatch(1)
     @volatile var results: Either[Throwable, Int] = null
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber(context, timer, true) { e =>
+    val fiber = ioa.unsafeRunFiber(true) { e =>
       results = e
       latch.countDown()
-    }
+    }(platform)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
-        fiber.cancel.unsafeRunAsync(context, timer) { _ => cancelLatch.countDown() }
+        fiber.cancel.unsafeRunAsync { _ => cancelLatch.countDown() }(platform)
         cancelLatch.await()
       }
 
-      scheduler.shutdown()
-      executor.shutdown()
+      platform.shutdown()
     }
 
     val hook = new Thread(() => handleShutdown())
