@@ -127,7 +127,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       errors must beEmpty
     }
 
-    "cancel fiber sometime before 10000 pure delays have completed" in {
+    "cancel fiber sometime before 100000 pure delays have completed" in {
       object Box {
         // non-volatile
         var count = 0
@@ -143,14 +143,25 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
         else
           Box.increment.flatMap(_ => incrementor(n - 1))
 
+      val executor = Executors.newSingleThreadExecutor()
+      val childEC = ExecutionContext.fromExecutor(executor)
+
       val test = for {
-        f <- (IO(latch.countDown()).flatMap(_ => incrementor(10000))).start
-        _ <- IO(latch.await())
-        _ <- f.cancel
+        f <- (IO(latch.countDown()).flatMap(_ => incrementor(100000))).start
+        _ <- (IO(latch.await()) >> f.cancel).evalOn(childEC)
       } yield ()
 
+      try {
+        unsafeRunRealistic(test)() must beSome
+        Box.count must beLessThan(100000)
+      } finally {
+        executor.shutdown()
+      }
+    }
+
+    "reliably cancel infinite IO.unit(s)" in {
+      val test = IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel)
       unsafeRunRealistic(test)() must beSome
-      Box.count must beLessThan(10000)
     }
 
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>

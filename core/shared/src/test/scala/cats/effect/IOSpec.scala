@@ -429,6 +429,17 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture(unsafe.IORuntime(ctx, scheduler(), () => ()))))
     }
 
+    "ignore repeated polls" in {
+      var passed = true
+
+      val test = IO uncancelable { poll =>
+        poll(poll(IO.unit) >> IO.canceled) >> IO { passed = false }
+      }
+
+      test must nonTerminate
+      passed must beTrue
+    }
+
     platformSpecs
   }
 
