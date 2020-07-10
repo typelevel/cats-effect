@@ -589,9 +589,9 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             if (masks == cur.id) {
               masks -= 1
+              pushCont(UnmaskK)
             }
 
-            pushCont(UnmaskK)
             runLoop(cur.ioa)
         }
       }
