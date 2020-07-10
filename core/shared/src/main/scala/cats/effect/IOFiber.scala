@@ -160,7 +160,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             pushCont(CancelationLoopK)
 
             masks += 1
-            runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]))
+            runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), 0)
           }
         }
       },
@@ -225,7 +225,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
     ctxs.push(ec)
 
     this.masks = masks
-    runLoop(cur)
+    runLoop(cur, 0)
   }
 
   private def done(oc: Outcome[IO, Throwable, A]): Unit = {
@@ -263,18 +263,25 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
     if (outcome.get() == null) {    // hard cancelation check, basically
       execute(ec) { () =>
-        runLoop {
-          e match {
-            case Left(t) => failed(t, 0)
-            case Right(a) => succeeded(a, 0)
-          }
+        val next = e match {
+          case Left(t) => failed(t, 0)
+          case Right(a) => succeeded(a, 0)
         }
+
+        runLoop(next, 0)    // we've definitely hit suspended as part of evaluating async
       }
     }
   }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
-  private def runLoop(cur0: IO[Any]): Unit = {
+  private def runLoop(cur0: IO[Any], iteration: Int): Unit = {
+    val nextIteration = if (iteration > 512) {
+      readBarrier()
+      0
+    } else {
+      iteration + 1
+    }
+
     if (canceled && masks == initMask) {
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
@@ -289,7 +296,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
           // suppress all subsequent cancelation on this fiber
           masks += 1
-          runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]))
+          runLoop(finalizers.pop()(oc.asInstanceOf[Outcome[IO, Throwable, Any]]), 0)
         }
       }
     } else {
@@ -300,7 +307,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
         (cur0.tag: @switch) match {
           case 0 =>
             val cur = cur0.asInstanceOf[Pure[Any]]
-            runLoop(succeeded(cur.value, 0))
+            runLoop(succeeded(cur.value, 0), nextIteration)
 
           case 1 =>
             val cur = cur0.asInstanceOf[Delay[Any]]
@@ -314,16 +321,16 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               case NonFatal(t) => t
             }
 
-            runLoop {
-              if (success)
-                succeeded(r, 0)
-              else
-                failed(r, 0)
-            }
+            val next = if (success)
+              succeeded(r, 0)
+            else
+              failed(r, 0)
+
+            runLoop(next, nextIteration)
 
           case 2 =>
             val cur = cur0.asInstanceOf[Error]
-            runLoop(failed(cur.t, 0))
+            runLoop(failed(cur.t, 0), nextIteration)
 
           case 3 =>
             val cur = cur0.asInstanceOf[Async[Any]]
@@ -382,11 +389,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             }
 
             pushCont(AsyncK)
-            runLoop(next)
+            runLoop(next, nextIteration)
 
           // ReadEC
           case 4 =>
-            runLoop(succeeded(currentCtx, 0))
+            runLoop(succeeded(currentCtx, 0), nextIteration)
 
           case 5 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
@@ -397,7 +404,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             pushCont(EvalOnK)
 
             execute(ec) { () =>
-              runLoop(cur.ioa)
+              runLoop(cur.ioa, nextIteration)
             }
 
           case 6 =>
@@ -406,7 +413,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             objectState.push(cur.f)
             pushCont(MapK)
 
-            runLoop(cur.ioe)
+            runLoop(cur.ioe, nextIteration)
 
           case 7 =>
             val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
@@ -414,7 +421,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             objectState.push(cur.f)
             pushCont(FlatMapK)
 
-            runLoop(cur.ioe)
+            runLoop(cur.ioe, nextIteration)
 
           case 8 =>
             val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
@@ -422,7 +429,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             objectState.push(cur.f)
             pushCont(HandleErrorWithK)
 
-            runLoop(cur.ioa)
+            runLoop(cur.ioa, nextIteration)
 
           case 9 =>
             val cur = cur0.asInstanceOf[OnCase[Any]]
@@ -443,7 +450,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
             pushCont(OnCaseK)
-            runLoop(cur.ioa)
+            runLoop(cur.ioa, nextIteration)
 
           case 10 =>
             val cur = cur0.asInstanceOf[Uncancelable[Any]]
@@ -455,15 +462,15 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             }
 
             pushCont(UncancelableK)
-            runLoop(cur.body(poll))
+            runLoop(cur.body(poll), nextIteration)
 
           // Canceled
           case 11 =>
             canceled = true
             if (masks != initMask)
-              runLoop(succeeded((), 0))
+              runLoop(succeeded((), 0), nextIteration)
             else
-              runLoop(null)   // trust the cancelation check at the start of the loop
+              runLoop(null, nextIteration)   // trust the cancelation check at the start of the loop
 
           case 12 =>
             val cur = cur0.asInstanceOf[Start[Any]]
@@ -484,7 +491,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
             val ec = currentCtx
             execute(ec)(() => fiber.run(cur.ioa, ec, initMask2))
 
-            runLoop(succeeded(fiber, 0))
+            runLoop(succeeded(fiber, 0), nextIteration)
 
           case 13 =>
             // TODO self-cancelation within a nested poll could result in deadlocks in `both`
@@ -531,7 +538,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
                       canceled = true
                       // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
                       // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
-                      runLoop(null)
+                      runLoop(null, nextIteration)
                     } else {
                       val error = firstError.get()
                       if (error != null) {
@@ -554,32 +561,34 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               }
             }
 
-            runLoop(next)
+            runLoop(next, nextIteration)
 
           case 14 =>
             val cur = cur0.asInstanceOf[Sleep]
 
-            runLoop(IO.async[Unit] { cb =>
+            val next = IO.async[Unit] { cb =>
               IO {
                 val cancel = timer.sleep(cur.delay, () => cb(Right(())))
                 Some(IO(cancel.run()))
               }
-            })
+            }
+
+            runLoop(next, nextIteration)
 
           // RealTime
           case 15 =>
-            runLoop(succeeded(timer.nowMillis().millis, 0))
+            runLoop(succeeded(timer.nowMillis().millis, 0), nextIteration)
 
           // Monotonic
           case 16 =>
-            runLoop(succeeded(timer.monotonicNanos().nanos, 0))
+            runLoop(succeeded(timer.monotonicNanos().nanos, 0), nextIteration)
 
           // Cede
           case 17 =>
             currentCtx execute { () =>
               // println("continuing from cede ")
 
-              runLoop(succeeded((), 0))
+              runLoop(succeeded((), 0), nextIteration)
             }
 
           case 18 =>
@@ -590,7 +599,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
               pushCont(UnmaskK)
             }
 
-            runLoop(cur.ioa)
+            runLoop(cur.ioa, nextIteration)
         }
       }
     }
@@ -769,7 +778,7 @@ private object IOFiber {
 
       if (hasFinalizers()) {
         pushCont(this)
-        runLoop(popFinalizer()(currentOutcome().asInstanceOf[Outcome[IO, Throwable, Any]]))
+        runLoop(popFinalizer()(currentOutcome().asInstanceOf[Outcome[IO, Throwable, Any]]), 0)
       } else {
         invalidate()
       }
@@ -871,9 +880,9 @@ private object IOFiber {
       if (!isCanceled() || !isUnmasked()) {
         execute(ec) { () =>
           if (success)
-            runLoop(succeeded(result, 0))
+            runLoop(succeeded(result, 0), 0)
           else
-            runLoop(failed(result, 0))
+            runLoop(failed(result, 0), 0)
         }
       }
 
