@@ -34,21 +34,22 @@ private[effect] object IOTracing {
     buildCachedFrame(tag, clazz)
 
   private def buildCachedFrame(tag: Int, clazz: Class[_]): StackTraceFrame = {
-    val cf = frameCache.get(clazz)
-    if (cf eq null) {
-      val f = buildFrame(tag)
-      frameCache.put(clazz, f)
-      f
+    val currentFrame = frameCache.get(clazz)
+    if (currentFrame eq null) {
+      val newFrame = buildFrame(tag)
+      frameCache.put(clazz, newFrame)
+      newFrame
     } else {
-      cf
+      currentFrame
     }
   }
 
-  def buildFrame(tag: Int): StackTraceFrame =
+  private def buildFrame(tag: Int): StackTraceFrame =
     StackTraceFrame(tag, new Throwable())
 
   /**
-   * Cache for trace frames. Keys are references to lambda classes.
+   * Global cache for trace frames. Keys are references to lambda classes.
+   * Should converge to the working set of traces very quickly for hot code paths.
    */
   private[this] val frameCache: ConcurrentHashMap[Class[_], StackTraceFrame] = new ConcurrentHashMap()
 

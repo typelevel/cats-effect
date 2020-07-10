@@ -82,14 +82,14 @@ private[effect] object IORunLoop {
     while ({
       currentIO match {
         case bind @ Bind(fa, bindNext, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bind.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
-          }
-          if (isStackTracing) {
-            if (ctx eq null) ctx = IOContext()
-            val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -127,14 +127,14 @@ private[effect] object IORunLoop {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bindNext.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
-          }
-          if (isStackTracing) {
-            if (ctx eq null) ctx = IOContext()
-            val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -143,7 +143,7 @@ private[effect] object IORunLoop {
           if (conn eq null) conn = IOConnection()
           // We need to initialize an IOContext because the continuation
           // may produce trace frames e.g. IOBracket.
-          if (ctx eq null) ctx = IOContext()
+          if (ctx eq null) ctx = new IOContext()
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
           if (isStackTracing) {
             val trace = async.trace
@@ -163,7 +163,7 @@ private[effect] object IORunLoop {
           }
 
         case Trace(source, frame) =>
-          if (ctx eq null) ctx = IOContext()
+          if (ctx eq null) ctx = new IOContext()
           ctx.pushFrame(frame)
           currentIO = source
       }
@@ -211,14 +211,14 @@ private[effect] object IORunLoop {
     while ({
       currentIO match {
         case bind @ Bind(fa, bindNext, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bind.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
-          }
-          if (isStackTracing) {
-            if (ctx eq null) ctx = IOContext()
-            val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
           }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
@@ -256,20 +256,21 @@ private[effect] object IORunLoop {
           }
 
         case bindNext @ Map(fa, _, _) =>
+          if (isStackTracing) {
+            if (ctx eq null) ctx = new IOContext()
+            val trace = bindNext.trace
+            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+          }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
             bRest.push(bFirst)
           }
-          if (isStackTracing) {
-            if (ctx eq null) ctx = IOContext()
-            val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
-          }
           bFirst = bindNext.asInstanceOf[Bind]
           currentIO = fa
+          if (ctx eq null) ctx = new IOContext()
 
         case Trace(source, frame) =>
-          if (ctx eq null) ctx = IOContext()
+          if (ctx eq null) ctx = new IOContext()
           ctx.pushFrame(frame)
           currentIO = source
 

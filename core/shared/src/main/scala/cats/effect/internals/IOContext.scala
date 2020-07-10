@@ -24,7 +24,7 @@ import cats.effect.internals.TracingPlatform.traceBufferSize
  * an IO and should be threaded across multiple invocations
  * of the run-loop associated with the same fiber.
  */
-final private[effect] class IOContext private () {
+final private[effect] class IOContext() {
 
   private[this] val frames: RingBuffer[StackTraceFrame] = new RingBuffer(traceBufferSize)
   private[this] var captured: Int = 0
@@ -38,9 +38,4 @@ final private[effect] class IOContext private () {
   def trace(): IOTrace =
     IOTrace(frames.toList, captured, omitted)
 
-}
-
-object IOContext {
-  def apply(): IOContext =
-    new IOContext
 }

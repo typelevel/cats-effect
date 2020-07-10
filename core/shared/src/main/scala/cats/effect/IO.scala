@@ -1382,7 +1382,14 @@ object IO extends IOInstances {
    *
    * @see [[IO#attempt]]
    */
-  def raiseError[A](e: Throwable): IO[A] = RaiseError(e)
+  def raiseError[A](e: Throwable): IO[A] = {
+    val nextIo = RaiseError(e)
+    if (isFullStackTracing) {
+      IOTracing.decorated(nextIo, 8)
+    } else {
+      nextIo
+    }
+  }
 
   /**
    * Constructs an `IO` which evaluates the given `Future` and
@@ -1633,7 +1640,7 @@ object IO extends IOInstances {
   /* IO's internal encoding: */
   // In the Bind, Map, and Async constructors, you will notice that traces
   // are typed as an `AnyRef`. This seems to avoid a performance hit when
-  // tracing is disabled, specifically with the C2 JIT compiler.
+  // tracing is disabled, particularly with the C2 JIT compiler.
 
   /** Corresponds to [[IO.pure]]. */
   final private[effect] case class Pure[+A](a: A) extends IO[A]

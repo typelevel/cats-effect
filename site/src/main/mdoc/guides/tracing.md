@@ -79,6 +79,11 @@ and trace information of all fibers in an application can be extracted for
 debugging purposes.
 10. Monad transformer analysis.
 
+As note of caution, fiber tracing generally introduces overhead to
+applications in the form of higher CPU usage, memory and GC pressure. 
+Always remember to performance test your applications with tracing enabled 
+before deploying it to a production environment! 
+
 ## Asynchronous stack tracing
 ### Configuration
 The stack tracing mode of an application is configured by the system property
@@ -89,7 +94,8 @@ To prevent unbounded memory usage, stack traces for a fiber are accumulated
 in an internal buffer as execution proceeds. If more traces are collected than
 the buffer can retain, then the older traces will be overwritten. The default
 size for the buffer is 128, but can be changed via the system property 
-`cats.effect.traceBufferSize`.  
+`cats.effect.traceBufferSize`. Keep in mind that the buffer size will always
+be rounded up to a power of 2.
 
 For example, to enable full stack tracing and a trace buffer size of 1024,
 specify the following system properties:
@@ -111,13 +117,13 @@ tracing may produce inaccurate fiber traces under several scenarios:
 2. A named function is supplied to `map`, `async` or `flatMap` at multiple
 call-sites
 
-When no collection is performed, we measured less than an 18% performance hit
-for a completely synchronous `IO` program, so it will most likely be negligible
-for any program that performs any sort of I/O. Nonetheless, we strongly
-recommend benchmarking applications that enable tracing.
+We measured less than a 30% performance hit when cached tracing is enabled
+for a completely synchronous `IO` program, but it will most likely be much less
+for any program that performs any sort of I/O. We strongly recommend 
+benchmarking applications that make use of tracing.
 
-This is the recommended mode to run in production environments and is enabled
-by default.
+This is the recommended mode to run in most production applications and is 
+enabled by default.
 
 #### FULL
 When full stack tracing is enabled, a stack trace is captured for every

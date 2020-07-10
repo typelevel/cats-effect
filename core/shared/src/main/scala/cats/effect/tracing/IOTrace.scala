@@ -121,6 +121,7 @@ private[effect] object IOTrace {
       case 5 => "async"
       case 6 => "asyncF"
       case 7 => "cancelable"
+      case 8 => "raiseError"
       case _ => "???"
     }
 }
