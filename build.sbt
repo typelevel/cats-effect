@@ -181,7 +181,21 @@ val mimaSettings = Seq(
       exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalTap"),
       // change in encoding of value classes in generic methods https://github.com/lightbend/mima/issues/423
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.apply"),
-      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService")
+      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService"),
+      // Tracing
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.apply"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.index"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Map.copy$default$3"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.this"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.apply")
     )
   }
 )
