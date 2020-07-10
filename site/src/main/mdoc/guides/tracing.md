@@ -50,8 +50,9 @@ indicates that the feature has been merged into master.
 where stack frames are collected across asynchronous boundaries for a given
 fiber.
 2. Combinator inference. Stack traces can be walked to determine what
-combinator was actually called by user code. For example, `void` and 
-`as` are combinators that are derived from `map`.
+combinator was actually called by user code. For example, `void` and `as` are 
+combinators that are derived from `map`, and should appear in the fiber trace
+rather than `map`.
 3. Intermediate values. The intermediate values that an `IO` program encounters
 can be converted to a string to render. This can aid in understanding the
 actions that a program takes.
@@ -126,12 +127,13 @@ This is the recommended mode to run in most production applications and is
 enabled by default.
 
 #### FULL
-When full stack tracing is enabled, a stack trace is captured for every
-combinator traced in cached mode, but also `pure`, `delay`, `suspend` and other
-derived combinators.
+When full stack tracing is enabled, a stack trace is captured for most `IO`
+combinators including `pure`, `delay`, `suspend`, `raiseError` as well as those
+traced in cached mode. 
 
-This mode will incur a heavy performance hit for most programs, and is
-recommended for use in development environments.
+Stack traces are collected *on every invocation*, so naturally most programs
+will experience a significant performance hit. This mode is mainly useful for
+debugging in development environments.
 
 ### Requesting and rendering traces
 Once the global tracing flag is configured, `IO` programs will automatically
