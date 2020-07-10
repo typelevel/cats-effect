@@ -36,7 +36,7 @@ final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: 
       case (acc, (f, index)) =>
         val junc = if (index == frames.length - 1) TurnRight else Junction
         val first = f.stackTrace.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
-        acc + s"  $junc ${f.tag.name} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
+        acc + s"  $junc ${tagToName(f.tag)} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
     } + "\n"
 
     acc1
@@ -72,7 +72,7 @@ final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: 
 
     rest match {
       case k :: ks => {
-        val acc2 = if (init) InverseTurnRight + s" ${k.tag.name}\n" else Junction + s" ${k.tag.name}\n"
+        val acc2 = if (init) InverseTurnRight + s" ${tagToName(k.tag)}\n" else Junction + s" ${tagToName(k.tag)}\n"
         val innerLines = k.stackTrace
           .drop(stackTraceIgnoreLines)
           .take(maxStackTraceLines)
@@ -105,9 +105,22 @@ private[effect] object IOTrace {
     "scala."
   )
 
-  def demangleMethod(methodName: String): String =
+  private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {
       case Some(mat) => mat.group(1)
       case None      => methodName
+    }
+
+  private def tagToName(tag: Int): String =
+    tag match {
+      case 0 => "pure"
+      case 1 => "delay"
+      case 2 => "suspend"
+      case 3 => "flatMap"
+      case 4 => "map"
+      case 5 => "async"
+      case 6 => "asyncF"
+      case 7 => "cancelable"
+      case _ => "???"
     }
 }

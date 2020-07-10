@@ -16,7 +16,7 @@
 
 package cats.effect.tracing
 
-final case class StackTraceFrame(tag: TraceTag, throwable: Throwable) {
+final case class StackTraceFrame(tag: Int, throwable: Throwable) {
 
   def stackTrace: List[StackTraceElement] =
     throwable.getStackTrace().toList

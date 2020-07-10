@@ -20,20 +20,20 @@ import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
 import cats.effect.IO.Trace
-import cats.effect.tracing.{StackTraceFrame, TraceTag}
+import cats.effect.tracing.StackTraceFrame
 
 private[effect] object IOTracing {
 
-  def decorated[A](source: IO[A], tag: TraceTag): IO[A] =
+  def decorated[A](source: IO[A], tag: Int): IO[A] =
     Trace(source, buildFrame(tag))
 
-  def uncached(tag: TraceTag): StackTraceFrame =
+  def uncached(tag: Int): StackTraceFrame =
     buildFrame(tag)
 
-  def cached(tag: TraceTag, clazz: Class[_]): StackTraceFrame =
+  def cached(tag: Int, clazz: Class[_]): StackTraceFrame =
     buildCachedFrame(tag, clazz)
 
-  private def buildCachedFrame(tag: TraceTag, clazz: Class[_]): StackTraceFrame = {
+  private def buildCachedFrame(tag: Int, clazz: Class[_]): StackTraceFrame = {
     val cf = frameCache.get(clazz)
     if (cf eq null) {
       val f = buildFrame(tag)
@@ -44,7 +44,7 @@ private[effect] object IOTracing {
     }
   }
 
-  def buildFrame(tag: TraceTag): StackTraceFrame =
+  def buildFrame(tag: Int): StackTraceFrame =
     StackTraceFrame(tag, new Throwable())
 
   /**
