@@ -29,7 +29,7 @@ private[effect] abstract class IOCompanionPlatform { self: IO.type =>
             case (_, t) => cb(Left(t))
           }
 
-          Some(IO(stage.cancel(false)))
+          Some(IO(stage.cancel(false)).void)
         }
       }
     }

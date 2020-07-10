@@ -156,6 +156,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
 
+  def void: IO[Unit] =
+    map(_ => ())
+
+  // unsafe stuff
+
   def unsafeRunAsync(
       ec: ExecutionContext,
       timer: UnsafeTimer)(

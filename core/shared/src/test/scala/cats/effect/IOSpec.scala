@@ -426,7 +426,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
     }
 
     "round trip through s.c.Future" in forAll { (ioa: IO[Int]) =>
-      ioa === IO.fromFuture(IO(ioa.unsafeToFuture(ctx, timer())))
+      ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture(ctx, timer())))
     }
 
     platformSpecs
