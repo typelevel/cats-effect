@@ -18,17 +18,20 @@ package cats.effect.unsafe
 
 import scala.concurrent.duration.FiniteDuration
 
-trait Scheduler {
+import java.util.concurrent.ScheduledExecutorService
 
-  /**
-   * Schedules a side-effect to run after the delay interval. Produces
-   * another side-effect which cancels the scheduling.
-   */
-  def sleep(delay: FiniteDuration, task: Runnable): Runnable
+private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type => 
 
-  def nowMillis(): Long
+  def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
+    new Scheduler {
+      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+        val future = scheduler.schedule(task, delay.length, delay.unit)
+        () => future.cancel(false)
+      }
 
-  def monotonicNanos(): Long
+      def nowMillis() = System.currentTimeMillis()
+
+      def monotonicNanos() = System.nanoTime()
+    }
 }
-
-object Scheduler extends SchedulerCompanionPlatform
+ 

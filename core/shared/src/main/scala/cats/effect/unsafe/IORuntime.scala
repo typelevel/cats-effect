@@ -27,6 +27,9 @@ add the following import:
 import cats.effect.unsafe.implicits.global
 
 Alternatively, you can create an explicit IORuntime value and put it in implicit scope.
+This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
+wish to use to execute IO programs. Please be sure to review thread pool best practices to
+avoid unintentionally degrading your application performance.
 """)
 final class IORuntime private (
   val compute: ExecutionContext, 
