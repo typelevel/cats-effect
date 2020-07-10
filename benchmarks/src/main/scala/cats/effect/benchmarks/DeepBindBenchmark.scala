@@ -39,8 +39,6 @@ import org.openjdk.jmh.annotations._
 @OutputTimeUnit(TimeUnit.SECONDS)
 class DeepBindBenchmark extends DefaultContexts {
 
-  // NB: this benchmark is highly deceptive *without* better-monadic-for
-
   @Param(Array("10000"))
   var size: Int = _
 
