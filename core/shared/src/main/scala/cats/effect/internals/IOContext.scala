@@ -26,9 +26,9 @@ import cats.effect.internals.TracingPlatform.traceBufferSize
  */
 final private[effect] class IOContext private () {
 
-  private val frames: RingBuffer[StackTraceFrame] = new RingBuffer(traceBufferSize)
-  private var captured: Int = 0
-  private var omitted: Int = 0
+  private[this] val frames: RingBuffer[StackTraceFrame] = new RingBuffer(traceBufferSize)
+  private[this] var captured: Int = 0
+  private[this] var omitted: Int = 0
 
   def pushFrame(fr: StackTraceFrame): Unit = {
     captured += 1

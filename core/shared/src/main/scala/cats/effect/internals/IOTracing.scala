@@ -24,19 +24,19 @@ import cats.effect.tracing.{StackTraceFrame, TraceTag}
 
 private[effect] object IOTracing {
 
-  def decorated[A](source: IO[A], traceTag: TraceTag): IO[A] =
-    Trace(source, buildFrame(traceTag))
+  def decorated[A](source: IO[A], tag: TraceTag): IO[A] =
+    Trace(source, buildFrame(tag))
 
-  def uncached(traceTag: TraceTag): StackTraceFrame =
-    buildFrame(traceTag)
+  def uncached(tag: TraceTag): StackTraceFrame =
+    buildFrame(tag)
 
-  def cached(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame =
-    buildCachedFrame(traceTag, clazz)
+  def cached(tag: TraceTag, clazz: Class[_]): StackTraceFrame =
+    buildCachedFrame(tag, clazz)
 
-  private def buildCachedFrame(traceTag: TraceTag, clazz: Class[_]): StackTraceFrame = {
+  private def buildCachedFrame(tag: TraceTag, clazz: Class[_]): StackTraceFrame = {
     val cf = frameCache.get(clazz)
     if (cf eq null) {
-      val f = buildFrame(traceTag)
+      val f = buildFrame(tag)
       frameCache.put(clazz, f)
       f
     } else {
@@ -44,8 +44,8 @@ private[effect] object IOTracing {
     }
   }
 
-  def buildFrame(traceTag: TraceTag): StackTraceFrame =
-    StackTraceFrame(traceTag, new Throwable())
+  def buildFrame(tag: TraceTag): StackTraceFrame =
+    StackTraceFrame(tag, new Throwable())
 
   /**
    * Cache for trace frames. Keys are references to lambda classes.
