@@ -28,22 +28,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   def traced[A](io: IO[A]): IO[IOTrace] =
-    for {
-      _ <- io.traced
-      t <- IO.trace
-    } yield t
-
-  test("trace is empty when no traces are captured") {
-    val task = for {
-      _ <- IO.pure(1)
-      _ <- IO.pure(1)
-      t <- IO.trace
-    } yield t
-
-    for (r <- task.unsafeToFuture()) yield {
-      r.captured shouldBe 0
-    }
-  }
+    io.flatMap(_ => IO.trace)
 
   test("traces are preserved across asynchronous boundaries") {
     val task = for {
@@ -53,25 +38,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
     } yield a + b
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 3
-    }
-  }
-
-  test("traces are emptied when initiating a new trace") {
-    val op = for {
-      a <- IO.pure(1)
-      b <- IO.pure(1)
-    } yield a + b
-
-    val task = for {
-      _ <- op.traced
-      _ <- IO.trace
-      _ <- op.traced
-      t <- IO.trace
-    } yield t.frames.length
-
-    for (r <- task.unsafeToFuture()) yield {
-      r shouldBe 2
+      r.captured shouldBe 4
     }
   }
 }

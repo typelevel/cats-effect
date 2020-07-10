@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.tracing.{IOTrace, TraceTag}
+import cats.effect.tracing.IOTrace
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -28,17 +28,14 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
   def traced[A](io: IO[A]): IO[IOTrace] =
-    for {
-      _ <- io.traced
-      t <- IO.trace
-    } yield t
+    io.flatMap(_ => IO.trace)
 
   test("full stack tracing captures map frames") {
     val task = IO.pure(0).map(_ + 1).map(_ + 1)
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 3
-      r.frames.filter(_.tag == TraceTag.Map).length shouldBe 2
+      r.captured shouldBe 4
+      r.frames.filter(_.tag == 4).length shouldBe 2
     }
   }
 
@@ -46,8 +43,8 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.pure(0).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 5
-      r.frames.filter(_.tag == TraceTag.Bind).length shouldBe 2
+      r.captured shouldBe 6
+      r.frames.filter(_.tag == 3).length shouldBe 3 // the extra one is used to capture the trace
     }
   }
 
@@ -55,8 +52,8 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.async[Int](_(Right(0))).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 5
-      r.frames.filter(_.tag == TraceTag.Async).length shouldBe 1
+      r.captured shouldBe 6
+      r.frames.filter(_.tag == 5).length shouldBe 1
     }
   }
 
@@ -64,8 +61,8 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.pure(0).flatMap(a => IO.pure(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 3
-      r.frames.filter(_.tag == TraceTag.Pure).length shouldBe 2
+      r.captured shouldBe 4
+      r.frames.filter(_.tag == 0).length shouldBe 2
     }
   }
 
@@ -73,8 +70,8 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO(0).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 3
-      r.frames.filter(_.tag == TraceTag.Delay).length shouldBe 2
+      r.captured shouldBe 4
+      r.frames.filter(_.tag == 1).length shouldBe 2
     }
   }
 
@@ -82,8 +79,17 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.suspend(IO(1)).flatMap(a => IO.suspend(IO(a + 1)))
 
     for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 6
+      r.frames.filter(_.tag == 2).length shouldBe 2
+    }
+  }
+
+  test("full stack tracing captures raiseError frames") {
+    val task = IO(0).flatMap(_ => IO.raiseError(new Throwable())).handleErrorWith(_ => IO.unit)
+
+    for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 5
-      r.frames.filter(_.tag == TraceTag.Suspend).length shouldBe 2
+      r.frames.filter(_.tag == 8).length shouldBe 1
     }
   }
 }
