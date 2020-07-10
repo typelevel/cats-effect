@@ -147,6 +147,11 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       Box.count must beLessThan(10000)
     }
 
+    "reliably cancel infinite IO.unit(s)" in {
+      val test = IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel)
+      unsafeRunRealistic(test)() must beSome
+    }
+
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
       ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(ctx, timer())))
     }
