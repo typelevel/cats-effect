@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.effect.internals.IOPlatform
 import cats.effect.laws.discipline.SyncEffectTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
