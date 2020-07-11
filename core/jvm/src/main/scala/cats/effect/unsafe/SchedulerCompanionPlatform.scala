@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import scala.concurrent.duration.FiniteDuration
 
-private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
+import java.util.concurrent.ScheduledExecutorService
 
-  def unsafeToPromise(implicit runtime: unsafe.IORuntime): Promise[A] =
-    new Promise[A]({ (resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
-      self.unsafeRunAsync {
-        case Left(JavaScriptException(e)) =>
-          reject(e)
+private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type => 
 
-        case Left(e) =>
-          reject(e)
-
-        case Right(value) =>
-          resolve(value)
+  def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
+    new Scheduler {
+      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+        val future = scheduler.schedule(task, delay.length, delay.unit)
+        () => future.cancel(false)
       }
-    })
+
+      def nowMillis() = System.currentTimeMillis()
+
+      def monotonicNanos() = System.nanoTime()
+    }
 }
+ 
