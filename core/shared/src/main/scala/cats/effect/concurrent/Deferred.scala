@@ -18,6 +18,7 @@ package cats
 package effect
 package concurrent
 
+import cats.implicits._
 import cats.effect.internals.{Callback, LinkedLongMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 
@@ -192,22 +193,23 @@ object Deferred {
       }
 
     private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Long = {
-      var id: Long = 0
-
       @tailrec
-      def register(): Option[A] =
+      def register(): Either[Long, A] =
         ref.get match {
-          case State.Set(a) => Some(a)
+          case State.Set(a) => Right(a)
           case s @ State.Unset(waiting, nextId) =>
             val updated = State.Unset(waiting.updated(nextId, (a: A) => cb(Right(a))), nextId + 1)
-            if (ref.compareAndSet(s, updated)) {
-              id = nextId
-              None
-            } else register()
+            if (ref.compareAndSet(s, updated)) Left(nextId)
+            else register()
         }
 
-      register().foreach(a => cb(Right(a)))
-      id
+      register() match {
+        case Left(id) => id
+        case r @ Right(_) => {
+          cb(r.leftCast[Throwable])
+          0L
+        }
+      }
     }
 
     def complete(a: A): F[Unit] =
