@@ -16,9 +16,12 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /** To do comparative benchmarks between versions:
  *
@@ -37,7 +40,7 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class ShallowBindBenchmark extends DefaultContexts {
+class ShallowBindBenchmark {
 
   @Param(Array("10000"))
   var size: Int = _
@@ -50,7 +53,7 @@ class ShallowBindBenchmark extends DefaultContexts {
 
     IO.pure(0)
       .flatMap(loop)
-      .unsafeRunSync(ctx, timer)
+      .unsafeRunSync()
   }
 
   @Benchmark
@@ -59,7 +62,7 @@ class ShallowBindBenchmark extends DefaultContexts {
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -68,6 +71,6 @@ class ShallowBindBenchmark extends DefaultContexts {
       if (i < size) IO.cede.flatMap(_ => IO.pure(i + 1)).flatMap(loop)
       else IO.cede.flatMap(_ => IO.pure(i))
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

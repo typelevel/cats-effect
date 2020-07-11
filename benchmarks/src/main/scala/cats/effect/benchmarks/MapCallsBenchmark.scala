@@ -16,9 +16,12 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /** To do comparative benchmarks between versions:
  *
@@ -50,7 +53,7 @@ class MapCallsBenchmark {
   def batch120(): Long = test(12000 / 120, 120)
 }
 
-object MapCallsBenchmark extends DefaultContexts {
+object MapCallsBenchmark {
   def test(iterations: Int, batch: Int): Long = {
     val f = (x: Int) => x + 1
     var io = IO(0)
@@ -61,7 +64,7 @@ object MapCallsBenchmark extends DefaultContexts {
     var sum = 0L
     var i = 0
     while (i < iterations) {
-      sum += io.unsafeRunSync(ctx, timer)
+      sum += io.unsafeRunSync()
       i += 1
     }
     sum

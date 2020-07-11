@@ -16,9 +16,12 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /** To do comparative benchmarks between versions:
  *
@@ -50,7 +53,7 @@ class MapStreamBenchmark {
   def batch120(): Long = streamTest(100, 120)
 }
 
-object MapStreamBenchmark extends DefaultContexts {
+object MapStreamBenchmark {
   def streamTest(times: Int, batchSize: Int): Long = {
     var stream = range(0, times)
     var i = 0
@@ -58,7 +61,7 @@ object MapStreamBenchmark extends DefaultContexts {
       stream = mapStream(addOne)(stream)
       i += 1
     }
-    sum(0)(stream).unsafeRunSync(ctx, timer)
+    sum(0)(stream).unsafeRunSync()
   }
 
   final case class Stream(value: Int, next: IO[Option[Stream]])

@@ -16,10 +16,7 @@
 
 package cats.effect
 
-import scala.concurrent.ExecutionContext
-
-import java.util.concurrent.{CountDownLatch, Executors}
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.CountDownLatch
 
 trait IOApp {
 

@@ -16,10 +16,13 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 // import cats.implicits._
+
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /**
  * To do comparative benchmarks between versions:
@@ -39,7 +42,7 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class AsyncBenchmark extends DefaultContexts {
+class AsyncBenchmark {
 
   @Param(Array("100"))
   var size: Int = _
@@ -61,7 +64,7 @@ class AsyncBenchmark extends DefaultContexts {
       if (i < size) evalAsync(i + 1).flatMap(loop)
       else evalAsync(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -70,14 +73,14 @@ class AsyncBenchmark extends DefaultContexts {
       if (i < size) evalCancelable(i + 1).flatMap(loop)
       else evalCancelable(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   // TODO
   /*@Benchmark
   def parMap2() = {
     val task = (0 until size).foldLeft(IO(0))((acc, i) => (acc, IO(i)).parMapN(_ + _))
-    task.unsafeRunSync(ctx, timer)
+    task.unsafeRunSync()
   }*/
 
   @Benchmark
@@ -89,7 +92,7 @@ class AsyncBenchmark extends DefaultContexts {
       }
     )
 
-    task.unsafeRunSync(ctx, timer)
+    task.unsafeRunSync()
   }
 
   @Benchmark
@@ -101,7 +104,7 @@ class AsyncBenchmark extends DefaultContexts {
       }
     )
 
-    task.unsafeRunSync(ctx, timer)
+    task.unsafeRunSync()
   }
 
   @Benchmark
@@ -112,7 +115,7 @@ class AsyncBenchmark extends DefaultContexts {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -123,7 +126,7 @@ class AsyncBenchmark extends DefaultContexts {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 
   @Benchmark
@@ -134,6 +137,6 @@ class AsyncBenchmark extends DefaultContexts {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSync(ctx, timer)
+    IO(0).flatMap(loop).unsafeRunSync()
   }
 }

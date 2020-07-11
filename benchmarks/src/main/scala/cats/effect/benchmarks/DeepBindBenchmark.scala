@@ -16,8 +16,10 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
+import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 
 /** To do comparative benchmarks between versions:
@@ -37,7 +39,7 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class DeepBindBenchmark extends DefaultContexts {
+class DeepBindBenchmark {
 
   @Param(Array("10000"))
   var size: Int = _
@@ -52,7 +54,7 @@ class DeepBindBenchmark extends DefaultContexts {
           loop(j + 1)
       }
 
-    loop(0).unsafeRunSync(ctx, timer)
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -65,7 +67,7 @@ class DeepBindBenchmark extends DefaultContexts {
           loop(j + 1)
       }
 
-    loop(0).unsafeRunSync(ctx, timer)
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -80,6 +82,6 @@ class DeepBindBenchmark extends DefaultContexts {
         }
       }
 
-    loop(0).unsafeRunSync(ctx, timer)
+    loop(0).unsafeRunSync()
   }
 }

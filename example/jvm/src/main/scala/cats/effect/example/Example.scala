@@ -17,8 +17,6 @@
 package cats.effect
 package example
 
-import cats.implicits._
-
 object Example extends IOApp {
 
   def run(args: List[String]): IO[Int] =

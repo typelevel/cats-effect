@@ -133,7 +133,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
     }
 
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture(unsafe.IORuntime(ctx, scheduler(), () => ()))))
+      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture()(unsafe.IORuntime(ctx, scheduler(), () => ()))))
     }
 
     "evaluate a timeout using sleep and race in real time" in {

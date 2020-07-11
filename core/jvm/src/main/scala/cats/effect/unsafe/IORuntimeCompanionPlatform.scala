@@ -17,12 +17,11 @@
 package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
 
-import java.util.concurrent.{Executors, ScheduledExecutorService}
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type => 
+private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
   def createDefaultComputeExecutionContext(threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
@@ -41,7 +40,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type
       t.setDaemon(true)
       t.setPriority(Thread.MAX_PRIORITY)
       t
-    } 
+    }
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 

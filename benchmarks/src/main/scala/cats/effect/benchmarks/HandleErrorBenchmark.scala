@@ -16,9 +16,12 @@
 
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+
 import org.openjdk.jmh.annotations._
+
+import java.util.concurrent.TimeUnit
 
 /** To do comparative benchmarks between versions:
  *
@@ -37,7 +40,7 @@ import org.openjdk.jmh.annotations._
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-class HandleErrorBenchmark extends DefaultContexts {
+class HandleErrorBenchmark {
   @Param(Array("10000"))
   var size: Int = _
 
@@ -51,7 +54,7 @@ class HandleErrorBenchmark extends DefaultContexts {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSync(ctx, timer)
+    loop(0).unsafeRunSync()
   }
 
   @Benchmark
@@ -67,6 +70,6 @@ class HandleErrorBenchmark extends DefaultContexts {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSync(ctx, timer)
+    loop(0).unsafeRunSync()
   }
 }
