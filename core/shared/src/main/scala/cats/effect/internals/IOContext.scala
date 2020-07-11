@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import cats.effect.tracing.{IOTrace, IOEvent}
+import cats.effect.tracing.{IOEvent, IOTrace}
 import cats.effect.internals.TracingPlatform.traceBufferSize
 
 /**

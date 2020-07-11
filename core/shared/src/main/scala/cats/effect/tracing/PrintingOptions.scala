@@ -16,10 +16,30 @@
 
 package cats.effect.tracing
 
-final case class PrintingOptions private ()
+/**
+ * @param showFullStackTraces Whether or not to show the entire stack trace
+ * @param maxStackTraceLines When `showFullStackTraces` is `true`, the maximum number of stack trace
+ *                           elements to print
+ * @param ignoreStackTraceLines When `showFullStackTraces` is `true`, the number of stack trace elements
+ *                              to ignore from the start
+ */
+final case class PrintingOptions private (showFullStackTraces: Boolean,
+                                          maxStackTraceLines: Int,
+                                          ignoreStackTraceLines: Int) {
+  def withShowFullStackTraces(showFullStackTraces: Boolean): PrintingOptions =
+    copy(showFullStackTraces = showFullStackTraces)
 
-object PrintingOptions {
-  val Default = PrintingOptions()
+  def withMaxStackTraceLines(maxStackTraceLines: Int): PrintingOptions =
+    copy(maxStackTraceLines = maxStackTraceLines)
+
+  def withIgnoreStackTraceLines(ignoreStackTraceLines: Int): PrintingOptions =
+    copy(ignoreStackTraceLines = ignoreStackTraceLines)
 }
 
-
+object PrintingOptions {
+  val Default = PrintingOptions(
+    showFullStackTraces = false,
+    maxStackTraceLines = Int.MaxValue,
+    ignoreStackTraceLines = 3 // the number of frames to ignore because of IOTracing
+  )
+}

@@ -182,7 +182,7 @@ val mimaSettings = Seq(
       // change in encoding of value classes in generic methods https://github.com/lightbend/mima/issues/423
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.apply"),
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService"),
-      // Tracing
+      // Tracing - https://github.com/typelevel/cats-effect/pull/854
       exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
       exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.apply"),
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),

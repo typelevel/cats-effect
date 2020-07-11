@@ -135,28 +135,18 @@ Stack traces are collected *on every invocation*, so naturally most programs
 will experience a significant performance hit. This mode is mainly useful for
 debugging in development environments.
 
-### Requesting and rendering traces
+### Requesting and printing traces
 Once the global tracing flag is configured, `IO` programs will automatically
 begin collecting traces. The trace for a fiber can be accessed at any point
 during its execution via the `IO.trace` combinator. This is the `IO` equivalent
 of capturing a thread's stack trace.
 
-```scala
-import cats.effect.IO
-
-def program: IO[Unit] =
-  for {
-    _     <- IO(println("Started the program"))
-    trace <- IO.trace
-  } yield ()
-```
-
-After a fiber trace is retrieved, we can print it to the console, just like how 
-exception stack traces can be printed with `printStackTrace`. `compactPrint`
-includes the most relevant stack trace element for each fiber operation that
-was performed. `prettyPrint` includes the entire stack trace for each fiber
-operation. These methods accept arguments that lets us customize how traces
-are printed.
+After we have a fiber trace, we can print it to the console, not unlike how
+Java exception stack traces are printed with `printStackTrace`. `printFiberTrace`
+can be called to print fiber traces to the consoles. Printing behavior can be 
+customized by passing in a `PrintingOptions` instance. By default, a fiber trace 
+is rendered in a very compact presentation that includes the most relevant stack 
+trace element from each fiber operation.
 
 ```scala
 import cats.effect.IO
@@ -165,8 +155,7 @@ def program: IO[Unit] =
   for {
     _     <- IO(println("Started the program"))
     trace <- IO.trace
-    _     <- trace.compactPrint
-    _     <- trace.printStackTraces()
+    _     <- trace.printFiberTrace()
   } yield ()
 ```
 
@@ -180,11 +169,17 @@ Here is a sample program that demonstrates tracing in action.
 // Pass the following system property to your JVM:
 // -Dcats.effect.stackTracingMode=full
 
+import cats.effect.tracing.PrintingOptions
 import cats.implicits._
 import cats.effect.{ExitCode, IO, IOApp}
+
 import scala.util.Random
 
 object Example extends IOApp {
+
+  val options = PrintingOptions.Default
+    .withShowFullStackTraces(true)
+    .withMaxStackTraceLines(8)
 
   def fib(n: Int, a: Long = 0, b: Long = 1): IO[Long] =
     IO(a + b).flatMap { b2 =>
@@ -203,7 +198,7 @@ object Example extends IOApp {
 
   override def run(args: List[String]): IO[ExitCode] =
     for {
-      _     <- program.handleErrorWith(_ => IO.trace.flatMap(_.compactPrint))
+      _ <- program.handleErrorWith(_ => IO.trace.flatMap(_.printFiberTrace(options)))
     } yield ExitCode.Success
 
 }

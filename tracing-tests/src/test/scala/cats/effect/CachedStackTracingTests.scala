@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.tracing.IOTrace
+import cats.effect.tracing.{IOEvent, IOTrace}
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -35,7 +35,7 @@ class CachedStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 3
-      r.events.filter(_.tag == 4).length shouldBe 2
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 4).length shouldBe 2
     }
   }
 
@@ -44,7 +44,10 @@ class CachedStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 3
-      r.events.filter(_.tag == 3).length shouldBe 3 // extra one is to capture the trace
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.tag == 3)
+        .length shouldBe 3 // extra one is to capture the trace
     }
   }
 
@@ -53,7 +56,7 @@ class CachedStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.filter(_.tag == 5).length shouldBe 1
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 5).length shouldBe 1
     }
   }
 }

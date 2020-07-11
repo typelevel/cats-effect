@@ -22,67 +22,62 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
   import IOTrace._
 
-  def printFiberTrace(): IO[Unit] = {
-    IO(System.err.println(showFiberTrace()))
-  }
+  def printFiberTrace(options: PrintingOptions = PrintingOptions.Default): IO[Unit] =
+    IO(System.err.println(showFiberTrace(options)))
 
-  def showFiberTrace(): String = {
-    val TurnRight = "╰"
-    val Junction = "├"
-
-    val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = events.zipWithIndex.map {
-      case (event, index) =>
-        val junc = if (index == events.length - 1) TurnRight else Junction
-        val message = event match {
-          case ev: IOEvent.StackTrace => {
-            val first = bestTraceElement(ev.stackTrace)
-            val nameTag = tagToName(ev.tag)
-            val codeLine = first.map(renderStackTraceElement).getOrElse("(...)")
-            s"$nameTag at $codeLine"
-          }
-        }
-        s"  $junc $message"
-    }.mkString(acc0, "\n", "\n")
-
-    acc1
-  }
-
-  def showStackTraces(maxStackTraceLines: Int = Int.MaxValue): String = {
+  def showFiberTrace(options: PrintingOptions = PrintingOptions.Default): String = {
     val TurnRight = "╰"
     val InverseTurnRight = "╭"
     val Junction = "├"
     val Line = "│"
 
-    val stackTraces = events.collect { case e: IOEvent.StackTrace => e }
+    if (options.showFullStackTraces) {
+      val stackTraces = events.collect { case e: IOEvent.StackTrace => e }
 
-    val header = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val body = stackTraces.zipWithIndex.map {
-      case (st, index) =>
-        val nameTag = tagToName(st.tag)
-        val op = if (index == 0) s"$InverseTurnRight $nameTag\n" else s"$Junction $nameTag\n"
-        val relevantLines = st.stackTrace
-          .drop(stackTraceIgnoreLines)
-          .take(maxStackTraceLines)
-        val lines = relevantLines
-          .zipWithIndex
-          .map {
-            case (ste, i) =>
-              val junc = if (i == relevantLines.length - 1) TurnRight else Junction
-              val codeLine = renderStackTraceElement(ste)
-              s"$Line  $junc $codeLine"
-          }
-          .mkString("", "\n", "\n")
+      val header = s"IOTrace: $captured frames captured, $omitted omitted\n"
+      val body = stackTraces.zipWithIndex
+        .map {
+          case (st, index) =>
+            val nameTag = tagToName(st.tag)
+            val op = if (index == 0) s"$InverseTurnRight $nameTag\n" else s"$Junction $nameTag\n"
+            val relevantLines = st.stackTrace
+              .drop(options.ignoreStackTraceLines)
+              .take(options.maxStackTraceLines)
+            val lines = relevantLines.zipWithIndex
+              .map {
+                case (ste, i) =>
+                  val junc = if (i == relevantLines.length - 1) TurnRight else Junction
+                  val codeLine = renderStackTraceElement(ste)
+                  s"$Line  $junc $codeLine"
+              }
+              .mkString("", "\n", "\n")
 
-        s"$op$lines$Line"
-    }.mkString("\n")
+            s"$op$lines$Line"
+        }
+        .mkString("\n")
 
-    header + body
+      header + body
+    } else {
+      val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
+      val acc1 = events.zipWithIndex
+        .map {
+          case (event, index) =>
+            val junc = if (index == events.length - 1) TurnRight else Junction
+            val message = event match {
+              case ev: IOEvent.StackTrace => {
+                val first = bestTraceElement(ev.stackTrace)
+                val nameTag = tagToName(ev.tag)
+                val codeLine = first.map(renderStackTraceElement).getOrElse("(...)")
+                s"$nameTag at $codeLine"
+              }
+            }
+            s" $junc $message"
+        }
+        .mkString(acc0, "\n", "\n")
+
+      acc1
+    }
   }
-
-  def printStackTraces(maxStackTracesLines: Int = Int.MaxValue): IO[Unit] =
-    IO(System.err.println(showStackTraces(maxStackTracesLines)))
-
 }
 
 private[effect] object IOTrace {

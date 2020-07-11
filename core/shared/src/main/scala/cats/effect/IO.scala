@@ -26,7 +26,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Left, Right, Success, Try}
 import cats.data.Ior
-import cats.effect.tracing.{IOTrace, IOEvent}
+import cats.effect.tracing.{IOEvent, IOTrace}
 
 /**
  * A pure abstraction representing the intention to perform a

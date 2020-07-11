@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.effect.tracing.IOTrace
+import cats.effect.tracing.{IOEvent, IOTrace}
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -35,7 +35,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.filter(_.tag == 4).length shouldBe 2
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 4).length shouldBe 2
     }
   }
 
@@ -44,7 +44,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.filter(_.tag == 3).length shouldBe 3 // the extra one is used to capture the trace
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 3).length shouldBe 3 // the extra one is used to capture the trace
     }
   }
 
@@ -53,7 +53,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.filter(_.tag == 5).length shouldBe 1
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 5).length shouldBe 1
     }
   }
 
@@ -62,7 +62,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.filter(_.tag == 0).length shouldBe 2
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 0).length shouldBe 2
     }
   }
 
@@ -71,7 +71,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.filter(_.tag == 1).length shouldBe 2
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 1).length shouldBe 2
     }
   }
 
@@ -80,7 +80,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.filter(_.tag == 2).length shouldBe 2
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 2).length shouldBe 2
     }
   }
 
@@ -89,7 +89,7 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 5
-      r.events.filter(_.tag == 8).length shouldBe 1
+      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 8).length shouldBe 1
     }
   }
 }
