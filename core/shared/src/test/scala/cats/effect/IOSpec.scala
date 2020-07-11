@@ -440,6 +440,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck { o
       passed must beTrue
     }
 
+    "evaluate a timeout using sleep and race" in {
+      IO.race(IO.never[Unit], IO.sleep(2.seconds)) must completeAs(Right(()))
+    }
+
     platformSpecs
   }
 
