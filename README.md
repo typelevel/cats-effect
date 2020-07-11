@@ -12,11 +12,11 @@ At the present time, ce3 is cross-built for Scala 2.12, 2.13, and Dotty 0.25.0-R
 
 ## Contributing
 
-There's lots to do! Ask in the [Gitter channel](https://gitter.im/typelevel/cats-effect-dev) if you are unsure where to begin. At this point, the entire hierarchy is in place, along with most of the laws, and we need to begin porting over the higher level machinery (such as `IO` itself) from Cats Effect 2. This is where the majority of the work will happen over the next several months.
+There's lots to do! Ask in the [Gitter channel](https://gitter.im/typelevel/cats-effect-dev) if you are unsure where to begin. At this point, the entire hierarchy is in place, along with most of the laws, and we need to begin porting over the higher level machinery from Cats Effect 2. This is where the majority of the work will happen over the next several months.
 
 ## Roadmap
 
-Our goal is to start releasing stable-ish snapshots of the complete framework sometime in Q4 2020, allowing major elements of the ecosystem (such as Monix and fs2) the chance to attempt to port their code over to the new framework, inevitably identifying issues large and small. This ecosystem work is expected to consume the majority of early 2021, during which time we will (hopefully!) resolve most of the major migration sticking points before end-users run into them.
+Our goal is to start releasing stable-ish snapshots of the complete framework sometime in Q3 2020, allowing major elements of the ecosystem (such as Monix and fs2) the chance to attempt to port their code over to the new framework, inevitably identifying issues large and small. This ecosystem work is expected to consume the majority of late 2020, during which time we will (hopefully!) resolve most of the major migration sticking points before end-users run into them.
 
 Once all of that is achieved, we will begin a cycle of coordinated release candidates, encouraging the full ecosystem to make the jump, before finally culminating in a coordinated release of a final version across as many projects as possible. In theory, this should culminate roughly around the same time that Scala 3 is fully released, and ce3 will provide fully native Scala 3 support from day one.
 
