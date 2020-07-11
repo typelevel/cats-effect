@@ -19,16 +19,16 @@ package cats.effect.internals
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
-final class LinkedMapTests extends AnyFunSuite with Matchers {
+final class LinkedLongMapTests extends AnyFunSuite with Matchers {
   test("empty map") {
-    val map = LinkedMap.empty[Int, Int]
+    val map = LinkedLongMap.empty[Long]
 
     map.isEmpty shouldBe true
   }
 
   test("inserting entries") {
-    val ns = (0 until 10).toList
-    val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
+    val ns = (0L until 10L).toList
+    val map = ns.foldLeft(LinkedLongMap.empty[Long])((map, i) => map.updated(i, i))
 
     map.isEmpty shouldBe false
     map.keys.toList shouldBe ns
@@ -36,10 +36,10 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
   }
 
   test("dequeueing entries") {
-    val ns = (0 until 10).toList
-    val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
+    val ns = (0L until 10L).toList
+    val map = ns.foldLeft(LinkedLongMap.empty[Long])((map, i) => map.updated(i, i))
 
-    var n = 0
+    var n = 0L
     var acc = map
     while (!acc.isEmpty) {
       val res = acc.dequeue
@@ -52,9 +52,9 @@ final class LinkedMapTests extends AnyFunSuite with Matchers {
   }
 
   test("removing entry") {
-    val ns = (0 until 10).toList
-    val map = ns.foldLeft(LinkedMap.empty[Int, Int])((map, i) => map.updated(i, i))
-    val n = 2
+    val ns = (0L until 10L).toList
+    val map = ns.foldLeft(LinkedLongMap.empty[Long])((map, i) => map.updated(i, i))
+    val n = 2L
 
     assert(map.keys.exists(_ == n))
     assert(map.values.exists(_ == n))

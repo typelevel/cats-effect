@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.{Callback, LinkedMap, TrampolineEC}
+import cats.effect.internals.{Callback, LinkedLongMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
@@ -148,7 +148,7 @@ object Deferred {
   def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] = unsafeTryableUncancelable[F, A]
 
   private def unsafeTryable[F[_]: Concurrent, A]: TryableDeferred[F, A] =
-    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty, 1)))
+    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedLongMap.empty, 1)))
 
   private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
     new UncancelableDeferred[F, A](Promise[A]())
@@ -156,7 +156,7 @@ object Deferred {
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
-    final case class Unset[A](waiting: LinkedMap[Long, A => Unit], nextId: Long) extends State[A]
+    final case class Unset[A](waiting: LinkedLongMap[A => Unit], nextId: Long) extends State[A]
   }
 
   final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])

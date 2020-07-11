@@ -93,7 +93,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedMap.empty, rest, nextId)
+            else WaitForPut(LinkedLongMap.empty, rest, nextId)
           }
 
         if (!stateRef.compareAndSet(current, update)) {
@@ -125,7 +125,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedMap.empty, rest, nextId)
+            else WaitForPut(LinkedLongMap.empty, rest, nextId)
           }
 
         if (stateRef.compareAndSet(current, update)) {
@@ -256,7 +256,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
       case _ => ()
     }
 
-  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedMap[Long, Listener[A]]): F[Boolean] = {
+  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedLongMap[Listener[A]]): F[Boolean] = {
     val value = Right(a)
     // Satisfies all current `read` requests found
     val task = streamAll(value, reads.values)
@@ -310,8 +310,8 @@ private[effect] object MVarConcurrent {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty, 0)
-    def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty, 0)
+    private[this] val ref = WaitForPut[Any](LinkedLongMap.empty, LinkedLongMap.empty, 0)
+    def apply[A](a: A): State[A] = WaitForTake(a, LinkedLongMap.empty, 0)
 
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
@@ -322,8 +322,8 @@ private[effect] object MVarConcurrent {
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  final private case class WaitForPut[A](reads: LinkedMap[Long, Listener[A]],
-                                         takes: LinkedMap[Long, Listener[A]],
+  final private case class WaitForPut[A](reads: LinkedLongMap[Listener[A]],
+                                         takes: LinkedLongMap[Listener[A]],
                                          nextId: Long)
       extends State[A]
 
@@ -337,6 +337,6 @@ private[effect] object MVarConcurrent {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  final private case class WaitForTake[A](value: A, listeners: LinkedMap[Long, (A, Listener[Unit])], nextId: Long)
+  final private case class WaitForTake[A](value: A, listeners: LinkedLongMap[(A, Listener[Unit])], nextId: Long)
       extends State[A]
 }
