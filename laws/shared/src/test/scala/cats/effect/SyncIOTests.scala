@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import cats.effect.internals.IOPlatform
 import cats.effect.laws.discipline.SyncEffectTests
 import cats.effect.laws.discipline.arbitrary._
 import cats.implicits._
@@ -152,14 +151,6 @@ class SyncIOTests extends BaseTestsSuite {
   test("suspend with unsafeRunSync") {
     val io = SyncIO.suspend(SyncIO(1)).map(_ + 1)
     io.unsafeRunSync() shouldEqual 2
-  }
-
-  test("map is stack-safe for unsafeRunSync") {
-    import IOPlatform.{fusionMaxStackDepth => max}
-    val f = (x: Int) => x + 1
-    val io = (0 until (max * 10000)).foldLeft(SyncIO(0))((acc, _) => acc.map(f))
-
-    io.unsafeRunSync() shouldEqual max * 10000
   }
 
   testAsync("IO#redeem(throw, f) <-> IO#map") { implicit ec =>

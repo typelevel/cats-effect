@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.internals
 
-package object internals {
+object TracingPlatform {
+  final val isCachedStackTracing: Boolean = false
 
-  /**
-   * Handy alias for the registration functions of [[IO.Async]].
-   */
-  private[effect] type Start[+A] =
-    (IOConnection, IOContext, Callback.T[A]) => Unit
+  final val isFullStackTracing: Boolean = false
+
+  final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
+
+  final val traceBufferSize: Int = 32
 }

@@ -16,23 +16,26 @@
 
 package cats.effect.internals
 
-import cats.effect.IO
+import cats.effect.tracing.{IOEvent, IOTrace}
+import cats.effect.internals.TracingPlatform.traceBufferSize
 
-import scala.concurrent.ExecutionContext
+/**
+ * INTERNAL API — Holds state related to the execution of
+ * an IO and should be threaded across multiple invocations
+ * of the run-loop associated with the same fiber.
+ */
+final private[effect] class IOContext() {
 
-private[effect] object IOShift {
+  private[this] val events: RingBuffer[IOEvent] = new RingBuffer(traceBufferSize)
+  private[this] var captured: Int = 0
+  private[this] var omitted: Int = 0
 
-  /** Implementation for `IO.shift`. */
-  def apply(ec: ExecutionContext): IO[Unit] =
-    IO.Async(new IOForkedStart[Unit] {
-      def apply(conn: IOConnection, ctx: IOContext, cb: Callback.T[Unit]): Unit =
-        ec.execute(new Tick(cb))
-    })
-
-  def shiftOn[A](cs: ExecutionContext, targetEc: ExecutionContext, io: IO[A]): IO[A] =
-    IOBracket[Unit, A](IOShift(cs))(_ => io)((_, _) => IOShift(targetEc))
-
-  final private[internals] class Tick(cb: Either[Throwable, Unit] => Unit) extends Runnable {
-    def run() = cb(Callback.rightUnit)
+  def pushEvent(fr: IOEvent): Unit = {
+    captured += 1
+    if (events.push(fr) != null) omitted += 1
   }
+
+  def trace(): IOTrace =
+    IOTrace(events.toList, captured, omitted)
+
 }

@@ -182,6 +182,20 @@ val mimaSettings = Seq(
       // change in encoding of value classes in generic methods https://github.com/lightbend/mima/issues/423
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.apply"),
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService"),
+      // Tracing - https://github.com/typelevel/cats-effect/pull/854
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.apply"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.apply"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.k"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Async.copy$default$1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Async.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.copy"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Bind.this"),
+      exclude[DirectMissingMethodProblem]("cats.effect.IO#Map.index"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Map.copy$default$3"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.this"),
+      exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.apply"),
       // revise Deferred, MVarConcurrent, LinkedLongMap - https://github.com/typelevel/cats-effect/pull/918
       exclude[IncompatibleResultTypeProblem]("cats.effect.concurrent.Deferred#State#Unset.waiting"),
       exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.copy"),
@@ -233,7 +247,7 @@ lazy val sharedSourcesSettings = Seq(
 lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
-  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS)
+  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, tracingTests)
   .settings(skipOnPublishSettings)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -297,6 +311,37 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
+
+lazy val FullTracingTest = config("fulltracing").extend(Test)
+
+lazy val tracingTests = project
+  .in(file("tracing-tests"))
+  .dependsOn(coreJVM)
+  .settings(commonSettings ++ skipOnPublishSettings)
+  .settings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-laws" % CatsVersion,
+      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+    )
+  )
+  .configs(FullTracingTest)
+  .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)
+  .settings(
+    unmanagedSourceDirectories in FullTracingTest += {
+      baseDirectory.value.getParentFile / "src" / "fulltracing" / "scala"
+    },
+    test in Test := (test in Test).dependsOn(test in FullTracingTest).value,
+    fork in Test := true,
+    fork in FullTracingTest := true,
+    javaOptions in Test ++= Seq(
+      "-Dcats.effect.tracing=true",
+      "-Dcats.effect.stackTracingMode=cached"
+    ),
+    javaOptions in FullTracingTest ++= Seq(
+      "-Dcats.effect.tracing=true",
+      "-Dcats.effect.stackTracingMode=full"
+    )
+  )
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))

@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.tracing
 
-package object internals {
+sealed abstract class IOEvent
 
-  /**
-   * Handy alias for the registration functions of [[IO.Async]].
-   */
-  private[effect] type Start[+A] =
-    (IOConnection, IOContext, Callback.T[A]) => Unit
+object IOEvent {
+
+  final case class StackTrace(tag: Int, throwable: Throwable) extends IOEvent {
+    def stackTrace: List[StackTraceElement] =
+      throwable.getStackTrace().toList
+  }
+
 }

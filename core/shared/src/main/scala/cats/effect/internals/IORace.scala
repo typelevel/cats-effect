@@ -58,7 +58,7 @@ private[effect] object IORace {
         Logger.reportFailure(err)
       }
 
-    val start: Start[Either[A, B]] = (conn, cb) => {
+    val start: Start[Either[A, B]] = (conn, _, cb) => {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
       val connL = IOConnection()
@@ -94,7 +94,7 @@ private[effect] object IORace {
    * Implementation for `IO.racePair`
    */
   def pair[A, B](cs: ContextShift[IO], lh: IO[A], rh: IO[B]): IO[Pair[A, B]] = {
-    val start: Start[Pair[A, B]] = (conn, cb) => {
+    val start: Start[Pair[A, B]] = (conn, _, cb) => {
       val active = new AtomicBoolean(true)
       // Cancelable connection for the left value
       val connL = IOConnection()
