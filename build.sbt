@@ -196,6 +196,13 @@ val mimaSettings = Seq(
       exclude[IncompatibleResultTypeProblem]("cats.effect.IO#Map.copy$default$3"),
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.this"),
       exclude[IncompatibleMethTypeProblem]("cats.effect.IO#Map.apply")
+      // revise Deferred, MVarConcurrent, LinkedLongMap - https://github.com/typelevel/cats-effect/pull/918
+      exclude[IncompatibleResultTypeProblem]("cats.effect.concurrent.Deferred#State#Unset.waiting"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.concurrent.Deferred#State#Unset.copy$default$1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.this"),
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$Id"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.apply")
     )
   }
 )
@@ -380,6 +387,9 @@ lazy val siteSettings = Seq(
       "home",
       Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
     )
+  ),
+  micrositeConfigYaml := ConfigYml(
+    yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
   ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
