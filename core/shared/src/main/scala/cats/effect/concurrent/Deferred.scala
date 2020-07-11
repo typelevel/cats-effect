@@ -148,17 +148,15 @@ object Deferred {
   def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] = unsafeTryableUncancelable[F, A]
 
   private def unsafeTryable[F[_]: Concurrent, A]: TryableDeferred[F, A] =
-    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
+    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty, 1)))
 
   private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
     new UncancelableDeferred[F, A](Promise[A]())
 
-  final private class Id
-
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
-    final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
+    final case class Unset[A](waiting: LinkedMap[Long, A => Unit], nextId: Long) extends State[A]
   }
 
   final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
@@ -168,15 +166,15 @@ object Deferred {
         ref.get match {
           case State.Set(a) =>
             F.pure(a)
-          case State.Unset(_) =>
+          case State.Unset(_, _) =>
             F.cancelable[A] { cb =>
               val id = unsafeRegister(cb)
               @tailrec
               def unregister(): Unit =
                 ref.get match {
                   case State.Set(_) => ()
-                  case s @ State.Unset(waiting) =>
-                    val updated = State.Unset(waiting - id)
+                  case s @ State.Unset(waiting, _) =>
+                    val updated = s.copy(waiting = waiting - id)
                     if (ref.compareAndSet(s, updated)) ()
                     else unregister()
                 }
@@ -188,22 +186,24 @@ object Deferred {
     def tryGet: F[Option[A]] =
       F.delay {
         ref.get match {
-          case State.Set(a)   => Some(a)
-          case State.Unset(_) => None
+          case State.Set(a)      => Some(a)
+          case State.Unset(_, _) => None
         }
       }
 
-    private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
-      val id = new Id
+    private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Long = {
+      var id: Long = 0
 
       @tailrec
       def register(): Option[A] =
         ref.get match {
           case State.Set(a) => Some(a)
-          case s @ State.Unset(waiting) =>
-            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
-            if (ref.compareAndSet(s, updated)) None
-            else register()
+          case s @ State.Unset(waiting, nextId) =>
+            val updated = State.Unset(waiting.updated(nextId, (a: A) => cb(Right(a))), nextId + 1)
+            if (ref.compareAndSet(s, updated)) {
+              id = nextId
+              None
+            } else register()
         }
 
       register().foreach(a => cb(Right(a)))
@@ -219,7 +219,7 @@ object Deferred {
         case State.Set(_) =>
           throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
 
-        case s @ State.Unset(_) =>
+        case s @ State.Unset(_, _) =>
           if (ref.compareAndSet(s, State.Set(a))) {
             val list = s.waiting.values
             if (list.nonEmpty)

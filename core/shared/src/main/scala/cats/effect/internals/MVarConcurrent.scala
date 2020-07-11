@@ -63,16 +63,16 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
   def tryRead =
     F.delay {
       stateRef.get match {
-        case WaitForTake(value, _) => Some(value)
-        case WaitForPut(_, _)      => None
+        case WaitForTake(value, _, _) => Some(value)
+        case WaitForPut(_, _, _)      => None
       }
     }
 
   def isEmpty: F[Boolean] =
     F.delay {
       stateRef.get match {
-        case WaitForPut(_, _)  => true
-        case WaitForTake(_, _) => false
+        case WaitForPut(_, _, _)  => true
+        case WaitForTake(_, _, _) => false
       }
     }
 
@@ -83,9 +83,9 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
 
   @tailrec private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
-      case WaitForTake(_, _) => F.pure(false)
+      case WaitForTake(_, _, _) => F.pure(false)
 
-      case current @ WaitForPut(reads, takes) =>
+      case current @ WaitForPut(reads, takes, nextId) =>
         var first: Listener[A] = null
         val update: State[A] =
           if (takes.isEmpty) State(a)
@@ -93,7 +93,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedMap.empty, rest)
+            else WaitForPut(LinkedMap.empty, rest, nextId)
           }
 
         if (!stateRef.compareAndSet(current, update)) {
@@ -107,18 +107,17 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
 
   @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): F[CancelToken[F]] =
     stateRef.get match {
-      case current @ WaitForTake(value, listeners) =>
-        val id = new Id
-        val newMap = listeners.updated(id, (a, onPut))
-        val update = WaitForTake(value, newMap)
+      case current @ WaitForTake(value, listeners, nextId) =>
+        val newMap = listeners.updated(nextId, (a, onPut))
+        val update = WaitForTake(value, newMap, nextId + 1)
 
         if (stateRef.compareAndSet(current, update)) {
-          F.pure(F.delay(unsafeCancelPut(id)))
+          F.pure(F.delay(unsafeCancelPut(nextId)))
         } else {
           unsafePut(a)(onPut) // retry
         }
 
-      case current @ WaitForPut(reads, takes) =>
+      case current @ WaitForPut(reads, takes, nextId) =>
         var first: Listener[A] = null
         val update: State[A] =
           if (takes.isEmpty) State(a)
@@ -126,7 +125,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             val (x, rest) = takes.dequeue
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedMap.empty, rest)
+            else WaitForPut(LinkedMap.empty, rest, nextId)
           }
 
         if (stateRef.compareAndSet(current, update)) {
@@ -145,9 +144,9 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
     }
 
   // Impure function meant to cancel the put request
-  @tailrec private def unsafeCancelPut(id: Id): Unit =
+  @tailrec private def unsafeCancelPut(id: Long): Unit =
     stateRef.get() match {
-      case current @ WaitForTake(_, listeners) =>
+      case current @ WaitForTake(_, listeners, _) =>
         val update = current.copy(listeners = listeners - id)
         if (!stateRef.compareAndSet(current, update)) {
           unsafeCancelPut(id) // retry
@@ -160,7 +159,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
   private def unsafeTryTake(): F[Option[A]] = {
     val current: State[A] = stateRef.get
     current match {
-      case WaitForTake(value, queue) =>
+      case WaitForTake(value, queue, nextId) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty))
             F.pure(Some(value))
@@ -169,7 +168,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
-          val update = WaitForTake(ax, xs)
+          val update = WaitForTake(ax, xs, nextId)
           if (stateRef.compareAndSet(current, update)) {
             // Complete the `put` request waiting on a notification
             F.map(F.start(F.delay(notify(rightUnit))))(_ => Some(value))
@@ -178,7 +177,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
           }
         }
 
-      case WaitForPut(_, _) =>
+      case WaitForPut(_, _, _) =>
         F.pure(None)
     }
   }
@@ -186,7 +185,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
   @tailrec
   private def unsafeTake(onTake: Listener[A]): F[CancelToken[F]] =
     stateRef.get match {
-      case current @ WaitForTake(value, queue) =>
+      case current @ WaitForTake(value, queue, nextId) =>
         if (queue.isEmpty) {
           if (stateRef.compareAndSet(current, State.empty)) {
             onTake(Right(value))
@@ -196,7 +195,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
           }
         } else {
           val ((ax, notify), xs) = queue.dequeue
-          if (stateRef.compareAndSet(current, WaitForTake(ax, xs))) {
+          if (stateRef.compareAndSet(current, WaitForTake(ax, xs, nextId))) {
             F.map(F.start(F.delay(notify(rightUnit)))) { _ =>
               onTake(Right(value))
               F.unit
@@ -206,21 +205,20 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
           }
         }
 
-      case current @ WaitForPut(reads, takes) =>
-        val id = new Id
-        val newQueue = takes.updated(id, onTake)
-        if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue)))
-          F.pure(F.delay(unsafeCancelTake(id)))
+      case current @ WaitForPut(reads, takes, nextId) =>
+        val newQueue = takes.updated(nextId, onTake)
+        if (stateRef.compareAndSet(current, WaitForPut(reads, newQueue, nextId + 1)))
+          F.pure(F.delay(unsafeCancelTake(nextId)))
         else {
           unsafeTake(onTake) // retry
         }
     }
 
-  @tailrec private def unsafeCancelTake(id: Id): Unit =
+  @tailrec private def unsafeCancelTake(id: Long): Unit =
     stateRef.get() match {
-      case current @ WaitForPut(reads, takes) =>
+      case current @ WaitForPut(reads, takes, nextId) =>
         val newMap = takes - id
-        val update: State[A] = WaitForPut(reads, newMap)
+        val update: State[A] = WaitForPut(reads, newMap, nextId)
         if (!stateRef.compareAndSet(current, update)) {
           unsafeCancelTake(id)
         }
@@ -230,36 +228,35 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
   private def unsafeRead(onRead: Listener[A]): F[Unit] = {
     val current: State[A] = stateRef.get
     current match {
-      case WaitForTake(value, _) =>
+      case WaitForTake(value, _, _) =>
         // A value is available, so complete `read` immediately without
         // changing the sate
         onRead(Right(value))
         F.unit
 
-      case WaitForPut(reads, takes) =>
+      case WaitForPut(reads, takes, nextId) =>
         // No value available, enqueue the callback
-        val id = new Id
-        val newQueue = reads.updated(id, onRead)
-        if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes)))
-          F.delay(unsafeCancelRead(id))
+        val newQueue = reads.updated(nextId, onRead)
+        if (stateRef.compareAndSet(current, WaitForPut(newQueue, takes, nextId + 1)))
+          F.delay(unsafeCancelRead(nextId))
         else {
           unsafeRead(onRead) // retry
         }
     }
   }
 
-  private def unsafeCancelRead(id: Id): Unit =
+  private def unsafeCancelRead(id: Long): Unit =
     stateRef.get() match {
-      case current @ WaitForPut(reads, takes) =>
+      case current @ WaitForPut(reads, takes, nextId) =>
         val newMap = reads - id
-        val update: State[A] = WaitForPut(newMap, takes)
+        val update: State[A] = WaitForPut(newMap, takes, nextId)
         if (!stateRef.compareAndSet(current, update)) {
           unsafeCancelRead(id)
         }
       case _ => ()
     }
 
-  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedMap[Id, Listener[A]]): F[Boolean] = {
+  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedMap[Long, Listener[A]]): F[Boolean] = {
     val value = Right(a)
     // Satisfies all current `read` requests found
     val task = streamAll(value, reads.values)
@@ -308,16 +305,13 @@ private[effect] object MVarConcurrent {
    */
   private type Listener[-A] = Either[Nothing, A] => Unit
 
-  /** Used with [[LinkedMap]] to identify callbacks that need to be cancelled. */
-  final private class Id extends Serializable
-
   /** ADT modelling the internal state of `MVar`. */
   sealed private trait State[A]
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
-    def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty)
+    private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty, 0)
+    def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty, 0)
 
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
@@ -328,7 +322,9 @@ private[effect] object MVarConcurrent {
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  final private case class WaitForPut[A](reads: LinkedMap[Id, Listener[A]], takes: LinkedMap[Id, Listener[A]])
+  final private case class WaitForPut[A](reads: LinkedMap[Long, Listener[A]],
+                                         takes: LinkedMap[Long, Listener[A]],
+                                         nextId: Long)
       extends State[A]
 
   /**
@@ -341,5 +337,6 @@ private[effect] object MVarConcurrent {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  final private case class WaitForTake[A](value: A, listeners: LinkedMap[Id, (A, Listener[Unit])]) extends State[A]
+  final private case class WaitForTake[A](value: A, listeners: LinkedMap[Long, (A, Listener[Unit])], nextId: Long)
+      extends State[A]
 }
