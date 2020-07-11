@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-trait IOApp {
+import scala.concurrent.duration.FiniteDuration
 
-  val run: IO[Unit]
+trait Scheduler {
 
-  final def main(args: Array[String]): Unit = {
-    run.unsafeRunAsync {
-      case Left(t) => throw t
-      case Right(_) => ()
-    }(unsafe.IORuntime.global)
-  }
+  /**
+   * Schedules a side-effect to run after the delay interval. Produces
+   * another side-effect which cancels the scheduling.
+   */
+  def sleep(delay: FiniteDuration, task: Runnable): Runnable
+
+  def nowMillis(): Long
+
+  def monotonicNanos(): Long
 }
+
+object Scheduler extends SchedulerCompanionPlatform

@@ -25,52 +25,35 @@ trait IOApp {
 
   def run(args: List[String]): IO[Int]
 
+  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
+
   final def main(args: Array[String]): Unit = {
-    val runtime = Runtime.getRuntime()
-
-    val threadCount = new AtomicInteger(0)
-    val executor = Executors.newFixedThreadPool(runtime.availableProcessors(), { (r: Runnable) =>
-      val t = new Thread(r)
-      t.setName(s"io-compute-${threadCount.getAndIncrement()}")
-      t.setDaemon(true)
-      t
-    })
-    val context = ExecutionContext.fromExecutor(executor)
-
-    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName("io-scheduler")
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
-    val timer = UnsafeTimer.fromScheduledExecutor(scheduler)
+    val rt = Runtime.getRuntime()
 
     val latch = new CountDownLatch(1)
     @volatile var results: Either[Throwable, Int] = null
 
     val ioa = run(args.toList)
 
-    val fiber = ioa.unsafeRunFiber(context, timer, true) { e =>
+    val fiber = ioa.unsafeRunFiber(true) { e =>
       results = e
       latch.countDown()
-    }
+    }(runtime)
 
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
-        fiber.cancel.unsafeRunAsync(context, timer) { _ => cancelLatch.countDown() }
+        fiber.cancel.unsafeRunAsync { _ => cancelLatch.countDown() }(runtime)
         cancelLatch.await()
       }
 
-      scheduler.shutdown()
-      executor.shutdown()
+      runtime.shutdown()
     }
 
     val hook = new Thread(() => handleShutdown())
     hook.setName("io-cancel-hook")
 
-    runtime.addShutdownHook(hook)
+    rt.addShutdownHook(hook)
 
     try {
       latch.await()
@@ -82,7 +65,7 @@ trait IOApp {
       // this handles sbt when fork := false
       case _: InterruptedException =>
         hook.start()
-        runtime.removeShutdownHook(hook)
+        rt.removeShutdownHook(hook)
         Thread.currentThread().interrupt()
     }
   }

@@ -81,7 +81,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * joiner where n > 1 will *not* be correctly handled, since it
  * will result in a simultaneous `push` on `SafeArrayStack`.
  */
-private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMask: Int) extends Fiber[IO, Throwable, A] {
+private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, initMask: Int) extends Fiber[IO, Throwable, A] {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -136,8 +136,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(timer: UnsafeTimer, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
-    this("main", timer, initMask)
+  def this(scheduler: unsafe.Scheduler, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
+    this("main", scheduler, initMask)
     callback.set(cb)
   }
 
@@ -483,7 +483,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             val fiber = new IOFiber(
               childName,
-              timer,
+              scheduler,
               initMask2)
 
             // println(s"<$name> spawning <$childName>")
@@ -501,8 +501,8 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             val next = IO.async[Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] { cb =>
               IO {
-                val fiberA = new IOFiber[Any](s"racePair-left-${childCount.getAndIncrement()}", timer, initMask)
-                val fiberB = new IOFiber[Any](s"racePair-right-${childCount.getAndIncrement()}", timer, initMask)
+                val fiberA = new IOFiber[Any](s"racePair-left-${childCount.getAndIncrement()}", scheduler, initMask)
+                val fiberB = new IOFiber[Any](s"racePair-right-${childCount.getAndIncrement()}", scheduler, initMask)
 
                 val firstError = new AtomicReference[Throwable](null)
                 val firstCanceled = new AtomicBoolean(false)
@@ -568,7 +568,7 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
             val next = IO.async[Unit] { cb =>
               IO {
-                val cancel = timer.sleep(cur.delay, () => cb(Right(())))
+                val cancel = scheduler.sleep(cur.delay, () => cb(Right(())))
                 Some(IO(cancel.run()))
               }
             }
@@ -577,11 +577,11 @@ private[effect] final class IOFiber[A](name: String, timer: UnsafeTimer, initMas
 
           // RealTime
           case 15 =>
-            runLoop(succeeded(timer.nowMillis().millis, 0), nextIteration)
+            runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
 
           // Monotonic
           case 16 =>
-            runLoop(succeeded(timer.monotonicNanos().nanos, 0), nextIteration)
+            runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
 
           // Cede
           case 17 =>

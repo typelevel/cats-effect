@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-trait IOApp {
-
-  val run: IO[Unit]
-
-  final def main(args: Array[String]): Unit = {
-    run.unsafeRunAsync {
-      case Left(t) => throw t
-      case Right(_) => ()
-    }(unsafe.IORuntime.global)
-  }
+object implicits {
+  implicit val global: IORuntime = IORuntime.global
 }
