@@ -181,7 +181,14 @@ val mimaSettings = Seq(
       exclude[IncompatibleSignatureProblem]("cats.effect.Resource.evalTap"),
       // change in encoding of value classes in generic methods https://github.com/lightbend/mima/issues/423
       exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.apply"),
-      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService")
+      exclude[IncompatibleSignatureProblem]("cats.effect.Blocker.fromExecutorService"),
+      // revise Deferred, MVarConcurrent, LinkedLongMap - https://github.com/typelevel/cats-effect/pull/918
+      exclude[IncompatibleResultTypeProblem]("cats.effect.concurrent.Deferred#State#Unset.waiting"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.copy"),
+      exclude[IncompatibleResultTypeProblem]("cats.effect.concurrent.Deferred#State#Unset.copy$default$1"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.this"),
+      exclude[MissingClassProblem]("cats.effect.concurrent.Deferred$Id"),
+      exclude[DirectMissingMethodProblem]("cats.effect.concurrent.Deferred#State#Unset.apply")
     )
   }
 )

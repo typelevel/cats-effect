@@ -25,9 +25,9 @@ import scala.collection.immutable.LongMap
  * traversed in the order they were inserted.  Alternative to `ListMap` that
  * has better asymptotic performance at the cost of more memory usage.
  */
-private[effect] class LinkedMap[K, +V](
-  val entries: Map[K, (V, Long)],
-  private[this] val insertionOrder: LongMap[K],
+private[effect] class LinkedLongMap[+V](
+  val entries: LongMap[(V, Long)],
+  private[this] val insertionOrder: LongMap[Long],
   private[this] val nextId: Long
 ) {
 
@@ -36,28 +36,28 @@ private[effect] class LinkedMap[K, +V](
     entries.isEmpty
 
   /** Returns a new map with the supplied key/value added. */
-  def updated[V2 >: V](k: K, v: V2): LinkedMap[K, V2] = {
+  def updated[V2 >: V](k: Long, v: V2): LinkedLongMap[V2] = {
     val insertionOrderOldRemoved = entries.get(k).fold(insertionOrder) { case (_, id) => insertionOrder - id }
-    new LinkedMap(entries.updated(k, (v, nextId)), insertionOrderOldRemoved.updated(nextId, k), nextId + 1)
+    new LinkedLongMap(entries.updated(k, (v, nextId)), insertionOrderOldRemoved.updated(nextId, k), nextId + 1)
   }
 
   /** Removes the element at the specified key. */
-  def -(k: K): LinkedMap[K, V] =
-    new LinkedMap(entries - k,
-                  entries
-                    .get(k)
-                    .map { case (_, id) => insertionOrder - id }
-                    .getOrElse(insertionOrder),
-                  nextId)
+  def -(k: Long): LinkedLongMap[V] =
+    new LinkedLongMap(entries - k,
+                      entries
+                        .get(k)
+                        .map { case (_, id) => insertionOrder - id }
+                        .getOrElse(insertionOrder),
+                      nextId)
 
   /** The keys in this map, in the order they were added. */
-  def keys: Iterable[K] = insertionOrder.values
+  def keys: Iterable[Long] = insertionOrder.values
 
   /** The values in this map, in the order they were added. */
   def values: Iterable[V] = keys.flatMap(k => entries.get(k).toList.map(_._1))
 
   /** Pulls the first value from this `LinkedMap`, in FIFO order. */
-  def dequeue: (V, LinkedMap[K, V]) = {
+  def dequeue: (V, LinkedLongMap[V]) = {
     val k = insertionOrder.head._2
     (entries(k)._1, this - k)
   }
@@ -66,10 +66,10 @@ private[effect] class LinkedMap[K, +V](
     keys.zip(values).mkString("LinkedMap(", ", ", ")")
 }
 
-private[effect] object LinkedMap {
-  def empty[K, V]: LinkedMap[K, V] =
-    emptyRef.asInstanceOf[LinkedMap[K, V]]
+private[effect] object LinkedLongMap {
+  def empty[V]: LinkedLongMap[V] =
+    emptyRef.asInstanceOf[LinkedLongMap[V]]
 
   private val emptyRef =
-    new LinkedMap[Nothing, Nothing](Map.empty, LongMap.empty, 0)
+    new LinkedLongMap[Nothing](LongMap.empty, LongMap.empty, 0)
 }
