@@ -18,6 +18,7 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Bracket
+import cats.implicits._
 import cats.laws.MonadErrorLaws
 
 trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
@@ -26,13 +27,13 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   import F.CaseInstance
 
-  def bracketPureCoherence[A, B](acq: F[A], f: A => B, release: F.Case[B] => F[Unit]) =
-    F.bracketCase(acq)(a => F.pure(f(a)))((_, c) => release(c)) <->
-      F.bracketCase(acq)(a => F.pure(f(a)))((a, _) => release(CaseInstance.pure(f(a))))
+  def onCasePureCoherence[A](a: A, release: PartialFunction[F.Case[A], F[Unit]]) =
+    F.onCase(F.pure(a))(release).void <->
+      release.lift(CaseInstance.pure(a)).getOrElse(F.unit).attempt.void
 
-  def bracketErrorCoherence[A](acq: F[A], f: A => E, release: F.Case[Unit] => F[Unit]) =
-    F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))((_, c) => release(c)) <->
-      F.bracketCase(acq)(a => F.raiseError[Unit](f(a)))((a, _) => release(CaseInstance.raiseError(f(a))))
+  def onCaseErrorCoherence[A](e: E, release: PartialFunction[F.Case[A], F[Unit]]) =
+    F.onCase(F.raiseError[A](e))(release).void <->
+      (release.lift(CaseInstance.raiseError[A](e)).getOrElse(F.unit).attempt >> F.raiseError[Unit](e))
 
   def bracketAcquireErrorIdentity[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError[B](e)
@@ -43,8 +44,9 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def bracketBodyIdentity[A](fa: F[A]) =
     F.bracketCase(F.unit)(_ => fa)((_, _) => F.unit) <-> fa
 
-  def onCaseDefinedByBracketCase[A](fa: F[A], pf: PartialFunction[F.Case[A], F[Unit]]) =
-    F.onCase(fa)(pf) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => pf.lift(c).getOrElse(F.unit))
+  // TODO this law doesn't hold anymore, now that onCase isn't guaranteed to be uncancelable, but we can't address it without the handleCaseWith branch
+  /*def onCaseDefinedByBracketCase[A](fa: F[A], pf: PartialFunction[F.Case[A], F[Unit]]) =
+    F.onCase(fa)(pf) <-> F.bracketCase(F.unit)(_ => fa)((_, c) => pf.lift(c).getOrElse(F.unit))*/
 }
 
 object BracketLaws {

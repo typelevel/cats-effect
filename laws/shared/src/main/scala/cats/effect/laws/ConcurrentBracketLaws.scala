@@ -63,7 +63,7 @@ trait ConcurrentBracketLaws[F[_], E] extends ConcurrentLaws[F, E] with BracketLa
         }
     }
 
-    started <-> (fa.attempt <* F.uncancelable(_ => handler.attempt)).rethrow
+    started <-> F.onCase(fa.attempt)({ case _ => handler }).rethrow
   }
 }
 

@@ -32,6 +32,10 @@ jobs:
         include:
           - os: ubuntu-latest
             java: adopt@1.8
+            scala: 2.12.11
+            ci: ciJS
+          - os: ubuntu-latest
+            java: adopt@1.8
             scala: 2.13.2
             ci: ciJS
     runs-on: ${{ matrix.os }}
@@ -83,7 +87,21 @@ jobs:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
+      - name: Setup NodeJS v14 LTS
+        if: matrix.ci == 'ciJS'
+        uses: actions/setup-node@v2.1.0
+        with:
+          node-version: 14
+
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
+
+      - name: Test Example JVM App Within Sbt
+        if: matrix.ci == 'ciJVM'
+        run: example/test-jvm.sh ${{ matrix.scala }}
+
+      - name: Test Example JavaScript App Using Node
+        if: matrix.ci == 'ciJS'
+        run: example/test-js.sh ${{ matrix.scala }}

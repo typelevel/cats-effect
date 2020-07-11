@@ -17,11 +17,17 @@
 package cats.effect.kernel
 
 import cats.{~>, ApplicativeError, MonadError}
-import cats.syntax.either._
+import cats.implicits._
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
   def join: F[Outcome[F, E, A]]
+
+  def joinAndEmbed(onCancel: F[A])(implicit F: Concurrent[F, E]): F[A] =
+    join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
+
+  def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
+    joinAndEmbed(F.never)
 }
 
 trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>

@@ -23,10 +23,10 @@ trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
   def to[G[_]]: PartiallyApplied[G] =
     new PartiallyApplied[G]
 
-  def toK[G[_]](implicit G: Async[G] with Bracket[G, Throwable]): F ~> G
+  def toK[G[_]: Effect]: F ~> G
 
   final class PartiallyApplied[G[_]] {
-    def apply[A](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A] =
+    def apply[A](fa: F[A])(implicit G: Effect[G]): G[A] =
       toK(G)(fa)
   }
 }

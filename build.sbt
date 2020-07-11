@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import java.io.File
+
 ThisBuild / baseVersion := "3.0"
 
 ThisBuild / organization := "org.typelevel"
@@ -24,10 +26,9 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 
 val PrimaryOS = "ubuntu-latest"
 
-val ScalaJSScala = "2.13.2"
 val ScalaJSJava = "adopt@1.8"
 
-ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", ScalaJSScala)
+ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", "2.13.2")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
 
@@ -38,14 +39,34 @@ val GraalVM8 = "graalvm8@20.1.0"
 ThisBuild / githubWorkflowJavaVersions := Seq(ScalaJSJava, LTSJava, LatestJava, GraalVM8)
 ThisBuild / githubWorkflowOSes := Seq(PrimaryOS)
 
-ThisBuild / githubWorkflowBuild := Seq(WorkflowStep.Sbt(List("${{ matrix.ci }}")))
+ThisBuild / githubWorkflowBuildPreamble +=
+  WorkflowStep.Use(
+    "actions", "setup-node", "v2.1.0",
+    name = Some("Setup NodeJS v14 LTS"),
+    params = Map("node-version" -> "14"),
+    cond = Some("matrix.ci == 'ciJS'"))
+
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Sbt(List("${{ matrix.ci }}")),
+
+  WorkflowStep.Run(
+    List("example/test-jvm.sh ${{ matrix.scala }}"),
+    name = Some("Test Example JVM App Within Sbt"),
+    cond = Some("matrix.ci == 'ciJVM'")),
+
+  WorkflowStep.Run(
+    List("example/test-js.sh ${{ matrix.scala }}"),
+    name = Some("Test Example JavaScript App Using Node"),
+    cond = Some("matrix.ci == 'ciJS'")))
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM")
 
-ThisBuild / githubWorkflowBuildMatrixInclusions +=
-  MatrixInclude(
-    Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> ScalaJSScala),
-    Map("ci" -> "ciJS"))
+ThisBuild / githubWorkflowBuildMatrixInclusions ++=
+  (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")) map { scala =>
+    MatrixInclude(
+      Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> scala),
+      Map("ci" -> "ciJS"))
+  }
 
 Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
@@ -55,6 +76,8 @@ Global / scmInfo := Some(
     "git@github.com:typelevel/cats-effect.git"))
 
 val CatsVersion = "2.2.0-RC1"
+val Specs2Version = "4.9.4"
+val DisciplineVersion = "1.1.0"
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; clean; testIfRelevant")
@@ -64,11 +87,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, example.js)
   .settings(noPublishSettings)
 
 /**
@@ -112,8 +135,8 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
 
-      "org.typelevel" %%% "discipline-specs2" % "1.1.0" % Test,
-      "org.specs2"    %%% "specs2-scalacheck" % "4.9.4" % Test))
+      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
+      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
@@ -125,6 +148,35 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .dependsOn(kernel, laws % Test, testkit % Test)
-  .settings(name := "cats-effect")
+  .settings(
+    name := "cats-effect",
+
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
+      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version     % Test,
+      "org.typelevel" %%% "cats-kernel-laws"  % CatsVersion       % Test))
+  .jvmSettings(
+    Test / fork := true,
+    Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+
+/**
+ * A trivial pair of trivial example apps primarily used to show that IOApp
+ * works as a practical runtime on both target platforms.
+ */
+lazy val example = crossProject(JSPlatform, JVMPlatform).in(file("example"))
+  .dependsOn(core)
+  .settings(name := "cats-effect-example")
+  .jsSettings(scalaJSUseMainModuleInitializer := true)
+  .settings(noPublishSettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+
+/**
+ * JMH benchmarks for IO and other things.
+ */
+lazy val benchmarks = project.in(file("benchmarks"))
+  .dependsOn(core.jvm)
+  .settings(name := "cats-effect-benchmarks")
+  .settings(noPublishSettings)
+  .enablePlugins(JmhPlugin)
