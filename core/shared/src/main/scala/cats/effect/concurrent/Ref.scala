@@ -24,8 +24,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import cats.effect.concurrent.Ref.TransformedRef
 import cats.instances.tuple._
 import cats.instances.function._
+import cats.instances.either._
 import cats.syntax.functor._
 import cats.syntax.bifunctor._
+import cats.syntax.flatMap._
+import cats.syntax.either._
 
 import scala.annotation.tailrec
 
@@ -301,6 +304,44 @@ object Ref {
       val f = state.runF.value
       modify(a => f(a).value)
     }
+  }
+
+  implicit final class RefOps[F[_], A](private val ref: Ref[F, A]) extends AnyVal {
+
+    /**
+     * Like `update`, but can terminate early without retrying.
+     * Returns whether or not the update short-circuited.
+     */
+    def updateMaybe(f: A => Option[A])(implicit F: Monad[F]): F[Boolean] =
+      updateOr(a => f(a).toRight(())).map(_.isEmpty)
+
+    /**
+     * Like `modify`, but can terminate early without retrying.
+     * Returns an optional value if the update completed.
+     */
+    def modifyMaybe[B](f: A => Option[(A, B)])(implicit F: Monad[F]): F[Option[B]] =
+      modifyOr(a => f(a).toRight(())).map(_.toOption)
+
+    /**
+     * Like `update`, but can terminate early with an error value without retrying.
+     * Returns an optional error if the update short-circuited.
+     */
+    def updateOr[E](f: A => Either[E, A])(implicit F: Monad[F]): F[Option[E]] =
+      modifyOr(a => f(a).tupleRight(())).map(_.swap.toOption)
+
+    /**
+     * Like `modify`, but can terminate early with an error value without retrying.
+     * Returns a value or error based on whether the update short-circuited.
+     */
+    def modifyOr[E, B](f: A => Either[E, (A, B)])(implicit F: Monad[F]): F[Either[E, B]] =
+      ref.access.flatMap {
+        case (a, set) =>
+          f(a) match {
+            case Right((a, b)) => set(a).ifM(ifTrue = F.pure(Right(b)), ifFalse = modifyOr(f))
+            case l @ Left(_)   => F.pure(l.rightCast[B])
+          }
+      }
+
   }
 
   final private[concurrent] class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)(
