@@ -20,20 +20,20 @@ import java.util.concurrent.ConcurrentHashMap
 
 import cats.effect.IO
 import cats.effect.IO.Trace
-import cats.effect.tracing.StackTraceFrame
+import cats.effect.tracing.IOEvent
 
 private[effect] object IOTracing {
 
   def decorated[A](source: IO[A], tag: Int): IO[A] =
     Trace(source, buildFrame(tag))
 
-  def uncached(tag: Int): StackTraceFrame =
+  def uncached(tag: Int): IOEvent =
     buildFrame(tag)
 
-  def cached(tag: Int, clazz: Class[_]): StackTraceFrame =
+  def cached(tag: Int, clazz: Class[_]): IOEvent =
     buildCachedFrame(tag, clazz)
 
-  private def buildCachedFrame(tag: Int, clazz: Class[_]): StackTraceFrame = {
+  private def buildCachedFrame(tag: Int, clazz: Class[_]): IOEvent = {
     val currentFrame = frameCache.get(clazz)
     if (currentFrame eq null) {
       val newFrame = buildFrame(tag)
@@ -44,13 +44,13 @@ private[effect] object IOTracing {
     }
   }
 
-  private def buildFrame(tag: Int): StackTraceFrame =
-    StackTraceFrame(tag, new Throwable())
+  private def buildFrame(tag: Int): IOEvent =
+    IOEvent.StackTrace(tag, new Throwable())
 
   /**
    * Global cache for trace frames. Keys are references to lambda classes.
    * Should converge to the working set of traces very quickly for hot code paths.
    */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], StackTraceFrame] = new ConcurrentHashMap()
+  private[this] val frameCache: ConcurrentHashMap[Class[_], IOEvent] = new ConcurrentHashMap()
 
 }

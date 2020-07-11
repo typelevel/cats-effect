@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import cats.effect.tracing.{IOTrace, StackTraceFrame}
+import cats.effect.tracing.{IOTrace, IOEvent}
 import cats.effect.internals.TracingPlatform.traceBufferSize
 
 /**
@@ -26,16 +26,16 @@ import cats.effect.internals.TracingPlatform.traceBufferSize
  */
 final private[effect] class IOContext() {
 
-  private[this] val frames: RingBuffer[StackTraceFrame] = new RingBuffer(traceBufferSize)
+  private[this] val events: RingBuffer[IOEvent] = new RingBuffer(traceBufferSize)
   private[this] var captured: Int = 0
   private[this] var omitted: Int = 0
 
-  def pushFrame(fr: StackTraceFrame): Unit = {
+  def pushEvent(fr: IOEvent): Unit = {
     captured += 1
-    if (frames.push(fr) != null) omitted += 1
+    if (events.push(fr) != null) omitted += 1
   }
 
   def trace(): IOTrace =
-    IOTrace(frames.toList, captured, omitted)
+    IOTrace(events.toList, captured, omitted)
 
 }

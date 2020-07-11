@@ -18,7 +18,7 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.StackTraceFrame
+import cats.effect.tracing.IOEvent
 import cats.effect.internals.TracingPlatform.isStackTracing
 
 import scala.util.control.NonFatal
@@ -85,7 +85,7 @@ private[effect] object IORunLoop {
           if (isStackTracing) {
             if (ctx eq null) ctx = new IOContext()
             val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
           }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
@@ -130,7 +130,7 @@ private[effect] object IORunLoop {
           if (isStackTracing) {
             if (ctx eq null) ctx = new IOContext()
             val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
           }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
@@ -147,7 +147,7 @@ private[effect] object IORunLoop {
           if (rcb eq null) rcb = new RestartCallback(conn, cb.asInstanceOf[Callback])
           if (isStackTracing) {
             val trace = async.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
           }
           rcb.start(async, ctx, bFirst, bRest)
           return
@@ -164,7 +164,7 @@ private[effect] object IORunLoop {
 
         case Trace(source, frame) =>
           if (ctx eq null) ctx = new IOContext()
-          ctx.pushFrame(frame)
+          ctx.pushEvent(frame)
           currentIO = source
       }
 
@@ -214,7 +214,7 @@ private[effect] object IORunLoop {
           if (isStackTracing) {
             if (ctx eq null) ctx = new IOContext()
             val trace = bind.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
           }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
@@ -259,7 +259,7 @@ private[effect] object IORunLoop {
           if (isStackTracing) {
             if (ctx eq null) ctx = new IOContext()
             val trace = bindNext.trace
-            if (trace ne null) ctx.pushFrame(trace.asInstanceOf[StackTraceFrame])
+            if (trace ne null) ctx.pushEvent(trace.asInstanceOf[IOEvent])
           }
           if (bFirst ne null) {
             if (bRest eq null) bRest = new ArrayStack()
@@ -271,7 +271,7 @@ private[effect] object IORunLoop {
 
         case Trace(source, frame) =>
           if (ctx eq null) ctx = new IOContext()
-          ctx.pushFrame(frame)
+          ctx.pushEvent(frame)
           currentIO = source
 
         case _ =>

@@ -16,9 +16,10 @@
 
 package cats.effect.tracing
 
-final case class StackTraceFrame(tag: Int, throwable: Throwable) {
+final case class PrintingOptions private ()
 
-  def stackTrace: List[StackTraceElement] =
-    throwable.getStackTrace().toList
-
+object PrintingOptions {
+  val Default = PrintingOptions()
 }
+
+

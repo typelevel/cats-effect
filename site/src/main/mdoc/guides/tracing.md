@@ -166,7 +166,7 @@ def program: IO[Unit] =
     _     <- IO(println("Started the program"))
     trace <- IO.trace
     _     <- trace.compactPrint
-    _     <- trace.prettyPrint()
+    _     <- trace.printStackTraces()
   } yield ()
 ```
 

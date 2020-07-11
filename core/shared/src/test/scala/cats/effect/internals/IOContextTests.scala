@@ -16,7 +16,7 @@
 
 package cats.effect.internals
 
-import cats.effect.tracing.StackTraceFrame
+import cats.effect.tracing.IOEvent
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,14 +28,14 @@ class IOContextTests extends AnyFunSuite with Matchers {
   test("push traces") {
     val ctx = new IOContext()
 
-    val t1 = StackTraceFrame(0, throwable)
-    val t2 = StackTraceFrame(1, throwable)
+    val t1 = IOEvent(0, throwable)
+    val t2 = IOEvent(1, throwable)
 
-    ctx.pushFrame(t1)
-    ctx.pushFrame(t2)
+    ctx.pushEvent(t1)
+    ctx.pushEvent(t2)
 
     val trace = ctx.trace
-    trace.frames shouldBe List(t1, t2)
+    trace.events shouldBe List(t1, t2)
     trace.captured shouldBe 2
     trace.omitted shouldBe 0
   }
@@ -44,11 +44,11 @@ class IOContextTests extends AnyFunSuite with Matchers {
     val ctx = new IOContext()
 
     for (_ <- 0 until (traceBufferSize + 10)) {
-      ctx.pushFrame(StackTraceFrame(0, throwable))
+      ctx.pushEvent(IOEvent(0, throwable))
     }
 
     val trace = ctx.trace()
-    trace.frames.length shouldBe traceBufferSize
+    trace.events.length shouldBe traceBufferSize
     trace.captured shouldBe (traceBufferSize + 10)
     trace.omitted shouldBe 10
   }

@@ -18,85 +18,81 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
-final case class IOTrace(frames: List[StackTraceFrame], captured: Int, omitted: Int) {
+final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
   import IOTrace._
 
-  def compact(): String = {
+  def printFiberTrace(): IO[Unit] = {
+    IO(System.err.println(showFiberTrace()))
+  }
+
+  def showFiberTrace(): String = {
     val TurnRight = "╰"
     val Junction = "├"
 
-    def renderStackTraceElement(ste: StackTraceElement): String = {
-      val methodName = demangleMethod(ste.getMethodName)
-      s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
-    }
-
     val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = frames.zipWithIndex.foldLeft(acc0) {
-      case (acc, (f, index)) =>
-        val junc = if (index == frames.length - 1) TurnRight else Junction
-        val first = f.stackTrace.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
-        acc + s"  $junc ${tagToName(f.tag)} at " + first.map(renderStackTraceElement).getOrElse("(...)") + "\n"
-    } + "\n"
+    val acc1 = events.zipWithIndex.map {
+      case (event, index) =>
+        val junc = if (index == events.length - 1) TurnRight else Junction
+        val message = event match {
+          case ev: IOEvent.StackTrace => {
+            val first = bestTraceElement(ev.stackTrace)
+            val nameTag = tagToName(ev.tag)
+            val codeLine = first.map(renderStackTraceElement).getOrElse("(...)")
+            s"$nameTag at $codeLine"
+          }
+        }
+        s"  $junc $message"
+    }.mkString(acc0, "\n", "\n")
 
     acc1
   }
 
-  def compactPrint(): IO[Unit] =
-    IO(System.err.println(compact))
-
-  def pretty(maxStackTracesLines: Int = Int.MaxValue): String = {
-    val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
-    val acc1 = acc0 + loop("", 0, true, frames, maxStackTracesLines)
-    acc1
-  }
-
-  def prettyPrint(maxStackTracesLines: Int = Int.MaxValue): IO[Unit] =
-    IO(System.err.println(pretty(maxStackTracesLines)))
-
-  private def loop(acc: String,
-                   indent: Int,
-                   init: Boolean,
-                   rest: List[StackTraceFrame],
-                   maxStackTraceLines: Int): String = {
+  def showStackTraces(maxStackTraceLines: Int = Int.MaxValue): String = {
     val TurnRight = "╰"
     val InverseTurnRight = "╭"
     val Junction = "├"
     val Line = "│"
 
-    def renderStackTraceElement(ste: StackTraceElement, last: Boolean): String = {
-      val methodName = demangleMethod(ste.getMethodName)
-      val junc = if (last) TurnRight else Junction
-      Line + "  " + junc + s" ${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})\n"
-    }
+    val stackTraces = events.collect { case e: IOEvent.StackTrace => e }
 
-    rest match {
-      case k :: ks => {
-        val acc2 = if (init) InverseTurnRight + s" ${tagToName(k.tag)}\n" else Junction + s" ${tagToName(k.tag)}\n"
-        val innerLines = k.stackTrace
+    val header = s"IOTrace: $captured frames captured, $omitted omitted\n"
+    val body = stackTraces.zipWithIndex.map {
+      case (st, index) =>
+        val nameTag = tagToName(st.tag)
+        val op = if (index == 0) s"$InverseTurnRight $nameTag\n" else s"$Junction $nameTag\n"
+        val relevantLines = st.stackTrace
           .drop(stackTraceIgnoreLines)
           .take(maxStackTraceLines)
+        val lines = relevantLines
           .zipWithIndex
           .map {
-            case (ste, i) => renderStackTraceElement(ste, i == k.stackTrace.length - 1)
+            case (ste, i) =>
+              val junc = if (i == relevantLines.length - 1) TurnRight else Junction
+              val codeLine = renderStackTraceElement(ste)
+              s"$Line  $junc $codeLine"
           }
-          .mkString
+          .mkString("", "\n", "\n")
 
-        loop(acc + acc2 + innerLines + Line + "\n", indent, false, ks, maxStackTraceLines)
-      }
-      case Nil => acc
-    }
+        s"$op$lines$Line"
+    }.mkString("\n")
+
+    header + body
   }
+
+  def printStackTraces(maxStackTracesLines: Int = Int.MaxValue): IO[Unit] =
+    IO(System.err.println(showStackTraces(maxStackTracesLines)))
 
 }
 
 private[effect] object IOTrace {
-  private val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 
   // Number of lines to drop from the top of the stack trace
-  private val stackTraceIgnoreLines = 3
+  def stackTraceIgnoreLines = 3
 
-  private val stackTraceFilter = List(
+  private[this] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
+
+  private[this] val stackTraceFilter = List(
     "cats.effect.",
     "cats.",
     "sbt.",
@@ -104,6 +100,14 @@ private[effect] object IOTrace {
     "sun.",
     "scala."
   )
+
+  private def renderStackTraceElement(ste: StackTraceElement): String = {
+    val methodName = demangleMethod(ste.getMethodName)
+    s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
+  }
+
+  private def bestTraceElement(frames: List[StackTraceElement]): Option[StackTraceElement] =
+    frames.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
 
   private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {

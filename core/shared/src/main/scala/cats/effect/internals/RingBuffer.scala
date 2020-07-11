@@ -25,6 +25,7 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
 
   import RingBuffer._
 
+  // These two probably don't need to be allocated every single time, maybe in Java?
   private[this] val length = nextPowerOfTwo(size)
   private[this] val mask = length - 1
 
