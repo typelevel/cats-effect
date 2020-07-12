@@ -35,6 +35,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 import java.util.concurrent.TimeUnit
 
