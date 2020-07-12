@@ -269,7 +269,7 @@ to obtain a result via <code>unsafeRunSync</code>. This is unlike
 doing so on the JVM blocks the calling thread while the
 async part of the computation is run and doing so on Scala.js
 throws an exception upon encountering an async boundary.
-</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/537da95576443b4077ca2e372899d501174ef498/core/shared/src/main/scala/cats/effect/SyncIO.scala" target="_blank">SyncIO.scala</a></dd></dl><div class="toggleContainer block">
+</p></div><dl class="attributes block"> <dt>Source</dt><dd><a href="https://github.com/typelevel/cats-effect/blob/v2.1.4/core/shared/src/main/scala/cats/effect/SyncIO.scala" target="_blank">SyncIO.scala</a></dd></dl><div class="toggleContainer block">
           <span class="toggle">
             Linear Supertypes
           </span>
@@ -801,9 +801,9 @@ sequenced in to the result <code>SyncIO[B]</code>.
       
       <p class="shortcomment cmt">Returns a new value that transforms the result of the source,
 given the <code>recover</code> or <code>map</code> functions, which get executed depending
-on whether the result is successful or if it ends in error.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
+on whether the result ends in error or if it is successful.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
 given the <code>recover</code> or <code>map</code> functions, which get executed depending
-on whether the result is successful or if it ends in error.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.SyncIO[Either[Throwable,A]]" class="extmbr" name="cats.effect.SyncIO#attempt">attempt</a> and <a href="#map[B](f:A=&gt;B):cats.effect.SyncIO[B]" class="extmbr" name="cats.effect.SyncIO#map">map</a>,
+on whether the result ends in error or if it is successful.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.SyncIO[Either[Throwable,A]]" class="extmbr" name="cats.effect.SyncIO#attempt">attempt</a> and <a href="#map[B](f:A=&gt;B):cats.effect.SyncIO[B]" class="extmbr" name="cats.effect.SyncIO#map">map</a>,
 this equivalence being true:</p><pre>io.redeem(recover, map) <span class="kw">&lt;-</span>&gt; io.attempt.map(_.fold(recover, map))</pre><p>Usage of <code>redeem</code> subsumes <code>handleError</code> because:</p><pre>io.redeem(fe, id) <span class="kw">&lt;-</span>&gt; io.handleError(fe)</pre></div><dl class="paramcmts block"><dt class="param">recover</dt><dd class="cmt"><p>is a function used for error recover in case the
        source ends in error</p></dd><dt class="param">map</dt><dd class="cmt"><p>is a function used for mapping the result of the source
        in case it ends in success</p></dd></dl></div>
@@ -824,9 +824,9 @@ this equivalence being true:</p><pre>io.redeem(recover, map) <span class="kw">&l
       
       <p class="shortcomment cmt">Returns a new value that transforms the result of the source,
 given the <code>recover</code> or <code>bind</code> functions, which get executed depending
-on whether the result is successful or if it ends in error.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
+on whether the result ends in error or if it is successful.</p><div class="fullcomment"><div class="comment cmt"><p>Returns a new value that transforms the result of the source,
 given the <code>recover</code> or <code>bind</code> functions, which get executed depending
-on whether the result is successful or if it ends in error.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.SyncIO[Either[Throwable,A]]" class="extmbr" name="cats.effect.SyncIO#attempt">attempt</a> and <a href="#flatMap[B](f:A=&gt;cats.effect.SyncIO[B]):cats.effect.SyncIO[B]" class="extmbr" name="cats.effect.SyncIO#flatMap">flatMap</a>,
+on whether the result ends in error or if it is successful.</p><p>This is an optimization on usage of <a href="#attempt:cats.effect.SyncIO[Either[Throwable,A]]" class="extmbr" name="cats.effect.SyncIO#attempt">attempt</a> and <a href="#flatMap[B](f:A=&gt;cats.effect.SyncIO[B]):cats.effect.SyncIO[B]" class="extmbr" name="cats.effect.SyncIO#flatMap">flatMap</a>,
 this equivalence being available:</p><pre>io.redeemWith(recover, bind) <span class="kw">&lt;-</span>&gt; io.attempt.flatMap(_.fold(recover, bind))</pre><p>Usage of <code>redeemWith</code> subsumes <code>handleErrorWith</code> because:</p><pre>io.redeemWith(fe, F.pure) <span class="kw">&lt;-</span>&gt; io.handleErrorWith(fe)</pre><p>Usage of <code>redeemWith</code> also subsumes <a href="#flatMap[B](f:A=&gt;cats.effect.SyncIO[B]):cats.effect.SyncIO[B]" class="extmbr" name="cats.effect.SyncIO#flatMap">flatMap</a> because:</p><pre>io.redeemWith(F.raiseError, fs) <span class="kw">&lt;-</span>&gt; io.flatMap(fs)</pre></div><dl class="paramcmts block"><dt class="param">recover</dt><dd class="cmt"><p>is the function that gets called to recover the source
        in case of error</p></dd><dt class="param">bind</dt><dd class="cmt"><p>is the function that gets to transform the source
        in case of success</p></dd></dl></div>

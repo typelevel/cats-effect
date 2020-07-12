@@ -31,7 +31,7 @@
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
 <span class="c1">//   Delay(&lt;function0&gt;),</span>
-<span class="c1">//   cats.effect.IO$$Lambda$7531/1587819431@4ada538d</span>
+<span class="c1">//   cats.effect.IO$$Lambda$9903/154877037@7239d00f</span>
 <span class="c1">// )</span>
 <span class="k">val</span> <span class="nv">release</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"...release everything"</span><span class="o">))</span>
 <span class="c1">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
