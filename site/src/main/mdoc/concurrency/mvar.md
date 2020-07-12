@@ -85,7 +85,6 @@ implicit val cs = IO.contextShift(ec)
 ```
 
 ```scala mdoc:silent
-import cats.effect._
 import cats.effect.concurrent._
 
 def sum(state: MVar2[IO, Int], list: List[Int]): IO[Int] =

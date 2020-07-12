@@ -31,7 +31,7 @@ object Main {
     IO.sleep(1.second) *> IO(println(s"Hello world!. Args $args"))
     
   def main(args: Array[String]): Unit =
-    program(args.toList).unsafeRunSync
+    program(args.toList).unsafeRunSync()
 }
 ```
 

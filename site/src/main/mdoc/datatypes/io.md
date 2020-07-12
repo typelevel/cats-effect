@@ -182,7 +182,7 @@ top of the JVM uses blocking I/O, so their execution is immediate:
 
 ```scala mdoc:silent
 def putStrLn(value: String) = IO(println(value))
-val readLn = IO(scala.io.StdIn.readLine)
+val readLn = IO(scala.io.StdIn.readLine())
 ```
 
 And then we can use that to model interactions with the console in a
@@ -505,7 +505,7 @@ def unsafeFileToString(file: File, isActive: AtomicBoolean) = {
   val linesIterator = Source.fromFile(file).getLines()
   var hasNext = true
   while (hasNext && isActive.get) {
-    sc.append(linesIterator.next)
+    sc.append(linesIterator.next())
     hasNext = linesIterator.hasNext
   }
   sc.toString

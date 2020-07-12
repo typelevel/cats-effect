@@ -17,7 +17,7 @@ import cats.effect.SyncIO
 
 def putStrLn(str: String): SyncIO[Unit] = SyncIO(println(str))
 
-SyncIO.pure("Cats!").flatMap(putStrLn).unsafeRunSync
+SyncIO.pure("Cats!").flatMap(putStrLn).unsafeRunSync()
 ```
 
 There's also `suspend` and `unit`, equivalent to the same operations defined in `IO` but with synchronicity guarantees.
@@ -31,7 +31,7 @@ import cats.Eval
 
 val eval = Eval.now("hey!")
 
-SyncIO.eval(eval).unsafeRunSync
+SyncIO.eval(eval).unsafeRunSync()
 ```
 
 `SyncIO` also defines a `to[F]` method at the class level to lift your value into any `F` with a `LiftIO` instance available.

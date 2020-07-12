@@ -8,7 +8,7 @@ scaladoc: "#cats.effect.Resource"
 
 Effectfully allocates and releases a resource. Forms a `MonadError` on the resource type when the effect type has a `Bracket` instance.
 
-The [Acquiring and releasing `Resource`s](../tutorial/tutorial.html#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
+The [Acquiring and releasing `Resource`s](../tutorial/tutorial.md#acquiring-and-releasing-resources) section of the tutorial provides some additional context and examples regarding `Resource`.
 
 ```scala mdoc:silent
 import cats.effect.Bracket
@@ -25,9 +25,9 @@ You can lift any `F[A]` with an `Applicative` instance into a `Resource[F, A]` w
 ```scala mdoc:reset
 import cats.effect.{IO, Resource}
 
-val greet: String => IO[Unit] = x => IO(println("Hello " ++ x))
+val greet: String => IO[Unit] = x => IO(println("Hello " + x))
 
-Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync
+Resource.liftF(IO.pure("World")).use(greet).unsafeRunSync()
 ```
 
 Moreover it's possible to apply further effects to the wrapped resource without leaving the `Resource` context via `evalMap`:
@@ -38,11 +38,11 @@ import cats.effect.{IO, Resource}
 val acquire: IO[String] = IO(println("Acquire cats...")) *> IO("cats")
 val release: String => IO[Unit] = _ => IO(println("...release everything"))
 val addDogs: String => IO[String] = x =>
-  IO(println("...more animals...")) *> IO.pure(x ++ " and dogs")
+  IO(println("...more animals...")) *> IO.pure(x + " and dogs")
 val report: String => IO[String] = x =>
-  IO(println("...produce weather report...")) *> IO("It's raining " ++ x)
+  IO(println("...produce weather report...")) *> IO("It's raining " + x)
 
-Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync
+Resource.make(acquire)(release).evalMap(addDogs).use(report).unsafeRunSync()
 ```
 
 ### Example
@@ -63,7 +63,7 @@ val r = for {
   inner <- mkResource("inner")
 } yield (outer, inner)
 
-r.use { case (a, b) => IO(println(s"Using $a and $b")) }.unsafeRunSync
+r.use { case (a, b) => IO(println(s"Using $a and $b")) }.unsafeRunSync()
 ```
 
 If using an AutoCloseable create a resource without the need to specify how to close.
@@ -86,7 +86,7 @@ Resource.fromAutoCloseable(acquire).use(source => IO(println(source.mkString))).
 
 ```scala mdoc:reset:silent
 import java.io._
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import cats.effect._
 
 def readAllLines(bufferedReader: BufferedReader, blocker: Blocker)(implicit cs: ContextShift[IO]): IO[List[String]] =

@@ -395,9 +395,10 @@ lazy val siteSettings = Seq(
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
   fork in mdoc := true,
-  scalacOptions in mdoc ~= (_.filterNot(
+  Compile / scalacOptions ~= (_.filterNot(
     Set(
       "-Xfatal-warnings",
+      "-Werror",
       "-Ywarn-numeric-widen",
       "-Ywarn-unused:imports",
       "-Ywarn-unused:locals",
