@@ -185,7 +185,4 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
     }
   }
 
-
-
-
 }

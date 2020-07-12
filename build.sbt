@@ -168,7 +168,6 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
 lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"))
   .dependsOn(kernel)
   .settings(name := "cats-effect-concurrent")
-  .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
