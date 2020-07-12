@@ -31,7 +31,7 @@
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
 <span class="c1">//   Delay(&lt;function0&gt;),</span>
-<span class="c1">//   cats.effect.IO$$Lambda$13846/456209942@4ba5816e,</span>
+<span class="c1">//   cats.effect.IO$$Lambda$16849/843857845@3e60f080,</span>
 <span class="c1">//   StackTrace(3, java.lang.Throwable)</span>
 <span class="c1">// )</span>
 <span class="k">val</span> <span class="nv">release</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"...release everything"</span><span class="o">))</span>
