@@ -96,26 +96,26 @@ class DeferredSpec extends IOPlatformSpecification with Discipline with ScalaChe
 
   //TODO why does this block?
 
-  // "issue #380: complete doesn't block, test #2" in {
-  //   def execute(times: Int): IO[Boolean] = {
-  //     val task = for {
-  //       d <- Deferred[IO, Unit]
-  //       latch <- Deferred[IO, Unit]
-  //       fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
-  //       _ <- latch.get
-  //       _ <- timeout(d.complete(()),15.seconds).guarantee(fb.cancel)
-  //     } yield {
-  //       true
-  //     }
+  "issue #380: complete doesn't block, test #2" in {
+    def execute(times: Int): IO[Boolean] = {
+      val task = for {
+        d <- Deferred[IO, Unit]
+        latch <- Deferred[IO, Unit]
+        fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
+        _ <- latch.get
+        _ <- timeout(d.complete(()),15.seconds).guarantee(fb.cancel)
+      } yield {
+        true
+      }
 
-  //     task.flatMap { r =>
-  //       if (times > 0) execute(times - 1)
-  //       else IO.pure(r)
-  //     }
-  //   }
+      task.flatMap { r =>
+        if (times > 0) execute(times - 1)
+        else IO.pure(r)
+      }
+    }
 
-  //   execute(100) must completeAs(true)
-  // }
+    execute(100) must completeAs(true)
+  }
 
   }
 
