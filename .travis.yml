@@ -5,10 +5,10 @@ language: scala
 matrix:
   include:
     - jdk: openjdk8
-      scala: 2.13.3
+      scala: 2.13.2
       env: SCALAJS_VERSION=
     - jdk: openjdk8
-      scala: 2.13.3
+      scala: 2.13.2
       env: SCALAJS_VERSION=1.0.0
     # We want the latest stable Scala last so sbt-travisci makes it the default
     - jdk: openjdk8

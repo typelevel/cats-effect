@@ -38,7 +38,7 @@ class ContinualHangingTest extends AsyncFunSuite {
         .replicateA(10000)
         .as(true)
 
-    task.unsafeToFuture.map(result => assert(result == true))
+    task.unsafeToFuture().map(result => assert(result == true))
   }
 }
 
