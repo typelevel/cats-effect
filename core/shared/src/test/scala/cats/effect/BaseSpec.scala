@@ -17,20 +17,13 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.EffectTests
 import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-// import org.scalacheck.rng.Seed
 
-import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
 import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
-
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

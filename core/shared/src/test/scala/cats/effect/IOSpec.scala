@@ -16,25 +16,19 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
 import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.EffectTests
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{OutcomeGenerators, TestContext}
 import cats.implicits._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Prop.forAll
-// import org.scalacheck.rng.Seed
+import org.scalacheck.Prop, Prop.forAll
 
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
-import org.specs2.matcher.Matcher
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
-import java.util.concurrent.TimeUnit
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
   import OutcomeGenerators._

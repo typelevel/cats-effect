@@ -18,30 +18,20 @@ package cats
 package effect
 package concurrent
 
-import cats.{Eq, Order, Show}
+import cats.{Eq, Show}
 import cats.data.State
-import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.EffectTests
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{OutcomeGenerators, TestContext}
 import cats.implicits._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-
 import org.specs2.ScalaCheck
-import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-import java.util.concurrent.TimeUnit
-
 class LensRefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
-
-  import OutcomeGenerators._
 
   sequential
 
