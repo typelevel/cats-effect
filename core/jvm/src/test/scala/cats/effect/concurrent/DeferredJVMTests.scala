@@ -41,7 +41,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
       cause.printStackTrace()
   }
 
-  implicit val runtime: IORuntime = IORuntime(context, null, null)
+  implicit val runtime: IORuntime = IORuntime.global
 
   def before = {
     service = Executors.newFixedThreadPool(
@@ -70,7 +70,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
 
   def cleanupOnError[A](task: IO[A], f: Fiber[IO, Throwable, _]) = f.cancel
 
-  "Deferred (concurrent) — issue #380: producer keeps its thread, consumer stays forked" in {
+  "Deferred — issue #380: producer keeps its thread, consumer stays forked" in {
     for (_ <- 0 until iterations) {
       val name = Thread.currentThread().getName
 
@@ -96,7 +96,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     success
   }
 
-  "Deferred (concurrent) — issue #380: with foreverM" in {
+  "Deferred — issue #380: with foreverM" in {
     for (_ <- 0 until iterations) {
       val cancelLoop = new AtomicBoolean(false)
       val unit = IO {
@@ -122,7 +122,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     success
   }
 
-  "Deferred (concurrent) — issue #380: with cooperative light async boundaries" in {
+  "Deferred — issue #380: with cooperative light async boundaries" in {
     def run = {
       def foreverAsync(i: Int): IO[Unit] =
         if (i == 512) IO.async[Unit](cb => IO(cb(Right(()))).as(None)) >> foreverAsync(0)
@@ -145,7 +145,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     success
   }
 
-  "Deferred (concurrent) — issue #380: with cooperative full async boundaries" in {
+  "Deferred — issue #380: with cooperative full async boundaries" in {
     def run = {
       def foreverAsync(i: Int): IO[Unit] =
         if (i == 512) IO.unit.start.flatMap(_.join) >> foreverAsync(0)
