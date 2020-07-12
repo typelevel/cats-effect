@@ -32,15 +32,16 @@ import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
 import org.specs2.matcher.Matcher
 import org.specs2.specification.core.Fragments
+import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{TimeUnit, Executors}
 
-class DeferredSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
+class DeferredSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
 
   import OutcomeGenerators._
 
@@ -114,7 +115,7 @@ class DeferredSpec extends IOPlatformSpecification with Discipline with ScalaChe
       }
     }
 
-    execute(100) must completeAs(true)
+    unsafeRunRealistic(execute(100))() must beEqualTo(Some(true))
   }
 
   }
@@ -199,6 +200,40 @@ class DeferredSpec extends IOPlatformSpecification with Discipline with ScalaChe
   private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
     timeoutTo(fa, duration, timeoutException)
+  }
+
+  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
+    // TODO this code is now in 4 places; should be in 1
+    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+      val t = new Thread({ () =>
+        try {
+          r.run()
+        } catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            errors(t)
+        }
+      })
+      t.setDaemon(true)
+      t
+    })
+
+    val ctx = ExecutionContext.fromExecutor(executor)
+
+    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
+      val t = new Thread(r)
+      t.setName("io-scheduler")
+      t.setDaemon(true)
+      t.setPriority(Thread.MAX_PRIORITY)
+      t
+    }
+
+    try {
+      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+    } finally {
+      executor.shutdown()
+      scheduler.shutdown()
+    }
   }
 
 }
