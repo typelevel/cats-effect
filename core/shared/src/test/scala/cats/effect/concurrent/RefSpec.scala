@@ -35,7 +35,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
 
   val ctx = TestContext()
 
-  val smallDelay: IO[Unit] = IO.sleep(20 millis)
+  val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
   "ref" should {
     //TODO need parallel instance for IO

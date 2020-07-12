@@ -36,7 +36,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
 
   val ctx = TestContext()
 
-  val smallDelay: IO[Unit] = IO.sleep(20 millis)
+  val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
   implicit val integerEq: Eq[Integer] = new Eq[Integer] {
     override def eqv(a: Integer, b: Integer) = a == b
