@@ -16,6 +16,7 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 Versions of Cats Effect:
 
 - Stable: `2.1.4`
+- Release Candidate: `2.2.0-RC1`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
@@ -27,7 +28,7 @@ Cats Effect relies on improved type inference and needs partial unification enab
 
 If your project uses Scala.js, replace the double-`%` with a triple. Note that **cats-effect** has an upstream dependency on **cats-core** version 2.x.
 
-Cross-builds are available for Scala 2.12.x and 2.13.x, with Scala.js builds targeting both 0.6.x and 1.0.x.
+Cross-builds are available for Scala 2.12.x and 2.13.x, with Scala.js builds targeting both 0.6.x and 1.0.x (note that 2.2.0-RC1, and all future releases after 2.1.x, will no longer target Scala.js 0.6.x).
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
