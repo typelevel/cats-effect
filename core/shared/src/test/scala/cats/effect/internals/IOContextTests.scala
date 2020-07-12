@@ -34,7 +34,7 @@ class IOContextTests extends AnyFunSuite with Matchers {
     ctx.pushEvent(t1)
     ctx.pushEvent(t2)
 
-    val trace = ctx.trace
+    val trace = ctx.trace()
     trace.events shouldBe List(t1, t2)
     trace.captured shouldBe 2
     trace.omitted shouldBe 0
