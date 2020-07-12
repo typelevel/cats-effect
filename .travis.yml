@@ -9,20 +9,20 @@ matrix:
       env: SCALAJS_VERSION=
     - jdk: openjdk8
       scala: 2.13.3
-      env: SCALAJS_VERSION=1.1.1
+      env: SCALAJS_VERSION=1.0.0
     # We want the latest stable Scala last so sbt-travisci makes it the default
     - jdk: openjdk8
       scala: 2.12.11
       env: SCALAJS_VERSION=
     - jdk: openjdk8
       scala: 2.12.11
-      env: SCALAJS_VERSION=1.1.1
+      env: SCALAJS_VERSION=1.0.0
     - jdk: openjdk11
       scala: 2.12.11
       env: SCALAJS_VERSION=
     - jdk: openjdk11
       scala: 2.12.11
-      env: SCALAJS_VERSION=1.1.1
+      env: SCALAJS_VERSION=1.0.0
 
 install:
   - rvm install 2.6
