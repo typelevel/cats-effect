@@ -1,0 +1,224 @@
+<!DOCTYPE html><html><head><title>Cats Effect: Tracing</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="image" property="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: Tracing" /><meta name="title" property="og:title" content="Cats Effect: Tracing" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: Tracing" /><meta name="twitter:image" content="/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/light-style.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><div id="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"></div><span>Cats Effect</span></a><button id="main-toggle" class="sidebar-toggle"><span class="close"></span></button></div><div class="sidebar-nav"> <div class="sidebar-nav-item  "><a href="/cats-effect/datatypes/" title="Data Types" class="drop-nested">Data Types</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/datatypes/io.html" title="IO" class="">IO</a> <a href="/cats-effect/datatypes/syncio.html" title="SyncIO" class="">SyncIO</a> <a href="/cats-effect/datatypes/fiber.html" title="Fiber" class="">Fiber</a> <a href="/cats-effect/datatypes/resource.html" title="Resource" class="">Resource</a> <a href="/cats-effect/datatypes/clock.html" title="Clock" class="">Clock</a> <a href="/cats-effect/datatypes/contextshift.html" title="ContextShift" class="">ContextShift</a> <a href="/cats-effect/datatypes/timer.html" title="Timer" class="">Timer</a> <a href="/cats-effect/datatypes/ioapp.html" title="IOApp" class="">IOApp</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/concurrency/" title="Concurrency" class="drop-nested">Concurrency</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/concurrency/basics.html" title="Concurrency Basics" class="">Concurrency Basics</a> <a href="/cats-effect/concurrency/deferred.html" title="Deferred" class="">Deferred</a> <a href="/cats-effect/concurrency/mvar.html" title="MVar" class="">MVar</a> <a href="/cats-effect/concurrency/ref.html" title="Ref" class="">Ref</a> <a href="/cats-effect/concurrency/semaphore.html" title="Semaphore" class="">Semaphore</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/typeclasses/" title="Type Classes" class="drop-nested">Type Classes</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/typeclasses/bracket.html" title="Bracket" class="">Bracket</a> <a href="/cats-effect/typeclasses/sync.html" title="Sync" class="">Sync</a> <a href="/cats-effect/typeclasses/liftio.html" title="LiftIO" class="">LiftIO</a> <a href="/cats-effect/typeclasses/async.html" title="Async" class="">Async</a> <a href="/cats-effect/typeclasses/concurrent.html" title="Concurrent" class="">Concurrent</a> <a href="/cats-effect/typeclasses/effect.html" title="Effect" class="">Effect</a> <a href="/cats-effect/typeclasses/concurrent-effect.html" title="ConcurrentEffect" class="">ConcurrentEffect</a></div></div> <div class="sidebar-nav-item  open"><a href="/cats-effect/guides/" title="Guides" class="drop-nested">Guides</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/guides/tracing.html" title="Tracing" class="active">Tracing</a> <a href="/cats-effect/guides/tutorial.html" title="Tutorial" class="">Tutorial</a></div></div></div></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-eye"></i><span>Watchers<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-star-o"></i><span>Stars<span id="stars" class="label label-default">--</span></span></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>Tracing</h1>
+
+<nav role="navigation" id="toc"></nav>
+
+<h2 id="introduction">Introduction</h2>
+<p>Tracing is an advanced feature of <code class="highlighter-rouge">IO</code> that offers insight into the execution 
+graph of a fiber. This unlocks a lot of power for developers in the realm of 
+debugging and introspection, not only in local development environments 
+but also in critical production settings.</p>
+
+<p>A notable pain point of working with asynchronous code on the JVM is that 
+stack traces no longer provide valuable context of the execution path that 
+a program takes. This limitation is even more pronounced with Scala’s <code class="highlighter-rouge">Future</code>
+(pre- 2.13), where an asynchronous boundary is inserted after each operation. 
+<code class="highlighter-rouge">IO</code>  suffers a similar problem, but even a synchronous <code class="highlighter-rouge">IO</code> program’s stack 
+trace is polluted with the details of the <code class="highlighter-rouge">IO</code> run-loop.</p>
+
+<p><code class="highlighter-rouge">IO</code> solves this problem by collecting a stack trace at various <code class="highlighter-rouge">IO</code> 
+operations that a fiber executes, and knitting them together to produce a more 
+coherent view of the fiber’s execution path. For example, here is a trace of a 
+sample program that is running in cached stack tracing mode:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IOTrace: 13 frames captured, 0 omitted
+ ├ flatMap at org.simpleapp.example.Example.run (Example.scala:67)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:57)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:58)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:59)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:60)
+ ├ async at org.simpleapp.example.Example.program (Example.scala:60)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:61)
+ ├ flatMap at org.simpleapp.example.Example.program (Example.scala:60)
+ ├ flatMap at org.simpleapp.example.Example.program2 (Example.scala:51)
+ ├ map at org.simpleapp.example.Example.program2 (Example.scala:52)
+ ├ map at org.simpleapp.example.Example.program (Example.scala:60)
+ ├ map at org.simpleapp.example.Example.program (Example.scala:62)
+ ╰ flatMap at org.simpleapp.example.Example.run (Example.scala:67)
+</code></pre></div></div>
+
+<p>However, fiber tracing isn’t limited to collecting stack traces. Tracing 
+has many use cases that improve developer experience and aid in understanding 
+how our applications work. These features are described below. A <strong>bolded name</strong>
+indicates that the feature has been merged into master.</p>
+
+<ol>
+  <li><strong>Asynchronous stack tracing</strong>. This is essentially what is described above,
+where stack frames are collected across asynchronous boundaries for a given
+fiber.</li>
+  <li>Combinator inference. Stack traces can be walked to determine what
+combinator was actually called by user code. For example, <code class="highlighter-rouge">void</code> and <code class="highlighter-rouge">as</code> are 
+combinators that are derived from <code class="highlighter-rouge">map</code>, and should appear in the fiber trace
+rather than <code class="highlighter-rouge">map</code>.</li>
+  <li>Intermediate values. The intermediate values that an <code class="highlighter-rouge">IO</code> program encounters
+can be converted to a string to render. This can aid in understanding the
+actions that a program takes.</li>
+  <li>Thread tracking. A fiber is scheduled on potentially many threads throughout
+its lifetime. Knowing what thread a fiber is running on, and when it shifts
+threads is a powerful tool for understanding and debugging the concurrency of 
+an application.</li>
+  <li>Tree rendering. By collecting a trace of all <code class="highlighter-rouge">IO</code> operations, a pretty tree
+or graph can be rendered to visualize fiber execution.</li>
+  <li>Fiber identity. Fibers, like threads, are unique and can therefore assume an
+identity. If user code can observe fiber identity, powerful observability tools
+can be built on top of it. For example, another shortcoming of asynchronous
+code is that it becomes tedious to correlate log messages across asynchronous
+boundaries (thread IDs aren’t very useful). With fiber identity, log messages
+produced by a single fiber can be associated with a unique, stable identifier.</li>
+  <li>Fiber ancestry graph. If fibers can assume an identity, an ancestry graph 
+can be formed, where nodes are fibers and edges represent a fork/join
+relationship.</li>
+  <li>Asynchronous deadlock detection. Even when working with asynchronously
+blocking code, fiber deadlocks aren’t impossible. Being able to detect
+deadlocks or infer when a deadlock can happen makes writing concurrent code
+much easier.</li>
+  <li>Live fiber trace dumps. Similar to JVM thread dumps, the execution status 
+and trace information of all fibers in an application can be extracted for 
+debugging purposes.</li>
+  <li>Monad transformer analysis.</li>
+</ol>
+
+<p>As note of caution, fiber tracing generally introduces overhead to
+applications in the form of higher CPU usage, memory and GC pressure. 
+Always remember to performance test your applications with tracing enabled 
+before deploying it to a production environment!</p>
+
+<h2 id="asynchronous-stack-tracing">Asynchronous stack tracing</h2>
+<h3 id="configuration">Configuration</h3>
+<p>The stack tracing mode of an application is configured by the system property
+<code class="highlighter-rouge">cats.effect.stackTracingMode</code>. There are three stack tracing modes: <code class="highlighter-rouge">DISABLED</code>,
+<code class="highlighter-rouge">CACHED</code> and <code class="highlighter-rouge">FULL</code>. These values are case-insensitive.</p>
+
+<p>To prevent unbounded memory usage, stack traces for a fiber are accumulated 
+in an internal buffer as execution proceeds. If more traces are collected than
+the buffer can retain, then the older traces will be overwritten. The default
+size for the buffer is 128, but can be changed via the system property 
+<code class="highlighter-rouge">cats.effect.traceBufferSize</code>. Keep in mind that the buffer size will always
+be rounded up to a power of 2.</p>
+
+<p>For example, to enable full stack tracing and a trace buffer size of 1024,
+specify the following system properties:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferSize=1024
+</code></pre></div></div>
+
+<h4 id="disabled">DISABLED</h4>
+<p>No tracing is instrumented by the program and so incurs negligible impact to
+performance. If a trace is requested, it will be empty.</p>
+
+<h4 id="cached">CACHED</h4>
+<p>When cached stack tracing is enabled, a stack trace is captured and cached for
+every <code class="highlighter-rouge">map</code>, <code class="highlighter-rouge">flatMap</code> and <code class="highlighter-rouge">async</code> call in a program.</p>
+
+<p>The stack trace cache is indexed by the lambda class reference, so cached
+tracing may produce inaccurate fiber traces under several scenarios:</p>
+<ol>
+  <li>Monad transformer composition</li>
+  <li>A named function is supplied to <code class="highlighter-rouge">map</code>, <code class="highlighter-rouge">async</code> or <code class="highlighter-rouge">flatMap</code> at multiple
+call-sites</li>
+</ol>
+
+<p>We measured less than a 30% performance hit when cached tracing is enabled
+for a completely synchronous <code class="highlighter-rouge">IO</code> program, but it will most likely be much less
+for any program that performs any sort of I/O. We strongly recommend 
+benchmarking applications that make use of tracing.</p>
+
+<p>This is the recommended mode to run in most production applications and is 
+enabled by default.</p>
+
+<h4 id="full">FULL</h4>
+<p>When full stack tracing is enabled, a stack trace is captured for most <code class="highlighter-rouge">IO</code>
+combinators including <code class="highlighter-rouge">pure</code>, <code class="highlighter-rouge">delay</code>, <code class="highlighter-rouge">suspend</code>, <code class="highlighter-rouge">raiseError</code> as well as those
+traced in cached mode.</p>
+
+<p>Stack traces are collected <em>on every invocation</em>, so naturally most programs
+will experience a significant performance hit. This mode is mainly useful for
+debugging in development environments.</p>
+
+<h3 id="requesting-and-printing-traces">Requesting and printing traces</h3>
+<p>Once the global tracing flag is configured, <code class="highlighter-rouge">IO</code> programs will automatically
+begin collecting traces. The trace for a fiber can be accessed at any point
+during its execution via the <code class="highlighter-rouge">IO.trace</code> combinator. This is the <code class="highlighter-rouge">IO</code> equivalent
+of capturing a thread’s stack trace.</p>
+
+<p>After we have a fiber trace, we can print it to the console, not unlike how
+Java exception stack traces are printed with <code class="highlighter-rouge">printStackTrace</code>. <code class="highlighter-rouge">printFiberTrace</code>
+can be called to print fiber traces to the consoles. Printing behavior can be 
+customized by passing in a <code class="highlighter-rouge">PrintingOptions</code> instance. By default, a fiber trace 
+is rendered in a very compact presentation that includes the most relevant stack 
+trace element from each fiber operation.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
+
+<span class="k">def</span> <span class="nf">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Started the program"</span><span class="o">))</span>
+    <span class="n">trace</span> <span class="k">&lt;-</span> <span class="nv">IO</span><span class="o">.</span><span class="py">trace</span>
+    <span class="k">_</span>     <span class="k">&lt;-</span> <span class="nv">trace</span><span class="o">.</span><span class="py">printFiberTrace</span><span class="o">()</span>
+  <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+</code></pre></div></div>
+
+<p>Keep in mind that the scope and amount of information that traces hold will
+change over time as additional fiber tracing features are merged into master.</p>
+
+<h3 id="complete-example">Complete example</h3>
+<p>Here is a sample program that demonstrates tracing in action.</p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Pass the following system property to your JVM:</span>
+<span class="c1">// -Dcats.effect.stackTracingMode=full</span>
+
+<span class="k">import</span> <span class="nn">cats.effect.tracing.PrintingOptions</span>
+<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ExitCode</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">IOApp</span><span class="o">}</span>
+
+<span class="k">import</span> <span class="nn">scala.util.Random</span>
+
+<span class="k">object</span> <span class="nc">Example</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
+
+  <span class="k">val</span> <span class="nv">options</span> <span class="k">=</span> <span class="nv">PrintingOptions</span><span class="o">.</span><span class="py">Default</span>
+    <span class="o">.</span><span class="py">withShowFullStackTraces</span><span class="o">(</span><span class="kc">true</span><span class="o">)</span>
+    <span class="o">.</span><span class="py">withMaxStackTraceLines</span><span class="o">(</span><span class="mi">8</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="nf">fib</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">a</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">0</span><span class="o">,</span> <span class="n">b</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">1</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">IO</span><span class="o">(</span><span class="n">a</span> <span class="o">+</span> <span class="n">b</span><span class="o">).</span><span class="py">flatMap</span> <span class="o">{</span> <span class="n">b2</span> <span class="k">=&gt;</span>
+      <span class="nf">if</span> <span class="o">(</span><span class="n">n</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
+        <span class="nf">fib</span><span class="o">(</span><span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="o">,</span> <span class="n">b</span><span class="o">,</span> <span class="n">b2</span><span class="o">)</span>
+      <span class="k">else</span>
+        <span class="nv">IO</span><span class="o">.</span><span class="py">pure</span><span class="o">(</span><span class="n">b2</span><span class="o">)</span>
+    <span class="o">}</span>
+  
+  <span class="k">def</span> <span class="nf">program</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="n">x</span> <span class="k">&lt;-</span> <span class="nf">fib</span><span class="o">(</span><span class="mi">20</span><span class="o">)</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="n">s</span><span class="s">"The 20th fibonacci number is $x"</span><span class="o">))</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">IO</span><span class="o">(</span><span class="nv">Random</span><span class="o">.</span><span class="py">nextBoolean</span><span class="o">()).</span><span class="py">ifM</span><span class="o">(</span><span class="nv">IO</span><span class="o">.</span><span class="py">raiseError</span><span class="o">(</span><span class="k">new</span> <span class="nc">Throwable</span><span class="o">(</span><span class="s">""</span><span class="o">)),</span> <span class="nv">IO</span><span class="o">.</span><span class="py">unit</span><span class="o">)</span>
+    <span class="o">}</span> <span class="nf">yield</span> <span class="o">()</span>
+
+  <span class="k">override</span> <span class="k">def</span> <span class="nf">run</span><span class="o">(</span><span class="n">args</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">ExitCode</span><span class="o">]</span> <span class="k">=</span>
+    <span class="k">for</span> <span class="o">{</span>
+      <span class="k">_</span> <span class="k">&lt;-</span> <span class="nv">program</span><span class="o">.</span><span class="py">handleErrorWith</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="nv">IO</span><span class="o">.</span><span class="py">trace</span><span class="o">.</span><span class="py">flatMap</span><span class="o">(</span><span class="nv">_</span><span class="o">.</span><span class="py">printFiberTrace</span><span class="o">(</span><span class="n">options</span><span class="o">)))</span>
+    <span class="o">}</span> <span class="k">yield</span> <span class="nv">ExitCode</span><span class="o">.</span><span class="py">Success</span>
+
+<span class="o">}</span>
+</code></pre></div></div>
+
+
+<link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
+<script type="text/javascript" src="/cats-effect/js/toc.js"></script>
+</section></div></div></div></div><script src="/cats-effect/highlight/highlight.pack.js"></script><script>
+// For all code blocks, copy the language from the containing div
+// to the inner code tag (where hljs expects it to be)
+const langPrefix = 'language-';
+document.querySelectorAll(`div[class^='${langPrefix}']`).forEach(function(div) {
+  div.classList.forEach(function(cssClass) {
+    if (cssClass.startsWith(langPrefix)) {
+      const lang = cssClass.substring(langPrefix.length);
+      div.querySelectorAll('pre code').forEach(function(code) {
+        code.classList.add(lang);
+      });
+    }
+  });
+});
+
+hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlightingOnLoad();
+      </script><script src="/cats-effect/js/toc.js"></script><script>console.info('\x57\x65\x62\x73\x69\x74\x65\x20\x62\x75\x69\x6c\x74\x20\x77\x69\x74\x68\x3a\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x5f\x5f\x0a\x20\x20\x20\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x5f\x20\x20\x2f\x20\x2f\x5f\x20\x20\x20\x20\x20\x20\x5f\x5f\x5f\x5f\x20\x5f\x5f\x5f\x20\x20\x28\x5f\x29\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x28\x5f\x29\x20\x2f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x0a\x20\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x60\x5f\x5f\x20\x5c\x2f\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x20\x2f\x20\x5f\x5f\x2f\x20\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x0a\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x5f\x2f\x20\x2f\x20\x2f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x5f\x5f\x2f\x20\x2f\x20\x20\x2f\x20\x2f\x5f\x2f\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x20\x2f\x5f\x2f\x20\x20\x5f\x5f\x28\x5f\x5f\x20\x20\x29\x0a\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2e\x5f\x5f\x5f\x2f\x5c\x5f\x5f\x2f\x20\x20\x20\x20\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x2f\x20\x20\x20\x5c\x5f\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x0a\x0a\x68\x74\x74\x70\x73\x3a\x2f\x2f\x34\x37\x64\x65\x67\x2e\x67\x69\x74\x68\x75\x62\x2e\x69\x6f\x2f\x73\x62\x74\x2d\x6d\x69\x63\x72\x6f\x73\x69\x74\x65\x73')</script><script>((window.gitter = {}).chat = {}).options = {
+room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/cats-effect/js/docs.js"></script></body></html>
