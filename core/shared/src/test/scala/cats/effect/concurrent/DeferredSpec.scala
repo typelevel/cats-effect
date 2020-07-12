@@ -26,10 +26,8 @@ import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGen
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-// import org.scalacheck.rng.Seed
 
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
 import org.specs2.matcher.Matcher
 import org.specs2.specification.core.Fragments
 import org.specs2.mutable.Specification
@@ -54,14 +52,10 @@ class DeferredSpec extends Specification with Discipline with ScalaCheck with Ba
 
   "deferred" should {
 
-    //TODO does this distinction make sense any more?
     tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
     tests("concurrentTryable", new DeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
-    tests("async", new DeferredConstructor { def apply[A] = Deferred.uncancelable[IO, A] })
-    tests("asyncTryable", new DeferredConstructor { def apply[A] = Deferred.tryableUncancelable[IO, A] })
 
     tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
-    tryableTests("asyncTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryableUncancelable[IO, A] })
 
     "concurrent - get - cancel before forcing" in {
       cancelBeforeForcing(Deferred.apply) must completeAs(None)
@@ -94,8 +88,6 @@ class DeferredSpec extends Specification with Discipline with ScalaCheck with Ba
 
       execute(100) must completeAs(true)
     }
-
-  //TODO why does this block?
 
   "issue #380: complete doesn't block, test #2" in {
     def execute(times: Int): IO[Boolean] = {

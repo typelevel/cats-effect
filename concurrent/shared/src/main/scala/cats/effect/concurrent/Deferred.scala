@@ -18,7 +18,6 @@ package cats
 package effect
 package concurrent
 
-//TODO port the tests for these!
 import cats.effect.internals.{LinkedMap, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 
@@ -112,50 +111,12 @@ object Deferred {
    */
   def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeTryable[F, A]
 
-  /**
-   * Creates an unset promise that only requires an [[Async]] and
-   * does not support cancellation of `get`.
-   *
-   * WARN: some `Async` data types, like [[IO]], can be cancelable,
-   * making `uncan
-celable` values unsafe. Such values are only useful
-   * for optimization purposes, in cases where the use case does not
-   * require cancellation or in cases in which an `F[_]` data type
-   * that does not support cancellation is used.
-   */
-  def uncancelable[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
-    F.delay(unsafeUncancelable[F, A])
-
   /** Like [[apply]] but initializes state using another effect constructor */
   def in[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
     F.delay(unsafe[G, A])
 
-  /** Like [[uncancelable]] but initializes state using another effect constructor */
-  def uncancelableIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
-    F.delay(unsafeUncancelable[G, A])
-
-  /**
-   * Creates an unset tryable promise that only requires an [[Async]] and
-   * does not support cancellation of `get`.
-   */
-  def tryableUncancelable[F[_], A](implicit F: Async[F]): F[TryableDeferred[F, A]] =
-    F.delay(unsafeTryableUncancelable[F, A])
-
-  /**
-   * Like [[uncancelable]] but returns the newly allocated promise directly
-   * instead of wrapping it in `F.delay`. This method is considered
-   * unsafe because it is not referentially transparent -- it
-   * allocates mutable state.
-   *
-   * WARN: read the caveats of [[uncancelable]].
-   */
-  def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] = unsafeTryableUncancelable[F, A]
-
   private def unsafeTryable[F[_]: Async, A]: TryableDeferred[F, A] =
     new AsyncDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
-
-  private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
-    new UncancelableDeferred[F, A](Promise[A]())
 
   final private class Id
 
@@ -247,32 +208,6 @@ celable` values unsafe. Such values are only useful
     }
 
     private[this] val mapUnit = (_: Any) => ()
-  }
-
-  final private class UncancelableDeferred[F[_], A](p: Promise[A])(implicit F: Async[F]) extends TryableDeferred[F, A] {
-    def get: F[A] =
-      F.async { cb =>
-        implicit val ec: ExecutionContext = TrampolineEC.immediate
-        p.future.onComplete {
-          case Success(a) => cb(Right(a))
-          case Failure(t) => cb(Left(t))
-        }
-        F.pure(None)
-      }
-
-    def tryGet: F[Option[A]] =
-      F.delay(p.future.value.flatMap(_.toOption))
-
-    def complete(a: A): F[Unit] =
-      F.map(asyncBoundary) { _ =>
-        p.success(a); ()
-      }
-
-    private[this] val asyncBoundary =
-      F.async[Unit] { cb =>
-        cb(rightUnit)
-        F.pure(None)
-      }
   }
 
   final private class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G)
