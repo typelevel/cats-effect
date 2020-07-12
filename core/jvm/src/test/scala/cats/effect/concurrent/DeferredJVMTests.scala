@@ -162,7 +162,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     }
 
     for (_ <- 0 until iterations) {
-      assert(run.unsafeRunTimed(timeout).nonEmpty, s"; timed-out after $timeout")
+      run.unsafeRunTimed(timeout).nonEmpty must beTrue
     }
 
     success
