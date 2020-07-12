@@ -20,7 +20,7 @@ package concurrent
 
 import cats.{Eq, Show}
 import cats.data.State
-import cats.effect.testkit.{OutcomeGenerators, TestContext}
+import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.ScalaCheck
@@ -29,7 +29,6 @@ import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class LensRefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
 

@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.data.State
-import cats.effect.testkit.{OutcomeGenerators, TestContext}
+import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.ScalaCheck
@@ -28,9 +28,6 @@ import org.specs2.mutable.Specification
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
-
-import java.util.concurrent.TimeUnit
 
 class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
 
