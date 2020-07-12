@@ -33,6 +33,7 @@ val SilencerVersion = "1.7.0"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
+addCommandAlias("release", ";project root ;reload ;clean ;+publish ;sonatypeReleaseAll ;microsite/publishMicrosite")
 
 val commonSettings = Seq(
   scalacOptions ++= PartialFunction
