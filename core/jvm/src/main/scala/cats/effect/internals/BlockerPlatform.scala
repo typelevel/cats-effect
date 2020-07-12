@@ -54,7 +54,7 @@ private[effect] trait BlockerPlatform {
           val b = List.newBuilder[Runnable]
           val itr = tasks.iterator
           while (itr.hasNext) b += itr.next
-          NonEmptyList.fromList(b.result)
+          NonEmptyList.fromList(b.result())
         }
         F.flatMap(tasks) {
           case Some(t) => F.raiseError(new OutstandingTasksAtShutdown(t))
