@@ -18,16 +18,13 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.internals.{LinkedMap, TrampolineEC}
+import cats.effect.concurrent.Deferred.TransformedDeferred
+import cats.effect.kernel.{Async, Sync}
+import cats.effect.internals.LinkedMap
+
 import java.util.concurrent.atomic.AtomicReference
 
-import cats.effect.concurrent.Deferred.TransformedDeferred
-
-import cats.effect.kernel.{Async, Sync}
-
 import scala.annotation.tailrec
-import scala.concurrent.{ExecutionContext, Promise}
-import scala.util.{Failure, Success}
 
 /**
  * A purely functional synchronization primitive which represents a single value
