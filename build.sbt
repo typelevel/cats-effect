@@ -17,6 +17,7 @@
 import microsites.{ConfigYml, ExtraMdFileConfig}
 
 import scala.sys.process._
+import scala.util.Try
 import scala.xml.Elem
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import sbtcrossproject.crossProject
@@ -470,3 +471,6 @@ git.formattedShaVersion := {
     git.baseVersion.value + "-" + sha + suffix
   }
 }
+
+git.gitUncommittedChanges := Try("git status -s".!!.trim.length > 0).getOrElse(true)
+git.gitHeadCommit := Try("git rev-parse HEAD".!!.trim).toOption
