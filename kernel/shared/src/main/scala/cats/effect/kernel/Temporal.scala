@@ -16,6 +16,8 @@
 
 package cats.effect.kernel
 
+import cats.implicits._
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
@@ -26,4 +28,41 @@ trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E
 object Temporal {
   def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
   def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
+
+  /**
+   * Returns an effect that either completes with the result of the source within
+   * the specified time `duration` or otherwise evaluates the `fallback`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the `FiniteDuration` to complete, the evaluation of the fallback
+   * happening immediately after that.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, the `fallback` gets evaluated
+   *
+   * @param fallback is the task evaluated after the duration has passed and
+   *        the source canceled
+   */
+  def timeoutTo[F[_], A, E](fa: F[A], duration: FiniteDuration, fallback: F[A])(implicit F: Temporal[F, E]): F[A] =
+    F.race(fa, F.sleep(duration)).flatMap {
+      case Left(a)  => F.pure(a)
+      case Right(_) => fallback
+    }
+
+  /**
+   * Returns an effect that either completes with the result of the source within
+   * the specified time `duration` or otherwise raises a `TimeoutException`.
+   *
+   * The source is cancelled in the event that it takes longer than
+   * the specified time duration to complete.
+   *
+   * @param duration is the time span for which we wait for the source to
+   *        complete; in the event that the specified time has passed without
+   *        the source completing, a `TimeoutException` is raised
+   */
+  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
+    val timeoutException = F.raiseError[A](new TimeoutException(duration.toString))
+    timeoutTo(fa, duration, timeoutException)
+  }
 }

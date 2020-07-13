@@ -16,4 +16,4 @@
 
 package cats.effect.syntax
 
-trait AllSyntax extends AsyncSyntax with ConcurrentSyntax
+trait AllSyntax extends AsyncSyntax with ConcurrentSyntax with TemporalSyntax
