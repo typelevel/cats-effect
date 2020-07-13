@@ -73,7 +73,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   private[this] var masks: Int = _
   private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
-  private[this] val callbacks = new CallbackQueue[A](null)
+  private[this] val callbacks = new CallbackStack[A](null)
 
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
@@ -150,14 +150,14 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
         val handle = registerListener(oc => cb(Right(oc)))
 
         if (handle == null)
-          None     // we were already invoked, so no CallbackQueue needs to be managed
+          None     // we were already invoked, so no CallbackStack needs to be managed
         else
           Some(IO(handle.clearCurrent()))
       }
     }
 
-  // can return null, meaning that no CallbackQueue needs to be later invalidated
-  private def registerListener(listener: Outcome[IO, Throwable, A] => Unit): CallbackQueue[A] = {
+  // can return null, meaning that no CallbackStack needs to be later invalidated
+  private def registerListener(listener: Outcome[IO, Throwable, A] => Unit): CallbackStack[A] = {
     if (outcome.get() == null) {
       val back = callbacks.push(listener)
 
