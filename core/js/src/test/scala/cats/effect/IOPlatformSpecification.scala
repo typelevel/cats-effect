@@ -16,26 +16,20 @@
 
 package cats.effect
 
-import cats.Eq
-import cats.effect.testkit.TestContext
-import cats.implicits._
+import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Prop}, Prop.forAll
+import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 
-abstract class IOPlatformSpecification extends Specification with ScalaCheck {
+abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
   def platformSpecs = {
-    "round trip through js.Promise" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromPromise(IO(ioa.unsafeToPromise(unsafe.IORuntime(ctx, scheduler(), () => ()))))
-    }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+    "round trip through js.Promise" in ticked { implicit ticker =>
+      forAll { (ioa: IO[Int]) =>
+        ioa eqv IO.fromPromise(IO(ioa.unsafeToPromise()))
+      }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+    }
   }
-
-  val ctx: TestContext
-  def scheduler(): unsafe.Scheduler
-
-  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]]
-  implicit def eqIOA[A: Eq]: Eq[IO[A]]
 }

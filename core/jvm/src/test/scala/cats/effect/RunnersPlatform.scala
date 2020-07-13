@@ -16,21 +16,25 @@
 
 package cats.effect
 
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import cats.effect.unsafe.IORuntime
 
-private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
+import org.specs2.specification.BeforeAfterAll
 
-  def unsafeToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
-    new Promise[A]({ (resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
-      self.unsafeRunAsync {
-        case Left(JavaScriptException(e)) =>
-          reject(e)
+trait RunnersPlatform extends BeforeAfterAll {
 
-        case Left(e) =>
-          reject(e)
+  private[this] var runtime0: IORuntime = _
 
-        case Right(value) =>
-          resolve(value)
-      }
+  protected def runtime(): IORuntime = runtime0
+
+  def beforeAll(): Unit = {
+    val (ctx, disp1) = IORuntime.createDefaultComputeExecutionContext(s"io-compute-${getClass.getName}")
+    val (sched, disp2) = IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+
+    runtime0 = IORuntime(ctx, sched, { () =>
+      disp1()
+      disp2()
     })
+  }
+
+  def afterAll(): Unit = runtime().shutdown()
 }

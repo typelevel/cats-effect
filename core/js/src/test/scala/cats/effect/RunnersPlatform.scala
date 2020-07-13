@@ -16,21 +16,8 @@
 
 package cats.effect
 
-import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
+import cats.effect.unsafe.IORuntime
 
-private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
-
-  def unsafeToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
-    new Promise[A]({ (resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
-      self.unsafeRunAsync {
-        case Left(JavaScriptException(e)) =>
-          reject(e)
-
-        case Left(e) =>
-          reject(e)
-
-        case Right(value) =>
-          resolve(value)
-      }
-    })
+trait RunnersPlatform {
+  protected def runtime(): IORuntime = IORuntime.global
 }
