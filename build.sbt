@@ -87,11 +87,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, concurrent.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, example.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, concurrent.js, example.js)
   .settings(noPublishSettings)
 
 /**
@@ -147,7 +147,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, laws % Test, testkit % Test)
+  .dependsOn(kernel, concurrent, laws % Test, testkit % Test)
   .settings(
     name := "cats-effect",
 
@@ -159,6 +159,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
   .settings(dottyLibrarySettings)
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+
+/**
+ * Implementations of concurrent data structures (Ref, MVar, etc) purely in
+ * terms of cats effect typeclasses (no dependency on IO)
+ */
+lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"))
+  .dependsOn(kernel)
+  .settings(name := "cats-effect-concurrent")
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
