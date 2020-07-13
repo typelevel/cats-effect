@@ -37,5 +37,5 @@ trait RunnersPlatform extends BeforeAfterAll {
     })
   }
 
-  def afterAll(): Unit = runtime.shutdown()
+  def afterAll(): Unit = runtime().shutdown()
 }

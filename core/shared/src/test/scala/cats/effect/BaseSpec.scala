@@ -16,18 +16,6 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
-import cats.implicits._
-
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
-
-import org.specs2.matcher.Matcher
 import org.specs2.mutable.Specification
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
-
-import java.util.concurrent.TimeUnit
 
 trait BaseSpec extends Specification with Runners
