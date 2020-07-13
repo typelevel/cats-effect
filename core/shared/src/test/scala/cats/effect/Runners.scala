@@ -20,8 +20,28 @@ import org.specs2.execute.AsResult
 import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
+import scala.concurrent.{Await, Future, Promise, TimeoutException}
+import scala.concurrent.duration._
+
 trait Runners extends SpecificationLike with RunnersPlatform {
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => test.unsafeToFuture(runtime()))
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture(runtime()), 10.seconds))
+
+  private def timeout[A](f: Future[A], duration: FiniteDuration): Future[A] = {
+    val p = Promise[A]()
+    val r = runtime()
+    implicit val ec = r.compute
+
+    val cancel = r.scheduler.sleep(duration, { () =>
+      p.tryFailure(new TimeoutException)
+    })
+
+    f onComplete { result =>
+      p.tryComplete(result)
+      cancel.run()
+    }
+
+    p.future
+  }
 }

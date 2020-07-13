@@ -30,7 +30,9 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
+import java.util.concurrent.TimeUnit
+
+class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec with Runners { outer =>
   import OutcomeGenerators._
 
   sequential
@@ -436,6 +438,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "evaluate a timeout using sleep and race" in {
       IO.race(IO.never[Unit], IO.sleep(2.seconds)) must completeAs(Right(()))
+    }
+
+    "evaluate a timeout using sleep and race in real time" in real {
+      IO.race(IO.never[Unit], IO.sleep(10.millis)) flatMap { res =>
+        IO {
+          res must beRight(())
+        }
+      }
     }
 
     platformSpecs

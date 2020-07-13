@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.{CountDownLatch, Executors}
 
-abstract class IOPlatformSpecification extends Specification with ScalaCheck {
+abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
   def platformSpecs = {
     "shift delay evaluation within evalOn" in {
@@ -127,18 +127,12 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck {
       errors must beEmpty
     }
 
-    "reliably cancel infinite IO.unit(s)" in {
-      val test = IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel)
-      unsafeRunRealistic(test)() must beSome
-    }
-
     "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
       ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture()(unsafe.IORuntime(ctx, scheduler(), () => ()))))
     }
 
-    "evaluate a timeout using sleep and race in real time" in {
-      val test = IO.race(IO.never[Unit], IO.sleep(10.millis))
-      unsafeRunRealistic(test)() mustEqual Some(Right(()))
+    "reliably cancel infinite IO.unit(s)" in real {
+      IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
     }
   }
 
