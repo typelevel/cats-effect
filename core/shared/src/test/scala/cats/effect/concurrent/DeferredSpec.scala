@@ -26,10 +26,7 @@ import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-
-import java.util.concurrent.Executors
 
 class DeferredSpec extends Specification with Discipline with BaseSpec { outer =>
 
