@@ -18,11 +18,8 @@ package cats
 package effect
 package concurrent
 
-import cats.data.State
 import cats.effect.testkit.{OutcomeGenerators, TestContext}
 import cats.implicits._
-
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
 import org.specs2.specification.core.Fragments
 import org.specs2.mutable.Specification
@@ -32,11 +29,9 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.{TimeUnit, Executors}
+import java.util.concurrent.Executors
 
 class DeferredSpec extends Specification with Discipline with BaseSpec { outer =>
-
-  import OutcomeGenerators._
 
   sequential
 
