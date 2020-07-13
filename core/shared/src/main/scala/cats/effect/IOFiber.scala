@@ -56,30 +56,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * similar arguments. `cancel` and `join` are only made visible
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
- *
- * TODO! There are two concurrency issues in this implementation.
- * First, `canceled` is non-volatile. It can be set by the self
- * fiber in the evaluation of `Canceled`, and this is obviously
- * not problematic in any way. However, when it is set by another
- * fiber, it may not be immediately visible. The canceling fiber
- * will pass through a read/write barrier on `suspended` immediately
- * after setting, and subsequently a read/write barrier in the
- * Executor if the CAS fails, and thus `canceled` will be published
- * to memory, but the *canceled* fiber will not pass through a read
- * barrier on `suspended`, or anything else, until it hits an async
- * boundary (where it would set `suspended`) or a Cede, where it
- * would pass through the Executor. This means that cancelation of
- * an active runloop has lower granularity than we would like. This
- * is more a question of performance than correctness, since
- * cancelation is a hint.
- *
- * The second concurrency issue is more severe. `callbacks` may be
- * modified by multiple threads simultaneously in a case where
- * several fibers `join` on a single fiber at once. This race is
- * correctly handled in the case of the very first joiner and the
- * second joiner, but a race between the nth joiner and the n+1th
- * joiner where n > 1 will *not* be correctly handled, since it
- * will result in a simultaneous `push` on `SafeArrayStack`.
  */
 private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, initMask: Int) extends Fiber[IO, Throwable, A] {
   import IO._
@@ -97,9 +73,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   private[this] var masks: Int = _
   private[this] val finalizers = new ArrayStack[Outcome[IO, Throwable, Any] => IO[Unit]](16)    // TODO reason about whether or not the final finalizers are visible here
 
-  // TODO SafeArrayStack isn't safe enough here since multiple threads may push at once
-  // (Outcome[IO, Throwable, A] => Unit) | SafeArrayStack[Outcome[IO, Throwable, A] => Unit]
-  private[this] val callback: AtomicReference[AnyRef] = new AtomicReference()
+  private[this] val callbacks = new CallbackStack[A](null)
 
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
@@ -138,7 +112,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
   def this(scheduler: unsafe.Scheduler, cb: Outcome[IO, Throwable, A] => Unit, initMask: Int) = {
     this("main", scheduler, initMask)
-    callback.set(cb)
+    callbacks.push(cb)
   }
 
   var cancel: IO[Unit] = {
@@ -173,46 +147,31 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   var join: IO[Outcome[IO, Throwable, A]] =
     IO async { cb =>
       IO {
-        registerListener(oc => cb(Right(oc)))
-        None    // TODO maybe we can unregister the listener? (if we don't, it's probably a memory leak via the enclosing async)
+        val handle = registerListener(oc => cb(Right(oc)))
+
+        if (handle == null)
+          None     // we were already invoked, so no CallbackStack needs to be managed
+        else
+          Some(IO(handle.clearCurrent()))
       }
     }
 
-  private def registerListener(listener: Outcome[IO, Throwable, A] => Unit): Unit = {
+  // can return null, meaning that no CallbackStack needs to be later invalidated
+  private def registerListener(listener: Outcome[IO, Throwable, A] => Unit): CallbackStack[A] = {
     if (outcome.get() == null) {
-      @tailrec
-      def loop(): Unit = {
-        if (callback.get() == null) {
-          if (!callback.compareAndSet(null, listener)) {
-            loop()
-          }
-        } else {
-          val old0 = callback.get()
-          if (old0.isInstanceOf[Function1[_, _]]) {
-            val old = old0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
-
-            val stack = new SafeArrayStack[Outcome[IO, Throwable, A] => Unit](4)
-            stack.push(old)
-            stack.push(listener)
-
-            if (!callback.compareAndSet(old, stack)) {
-              loop()
-            }
-          } else {
-            val stack = old0.asInstanceOf[SafeArrayStack[Outcome[IO, Throwable, A] => Unit]]
-            stack.push(listener)
-          }
-        }
-      }
-
-      loop()
+      val back = callbacks.push(listener)
 
       // double-check
       if (outcome.get() != null) {
+        back.clearCurrent()
         listener(outcome.get())    // the implementation of async saves us from double-calls
+        null
+      } else {
+        back
       }
     } else {
       listener(outcome.get())
+      null
     }
   }
 
@@ -232,27 +191,10 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
 
-    val cb0 = callback.get()
     try {
-      if (cb0 == null) {
-        // println(s"<$name> completed with empty callback")
-      } else if (cb0.isInstanceOf[Function1[_, _]]) {
-        val cb = cb0.asInstanceOf[Outcome[IO, Throwable, A] => Unit]
-        cb(oc)
-      } else if (cb0.isInstanceOf[SafeArrayStack[_]]) {
-        val stack = cb0.asInstanceOf[SafeArrayStack[AnyRef]]
-
-        val bound = stack.unsafeIndex()
-        val buffer = stack.unsafeBuffer()
-
-        var i = 0
-        while (i < bound) {
-          buffer(i).asInstanceOf[Outcome[IO, Throwable, A] => Unit](oc)
-          i += 1
-        }
-      }
+      callbacks(oc)
     } finally {
-      callback.lazySet(null)    // avoid leaks
+      callbacks.lazySet(null)    // avoid leaks
     }
   }
 

@@ -447,6 +447,48 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
     }
 
+    "invoke multiple joins on fiber completion" in real {
+      val test = for {
+        f <- IO.pure(42).start
+
+        delegate1 <- f.join.start
+        delegate2 <- f.join.start
+        delegate3 <- f.join.start
+        delegate4 <- f.join.start
+
+        _ <- IO.cede
+
+        r1 <- delegate1.join
+        r2 <- delegate2.join
+        r3 <- delegate3.join
+        r4 <- delegate4.join
+      } yield List(r1, r2, r3, r4)
+
+      test flatMap { results =>
+        results traverse { result =>
+          IO(result must beLike { case Outcome.Completed(_) => ok }) flatMap { _ =>
+            result match {
+              case Outcome.Completed(ioa) =>
+                ioa flatMap { oc =>
+                  IO(result must beLike { case Outcome.Completed(_) => ok }) flatMap { _ =>
+                    oc match {
+                      case Outcome.Completed(ioa) =>
+                        ioa flatMap { i =>
+                          IO(i mustEqual 42)
+                        }
+
+                      case _ => sys.error("nope")
+                    }
+                  }
+                }
+
+              case _ => sys.error("nope")
+            }
+          }
+        }
+      }
+    }
+
     platformSpecs
   }
 
