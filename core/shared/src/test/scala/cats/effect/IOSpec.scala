@@ -30,8 +30,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.TimeUnit
-
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
   import OutcomeGenerators._
 

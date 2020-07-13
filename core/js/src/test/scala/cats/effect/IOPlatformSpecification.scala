@@ -16,11 +16,9 @@
 
 package cats.effect
 
-import cats.Eq
-import cats.effect.testkit.TestContext
-import cats.implicits._
+import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Prop}, Prop.forAll
+import org.scalacheck.Prop.forAll
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification

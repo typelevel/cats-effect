@@ -28,7 +28,7 @@ import org.specs2.mutable.SpecificationLike
 import org.specs2.specification.core.Execution
 
 import scala.annotation.implicitNotFound
-import scala.concurrent.{Await, ExecutionContext, Future, Promise, TimeoutException}
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
 
 import java.util.concurrent.TimeUnit

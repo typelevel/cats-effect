@@ -20,7 +20,6 @@ package concurrent
 
 import cats.{Eq, Show}
 import cats.data.State
-import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.ScalaCheck
