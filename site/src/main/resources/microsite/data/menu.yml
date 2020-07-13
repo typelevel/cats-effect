@@ -93,9 +93,10 @@ options:
     menu_section: guides
 
     nested_options:
-      - title: Tracing
-        url: guides/tracing.html
-        menu_section: guides
       - title: Tutorial
         url: guides/tutorial.html
+        menu_section: guides
+
+      - title: Tracing
+        url: guides/tracing.html
         menu_section: guides
