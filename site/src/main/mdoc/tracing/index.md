@@ -7,6 +7,7 @@ position: 2
 <nav role="navigation" id="toc"></nav>
 
 ## Introduction
+
 Tracing is an advanced feature of `IO` that offers insight into the execution 
 graph of a fiber. This unlocks a lot of power for developers in the realm of 
 debugging and introspection, not only in local development environments 
