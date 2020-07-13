@@ -173,6 +173,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"
       "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test
     )
   )
+  .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
