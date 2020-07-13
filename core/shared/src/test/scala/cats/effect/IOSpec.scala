@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
   import OutcomeGenerators._
 
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
   "io monad" should {
@@ -457,6 +458,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     checkAll(
       "IO",
       EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+  }
+
+  {
+    implicit val ticker = Ticker(TestContext())
 
     checkAll(
       "IO[Int]",

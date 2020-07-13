@@ -32,10 +32,6 @@ import scala.concurrent.duration._
 
 class LensRefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
 
-  sequential
-
-  val ctx = TestContext()
-
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
   implicit val integerEq: Eq[Integer] = new Eq[Integer] {
