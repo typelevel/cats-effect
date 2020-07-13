@@ -167,6 +167,29 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     success
   }
 
+  //TODO move this back to run on both JVM and JS once we have a better test
+  //setup than unsafeRunRealistic
+  "issue #380: complete doesn't block, test #2" in {
+    def execute(times: Int): IO[Boolean] = {
+      val task = for {
+        d <- Deferred[IO, Unit]
+        latch <- Deferred[IO, Unit]
+        fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
+        _ <- latch.get
+        _ <- timeout(d.complete(()),15.seconds).guarantee(fb.cancel)
+      } yield {
+        true
+      }
+
+      task.flatMap { r =>
+        if (times > 0) execute(times - 1)
+        else IO.pure(r)
+      }
+    }
+
+    unsafeRunRealistic(execute(100))() must beEqualTo(Some(true))
+  }
+
   //TODO remove once we have these as derived combinators again
   private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
     implicit F: Temporal[F, E]
@@ -179,5 +202,39 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
   private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
     timeoutTo(fa, duration, timeoutException)
+  }
+
+  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
+    // TODO this code is now in 4 places; should be in 1
+    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+      val t = new Thread({ () =>
+        try {
+          r.run()
+        } catch {
+          case t: Throwable =>
+            t.printStackTrace()
+            errors(t)
+        }
+      })
+      t.setDaemon(true)
+      t
+    })
+
+    val ctx = ExecutionContext.fromExecutor(executor)
+
+    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
+      val t = new Thread(r)
+      t.setName("io-scheduler")
+      t.setDaemon(true)
+      t.setPriority(Thread.MAX_PRIORITY)
+      t
+    }
+
+    try {
+      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+    } finally {
+      executor.shutdown()
+      scheduler.shutdown()
+    }
   }
 }
