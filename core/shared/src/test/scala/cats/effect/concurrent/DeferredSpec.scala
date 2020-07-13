@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.testkit.{OutcomeGenerators, TestContext}
+import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.specification.core.Fragments
