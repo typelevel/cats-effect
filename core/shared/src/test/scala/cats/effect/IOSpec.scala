@@ -33,16 +33,15 @@ import scala.concurrent.duration._
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
   import OutcomeGenerators._
 
+  // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
 
-  val ctx = TestContext()
-
   "io monad" should {
-    "produce a pure value when run" in {
+    "produce a pure value when run" in ticked { implicit ticker =>
       IO.pure(42) must completeAs(42)
     }
 
-    "suspend a side-effect without memoizing" in {
+    "suspend a side-effect without memoizing" in ticked { implicit ticker =>
       var i = 42
 
       val ioa = IO {
@@ -54,82 +53,82 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       ioa must completeAs(44)
     }
 
-    "capture errors in suspensions" in {
+    "capture errors in suspensions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO(throw TestException) must failAs(TestException)
     }
 
-    "resume value continuation within async" in {
+    "resume value continuation within async" in ticked { implicit ticker =>
       IO.async[Int](k => IO(k(Right(42))).map(_ => None)) must completeAs(42)
     }
 
-    "resume error continuation within async" in {
+    "resume error continuation within async" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.async[Unit](k => IO(k(Left(TestException))).as(None)) must failAs(TestException)
     }
 
-    "map results to a new type" in {
+    "map results to a new type" in ticked { implicit ticker =>
       IO.pure(42).map(_.toString) must completeAs("42")
     }
 
-    "flatMap results sequencing both effects" in {
+    "flatMap results sequencing both effects" in ticked { implicit ticker =>
       var i = 0
       IO.pure(42).flatMap(i2 => IO { i = i2 }) must completeAs(())
       i mustEqual 42
     }
 
-    "raiseError propagates out" in {
+    "raiseError propagates out" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.raiseError(TestException).void.flatMap(_ => IO.pure(())) must failAs(TestException)
     }
 
-    "errors can be handled" in {
+    "errors can be handled" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
     }
 
-    "start and join on a successful fiber" in {
+    "start and join on a successful fiber" in ticked { implicit ticker =>
       IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(Outcome.completed[IO, Throwable, Int](IO.pure(43)))
     }
 
-    "start and join on a failed fiber" in {
+    "start and join on a failed fiber" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.errored[IO, Throwable, Unit](TestException))
     }
 
-    "implement never with non-terminating semantics" in {
+    "implement never with non-terminating semantics" in ticked { implicit ticker =>
       IO.never must nonTerminate
     }
 
-    "start and ignore a non-terminating fiber" in {
+    "start and ignore a non-terminating fiber" in ticked { implicit ticker =>
       IO.never.start.as(42) must completeAs(42)
     }
 
-    "start a fiber then continue with its results" in {
+    "start a fiber then continue with its results" in ticked { implicit ticker =>
       IO.pure(42).start.flatMap(_.join) flatMap { oc =>
         oc.fold(IO.pure(0), _ => IO.pure(-1), ioa => ioa)
       } must completeAs(42)
     }
 
-    "continue from the results of an async produced prior to registration" in {
+    "continue from the results of an async produced prior to registration" in ticked { implicit ticker =>
       IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
     }
 
-    "produce a failure when the registration raises an error after callback" in {
+    "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException))).void must failAs(TestException)
     }
 
-    "cancel an infinite chain of right-binds" in {
+    "cancel an infinite chain of right-binds" in ticked { implicit ticker =>
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
       infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "cancel never" in {
+    "cancel never" in ticked { implicit ticker =>
       (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "cancel never after scheduling" in {
+    "cancel never after scheduling" in ticked { implicit ticker =>
       val ioa = for {
         f <- (IO.never: IO[Unit]).start
         ec <- IO.executionContext
@@ -141,7 +140,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "sequence async cancel token upon cancelation during suspension" in {
+    "sequence async cancel token upon cancelation during suspension" in ticked { implicit ticker =>
       var affected = false
 
       val target = IO.async[Unit] { _ =>
@@ -150,7 +149,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       val ioa = for {
         f <- target.start
-        _ <- IO(ctx.tickAll())
+        _ <- IO(ticker.ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
@@ -158,7 +157,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       affected must beTrue
     }
 
-    "suppress async cancel token upon cancelation in masked region" in {
+    "suppress async cancel token upon cancelation in masked region" in ticked { implicit ticker =>
       var affected = false
 
       val target = IO uncancelable { _ =>
@@ -169,7 +168,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       val ioa = for {
         f <- target.start
-        _ <- IO(ctx.tickAll())
+        _ <- IO(ticker.ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
@@ -177,49 +176,49 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       affected must beFalse
     }
 
-    "preserve contexts through start" in {
-      val ec = ctx.derive()
+    "preserve contexts through start" in ticked { implicit ticker =>
+      val ec = ticker.ctx.derive()
 
       val ioa = for {
         f <- IO.executionContext.start.evalOn(ec)
-        _ <- IO(ctx.tickAll())
+        _ <- IO(ticker.ctx.tickAll())
         oc <- f.join
       } yield oc
 
       ioa must completeAs(Outcome.completed[IO, Throwable, ExecutionContext](IO.pure(ec)))
     }
 
-    "preserve monad identity on async" in {
+    "preserve monad identity on async" in ticked { implicit ticker =>
       val fa = IO.async[Int](cb => IO(cb(Right(42))).as(None))
       fa.flatMap(i => IO.pure(i)) must completeAs(42)
       fa must completeAs(42)
     }
 
-    "preserve monad right identity on uncancelable" in {
+    "preserve monad right identity on uncancelable" in ticked { implicit ticker =>
       val fa = IO.uncancelable(_ => IO.canceled)
       fa.flatMap(IO.pure(_)) must nonTerminate
       fa must nonTerminate
     }
 
-    "cancel flatMap continuations following a canceled uncancelable block" in {
+    "cancel flatMap continuations following a canceled uncancelable block" in ticked { implicit ticker =>
       IO.uncancelable(_ => IO.canceled).flatMap(_ => IO.pure(())) must nonTerminate
     }
 
-    "cancel map continuations following a canceled uncancelable block" in {
+    "cancel map continuations following a canceled uncancelable block" in ticked { implicit ticker =>
       IO.uncancelable(_ => IO.canceled).map(_ => ()) must nonTerminate
     }
 
-    "mapping something with a finalizer should complete" in {
+    "mapping something with a finalizer should complete" in ticked { implicit ticker =>
       IO.pure(42).onCancel(IO.unit).as(()) must completeAs(())
     }
 
-    "uncancelable canceled with finalizer within fiber should not block" in {
+    "uncancelable canceled with finalizer within fiber should not block" in ticked { implicit ticker =>
       val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
 
       fab must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "uncancelable canceled with finalizer within fiber should flatMap another day" in {
+    "uncancelable canceled with finalizer within fiber should flatMap another day" in ticked { implicit ticker =>
       val fa = IO.pure(42)
       val fab: IO[Int => Int] =
         IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join).flatMap(_ => IO.pure((i: Int) => i))
@@ -228,17 +227,17 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       fab.flatMap(f => fa.map(f)) must completeAs(42)
     }
 
-    "sleep for ten seconds" in {
+    "sleep for ten seconds" in ticked { implicit ticker =>
       IO.sleep(10.seconds).as(1) must completeAs(1)
     }
 
-    "sleep for ten seconds and continue" in {
+    "sleep for ten seconds and continue" in ticked { implicit ticker =>
       var affected = false
       (IO.sleep(10.seconds) >> IO { affected = true }) must completeAs(())
       affected must beTrue
     }
 
-    "run an identity finalizer" in {
+    "run an identity finalizer" in ticked { implicit ticker =>
       var affected = false
 
       IO.unit onCase {
@@ -248,7 +247,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       affected must beTrue
     }
 
-    "run an identity finalizer and continue" in {
+    "run an identity finalizer and continue" in ticked { implicit ticker =>
       var affected = false
 
       val seed = IO.unit onCase {
@@ -260,7 +259,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       affected must beTrue
     }
 
-    "run multiple nested finalizers on cancel" in {
+    "run multiple nested finalizers on cancel" in ticked { implicit ticker =>
       var inner = false
       var outer = false
 
@@ -270,7 +269,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       outer must beTrue
     }
 
-    "run multiple nested finalizers on completion exactly once" in {
+    "run multiple nested finalizers on completion exactly once" in ticked { implicit ticker =>
       var inner = 0
       var outer = 0
 
@@ -280,7 +279,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       outer mustEqual 1
     }
 
-    "sequence onCancel when canceled before registration" in {
+    "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
       var passed = false
       val test = IO uncancelable { poll =>
         IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
@@ -290,7 +289,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       passed must beTrue
     }
 
-    "break out of uncancelable when canceled before poll" in {
+    "break out of uncancelable when canceled before poll" in ticked { implicit ticker =>
       var passed = true
       val test = IO uncancelable { poll =>
         IO.canceled >> poll(IO.unit) >> IO { passed = false }
@@ -300,7 +299,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       passed must beTrue
     }
 
-    "invoke onCase finalizer when cancelable async returns" in {
+    "invoke onCase finalizer when cancelable async returns" in ticked { implicit ticker =>
       var passed = false
 
       // convenient proxy for an async that returns a cancelToken
@@ -312,47 +311,47 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       passed must beTrue
     }
 
-    "hold onto errors through multiple finalizers" in {
+    "hold onto errors through multiple finalizers" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.raiseError(TestException).guarantee(IO.unit).guarantee(IO.unit) must failAs(TestException)
     }
 
-    "cede unit in a finalizer" in {
+    "cede unit in a finalizer" in ticked { implicit ticker =>
       val body = IO.sleep(1.second).start.flatMap(_.join).map(_ => 42)
       body.guarantee(IO.cede.map(_ => ())) must completeAs(42)
     }
 
-    "not invoke onCancel when previously canceled within uncancelable" in {
+    "not invoke onCancel when previously canceled within uncancelable" in ticked { implicit ticker =>
       var failed = false
       IO.uncancelable(_ => IO.canceled >> IO.unit.onCancel(IO { failed = true })) must nonTerminate
       failed must beFalse
     }
 
-    "complete a fiber with Canceled under finalizer on poll" in {
+    "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
       val ioa = IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
 
       ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "return the left when racing against never" in {
+    "return the left when racing against never" in ticked { implicit ticker =>
       IO.pure(42).racePair(IO.never: IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
-    "produce Canceled from start of canceled" in {
+    "produce Canceled from start of canceled" in ticked { implicit ticker =>
       IO.canceled.start.flatMap(_.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "cancel an already canceled fiber" in {
+    "cancel an already canceled fiber" in ticked { implicit ticker =>
       val test = for {
         f <- IO.canceled.start
-        _ <- IO(ctx.tickAll())
+        _ <- IO(ticker.ctx.tickAll())
         _ <- f.cancel
       } yield ()
 
       test must completeAs(())
     }
 
-    "only unmask within current fiber" in {
+    "only unmask within current fiber" in ticked { implicit ticker =>
       var passed = false
       val test = IO uncancelable { poll =>
         IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true })).start.flatMap(_.join).void
@@ -362,11 +361,11 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       passed must beTrue
     }
 
-    "produce the left when the right errors in racePair" in {
+    "produce the left when the right errors in racePair" in ticked { implicit ticker =>
       (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
-    "run three finalizers when an async is canceled while suspended" in {
+    "run three finalizers when an async is canceled while suspended" in ticked { implicit ticker =>
       var results = List[Int]()
 
       val body = IO.async[Nothing] { _ =>
@@ -375,7 +374,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       val test = for {
         f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
-        _ <- IO(ctx.tickAll())
+        _ <- IO(ticker.ctx.tickAll())
         _ <- f.cancel
         back <- IO(results)
       } yield back
@@ -383,7 +382,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       test must completeAs(List(1, 2, 3))
     }
 
-    "evaluate 10,000 consecutive map continuations" in {
+    "evaluate 10,000 consecutive map continuations" in ticked { implicit ticker =>
       def loop(i: Int): IO[Unit] =
         if (i < 10000)
           IO.unit.flatMap(_ => loop(i + 1)).map(u => u)
@@ -393,7 +392,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       loop(0) must completeAs(())
     }
 
-    "evaluate 10,000 consecutive handleErrorWith continuations" in {
+    "evaluate 10,000 consecutive handleErrorWith continuations" in ticked { implicit ticker =>
       def loop(i: Int): IO[Unit] =
         if (i < 10000)
           IO.unit.flatMap(_ => loop(i + 1)).handleErrorWith(IO.raiseError(_))
@@ -403,27 +402,29 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       loop(0) must completeAs(())
     }
 
-    "catch exceptions thrown in map functions" in {
+    "catch exceptions thrown in map functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.unit.map(_ => (throw TestException): Unit).attempt must completeAs(Left(TestException))
     }
 
-    "catch exceptions thrown in flatMap functions" in {
+    "catch exceptions thrown in flatMap functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.unit.flatMap(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
     }
 
-    "catch exceptions thrown in handleErrorWith functions" in {
+    "catch exceptions thrown in handleErrorWith functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       case object WrongException extends RuntimeException
       IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
     }
 
-    "round trip through s.c.Future" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture(unsafe.IORuntime(ctx, scheduler(), () => ()))))
+    "round trip through s.c.Future" in ticked { implicit ticker =>
+      forAll { (ioa: IO[Int]) =>
+        ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture()))
+      }
     }
 
-    "ignore repeated polls" in {
+    "ignore repeated polls" in ticked { implicit ticker =>
       var passed = true
 
       val test = IO uncancelable { poll =>
@@ -434,17 +435,31 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       passed must beTrue
     }
 
-    "evaluate a timeout using sleep and race" in {
+    "evaluate a timeout using sleep and race" in ticked { implicit ticker =>
       IO.race(IO.never[Unit], IO.sleep(2.seconds)) must completeAs(Right(()))
+    }
+
+    "evaluate a timeout using sleep and race in real time" in real {
+      IO.race(IO.never[Unit], IO.sleep(10.millis)) flatMap { res =>
+        IO {
+          res must beRight(())
+        }
+      }
     }
 
     platformSpecs
   }
 
   {
+    implicit val ticker = Ticker(TestContext())
+
     checkAll(
       "IO",
       EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+  }
+
+  {
+    implicit val ticker = Ticker(TestContext())
 
     checkAll(
       "IO[Int]",

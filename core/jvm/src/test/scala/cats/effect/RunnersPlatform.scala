@@ -16,6 +16,25 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
+import cats.effect.unsafe.IORuntime
 
-trait BaseSpec extends Specification with Runners
+import org.specs2.specification.BeforeAfterAll
+
+trait RunnersPlatform extends BeforeAfterAll {
+
+  private[this] var runtime0: IORuntime = _
+
+  protected def runtime(): IORuntime = runtime0
+
+  def beforeAll(): Unit = {
+    val (ctx, disp1) = IORuntime.createDefaultComputeExecutionContext(s"io-compute-${getClass.getName}")
+    val (sched, disp2) = IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+
+    runtime0 = IORuntime(ctx, sched, { () =>
+      disp1()
+      disp2()
+    })
+  }
+
+  def afterAll(): Unit = runtime().shutdown()
+}

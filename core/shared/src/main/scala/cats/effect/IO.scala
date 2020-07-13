@@ -181,7 +181,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunFiber(true)(cb)
 
-  def unsafeToFuture(implicit runtime: unsafe.IORuntime): Future[A] = {
+  def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
 
     unsafeRunAsync {

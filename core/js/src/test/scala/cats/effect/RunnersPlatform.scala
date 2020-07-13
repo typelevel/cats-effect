@@ -16,6 +16,8 @@
 
 package cats.effect
 
-import org.specs2.mutable.Specification
+import cats.effect.unsafe.IORuntime
 
-trait BaseSpec extends Specification with Runners
+trait RunnersPlatform {
+  protected def runtime(): IORuntime = IORuntime.global
+}

@@ -20,7 +20,6 @@ package concurrent
 
 import cats.{Eq, Show}
 import cats.data.State
-import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.ScalaCheck
@@ -31,10 +30,6 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.duration._
 
 class LensRefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
-
-  sequential
-
-  val ctx = TestContext()
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
@@ -68,7 +63,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
 
   "ref lens" should {
 
-    "get - returns B" in {
+    "get - returns B" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get(_), Foo.set(_))
@@ -78,7 +73,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs(0: Integer)
     }
 
-    "set - modifies underlying Ref" in {
+    "set - modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -89,7 +84,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs(Foo(1, -1))
     }
 
-    "getAndSet - modifies underlying Ref and returns previous value" in {
+    "getAndSet - modifies underlying Ref and returns previous value" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -100,7 +95,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((0: Integer, Foo(1, -1)))
     }
 
-    "update - modifies underlying Ref" in {
+    "update - modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -111,7 +106,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs(Foo(1, -1))
     }
 
-    "modify - modifies underlying Ref and returns a value" in {
+    "modify - modifies underlying Ref and returns a value" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -122,7 +117,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((10, Foo(1, -1)))
     }
 
-    "tryUpdate - successfully modifies underlying Ref" in {
+    "tryUpdate - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -133,7 +128,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((true, Foo(1, -1)))
     }
 
-    "tryUpdate - fails to modify original value if it's already been modified concurrently" in {
+    "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked { implicit ticker =>
       val updateRefUnsafely: Ref[IO, Integer] => Unit = (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
 
       val op = for {
@@ -149,7 +144,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((false, Foo(5, -1)))
     }
 
-    "tryModify - successfully modifies underlying Ref" in {
+    "tryModify - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -160,7 +155,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((Some("A"), Foo(1, -1)))
     }
 
-    "tryModify - fails to modify original value if it's already been modified concurrently" in {
+    "tryModify - fails to modify original value if it's already been modified concurrently" in ticked { implicit ticker =>
       val updateRefUnsafely: Ref[IO, Integer] => Unit = (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
 
       val op = for {
@@ -176,7 +171,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((None, Foo(5, -1)))
     }
 
-    "tryModifyState - successfully modifies underlying Ref" in {
+    "tryModifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -187,7 +182,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((Some("A"), Foo(1, -1)))
     }
 
-    "modifyState - successfully modifies underlying Ref" in {
+    "modifyState - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -198,7 +193,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs(("A", Foo(1, -1)))
     }
 
-    "access - successfully modifies underlying Ref" in {
+    "access - successfully modifies underlying Ref" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -211,7 +206,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((true, Foo(1, -1)))
     }
 
-    "access - successfully modifies underlying Ref after A is modified without affecting B" in {
+    "access - successfully modifies underlying Ref after A is modified without affecting B" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -225,7 +220,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((true, Foo(1, -2)))
     }
 
-    "access - setter fails to modify underlying Ref if value is modified before setter is called" in {
+    "access - setter fails to modify underlying Ref if value is modified before setter is called" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
@@ -239,7 +234,7 @@ class LensRefSpec extends Specification with Discipline with ScalaCheck with Bas
       op must completeAs((false, Foo(5, -1)))
     }
 
-    "access - setter fails the second time" in {
+    "access - setter fails the second time" in ticked { implicit ticker =>
       val op = for {
         refA <- Ref[IO].of(Foo(0, -1))
         refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
