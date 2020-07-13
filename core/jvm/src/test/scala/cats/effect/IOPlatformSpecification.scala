@@ -33,7 +33,7 @@ import java.util.concurrent.{CountDownLatch, Executors}
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
   def platformSpecs = {
-    "shift delay evaluation within evalOn" in {
+    "shift delay evaluation within evalOn" in real {
       val Exec1Name = "testing executor 1"
       val exec1 = Executors newSingleThreadExecutor { r =>
         val t = new Thread(r)
@@ -72,29 +72,14 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         }
       }
 
-      implicit val t4s: Show[(String, String, String, String)] =
-        Show.fromToString
-
-      var result: Either[Throwable, (String, String, String, String)] = null
-      val latch = new CountDownLatch(1)
-
-      // this test is weird because we're making our own contexts, so we can't use TestContext at all
-      val platform = {
-        val ec = ExecutionContext.fromExecutor(exec3)
-        val ses = Executors.newScheduledThreadPool(1)
-        unsafe.IORuntime(ExecutionContext.fromExecutor(exec3), unsafe.Scheduler.fromScheduledExecutor(ses), () => ses.shutdown())
+      test.evalOn(ExecutionContext.fromExecutor(exec3)) flatMap { result =>
+        IO {
+          result mustEqual ((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
+        }
       }
-      test.unsafeRunAsync { e =>
-        result = e
-        latch.countDown()
-      }(platform)
-
-      latch.await()
-      platform.shutdown()
-      result must beRight((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
     }
 
-    "start 1000 fibers in parallel and await them all" in {
+    "start 1000 fibers in parallel and await them all" in real {
       val input = (0 until 1000).toList
 
       val ioa = for {
@@ -102,20 +87,17 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         _ <- fibers.traverse_(_.join.void)
       } yield ()
 
-      unsafeRunRealistic(ioa)() must beSome
+      ioa.as(ok)
     }
 
-    "start 1000 fibers in series and await them all" in {
+    "start 1000 fibers in series and await them all" in real {
       val input = (0 until 1000).toList
       val ioa = input.traverse(i => IO.pure(i).start.flatMap(_.join))
 
-      unsafeRunRealistic(ioa)() must beSome
+      ioa.as(ok)
     }
 
-    "race many things" in {
-      @volatile
-      var errors = List[Throwable]()
-
+    "race many things" in real {
       val task = (0 until 100).foldLeft(IO.never[Int]) { (acc, _) =>
         IO.race(acc, IO(1)).map {
           case Left(i)  => i
@@ -123,56 +105,17 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
         }
       }
 
-      unsafeRunRealistic(task)(errors ::= _) must beSome
-      errors must beEmpty
+      task.as(ok)
     }
 
-    "round trip through j.u.c.CompletableFuture" in forAll { (ioa: IO[Int]) =>
-      ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture()(unsafe.IORuntime(ctx, scheduler(), () => ()))))
+    "round trip through j.u.c.CompletableFuture" in ticked { implicit ticker =>
+      forAll { (ioa: IO[Int]) =>
+        ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture()))
+      }
     }
 
     "reliably cancel infinite IO.unit(s)" in real {
       IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
     }
   }
-
-  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
-    // TODO this code is now in 3 places; should be in 1
-    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
-      val t = new Thread({ () =>
-        try {
-          r.run()
-        } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            errors(t)
-        }
-      })
-      t.setDaemon(true)
-      t
-    })
-
-    val ctx = ExecutionContext.fromExecutor(executor)
-
-    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
-      val t = new Thread(r)
-      t.setName("io-scheduler")
-      t.setDaemon(true)
-      t.setPriority(Thread.MAX_PRIORITY)
-      t
-    }
-
-    try {
-      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
-    } finally {
-      executor.shutdown()
-      scheduler.shutdown()
-    }
-  }
-
-  val ctx: TestContext
-  def scheduler(): unsafe.Scheduler
-
-  implicit def arbitraryIO[A: Arbitrary: Cogen]: Arbitrary[IO[A]]
-  implicit def eqIOA[A: Eq]: Eq[IO[A]]
 }

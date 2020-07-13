@@ -39,7 +39,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
 
   "ref" should {
     //TODO need parallel instance for IO
-    // "support concurrent modifications" in {
+    // "support concurrent modifications" in ticked { implicit ticker =>
     //   val finalValue = 100
     //   val r = Ref.unsafe[IO, Int](0)
     //   val modifies = List.fill(finalValue)(r.update(_ + 1)).parSequence
@@ -47,7 +47,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
 
     // }
 
-    "get and set successfully" in {
+    "get and set successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         getAndSetResult <- r.getAndSet(1)
@@ -58,7 +58,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
 
     }
 
-    "get and update successfully" in {
+    "get and update successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         getAndUpdateResult <- r.getAndUpdate(_ + 1)
@@ -68,7 +68,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "update and get successfully" in {
+    "update and get successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         updateAndGetResult <- r.updateAndGet(_ + 1)
@@ -78,7 +78,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "access successfully" in {
+    "access successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         valueAndSetter <- r.access
@@ -90,7 +90,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "access - setter should fail if value is modified before setter is called" in {
+    "access - setter should fail if value is modified before setter is called" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         valueAndSetter <- r.access
@@ -103,7 +103,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "access - setter should fail if called twice" in {
+    "access - setter should fail if called twice" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         valueAndSetter <- r.access
@@ -117,7 +117,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "access - setter should fail if called twice" in {
+    "access - setter should fail if called twice" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         valueAndSetter <- r.access
@@ -131,7 +131,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "tryUpdate - modification occurs successfully" in {
+    "tryUpdate - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         result <- r.tryUpdate(_ + 1)
@@ -141,7 +141,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "tryUpdate - should fail to update if modification has occurred" in {
+    "tryUpdate - should fail to update if modification has occurred" in ticked { implicit ticker =>
       val updateRefUnsafely: Ref[IO, Int] => Unit = (ref: Ref[IO, Int]) => unsafeRun(ref.update(_ + 1))
 
       val op = for {
@@ -155,7 +155,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(false)
     }
 
-    "tryModifyState - modification occurs successfully" in {
+    "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         result <- r.tryModifyState(State.pure(1))
@@ -164,7 +164,7 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "modifyState - modification occurs successfully" in {
+    "modifyState - modification occurs successfully" in ticked { implicit ticker =>
       val op = for {
         r <- Ref[IO].of(0)
         result <- r.modifyState(State.pure(1))
