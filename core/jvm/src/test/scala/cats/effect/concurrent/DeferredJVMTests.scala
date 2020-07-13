@@ -24,7 +24,6 @@ import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
-import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)

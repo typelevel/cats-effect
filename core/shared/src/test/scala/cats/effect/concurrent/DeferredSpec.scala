@@ -18,17 +18,12 @@ package cats
 package effect
 package concurrent
 
-import cats.{Eq, Order, Show}
 import cats.data.State
-import cats.kernel.laws.discipline.MonoidTests
-import cats.effect.laws.EffectTests
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{OutcomeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
 
-import org.specs2.ScalaCheck
-import org.specs2.matcher.Matcher
 import org.specs2.specification.core.Fragments
 import org.specs2.mutable.Specification
 
@@ -39,7 +34,7 @@ import scala.concurrent.duration._
 
 import java.util.concurrent.{TimeUnit, Executors}
 
-class DeferredSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
+class DeferredSpec extends Specification with Discipline with BaseSpec { outer =>
 
   import OutcomeGenerators._
 
