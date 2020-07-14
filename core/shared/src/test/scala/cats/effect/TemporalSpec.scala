@@ -31,7 +31,7 @@ class TemporalSpec extends BaseSpec { outer =>
   "temporal" should {
     "timeout" should {
       "succeed" in real {
-        val op = Temporal.timeout(IO.pure(true), 5.millis)
+        val op = Temporal.timeout(IO.pure(true), 100.millis)
 
         op.flatMap { res =>
           IO {
