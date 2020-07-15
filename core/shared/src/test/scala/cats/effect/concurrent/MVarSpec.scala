@@ -17,7 +17,6 @@
 package cats.effect
 package concurrent
 
-import cats.effect.internals.Platform
 import cats.effect.kernel.Outcome._
 
 import scala.concurrent.duration._
@@ -382,7 +381,7 @@ class MVarSpec extends BaseSpec {
           ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch))
         }
 
-    val count = if (Platform.isJvm) 10000 else 5000
+    val count = 10000
     val op = init(1).flatMap(loop(count, 0))
 
     op.flatMap { res =>
@@ -393,7 +392,7 @@ class MVarSpec extends BaseSpec {
   }
 
   def testStackSequential(channel: MVar[IO, Int]): (Int, IO[Int], IO[Unit]) = {
-    val count = if (Platform.isJvm) 10000 else 5000
+    val count = 10000
 
     def readLoop(n: Int, acc: Int): IO[Int] =
       if (n > 0)
