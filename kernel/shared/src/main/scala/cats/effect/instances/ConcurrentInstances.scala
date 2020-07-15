@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.instances
 
-package object syntax {
-  object all extends AllSyntax
-  object async extends AsyncSyntax
-  object concurrent extends ConcurrentSyntax
+trait ConcurrentInstances {
+  // TODO Parallel[F] given Concurrent[F] goes here!
 }
