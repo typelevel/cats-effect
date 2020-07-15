@@ -17,7 +17,6 @@
 package cats.effect
 package concurrent
 
-import cats.implicits._
 import cats.effect.internals.Platform
 import cats.effect.kernel.Outcome._
 
