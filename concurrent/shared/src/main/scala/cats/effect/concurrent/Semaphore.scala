@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{Async, AsyncBracket, Outcome, Sync}
+import cats.effect.kernel.{AsyncBracket, Outcome, Sync}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
