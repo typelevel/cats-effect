@@ -867,6 +867,16 @@ abstract private[effect] class IOLowPriorityInstances extends IOParallelNewtype 
 
     final override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
       fa.map(f)
+
+    final override def map2Eval[A, B, C](fa: IO[A], fb: Eval[IO[B]])(fn: (A, B) => C): Eval[IO[C]] =
+      // we maybe can skip evaluating fb if fa is a failure
+      Eval.now(
+        for {
+          a <- fa
+          b <- fb.value
+        } yield fn(a, b)
+      )
+
     final override def flatMap[A, B](ioa: IO[A])(f: A => IO[B]): IO[B] =
       ioa.flatMap(f)
 
