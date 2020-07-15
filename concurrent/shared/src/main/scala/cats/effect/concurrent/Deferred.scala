@@ -18,7 +18,6 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.concurrent.LinkedMap
 import cats.effect.concurrent.Deferred.TransformedDeferred
 import cats.effect.kernel.{Async, Sync}
 
