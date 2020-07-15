@@ -60,4 +60,6 @@ package object kernel {
   object AsyncRegion {
     def apply[R[_[_], _], F[_]](implicit R: AsyncRegion[R, F]): AsyncRegion[R, F] = R
   }
+
+  type CancelToken[F[_]] = F[Unit]
 }
