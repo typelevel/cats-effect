@@ -16,4 +16,8 @@
 
 package cats.effect.syntax
 
-package object syntax extends AllSyntax {}
+package object syntax {
+  object all extends AllSyntax
+  object async extends AsyncSyntax
+  object concurrent extends ConcurrentSyntax
+}
