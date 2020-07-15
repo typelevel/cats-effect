@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package internals
+package concurrent
 
 import scala.collection.immutable.LongMap
 
@@ -25,7 +25,7 @@ import scala.collection.immutable.LongMap
  * traversed in the order they were inserted.  Alternative to `ListMap` that
  * has better asymptotic performance at the cost of more memory usage.
  */
-private[effect] class LinkedMap[K, +V](
+private[concurrent] class LinkedMap[K, +V](
   val entries: Map[K, (V, Long)],
   private[this] val insertionOrder: LongMap[K],
   private[this] val nextId: Long
@@ -66,7 +66,7 @@ private[effect] class LinkedMap[K, +V](
     keys.zip(values).mkString("LinkedMap(", ", ", ")")
 }
 
-private[effect] object LinkedMap {
+private[concurrent] object LinkedMap {
   def empty[K, V]: LinkedMap[K, V] =
     emptyRef.asInstanceOf[LinkedMap[K, V]]
 
