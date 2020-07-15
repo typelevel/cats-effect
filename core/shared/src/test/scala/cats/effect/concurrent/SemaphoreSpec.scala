@@ -18,30 +18,18 @@ package cats
 package effect
 package concurrent
 
-import cats.{Eq, Show}
 import cats.data.State
 import cats.effect.kernel.Effect
-import cats.effect.testkit.TestContext
 import cats.implicits._
 
-import org.specs2.ScalaCheck
-import org.specs2.matcher.MatchResult
-import org.specs2.mutable.Specification
-import org.specs2.specification.core.{Fragment, Fragments}
-
-import org.typelevel.discipline.specs2.mutable.Discipline
+// import org.specs2.matcher.MatchResult
+import org.specs2.specification.core.Fragments
 
 import scala.concurrent.duration._
 
-class SemaphoreSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
+class SemaphoreSpec extends BaseSpec { outer =>
 
   sequential
-
-  val ctx = TestContext()
-
-  implicit def semaphoreShow[F[_]]: Show[Semaphore[F]] = new Show[Semaphore[F]] {
-    override def show(s: Semaphore[F]) = "Sem()"
-  }
 
   "semaphore" should {
 
@@ -49,7 +37,7 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
     tests("async in", n => Semaphore.in[IO, IO](n))
     tests("async imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect[IO].toK, Effect[IO].toK)))
 
-    "acquire does not leak permits upon cancelation" in {
+    "acquire does not leak permits upon cancelation" in real {
       val op = Semaphore[IO](1L)
         .flatMap { s =>
           // acquireN(2) will get 1 permit and then timeout waiting for another,
@@ -59,10 +47,14 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           timeout(s.acquireN(2L), 1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
         }
 
-      op must completeAs(2: Long)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(2: Long)
+        }
+      }
     }
 
-    "withPermit does not leak fibers or permits upon cancelation" in {
+    "withPermit does not leak fibers or permits upon cancelation" in real {
       val op = Semaphore[IO](0L)
         .flatMap { s =>
           // The inner s.release should never be run b/c the timeout will be reached before a permit
@@ -72,7 +64,11 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           timeout(s.withPermit(s.release), 1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
         }
 
-      op must completeAs(1: Long)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(1: Long)
+        }
+      }
     }
 
   }
@@ -85,20 +81,30 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
   //   }
 
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Fragments = {
-    s"$label - do not allow negative n" in {
-      sc(-42).attempt must completeMatching(beLike {
-        case Left(v) => v must haveClass[IllegalArgumentException]
-      })
+    s"$label - do not allow negative n" in real {
+      val op = sc(-42).attempt
+
+      op.flatMap { res =>
+        IO {
+          res must beLike {
+            case Left(e) => e must haveClass[IllegalArgumentException]
+          }
+        }
+      }
     }
 
-    s"$label - acquire n synchronously" in {
+    s"$label - acquire n synchronously" in real {
       val n = 20
       val op = sc(20)
         .flatMap { s =>
           (0 until n).toList.traverse(_ => s.acquire).void *> s.available
         }
 
-      op must completeAs(0: Long)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(0: Long)
+        }
+      }
     }
 
     //TODO this requires background, which in turn requires Resource
@@ -131,7 +137,7 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
     //     .map(_ shouldBe ((-1, 0)))
     // }
 
-    s"$label - tryAcquire with available permits" in {
+    s"$label - tryAcquire with available permits" in real {
       val n = 20
       val op = sc(30)
         .flatMap { s =>
@@ -141,10 +147,14 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield t
         }
 
-      op must completeAs(true)
+      op.flatMap { res =>
+        IO {
+          res must beTrue
+        }
+      }
     }
 
-    s"$label - tryAcquire with no available permits" in {
+    s"$label - tryAcquire with no available permits" in real {
       val n = 20
       val op = sc(20)
         .flatMap { s =>
@@ -154,7 +164,11 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield t
         }
 
-      op must completeAs(false)
+      op.flatMap { res =>
+        IO {
+          res must beFalse
+        }
+      }
     }
 
     //TODO requires NonEmptyParallel for IO
@@ -169,7 +183,7 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
     //                                  (s, permits) => permits.reverse.parTraverse(s.releaseN).void)
     // }
 
-    s"$label - available with available permits" in {
+    s"$label - available with available permits" in real {
       val op = sc(20)
         .flatMap { s =>
           for {
@@ -178,10 +192,14 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield t
         }
 
-      op must completeAs(1: Long)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(1: Long)
+        }
+      }
     }
 
-    s"$label - available with 0 available permits" in {
+    s"$label - available with 0 available permits" in real {
       val op = sc(20)
         .flatMap { s =>
           for {
@@ -190,10 +208,14 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield t
         }
 
-      op must completeAs(0: Long)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(0: Long)
+        }
+      }
     }
 
-    s"$label - count with available permits" in {
+    s"$label - count with available permits" in real {
       val n = 18
       val op = sc(20)
         .flatMap { s =>
@@ -204,9 +226,13 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield (a, t)
         }
 
-      op must completeMatching(beLike {
-        case (available, count) => available must beEqualTo(count)
-      })
+      op.flatMap { res =>
+        IO {
+          res must beLike {
+            case (available, count) => available must beEqualTo(count)
+          }
+        }
+      }
     }
 
     //TODO this requires background, which in turn requires Resource
@@ -223,7 +249,7 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
     //   op must completeAs((-n, n))
     // }
 
-    s"$label - count with 0 available permits" in {
+    s"$label - count with 0 available permits" in real {
       val op = sc(20)
         .flatMap { s =>
           for {
@@ -233,9 +259,14 @@ class SemaphoreSpec extends Specification with Discipline with ScalaCheck with B
           } yield t
         }
 
-      op must completeMatching(beLike {
-        case Outcome.Completed(ioa) => ioa must completeAs(0: Long)
-      })
+      op.flatMap {
+        case Outcome.Completed(ioa) => ioa.flatMap { res =>
+          IO {
+            res must beEqualTo(0: Long)
+          }
+        }
+        case _ => IO.pure(false must beTrue) //Is there a not a `const failure` matcher?
+      }
     }
 
   }
