@@ -16,8 +16,4 @@
 
 package cats.effect
 
-package object syntax {
-  object all extends AllSyntax
-  object async extends AsyncSyntax
-  object concurrent extends ConcurrentSyntax
-}
+object implicits extends syntax.AllSyntax with instances.AllInstances
