@@ -18,21 +18,15 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.specs2.specification.core.Fragments
-import org.specs2.mutable.Specification
-
-import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class DeferredSpec extends Specification with Discipline with BaseSpec { outer =>
+class DeferredSpec extends BaseSpec { outer =>
 
   sequential
-
-  val ctx = TestContext()
 
   trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
   trait TryableDeferredConstructor { def apply[A]: IO[TryableDeferred[IO, A]] }
@@ -44,11 +38,15 @@ class DeferredSpec extends Specification with Discipline with BaseSpec { outer =
 
     tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
 
-    "concurrent - get - cancel before forcing" in {
-      cancelBeforeForcing(Deferred.apply) must completeAs(None)
+    "concurrent - get - cancel before forcing" in real {
+      cancelBeforeForcing(Deferred.apply).flatMap {res =>
+        IO {
+          res must beNone
+        }
+      }
     }
 
-    "issue #380: complete doesn't block, test #1" in {
+    "issue #380: complete doesn't block, test #1" in real {
       def execute(times: Int): IO[Boolean] = {
         def foreverAsync(i: Int): IO[Unit] =
           if (i == 512) IO.async[Unit] { cb =>
@@ -73,33 +71,45 @@ class DeferredSpec extends Specification with Discipline with BaseSpec { outer =
         }
       }
 
-      execute(100) must completeAs(true)
+      execute(100).flatMap { res =>
+        IO {
+          res must beTrue
+        }
+      }
     }
 
   }
 
   def tests(label: String, pc: DeferredConstructor): Fragments = {
-    s"$label - complete" in {
-      pc[Int]
+    s"$label - complete" in real {
+      val op = pc[Int]
         .flatMap { p =>
           p.complete(0) *> p.get
-        } must completeAs(0)
+        }
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(0)
+        }
+      }
     }
 
-    s"$label - complete is only successful once" in {
+    s"$label - complete is only successful once" in real {
       val op = pc[Int]
         .flatMap { p =>
           (p.complete(0) *> p.complete(1).attempt).product(p.get)
         }
 
-      println(unsafeRun(op))
-
-      op must completeMatching(beLike {
-        case (Left(e), 0) => e must haveClass[IllegalStateException]
-      })
+      op.flatMap { res =>
+        IO {
+          res must beLike {
+            case (Left(e), 0) => e must haveClass[IllegalStateException]
+          }
+        }
+      }
     }
 
-    s"$label - get blocks until set" in {
+    s"$label - get blocks until set" in real {
       val op = for {
         state <- Ref[IO].of(0)
         modifyGate <- pc[Unit]
@@ -110,23 +120,37 @@ class DeferredSpec extends Specification with Discipline with BaseSpec { outer =
         res <- state.get
       } yield res
 
-      op must completeAs(2)
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(2)
+        }
+      }
     }
   }
 
   def tryableTests(label: String, pc: TryableDeferredConstructor): Fragments = {
-    s"$label - tryGet returns None for unset Deferred" in {
-      pc[Unit].flatMap(_.tryGet) must completeAs(None)
+    s"$label - tryGet returns None for unset Deferred" in real {
+      val op = pc[Unit].flatMap(_.tryGet)
+
+      op.flatMap { res =>
+        IO {
+          res must beNone
+        }
+      }
     }
 
-    s"$label - tryGet returns Some() for set Deferred" in {
+    s"$label - tryGet returns Some() for set Deferred" in real {
       val op = for {
         d <- pc[Unit]
         _ <- d.complete(())
         result <- d.tryGet
       } yield result
 
-      op must completeAs(Some(()))
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(Some(()))
+        }
+      }
     }
   }
 
