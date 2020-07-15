@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package internals
+package concurrent
 
 import scala.collection.immutable.LongMap
 

@@ -20,7 +20,6 @@ package concurrent
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
 import cats.effect.kernel.{Async, Sync}
-import cats.effect.internals.LinkedMap
 
 import java.util.concurrent.atomic.AtomicReference
 
