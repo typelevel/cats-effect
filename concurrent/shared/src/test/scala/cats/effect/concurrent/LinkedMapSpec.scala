@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect.concurrent
 
 import org.specs2.mutable.Specification
 
