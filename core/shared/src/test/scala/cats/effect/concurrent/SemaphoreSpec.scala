@@ -18,7 +18,6 @@ package cats
 package effect
 package concurrent
 
-import cats.data.State
 import cats.effect.kernel.Effect
 import cats.implicits._
 
