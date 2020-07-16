@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, ParallelFGenerators, TestContext}
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit
 
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
+  import ParallelFGenerators._
 
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
@@ -76,14 +77,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
     Arbitrary(generators.generators[A])
   }
-
-  implicit def arbitraryParallelF[F[_], A](implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =
-    Arbitrary {
-      ArbF.arbitrary.map(f => ParallelF(f))
-    }
-
-  implicit def eqParallelF[F[_], A](implicit EqF: Eq[F[A]]): Eq[ParallelF[F, A]] =
-    EqF.imap(ParallelF.apply)(ParallelF.value)
 
   implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
     import TimeUnit._

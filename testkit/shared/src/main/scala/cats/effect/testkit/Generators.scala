@@ -16,7 +16,7 @@
 
 package cats.effect.testkit
 
-import cats.{Applicative, ApplicativeError, Monad, MonadError}
+import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError, Show}
 import cats.effect.kernel._
 import cats.implicits._
 
@@ -274,6 +274,16 @@ trait AsyncGenerators[F[_]] extends TemporalGenerators[F, Throwable] with SyncGe
       fa <- deeper[A]
       ec <- arbitraryEC.arbitrary
     } yield F.evalOn(fa, ec)
+}
+
+object ParallelFGenerators {
+  implicit def arbitraryParallelF[F[_], A](implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =
+    Arbitrary {
+      ArbF.arbitrary.map(f => ParallelF(f))
+    }
+
+  implicit def eqParallelF[F[_], A](implicit EqF: Eq[F[A]]): Eq[ParallelF[F, A]] =
+    EqF.imap(ParallelF.apply)(ParallelF.value)
 }
 
 object OutcomeGenerators {

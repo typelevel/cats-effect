@@ -489,6 +489,17 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
     }
 
+    "run parallel actually in parallel" in real {
+      val x = IO.sleep(2.seconds) >> IO.pure(1)
+      val y = IO.sleep(2.seconds) >> IO.pure(2)
+
+      List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
+        IO {
+          res mustEqual List(1, 2)
+        }
+      }
+    }
+
     platformSpecs
   }
 
