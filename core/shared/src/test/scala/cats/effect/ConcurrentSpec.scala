@@ -18,9 +18,9 @@ package cats
 package effect
 package concurrent
 
-import cats.{Eq, Show}
-import cats.data.State
+import cats.laws.discipline._
 import cats.implicits._
+import cats.effect.testkit.{ConcurrentGenerators, TestContext}
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
@@ -34,7 +34,7 @@ class ConcurrentSpec extends Specification with Discipline with BaseSpec { outer
   sequential
 
   "concurrent" should {
-    "have a parrel instance that" should {
+    "have a parallel instance that" should {
       "run in parallel" in real {
         val x = IO.sleep(2.seconds) >> IO.pure(1)
         val y = IO.sleep(2.seconds) >> IO.pure(2)
@@ -46,6 +46,14 @@ class ConcurrentSpec extends Specification with Discipline with BaseSpec { outer
         }
       }
     }
+  }
+
+  {
+    implicit val ticker = Ticker(TestContext())
+
+    checkAll(
+      "IO",
+      ParallelTests[IO].parallel[Int, Int])
   }
 
   //TODO remove once we have these as derived combinators again
