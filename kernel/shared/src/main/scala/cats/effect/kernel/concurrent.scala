@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import Par._
-import cats.{~>, ApplicativeError, MonadError, Parallel}
+import cats.{~>, ApplicativeError, MonadError}
 import cats.implicits._
 import cats.Monad
 
@@ -83,22 +83,4 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
-
-  implicit def parallelForConcurrent[M[_], E](implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
-    new Parallel[M] {
-      type F[A] = ParallelF[M, A]
-
-      def applicative = ParallelF.applicativeForParallelF[M, E]
-
-      def monad: Monad[M] = M
-
-      def sequential: F ~> M = new (F ~> M) {
-        def apply[A](fa: F[A]): M[A] = ParallelF.value[M, A](fa)
-      }
-
-      def parallel: M ~> F = new (M ~> F) {
-        def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
-      }
-
-    }
 }

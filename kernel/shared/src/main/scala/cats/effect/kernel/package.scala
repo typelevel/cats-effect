@@ -60,4 +60,7 @@ package object kernel {
   object AsyncRegion {
     def apply[R[_[_], _], F[_]](implicit R: AsyncRegion[R, F]): AsyncRegion[R, F] = R
   }
+
+  type ParallelF[F[_], A] = Par.ParallelF[F, A]
+  val ParallelF = Par.ParallelF
 }

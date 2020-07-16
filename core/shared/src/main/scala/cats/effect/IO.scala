@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.{Eval, Monoid, Now, Parallel, Semigroup, Show, StackSafeMonad, ~>}
 import cats.implicits._
+import cats.effect.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -417,7 +418,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
-  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = Concurrent.parallelForConcurrent[IO, Throwable]
+  // implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = Parallel[IO, ParallelF[IO, *]]
+  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = implicits.parallelForConcurrent[IO, Throwable]
 
   // implementations
 
