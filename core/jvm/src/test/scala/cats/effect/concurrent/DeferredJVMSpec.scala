@@ -30,7 +30,9 @@ class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with BeforeAfterEach {
+abstract class BaseDeferredJVMTests(parallelism: Int)
+    extends Specification
+    with BeforeAfterEach {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -83,9 +85,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
       val task = for {
         df <- cats.effect.concurrent.Deferred[IO, Unit]
         fb <- get(df).start
-        _ <- IO(Thread.currentThread().getName must be equalTo(name))
+        _ <- IO(Thread.currentThread().getName mustEqual name)
         _ <- df.complete(())
-        _ <- IO(Thread.currentThread().getName must be equalTo(name))
+        _ <- IO(Thread.currentThread().getName mustEqual name)
         _ <- fb.join
       } yield ()
 
@@ -108,7 +110,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
           latch <- Deferred[IO, Unit]
           fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
           _ <- latch.get
-          _ <- cleanupOnError(timeout(df.complete(()),timeout), fb)
+          _ <- cleanupOnError(timeout(df.complete(()), timeout), fb)
           _ <- fb.cancel
         } yield ()
 
@@ -132,7 +134,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _ <- latch.get
-        _ <- cleanupOnError(timeout(d.complete(()),timeout), fb)
+        _ <- cleanupOnError(timeout(d.complete(()), timeout), fb)
         _ <- fb.cancel
       } yield true
     }
@@ -155,7 +157,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _ <- latch.get
-        _ <- cleanupOnError(timeout(d.complete(()),timeout), fb)
+        _ <- cleanupOnError(timeout(d.complete(()), timeout), fb)
         _ <- fb.cancel
       } yield true
     }
@@ -176,7 +178,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
         _ <- latch.get
-        _ <- timeout(d.complete(()),15.seconds).guarantee(fb.cancel)
+        _ <- timeout(d.complete(()), 15.seconds).guarantee(fb.cancel)
       } yield {
         true
       }
@@ -192,33 +194,38 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
 
   //TODO remove once we have these as derived combinators again
   private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-    implicit F: Temporal[F, E]
+      implicit F: Temporal[F, E]
   ): F[A] =
     F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
+      case Left(a) => F.pure(a)
       case Right(_) => fallback
     }
 
-  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
+  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(
+      implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
     timeoutTo(fa, duration, timeoutException)
   }
 
-  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
+  def unsafeRunRealistic[A](ioa: IO[A])(
+      errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
     // TODO this code is now in 4 places; should be in 1
-    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
-      val t = new Thread({ () =>
-        try {
-          r.run()
-        } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            errors(t)
-        }
-      })
-      t.setDaemon(true)
-      t
-    })
+    val executor = Executors.newFixedThreadPool(
+      Runtime.getRuntime().availableProcessors(),
+      { (r: Runnable) =>
+        val t = new Thread({ () =>
+          try {
+            r.run()
+          } catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              errors(t)
+          }
+        })
+        t.setDaemon(true)
+        t
+      }
+    )
 
     val ctx = ExecutionContext.fromExecutor(executor)
 
@@ -231,7 +238,8 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     }
 
     try {
-      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+      ioa.unsafeRunTimed(10.seconds)(
+        unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()

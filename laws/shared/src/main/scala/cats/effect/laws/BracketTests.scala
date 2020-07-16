@@ -31,8 +31,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
   val laws: BracketLaws[F, E]
 
   def bracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -62,8 +61,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       fuPP: F[Unit] => Pretty,
       ePP: E => Pretty,
       feeaPP: F[Either[E, A]] => Pretty,
-      feeuPP: F[Either[E, Unit]] => Pretty)
-      : RuleSet = {
+      feeuPP: F[Either[E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "bracket"
@@ -73,16 +71,20 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       val props = Seq(
         "onCase pure coherence" -> forAll(laws.onCasePureCoherence[A] _),
         "onCase error coherence" -> forAll(laws.onCaseErrorCoherence[A] _),
-        "bracket acquire raiseError identity" -> forAll(laws.bracketAcquireErrorIdentity[A, B] _),
+        "bracket acquire raiseError identity" -> forAll(
+          laws.bracketAcquireErrorIdentity[A, B] _),
         "bracket release raiseError ignore" -> forAll(laws.bracketReleaseErrorIgnore _),
-        "bracket body identity" -> forAll(laws.bracketBodyIdentity[A] _)/*,
-        "onCase defined by bracketCase" -> forAll(laws.onCaseDefinedByBracketCase[A] _)*/)
+        "bracket body identity" -> forAll(laws.bracketBodyIdentity[A] _) /*,
+        "onCase defined by bracketCase" -> forAll(laws.onCaseDefinedByBracketCase[A] _)*/
+      )
     }
   }
 }
 
 object BracketTests {
-  def apply[F[_], E](implicit F0: Bracket[F, E]): BracketTests[F, E] { val laws: BracketLaws[F, E] { val F: F0.type } } = new BracketTests[F, E] {
-    val laws: BracketLaws[F, E] { val F: F0.type } = BracketLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: Bracket[F, E])
+      : BracketTests[F, E] { val laws: BracketLaws[F, E] { val F: F0.type } } =
+    new BracketTests[F, E] {
+      val laws: BracketLaws[F, E] { val F: F0.type } = BracketLaws[F, E]
+    }
 }

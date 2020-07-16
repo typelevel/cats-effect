@@ -30,8 +30,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
   val laws: ConcurrentLaws[F, E]
 
   def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -70,8 +69,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       foaPP: F[Outcome[F, E, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "concurrent"
@@ -79,48 +77,51 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "race is racePair identity (left)" -> forAll(laws.raceIsRacePairCancelIdentityLeft[A] _),
-        "race is racePair identity (right)" -> forAll(laws.raceIsRacePairCancelIdentityRight[A] _),
-
+        "race is racePair identity (left)" -> forAll(
+          laws.raceIsRacePairCancelIdentityLeft[A] _),
+        "race is racePair identity (right)" -> forAll(
+          laws.raceIsRacePairCancelIdentityRight[A] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),
         "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),
         // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
         // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
-
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsOutcomeCompletedPure[A] _),
         "fiber error is errored" -> forAll(laws.fiberErrorIsOutcomeErrored _),
         "fiber cancelation is canceled" -> laws.fiberCancelationIsOutcomeCanceled,
         "fiber canceled is canceled" -> laws.fiberCanceledIsOutcomeCanceled,
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
-
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
-
         "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable ignored poll eliminates nesting" -> forAll(laws.uncancelableIgnoredPollEliminatesNesting[A] _),
-        "uncancelable poll inverse nest is uncancelable" -> forAll(laws.uncancelablePollInverseNestIsUncancelable[A] _),
-
-        "uncancelable distributes over race attempt (left)" -> forAll(laws.uncancelableDistributesOverRaceAttemptLeft[A] _),
-        "uncancelable distributes over race attempt (right)" -> forAll(laws.uncancelableDistributesOverRaceAttemptRight[A] _),
-
+        "uncancelable ignored poll eliminates nesting" -> forAll(
+          laws.uncancelableIgnoredPollEliminatesNesting[A] _),
+        "uncancelable poll inverse nest is uncancelable" -> forAll(
+          laws.uncancelablePollInverseNestIsUncancelable[A] _),
+        "uncancelable distributes over race attempt (left)" -> forAll(
+          laws.uncancelableDistributesOverRaceAttemptLeft[A] _),
+        "uncancelable distributes over race attempt (right)" -> forAll(
+          laws.uncancelableDistributesOverRaceAttemptRight[A] _),
         "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
-
-        "uncancelable race poll canceled identity (left)" -> forAll(laws.uncancelableRacePollCanceledIdentityLeft[A] _),
-        "uncancelable race poll canceled identity (right)" -> forAll(laws.uncancelableRacePollCanceledIdentityRight[A] _),
-
+        "uncancelable race poll canceled identity (left)" -> forAll(
+          laws.uncancelableRacePollCanceledIdentityLeft[A] _),
+        "uncancelable race poll canceled identity (right)" -> forAll(
+          laws.uncancelableRacePollCanceledIdentityRight[A] _),
         "uncancelable canceled is canceled" -> laws.uncancelableCancelCancels,
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
-
-        "uncancelable canceled associates right over flatMap" -> forAll(laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
-        "canceled associates left over flatMap" -> forAll(laws.canceledAssociatesLeftOverFlatMap[A] _))
+        "uncancelable canceled associates right over flatMap" -> forAll(
+          laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
+        "canceled associates left over flatMap" -> forAll(
+          laws.canceledAssociatesLeftOverFlatMap[A] _)
+      )
     }
   }
 }
 
 object ConcurrentTests {
-  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] = new ConcurrentTests[F, E] {
-    val laws = ConcurrentLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] =
+    new ConcurrentTests[F, E] {
+      val laws = ConcurrentLaws[F, E]
+    }
 }

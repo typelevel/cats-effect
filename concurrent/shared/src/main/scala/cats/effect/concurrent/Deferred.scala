@@ -92,11 +92,15 @@ abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
 
 object Deferred {
 
-  /** Creates an unset promise. **/
+  /**
+   * Creates an unset promise. *
+   */
   def apply[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
     F.delay(unsafe[F, A])
 
-  /** Creates an unset tryable promise. **/
+  /**
+   * Creates an unset tryable promise. *
+   */
   def tryable[F[_], A](implicit F: Async[F]): F[TryableDeferred[F, A]] =
     F.delay(unsafeTryable[F, A])
 
@@ -108,7 +112,9 @@ object Deferred {
    */
   def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeTryable[F, A]
 
-  /** Like [[apply]] but initializes state using another effect constructor */
+  /**
+   * Like [[apply]] but initializes state using another effect constructor
+   */
   def in[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
     F.delay(unsafe[G, A])
 
@@ -123,7 +129,8 @@ object Deferred {
     final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
   }
 
-  final private class AsyncDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Async[F])
+  final private class AsyncDeferred[F[_], A](ref: AtomicReference[State[A]])(
+      implicit F: Async[F])
       extends TryableDeferred[F, A] {
     def get: F[A] =
       F.defer {
@@ -150,7 +157,7 @@ object Deferred {
     def tryGet: F[Option[A]] =
       F.delay {
         ref.get match {
-          case State.Set(a)   => Some(a)
+          case State.Set(a) => Some(a)
           case State.Unset(_) => None
         }
       }
@@ -179,7 +186,8 @@ object Deferred {
     private def unsafeComplete(a: A): F[Unit] =
       ref.get match {
         case State.Set(_) =>
-          throw new IllegalStateException("Attempting to complete a Deferred that has already been completed")
+          throw new IllegalStateException(
+            "Attempting to complete a Deferred that has already been completed")
 
         case s @ State.Unset(_) =>
           if (ref.compareAndSet(s, State.Set(a))) {
@@ -207,7 +215,9 @@ object Deferred {
     private[this] val mapUnit = (_: Any) => ()
   }
 
-  final private class TransformedDeferred[F[_], G[_], A](underlying: Deferred[F, A], trans: F ~> G)
+  final private class TransformedDeferred[F[_], G[_], A](
+      underlying: Deferred[F, A],
+      trans: F ~> G)
       extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))

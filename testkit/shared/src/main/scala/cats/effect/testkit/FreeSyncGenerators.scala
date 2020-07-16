@@ -29,7 +29,8 @@ import java.util.concurrent.TimeUnit
 
 object FreeSyncGenerators {
 
-  implicit def cogenFreeSync[F[_]: Monad, A: Cogen](implicit C: Cogen[F[A]]): Cogen[FreeT[Eval, F, A]] =
+  implicit def cogenFreeSync[F[_]: Monad, A: Cogen](
+      implicit C: Cogen[F[A]]): Cogen[FreeT[Eval, F, A]] =
     C.contramap(run(_))
 
   def generators[F[_]](implicit F0: MonadError[F, Throwable]) =
@@ -44,12 +45,11 @@ object FreeSyncGenerators {
       val arbitraryFD: Arbitrary[FiniteDuration] = {
         import TimeUnit._
 
-        val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+        val genTU =
+          Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
 
         Arbitrary {
-          genTU flatMap { u =>
-            Gen.posNum[Long].map(FiniteDuration(_, u))
-          }
+          genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
         }
       }
 
@@ -58,8 +58,7 @@ object FreeSyncGenerators {
     }
 
   implicit def arbitraryFreeSync[F[_], A: Arbitrary: Cogen](
-      implicit F: MonadError[F, Throwable])
-      : Arbitrary[FreeT[Eval, F, A]] =
+      implicit F: MonadError[F, Throwable]): Arbitrary[FreeT[Eval, F, A]] =
     Arbitrary(generators[F].generators[A])
 }
 

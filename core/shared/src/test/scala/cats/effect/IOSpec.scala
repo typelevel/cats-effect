@@ -30,7 +30,8 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec { outer =>
+class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
+  outer =>
   import OutcomeGenerators._
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
@@ -88,12 +89,14 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "start and join on a successful fiber" in ticked { implicit ticker =>
-      IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(Outcome.completed[IO, Throwable, Int](IO.pure(43)))
+      IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(
+        Outcome.completed[IO, Throwable, Int](IO.pure(43)))
     }
 
     "start and join on a failed fiber" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.errored[IO, Throwable, Unit](TestException))
+      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(
+        Outcome.errored[IO, Throwable, Unit](TestException))
     }
 
     "implement never with non-terminating semantics" in ticked { implicit ticker =>
@@ -110,22 +113,27 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       } must completeAs(42)
     }
 
-    "continue from the results of an async produced prior to registration" in ticked { implicit ticker =>
-      IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
+    "continue from the results of an async produced prior to registration" in ticked {
+      implicit ticker =>
+        IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
     }
 
-    "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
-      case object TestException extends RuntimeException
-      IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException))).void must failAs(TestException)
+    "produce a failure when the registration raises an error after callback" in ticked {
+      implicit ticker =>
+        case object TestException extends RuntimeException
+        IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException)))
+          .void must failAs(TestException)
     }
 
     "cancel an infinite chain of right-binds" in ticked { implicit ticker =>
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
-      infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(
+        Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel never" in ticked { implicit ticker =>
-      (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(Outcome.canceled[IO, Throwable, Unit])
+      (IO.never: IO[Unit]).start.flatMap(f => f.cancel >> f.join) must completeAs(
+        Outcome.canceled[IO, Throwable, Unit])
     }
 
     "cancel never after scheduling" in ticked { implicit ticker =>
@@ -140,40 +148,38 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "sequence async cancel token upon cancelation during suspension" in ticked { implicit ticker =>
-      var affected = false
+    "sequence async cancel token upon cancelation during suspension" in ticked {
+      implicit ticker =>
+        var affected = false
 
-      val target = IO.async[Unit] { _ =>
-        IO.pure(Some(IO { affected = true }))
-      }
+        val target = IO.async[Unit] { _ => IO.pure(Some(IO { affected = true })) }
 
-      val ioa = for {
-        f <- target.start
-        _ <- IO(ticker.ctx.tickAll())
-        _ <- f.cancel
-      } yield ()
+        val ioa = for {
+          f <- target.start
+          _ <- IO(ticker.ctx.tickAll())
+          _ <- f.cancel
+        } yield ()
 
-      ioa must completeAs(())
-      affected must beTrue
+        ioa must completeAs(())
+        affected must beTrue
     }
 
-    "suppress async cancel token upon cancelation in masked region" in ticked { implicit ticker =>
-      var affected = false
+    "suppress async cancel token upon cancelation in masked region" in ticked {
+      implicit ticker =>
+        var affected = false
 
-      val target = IO uncancelable { _ =>
-        IO.async[Unit] { _ =>
-          IO.pure(Some(IO { affected = true }))
+        val target = IO uncancelable { _ =>
+          IO.async[Unit] { _ => IO.pure(Some(IO { affected = true })) }
         }
-      }
 
-      val ioa = for {
-        f <- target.start
-        _ <- IO(ticker.ctx.tickAll())
-        _ <- f.cancel
-      } yield ()
+        val ioa = for {
+          f <- target.start
+          _ <- IO(ticker.ctx.tickAll())
+          _ <- f.cancel
+        } yield ()
 
-      ioa must completeAs(())
-      affected must beFalse
+        ioa must completeAs(())
+        affected must beFalse
     }
 
     "preserve contexts through start" in ticked { implicit ticker =>
@@ -200,31 +206,37 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       fa must nonTerminate
     }
 
-    "cancel flatMap continuations following a canceled uncancelable block" in ticked { implicit ticker =>
-      IO.uncancelable(_ => IO.canceled).flatMap(_ => IO.pure(())) must nonTerminate
+    "cancel flatMap continuations following a canceled uncancelable block" in ticked {
+      implicit ticker =>
+        IO.uncancelable(_ => IO.canceled).flatMap(_ => IO.pure(())) must nonTerminate
     }
 
-    "cancel map continuations following a canceled uncancelable block" in ticked { implicit ticker =>
-      IO.uncancelable(_ => IO.canceled).map(_ => ()) must nonTerminate
+    "cancel map continuations following a canceled uncancelable block" in ticked {
+      implicit ticker => IO.uncancelable(_ => IO.canceled).map(_ => ()) must nonTerminate
     }
 
     "mapping something with a finalizer should complete" in ticked { implicit ticker =>
       IO.pure(42).onCancel(IO.unit).as(()) must completeAs(())
     }
 
-    "uncancelable canceled with finalizer within fiber should not block" in ticked { implicit ticker =>
-      val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
+    "uncancelable canceled with finalizer within fiber should not block" in ticked {
+      implicit ticker =>
+        val fab = IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join)
 
-      fab must completeAs(Outcome.canceled[IO, Throwable, Unit])
+        fab must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
-    "uncancelable canceled with finalizer within fiber should flatMap another day" in ticked { implicit ticker =>
-      val fa = IO.pure(42)
-      val fab: IO[Int => Int] =
-        IO.uncancelable(_ => IO.canceled.onCancel(IO.unit)).start.flatMap(_.join).flatMap(_ => IO.pure((i: Int) => i))
+    "uncancelable canceled with finalizer within fiber should flatMap another day" in ticked {
+      implicit ticker =>
+        val fa = IO.pure(42)
+        val fab: IO[Int => Int] =
+          IO.uncancelable(_ => IO.canceled.onCancel(IO.unit))
+            .start
+            .flatMap(_.join)
+            .flatMap(_ => IO.pure((i: Int) => i))
 
-      fab.ap(fa) must completeAs(42)
-      fab.flatMap(f => fa.map(f)) must completeAs(42)
+        fab.ap(fa) must completeAs(42)
+        fab.flatMap(f => fa.map(f)) must completeAs(42)
     }
 
     "sleep for ten seconds" in ticked { implicit ticker =>
@@ -263,7 +275,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       var inner = false
       var outer = false
 
-      IO.canceled.guarantee(IO { inner = true }).guarantee(IO { outer = true }) must nonTerminate
+      IO.canceled
+        .guarantee(IO { inner = true })
+        .guarantee(IO { outer = true }) must nonTerminate
 
       inner must beTrue
       outer must beTrue
@@ -313,7 +327,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "hold onto errors through multiple finalizers" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      IO.raiseError(TestException).guarantee(IO.unit).guarantee(IO.unit) must failAs(TestException)
+      IO.raiseError(TestException).guarantee(IO.unit).guarantee(IO.unit) must failAs(
+        TestException)
     }
 
     "cede unit in a finalizer" in ticked { implicit ticker =>
@@ -321,20 +336,24 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       body.guarantee(IO.cede.map(_ => ())) must completeAs(42)
     }
 
-    "not invoke onCancel when previously canceled within uncancelable" in ticked { implicit ticker =>
-      var failed = false
-      IO.uncancelable(_ => IO.canceled >> IO.unit.onCancel(IO { failed = true })) must nonTerminate
-      failed must beFalse
+    "not invoke onCancel when previously canceled within uncancelable" in ticked {
+      implicit ticker =>
+        var failed = false
+        IO.uncancelable(_ =>
+          IO.canceled >> IO.unit.onCancel(IO { failed = true })) must nonTerminate
+        failed must beFalse
     }
 
     "complete a fiber with Canceled under finalizer on poll" in ticked { implicit ticker =>
-      val ioa = IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
+      val ioa =
+        IO.uncancelable(p => IO.canceled >> p(IO.unit).guarantee(IO.unit)).start.flatMap(_.join)
 
       ioa must completeAs(Outcome.canceled[IO, Throwable, Unit])
     }
 
     "return the left when racing against never" in ticked { implicit ticker =>
-      IO.pure(42).racePair(IO.never: IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
+      IO.pure(42).racePair(IO.never: IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(
+        Some(42))
     }
 
     "produce Canceled from start of canceled" in ticked { implicit ticker =>
@@ -354,7 +373,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "only unmask within current fiber" in ticked { implicit ticker =>
       var passed = false
       val test = IO uncancelable { poll =>
-        IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true })).start.flatMap(_.join).void
+        IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true }))
+          .start
+          .flatMap(_.join)
+          .void
       }
 
       test must completeAs(())
@@ -362,24 +384,25 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "produce the left when the right errors in racePair" in ticked { implicit ticker =>
-      (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
+      (IO.cede >> IO.pure(42))
+        .racePair(IO.raiseError(new Throwable): IO[Unit])
+        .map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
-    "run three finalizers when an async is canceled while suspended" in ticked { implicit ticker =>
-      var results = List[Int]()
+    "run three finalizers when an async is canceled while suspended" in ticked {
+      implicit ticker =>
+        var results = List[Int]()
 
-      val body = IO.async[Nothing] { _ =>
-        IO.pure(Some(IO(results ::= 3)))
-      }
+        val body = IO.async[Nothing] { _ => IO.pure(Some(IO(results ::= 3))) }
 
-      val test = for {
-        f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
-        _ <- IO(ticker.ctx.tickAll())
-        _ <- f.cancel
-        back <- IO(results)
-      } yield back
+        val test = for {
+          f <- body.onCancel(IO(results ::= 2)).onCancel(IO(results ::= 1)).start
+          _ <- IO(ticker.ctx.tickAll())
+          _ <- f.cancel
+          back <- IO(results)
+        } yield back
 
-      test must completeAs(List(1, 2, 3))
+        test must completeAs(List(1, 2, 3))
     }
 
     "evaluate 10,000 consecutive map continuations" in ticked { implicit ticker =>
@@ -409,19 +432,20 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "catch exceptions thrown in flatMap functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      IO.unit.flatMap(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+      IO.unit.flatMap(_ => (throw TestException): IO[Unit]).attempt must completeAs(
+        Left(TestException))
     }
 
     "catch exceptions thrown in handleErrorWith functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       case object WrongException extends RuntimeException
-      IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+      IO.raiseError[Unit](WrongException)
+        .handleErrorWith(_ => (throw TestException): IO[Unit])
+        .attempt must completeAs(Left(TestException))
     }
 
     "round trip through s.c.Future" in ticked { implicit ticker =>
-      forAll { (ioa: IO[Int]) =>
-        ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture()))
-      }
+      forAll { (ioa: IO[Int]) => ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture())) }
     }
 
     "ignore repeated polls" in ticked { implicit ticker =>
@@ -473,9 +497,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
                   IO(result must beLike { case Outcome.Completed(_) => ok }) flatMap { _ =>
                     oc match {
                       case Outcome.Completed(ioa) =>
-                        ioa flatMap { i =>
-                          IO(i mustEqual 42)
-                        }
+                        ioa flatMap { i => IO(i mustEqual 42) }
 
                       case _ => sys.error("nope")
                     }
@@ -497,7 +519,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+      EffectTests[IO].effect[Int, Int, Int](10.millis)
+    ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 
   {
@@ -505,7 +528,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO[Int]",
-      MonoidTests[IO[Int]].monoid)/*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
+      MonoidTests[IO[Int]].monoid
+    ) /*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
   }
 
 }

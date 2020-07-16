@@ -21,17 +21,19 @@ import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.concurrent.JSExecutionContext
 import scala.scalajs.js.timers
 
-private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type => 
+private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
   def defaultComputeExecutionContext: ExecutionContext = JSExecutionContext.queue
-  def defaultScheduler: Scheduler = new Scheduler {
-    def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
-      val handle = timers.setTimeout(delay)(task.run())
-      () => timers.clearTimeout(handle)
+  def defaultScheduler: Scheduler =
+    new Scheduler {
+      def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
+        val handle = timers.setTimeout(delay)(task.run())
+        () => timers.clearTimeout(handle)
+      }
+
+      def nowMillis() = System.currentTimeMillis()
+      def monotonicNanos() = System.nanoTime()
     }
 
-    def nowMillis() = System.currentTimeMillis()
-    def monotonicNanos() = System.nanoTime()
-  }
-
-  lazy val global: IORuntime = IORuntime(defaultComputeExecutionContext, defaultScheduler, () => ())
+  lazy val global: IORuntime =
+    IORuntime(defaultComputeExecutionContext, defaultScheduler, () => ())
 }

@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eval/*, Id*/}
+import cats.{Eval /*, Id*/}
 import cats.effect.kernel.Outcome
 import cats.effect.testkit.OutcomeGenerators
 import cats.implicits._

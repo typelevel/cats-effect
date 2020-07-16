@@ -32,8 +32,7 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
   val laws: EffectLaws[F]
 
   def effect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -78,8 +77,7 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "effect"
@@ -92,7 +90,8 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
 }
 
 object EffectTests {
-  def apply[F[_]](implicit F0: Effect[F]): EffectTests[F] = new EffectTests[F] {
-    val laws = EffectLaws[F]
-  }
+  def apply[F[_]](implicit F0: Effect[F]): EffectTests[F] =
+    new EffectTests[F] {
+      val laws = EffectLaws[F]
+    }
 }

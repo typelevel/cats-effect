@@ -18,7 +18,8 @@ package cats.effect.internals
 
 import scala.concurrent.ExecutionContext
 
-/** INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
+/**
+ * INTERNAL API — a [[scala.concurrent.ExecutionContext]] implementation
  * that executes runnables immediately, on the current thread,
  * by means of a trampoline implementation.
  *
@@ -29,7 +30,8 @@ import scala.concurrent.ExecutionContext
  * This is the JavaScript-specific implementation, for which we
  * don't need a `ThreadLocal` or Scala's `BlockingContext`.
  */
-final private[effect] class TrampolineEC private (underlying: ExecutionContext) extends ExecutionContext {
+final private[effect] class TrampolineEC private (underlying: ExecutionContext)
+    extends ExecutionContext {
   private[this] val trampoline = new Trampoline(underlying)
 
   override def execute(runnable: Runnable): Unit =
@@ -40,7 +42,8 @@ final private[effect] class TrampolineEC private (underlying: ExecutionContext) 
 
 private[effect] object TrampolineEC {
 
-  /** [[TrampolineEC]] instance that executes everything
+  /**
+   * [[TrampolineEC]] instance that executes everything
    * immediately, on the current call stack.
    */
   val immediate: TrampolineEC =

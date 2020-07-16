@@ -32,9 +32,9 @@ wish to use to execute IO programs. Please be sure to review thread pool best pr
 avoid unintentionally degrading your application performance.
 """)
 final class IORuntime private (
-  val compute: ExecutionContext, 
-  val scheduler: Scheduler,
-  val shutdown: () => Unit) {
+    val compute: ExecutionContext,
+    val scheduler: Scheduler,
+    val shutdown: () => Unit) {
 
   override def toString: String = s"IORuntime($compute, $scheduler)"
 }

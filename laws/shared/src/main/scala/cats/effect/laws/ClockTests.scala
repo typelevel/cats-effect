@@ -29,8 +29,7 @@ trait ClockTests[F[_]] extends ApplicativeTests[F] {
   val laws: ClockLaws[F]
 
   def clock[A: Arbitrary, B: Arbitrary, C: Arbitrary](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFAtoB: Arbitrary[F[A => B]],
@@ -43,22 +42,21 @@ trait ClockTests[F[_]] extends ApplicativeTests[F] {
       EqFC: Eq[F[C]],
       EqFABC: Eq[F[(A, B, C)]],
       exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F])
-      : RuleSet = {
+      iso: Isomorphisms[F]): RuleSet = {
 
     new RuleSet {
       val name = "clock"
       val bases = Nil
       val parents = Seq(applicative[A, B, C])
 
-      val props = Seq(
-        "monotonicity" -> laws.monotonicity)
+      val props = Seq("monotonicity" -> laws.monotonicity)
     }
   }
 }
 
 object ClockTests {
-  def apply[F[_]](implicit F0: Clock[F]): ClockTests[F] = new ClockTests[F] {
-    val laws = ClockLaws[F]
-  }
+  def apply[F[_]](implicit F0: Clock[F]): ClockTests[F] =
+    new ClockTests[F] {
+      val laws = ClockLaws[F]
+    }
 }

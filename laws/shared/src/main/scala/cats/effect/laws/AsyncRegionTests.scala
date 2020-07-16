@@ -27,13 +27,15 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, *]] with TemporalRegionTests[R, F, Throwable] {
+trait AsyncRegionTests[R[_[_], _], F[_]]
+    extends AsyncTests[R[F, *]]
+    with TemporalRegionTests[R, F, Throwable] {
 
   val laws: AsyncRegionLaws[R, F]
 
-  def asyncRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+  def asyncRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      tolerance: FiniteDuration)(
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -84,8 +86,7 @@ trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, *]] with Tempor
       foaPP: F[Outcome[R[F, *], Throwable, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "async (region)"
@@ -98,13 +99,10 @@ trait AsyncRegionTests[R[_[_], _], F[_]] extends AsyncTests[R[F, *]] with Tempor
 }
 
 object AsyncRegionTests {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: AsyncRegion[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : AsyncRegionTests[R, F] = new AsyncRegionTests[R, F] {
-    val laws = AsyncRegionLaws[R, F]
-  }
+  def apply[R[_[_], _], F[_]](
+      implicit F0: AsyncRegion[R, F],
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): AsyncRegionTests[R, F] =
+    new AsyncRegionTests[R, F] {
+      val laws = AsyncRegionLaws[R, F]
+    }
 }

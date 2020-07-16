@@ -25,11 +25,7 @@ import scala.util.{Either, Left, Right}
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._
 
-  def fold[B](
-      canceled: => B,
-      errored: E => B,
-      completed: F[A] => B)
-      : B =
+  def fold[B](canceled: => B, errored: E => B, completed: F[A] => B): B =
     this match {
       case Canceled() => canceled
       case Errored(e) => errored(e)
@@ -48,23 +44,27 @@ private[kernel] trait LowPriorityImplicits {
   import Outcome.{Canceled, Completed, Errored}
 
   // variant for when F[A] doesn't have a Show (which is, like, most of the time)
-  implicit def showUnknown[F[_], E, A](implicit E: Show[E]): Show[Outcome[F, E, A]] = Show show {
-    case Canceled() => "Canceled"
-    case Errored(left) => s"Errored(${left.show})"
-    case Completed(_) => s"Completed(<unknown>)"
-  }
+  implicit def showUnknown[F[_], E, A](implicit E: Show[E]): Show[Outcome[F, E, A]] =
+    Show show {
+      case Canceled() => "Canceled"
+      case Errored(left) => s"Errored(${left.show})"
+      case Completed(_) => s"Completed(<unknown>)"
+    }
 
-  implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] = Eq instance {
-    case (Canceled(), Canceled()) => true
-    case (Errored(left), Errored(right)) => left === right
-    case (Completed(left), Completed(right)) => left === right
-    case _ => false
-  }
+  implicit def eq[F[_], E: Eq, A](implicit FA: Eq[F[A]]): Eq[Outcome[F, E, A]] =
+    Eq instance {
+      case (Canceled(), Canceled()) => true
+      case (Errored(left), Errored(right)) => left === right
+      case (Completed(left), Completed(right)) => left === right
+      case _ => false
+    }
 
-  implicit def applicativeError[F[_], E](implicit F: Applicative[F]): ApplicativeError[Outcome[F, E, *], E] =
+  implicit def applicativeError[F[_], E](
+      implicit F: Applicative[F]): ApplicativeError[Outcome[F, E, *], E] =
     new OutcomeApplicativeError[F, E]
 
-  protected class OutcomeApplicativeError[F[_]: Applicative, E] extends ApplicativeError[Outcome[F, E, *], E] {
+  protected class OutcomeApplicativeError[F[_]: Applicative, E]
+      extends ApplicativeError[Outcome[F, E, *], E] {
 
     def pure[A](x: A): Outcome[F, E, A] = Completed(x.pure[F])
 
@@ -119,38 +119,43 @@ object Outcome extends LowPriorityImplicits {
       case (Completed(_), Errored(_)) => 1
     }
 
-  implicit def show[F[_], E, A](implicit FA: Show[F[A]], E: Show[E]): Show[Outcome[F, E, A]] = Show show {
-    case Canceled() => "Canceled"
-    case Errored(left) => s"Errored(${left.show})"
-    case Completed(right) => s"Completed(${right.show})"
-  }
+  implicit def show[F[_], E, A](implicit FA: Show[F[A]], E: Show[E]): Show[Outcome[F, E, A]] =
+    Show show {
+      case Canceled() => "Canceled"
+      case Errored(left) => s"Errored(${left.show})"
+      case Completed(right) => s"Completed(${right.show})"
+    }
 
-  implicit def monadError[F[_], E](implicit F: Monad[F], FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
+  implicit def monadError[F[_], E](
+      implicit F: Monad[F],
+      FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
     new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
 
-      override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] = fa match {
-        case Completed(fa) => Completed(F.map(fa)(f))
-        case Errored(e) => Errored(e)
-        case Canceled() => Canceled()
-      }
+      override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
+        fa match {
+          case Completed(fa) => Completed(F.map(fa)(f))
+          case Errored(e) => Errored(e)
+          case Canceled() => Canceled()
+        }
 
-      def flatMap[A, B](fa: Outcome[F, E, A])(f: A => Outcome[F, E, B]): Outcome[F, E, B] = fa match {
-        case Completed(ifa) =>
-          Traverse[F].traverse(ifa)(f) match {
-            case Completed(ifaa) => Completed(Monad[F].flatten(ifaa))
-            case Errored(e) => Errored(e)
-            case Canceled() => Canceled()
-          }
+      def flatMap[A, B](fa: Outcome[F, E, A])(f: A => Outcome[F, E, B]): Outcome[F, E, B] =
+        fa match {
+          case Completed(ifa) =>
+            Traverse[F].traverse(ifa)(f) match {
+              case Completed(ifaa) => Completed(Monad[F].flatten(ifaa))
+              case Errored(e) => Errored(e)
+              case Canceled() => Canceled()
+            }
 
-        case Errored(e) => Errored(e)
-        case Canceled() => Canceled()
-      }
+          case Errored(e) => Errored(e)
+          case Canceled() => Canceled()
+        }
 
       @tailrec
       def tailRecM[A, B](a: A)(f: A => Outcome[F, E, Either[A, B]]): Outcome[F, E, B] =
         f(a) match {
           case Completed(fa) =>
-            Traverse[F].sequence[Either[A, *], B](fa) match {   // Dotty can't infer this
+            Traverse[F].sequence[Either[A, *], B](fa) match { // Dotty can't infer this
               case Left(a) => tailRecM(a)(f)
               case Right(fb) => Completed(fb)
             }

@@ -32,8 +32,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
   val laws: AsyncLaws[F]
 
   def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -78,8 +77,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "async"
@@ -90,27 +88,26 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
-
-        "async cancel token is unsequenced on complete" -> forAll(laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
-        "async cancel token is unsequenced on error" -> forAll(laws.asyncCancelTokenIsUnsequencedOnError[A] _),
+        "async cancel token is unsequenced on complete" -> forAll(
+          laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
+        "async cancel token is unsequenced on error" -> forAll(
+          laws.asyncCancelTokenIsUnsequencedOnError[A] _),
         // "async cancel token is sequenced on cancel" -> forAll(laws.asyncCancelTokenIsSequencedOnCancel _),
-
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
-
         "executionContext commutativity" -> forAll(laws.executionContextCommutativity[A] _),
-
         "evalOn local pure" -> forAll(laws.evalOnLocalPure _),
-
         "evalOn pure identity" -> forAll(laws.evalOnPureIdentity[A] _),
         "evalOn raiseError identity" -> forAll(laws.evalOnRaiseErrorIdentity _),
         "evalOn canceled identity" -> forAll(laws.evalOnCanceledIdentity _),
-        "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _))
+        "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _)
+      )
     }
   }
 }
 
 object AsyncTests {
-  def apply[F[_]](implicit F0: Async[F]): AsyncTests[F] = new AsyncTests[F] {
-    val laws = AsyncLaws[F]
-  }
+  def apply[F[_]](implicit F0: Async[F]): AsyncTests[F] =
+    new AsyncTests[F] {
+      val laws = AsyncLaws[F]
+    }
 }

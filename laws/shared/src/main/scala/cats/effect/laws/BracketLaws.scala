@@ -33,7 +33,8 @@ trait BracketLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def onCaseErrorCoherence[A](e: E, release: PartialFunction[F.Case[A], F[Unit]]) =
     F.onCase(F.raiseError[A](e))(release).void <->
-      (release.lift(CaseInstance.raiseError[A](e)).getOrElse(F.unit).attempt >> F.raiseError[Unit](e))
+      (release.lift(CaseInstance.raiseError[A](e)).getOrElse(F.unit).attempt >> F
+        .raiseError[Unit](e))
 
   def bracketAcquireErrorIdentity[A, B](e: E, f: A => F[B], release: F[Unit]) =
     F.bracketCase(F.raiseError[A](e))(f)((_, _) => release) <-> F.raiseError[B](e)

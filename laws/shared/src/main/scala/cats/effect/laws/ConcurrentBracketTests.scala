@@ -29,8 +29,7 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
   val laws: ConcurrentBracketLaws[F, E]
 
   def concurrentBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -70,8 +69,7 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
       foaPP: F[Outcome[F, E, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "concurrent (bracket)"
@@ -80,14 +78,17 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
 
       val props = Seq(
         // "bracket canceled releases" -> forAll(laws.bracketCanceledReleases[A, B] _),
-        "bracket uncancelable flatMap identity" -> forAll(laws.bracketUncancelableFlatMapIdentity[A, B] _),
-        "onCase shape-consistent with join" -> forAll(laws.onCaseShapeConsistentWithJoin[A] _))
+        "bracket uncancelable flatMap identity" -> forAll(
+          laws.bracketUncancelableFlatMapIdentity[A, B] _),
+        "onCase shape-consistent with join" -> forAll(laws.onCaseShapeConsistentWithJoin[A] _)
+      )
     }
   }
 }
 
 object ConcurrentBracketTests {
-  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketTests[F, E] = new ConcurrentBracketTests[F, E] {
-    val laws = ConcurrentBracketLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketTests[F, E] =
+    new ConcurrentBracketTests[F, E] {
+      val laws = ConcurrentBracketLaws[F, E]
+    }
 }

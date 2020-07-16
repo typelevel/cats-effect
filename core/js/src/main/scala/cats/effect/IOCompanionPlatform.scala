@@ -25,7 +25,6 @@ private[effect] abstract class IOCompanionPlatform { self: IO.type =>
       IO.async_[A] { cb =>
         p.`then`[Unit](
           (v: A) => cb(Right(v)): Unit | Thenable[Unit],
-
           defined { (a: Any) =>
             val e = a match {
               case th: Throwable => th
@@ -33,7 +32,8 @@ private[effect] abstract class IOCompanionPlatform { self: IO.type =>
             }
 
             cb(Left(e)): Unit | Thenable[Unit]
-          })
+          }
+        )
       }
     }
 }

@@ -22,14 +22,18 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
-  def createDefaultComputeExecutionContext(threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
+  def createDefaultComputeExecutionContext(
+      threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
-    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
-      val t = new Thread(r)
-      t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
-      t.setDaemon(true)
-      t
-    })
+    val executor = Executors.newFixedThreadPool(
+      Runtime.getRuntime().availableProcessors(),
+      { (r: Runnable) =>
+        val t = new Thread(r)
+        t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
+        t.setDaemon(true)
+        t
+      }
+    )
     (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
   }
 
@@ -44,5 +48,6 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type
     (Scheduler.fromScheduledExecutor(scheduler), { () => scheduler.shutdown() })
   }
 
-  lazy val global: IORuntime = IORuntime(createDefaultComputeExecutionContext()._1, createDefaultScheduler()._1, () => ())
+  lazy val global: IORuntime =
+    IORuntime(createDefaultComputeExecutionContext()._1, createDefaultScheduler()._1, () => ())
 }

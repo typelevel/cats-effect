@@ -29,8 +29,7 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
   val laws: SyncEffectLaws[F]
 
   def syncEffect[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -55,8 +54,7 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F])
-      : RuleSet = {
+      iso: Isomorphisms[F]): RuleSet = {
 
     new RuleSet {
       val name = "syncEffect"
@@ -69,7 +67,8 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
 }
 
 object SyncEffectTests {
-  def apply[F[_]](implicit F0: SyncEffect[F]): SyncEffectTests[F] = new SyncEffectTests[F] {
-    val laws = SyncEffectLaws[F]
-  }
+  def apply[F[_]](implicit F0: SyncEffect[F]): SyncEffectTests[F] =
+    new SyncEffectTests[F] {
+      val laws = SyncEffectLaws[F]
+    }
 }

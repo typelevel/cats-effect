@@ -24,9 +24,9 @@ package cats.effect.internals
  * INTERNAL API.
  */
 final private[internals] class ArrayStack[A <: AnyRef] private (
-  initialArray: Array[AnyRef],
-  chunkSize: Int,
-  initialIndex: Int
+    initialArray: Array[AnyRef],
+    chunkSize: Int,
+    initialIndex: Int
 ) extends Serializable { self =>
 
   private[this] val modulo = chunkSize - 1
@@ -36,11 +36,15 @@ final private[internals] class ArrayStack[A <: AnyRef] private (
   def this(chunkSize: Int) = this(new Array[AnyRef](chunkSize), chunkSize, 0)
   def this() = this(8)
 
-  /** Returns `true` if the stack is empty. */
+  /**
+   * Returns `true` if the stack is empty.
+   */
   def isEmpty: Boolean =
     index == 0 && (array(0) eq null)
 
-  /** Pushes an item on the stack. */
+  /**
+   * Pushes an item on the stack.
+   */
   def push(a: A): Unit = {
     if (index == modulo) {
       val newArray = new Array[AnyRef](chunkSize)
@@ -53,19 +57,26 @@ final private[internals] class ArrayStack[A <: AnyRef] private (
     array(index) = a.asInstanceOf[AnyRef]
   }
 
-  /** Pushes an entire iterator on the stack. */
+  /**
+   * Pushes an entire iterator on the stack.
+   */
   def pushAll(cursor: Iterator[A]): Unit =
     while (cursor.hasNext) push(cursor.next())
 
-  /** Pushes an entire iterable on the stack. */
+  /**
+   * Pushes an entire iterable on the stack.
+   */
   def pushAll(seq: Iterable[A]): Unit =
     pushAll(seq.iterator)
 
-  /** Pushes the contents of another stack on this stack. */
+  /**
+   * Pushes the contents of another stack on this stack.
+   */
   def pushAll(stack: ArrayStack[A]): Unit =
     pushAll(stack.iteratorReversed)
 
-  /** Pops an item from the stack (in LIFO order).
+  /**
+   * Pops an item from the stack (in LIFO order).
    *
    * Returns `null` in case the stack is empty.
    */
@@ -85,7 +96,9 @@ final private[internals] class ArrayStack[A <: AnyRef] private (
     result
   }
 
-  /** Builds an iterator out of this stack. */
+  /**
+   * Builds an iterator out of this stack.
+   */
   def iteratorReversed: Iterator[A] =
     new Iterator[A] {
       private[this] var array = self.array

@@ -30,26 +30,27 @@ trait TestUtils {
    * Silences `System.err`, only printing the output in case exceptions are
    * thrown by the executed `thunk`.
    */
-  def silenceSystemErr[A](thunk: => A): A = synchronized {
-    // Silencing System.err
-    val oldErr = System.err
-    val outStream = new ByteArrayOutputStream()
-    val fakeErr = new PrintStream(outStream)
-    System.setErr(fakeErr)
-    try {
-      val result = thunk
-      System.setErr(oldErr)
-      result
-    } catch {
-      case NonFatal(e) =>
+  def silenceSystemErr[A](thunk: => A): A =
+    synchronized {
+      // Silencing System.err
+      val oldErr = System.err
+      val outStream = new ByteArrayOutputStream()
+      val fakeErr = new PrintStream(outStream)
+      System.setErr(fakeErr)
+      try {
+        val result = thunk
         System.setErr(oldErr)
-        // In case of errors, print whatever was caught
-        fakeErr.close()
-        val out = new String(outStream.toByteArray, StandardCharsets.UTF_8)
-        if (out.nonEmpty) oldErr.println(out)
-        throw e
+        result
+      } catch {
+        case NonFatal(e) =>
+          System.setErr(oldErr)
+          // In case of errors, print whatever was caught
+          fakeErr.close()
+          val out = new String(outStream.toByteArray, StandardCharsets.UTF_8)
+          if (out.nonEmpty) oldErr.println(out)
+          throw e
+      }
     }
-  }
 
   /**
    * Catches `System.err` output, for testing purposes.
@@ -63,15 +64,16 @@ trait TestUtils {
   /**
    * Catches `System.err` output into `outStream`, for testing purposes.
    */
-  def catchSystemErrInto[T](outStream: OutputStream)(thunk: => T): T = synchronized {
-    val oldErr = System.err
-    val fakeErr = new PrintStream(outStream)
-    System.setErr(fakeErr)
-    try {
-      thunk
-    } finally {
-      System.setErr(oldErr)
-      fakeErr.close()
+  def catchSystemErrInto[T](outStream: OutputStream)(thunk: => T): T =
+    synchronized {
+      val oldErr = System.err
+      val fakeErr = new PrintStream(outStream)
+      System.setErr(fakeErr)
+      try {
+        thunk
+      } finally {
+        System.setErr(oldErr)
+        fakeErr.close()
+      }
     }
-  }
 }

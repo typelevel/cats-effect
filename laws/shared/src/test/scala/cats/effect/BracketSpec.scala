@@ -27,9 +27,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class BracketSpec extends Specification with Discipline {
 
-  checkAll(
-    "Either[Int, *]",
-    BracketTests[Either[Int, *], Int].bracket[Int, Int, Int])
+  checkAll("Either[Int, *]", BracketTests[Either[Int, *], Int].bracket[Int, Int, Int])
 
   // TODO these are disabled until we can get handleCaseWith up and running
   /*checkAll(

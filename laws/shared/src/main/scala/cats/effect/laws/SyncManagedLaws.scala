@@ -19,7 +19,9 @@ package laws
 
 import cats.effect.kernel.{Bracket, SyncManaged}
 
-trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, *]] with RegionLaws[R, F, Throwable] {
+trait SyncManagedLaws[R[_[_], _], F[_]]
+    extends SyncLaws[R[F, *]]
+    with RegionLaws[R, F, Throwable] {
   implicit val F: SyncManaged[R, F]
 
   def roundTrip[A](fa: R[F, A]) =
@@ -28,8 +30,7 @@ trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, *]] with RegionLaw
 
 object SyncManagedLaws {
   def apply[R[_[_], _], F[_]](
-    implicit
-      F0: SyncManaged[R, F],
+      implicit F0: SyncManaged[R, F],
       B0: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] })
       : SyncManagedLaws[R, F] =
     new SyncManagedLaws[R, F] {
