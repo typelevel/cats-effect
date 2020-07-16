@@ -16,6 +16,7 @@
 
 package cats.effect.kernel
 
+import Par._
 import cats.{~>, ApplicativeError, MonadError, Parallel}
 import cats.implicits._
 import cats.Applicative
@@ -88,16 +89,16 @@ object Concurrent {
     new Parallel[M] {
       type F[A] = ParallelF[M, A]
 
-      def applicative = Applicative[F]
+      def applicative = ParallelF.applicativeForParallelF[M, E]
 
       def monad: Monad[M] = M
 
       def sequential: F ~> M = new (F ~> M) {
-        def apply[A](fa: F[A]): M[A] = fa.value
+        def apply[A](fa: F[A]): M[A] = ParallelF.value[F, A](fa)
       }
 
       def parallel: M ~> F = new (M ~> F) {
-        def apply[A](ma: M[A]): F[A] = ParallelF(ma)
+        def apply[A](ma: M[A]): F[A] = ParallelF[F, A](ma)
       }
 
     }

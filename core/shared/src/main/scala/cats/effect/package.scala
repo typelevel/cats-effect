@@ -80,6 +80,6 @@ package object effect {
   type AsyncRegion[R[_[_], _], F[_]] = cekernel.AsyncRegion[R, F]
   val AsyncRegion = cekernel.AsyncRegion
 
-  type ParallelF[F[_], A] = cekernel.ParallelF[F, A]
-  val ParallelF = cekernel.ParallelF
+  type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
+  val ParallelF = cekernel.Par.ParallelF
 }
