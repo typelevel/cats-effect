@@ -28,7 +28,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpec { outer =>
+class RefSpec extends BaseSpec { outer =>
 
   val smallDelay: IO[Unit] = IO.sleep(20.millis)
 
