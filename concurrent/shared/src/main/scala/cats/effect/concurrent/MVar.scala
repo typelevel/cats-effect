@@ -17,9 +17,8 @@
 package cats.effect
 package concurrent
 
-
 import cats.implicits._
-import cats.effect.kernel.{Async, CancelToken, Fiber, Sync}
+import cats.effect.kernel.{Async, Fiber, Sync}
 import cats.effect.concurrent.MVar.TransformedMVar
 import cats.~>
 
@@ -331,7 +330,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
         }
     }
 
-  @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): F[CancelToken[F]] =
+  @tailrec private def unsafePut(a: A)(onPut: Listener[Unit]): F[F[Unit]] =
     stateRef.get match {
       case current @ WaitForTake(value, listeners) =>
         val id = new Id
@@ -410,7 +409,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
   }
 
   @tailrec
-  private def unsafeTake(onTake: Listener[A]): F[CancelToken[F]] =
+  private def unsafeTake(onTake: Listener[A]): F[F[Unit]] =
     stateRef.get match {
       case current @ WaitForTake(value, queue) =>
         if (queue.isEmpty) {
@@ -453,7 +452,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
       case _ =>
     }
   @tailrec
-  private def unsafeRead(onRead: Listener[A]): CancelToken[F] = {
+  private def unsafeRead(onRead: Listener[A]): F[Unit] = {
     val current: State[A] = stateRef.get
     current match {
       case WaitForTake(value, _) =>
