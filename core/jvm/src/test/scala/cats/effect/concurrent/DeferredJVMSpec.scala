@@ -108,7 +108,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
           latch <- Deferred[IO, Unit]
           fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
           _ <- latch.get
-          _ <- cleanupOnError(timeout(df.complete(()),timeout), fb)
+          _ <- cleanupOnError(df.complete(()).timeout(timeout), fb)
           _ <- fb.cancel
         } yield ()
 
@@ -132,7 +132,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _ <- latch.get
-        _ <- cleanupOnError(timeout(d.complete(()),timeout), fb)
+        _ <- cleanupOnError(d.complete(()).timeout(timeout), fb)
         _ <- fb.cancel
       } yield true
     }
@@ -155,7 +155,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> foreverAsync(0)).start
         _ <- latch.get
-        _ <- cleanupOnError(timeout(d.complete(()),timeout), fb)
+        _ <- cleanupOnError(d.complete(()).timeout(timeout), fb)
         _ <- fb.cancel
       } yield true
     }
@@ -176,7 +176,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         latch <- Deferred[IO, Unit]
         fb <- (latch.complete(()) *> d.get *> IO.unit.foreverM).start
         _ <- latch.get
-        _ <- timeout(d.complete(()),15.seconds).guarantee(fb.cancel)
+        _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)
       } yield {
         true
       }
@@ -188,20 +188,6 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     }
 
     unsafeRunRealistic(execute(100))() must beEqualTo(Some(true))
-  }
-
-  //TODO remove once we have these as derived combinators again
-  private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-    implicit F: Temporal[F, E]
-  ): F[A] =
-    F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
-      case Right(_) => fallback
-    }
-
-  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
-    val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
-    timeoutTo(fa, duration, timeoutException)
   }
 
   def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {

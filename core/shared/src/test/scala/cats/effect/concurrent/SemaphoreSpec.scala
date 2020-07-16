@@ -43,7 +43,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
           // which should restore the semaphore count to 1. We then release a permit
           // bringing the count to 2. Since the old acquireN(2) is canceled, the final
           // count stays at 2.
-          timeout(s.acquireN(2L), 1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
+          s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
         }
 
       op.flatMap { res =>
@@ -60,7 +60,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
           // is available. After the timeout and hence cancelation of s.withPermit(...), we release
           // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
           // cancel, the permit count will be 2, otherwise 1
-          timeout(s.withPermit(s.release), 1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
+          s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
         }
 
       op.flatMap { res =>
@@ -282,19 +282,5 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
   //   op must completeAs(0: Long)
   // }
-
-  //TODO remove once we have these as derived combinators again
-  private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-    implicit F: Temporal[F, E]
-  ): F[A] =
-    F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
-      case Right(_) => fallback
-    }
-
-  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
-    val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
-    timeoutTo(fa, duration, timeoutException)
-  }
 
 }
