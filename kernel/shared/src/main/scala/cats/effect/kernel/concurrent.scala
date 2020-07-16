@@ -16,10 +16,8 @@
 
 package cats.effect.kernel
 
-import Par._
 import cats.{~>, ApplicativeError, MonadError}
 import cats.implicits._
-import cats.Monad
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
