@@ -21,11 +21,6 @@ package concurrent
 import cats.data.State
 import cats.implicits._
 
-import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
-
-import org.typelevel.discipline.specs2.mutable.Discipline
-
 import scala.concurrent.duration._
 
 class RefSpec extends BaseSpec { outer =>

@@ -20,9 +20,8 @@ package concurrent
 
 import cats.laws.discipline._
 import cats.implicits._
-import cats.effect.testkit.{ConcurrentGenerators, TestContext}
+import cats.effect.testkit.TestContext
 
-import org.specs2.ScalaCheck
 import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
