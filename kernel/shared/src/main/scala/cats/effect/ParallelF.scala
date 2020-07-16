@@ -19,23 +19,59 @@ package cats.effect.kernel
 import cats.Applicative
 import cats.implicits._
 
-final case class ParallelF[F[_], A](value: F[A])
+//See https://failex.blogspot.com/2017/04/the-high-cost-of-anyval-subclasses.html
+object Par {
+  sealed abstract class ParallelFImpl {
+    type T[F[_], A]
+    def apply[F[_], A](fa: F[A]): T[F, A]
+    def value[F[_], A](t: T[F, A]): F[A]
+  }
 
-object ParallelF {
+  type ParallelF[F[_], A] = ParallelF.T[F, A]
 
-  implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
-    new Applicative[ParallelF[F, *]] {
+  object ParallelF extends ParallelFImpl {
+    type T[F[_], A] = F[A]
 
-      def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
+    override def apply[F[_], A](fa: F[A]) = fa
 
-      def ap[A, B](ff: ParallelF[F, A => B])(fa: ParallelF[F, A]): ParallelF[F, B] =
-        ParallelF(
-          F.both(ff.value, fa.value)
-            .map {
-              case (f, a) => f(a)
-            }
-        )
+    override def value[F[_], A](t: T[F, A]) = t
 
-    }
+    implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
+      new Applicative[ParallelF[F, *]] {
+
+        def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
+
+        def ap[A, B](ff: ParallelF[F, A => B])(fa: ParallelF[F, A]): ParallelF[F, B] =
+          ParallelF(
+            F.both(ff, fa)
+              .map {
+                case (f, a) => f(a)
+              }
+          )
+
+      }
+
+  }
 
 }
+
+// final case class ParallelF[F[_], A](value: F[A])
+
+// object ParallelF {
+
+//   implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
+//     new Applicative[ParallelF[F, *]] {
+
+//       def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
+
+//       def ap[A, B](ff: ParallelF[F, A => B])(fa: ParallelF[F, A]): ParallelF[F, B] =
+//         ParallelF(
+//           F.both(ff.value, fa.value)
+//             .map {
+//               case (f, a) => f(a)
+//             }
+//         )
+
+//     }
+
+// }
