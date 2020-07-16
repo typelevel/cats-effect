@@ -19,9 +19,9 @@ package cats.effect.kernel
 import cats.Applicative
 import cats.implicits._
 
-final private[effect] case class ParallelF[F[_], A](value: F[A]) extends AnyVal
+final case class ParallelF[F[_], A](value: F[A]) extends AnyVal
 
-private[effect] object ParallelF {
+object ParallelF {
 
   implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
     new Applicative[ParallelF[F, *]] {

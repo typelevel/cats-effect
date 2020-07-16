@@ -73,6 +73,14 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Arbitrary(generators.generators[A])
   }
 
+  implicit def arbitraryParallelF[F[_], A](implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =
+    Arbitrary {
+      ArbF.arbitrary.map(f => ParallelF(f))
+    }
+
+  implicit def eqParallelF[F[_], A](implicit EqF: Eq[F[A]]): Eq[ParallelF[F, A]] =
+    EqF.imap(ParallelF.apply)(_.value)
+
   implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 

@@ -84,7 +84,7 @@ object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
 
-  implicit def parallelForConcurrent[M[_], E](implicit M: Concurrent[M, E]): Parallel[M] =
+  implicit def parallelForConcurrent[M[_], E](implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
     new Parallel[M] {
       type F[A] = ParallelF[M, A]
 
