@@ -19,7 +19,6 @@ package cats.effect.kernel
 import Par._
 import cats.{~>, ApplicativeError, MonadError, Parallel}
 import cats.implicits._
-import cats.Applicative
 import cats.Monad
 
 trait Fiber[F[_], E, A] {
