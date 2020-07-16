@@ -30,7 +30,7 @@ val ScalaJSJava = "adopt@1.8"
 
 ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.11", "2.13.2")
 
-ThisBuild / githubWorkflowTargetBranches := Seq("ce3")      // for now
+ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
 val LTSJava = "adopt@11"
 val LatestJava = "adopt@14"

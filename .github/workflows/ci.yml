@@ -9,9 +9,9 @@ name: Continuous Integration
 
 on:
   pull_request:
-    branches: [ce3]
+    branches: [series/3.x]
   push:
-    branches: [ce3]
+    branches: [series/3.x]
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
