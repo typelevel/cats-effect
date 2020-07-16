@@ -16,12 +16,13 @@
 
 package cats.effect
 
-import cats.{~>, Monoid, /*Parallel,*/ Semigroup, Show, StackSafeMonad}
+import cats.{Eval, Monoid, Now, Semigroup, Show, StackSafeMonad, ~>}
 import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
@@ -35,6 +36,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def >>[B](that: => IO[B]): IO[B] =
      flatMap(_ => that)
+
+  def <<[B](that: => IO[B]): IO[A] =
+    that.flatMap(_ => this)
 
   def as[B](b: B): IO[B] =
     map(_ => b)
@@ -91,6 +95,18 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           (A @uncheckedVariance, Fiber[IO, Throwable, B]),
           (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
+
+  def delayBy(duration: FiniteDuration): IO[A] =
+    IO.sleep(duration) *> this
+
+  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
+    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
+
+  def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
+    race(IO.sleep(duration)).flatMap {
+      case Right(_) => fallback
+      case Left(value) => IO.pure(value)
+    }
 
   def productL[B](that: IO[B]): IO[A] =
     flatMap(a => that.as(a))
@@ -234,6 +250,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
+  def delay[A](thunk: => A): IO[A] = apply(thunk)
+
+  def suspend[A](thunk: => IO[A]): IO[A] =
+    delay(thunk).flatten
+
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
@@ -262,7 +283,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
     Uncancelable(body)
 
-  val unit: IO[Unit] = pure(())
+  private[this] val _unit: IO[Unit] = Pure(())
+  val unit: IO[Unit] = _unit
 
   // utilities
 
@@ -287,6 +309,29 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def toK[F[_]: Effect]: IO ~> F =
     new (IO ~> F) {
       def apply[A](ioa: IO[A]) = ioa.to[F]
+    }
+
+  def eval[A](fa: Eval[A]): IO[A] = fa match {
+    case Now(a) => pure(a)
+    case notNow => apply(notNow.value)
+  }
+
+  def fromOption[A](o: Option[A])(orElse: => Throwable): IO[A] =
+    o match {
+      case None        => raiseError(orElse)
+      case Some(value) => pure(value)
+    }
+
+  def fromEither[A](e: Either[Throwable, A]): IO[A] =
+    e match {
+      case Right(a)  => pure(a)
+      case Left(err) => raiseError(err)
+    }
+
+  def fromTry[A](t: Try[A]): IO[A] =
+    t match {
+      case Success(a)   => pure(a)
+      case Failure(err) => raiseError(err)
     }
 
   // instances
