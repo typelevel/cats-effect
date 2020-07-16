@@ -16,8 +16,10 @@
 
 package cats.effect.kernel
 
-import cats.{~>, ApplicativeError, MonadError}
+import cats.{~>, ApplicativeError, MonadError, Parallel}
 import cats.implicits._
+import cats.Applicative
+import cats.Monad
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
@@ -56,7 +58,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, f)) => as(f.cancel, a.asLeft[B])
+      case Left((a, f))  => as(f.cancel, a.asLeft[B])
       case Right((f, b)) => as(f.cancel, b.asRight[A])
     }
 
@@ -65,17 +67,15 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Left((a, f)) =>
         flatMap(f.join) { c =>
           c.fold(
-            flatMap(canceled)(_ => never),    // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
+            flatMap(canceled)(_ => never), // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
             e => raiseError[(A, B)](e),
-            tupleLeft(_, a))
+            tupleLeft(_, a)
+          )
         }
 
       case Right((f, b)) =>
         flatMap(f.join) { c =>
-          c.fold(
-            flatMap(canceled)(_ => never),
-            e => raiseError[(A, B)](e),
-            tupleRight(_, b))
+          c.fold(flatMap(canceled)(_ => never), e => raiseError[(A, B)](e), tupleRight(_, b))
         }
     }
 }
@@ -83,4 +83,22 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
+
+  implicit def parallelForConcurrent[M[_], E](implicit M: Concurrent[M, E]): Parallel[M] =
+    new Parallel[M] {
+      type F[A] = ParallelF[M, A]
+
+      def applicative = Applicative[F]
+
+      def monad: Monad[M] = M
+
+      def sequential: F ~> M = new (F ~> M) {
+        def apply[A](fa: F[A]): M[A] = fa.value
+      }
+
+      def parallel: M ~> F = new (M ~> F) {
+        def apply[A](ma: M[A]): F[A] = ParallelF(ma)
+      }
+
+    }
 }
