@@ -37,9 +37,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def >>[B](that: => IO[B]): IO[B] =
      flatMap(_ => that)
 
-  def <<[B](that: => IO[B]): IO[A] =
-    that.flatMap(_ => this)
-
   def as[B](b: B): IO[B] =
     map(_ => b)
 
@@ -284,7 +281,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     Uncancelable(body)
 
   private[this] val _unit: IO[Unit] = Pure(())
-  val unit: IO[Unit] = _unit
+  def unit: IO[Unit] = _unit
 
   // utilities
 
