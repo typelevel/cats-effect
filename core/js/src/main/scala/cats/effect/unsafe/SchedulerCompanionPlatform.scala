@@ -16,5 +16,4 @@
 
 package cats.effect.unsafe
 
-private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type => 
-}
+abstract private[unsafe] class SchedulerCompanionPlatform { self: Scheduler.type => }

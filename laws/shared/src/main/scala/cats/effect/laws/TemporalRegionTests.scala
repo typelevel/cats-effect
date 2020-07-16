@@ -32,58 +32,57 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E]
 
   def temporalRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
     implicit
-      ArbRFA: Arbitrary[R[F, A]],
-      ArbFA: Arbitrary[F[A]],
-      ArbRFB: Arbitrary[R[F, B]],
-      ArbFB: Arbitrary[F[B]],
-      ArbRFC: Arbitrary[R[F, C]],
-      ArbFC: Arbitrary[F[C]],
-      ArbRFU: Arbitrary[R[F, Unit]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbRFAtoB: Arbitrary[R[F, A => B]],
-      ArbRFBtoC: Arbitrary[R[F, B => C]],
-      ArbE: Arbitrary[E],
-      ArbFiniteDuration: Arbitrary[FiniteDuration],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenRFB: Cogen[R[F, B]],
-      CogenC: Cogen[C],
-      CogenE: Cogen[E],
-      CogenCase: Cogen[laws.F.Case[_]],
-      CogenCaseA: Cogen[Outcome[R[F, *], E, A]],
-      CogenCaseB: Cogen[Outcome[R[F, *], E, B]],
-      CogenCaseU: Cogen[Outcome[R[F, *], E, Unit]],
-      EqFA: Eq[R[F, A]],
-      EqFB: Eq[R[F, B]],
-      EqFC: Eq[R[F, C]],
-      EqFU: Eq[R[F, Unit]],
-      EqE: Eq[E],
-      EqFEitherEU: Eq[R[F, Either[E, Unit]]],
-      EqFEitherEA: Eq[R[F, Either[E, A]]],
-      EqFEitherAB: Eq[R[F, Either[A, B]]],
-      EqFEitherUA: Eq[R[F, Either[Unit, A]]],
-      EqFEitherAU: Eq[R[F, Either[A, Unit]]],
-      EqFEitherEitherEAU: Eq[R[F, Either[Either[E, A], Unit]]],
-      EqFEitherUEitherEA: Eq[R[F, Either[Unit, Either[E, A]]]],
-      EqFOutcomeEA: Eq[R[F, Outcome[R[F, *], E, A]]],
-      EqFOutcomeEU: Eq[R[F, Outcome[R[F, *], E, Unit]]],
-      EqFABC: Eq[R[F, (A, B, C)]],
-      EqFInt: Eq[R[F, Int]],
-      OrdFFD: Order[R[F, FiniteDuration]],
-      GroupFD: Group[FiniteDuration],
-      exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, *]],
-      faPP: R[F, A] => Pretty,
-      fbPP: R[F, B] => Pretty,
-      fuPP: R[F, Unit] => Pretty,
-      aFUPP: (A => R[F, Unit]) => Pretty,
-      ePP: E => Pretty,
-      foaPP: F[Outcome[R[F, *], E, A]] => Pretty,
-      feauPP: R[F, Either[A, Unit]] => Pretty,
-      feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty)
-      : RuleSet = {
-
+    ArbRFA: Arbitrary[R[F, A]],
+    ArbFA: Arbitrary[F[A]],
+    ArbRFB: Arbitrary[R[F, B]],
+    ArbFB: Arbitrary[F[B]],
+    ArbRFC: Arbitrary[R[F, C]],
+    ArbFC: Arbitrary[F[C]],
+    ArbRFU: Arbitrary[R[F, Unit]],
+    ArbFU: Arbitrary[F[Unit]],
+    ArbRFAtoB: Arbitrary[R[F, A => B]],
+    ArbRFBtoC: Arbitrary[R[F, B => C]],
+    ArbE: Arbitrary[E],
+    ArbFiniteDuration: Arbitrary[FiniteDuration],
+    CogenA: Cogen[A],
+    CogenB: Cogen[B],
+    CogenRFB: Cogen[R[F, B]],
+    CogenC: Cogen[C],
+    CogenE: Cogen[E],
+    CogenCase: Cogen[laws.F.Case[_]],
+    CogenCaseA: Cogen[Outcome[R[F, *], E, A]],
+    CogenCaseB: Cogen[Outcome[R[F, *], E, B]],
+    CogenCaseU: Cogen[Outcome[R[F, *], E, Unit]],
+    EqFA: Eq[R[F, A]],
+    EqFB: Eq[R[F, B]],
+    EqFC: Eq[R[F, C]],
+    EqFU: Eq[R[F, Unit]],
+    EqE: Eq[E],
+    EqFEitherEU: Eq[R[F, Either[E, Unit]]],
+    EqFEitherEA: Eq[R[F, Either[E, A]]],
+    EqFEitherAB: Eq[R[F, Either[A, B]]],
+    EqFEitherUA: Eq[R[F, Either[Unit, A]]],
+    EqFEitherAU: Eq[R[F, Either[A, Unit]]],
+    EqFEitherEitherEAU: Eq[R[F, Either[Either[E, A], Unit]]],
+    EqFEitherUEitherEA: Eq[R[F, Either[Unit, Either[E, A]]]],
+    EqFOutcomeEA: Eq[R[F, Outcome[R[F, *], E, A]]],
+    EqFOutcomeEU: Eq[R[F, Outcome[R[F, *], E, Unit]]],
+    EqFABC: Eq[R[F, (A, B, C)]],
+    EqFInt: Eq[R[F, Int]],
+    OrdFFD: Order[R[F, FiniteDuration]],
+    GroupFD: Group[FiniteDuration],
+    exec: R[F, Boolean] => Prop,
+    iso: Isomorphisms[R[F, *]],
+    faPP: R[F, A] => Pretty,
+    fbPP: R[F, B] => Pretty,
+    fuPP: R[F, Unit] => Pretty,
+    aFUPP: (A => R[F, Unit]) => Pretty,
+    ePP: E => Pretty,
+    foaPP: F[Outcome[R[F, *], E, A]] => Pretty,
+    feauPP: R[F, Either[A, Unit]] => Pretty,
+    feuaPP: R[F, Either[Unit, A]] => Pretty,
+    fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty
+  ): RuleSet =
     new RuleSet {
       val name = "temporal (region)"
       val bases = Nil
@@ -91,18 +90,13 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E]
 
       val props = Seq()
     }
-  }
 }
 
 object TemporalRegionTests {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: TemporalRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : TemporalRegionTests[R, F, E] = new TemporalRegionTests[R, F, E] {
-    val laws = TemporalRegionLaws[R, F, E]
-  }
+  def apply[R[_[_], _], F[_], E](implicit
+                                 F0: TemporalRegion[R, F, E],
+                                 B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): TemporalRegionTests[R, F, E] =
+    new TemporalRegionTests[R, F, E] {
+      val laws = TemporalRegionLaws[R, F, E]
+    }
 }

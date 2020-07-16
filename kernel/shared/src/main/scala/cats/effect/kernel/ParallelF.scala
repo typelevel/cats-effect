@@ -35,7 +35,6 @@ object Par {
 
     def value[F[_], A](t: ParallelF[F, A]): F[A] = instance.value(t)
 
-
     implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
       new Applicative[ParallelF[F, *]] {
 

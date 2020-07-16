@@ -16,7 +16,8 @@
 
 package cats.effect
 
-private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Array[AnyRef], private[this] var index: Int) {
+final private[effect] class ArrayStack[A <: AnyRef](private[this] var buffer: Array[AnyRef],
+                                                    private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[AnyRef](initBound), 0)
@@ -31,7 +32,7 @@ private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Ar
   def pop(): A = {
     index -= 1
     val back = buffer(index).asInstanceOf[A]
-    buffer(index) = null    // avoid memory leaks
+    buffer(index) = null // avoid memory leaks
     back
   }
 
@@ -70,12 +71,11 @@ private[effect] final class ArrayStack[A <: AnyRef](private[this] var buffer: Ar
     new ArrayStack[A](buffer2, index)
   }
 
-  private[this] def checkAndGrow(): Unit = {
+  private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
       val buffer2 = new Array[AnyRef](len * 2)
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }
-  }
 }

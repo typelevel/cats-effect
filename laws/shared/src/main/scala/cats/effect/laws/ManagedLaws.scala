@@ -27,13 +27,9 @@ trait ManagedLaws[R[_[_], _], F[_]] extends AsyncRegionLaws[R, F] {
 }
 
 object ManagedLaws {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : ManagedLaws[R, F] =
+  def apply[R[_[_], _], F[_]](implicit
+                              F0: Managed[R, F],
+                              B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): ManagedLaws[R, F] =
     new ManagedLaws[R, F] {
       val F = F0
       val B = B0

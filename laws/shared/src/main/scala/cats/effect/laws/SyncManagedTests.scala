@@ -27,38 +27,35 @@ trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionT
 
   val laws: SyncManagedLaws[R, F]
 
-  def syncManaged[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
-      ArbFA: Arbitrary[F[A]],
-      ArbRFB: Arbitrary[R[F, B]],
-      ArbFB: Arbitrary[F[B]],
-      ArbRFC: Arbitrary[R[F, C]],
-      ArbFC: Arbitrary[F[C]],
-      ArbRFU: Arbitrary[R[F, Unit]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbRFAtoB: Arbitrary[R[F, A => B]],
-      ArbRFBtoC: Arbitrary[R[F, B => C]],
-      ArbE: Arbitrary[Throwable],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      CogenE: Cogen[Throwable],
-      CogenCaseA: Cogen[Either[Throwable, _]],
-      EqRFA: Eq[R[F, A]],
-      EqRFB: Eq[R[F, B]],
-      EqRFC: Eq[R[F, C]],
-      EqFU: Eq[F[Unit]],
-      EqE: Eq[Throwable],
-      EqRFEitherEU: Eq[R[F, Either[Throwable, Unit]]],
-      EqRFEitherEA: Eq[R[F, Either[Throwable, A]]],
-      EqRFABC: Eq[R[F, (A, B, C)]],
-      EqRFInt: Eq[R[F, Int]],
-      EqRFUnit: Eq[R[F, Unit]],
-      exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, *]])
-      : RuleSet = {
-
+  def syncManaged[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                        ArbRFA: Arbitrary[R[F, A]],
+                                                                        ArbFA: Arbitrary[F[A]],
+                                                                        ArbRFB: Arbitrary[R[F, B]],
+                                                                        ArbFB: Arbitrary[F[B]],
+                                                                        ArbRFC: Arbitrary[R[F, C]],
+                                                                        ArbFC: Arbitrary[F[C]],
+                                                                        ArbRFU: Arbitrary[R[F, Unit]],
+                                                                        ArbFU: Arbitrary[F[Unit]],
+                                                                        ArbRFAtoB: Arbitrary[R[F, A => B]],
+                                                                        ArbRFBtoC: Arbitrary[R[F, B => C]],
+                                                                        ArbE: Arbitrary[Throwable],
+                                                                        CogenA: Cogen[A],
+                                                                        CogenB: Cogen[B],
+                                                                        CogenC: Cogen[C],
+                                                                        CogenE: Cogen[Throwable],
+                                                                        CogenCaseA: Cogen[Either[Throwable, _]],
+                                                                        EqRFA: Eq[R[F, A]],
+                                                                        EqRFB: Eq[R[F, B]],
+                                                                        EqRFC: Eq[R[F, C]],
+                                                                        EqFU: Eq[F[Unit]],
+                                                                        EqE: Eq[Throwable],
+                                                                        EqRFEitherEU: Eq[R[F, Either[Throwable, Unit]]],
+                                                                        EqRFEitherEA: Eq[R[F, Either[Throwable, A]]],
+                                                                        EqRFABC: Eq[R[F, (A, B, C)]],
+                                                                        EqRFInt: Eq[R[F, Int]],
+                                                                        EqRFUnit: Eq[R[F, Unit]],
+                                                                        exec: R[F, Boolean] => Prop,
+                                                                        iso: Isomorphisms[R[F, *]]): RuleSet =
     new RuleSet {
       val name = "syncManaged"
       val bases = Nil
@@ -66,15 +63,14 @@ trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionT
 
       val props = Seq("roundTrip" -> forAll(laws.roundTrip[A] _))
     }
-  }
 }
 
 object SyncManagedTests {
   def apply[R[_[_], _], F[_]](
     implicit
-      F0: SyncManaged[R, F],
-      B: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] })
-      : SyncManagedTests[R, F] = new SyncManagedTests[R, F] {
+    F0: SyncManaged[R, F],
+    B: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] }
+  ): SyncManagedTests[R, F] = new SyncManagedTests[R, F] {
     val laws = SyncManagedLaws[R, F]
   }
 }

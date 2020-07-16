@@ -39,7 +39,7 @@ class DeferredSpec extends BaseSpec { outer =>
     tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
 
     "concurrent - get - cancel before forcing" in real {
-      cancelBeforeForcing(Deferred.apply).flatMap {res =>
+      cancelBeforeForcing(Deferred.apply).flatMap { res =>
         IO {
           res must beNone
         }

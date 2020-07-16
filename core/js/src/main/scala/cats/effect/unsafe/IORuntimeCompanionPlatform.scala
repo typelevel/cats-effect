@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.scalajs.concurrent.JSExecutionContext
 import scala.scalajs.js.timers
 
-private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type => 
+abstract private[unsafe] class IORuntimeCompanionPlatform { self: IORuntime.type =>
   def defaultComputeExecutionContext: ExecutionContext = JSExecutionContext.queue
   def defaultScheduler: Scheduler = new Scheduler {
     def sleep(delay: FiniteDuration, task: Runnable): Runnable = {

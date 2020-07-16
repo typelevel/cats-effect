@@ -18,7 +18,8 @@ package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
 
-@annotation.implicitNotFound("""Could not find an implicit IORuntime.
+@annotation.implicitNotFound(
+  """Could not find an implicit IORuntime.
 
 Instead of calling unsafe methods directly, consider using cats.effect.IOApp, which
 runs your IO. If integrating with non-functional code or experimenting in a REPL / Worksheet,
@@ -30,11 +31,9 @@ Alternatively, you can create an explicit IORuntime value and put it in implicit
 This may be useful if you have a pre-existing fixed thread pool and/or scheduler which you
 wish to use to execute IO programs. Please be sure to review thread pool best practices to
 avoid unintentionally degrading your application performance.
-""")
-final class IORuntime private (
-  val compute: ExecutionContext, 
-  val scheduler: Scheduler,
-  val shutdown: () => Unit) {
+"""
+)
+final class IORuntime private (val compute: ExecutionContext, val scheduler: Scheduler, val shutdown: () => Unit) {
 
   override def toString: String = s"IORuntime($compute, $scheduler)"
 }

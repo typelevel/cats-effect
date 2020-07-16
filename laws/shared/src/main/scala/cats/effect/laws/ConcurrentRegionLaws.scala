@@ -24,14 +24,9 @@ trait ConcurrentRegionLaws[R[_[_], _], F[_], E] extends ConcurrentLaws[R[F, *], 
 }
 
 object ConcurrentRegionLaws {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: ConcurrentRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : ConcurrentRegionLaws[R, F, E] =
+  def apply[R[_[_], _], F[_], E](implicit
+                                 F0: ConcurrentRegion[R, F, E],
+                                 B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): ConcurrentRegionLaws[R, F, E] =
     new ConcurrentRegionLaws[R, F, E] {
       val F = F0
       val B = B0

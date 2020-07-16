@@ -47,7 +47,7 @@ object FreeSyncGenerators {
         val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
 
         Arbitrary {
-          genTU flatMap { u =>
+          genTU.flatMap { u =>
             Gen.posNum[Long].map(FiniteDuration(_, u))
           }
         }
@@ -58,8 +58,8 @@ object FreeSyncGenerators {
     }
 
   implicit def arbitraryFreeSync[F[_], A: Arbitrary: Cogen](
-      implicit F: MonadError[F, Throwable])
-      : Arbitrary[FreeT[Eval, F, A]] =
+    implicit F: MonadError[F, Throwable]
+  ): Arbitrary[FreeT[Eval, F, A]] =
     Arbitrary(generators[F].generators[A])
 }
 

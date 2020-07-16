@@ -29,32 +29,29 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
 
   val laws: SyncLaws[F]
 
-  def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      ArbE: Arbitrary[Throwable],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      CogenE: Cogen[Throwable],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqE: Eq[Throwable],
-      EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
-      EqFEitherEA: Eq[F[Either[Throwable, A]]],
-      EqEitherTFEA: Eq[EitherT[F, Throwable, A]],
-      EqFABC: Eq[F[(A, B, C)]],
-      EqFInt: Eq[F[Int]],
-      exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F])
-      : RuleSet = {
-
+  def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](implicit
+                                                                 ArbFA: Arbitrary[F[A]],
+                                                                 ArbFB: Arbitrary[F[B]],
+                                                                 ArbFC: Arbitrary[F[C]],
+                                                                 ArbFU: Arbitrary[F[Unit]],
+                                                                 ArbFAtoB: Arbitrary[F[A => B]],
+                                                                 ArbFBtoC: Arbitrary[F[B => C]],
+                                                                 ArbE: Arbitrary[Throwable],
+                                                                 CogenA: Cogen[A],
+                                                                 CogenB: Cogen[B],
+                                                                 CogenC: Cogen[C],
+                                                                 CogenE: Cogen[Throwable],
+                                                                 EqFA: Eq[F[A]],
+                                                                 EqFB: Eq[F[B]],
+                                                                 EqFC: Eq[F[C]],
+                                                                 EqE: Eq[Throwable],
+                                                                 EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
+                                                                 EqFEitherEA: Eq[F[Either[Throwable, A]]],
+                                                                 EqEitherTFEA: Eq[EitherT[F, Throwable, A]],
+                                                                 EqFABC: Eq[F[(A, B, C)]],
+                                                                 EqFInt: Eq[F[Int]],
+                                                                 exec: F[Boolean] => Prop,
+                                                                 iso: Isomorphisms[F]): RuleSet =
     new RuleSet {
       val name = "sync"
       val bases = Nil
@@ -64,9 +61,9 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
         "delay value is pure" -> forAll(laws.delayValueIsPure[A] _),
         "delay throw is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
         "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
-        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _))
+        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _)
+      )
     }
-  }
 }
 
 object SyncTests {

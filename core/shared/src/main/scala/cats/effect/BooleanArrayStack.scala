@@ -16,7 +16,7 @@
 
 package cats.effect
 
-private[effect] final class BooleanArrayStack(private[this] var buffer: Array[Boolean], private[this] var index: Int) {
+final private[effect] class BooleanArrayStack(private[this] var buffer: Array[Boolean], private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[Boolean](initBound), 0)
@@ -59,12 +59,11 @@ private[effect] final class BooleanArrayStack(private[this] var buffer: Array[Bo
     new BooleanArrayStack(buffer2, index)
   }
 
-  private[this] def checkAndGrow(): Unit = {
+  private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
       val buffer2 = new Array[Boolean](len * 2)
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }
-  }
 }

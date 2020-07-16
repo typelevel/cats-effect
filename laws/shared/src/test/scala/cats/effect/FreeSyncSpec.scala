@@ -41,7 +41,5 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
   implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
     run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
 
-  checkAll(
-    "FreeEitherSync",
-    SyncTests[FreeEitherSync].sync[Int, Int, Int])
+  checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
 }

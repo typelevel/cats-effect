@@ -24,14 +24,12 @@ import org.scalacheck.util.Pretty
 
 sealed trait IsEq[A] {
 
-  def toPropTolerant[F[_], B](
-      implicit ev: A =:= F[B],
-      F: Applicative[F],
-      ord: Order[F[B]],
-      g: Group[B],
-      tolerance: Tolerance[B],
-      pp: A => Pretty)
-      : Prop =
+  def toPropTolerant[F[_], B](implicit ev: A =:= F[B],
+                              F: Applicative[F],
+                              ord: Order[F[B]],
+                              g: Group[B],
+                              tolerance: Tolerance[B],
+                              pp: A => Pretty): Prop =
     this match {
       case IsEq.Assert(lhs0, rhs0) =>
         val lhs = ev(lhs0)
@@ -70,13 +68,8 @@ private[laws] trait IsEqLowPriorityImplicits {
 object IsEq extends IsEqLowPriorityImplicits {
 
   implicit def toPropTolerant[F[_], A](
-      isEq: IsEq[F[A]])(
-      implicit F: Applicative[F],
-      ord: Order[F[A]],
-      g: Group[A],
-      tolerance: Tolerance[A],
-      pp: F[A] => Pretty)
-      : Prop =
+    isEq: IsEq[F[A]]
+  )(implicit F: Applicative[F], ord: Order[F[A]], g: Group[A], tolerance: Tolerance[A], pp: F[A] => Pretty): Prop =
     isEq.toPropTolerant
 
   def apply[A](lhs: A, rhs: A): IsEq[A] =

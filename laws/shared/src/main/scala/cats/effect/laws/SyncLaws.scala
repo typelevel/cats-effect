@@ -32,13 +32,13 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
     F.delay[A](throw e) <-> F.raiseError(e)
 
   def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
-    val isWith = F delay {
+    val isWith = F.delay {
       var cur = a
-      val _ = F delay { cur = f(cur) }
+      val _ = F.delay { cur = f(cur) }
       F.delay(cur)
     }
 
-    val isWithout = F delay {
+    val isWithout = F.delay {
       var cur = a
       F.delay(cur)
     }
@@ -47,10 +47,10 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
   }
 
   def repeatedDelayNotMemoized[A](a: A, f: A => A) = {
-    val isWith = F delay {
+    val isWith = F.delay {
       var cur = a
 
-      val changeF = F delay {
+      val changeF = F.delay {
         cur = f(cur)
         cur
       }
@@ -58,10 +58,10 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
       changeF >> changeF
     }
 
-    val isWithout = F delay {
+    val isWithout = F.delay {
       var cur = a
 
-      F delay {
+      F.delay {
         cur = f(f(cur))
         cur
       }

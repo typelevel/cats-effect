@@ -16,7 +16,7 @@
 
 package cats.effect
 
-private[effect] sealed abstract class AsyncState extends Product with Serializable {
+sealed abstract private[effect] class AsyncState extends Product with Serializable {
   def result: Either[Throwable, Any] = sys.error("impossible")
 }
 

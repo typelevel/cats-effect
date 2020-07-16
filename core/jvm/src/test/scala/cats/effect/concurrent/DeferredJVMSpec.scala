@@ -42,7 +42,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
 
   implicit val runtime: IORuntime = IORuntime.global
 
-  def before = {
+  def before =
     service = Executors.newFixedThreadPool(
       parallelism,
       new ThreadFactory {
@@ -55,7 +55,6 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
         }
       }
     )
-  }
 
   def after = {
     service.shutdown()
@@ -83,9 +82,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
       val task = for {
         df <- cats.effect.concurrent.Deferred[IO, Unit]
         fb <- get(df).start
-        _ <- IO(Thread.currentThread().getName must be equalTo(name))
+        _ <- IO((Thread.currentThread().getName must be).equalTo(name))
         _ <- df.complete(())
-        _ <- IO(Thread.currentThread().getName must be equalTo(name))
+        _ <- IO((Thread.currentThread().getName must be).equalTo(name))
         _ <- fb.join
       } yield ()
 
@@ -192,23 +191,25 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
 
   def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
     // TODO this code is now in 4 places; should be in 1
-    val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
-      val t = new Thread({ () =>
-        try {
-          r.run()
-        } catch {
-          case t: Throwable =>
-            t.printStackTrace()
-            errors(t)
-        }
-      })
-      t.setDaemon(true)
-      t
-    })
+    val executor = Executors.newFixedThreadPool(
+      Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+        val t = new Thread(() =>
+          try {
+            r.run()
+          } catch {
+            case t: Throwable =>
+              t.printStackTrace()
+              errors(t)
+          }
+        )
+        t.setDaemon(true)
+        t
+      }
+    )
 
     val ctx = ExecutionContext.fromExecutor(executor)
 
-    val scheduler = Executors newSingleThreadScheduledExecutor { r =>
+    val scheduler = Executors.newSingleThreadScheduledExecutor { r =>
       val t = new Thread(r)
       t.setName("io-scheduler")
       t.setDaemon(true)

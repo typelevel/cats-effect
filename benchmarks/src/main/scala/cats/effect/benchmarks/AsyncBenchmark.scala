@@ -110,8 +110,7 @@ class AsyncBenchmark {
   @Benchmark
   def start() = {
     def loop(i: Int): IO[Int] =
-      if (i < size)
-        (IO(i + 1)).start.flatMap(_.joinAndEmbedNever).flatMap(loop)
+      if (i < size)(IO(i + 1)).start.flatMap(_.joinAndEmbedNever).flatMap(loop)
       else
         IO.pure(i)
 

@@ -47,7 +47,7 @@ class DeepBindBenchmark {
   @Benchmark
   def pure(): Int = {
     def loop(i: Int): IO[Int] =
-      IO.pure(i) flatMap { j =>
+      IO.pure(i).flatMap { j =>
         if (j > size)
           IO.pure(j)
         else
@@ -60,7 +60,7 @@ class DeepBindBenchmark {
   @Benchmark
   def delay(): Int = {
     def loop(i: Int): IO[Int] =
-      IO(i) flatMap { j =>
+      IO(i).flatMap { j =>
         if (j > size)
           IO.pure(j)
         else
@@ -73,8 +73,8 @@ class DeepBindBenchmark {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): IO[Int] =
-      IO(i) flatMap { j =>
-        IO.cede flatMap { _ =>
+      IO(i).flatMap { j =>
+        IO.cede.flatMap { _ =>
           if (j > size)
             IO.pure(j)
           else

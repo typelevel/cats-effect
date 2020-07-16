@@ -19,7 +19,19 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
-import cats.effect.kernel.{Concurrent, ConcurrentBracket, ConcurrentRegion, Bracket, Fiber, Outcome, Region, Safe, Temporal, TemporalBracket, TemporalRegion}
+import cats.effect.kernel.{
+  Bracket,
+  Concurrent,
+  ConcurrentBracket,
+  ConcurrentRegion,
+  Fiber,
+  Outcome,
+  Region,
+  Safe,
+  Temporal,
+  TemporalBracket,
+  TemporalRegion
+}
 import cats.implicits._
 
 import scala.concurrent.duration._
@@ -56,12 +68,10 @@ object TimeT {
     }
 
   implicit def temporalB[F[_], E](implicit F: ConcurrentBracket[F, E]): TemporalBracket[TimeT[F, *], E] =
-    new TimeTTemporal[F, E] with Bracket[TimeT[F, *], E]  {
+    new TimeTTemporal[F, E] with Bracket[TimeT[F, *], E] {
       def bracketCase[A, B](
-          acquire: TimeT[F, A])(
-          use: A => TimeT[F, B])(
-          release: (A, Outcome[TimeT[F, *], E, B]) => TimeT[F, Unit])
-          : TimeT[F, B] =
+        acquire: TimeT[F, A]
+      )(use: A => TimeT[F, B])(release: (A, Outcome[TimeT[F, *], E, B]) => TimeT[F, Unit]): TimeT[F, B] =
         Kleisli { time =>
           F.bracketCase(acquire.run(time))(use.andThen(_.run(time))) { (a, oc) =>
             release(a, oc.mapK(Kleisli.liftK[F, Time])).run(time)
@@ -71,13 +81,17 @@ object TimeT {
 
   type TimeTR[R[_[_], _]] = { type L[F[_], A] = TimeT[R[F, *], A] }
 
-  implicit def temporalR[R[_[_], _], F[_], E](implicit F: ConcurrentRegion[R, F, E]): TemporalRegion[TimeTR[R]#L, F, E] =
+  implicit def temporalR[R[_[_], _], F[_], E](
+    implicit F: ConcurrentRegion[R, F, E]
+  ): TemporalRegion[TimeTR[R]#L, F, E] =
     new TimeTTemporal[R[F, *], E] with Region[TimeTR[R]#L, F, E] {
 
       def liftF[A](fa: F[A]): TimeT[R[F, *], A] =
         Kleisli.liftF(F.liftF(fa))
 
-      def openCase[A, E0](acquire: F[A])(release: (A, Outcome[TimeT[R[F, *], *], E, E0]) => F[Unit]): TimeT[R[F, *], A] =
+      def openCase[A, E0](
+        acquire: F[A]
+      )(release: (A, Outcome[TimeT[R[F, *], *], E, E0]) => F[Unit]): TimeT[R[F, *], A] =
         Kleisli.liftF[R[F, *], Time, A] {
           F.openCase[A, E0](acquire) { (a, oc) =>
             release(a, oc.mapK(Kleisli.liftK[R[F, *], Time]))
@@ -90,7 +104,8 @@ object TimeT {
         }
     }
 
-  private[this] abstract class TimeTTemporal[F[_], E](implicit F: Concurrent[F, E]) extends Temporal[TimeT[F, *], E] { self: Safe[TimeT[F, *], E] =>
+  abstract private[this] class TimeTTemporal[F[_], E](implicit F: Concurrent[F, E]) extends Temporal[TimeT[F, *], E] {
+    self: Safe[TimeT[F, *], E] =>
     def pure[A](x: A): TimeT[F, A] =
       Kleisli.pure(x)
 
@@ -112,15 +127,15 @@ object TimeT {
       TimeT.liftF(F.never[A])
 
     def racePair[A, B](
-        fa: TimeT[F, A],
-        fb: TimeT[F, B])
-        : TimeT[F, Either[(A, Fiber[TimeT[F, *], E, B]), (Fiber[TimeT[F, *], E, A], B)]] =
+      fa: TimeT[F, A],
+      fb: TimeT[F, B]
+    ): TimeT[F, Either[(A, Fiber[TimeT[F, *], E, B]), (Fiber[TimeT[F, *], E, A], B)]] =
       Kleisli { time =>
         val forkA = time.fork()
         val forkB = time.fork()
 
         // TODO this doesn't work (yet) because we need to force the "faster" effect to win the race, which right now isn't happening
-        F.racePair(fa.run(forkA), fb.run(forkB)) map {
+        F.racePair(fa.run(forkA), fb.run(forkB)).map {
           case Left((a, delegate)) =>
             time.now = forkA.now
             Left((a, fiberize(forkB, delegate)))
@@ -140,7 +155,7 @@ object TimeT {
 
     def uncancelable[A](body: TimeT[F, *] ~> TimeT[F, *] => TimeT[F, A]): TimeT[F, A] =
       Kleisli { time =>
-        F uncancelable { poll =>
+        F.uncancelable { poll =>
           val poll2 = new (TimeT[F, *] ~> TimeT[F, *]) {
             def apply[a](tfa: TimeT[F, a]) =
               Kleisli { time2 =>
@@ -164,10 +179,10 @@ object TimeT {
       Kleisli.ask[F, Time].map(_.now)
 
     val realTime =
-      pure(0.millis)   // TODO is there anything better here?
+      pure(0.millis) // TODO is there anything better here?
 
     def sleep(time: FiniteDuration): TimeT[F, Unit] =
-      Kleisli.ask[F, Time].map(_.now += time)   // what could go wrong*
+      Kleisli.ask[F, Time].map(_.now += time) // what could go wrong*
 
     private[this] def fiberize[A](forked: Time, delegate: Fiber[F, E, A]): Fiber[TimeT[F, *], E, A] =
       new Fiber[TimeT[F, *], E, A] {
@@ -177,12 +192,12 @@ object TimeT {
 
         val join =
           Kleisli { outerTime =>
-            delegate.join map { back =>
+            delegate.join.map { back =>
               // if the forked time is less, then it means it completed first; if it's more, then we semantically block (by increasing "now")
               outerTime.now = outerTime.now.max(forked.now)
               back.mapK(Kleisli.liftK[F, Time])
             }
           }
       }
-    }
+  }
 }

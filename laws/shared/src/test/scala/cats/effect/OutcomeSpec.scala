@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eval/*, Id*/}
+import cats.{Eval /*, Id*/}
 import cats.effect.kernel.Outcome
 import cats.effect.testkit.OutcomeGenerators
 import cats.implicits._
@@ -34,11 +34,7 @@ class OutcomeSpec extends Specification with Discipline {
   //   "Outcome[Id, Int, *]",
   //   MonadErrorTests[Outcome[Id, Int, *], Int].monadError[Int, Int, Int])
 
-  checkAll(
-    "Outcome[Option, Int, *]",
-    MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
+  checkAll("Outcome[Option, Int, *]", MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
 
-  checkAll(
-    "Outcome[Eval, Int, *]",
-    ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
+  checkAll("Outcome[Eval, Int, *]", ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
 }

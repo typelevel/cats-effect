@@ -28,33 +28,28 @@ trait ClockTests[F[_]] extends ApplicativeTests[F] {
 
   val laws: ClockLaws[F]
 
-  def clock[A: Arbitrary, B: Arbitrary, C: Arbitrary](
-    implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenC: Cogen[C],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqFABC: Eq[F[(A, B, C)]],
-      exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F])
-      : RuleSet = {
-
+  def clock[A: Arbitrary, B: Arbitrary, C: Arbitrary](implicit
+                                                      ArbFA: Arbitrary[F[A]],
+                                                      ArbFB: Arbitrary[F[B]],
+                                                      ArbFC: Arbitrary[F[C]],
+                                                      ArbFAtoB: Arbitrary[F[A => B]],
+                                                      ArbFBtoC: Arbitrary[F[B => C]],
+                                                      CogenA: Cogen[A],
+                                                      CogenB: Cogen[B],
+                                                      CogenC: Cogen[C],
+                                                      EqFA: Eq[F[A]],
+                                                      EqFB: Eq[F[B]],
+                                                      EqFC: Eq[F[C]],
+                                                      EqFABC: Eq[F[(A, B, C)]],
+                                                      exec: F[Boolean] => Prop,
+                                                      iso: Isomorphisms[F]): RuleSet =
     new RuleSet {
       val name = "clock"
       val bases = Nil
       val parents = Seq(applicative[A, B, C])
 
-      val props = Seq(
-        "monotonicity" -> laws.monotonicity)
+      val props = Seq("monotonicity" -> laws.monotonicity)
     }
-  }
 }
 
 object ClockTests {

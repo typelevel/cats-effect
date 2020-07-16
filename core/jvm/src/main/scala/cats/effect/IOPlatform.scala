@@ -19,9 +19,9 @@ package cats.effect
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.duration._
 
-import java.util.concurrent.{CountDownLatch, CompletableFuture, TimeUnit}
+import java.util.concurrent.{CompletableFuture, CountDownLatch, TimeUnit}
 
-private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
+abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
   final def unsafeRunSync()(implicit runtime: unsafe.IORuntime): A =
     unsafeRunTimed(Long.MaxValue.nanos).get
@@ -37,9 +37,7 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
     }
 
     if (latch.await(limit.toNanos, TimeUnit.NANOSECONDS)) {
-      results.fold(
-        throw _,
-        a => Some(a))
+      results.fold(throw _, a => Some(a))
     } else {
       None
     }
@@ -48,8 +46,8 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
   final def unsafeToCompletableFuture()(implicit runtime: unsafe.IORuntime): CompletableFuture[A @uncheckedVariance] = {
     val cf = new CompletableFuture[A]()
 
-    unsafeRunAsync  {
-      case Left(t) => cf.completeExceptionally(t)
+    unsafeRunAsync {
+      case Left(t)  => cf.completeExceptionally(t)
       case Right(a) => cf.complete(a)
     }
 

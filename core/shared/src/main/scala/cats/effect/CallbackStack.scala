@@ -20,7 +20,8 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private[effect] final class CallbackStack[A](private[this] var callback: Outcome[IO, Throwable, A] => Unit) extends AtomicReference[CallbackStack[A]] {
+final private[effect] class CallbackStack[A](private[this] var callback: Outcome[IO, Throwable, A] => Unit)
+    extends AtomicReference[CallbackStack[A]] {
 
   @tailrec
   def push(next: Outcome[IO, Throwable, A] => Unit): CallbackStack[A] = {

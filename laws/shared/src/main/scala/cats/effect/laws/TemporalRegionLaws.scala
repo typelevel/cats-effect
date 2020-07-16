@@ -24,14 +24,9 @@ trait TemporalRegionLaws[R[_[_], _], F[_], E] extends TemporalLaws[R[F, *], E] w
 }
 
 object TemporalRegionLaws {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: TemporalRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : TemporalRegionLaws[R, F, E] =
+  def apply[R[_[_], _], F[_], E](implicit
+                                 F0: TemporalRegion[R, F, E],
+                                 B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): TemporalRegionLaws[R, F, E] =
     new TemporalRegionLaws[R, F, E] {
       val F = F0
       val B = B0

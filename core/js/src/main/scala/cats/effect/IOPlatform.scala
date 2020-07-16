@@ -18,10 +18,10 @@ package cats.effect
 
 import scala.scalajs.js.{|, Function1, JavaScriptException, Promise, Thenable}
 
-private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
+abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
   def unsafeToPromise()(implicit runtime: unsafe.IORuntime): Promise[A] =
-    new Promise[A]({ (resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
+    new Promise[A]((resolve: Function1[A | Thenable[A], _], reject: Function1[Any, _]) =>
       self.unsafeRunAsync {
         case Left(JavaScriptException(e)) =>
           reject(e)
@@ -32,5 +32,5 @@ private[effect] abstract class IOPlatform[+A] { self: IO[A] =>
         case Right(value) =>
           resolve(value)
       }
-    })
+    )
 }

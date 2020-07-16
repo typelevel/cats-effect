@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 // separated so as to avoid unnecessary memory barriers
 // note that there is no verification to ensure safety of
 // simultaneous pushes and pops
-private[effect] final class SafeArrayStack[A <: AnyRef](initBound: Int) {
+final private[effect] class SafeArrayStack[A <: AnyRef](initBound: Int) {
 
   private[this] val buffer = new AtomicReference[Array[AnyRef]](new Array[AnyRef](initBound))
   private[this] val index = new AtomicInteger(0)

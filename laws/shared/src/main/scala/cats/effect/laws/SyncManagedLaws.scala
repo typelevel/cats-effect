@@ -29,9 +29,9 @@ trait SyncManagedLaws[R[_[_], _], F[_]] extends SyncLaws[R[F, *]] with RegionLaw
 object SyncManagedLaws {
   def apply[R[_[_], _], F[_]](
     implicit
-      F0: SyncManaged[R, F],
-      B0: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] })
-      : SyncManagedLaws[R, F] =
+    F0: SyncManaged[R, F],
+    B0: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] }
+  ): SyncManagedLaws[R, F] =
     new SyncManagedLaws[R, F] {
       val F = F0
       val B = B0

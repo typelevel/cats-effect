@@ -23,7 +23,6 @@ import cats.implicits._
 
 import scala.concurrent.duration._
 
-
 object freeEval {
 
   type FreeSync[F[_], A] = FreeT[Eval, F, A]
@@ -59,8 +58,8 @@ object freeEval {
         M.tailRecM(a)(f)
 
       def delay[A](thunk: => A): FreeT[Eval, F, A] =
-        FreeT roll {
-          Eval always {
+        FreeT.roll {
+          Eval.always {
             try {
               pure(thunk)
             } catch {

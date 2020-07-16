@@ -60,7 +60,7 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
     val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
 
     Arbitrary {
-      genTU flatMap { u =>
+      genTU.flatMap { u =>
         Gen.posNum[Long].map(FiniteDuration(_, u))
       }
     }

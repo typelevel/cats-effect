@@ -321,11 +321,9 @@ object TestContext {
     /**
      * Returns a new state with a scheduled task included.
      */
-    private[TestContext] def scheduleOnce(
-        delay: FiniteDuration,
-        r: Runnable,
-        cancelTask: Task => Unit)
-        : (() => Unit, State) = {
+    private[TestContext] def scheduleOnce(delay: FiniteDuration,
+                                          r: Runnable,
+                                          cancelTask: Task => Unit): (() => Unit, State) = {
 
       val d = if (delay >= Duration.Zero) delay else Duration.Zero
       val newID = lastID + 1

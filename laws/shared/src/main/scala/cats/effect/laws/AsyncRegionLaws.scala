@@ -24,13 +24,9 @@ trait AsyncRegionLaws[R[_[_], _], F[_]] extends AsyncLaws[R[F, *]] with Temporal
 }
 
 object AsyncRegionLaws {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: AsyncRegion[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : AsyncRegionLaws[R, F] =
+  def apply[R[_[_], _], F[_]](implicit
+                              F0: AsyncRegion[R, F],
+                              B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): AsyncRegionLaws[R, F] =
     new AsyncRegionLaws[R, F] {
       val F = F0
       val B = B0

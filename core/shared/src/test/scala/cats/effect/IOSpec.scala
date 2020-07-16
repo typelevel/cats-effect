@@ -93,7 +93,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "start and join on a failed fiber" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(Outcome.errored[IO, Throwable, Unit](TestException))
+      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(
+        Outcome.errored[IO, Throwable, Unit](TestException)
+      )
     }
 
     "implement never with non-terminating semantics" in ticked { implicit ticker =>
@@ -105,7 +107,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "start a fiber then continue with its results" in ticked { implicit ticker =>
-      IO.pure(42).start.flatMap(_.join) flatMap { oc =>
+      IO.pure(42).start.flatMap(_.join).flatMap { oc =>
         oc.fold(IO.pure(0), _ => IO.pure(-1), ioa => ioa)
       } must completeAs(42)
     }
@@ -160,7 +162,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "suppress async cancel token upon cancelation in masked region" in ticked { implicit ticker =>
       var affected = false
 
-      val target = IO uncancelable { _ =>
+      val target = IO.uncancelable { _ =>
         IO.async[Unit] { _ =>
           IO.pure(Some(IO { affected = true }))
         }
@@ -240,7 +242,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "run an identity finalizer" in ticked { implicit ticker =>
       var affected = false
 
-      IO.unit onCase {
+      IO.unit.onCase {
         case _ => IO { affected = true }
       } must completeAs(())
 
@@ -250,7 +252,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "run an identity finalizer and continue" in ticked { implicit ticker =>
       var affected = false
 
-      val seed = IO.unit onCase {
+      val seed = IO.unit.onCase {
         case _ => IO { affected = true }
       }
 
@@ -273,7 +275,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       var inner = 0
       var outer = 0
 
-      IO.unit.guarantee(IO { inner += 1 }).guarantee(IO { outer += 1 }) must completeAs(())
+      IO.unit.guarantee(IO(inner += 1)).guarantee(IO(outer += 1)) must completeAs(())
 
       inner mustEqual 1
       outer mustEqual 1
@@ -281,7 +283,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "sequence onCancel when canceled before registration" in ticked { implicit ticker =>
       var passed = false
-      val test = IO uncancelable { poll =>
+      val test = IO.uncancelable { poll =>
         IO.canceled >> poll(IO.unit).onCancel(IO { passed = true })
       }
 
@@ -291,7 +293,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "break out of uncancelable when canceled before poll" in ticked { implicit ticker =>
       var passed = true
-      val test = IO uncancelable { poll =>
+      val test = IO.uncancelable { poll =>
         IO.canceled >> poll(IO.unit) >> IO { passed = false }
       }
 
@@ -303,7 +305,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       var passed = false
 
       // convenient proxy for an async that returns a cancelToken
-      val test = IO.sleep(1.day) onCase {
+      val test = IO.sleep(1.day).onCase {
         case Outcome.Completed(_) => IO { passed = true }
       }
 
@@ -353,7 +355,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "only unmask within current fiber" in ticked { implicit ticker =>
       var passed = false
-      val test = IO uncancelable { poll =>
+      val test = IO.uncancelable { poll =>
         IO.uncancelable(_ => poll(IO.canceled >> IO { passed = true })).start.flatMap(_.join).void
       }
 
@@ -362,7 +364,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "produce the left when the right errors in racePair" in ticked { implicit ticker =>
-      (IO.cede >> IO.pure(42)).racePair(IO.raiseError(new Throwable): IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(Some(42))
+      (IO.cede >> IO.pure(42))
+        .racePair(IO.raiseError(new Throwable): IO[Unit])
+        .map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
     "run three finalizers when an async is canceled while suspended" in ticked { implicit ticker =>
@@ -415,19 +419,21 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "catch exceptions thrown in handleErrorWith functions" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       case object WrongException extends RuntimeException
-      IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(Left(TestException))
+      IO.raiseError[Unit](WrongException).handleErrorWith(_ => (throw TestException): IO[Unit]).attempt must completeAs(
+        Left(TestException)
+      )
     }
 
     "round trip through s.c.Future" in ticked { implicit ticker =>
       forAll { (ioa: IO[Int]) =>
-        ioa eqv IO.fromFuture(IO(ioa.unsafeToFuture()))
+        ioa.eqv(IO.fromFuture(IO(ioa.unsafeToFuture())))
       }
     }
 
     "ignore repeated polls" in ticked { implicit ticker =>
       var passed = true
 
-      val test = IO uncancelable { poll =>
+      val test = IO.uncancelable { poll =>
         poll(poll(IO.unit) >> IO.canceled) >> IO { passed = false }
       }
 
@@ -440,7 +446,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "evaluate a timeout using sleep and race in real time" in real {
-      IO.race(IO.never[Unit], IO.sleep(10.millis)) flatMap { res =>
+      IO.race(IO.never[Unit], IO.sleep(10.millis)).flatMap { res =>
         IO {
           res must beRight(())
         }
@@ -464,16 +470,16 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         r4 <- delegate4.join
       } yield List(r1, r2, r3, r4)
 
-      test flatMap { results =>
-        results traverse { result =>
-          IO(result must beLike { case Outcome.Completed(_) => ok }) flatMap { _ =>
+      test.flatMap { results =>
+        results.traverse { result =>
+          IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
             result match {
               case Outcome.Completed(ioa) =>
-                ioa flatMap { oc =>
-                  IO(result must beLike { case Outcome.Completed(_) => ok }) flatMap { _ =>
+                ioa.flatMap { oc =>
+                  IO(result must beLike { case Outcome.Completed(_) => ok }).flatMap { _ =>
                     oc match {
                       case Outcome.Completed(ioa) =>
-                        ioa flatMap { i =>
+                        ioa.flatMap { i =>
                           IO(i mustEqual 42)
                         }
 
@@ -508,7 +514,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis))/*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
+      EffectTests[IO].effect[Int, Int, Int](10.millis)
+    ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 
   {
@@ -516,7 +523,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO[Int]",
-      MonoidTests[IO[Int]].monoid)/*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
+      MonoidTests[IO[Int]].monoid
+    ) /*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
   }
 
 }

@@ -30,49 +30,48 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
 
   def concurrentBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
     implicit
-      ArbFA: Arbitrary[F[A]],
-      ArbFB: Arbitrary[F[B]],
-      ArbFC: Arbitrary[F[C]],
-      ArbFU: Arbitrary[F[Unit]],
-      ArbFAtoB: Arbitrary[F[A => B]],
-      ArbFBtoC: Arbitrary[F[B => C]],
-      ArbE: Arbitrary[E],
-      CogenA: Cogen[A],
-      CogenB: Cogen[B],
-      CogenFB: Cogen[F[B]],
-      CogenC: Cogen[C],
-      CogenE: Cogen[E],
-      CogenCaseA: Cogen[Outcome[F, E, A]],
-      CogenCaseB: Cogen[Outcome[F, E, B]],
-      CogenCaseU: Cogen[Outcome[F, E, Unit]],
-      EqFA: Eq[F[A]],
-      EqFB: Eq[F[B]],
-      EqFC: Eq[F[C]],
-      EqFU: Eq[F[Unit]],
-      EqE: Eq[E],
-      EqFEitherEU: Eq[F[Either[E, Unit]]],
-      EqFEitherEA: Eq[F[Either[E, A]]],
-      EqFEitherAB: Eq[F[Either[A, B]]],
-      EqFEitherUA: Eq[F[Either[Unit, A]]],
-      EqFEitherAU: Eq[F[Either[A, Unit]]],
-      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
-      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
-      EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
-      EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
-      EqFABC: Eq[F[(A, B, C)]],
-      EqFInt: Eq[F[Int]],
-      iso: Isomorphisms[F],
-      faPP: F[A] => Pretty,
-      fbPP: F[B] => Pretty,
-      fuPP: F[Unit] => Pretty,
-      aFUPP: (A => F[Unit]) => Pretty,
-      ePP: E => Pretty,
-      foaPP: F[Outcome[F, E, A]] => Pretty,
-      feauPP: F[Either[A, Unit]] => Pretty,
-      feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, E, Unit]] => Pretty)
-      : RuleSet = {
-
+    ArbFA: Arbitrary[F[A]],
+    ArbFB: Arbitrary[F[B]],
+    ArbFC: Arbitrary[F[C]],
+    ArbFU: Arbitrary[F[Unit]],
+    ArbFAtoB: Arbitrary[F[A => B]],
+    ArbFBtoC: Arbitrary[F[B => C]],
+    ArbE: Arbitrary[E],
+    CogenA: Cogen[A],
+    CogenB: Cogen[B],
+    CogenFB: Cogen[F[B]],
+    CogenC: Cogen[C],
+    CogenE: Cogen[E],
+    CogenCaseA: Cogen[Outcome[F, E, A]],
+    CogenCaseB: Cogen[Outcome[F, E, B]],
+    CogenCaseU: Cogen[Outcome[F, E, Unit]],
+    EqFA: Eq[F[A]],
+    EqFB: Eq[F[B]],
+    EqFC: Eq[F[C]],
+    EqFU: Eq[F[Unit]],
+    EqE: Eq[E],
+    EqFEitherEU: Eq[F[Either[E, Unit]]],
+    EqFEitherEA: Eq[F[Either[E, A]]],
+    EqFEitherAB: Eq[F[Either[A, B]]],
+    EqFEitherUA: Eq[F[Either[Unit, A]]],
+    EqFEitherAU: Eq[F[Either[A, Unit]]],
+    EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
+    EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
+    EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
+    EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
+    EqFABC: Eq[F[(A, B, C)]],
+    EqFInt: Eq[F[Int]],
+    iso: Isomorphisms[F],
+    faPP: F[A] => Pretty,
+    fbPP: F[B] => Pretty,
+    fuPP: F[Unit] => Pretty,
+    aFUPP: (A => F[Unit]) => Pretty,
+    ePP: E => Pretty,
+    foaPP: F[Outcome[F, E, A]] => Pretty,
+    feauPP: F[Either[A, Unit]] => Pretty,
+    feuaPP: F[Either[Unit, A]] => Pretty,
+    fouPP: F[Outcome[F, E, Unit]] => Pretty
+  ): RuleSet =
     new RuleSet {
       val name = "concurrent (bracket)"
       val bases = Nil
@@ -81,13 +80,14 @@ trait ConcurrentBracketTests[F[_], E] extends ConcurrentTests[F, E] with Bracket
       val props = Seq(
         // "bracket canceled releases" -> forAll(laws.bracketCanceledReleases[A, B] _),
         "bracket uncancelable flatMap identity" -> forAll(laws.bracketUncancelableFlatMapIdentity[A, B] _),
-        "onCase shape-consistent with join" -> forAll(laws.onCaseShapeConsistentWithJoin[A] _))
+        "onCase shape-consistent with join" -> forAll(laws.onCaseShapeConsistentWithJoin[A] _)
+      )
     }
-  }
 }
 
 object ConcurrentBracketTests {
-  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketTests[F, E] = new ConcurrentBracketTests[F, E] {
-    val laws = ConcurrentBracketLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: ConcurrentBracket[F, E]): ConcurrentBracketTests[F, E] =
+    new ConcurrentBracketTests[F, E] {
+      val laws = ConcurrentBracketLaws[F, E]
+    }
 }

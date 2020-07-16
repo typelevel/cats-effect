@@ -40,7 +40,7 @@ trait IOApp {
     def handleShutdown(): Unit = {
       if (latch.getCount() > 0) {
         val cancelLatch = new CountDownLatch(1)
-        fiber.cancel.unsafeRunAsync { _ => cancelLatch.countDown() }(runtime)
+        fiber.cancel.unsafeRunAsync(_ => cancelLatch.countDown())(runtime)
         cancelLatch.await()
       }
 
@@ -55,9 +55,7 @@ trait IOApp {
     try {
       latch.await()
 
-      results.fold(
-        throw _,
-        System.exit(_))
+      results.fold(throw _, System.exit(_))
     } catch {
       // this handles sbt when fork := false
       case _: InterruptedException =>

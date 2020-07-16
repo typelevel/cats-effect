@@ -259,11 +259,12 @@ class SemaphoreSpec extends BaseSpec { outer =>
         }
 
       op.flatMap {
-        case Outcome.Completed(ioa) => ioa.flatMap { res =>
-          IO {
-            res must beEqualTo(0: Long)
+        case Outcome.Completed(ioa) =>
+          ioa.flatMap { res =>
+            IO {
+              res must beEqualTo(0: Long)
+            }
           }
-        }
         case _ => IO.pure(false must beTrue) //Is there a not a `const failure` matcher?
       }
     }

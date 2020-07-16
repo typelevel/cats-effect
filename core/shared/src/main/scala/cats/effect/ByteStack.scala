@@ -16,7 +16,7 @@
 
 package cats.effect
 
-private[effect] final class ByteStack(private[this] var buffer: Array[Byte], private[this] var index: Int) {
+final private[effect] class ByteStack(private[this] var buffer: Array[Byte], private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[Byte](initBound), 0)
@@ -61,12 +61,11 @@ private[effect] final class ByteStack(private[this] var buffer: Array[Byte], pri
     new ByteStack(buffer2, index)
   }
 
-  private[this] def checkAndGrow(): Unit = {
+  private[this] def checkAndGrow(): Unit =
     if (index >= buffer.length) {
       val len = buffer.length
       val buffer2 = new Array[Byte](len * 2)
       System.arraycopy(buffer, 0, buffer2, 0, len)
       buffer = buffer2
     }
-  }
 }

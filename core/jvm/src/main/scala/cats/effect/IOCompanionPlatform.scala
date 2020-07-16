@@ -18,15 +18,15 @@ package cats.effect
 
 import java.util.concurrent.CompletableFuture
 
-private[effect] abstract class IOCompanionPlatform { self: IO.type =>
+abstract private[effect] class IOCompanionPlatform { self: IO.type =>
 
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
-    fut flatMap { cf =>
+    fut.flatMap { cf =>
       IO.async[A] { cb =>
         IO {
           val stage = cf.handle[Unit] {
             case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
+            case (_, t)    => cb(Left(t))
           }
 
           Some(IO(stage.cancel(false)).void)

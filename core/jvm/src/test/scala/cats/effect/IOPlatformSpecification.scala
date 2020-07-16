@@ -33,21 +33,21 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
   def platformSpecs = {
     "shift delay evaluation within evalOn" in real {
       val Exec1Name = "testing executor 1"
-      val exec1 = Executors newSingleThreadExecutor { r =>
+      val exec1 = Executors.newSingleThreadExecutor { r =>
         val t = new Thread(r)
         t.setName(Exec1Name)
         t
       }
 
       val Exec2Name = "testing executor 2"
-      val exec2 = Executors newSingleThreadExecutor { r =>
+      val exec2 = Executors.newSingleThreadExecutor { r =>
         val t = new Thread(r)
         t.setName(Exec2Name)
         t
       }
 
       val Exec3Name = "testing executor 3"
-      val exec3 = Executors newSingleThreadExecutor { r =>
+      val exec3 = Executors.newSingleThreadExecutor { r =>
         val t = new Thread(r)
         t.setName(Exec3Name)
         t
@@ -55,22 +55,22 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
       val nameF = IO(Thread.currentThread().getName())
 
-      val test = nameF flatMap { outer1 =>
-        val inner1F = nameF flatMap { inner1 =>
-          val inner2F = nameF map { inner2 =>
+      val test = nameF.flatMap { outer1 =>
+        val inner1F = nameF.flatMap { inner1 =>
+          val inner2F = nameF.map { inner2 =>
             (outer1, inner1, inner2)
           }
 
           inner2F.evalOn(ExecutionContext.fromExecutor(exec2))
         }
 
-        inner1F.evalOn(ExecutionContext.fromExecutor(exec1)) flatMap {
+        inner1F.evalOn(ExecutionContext.fromExecutor(exec1)).flatMap {
           case (outer1, inner1, inner2) =>
             nameF.map(outer2 => (outer1, inner1, inner2, outer2))
         }
       }
 
-      test.evalOn(ExecutionContext.fromExecutor(exec3)) flatMap { result =>
+      test.evalOn(ExecutionContext.fromExecutor(exec3)).flatMap { result =>
         IO {
           result mustEqual ((Exec3Name, Exec1Name, Exec2Name, Exec3Name))
         }
@@ -108,7 +108,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
     "round trip through j.u.c.CompletableFuture" in ticked { implicit ticker =>
       forAll { (ioa: IO[Int]) =>
-        ioa eqv IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture()))
+        ioa.eqv(IO.fromCompletableFuture(IO(ioa.unsafeToCompletableFuture())))
       }
     }
 
