@@ -19,7 +19,7 @@ package cats.effect.kernel
 import cats.Applicative
 import cats.implicits._
 
-final case class ParallelF[F[_], A](value: F[A]) extends AnyVal
+final case class ParallelF[F[_], A](value: F[A])
 
 object ParallelF {
 
