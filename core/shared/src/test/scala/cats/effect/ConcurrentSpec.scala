@@ -38,9 +38,9 @@ class ConcurrentSpec extends Specification with Discipline with BaseSpec { outer
         val x = IO.sleep(2.seconds) >> IO.pure(1)
         val y = IO.sleep(2.seconds) >> IO.pure(2)
 
-        timeout(List(x,y).parSequence, 3.seconds).flatMap { res =>
+        List(x, y).parSequence.timeout(3.seconds).flatMap { res =>
           IO {
-            res must beEqualTo(List(1,2))
+            res mustEqual List(1, 2)
           }
         }
       }
@@ -50,23 +50,7 @@ class ConcurrentSpec extends Specification with Discipline with BaseSpec { outer
   {
     implicit val ticker = Ticker(TestContext())
 
-    checkAll(
-      "IO",
-      ParallelTests[IO].parallel[Int, Int])
-  }
-
-  //TODO remove once we have these as derived combinators again
-  private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-    implicit F: Temporal[F, E]
-  ): F[A] =
-    F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
-      case Right(_) => fallback
-    }
-
-  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
-    val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
-    timeoutTo(fa, duration, timeoutException)
+    checkAll("IO", ParallelTests[IO].parallel[Int, Int])
   }
 
 }
