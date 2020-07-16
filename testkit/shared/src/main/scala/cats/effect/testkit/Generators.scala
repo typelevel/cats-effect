@@ -16,7 +16,7 @@
 
 package cats.effect.testkit
 
-import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError, Show}
+import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 import cats.effect.kernel._
 import cats.implicits._
 

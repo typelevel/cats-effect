@@ -418,8 +418,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
-  // implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = Parallel[IO, ParallelF[IO, *]]
-  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = implicits.parallelForConcurrent[IO, Throwable]
+  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = parallelForConcurrent[IO, Throwable]
 
   // implementations
 
