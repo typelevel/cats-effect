@@ -36,22 +36,27 @@ trait Clock[F[_]] extends Applicative[F] {
 object Clock {
   def apply[F[_]](implicit F: Clock[F]): F.type = F
 
-  implicit def clockForOptionT[F[_]](implicit F0: Clock[F] with Monad[F]): Clock[OptionT[F, *]] =
+  implicit def clockForOptionT[F[_]](
+      implicit F0: Clock[F] with Monad[F]): Clock[OptionT[F, *]] =
     new OptionTClock[F] {
       implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForEitherT[F[_], E](implicit F0: Clock[F] with Monad[F]): Clock[EitherT[F, E, *]] =
+  implicit def clockForEitherT[F[_], E](
+      implicit F0: Clock[F] with Monad[F]): Clock[EitherT[F, E, *]] =
     new EitherTClock[F, E] {
       implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForStateT[F[_], S](implicit F0: Clock[F] with Monad[F]): Clock[StateT[F, S, *]] =
+  implicit def clockForStateT[F[_], S](
+      implicit F0: Clock[F] with Monad[F]): Clock[StateT[F, S, *]] =
     new StateTClock[F, S] {
       implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForWriterT[F[_], S](implicit F0: Clock[F] with Monad[F], S0: Monoid[S]): Clock[WriterT[F, S, *]] =
+  implicit def clockForWriterT[F[_], S](
+      implicit F0: Clock[F] with Monad[F],
+      S0: Monoid[S]): Clock[WriterT[F, S, *]] =
     new WriterTClock[F, S] {
       implicit override def F: Clock[F] with Monad[F] = F0
 
@@ -59,25 +64,30 @@ object Clock {
 
     }
 
-  implicit def clockForIorT[F[_], L](implicit F0: Clock[F] with Monad[F], L0: Semigroup[L]): Clock[IorT[F, L, *]] =
+  implicit def clockForIorT[F[_], L](
+      implicit F0: Clock[F] with Monad[F],
+      L0: Semigroup[L]): Clock[IorT[F, L, *]] =
     new IorTClock[F, L] {
       implicit override def F: Clock[F] with Monad[F] = F0
 
       implicit override def L: Semigroup[L] = L0
     }
 
-  implicit def clockForKleisli[F[_], R](implicit F0: Clock[F] with Monad[F]): Clock[Kleisli[F, R, *]] =
+  implicit def clockForKleisli[F[_], R](
+      implicit F0: Clock[F] with Monad[F]): Clock[Kleisli[F, R, *]] =
     new KleisliClock[F, R] {
       implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForContT[F[_], R](implicit F0: Clock[F] with Monad[F] with Defer[F]): Clock[ContT[F, R, *]] =
+  implicit def clockForContT[F[_], R](
+      implicit F0: Clock[F] with Monad[F] with Defer[F]): Clock[ContT[F, R, *]] =
     new ContTClock[F, R] {
       implicit override def F: Clock[F] with Monad[F] with Defer[F] = F0
     }
 
-  implicit def clockForReaderWriterStateT[F[_], R, L, S](implicit F0: Clock[F] with Monad[F],
-                                                         L0: Monoid[L]): Clock[ReaderWriterStateT[F, R, L, S, *]] =
+  implicit def clockForReaderWriterStateT[F[_], R, L, S](
+      implicit F0: Clock[F] with Monad[F],
+      L0: Monoid[L]): Clock[ReaderWriterStateT[F, R, L, S, *]] =
     new ReaderWriterStateTClock[F, R, L, S] {
       implicit override def F: Clock[F] with Monad[F] = F0
 
@@ -90,7 +100,7 @@ object Clock {
     val delegate = OptionT.catsDataMonadForOptionT[F]
 
     override def ap[A, B](
-      ff: OptionT[F, A => B]
+        ff: OptionT[F, A => B]
     )(fa: OptionT[F, A]): OptionT[F, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): OptionT[F, A] = delegate.pure(x)
@@ -107,7 +117,7 @@ object Clock {
     val delegate = EitherT.catsDataMonadErrorForEitherT[F, E]
 
     override def ap[A, B](
-      ff: EitherT[F, E, A => B]
+        ff: EitherT[F, E, A => B]
     )(fa: EitherT[F, E, A]): EitherT[F, E, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): EitherT[F, E, A] = delegate.pure(x)
@@ -124,7 +134,7 @@ object Clock {
     val delegate = IndexedStateT.catsDataMonadForIndexedStateT[F, S]
 
     override def ap[A, B](
-      ff: IndexedStateT[F, S, S, A => B]
+        ff: IndexedStateT[F, S, S, A => B]
     )(fa: IndexedStateT[F, S, S, A]): IndexedStateT[F, S, S, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): IndexedStateT[F, S, S, A] = delegate.pure(x)
@@ -143,7 +153,7 @@ object Clock {
     val delegate = WriterT.catsDataMonadForWriterT[F, S]
 
     override def ap[A, B](
-      ff: WriterT[F, S, A => B]
+        ff: WriterT[F, S, A => B]
     )(fa: WriterT[F, S, A]): WriterT[F, S, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): WriterT[F, S, A] = delegate.pure(x)
@@ -161,7 +171,7 @@ object Clock {
     val delegate = IorT.catsDataMonadErrorForIorT[F, L]
 
     override def ap[A, B](
-      ff: IorT[F, L, A => B]
+        ff: IorT[F, L, A => B]
     )(fa: IorT[F, L, A]): IorT[F, L, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): IorT[F, L, A] = delegate.pure(x)
@@ -178,7 +188,7 @@ object Clock {
     val delegate = Kleisli.catsDataMonadForKleisli[F, R]
 
     override def ap[A, B](
-      ff: Kleisli[F, R, A => B]
+        ff: Kleisli[F, R, A => B]
     )(fa: Kleisli[F, R, A]): Kleisli[F, R, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): Kleisli[F, R, A] = delegate.pure(x)
@@ -196,7 +206,7 @@ object Clock {
     val delegate = ContT.catsDataContTMonad[F, R]
 
     override def ap[A, B](
-      ff: ContT[F, R, A => B]
+        ff: ContT[F, R, A => B]
     )(fa: ContT[F, R, A]): ContT[F, R, B] = delegate.ap(ff)(fa)
 
     override def pure[A](x: A): ContT[F, R, A] = delegate.pure(x)
@@ -208,7 +218,8 @@ object Clock {
 
   }
 
-  trait ReaderWriterStateTClock[F[_], R, L, S] extends Clock[ReaderWriterStateT[F, R, L, S, *]] {
+  trait ReaderWriterStateTClock[F[_], R, L, S]
+      extends Clock[ReaderWriterStateT[F, R, L, S, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
     implicit protected def L: Monoid[L]
@@ -216,15 +227,17 @@ object Clock {
     val delegate = IndexedReaderWriterStateT.catsDataMonadForRWST[F, R, L, S]
 
     override def ap[A, B](
-      ff: ReaderWriterStateT[F, R, L, S, A => B]
-    )(fa: ReaderWriterStateT[F, R, L, S, A]): ReaderWriterStateT[F, R, L, S, B] = delegate.ap(ff)(fa)
+        ff: ReaderWriterStateT[F, R, L, S, A => B]
+    )(fa: ReaderWriterStateT[F, R, L, S, A]): ReaderWriterStateT[F, R, L, S, B] =
+      delegate.ap(ff)(fa)
 
     override def pure[A](x: A): ReaderWriterStateT[F, R, L, S, A] = delegate.pure(x)
 
     override def monotonic: ReaderWriterStateT[F, R, L, S, FiniteDuration] =
       IndexedReaderWriterStateT.liftF(F.monotonic)
 
-    override def realTime: ReaderWriterStateT[F, R, L, S, FiniteDuration] = IndexedReaderWriterStateT.liftF(F.realTime)
+    override def realTime: ReaderWriterStateT[F, R, L, S, FiniteDuration] =
+      IndexedReaderWriterStateT.liftF(F.realTime)
 
   }
 }

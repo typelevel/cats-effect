@@ -30,7 +30,9 @@ class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
 class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
-abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with BeforeAfterEach {
+abstract class BaseDeferredJVMTests(parallelism: Int)
+    extends Specification
+    with BeforeAfterEach {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -82,9 +84,9 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
       val task = for {
         df <- cats.effect.concurrent.Deferred[IO, Unit]
         fb <- get(df).start
-        _ <- IO((Thread.currentThread().getName must be).equalTo(name))
+        _ <- IO(Thread.currentThread().getName mustEqual name)
         _ <- df.complete(())
-        _ <- IO((Thread.currentThread().getName must be).equalTo(name))
+        _ <- IO(Thread.currentThread().getName mustEqual name)
         _ <- fb.join
       } yield ()
 
@@ -189,10 +191,12 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     unsafeRunRealistic(execute(100))() must beEqualTo(Some(true))
   }
 
-  def unsafeRunRealistic[A](ioa: IO[A])(errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
+  def unsafeRunRealistic[A](ioa: IO[A])(
+      errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
     // TODO this code is now in 4 places; should be in 1
     val executor = Executors.newFixedThreadPool(
-      Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+      Runtime.getRuntime().availableProcessors(),
+      { (r: Runnable) =>
         val t = new Thread(() =>
           try {
             r.run()
@@ -200,8 +204,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
             case t: Throwable =>
               t.printStackTrace()
               errors(t)
-          }
-        )
+          })
         t.setDaemon(true)
         t
       }
@@ -218,7 +221,8 @@ abstract class BaseDeferredJVMTests(parallelism: Int) extends Specification with
     }
 
     try {
-      ioa.unsafeRunTimed(10.seconds)(unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
+      ioa.unsafeRunTimed(10.seconds)(
+        unsafe.IORuntime(ctx, unsafe.Scheduler.fromScheduledExecutor(scheduler), () => ()))
     } finally {
       executor.shutdown()
       scheduler.shutdown()

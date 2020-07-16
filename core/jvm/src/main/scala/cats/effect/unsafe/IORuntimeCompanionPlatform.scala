@@ -21,11 +21,13 @@ import scala.concurrent.ExecutionContext
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-abstract private[unsafe] class IORuntimeCompanionPlatform { self: IORuntime.type =>
-  def createDefaultComputeExecutionContext(threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
+private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
+  def createDefaultComputeExecutionContext(
+      threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newFixedThreadPool(
-      Runtime.getRuntime().availableProcessors(), { (r: Runnable) =>
+      Runtime.getRuntime().availableProcessors(),
+      { (r: Runnable) =>
         val t = new Thread(r)
         t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
         t.setDaemon(true)

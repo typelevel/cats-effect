@@ -56,7 +56,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, f))  => as(f.cancel, a.asLeft[B])
+      case Left((a, f)) => as(f.cancel, a.asLeft[B])
       case Right((f, b)) => as(f.cancel, b.asRight[A])
     }
 
@@ -65,7 +65,8 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
       case Left((a, f)) =>
         flatMap(f.join) { c =>
           c.fold(
-            flatMap(canceled)(_ => never), // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
+            flatMap(canceled)(_ =>
+              never), // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
             e => raiseError[(A, B)](e),
             tupleLeft(_, a)
           )

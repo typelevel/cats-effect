@@ -32,54 +32,53 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
   val laws: AsyncLaws[F]
 
   def async[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbE: Arbitrary[Throwable],
-    ArbFiniteDuration: Arbitrary[FiniteDuration],
-    ArbExecutionContext: Arbitrary[ExecutionContext],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenFB: Cogen[F[B]],
-    CogenC: Cogen[C],
-    CogenE: Cogen[Throwable],
-    CogenCaseA: Cogen[Outcome[F, Throwable, A]],
-    CogenCaseB: Cogen[Outcome[F, Throwable, B]],
-    CogenCaseU: Cogen[Outcome[F, Throwable, Unit]],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqE: Eq[Throwable],
-    EqFEC: Eq[F[ExecutionContext]],
-    EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
-    EqFEitherEA: Eq[F[Either[Throwable, A]]],
-    EqFEitherAB: Eq[F[Either[A, B]]],
-    EqFEitherUA: Eq[F[Either[Unit, A]]],
-    EqFEitherAU: Eq[F[Either[A, Unit]]],
-    EqFEitherEitherEAU: Eq[F[Either[Either[Throwable, A], Unit]]],
-    EqFEitherUEitherEA: Eq[F[Either[Unit, Either[Throwable, A]]]],
-    EqFOutcomeEA: Eq[F[Outcome[F, Throwable, A]]],
-    EqFOutcomeEU: Eq[F[Outcome[F, Throwable, Unit]]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    OrdFFD: Order[F[FiniteDuration]],
-    GroupFD: Group[FiniteDuration],
-    exec: F[Boolean] => Prop,
-    iso: Isomorphisms[F],
-    faPP: F[A] => Pretty,
-    fuPP: F[Unit] => Pretty,
-    aFUPP: (A => F[Unit]) => Pretty,
-    ePP: Throwable => Pretty,
-    foaPP: F[Outcome[F, Throwable, A]] => Pretty,
-    feauPP: F[Either[A, Unit]] => Pretty,
-    feuaPP: F[Either[Unit, A]] => Pretty,
-    fouPP: F[Outcome[F, Throwable, Unit]] => Pretty
-  ): RuleSet =
+      implicit ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[Throwable],
+      ArbFiniteDuration: Arbitrary[FiniteDuration],
+      ArbExecutionContext: Arbitrary[ExecutionContext],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenFB: Cogen[F[B]],
+      CogenC: Cogen[C],
+      CogenE: Cogen[Throwable],
+      CogenCaseA: Cogen[Outcome[F, Throwable, A]],
+      CogenCaseB: Cogen[Outcome[F, Throwable, B]],
+      CogenCaseU: Cogen[Outcome[F, Throwable, Unit]],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
+      EqE: Eq[Throwable],
+      EqFEC: Eq[F[ExecutionContext]],
+      EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
+      EqFEitherEA: Eq[F[Either[Throwable, A]]],
+      EqFEitherAB: Eq[F[Either[A, B]]],
+      EqFEitherUA: Eq[F[Either[Unit, A]]],
+      EqFEitherAU: Eq[F[Either[A, Unit]]],
+      EqFEitherEitherEAU: Eq[F[Either[Either[Throwable, A], Unit]]],
+      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[Throwable, A]]]],
+      EqFOutcomeEA: Eq[F[Outcome[F, Throwable, A]]],
+      EqFOutcomeEU: Eq[F[Outcome[F, Throwable, Unit]]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      OrdFFD: Order[F[FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
+      exec: F[Boolean] => Prop,
+      iso: Isomorphisms[F],
+      faPP: F[A] => Pretty,
+      fuPP: F[Unit] => Pretty,
+      aFUPP: (A => F[Unit]) => Pretty,
+      ePP: Throwable => Pretty,
+      foaPP: F[Outcome[F, Throwable, A]] => Pretty,
+      feauPP: F[Either[A, Unit]] => Pretty,
+      feuaPP: F[Either[Unit, A]] => Pretty,
+      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
+
     new RuleSet {
       val name = "async"
       val bases = Nil
@@ -89,8 +88,10 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
         "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
         "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
-        "async cancel token is unsequenced on complete" -> forAll(laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
-        "async cancel token is unsequenced on error" -> forAll(laws.asyncCancelTokenIsUnsequencedOnError[A] _),
+        "async cancel token is unsequenced on complete" -> forAll(
+          laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
+        "async cancel token is unsequenced on error" -> forAll(
+          laws.asyncCancelTokenIsUnsequencedOnError[A] _),
         // "async cancel token is sequenced on cancel" -> forAll(laws.asyncCancelTokenIsSequencedOnCancel _),
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
         "executionContext commutativity" -> forAll(laws.executionContextCommutativity[A] _),
@@ -101,10 +102,12 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
         "evalOn never identity" -> forAll(laws.evalOnNeverIdentity _)
       )
     }
+  }
 }
 
 object AsyncTests {
-  def apply[F[_]](implicit F0: Async[F]): AsyncTests[F] = new AsyncTests[F] {
-    val laws = AsyncLaws[F]
-  }
+  def apply[F[_]](implicit F0: Async[F]): AsyncTests[F] =
+    new AsyncTests[F] {
+      val laws = AsyncLaws[F]
+    }
 }

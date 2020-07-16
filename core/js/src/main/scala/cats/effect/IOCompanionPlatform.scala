@@ -28,7 +28,7 @@ abstract private[effect] class IOCompanionPlatform { self: IO.type =>
           defined { (a: Any) =>
             val e = a match {
               case th: Throwable => th
-              case _             => JavaScriptException(a)
+              case _ => JavaScriptException(a)
             }
 
             cb(Left(e)): Unit | Thenable[Unit]

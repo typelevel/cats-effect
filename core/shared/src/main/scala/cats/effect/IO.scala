@@ -46,18 +46,21 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def both[B](that: IO[B]): IO[(A, B)] =
     racePair(that).flatMap {
-      case Left((a, f))  => f.joinAndEmbedNever.map((a, _))
+      case Left((a, f)) => f.joinAndEmbedNever.map((a, _))
       case Right((f, b)) => f.joinAndEmbedNever.map((_, b))
     }
 
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
-    IO.uncancelable { poll =>
+  def bracketCase[B](use: A => IO[B])(
+      release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+    IO uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
-        val handled = finalized.onError { case e => release(a, Outcome.Errored(e)).attempt.void }
+        val handled = finalized onError {
+          case e => release(a, Outcome.Errored(e)).attempt.void
+        }
         handled.flatMap(b => release(a, Outcome.Completed(IO.pure(b))).attempt.as(b))
       }
     }
@@ -74,21 +77,24 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
-  def onCase(pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
-    IO.OnCase(this, (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
+  def onCase(
+      pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
+    IO.OnCase(
+      this,
+      (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
 
   def onCancel(body: IO[Unit]): IO[A] =
     onCase { case Outcome.Canceled() => body }
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     racePair(that).flatMap {
-      case Left((a, f))  => f.cancel.as(Left(a))
+      case Left((a, f)) => f.cancel.as(Left(a))
       case Right((f, b)) => f.cancel.as(Right(b))
     }
 
-  def racePair[B](
-    that: IO[B]
-  ): IO[Either[(A @uncheckedVariance, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
+  def racePair[B](that: IO[B]): IO[Either[
+    (A @uncheckedVariance, Fiber[IO, Throwable, B]),
+    (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
     IO.RacePair(this, that)
 
   def delayBy(duration: FiniteDuration): IO[A] =
@@ -99,7 +105,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
     race(IO.sleep(duration)).flatMap {
-      case Right(_)    => fallback
+      case Right(_) => fallback
       case Left(value) => IO.pure(value)
     }
 
@@ -125,16 +131,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
       // the casting is unfortunate, but required to work around GADT unification bugs
       this match {
-        case IO.Pure(a)      => F.pure(a)
+        case IO.Pure(a) => F.pure(a)
         case IO.Delay(thunk) => F.delay(thunk())
-        case IO.Error(t)     => F.raiseError(t)
-        case IO.Async(k)     => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
+        case IO.Error(t) => F.raiseError(t)
+        case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
 
-        case _: IO.ReadEC.type  => F.executionContext.asInstanceOf[F[A]]
+        case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
         case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
 
-        case IO.Map(ioe, f)             => ioe.to[F].map(f)
-        case IO.FlatMap(ioe, f)         => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
+        case IO.Map(ioe, f) => ioe.to[F].map(f)
+        case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
         case IO.HandleErrorWith(ioa, f) => ioa.to[F].handleErrorWith(f.andThen(_.to[F]))
 
         case IO.OnCase(ioa, f) =>
@@ -160,14 +166,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
 
         case self: IO.RacePair[a, b] =>
-          val back = F.racePair(self.ioa.to[F], self.iob.to[F]).map { e =>
+          val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
             e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
           }
 
           back.asInstanceOf[F[A]]
 
-        case self: IO.Sleep       => F.sleep(self.delay).asInstanceOf[F[A]]
-        case _: IO.RealTime.type  => F.realTime.asInstanceOf[F[A]]
+        case self: IO.Sleep => F.sleep(self.delay).asInstanceOf[F[A]]
+        case _: IO.RealTime.type => F.realTime.asInstanceOf[F[A]]
         case _: IO.Monotonic.type => F.monotonic.asInstanceOf[F[A]]
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
@@ -186,28 +192,29 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   // unsafe stuff
 
-  def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(implicit runtime: unsafe.IORuntime): Unit =
+  def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
+      implicit runtime: unsafe.IORuntime): Unit =
     unsafeRunFiber(true)(cb)
 
   def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
 
     unsafeRunAsync {
-      case Left(t)  => p.failure(t)
+      case Left(t) => p.failure(t)
       case Right(a) => p.success(a)
     }
 
     p.future
   }
 
-  private[effect] def unsafeRunFiber(
-    shift: Boolean
-  )(cb: Either[Throwable, A] => Unit)(implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
+  private[effect] def unsafeRunFiber(shift: Boolean)(cb: Either[Throwable, A] => Unit)(
+      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
-    val fiber = new IOFiber(runtime.scheduler,
-                            (oc: Outcome[IO, Throwable, A]) =>
-                              oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
-                            0)
+    val fiber = new IOFiber(
+      runtime.scheduler,
+      (oc: Outcome[IO, Throwable, A]) =>
+        oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
+      0)
 
     if (shift)
       runtime.compute.execute(() => fiber.run(this, runtime.compute, 0))
@@ -280,19 +287,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.both(right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
-    fut.flatMap { f =>
-      executionContext.flatMap { implicit ec =>
-        async_[A] { cb =>
-          f.onComplete(t => cb(t.toEither))
-        }
+    fut flatMap { f =>
+      executionContext flatMap { implicit ec =>
+        async_[A] { cb => f.onComplete(t => cb(t.toEither)) }
       }
     }
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     left.race(right)
 
-  def racePair[A, B](left: IO[A],
-                     right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+  def racePair[A, B](
+      left: IO[A],
+      right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
     left.racePair(right)
 
   def toK[F[_]: Effect]: IO ~> F =
@@ -300,26 +306,27 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       def apply[A](ioa: IO[A]) = ioa.to[F]
     }
 
-  def eval[A](fa: Eval[A]): IO[A] = fa match {
-    case Now(a) => pure(a)
-    case notNow => apply(notNow.value)
-  }
+  def eval[A](fa: Eval[A]): IO[A] =
+    fa match {
+      case Now(a) => pure(a)
+      case notNow => apply(notNow.value)
+    }
 
   def fromOption[A](o: Option[A])(orElse: => Throwable): IO[A] =
     o match {
-      case None        => raiseError(orElse)
+      case None => raiseError(orElse)
       case Some(value) => pure(value)
     }
 
   def fromEither[A](e: Either[Throwable, A]): IO[A] =
     e match {
-      case Right(a)  => pure(a)
+      case Right(a) => pure(a)
       case Left(err) => raiseError(err)
     }
 
   def fromTry[A](t: Try[A]): IO[A] =
     t match {
-      case Success(a)   => pure(a)
+      case Success(a) => pure(a)
       case Failure(err) => raiseError(err)
     }
 
@@ -328,13 +335,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit def showForIO[A: Show]: Show[IO[A]] =
     Show.show {
       case Pure(a) => s"IO(${a.show})"
-      case _       => "IO(...)"
+      case _ => "IO(...)"
     }
 
   implicit def monoidForIO[A: Monoid]: Monoid[IO[A]] =
     new IOMonoid[A]
 
-  protected class IOMonoid[A](implicit override val A: Monoid[A]) extends IOSemigroup[A] with Monoid[IO[A]] {
+  protected class IOMonoid[A](override implicit val A: Monoid[A])
+      extends IOSemigroup[A]
+      with Monoid[IO[A]] {
     def empty = IO.pure(A.empty)
   }
 
@@ -364,10 +373,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 
-    override def onCase[A](ioa: IO[A])(pf: PartialFunction[Outcome[IO, Throwable, A], IO[Unit]]): IO[A] =
+    override def onCase[A](ioa: IO[A])(
+        pf: PartialFunction[Outcome[IO, Throwable, A], IO[Unit]]): IO[A] =
       ioa.onCase(pf)
 
-    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
+    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
+        release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic
@@ -382,7 +393,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def cede: IO[Unit] = IO.cede
 
-    def racePair[A, B](fa: IO[A], fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+    def racePair[A, B](
+        fa: IO[A],
+        fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
       fa.racePair(fb)
 
     override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
@@ -409,7 +422,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
-  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = parallelForConcurrent[IO, Throwable]
+  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
+    parallelForConcurrent[IO, Throwable]
 
   // implementations
 
@@ -418,36 +432,54 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
-  final private[effect] case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
-  final private[effect] case class Error(t: Throwable) extends IO[Nothing] { def tag = 2 }
-  final private[effect] case class Async[+A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]) extends IO[A] {
-    def tag = 3
-  }
+  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 2 }
+  private[effect] final case class Async[+A](
+      k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]])
+      extends IO[A] { def tag = 3 }
 
   private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 4 }
-  final private[effect] case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] { def tag = 5 }
-
-  final private[effect] case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] { def tag = 6 }
-  final private[effect] case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] { def tag = 7 }
-
-  final private[effect] case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A]) extends IO[A] { def tag = 8 }
-  final private[effect] case class OnCase[A](ioa: IO[A], f: Outcome[IO, Throwable, A] => IO[Unit]) extends IO[A] {
-    def tag = 9
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
+    def tag = 5
   }
 
-  final private[effect] case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] { def tag = 10 }
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
+    def tag = 6
+  }
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+    def tag = 7
+  }
+
+  private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
+      extends IO[A] { def tag = 8 }
+  private[effect] final case class OnCase[A](
+      ioa: IO[A],
+      f: Outcome[IO, Throwable, A] => IO[Unit])
+      extends IO[A] { def tag = 9 }
+
+  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
+    def tag = 10
+  }
   private[effect] case object Canceled extends IO[Unit] { def tag = 11 }
 
-  final private[effect] case class Start[A](ioa: IO[A]) extends IO[Fiber[IO, Throwable, A]] { def tag = 12 }
-  final private[effect] case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] { def tag = 13 }
+  private[effect] final case class Start[A](ioa: IO[A]) extends IO[Fiber[IO, Throwable, A]] {
+    def tag = 12
+  }
+  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
+      extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] {
+    def tag = 13
+  }
 
-  final private[effect] case class Sleep(delay: FiniteDuration) extends IO[Unit] { def tag = 14 }
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+    def tag = 14
+  }
   private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 15 }
   private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 16 }
 
   private[effect] case object Cede extends IO[Unit] { def tag = 17 }
 
   // INTERNAL
-  final private[effect] case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] { def tag = 18 }
+  private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] {
+    def tag = 18
+  }
 }

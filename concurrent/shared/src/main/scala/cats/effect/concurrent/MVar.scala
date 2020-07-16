@@ -126,7 +126,7 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
 
   /**
    * Replaces a value in MVar and returns the old value.
-
+   *
    * @param newValue is a new value
    * @return the value taken
    */
@@ -148,7 +148,9 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
     new TransformedMVar(this, f)
 }
 
-/** Builders for [[MVar]]. */
+/**
+ * Builders for [[MVar]].
+ */
 object MVar {
 
   /**
@@ -236,7 +238,9 @@ object MVar {
       MVar.empty(F)
   }
 
-  final private[concurrent] class TransformedMVar[F[_], G[_], A](underlying: MVar[F, A], trans: F ~> G)
+  final private[concurrent] class TransformedMVar[F[_], G[_], A](
+      underlying: MVar[F, A],
+      trans: F ~> G)
       extends MVar[G, A] {
     override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
     override def put(a: A): G[Unit] = trans(underlying.put(a))
@@ -253,11 +257,13 @@ object MVar {
  * [[MVar]] implementation for [[Async]] data types.
  */
 final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State[A])(
-  implicit F: Async[F]
+    implicit F: Async[F]
 ) extends MVar[F, A] {
   import MVarAsync._
 
-  /** Shared mutable state. */
+  /**
+   * Shared mutable state.
+   */
   private[this] val stateRef = new AtomicReference[State[A]](initial)
 
   def put(a: A): F[Unit] =
@@ -289,22 +295,20 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
     F.delay {
       stateRef.get match {
         case WaitForTake(value, _) => Some(value)
-        case WaitForPut(_, _)      => None
+        case WaitForPut(_, _) => None
       }
     }
 
   def isEmpty: F[Boolean] =
     F.delay {
       stateRef.get match {
-        case WaitForPut(_, _)  => true
+        case WaitForPut(_, _) => true
         case WaitForTake(_, _) => false
       }
     }
 
   def swap(newValue: A): F[A] =
-    F.flatMap(take) { oldValue =>
-      F.map(put(newValue))(_ => oldValue)
-    }
+    F.flatMap(take) { oldValue => F.map(put(newValue))(_ => oldValue) }
 
   @tailrec private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
@@ -484,7 +488,10 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
       case _ => ()
     }
 
-  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedMap[Id, Listener[A]]): F[Boolean] = {
+  private def streamPutAndReads(
+      a: A,
+      put: Listener[A],
+      reads: LinkedMap[Id, Listener[A]]): F[Boolean] = {
     val value = Right(a)
     // Satisfies all current `read` requests found
     val task = streamAll(value, reads.values)
@@ -499,7 +506,9 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
   }
 
   // For streaming a value to a whole `reads` collection
-  private def streamAll(value: Either[Nothing, A], listeners: Iterable[Listener[A]]): F[Unit] = {
+  private def streamAll(
+      value: Either[Nothing, A],
+      listeners: Iterable[Listener[A]]): F[Unit] = {
     var acc: F[Fiber[F, Throwable, Unit]] = null.asInstanceOf[F[Fiber[F, Throwable, Unit]]]
     val cursor = listeners.iterator
     while (cursor.hasNext) {
@@ -520,11 +529,15 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
 
 private[effect] object MVarAsync {
 
-  /** Builds an [[MVarAsync]] instance with an `initial` value. */
+  /**
+   * Builds an [[MVarAsync]] instance with an `initial` value.
+   */
   def apply[F[_], A](initial: A)(implicit F: Async[F]): MVar[F, A] =
     new MVarAsync[F, A](State(initial))
 
-  /** Returns an empty [[MVarAsync]] instance. */
+  /**
+   * Returns an empty [[MVarAsync]] instance.
+   */
   def empty[F[_], A](implicit F: Async[F]): MVar[F, A] =
     new MVarAsync[F, A](State.empty)
 
@@ -534,18 +547,26 @@ private[effect] object MVarAsync {
    */
   private type Listener[-A] = Either[Nothing, A] => Unit
 
-  /** Used with [[LinkedMap]] to identify callbacks that need to be cancelled. */
+  /**
+   * Used with [[LinkedMap]] to identify callbacks that need to be cancelled.
+   */
   final private class Id extends Serializable
 
-  /** ADT modelling the internal state of `MVar`. */
+  /**
+   * ADT modelling the internal state of `MVar`.
+   */
   sealed private trait State[A]
 
-  /** Private [[State]] builders.*/
+  /**
+   * Private [[State]] builders.
+   */
   private object State {
     private[this] val ref = WaitForPut[Any](LinkedMap.empty, LinkedMap.empty)
     def apply[A](a: A): State[A] = WaitForTake(a, LinkedMap.empty)
 
-    /** `Empty` state, reusing the same instance. */
+    /**
+     * `Empty` state, reusing the same instance.
+     */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
   }
 
@@ -554,7 +575,9 @@ private[effect] object MVarAsync {
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  final private case class WaitForPut[A](reads: LinkedMap[Id, Listener[A]], takes: LinkedMap[Id, Listener[A]])
+  final private case class WaitForPut[A](
+      reads: LinkedMap[Id, Listener[A]],
+      takes: LinkedMap[Id, Listener[A]])
       extends State[A]
 
   /**
@@ -567,5 +590,8 @@ private[effect] object MVarAsync {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  final private case class WaitForTake[A](value: A, listeners: LinkedMap[Id, (A, Listener[Unit])]) extends State[A]
+  final private case class WaitForTake[A](
+      value: A,
+      listeners: LinkedMap[Id, (A, Listener[Unit])])
+      extends State[A]
 }

@@ -67,7 +67,9 @@ class IOAppSpec extends Specification {
         i += 1
       }
 
-      Thread.sleep(100) // give thread scheduling just a sec to catch up and get us into the latch.await()
+      Thread.sleep(
+        100
+      ) // give thread scheduling just a sec to catch up and get us into the latch.await()
 
       h.term()
       h.awaitStatus() mustEqual 143
@@ -82,8 +84,9 @@ class IOAppSpec extends Specification {
 
   def java(proto: IOApp, args: List[String]): Handle = {
     val stdoutBuffer = new StringBuffer()
-    val builder =
-      Process(s"${JavaHome}/bin/java", List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
+    val builder = Process(
+      s"${JavaHome}/bin/java",
+      List("-cp", ClassPath, proto.getClass.getName.replaceAll("\\$$", "")) ::: args)
     val p = builder.run(BasicIO(false, stdoutBuffer, None))
 
     new Handle {
@@ -118,11 +121,12 @@ package examples {
     import java.io.FileWriter
 
     def writeToFile(string: String, file: File): IO[Unit] =
-      IO(new FileWriter(file)).bracket { writer =>
-        IO(writer.write("Canceled"))
-      }(writer => IO(writer.close()))
+      IO(new FileWriter(file)).bracket { writer => IO(writer.write("Canceled")) }(writer =>
+        IO(writer.close()))
 
     def run(args: List[String]): IO[Int] =
-      (IO(println("Started")) >> IO.never).onCancel(writeToFile("canceled", new File(args.head))).as(0)
+      (IO(println("Started")) >> IO.never)
+        .onCancel(writeToFile("canceled", new File(args.head)))
+        .as(0)
   }
 }

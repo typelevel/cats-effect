@@ -44,9 +44,14 @@ class LensRefSpec extends BaseSpec { outer =>
     override def show(a: Foo) = a.toString
   }
 
-  implicit def tuple3Show[A, B, C](implicit A: Show[A], B: Show[B], C: Show[C]): Show[(A, B, C)] = new Show[(A, B, C)] {
-    override def show(x: (A, B, C)) = "(" + A.show(x._1) + "," + B.show(x._2) + "," + C.show(x._3) + ")"
-  }
+  implicit def tuple3Show[A, B, C](
+      implicit A: Show[A],
+      B: Show[B],
+      C: Show[C]): Show[(A, B, C)] =
+    new Show[(A, B, C)] {
+      override def show(x: (A, B, C)) =
+        "(" + A.show(x._1) + "," + B.show(x._2) + "," + C.show(x._3) + ")"
+    }
 
   case class Foo(bar: Integer, baz: Integer)
 
@@ -79,15 +84,16 @@ class LensRefSpec extends BaseSpec { outer =>
       op must completeAs(Foo(1, -1))
     }
 
-    "getAndSet - modifies underlying Ref and returns previous value" in ticked { implicit ticker =>
-      val op = for {
-        refA <- Ref[IO].of(Foo(0, -1))
-        refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
-        oldValue <- refB.getAndSet(1)
-        a <- refA.get
-      } yield (oldValue, a)
+    "getAndSet - modifies underlying Ref and returns previous value" in ticked {
+      implicit ticker =>
+        val op = for {
+          refA <- Ref[IO].of(Foo(0, -1))
+          refB = Ref.lens[IO, Foo, Integer](refA)(Foo.get, Foo.set)
+          oldValue <- refB.getAndSet(1)
+          a <- refA.get
+        } yield (oldValue, a)
 
-      op must completeAs((0: Integer, Foo(1, -1)))
+        op must completeAs((0: Integer, Foo(1, -1)))
     }
 
     "update - modifies underlying Ref" in ticked { implicit ticker =>
@@ -125,7 +131,8 @@ class LensRefSpec extends BaseSpec { outer =>
 
     "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked {
       implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit = (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
+        val updateRefUnsafely: Ref[IO, Integer] => Unit =
+          (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
 
         val op = for {
           refA <- Ref[IO].of(Foo(0, -1))
@@ -153,7 +160,8 @@ class LensRefSpec extends BaseSpec { outer =>
 
     "tryModify - fails to modify original value if it's already been modified concurrently" in ticked {
       implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit = (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
+        val updateRefUnsafely: Ref[IO, Integer] => Unit =
+          (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
 
         val op = for {
           refA <- Ref[IO].of(Foo(0, -1))

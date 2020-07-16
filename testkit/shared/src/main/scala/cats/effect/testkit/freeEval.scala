@@ -31,7 +31,8 @@ object freeEval {
   def run[F[_]: Monad, A](ft: FreeT[Eval, F, A]): F[A] =
     ft.runM(_.value.pure[F])
 
-  implicit def syncForFreeT[F[_]](implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
+  implicit def syncForFreeT[F[_]](
+      implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
     new Sync[FreeT[Eval, F, *]] {
       private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
         cats.effect.testkit.pure.catsFreeMonadErrorForFreeT2
@@ -39,7 +40,8 @@ object freeEval {
       def pure[A](x: A): FreeT[Eval, F, A] =
         M.pure(x)
 
-      def handleErrorWith[A](fa: FreeT[Eval, F, A])(f: Throwable => FreeT[Eval, F, A]): FreeT[Eval, F, A] =
+      def handleErrorWith[A](fa: FreeT[Eval, F, A])(
+          f: Throwable => FreeT[Eval, F, A]): FreeT[Eval, F, A] =
         M.handleErrorWith(fa)(f)
 
       def raiseError[A](e: Throwable): FreeT[Eval, F, A] =

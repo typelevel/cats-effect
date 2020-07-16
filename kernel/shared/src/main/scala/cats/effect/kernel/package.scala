@@ -32,7 +32,8 @@ package object kernel {
   type ConcurrentRegion[R[_[_], _], F[_], E] = Concurrent[R[F, *], E] with Region[R, F, E]
 
   object ConcurrentRegion {
-    def apply[R[_[_], _], F[_], E](implicit R: ConcurrentRegion[R, F, E]): ConcurrentRegion[R, F, E] = R
+    def apply[R[_[_], _], F[_], E](
+        implicit R: ConcurrentRegion[R, F, E]): ConcurrentRegion[R, F, E] = R
   }
 
   type TemporalThrow[F[_]] = Temporal[F, Throwable]
@@ -46,7 +47,8 @@ package object kernel {
   type TemporalRegion[R[_[_], _], F[_], E] = Temporal[R[F, *], E] with Region[R, F, E]
 
   object TemporalRegion {
-    def apply[R[_[_], _], F[_], E](implicit R: TemporalRegion[R, F, E]): TemporalRegion[R, F, E] = R
+    def apply[R[_[_], _], F[_], E](
+        implicit R: TemporalRegion[R, F, E]): TemporalRegion[R, F, E] = R
   }
 
   type AsyncBracket[F[_]] = Async[F] with Bracket[F, Throwable]

@@ -20,7 +20,8 @@ import cats.{~>, Applicative, Monad, Parallel}
 import cats.effect.kernel.{Concurrent, ParallelF}
 
 trait ConcurrentInstances {
-  implicit def parallelForConcurrent[M[_], E](implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
+  implicit def parallelForConcurrent[M[_], E](
+      implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
     new Parallel[M] {
       type F[A] = ParallelF[M, A]
 
@@ -28,13 +29,15 @@ trait ConcurrentInstances {
 
       def monad: Monad[M] = M
 
-      def sequential: F ~> M = new (F ~> M) {
-        def apply[A](fa: F[A]): M[A] = ParallelF.value[M, A](fa)
-      }
+      def sequential: F ~> M =
+        new (F ~> M) {
+          def apply[A](fa: F[A]): M[A] = ParallelF.value[M, A](fa)
+        }
 
-      def parallel: M ~> F = new (M ~> F) {
-        def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
-      }
+      def parallel: M ~> F =
+        new (M ~> F) {
+          def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
+        }
 
     }
 }

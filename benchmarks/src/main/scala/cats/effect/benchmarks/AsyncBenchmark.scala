@@ -87,10 +87,9 @@ class AsyncBenchmark {
   def race() = {
     val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.race(acc, IO(1)).map {
-        case Left(i)  => i
+        case Left(i) => i
         case Right(i) => i
-      }
-    )
+      })
 
     task.unsafeRunSync()
   }
@@ -99,10 +98,9 @@ class AsyncBenchmark {
   def racePair() = {
     val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.racePair(acc, IO(1)).flatMap {
-        case Left((i, fiber))  => fiber.cancel.map(_ => i)
+        case Left((i, fiber)) => fiber.cancel.map(_ => i)
         case Right((fiber, i)) => fiber.cancel.map(_ => i)
-      }
-    )
+      })
 
     task.unsafeRunSync()
   }

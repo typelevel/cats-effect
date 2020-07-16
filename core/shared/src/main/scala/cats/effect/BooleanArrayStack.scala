@@ -16,7 +16,9 @@
 
 package cats.effect
 
-final private[effect] class BooleanArrayStack(private[this] var buffer: Array[Boolean], private[this] var index: Int) {
+private[effect] final class BooleanArrayStack(
+    private[this] var buffer: Array[Boolean],
+    private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[Boolean](initBound), 0)

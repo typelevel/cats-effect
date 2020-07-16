@@ -281,9 +281,7 @@ class MVarSpec extends BaseSpec {
   }
 
   "put(null) works" in real {
-    val op = MVar[IO].empty[String].flatMap { mvar =>
-      mvar.put(null) *> mvar.read
-    }
+    val op = MVar[IO].empty[String].flatMap { mvar => mvar.put(null) *> mvar.read }
 
     op.flatMap { res =>
       IO {
@@ -377,9 +375,7 @@ class MVarSpec extends BaseSpec {
     def loop(n: Int, acc: Int)(ch: MVar[IO, Int]): IO[Int] =
       if (n <= 0) IO.pure(acc)
       else
-        ch.take.flatMap { x =>
-          ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch))
-        }
+        ch.take.flatMap { x => ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch)) }
 
     val count = 10000
     val op = init(1).flatMap(loop(count, 0))

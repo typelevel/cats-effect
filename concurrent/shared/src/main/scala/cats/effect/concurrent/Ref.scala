@@ -66,9 +66,7 @@ abstract class Ref[F[_], A] {
    * In case of retries caused by concurrent modifications,
    * the returned value will be the last one before a successful update.
    */
-  def getAndUpdate(f: A => A): F[A] = modify { a =>
-    (f(a), a)
-  }
+  def getAndUpdate(f: A => A): F[A] = modify { a => (f(a), a) }
 
   /**
    * Replaces the current value with `a`, returning the previous value.
@@ -78,10 +76,11 @@ abstract class Ref[F[_], A] {
   /**
    * Updates the current value using `f`, and returns the updated value.
    */
-  def updateAndGet(f: A => A): F[A] = modify { a =>
-    val newA = f(a)
-    (newA, newA)
-  }
+  def updateAndGet(f: A => A): F[A] =
+    modify { a =>
+      val newA = f(a)
+      (newA, newA)
+    }
 
   /**
    * Obtains a snapshot of the current value, and a setter for updating it.
@@ -175,7 +174,6 @@ object Ref {
    *     ten <- intRef.get
    *   } yield ten
    * }}}
-   *
    */
   def of[F[_], A](a: A)(implicit F: Sync[F]): F[Ref[F, A]] = F.delay(unsafe(a))
 
@@ -183,7 +181,8 @@ object Ref {
    *  Builds a `Ref` value for data types that are [[Sync]]
    *  Like [[of]] but initializes state using another effect constructor
    */
-  def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] = F.delay(unsafe(a))
+  def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] =
+    F.delay(unsafe(a))
 
   /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
@@ -225,7 +224,8 @@ object Ref {
    *   }
    * }}}
    */
-  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] = new SyncRef[F, A](new AtomicReference[A](a))
+  def unsafe[F[_], A](a: A)(implicit F: Sync[F]): Ref[F, A] =
+    new SyncRef[F, A](new AtomicReference[A](a))
 
   /**
    * Creates an instance focused on a component of another Ref's value.
@@ -240,8 +240,9 @@ object Ref {
    *   val refB: Ref[IO, String] =
    *     Ref.lens[IO, Foo, String](refA)(_.bar, (foo: Foo) => (bar: String) => foo.copy(bar = bar))
    * }}}
-   * */
-  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(implicit F: Sync[F]): Ref[F, B] =
+   */
+  def lens[F[_], A, B <: AnyRef](ref: Ref[F, A])(get: A => B, set: A => B => A)(
+      implicit F: Sync[F]): Ref[F, B] =
     new LensRef[F, A, B](ref)(get, set)
 
   final class ApplyBuilders[F[_]](val F: Sync[F]) extends AnyVal {
@@ -254,33 +255,36 @@ object Ref {
     def of[A](a: A): F[Ref[F, A]] = Ref.of(a)(F)
   }
 
-  final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F]) extends Ref[F, A] {
+  final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F])
+      extends Ref[F, A] {
     def get: F[A] = F.delay(ar.get)
 
     def set(a: A): F[Unit] = F.delay(ar.set(a))
 
     override def getAndSet(a: A): F[A] = F.delay(ar.getAndSet(a))
 
-    def access: F[(A, A => F[Boolean])] = F.delay {
-      val snapshot = ar.get
-      val hasBeenCalled = new AtomicBoolean(false)
-      def setter = (a: A) => F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
-      (snapshot, setter)
-    }
+    def access: F[(A, A => F[Boolean])] =
+      F.delay {
+        val snapshot = ar.get
+        val hasBeenCalled = new AtomicBoolean(false)
+        def setter =
+          (a: A) =>
+            F.delay(hasBeenCalled.compareAndSet(false, true) && ar.compareAndSet(snapshot, a))
+        (snapshot, setter)
+      }
 
     def tryUpdate(f: A => A): F[Boolean] =
       F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
-    def tryModify[B](f: A => (A, B)): F[Option[B]] = F.delay {
-      val c = ar.get
-      val (u, b) = f(c)
-      if (ar.compareAndSet(c, u)) Some(b)
-      else None
-    }
+    def tryModify[B](f: A => (A, B)): F[Option[B]] =
+      F.delay {
+        val c = ar.get
+        val (u, b) = f(c)
+        if (ar.compareAndSet(c, u)) Some(b)
+        else None
+      }
 
-    def update(f: A => A): F[Unit] = modify { a =>
-      (f(a), ())
-    }
+    def update(f: A => A): F[Unit] = modify { a => (f(a), ()) }
 
     def modify[B](f: A => (A, B)): F[B] = {
       @tailrec
@@ -304,8 +308,10 @@ object Ref {
     }
   }
 
-  final private[concurrent] class TransformedRef[F[_], G[_], A](underlying: Ref[F, A], trans: F ~> G)(
-    implicit F: Functor[F]
+  final private[concurrent] class TransformedRef[F[_], G[_], A](
+      underlying: Ref[F, A],
+      trans: F ~> G)(
+      implicit F: Functor[F]
   ) extends Ref[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def set(a: A): G[Unit] = trans(underlying.set(a))
@@ -314,7 +320,8 @@ object Ref {
     override def tryModify[B](f: A => (A, B)): G[Option[B]] = trans(underlying.tryModify(f))
     override def update(f: A => A): G[Unit] = trans(underlying.update(f))
     override def modify[B](f: A => (A, B)): G[B] = trans(underlying.modify(f))
-    override def tryModifyState[B](state: State[A, B]): G[Option[B]] = trans(underlying.tryModifyState(state))
+    override def tryModifyState[B](state: State[A, B]): G[Option[B]] =
+      trans(underlying.tryModifyState(state))
     override def modifyState[B](state: State[A, B]): G[B] = trans(underlying.modifyState(state))
 
     override def access: G[(A, A => G[Boolean])] =
@@ -322,17 +329,16 @@ object Ref {
   }
 
   final private[concurrent] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
-    lensGet: A => B,
-    lensSet: A => B => A
+      lensGet: A => B,
+      lensSet: A => B => A
   )(implicit F: Sync[F])
       extends Ref[F, B] {
     override def get: F[B] = F.map(underlying.get)(a => lensGet(a))
 
     override def set(b: B): F[Unit] = underlying.update(a => lensModify(a)(_ => b))
 
-    override def getAndSet(b: B): F[B] = underlying.modify { a =>
-      (lensModify(a)(_ => b), lensGet(a))
-    }
+    override def getAndSet(b: B): F[B] =
+      underlying.modify { a => (lensModify(a)(_ => b), lensGet(a)) }
 
     override def update(f: B => B): F[Unit] =
       underlying.update(a => lensModify(a)(f))

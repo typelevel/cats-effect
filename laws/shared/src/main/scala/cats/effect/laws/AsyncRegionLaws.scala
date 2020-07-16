@@ -19,14 +19,16 @@ package laws
 
 import cats.effect.kernel.{AsyncRegion, Bracket, Outcome}
 
-trait AsyncRegionLaws[R[_[_], _], F[_]] extends AsyncLaws[R[F, *]] with TemporalRegionLaws[R, F, Throwable] {
+trait AsyncRegionLaws[R[_[_], _], F[_]]
+    extends AsyncLaws[R[F, *]]
+    with TemporalRegionLaws[R, F, Throwable] {
   implicit val F: AsyncRegion[R, F]
 }
 
 object AsyncRegionLaws {
-  def apply[R[_[_], _], F[_]](implicit
-                              F0: AsyncRegion[R, F],
-                              B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): AsyncRegionLaws[R, F] =
+  def apply[R[_[_], _], F[_]](
+      implicit F0: AsyncRegion[R, F],
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): AsyncRegionLaws[R, F] =
     new AsyncRegionLaws[R, F] {
       val F = F0
       val B = B0

@@ -42,7 +42,11 @@ private[testkit] trait LowPriorityInstances {
     Eq.by(TimeT.run(_))
 }
 
-class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPriorityInstances {
+class TimeTSpec
+    extends Specification
+    with Discipline
+    with ScalaCheck
+    with LowPriorityInstances {
   // import OutcomeGenerators._
   // import PureConcGenerators._
 
@@ -57,12 +61,11 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 
-    val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+    val genTU =
+      Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
 
     Arbitrary {
-      genTU.flatMap { u =>
-        Gen.posNum[Long].map(FiniteDuration(_, u))
-      }
+      genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
     }
   }
 
@@ -78,6 +81,7 @@ class TimeTSpec extends Specification with Discipline with ScalaCheck with LowPr
   implicit def arbTime: Arbitrary[Time] =
     Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
 
-  implicit def cogenKleisli[F[_], R, A](implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
+  implicit def cogenKleisli[F[_], R, A](
+      implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
     cg.contramap(_.run)
 }

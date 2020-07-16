@@ -26,57 +26,59 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentBracketTests[F, E] {
+trait TemporalBracketTests[F[_], E]
+    extends TemporalTests[F, E]
+    with ConcurrentBracketTests[F, E] {
 
   val laws: TemporalBracketLaws[F, E]
 
-  def temporalBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbE: Arbitrary[E],
-    ArbFiniteDuration: Arbitrary[FiniteDuration],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenFB: Cogen[F[B]],
-    CogenC: Cogen[C],
-    CogenE: Cogen[E],
-    CogenCaseA: Cogen[Outcome[F, E, A]],
-    CogenCaseB: Cogen[Outcome[F, E, B]],
-    CogenCaseU: Cogen[Outcome[F, E, Unit]],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqE: Eq[E],
-    EqFEitherEU: Eq[F[Either[E, Unit]]],
-    EqFEitherEA: Eq[F[Either[E, A]]],
-    EqFEitherAB: Eq[F[Either[A, B]]],
-    EqFEitherUA: Eq[F[Either[Unit, A]]],
-    EqFEitherAU: Eq[F[Either[A, Unit]]],
-    EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
-    EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
-    EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
-    EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    OrdFFD: Order[F[FiniteDuration]],
-    GroupFD: Group[FiniteDuration],
-    exec: F[Boolean] => Prop,
-    iso: Isomorphisms[F],
-    faPP: F[A] => Pretty,
-    fuPP: F[Unit] => Pretty,
-    aFUPP: (A => F[Unit]) => Pretty,
-    ePP: E => Pretty,
-    foaPP: F[Outcome[F, E, A]] => Pretty,
-    feauPP: F[Either[A, Unit]] => Pretty,
-    feuaPP: F[Either[Unit, A]] => Pretty,
-    fouPP: F[Outcome[F, E, Unit]] => Pretty
-  ): RuleSet =
+  def temporalBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      tolerance: FiniteDuration)(
+      implicit ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[E],
+      ArbFiniteDuration: Arbitrary[FiniteDuration],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenFB: Cogen[F[B]],
+      CogenC: Cogen[C],
+      CogenE: Cogen[E],
+      CogenCaseA: Cogen[Outcome[F, E, A]],
+      CogenCaseB: Cogen[Outcome[F, E, B]],
+      CogenCaseU: Cogen[Outcome[F, E, Unit]],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
+      EqE: Eq[E],
+      EqFEitherEU: Eq[F[Either[E, Unit]]],
+      EqFEitherEA: Eq[F[Either[E, A]]],
+      EqFEitherAB: Eq[F[Either[A, B]]],
+      EqFEitherUA: Eq[F[Either[Unit, A]]],
+      EqFEitherAU: Eq[F[Either[A, Unit]]],
+      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
+      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
+      EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
+      EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      OrdFFD: Order[F[FiniteDuration]],
+      GroupFD: Group[FiniteDuration],
+      exec: F[Boolean] => Prop,
+      iso: Isomorphisms[F],
+      faPP: F[A] => Pretty,
+      fuPP: F[Unit] => Pretty,
+      aFUPP: (A => F[Unit]) => Pretty,
+      ePP: E => Pretty,
+      foaPP: F[Outcome[F, E, A]] => Pretty,
+      feauPP: F[Either[A, Unit]] => Pretty,
+      feuaPP: F[Either[Unit, A]] => Pretty,
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
+
     new RuleSet {
       val name = "temporal (bracket)"
       val bases = Nil
@@ -84,10 +86,12 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
 
       val props = Seq()
     }
+  }
 }
 
 object TemporalBracketTests {
-  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketTests[F, E] = new TemporalBracketTests[F, E] {
-    val laws = TemporalBracketLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketTests[F, E] =
+    new TemporalBracketTests[F, E] {
+      val laws = TemporalBracketLaws[F, E]
+    }
 }

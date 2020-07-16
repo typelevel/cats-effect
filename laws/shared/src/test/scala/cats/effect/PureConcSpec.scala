@@ -20,7 +20,8 @@ import cats.Show
 import cats.laws.discipline.ParallelTests
 import cats.implicits._
 import cats.effect.laws.ConcurrentBracketTests
-import cats.effect.testkit.{pure, OutcomeGenerators, ParallelFGenerators, PureConcGenerators}, pure._
+import cats.effect.testkit.{pure, OutcomeGenerators, ParallelFGenerators, PureConcGenerators},
+pure._
 import cats.effect.implicits._
 
 // import org.scalacheck.rng.Seed
@@ -44,6 +45,4 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
     "PureConc",
     ConcurrentBracketTests[PureConc[Int, *], Int].concurrentBracket[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
-
-  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
 }

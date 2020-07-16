@@ -31,6 +31,5 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
 
         case Right(value) =>
           resolve(value)
-      }
-    )
+      })
 }

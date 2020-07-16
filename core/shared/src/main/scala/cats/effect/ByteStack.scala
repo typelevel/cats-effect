@@ -16,7 +16,9 @@
 
 package cats.effect
 
-final private[effect] class ByteStack(private[this] var buffer: Array[Byte], private[this] var index: Int) {
+private[effect] final class ByteStack(
+    private[this] var buffer: Array[Byte],
+    private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[Byte](initBound), 0)

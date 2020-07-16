@@ -37,14 +37,13 @@ class SemaphoreSpec extends BaseSpec { outer =>
     tests("async imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect[IO].toK, Effect[IO].toK)))
 
     "acquire does not leak permits upon cancelation" in real {
-      val op = Semaphore[IO](1L)
-        .flatMap { s =>
-          // acquireN(2) will get 1 permit and then timeout waiting for another,
-          // which should restore the semaphore count to 1. We then release a permit
-          // bringing the count to 2. Since the old acquireN(2) is canceled, the final
-          // count stays at 2.
-          s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
-        }
+      val op = Semaphore[IO](1L).flatMap { s =>
+        // acquireN(2) will get 1 permit and then timeout waiting for another,
+        // which should restore the semaphore count to 1. We then release a permit
+        // bringing the count to 2. Since the old acquireN(2) is canceled, the final
+        // count stays at 2.
+        s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
+      }
 
       op.flatMap { res =>
         IO {
@@ -54,14 +53,14 @@ class SemaphoreSpec extends BaseSpec { outer =>
     }
 
     "withPermit does not leak fibers or permits upon cancelation" in real {
-      val op = Semaphore[IO](0L)
-        .flatMap { s =>
-          // The inner s.release should never be run b/c the timeout will be reached before a permit
-          // is available. After the timeout and hence cancelation of s.withPermit(...), we release
-          // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
-          // cancel, the permit count will be 2, otherwise 1
-          s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
-        }
+      val op = Semaphore[IO](0L).flatMap { s =>
+        // The inner s.release should never be run b/c the timeout will be reached before a permit
+        // is available. After the timeout and hence cancelation of s.withPermit(...), we release
+        // a permit and then sleep a bit, then check the permit count. If withPermit doesn't properly
+        // cancel, the permit count will be 2, otherwise 1
+        s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(
+          10.millis) *> s.count
+      }
 
       op.flatMap { res =>
         IO {
@@ -94,10 +93,9 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     s"$label - acquire n synchronously" in real {
       val n = 20
-      val op = sc(20)
-        .flatMap { s =>
-          (0 until n).toList.traverse(_ => s.acquire).void *> s.available
-        }
+      val op = sc(20).flatMap { s =>
+        (0 until n).toList.traverse(_ => s.acquire).void *> s.available
+      }
 
       op.flatMap { res =>
         IO {
@@ -138,13 +136,12 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     s"$label - tryAcquire with available permits" in real {
       val n = 20
-      val op = sc(30)
-        .flatMap { s =>
-          for {
-            _ <- (0 until n).toList.traverse(_ => s.acquire).void
-            t <- s.tryAcquire
-          } yield t
-        }
+      val op = sc(30).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          t <- s.tryAcquire
+        } yield t
+      }
 
       op.flatMap { res =>
         IO {
@@ -155,13 +152,12 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     s"$label - tryAcquire with no available permits" in real {
       val n = 20
-      val op = sc(20)
-        .flatMap { s =>
-          for {
-            _ <- (0 until n).toList.traverse(_ => s.acquire).void
-            t <- s.tryAcquire
-          } yield t
-        }
+      val op = sc(20).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          t <- s.tryAcquire
+        } yield t
+      }
 
       op.flatMap { res =>
         IO {
@@ -183,13 +179,12 @@ class SemaphoreSpec extends BaseSpec { outer =>
     // }
 
     s"$label - available with available permits" in real {
-      val op = sc(20)
-        .flatMap { s =>
-          for {
-            _ <- s.acquireN(19)
-            t <- s.available
-          } yield t
-        }
+      val op = sc(20).flatMap { s =>
+        for {
+          _ <- s.acquireN(19)
+          t <- s.available
+        } yield t
+      }
 
       op.flatMap { res =>
         IO {
@@ -199,13 +194,12 @@ class SemaphoreSpec extends BaseSpec { outer =>
     }
 
     s"$label - available with 0 available permits" in real {
-      val op = sc(20)
-        .flatMap { s =>
-          for {
-            _ <- s.acquireN(20).void
-            t <- IO.cede *> s.available
-          } yield t
-        }
+      val op = sc(20).flatMap { s =>
+        for {
+          _ <- s.acquireN(20).void
+          t <- IO.cede *> s.available
+        } yield t
+      }
 
       op.flatMap { res =>
         IO {
@@ -216,14 +210,13 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     s"$label - count with available permits" in real {
       val n = 18
-      val op = sc(20)
-        .flatMap { s =>
-          for {
-            _ <- (0 until n).toList.traverse(_ => s.acquire).void
-            a <- s.available
-            t <- s.count
-          } yield (a, t)
-        }
+      val op = sc(20).flatMap { s =>
+        for {
+          _ <- (0 until n).toList.traverse(_ => s.acquire).void
+          a <- s.available
+          t <- s.count
+        } yield (a, t)
+      }
 
       op.flatMap { res =>
         IO {
@@ -249,14 +242,13 @@ class SemaphoreSpec extends BaseSpec { outer =>
     // }
 
     s"$label - count with 0 available permits" in real {
-      val op = sc(20)
-        .flatMap { s =>
-          for {
-            _ <- s.acquireN(20).void
-            x <- (IO.cede *> s.count).start
-            t <- x.join
-          } yield t
-        }
+      val op = sc(20).flatMap { s =>
+        for {
+          _ <- s.acquireN(20).void
+          x <- (IO.cede *> s.count).start
+          t <- x.join
+        } yield t
+      }
 
       op.flatMap {
         case Outcome.Completed(ioa) =>

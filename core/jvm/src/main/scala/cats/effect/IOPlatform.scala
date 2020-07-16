@@ -26,7 +26,8 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
   final def unsafeRunSync()(implicit runtime: unsafe.IORuntime): A =
     unsafeRunTimed(Long.MaxValue.nanos).get
 
-  final def unsafeRunTimed(limit: FiniteDuration)(implicit runtime: unsafe.IORuntime): Option[A] = {
+  final def unsafeRunTimed(limit: FiniteDuration)(
+      implicit runtime: unsafe.IORuntime): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
@@ -43,11 +44,12 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     }
   }
 
-  final def unsafeToCompletableFuture()(implicit runtime: unsafe.IORuntime): CompletableFuture[A @uncheckedVariance] = {
+  final def unsafeToCompletableFuture()(
+      implicit runtime: unsafe.IORuntime): CompletableFuture[A @uncheckedVariance] = {
     val cf = new CompletableFuture[A]()
 
     unsafeRunAsync {
-      case Left(t)  => cf.completeExceptionally(t)
+      case Left(t) => cf.completeExceptionally(t)
       case Right(a) => cf.complete(a)
     }
 

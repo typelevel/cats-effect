@@ -16,8 +16,9 @@
 
 package cats.effect
 
-final private[effect] class ArrayStack[A <: AnyRef](private[this] var buffer: Array[AnyRef],
-                                                    private[this] var index: Int) {
+private[effect] final class ArrayStack[A <: AnyRef](
+    private[this] var buffer: Array[AnyRef],
+    private[this] var index: Int) {
 
   def this(initBound: Int) =
     this(new Array[AnyRef](initBound), 0)

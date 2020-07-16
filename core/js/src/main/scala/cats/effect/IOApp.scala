@@ -22,7 +22,7 @@ trait IOApp {
 
   final def main(args: Array[String]): Unit =
     run.unsafeRunAsync {
-      case Left(t)  => throw t
+      case Left(t) => throw t
       case Right(_) => ()
     }(unsafe.IORuntime.global)
 }

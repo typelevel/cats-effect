@@ -30,56 +30,57 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
   val laws: ConcurrentLaws[F, E]
 
   def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-    ArbFA: Arbitrary[F[A]],
-    ArbFB: Arbitrary[F[B]],
-    ArbFC: Arbitrary[F[C]],
-    ArbFU: Arbitrary[F[Unit]],
-    ArbFAtoB: Arbitrary[F[A => B]],
-    ArbFBtoC: Arbitrary[F[B => C]],
-    ArbE: Arbitrary[E],
-    CogenA: Cogen[A],
-    CogenB: Cogen[B],
-    CogenFB: Cogen[F[B]],
-    CogenC: Cogen[C],
-    CogenE: Cogen[E],
-    CogenCaseA: Cogen[Outcome[F, E, A]],
-    CogenCaseB: Cogen[Outcome[F, E, B]],
-    CogenCaseU: Cogen[Outcome[F, E, Unit]],
-    EqFA: Eq[F[A]],
-    EqFB: Eq[F[B]],
-    EqFC: Eq[F[C]],
-    EqFU: Eq[F[Unit]],
-    EqE: Eq[E],
-    EqFEitherEU: Eq[F[Either[E, Unit]]],
-    EqFEitherEA: Eq[F[Either[E, A]]],
-    EqFEitherAB: Eq[F[Either[A, B]]],
-    EqFEitherUA: Eq[F[Either[Unit, A]]],
-    EqFEitherAU: Eq[F[Either[A, Unit]]],
-    EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
-    EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
-    EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
-    EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
-    EqFABC: Eq[F[(A, B, C)]],
-    EqFInt: Eq[F[Int]],
-    iso: Isomorphisms[F],
-    faPP: F[A] => Pretty,
-    fuPP: F[Unit] => Pretty,
-    aFUPP: (A => F[Unit]) => Pretty,
-    ePP: E => Pretty,
-    foaPP: F[Outcome[F, E, A]] => Pretty,
-    feauPP: F[Either[A, Unit]] => Pretty,
-    feuaPP: F[Either[Unit, A]] => Pretty,
-    fouPP: F[Outcome[F, E, Unit]] => Pretty
-  ): RuleSet =
+      implicit ArbFA: Arbitrary[F[A]],
+      ArbFB: Arbitrary[F[B]],
+      ArbFC: Arbitrary[F[C]],
+      ArbFU: Arbitrary[F[Unit]],
+      ArbFAtoB: Arbitrary[F[A => B]],
+      ArbFBtoC: Arbitrary[F[B => C]],
+      ArbE: Arbitrary[E],
+      CogenA: Cogen[A],
+      CogenB: Cogen[B],
+      CogenFB: Cogen[F[B]],
+      CogenC: Cogen[C],
+      CogenE: Cogen[E],
+      CogenCaseA: Cogen[Outcome[F, E, A]],
+      CogenCaseB: Cogen[Outcome[F, E, B]],
+      CogenCaseU: Cogen[Outcome[F, E, Unit]],
+      EqFA: Eq[F[A]],
+      EqFB: Eq[F[B]],
+      EqFC: Eq[F[C]],
+      EqFU: Eq[F[Unit]],
+      EqE: Eq[E],
+      EqFEitherEU: Eq[F[Either[E, Unit]]],
+      EqFEitherEA: Eq[F[Either[E, A]]],
+      EqFEitherAB: Eq[F[Either[A, B]]],
+      EqFEitherUA: Eq[F[Either[Unit, A]]],
+      EqFEitherAU: Eq[F[Either[A, Unit]]],
+      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
+      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
+      EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
+      EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
+      EqFABC: Eq[F[(A, B, C)]],
+      EqFInt: Eq[F[Int]],
+      iso: Isomorphisms[F],
+      faPP: F[A] => Pretty,
+      fuPP: F[Unit] => Pretty,
+      aFUPP: (A => F[Unit]) => Pretty,
+      ePP: E => Pretty,
+      foaPP: F[Outcome[F, E, A]] => Pretty,
+      feauPP: F[Either[A, Unit]] => Pretty,
+      feuaPP: F[Either[Unit, A]] => Pretty,
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
+
     new RuleSet {
       val name = "concurrent"
       val bases = Nil
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "race is racePair identity (left)" -> forAll(laws.raceIsRacePairCancelIdentityLeft[A] _),
-        "race is racePair identity (right)" -> forAll(laws.raceIsRacePairCancelIdentityRight[A] _),
+        "race is racePair identity (left)" -> forAll(
+          laws.raceIsRacePairCancelIdentityLeft[A] _),
+        "race is racePair identity (right)" -> forAll(
+          laws.raceIsRacePairCancelIdentityRight[A] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),
@@ -94,31 +95,33 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
         "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable ignored poll eliminates nesting" -> forAll(laws.uncancelableIgnoredPollEliminatesNesting[A] _),
-        "uncancelable poll inverse nest is uncancelable" -> forAll(laws.uncancelablePollInverseNestIsUncancelable[A] _),
+        "uncancelable ignored poll eliminates nesting" -> forAll(
+          laws.uncancelableIgnoredPollEliminatesNesting[A] _),
+        "uncancelable poll inverse nest is uncancelable" -> forAll(
+          laws.uncancelablePollInverseNestIsUncancelable[A] _),
         "uncancelable distributes over race attempt (left)" -> forAll(
-          laws.uncancelableDistributesOverRaceAttemptLeft[A] _
-        ),
+          laws.uncancelableDistributesOverRaceAttemptLeft[A] _),
         "uncancelable distributes over race attempt (right)" -> forAll(
-          laws.uncancelableDistributesOverRaceAttemptRight[A] _
-        ),
+          laws.uncancelableDistributesOverRaceAttemptRight[A] _),
         "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
-        "uncancelable race poll canceled identity (left)" -> forAll(laws.uncancelableRacePollCanceledIdentityLeft[A] _),
+        "uncancelable race poll canceled identity (left)" -> forAll(
+          laws.uncancelableRacePollCanceledIdentityLeft[A] _),
         "uncancelable race poll canceled identity (right)" -> forAll(
-          laws.uncancelableRacePollCanceledIdentityRight[A] _
-        ),
+          laws.uncancelableRacePollCanceledIdentityRight[A] _),
         "uncancelable canceled is canceled" -> laws.uncancelableCancelCancels,
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
         "uncancelable canceled associates right over flatMap" -> forAll(
-          laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _
-        ),
-        "canceled associates left over flatMap" -> forAll(laws.canceledAssociatesLeftOverFlatMap[A] _)
+          laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
+        "canceled associates left over flatMap" -> forAll(
+          laws.canceledAssociatesLeftOverFlatMap[A] _)
       )
     }
+  }
 }
 
 object ConcurrentTests {
-  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] = new ConcurrentTests[F, E] {
-    val laws = ConcurrentLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] =
+    new ConcurrentTests[F, E] {
+      val laws = ConcurrentLaws[F, E]
+    }
 }

@@ -64,7 +64,9 @@ abstract class Semaphore[F[_]] {
    */
   def acquireN(n: Long): F[Unit]
 
-  /** Acquires a single permit. Alias for `[[acquireN]](1)`. */
+  /**
+   * Acquires a single permit. Alias for `[[acquireN]](1)`.
+   */
   def acquire: F[Unit] = acquireN(1)
 
   /**
@@ -74,7 +76,9 @@ abstract class Semaphore[F[_]] {
    */
   def tryAcquireN(n: Long): F[Boolean]
 
-  /** Alias for `[[tryAcquireN]](1)`. */
+  /**
+   * Alias for `[[tryAcquireN]](1)`.
+   */
   def tryAcquire: F[Boolean] = tryAcquireN(1)
 
   /**
@@ -84,7 +88,9 @@ abstract class Semaphore[F[_]] {
    */
   def releaseN(n: Long): F[Unit]
 
-  /** Releases a single permit. Alias for `[[releaseN]](1)`. */
+  /**
+   * Releases a single permit. Alias for `[[releaseN]](1)`.
+   */
   def release: F[Unit] = releaseN(1)
 
   /**
@@ -116,14 +122,17 @@ object Semaphore {
     assertNonNegative[F](n) *>
       Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
 
-  private def assertNonNegative[F[_]](n: Long)(implicit F: ApplicativeError[F, Throwable]): F[Unit] =
-    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n")) else F.unit
+  private def assertNonNegative[F[_]](n: Long)(
+      implicit F: ApplicativeError[F, Throwable]): F[Unit] =
+    if (n < 0) F.raiseError(new IllegalArgumentException(s"n must be nonnegative, was: $n"))
+    else F.unit
 
   // A semaphore is either empty, and there are number of outstanding acquires (Left)
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
-  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: AsyncBracket[F])
+  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
+      implicit F: AsyncBracket[F])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
@@ -131,15 +140,17 @@ object Semaphore {
 
     def count: F[Long] = state.get.map(count_)
 
-    private def count_(s: State[F]): Long = s match {
-      case Left(waiting)    => -waiting.map(_._1).sum
-      case Right(available) => available
-    }
+    private def count_(s: State[F]): Long =
+      s match {
+        case Left(waiting) => -waiting.map(_._1).sum
+        case Right(available) => available
+      }
 
-    def acquireN(n: Long): F[Unit] = F.bracketCase(acquireNInternal(n)) { case (g, _) => g } {
-      case ((_, c), Outcome.Canceled()) => c
-      case _                            => F.unit
-    }
+    def acquireN(n: Long): F[Unit] =
+      F.bracketCase(acquireNInternal(n)) { case (g, _) => g } {
+        case ((_, c), Outcome.Canceled()) => c
+        case _ => F.unit
+      }
 
     def acquireNInternal(n: Long): F[(F[Unit], F[Unit])] =
       assertNonNegative[F](n) *> {
@@ -164,14 +175,17 @@ object Semaphore {
                   val cleanup = state.modify {
                     case Left(waiting) =>
                       waiting.find(_._2 eq gate).map(_._1) match {
-                        case None    => (Left(waiting), releaseN(n))
+                        case None => (Left(waiting), releaseN(n))
                         case Some(m) => (Left(waiting.filterNot(_._2 eq gate)), releaseN(n - m))
                       }
                     case Right(m) => (Right(m + n), F.unit)
                   }.flatten
 
                   val entry =
-                    waiting.lastOption.getOrElse(sys.error("Semaphore has empty waiting queue rather than 0 count"))
+                    waiting
+                      .lastOption
+                      .getOrElse(
+                        sys.error("Semaphore has empty waiting queue rather than 0 count"))
 
                   entry._2.get -> cleanup
 
@@ -185,14 +199,13 @@ object Semaphore {
       assertNonNegative[F](n) *> {
         if (n == 0) F.pure(true)
         else
-          state
-            .modify { old =>
-              val (newState, result) = old match {
-                case Right(m) if m >= n => (Right(m - n), m != n)
-                case _                  => (old, false)
-              }
-              (newState, result)
+          state.modify { old =>
+            val (newState, result) = old match {
+              case Right(m) if m >= n => (Right(m - n), m != n)
+              case _ => (old, false)
             }
+            (newState, result)
+          }
       }
 
     def releaseN(n: Long): F[Unit] =
@@ -230,22 +243,21 @@ object Semaphore {
                   case Left(waiting) =>
                     // now compare old and new sizes to figure out which actions to run
                     val newSize = now match {
-                      case Left(w)  => w.size
+                      case Left(w) => w.size
                       case Right(_) => 0
                     }
                     val released = waiting.size - newSize
-                    waiting.take(released).foldRight(F.unit) { (hd, tl) =>
-                      open(hd._2) *> tl
-                    }
+                    waiting.take(released).foldRight(F.unit) { (hd, tl) => open(hd._2) *> tl }
                   case Right(_) => F.unit
                 }
             }
       }
 
-    def available: F[Long] = state.get.map {
-      case Left(_)  => 0
-      case Right(n) => n
-    }
+    def available: F[Long] =
+      state.get.map {
+        case Left(_) => 0
+        case Right(n) => n
+      }
 
     def withPermit[A](t: F[A]): F[A] =
       F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
@@ -257,9 +269,9 @@ object Semaphore {
   }
 
   final private[concurrent] class TransformedSemaphore[F[_], G[_]](
-    underlying: Semaphore[F],
-    trans: F ~> G,
-    inverse: G ~> F
+      underlying: Semaphore[F],
+      trans: F ~> G,
+      inverse: G ~> F
   ) extends Semaphore[G] {
     override def available: G[Long] = trans(underlying.available)
     override def count: G[Long] = trans(underlying.count)

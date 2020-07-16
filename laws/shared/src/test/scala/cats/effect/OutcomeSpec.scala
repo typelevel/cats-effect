@@ -34,7 +34,11 @@ class OutcomeSpec extends Specification with Discipline {
   //   "Outcome[Id, Int, *]",
   //   MonadErrorTests[Outcome[Id, Int, *], Int].monadError[Int, Int, Int])
 
-  checkAll("Outcome[Option, Int, *]", MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
+  checkAll(
+    "Outcome[Option, Int, *]",
+    MonadErrorTests[Outcome[Option, Int, *], Int].monadError[Int, Int, Int])
 
-  checkAll("Outcome[Eval, Int, *]", ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
+  checkAll(
+    "Outcome[Eval, Int, *]",
+    ApplicativeErrorTests[Outcome[Eval, Int, *], Int].applicativeError[Int, Int, Int])
 }

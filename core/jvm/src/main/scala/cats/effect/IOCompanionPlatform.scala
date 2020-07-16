@@ -26,7 +26,7 @@ abstract private[effect] class IOCompanionPlatform { self: IO.type =>
         IO {
           val stage = cf.handle[Unit] {
             case (a, null) => cb(Right(a))
-            case (_, t)    => cb(Left(t))
+            case (_, t) => cb(Left(t))
           }
 
           Some(IO(stage.cancel(false)).void)

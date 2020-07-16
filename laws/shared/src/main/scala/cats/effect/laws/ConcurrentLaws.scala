@@ -27,7 +27,7 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def raceIsRacePairCancelIdentityLeft[A](fa: F[A]) = {
     val identity = F.racePair(fa, F.never[Unit]).flatMap {
-      case Left((a, f))  => f.cancel.as(a.asLeft[Unit])
+      case Left((a, f)) => f.cancel.as(a.asLeft[Unit])
       case Right((f, b)) => f.cancel.as(b.asRight[A])
     }
 
@@ -36,7 +36,7 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def raceIsRacePairCancelIdentityRight[A](fa: F[A]) = {
     val identity = F.racePair(F.never[Unit], fa).flatMap {
-      case Left((a, f))  => f.cancel.as(a.asLeft[A])
+      case Left((a, f)) => f.cancel.as(a.asLeft[A])
       case Right((f, b)) => f.cancel.as(b.asRight[Unit])
     }
 
@@ -99,31 +99,38 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.uncancelable(_ => F.race(fa.attempt, F.never[Unit])) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))*/
 
   def uncancelableDistributesOverRaceAttemptLeft[A](fa: F[A]) =
-    F.uncancelable(p => F.race(fa.attempt, p(F.never[Unit]))) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))
+    F.uncancelable(p => F.race(fa.attempt, p(F.never[Unit]))) <-> F.uncancelable(_ =>
+      fa.attempt.map(_.asLeft[Unit]))
 
   def uncancelableDistributesOverRaceAttemptRight[A](fa: F[A]) =
-    F.uncancelable(p => F.race(p(F.never[Unit]), fa.attempt)) <-> F.uncancelable(_ => fa.attempt.map(_.asRight[Unit]))
+    F.uncancelable(p => F.race(p(F.never[Unit]), fa.attempt)) <-> F.uncancelable(_ =>
+      fa.attempt.map(_.asRight[Unit]))
 
   def uncancelableRaceDisplacesCanceled =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.canceled
 
   def uncancelableRacePollCanceledIdentityLeft[A](fa: F[A]) =
-    F.uncancelable(p => F.race(p(F.canceled), fa)) <-> F.uncancelable(_ => fa.map(_.asRight[Unit]))
+    F.uncancelable(p => F.race(p(F.canceled), fa)) <-> F.uncancelable(_ =>
+      fa.map(_.asRight[Unit]))
 
   def uncancelableRacePollCanceledIdentityRight[A](fa: F[A]) =
-    F.uncancelable(p => F.race(fa, p(F.canceled))) <-> F.uncancelable(_ => fa.map(_.asLeft[Unit]))
+    F.uncancelable(p => F.race(fa, p(F.canceled))) <-> F.uncancelable(_ =>
+      fa.map(_.asLeft[Unit]))
 
   def uncancelableCancelCancels =
-    F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(Outcome.Canceled())
+    F.start(F.never[Unit]).flatMap(f => F.uncancelable(_ => f.cancel) >> f.join) <-> F.pure(
+      Outcome.Canceled())
 
   def uncancelableStartIsCancelable =
-    F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(Outcome.Canceled())
+    F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(
+      Outcome.Canceled())
 
   // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
 
   // the attempt here enforces the cancelation-dominates-over-errors semantic
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
-    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <-> (F.uncancelable(_ => f(a).attempt) >> F.canceled)
+    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <-> (F.uncancelable(_ =>
+      f(a).attempt) >> F.canceled)
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
     F.canceled >> fa.void <-> F.canceled
