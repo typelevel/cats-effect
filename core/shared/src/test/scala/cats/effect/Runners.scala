@@ -17,7 +17,13 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{
+  AsyncGenerators,
+  BracketGenerators,
+  GenK,
+  OutcomeGenerators,
+  TestContext
+}
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -67,7 +73,11 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
 
         override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
-          super.recursiveGen[B](deeper).filterNot(_._1 == "racePair")   // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
+          super
+            .recursiveGen[B](deeper)
+            .filterNot(
+              _._1 == "racePair"
+            ) // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
 
     Arbitrary(generators.generators[A])
@@ -79,9 +89,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
 
     Arbitrary {
-      genTU flatMap { u =>
-        Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u))
-      }
+      genTU flatMap { u => Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u)) }
     }
   }
 
@@ -101,12 +109,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Eq.fromUniversalEquals[ExecutionContext]
 
   implicit def ordIOFD(implicit ticker: Ticker): Order[IO[FiniteDuration]] =
-    Order by { ioa =>
-      unsafeRun(ioa).fold(
-        None,
-        _ => None,
-        fa => fa)
-    }
+    Order by { ioa => unsafeRun(ioa).fold(None, _ => None, fa => fa) }
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] = {
     /*Eq instance { (left: IO[A], right: IO[A]) =>
@@ -139,7 +142,8 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Completed(None))
 
-  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
+  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(
+      implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
     val oc = unsafeRun(ioa)
     (oc eqv expected, s"${oc.show} !== ${expected.show}")
   }
@@ -188,9 +192,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () =>
-      p.tryFailure(new TimeoutException)
-    })
+    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException) })
 
     f onComplete { result =>
       p.tryComplete(result)
@@ -200,6 +202,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     p.future
   }
 
-  @implicitNotFound("could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
+  @implicitNotFound(
+    "could not find an instance of Ticker; try using `in ticked { implicit ticker =>`")
   case class Ticker(ctx: TestContext)
 }

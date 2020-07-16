@@ -34,12 +34,16 @@ class DeferredSpec extends BaseSpec { outer =>
   "deferred" should {
 
     tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
-    tests("concurrentTryable", new DeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
+    tests(
+      "concurrentTryable",
+      new DeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
 
-    tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
+    tryableTests(
+      "concurrentTryable",
+      new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
 
     "concurrent - get - cancel before forcing" in real {
-      cancelBeforeForcing(Deferred.apply).flatMap {res =>
+      cancelBeforeForcing(Deferred.apply).flatMap { res =>
         IO {
           res must beNone
         }
@@ -82,10 +86,7 @@ class DeferredSpec extends BaseSpec { outer =>
 
   def tests(label: String, pc: DeferredConstructor): Fragments = {
     s"$label - complete" in real {
-      val op = pc[Int]
-        .flatMap { p =>
-          p.complete(0) *> p.get
-        }
+      val op = pc[Int].flatMap { p => p.complete(0) *> p.get }
 
       op.flatMap { res =>
         IO {
@@ -95,10 +96,7 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     s"$label - complete is only successful once" in real {
-      val op = pc[Int]
-        .flatMap { p =>
-          (p.complete(0) *> p.complete(1).attempt).product(p.get)
-        }
+      val op = pc[Int].flatMap { p => (p.complete(0) *> p.complete(1).attempt).product(p.get) }
 
       op.flatMap { res =>
         IO {
@@ -160,10 +158,13 @@ class DeferredSpec extends BaseSpec { outer =>
       p <- pc
       fiber <- p.get.start
       _ <- fiber.cancel
-      _ <- (fiber.join.flatMap {
-        case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
-        case _                      => IO.raiseError(new RuntimeException)
-      }).start
+      _ <- (fiber
+          .join
+          .flatMap {
+            case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
+            case _ => IO.raiseError(new RuntimeException)
+          })
+        .start
       _ <- IO.sleep(100.millis)
       _ <- p.complete(42)
       _ <- IO.sleep(100.millis)
@@ -172,14 +173,15 @@ class DeferredSpec extends BaseSpec { outer =>
 
   //TODO remove once we have these as derived combinators again
   private def timeoutTo[F[_], E, A](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-    implicit F: Temporal[F, E]
+      implicit F: Temporal[F, E]
   ): F[A] =
     F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
+      case Left(a) => F.pure(a)
       case Right(_) => fallback
     }
 
-  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
+  private def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(
+      implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new RuntimeException(duration.toString))
     timeoutTo(fa, duration, timeoutException)
   }

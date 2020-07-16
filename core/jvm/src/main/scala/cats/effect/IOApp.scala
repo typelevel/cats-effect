@@ -55,9 +55,7 @@ trait IOApp {
     try {
       latch.await()
 
-      results.fold(
-        throw _,
-        System.exit(_))
+      results.fold(throw _, System.exit(_))
     } catch {
       // this handles sbt when fork := false
       case _: InterruptedException =>

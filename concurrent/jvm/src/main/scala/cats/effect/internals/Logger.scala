@@ -27,10 +27,12 @@ package cats.effect.internals
  */
 private[effect] object Logger {
 
-  /** Logs an uncaught error. */
+  /**
+   * Logs an uncaught error.
+   */
   def reportFailure(e: Throwable): Unit =
     Thread.getDefaultUncaughtExceptionHandler match {
       case null => e.printStackTrace()
-      case h    => h.uncaughtException(Thread.currentThread(), e)
+      case h => h.uncaughtException(Thread.currentThread(), e)
     }
 }

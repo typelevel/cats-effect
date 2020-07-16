@@ -30,8 +30,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
   val laws: SyncLaws[F]
 
   def sync[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -52,8 +51,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
       EqFABC: Eq[F[(A, B, C)]],
       EqFInt: Eq[F[Int]],
       exec: F[Boolean] => Prop,
-      iso: Isomorphisms[F])
-      : RuleSet = {
+      iso: Isomorphisms[F]): RuleSet = {
 
     new RuleSet {
       val name = "sync"
@@ -64,13 +62,15 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
         "delay value is pure" -> forAll(laws.delayValueIsPure[A] _),
         "delay throw is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
         "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
-        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _))
+        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _)
+      )
     }
   }
 }
 
 object SyncTests {
-  def apply[F[_]](implicit F0: Sync[F]): SyncTests[F] = new SyncTests[F] {
-    val laws = SyncLaws[F]
-  }
+  def apply[F[_]](implicit F0: Sync[F]): SyncTests[F] =
+    new SyncTests[F] {
+      val laws = SyncLaws[F]
+    }
 }

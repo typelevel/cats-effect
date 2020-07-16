@@ -23,7 +23,8 @@ import org.openjdk.jmh.annotations._
 
 import java.util.concurrent.TimeUnit
 
-/** To do comparative benchmarks between versions:
+/**
+ * To do comparative benchmarks between versions:
  *
  *     benchmarks/run-benchmark HandleErrorBenchmark
  *
@@ -48,9 +49,7 @@ class HandleErrorBenchmark {
   def happyPath(): Int = {
     def loop(i: Int): IO[Int] =
       if (i < size)
-        IO.pure(i + 1)
-          .handleErrorWith(IO.raiseError)
-          .flatMap(loop)
+        IO.pure(i + 1).handleErrorWith(IO.raiseError).flatMap(loop)
       else
         IO.pure(i)
 

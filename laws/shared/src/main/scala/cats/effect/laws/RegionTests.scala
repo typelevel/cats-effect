@@ -29,8 +29,7 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, *], E] {
   val laws: RegionLaws[R, F, E]
 
   def region[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -56,8 +55,7 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, *], E] {
       EqRFABC: Eq[R[F, (A, B, C)]],
       EqRFInt: Eq[R[F, Int]],
       EqRFUnit: Eq[R[F, Unit]],
-      iso: Isomorphisms[R[F, *]])
-      : RuleSet = {
+      iso: Isomorphisms[R[F, *]]): RuleSet = {
 
     new RuleSet {
       val name = "region"
@@ -69,21 +67,16 @@ trait RegionTests[R[_[_], _], F[_], E] extends MonadErrorTests[R[F, *], E] {
         "nesting" -> forAll(laws.regionNested[A, B, C] _),
         "flatMap extends" -> forAll(laws.regionExtend[A, B] _),
         "error coherence" -> forAll(laws.regionErrorCoherence[A, A] _),
-        "liftF is open unit" -> forAll(laws.regionLiftFOpenUnit[A] _))
+        "liftF is open unit" -> forAll(laws.regionLiftFOpenUnit[A] _)
+      )
     }
   }
 }
 
 object RegionTests {
-  def apply[
-      R[_[_], _],
-      F[_],
-      Case0[_],
-      E](
-    implicit
-      F0: Region.Aux[R, F, E, Case0],
-      B: Bracket.Aux[F, E, Case0])
-      : RegionTests[R, F, E] =
+  def apply[R[_[_], _], F[_], Case0[_], E](
+      implicit F0: Region.Aux[R, F, E, Case0],
+      B: Bracket.Aux[F, E, Case0]): RegionTests[R, F, E] =
     new RegionTests[R, F, E] {
       val laws = RegionLaws[R, F, Case0, E]
     }

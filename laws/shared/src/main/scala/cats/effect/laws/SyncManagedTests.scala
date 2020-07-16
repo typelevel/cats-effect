@@ -23,13 +23,14 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionTests[R, F, Throwable] {
+trait SyncManagedTests[R[_[_], _], F[_]]
+    extends SyncTests[R[F, *]]
+    with RegionTests[R, F, Throwable] {
 
   val laws: SyncManagedLaws[R, F]
 
   def syncManaged[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -56,8 +57,7 @@ trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionT
       EqRFInt: Eq[R[F, Int]],
       EqRFUnit: Eq[R[F, Unit]],
       exec: R[F, Boolean] => Prop,
-      iso: Isomorphisms[R[F, *]])
-      : RuleSet = {
+      iso: Isomorphisms[R[F, *]]): RuleSet = {
 
     new RuleSet {
       val name = "syncManaged"
@@ -71,10 +71,10 @@ trait SyncManagedTests[R[_[_], _], F[_]] extends SyncTests[R[F, *]] with RegionT
 
 object SyncManagedTests {
   def apply[R[_[_], _], F[_]](
-    implicit
-      F0: SyncManaged[R, F],
+      implicit F0: SyncManaged[R, F],
       B: Bracket[F, Throwable] { type Case[A] = Either[Throwable, A] })
-      : SyncManagedTests[R, F] = new SyncManagedTests[R, F] {
-    val laws = SyncManagedLaws[R, F]
-  }
+      : SyncManagedTests[R, F] =
+    new SyncManagedTests[R, F] {
+      val laws = SyncManagedLaws[R, F]
+    }
 }

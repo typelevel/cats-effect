@@ -30,8 +30,7 @@ sealed trait IsEq[A] {
       ord: Order[F[B]],
       g: Group[B],
       tolerance: Tolerance[B],
-      pp: A => Pretty)
-      : Prop =
+      pp: A => Pretty): Prop =
     this match {
       case IsEq.Assert(lhs0, rhs0) =>
         val lhs = ev(lhs0)
@@ -50,16 +49,17 @@ sealed trait IsEq[A] {
         }
     }
 
-  def toProp(implicit A: Eq[A], pp: A => Pretty): Prop = this match {
-    case IsEq.Assert(lhs, rhs) =>
-      try {
-        cats.laws.discipline.catsLawsIsEqToProp(cats.laws.IsEq(lhs, rhs))
-      } catch {
-        case soe: StackOverflowError =>
-          soe.printStackTrace()
-          throw soe
-      }
-  }
+  def toProp(implicit A: Eq[A], pp: A => Pretty): Prop =
+    this match {
+      case IsEq.Assert(lhs, rhs) =>
+        try {
+          cats.laws.discipline.catsLawsIsEqToProp(cats.laws.IsEq(lhs, rhs))
+        } catch {
+          case soe: StackOverflowError =>
+            soe.printStackTrace()
+            throw soe
+        }
+    }
 }
 
 private[laws] trait IsEqLowPriorityImplicits {
@@ -69,14 +69,12 @@ private[laws] trait IsEqLowPriorityImplicits {
 
 object IsEq extends IsEqLowPriorityImplicits {
 
-  implicit def toPropTolerant[F[_], A](
-      isEq: IsEq[F[A]])(
+  implicit def toPropTolerant[F[_], A](isEq: IsEq[F[A]])(
       implicit F: Applicative[F],
       ord: Order[F[A]],
       g: Group[A],
       tolerance: Tolerance[A],
-      pp: F[A] => Pretty)
-      : Prop =
+      pp: F[A] => Pretty): Prop =
     isEq.toPropTolerant
 
   def apply[A](lhs: A, rhs: A): IsEq[A] =

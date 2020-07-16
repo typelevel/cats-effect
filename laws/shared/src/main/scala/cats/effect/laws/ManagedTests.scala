@@ -32,8 +32,7 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
   val laws: ManagedLaws[R, F]
 
   def managed[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -84,8 +83,7 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
       foaPP: F[Outcome[R[F, *], Throwable, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: R[F, Outcome[R[F, *], Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "managed"
@@ -98,13 +96,10 @@ trait ManagedTests[R[_[_], _], F[_]] extends AsyncRegionTests[R, F] {
 }
 
 object ManagedTests {
-  def apply[
-      R[_[_], _],
-      F[_]](
-    implicit
-      F0: Managed[R, F],
-      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]])
-      : ManagedTests[R, F] = new ManagedTests[R, F] {
-    val laws = ManagedLaws[R, F]
-  }
+  def apply[R[_[_], _], F[_]](
+      implicit F0: Managed[R, F],
+      B0: Bracket.Aux[F, Throwable, Outcome[R[F, *], Throwable, *]]): ManagedTests[R, F] =
+    new ManagedTests[R, F] {
+      val laws = ManagedLaws[R, F]
+    }
 }

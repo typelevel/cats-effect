@@ -26,13 +26,15 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentBracketTests[F, E] {
+trait TemporalBracketTests[F[_], E]
+    extends TemporalTests[F, E]
+    with ConcurrentBracketTests[F, E] {
 
   val laws: TemporalBracketLaws[F, E]
 
-  def temporalBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
+  def temporalBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      tolerance: FiniteDuration)(
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -75,8 +77,7 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
       foaPP: F[Outcome[F, E, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "temporal (bracket)"
@@ -89,7 +90,8 @@ trait TemporalBracketTests[F[_], E] extends TemporalTests[F, E] with ConcurrentB
 }
 
 object TemporalBracketTests {
-  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketTests[F, E] = new TemporalBracketTests[F, E] {
-    val laws = TemporalBracketLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: TemporalBracket[F, E]): TemporalBracketTests[F, E] =
+    new TemporalBracketTests[F, E] {
+      val laws = TemporalBracketLaws[F, E]
+    }
 }

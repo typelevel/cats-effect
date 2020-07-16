@@ -20,7 +20,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.ScheduledExecutorService
 
-private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type => 
+private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type =>
 
   def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
     new Scheduler {
@@ -34,4 +34,3 @@ private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type
       def monotonicNanos() = System.nanoTime()
     }
 }
- 

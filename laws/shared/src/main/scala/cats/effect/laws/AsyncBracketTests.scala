@@ -31,9 +31,9 @@ trait AsyncBracketTests[F[_]] extends AsyncTests[F] with TemporalBracketTests[F,
 
   val laws: AsyncBracketLaws[F]
 
-  def asyncBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
+  def asyncBracket[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      tolerance: FiniteDuration)(
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -78,8 +78,7 @@ trait AsyncBracketTests[F[_]] extends AsyncTests[F] with TemporalBracketTests[F,
       foaPP: F[Outcome[F, Throwable, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, Throwable, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "async (bracket)"
@@ -92,7 +91,8 @@ trait AsyncBracketTests[F[_]] extends AsyncTests[F] with TemporalBracketTests[F,
 }
 
 object AsyncBracketTests {
-  def apply[F[_]](implicit F0: AsyncBracket[F]): AsyncBracketTests[F] = new AsyncBracketTests[F] {
-    val laws = AsyncBracketLaws[F]
-  }
+  def apply[F[_]](implicit F0: AsyncBracket[F]): AsyncBracketTests[F] =
+    new AsyncBracketTests[F] {
+      val laws = AsyncBracketLaws[F]
+    }
 }

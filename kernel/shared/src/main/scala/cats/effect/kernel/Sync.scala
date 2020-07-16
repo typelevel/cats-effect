@@ -46,7 +46,7 @@ object Sync {
         delegate.raiseError(e)
 
       def monotonic: OptionT[F, FiniteDuration] =
-      OptionT.liftF(F.monotonic)
+        OptionT.liftF(F.monotonic)
 
       def realTime: OptionT[F, FiniteDuration] =
         OptionT.liftF(F.realTime)

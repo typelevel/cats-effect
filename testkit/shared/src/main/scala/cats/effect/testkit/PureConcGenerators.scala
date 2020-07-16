@@ -40,6 +40,7 @@ object PureConcGenerators {
         OutcomeGenerators.cogenOutcome[PureConc[E, *], E, A]
     }
 
-  implicit def arbitraryPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]: Arbitrary[PureConc[E, A]] =
+  implicit def arbitraryPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]
+      : Arbitrary[PureConc[E, A]] =
     Arbitrary(generators[E].generators[A])
 }

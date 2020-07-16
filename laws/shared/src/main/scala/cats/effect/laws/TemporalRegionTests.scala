@@ -26,13 +26,15 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E] with ConcurrentRegionTests[R, F, E] {
+trait TemporalRegionTests[R[_[_], _], F[_], E]
+    extends TemporalTests[R[F, *], E]
+    with ConcurrentRegionTests[R, F, E] {
 
   val laws: TemporalRegionLaws[R, F, E]
 
-  def temporalRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+  def temporalRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+      tolerance: FiniteDuration)(
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -81,8 +83,7 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E]
       foaPP: F[Outcome[R[F, *], E, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "temporal (region)"
@@ -95,14 +96,10 @@ trait TemporalRegionTests[R[_[_], _], F[_], E] extends TemporalTests[R[F, *], E]
 }
 
 object TemporalRegionTests {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: TemporalRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : TemporalRegionTests[R, F, E] = new TemporalRegionTests[R, F, E] {
-    val laws = TemporalRegionLaws[R, F, E]
-  }
+  def apply[R[_[_], _], F[_], E](
+      implicit F0: TemporalRegion[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): TemporalRegionTests[R, F, E] =
+    new TemporalRegionTests[R, F, E] {
+      val laws = TemporalRegionLaws[R, F, E]
+    }
 }

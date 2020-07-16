@@ -19,19 +19,16 @@ package laws
 
 import cats.effect.kernel.{Bracket, Outcome, TemporalRegion}
 
-trait TemporalRegionLaws[R[_[_], _], F[_], E] extends TemporalLaws[R[F, *], E] with ConcurrentRegionLaws[R, F, E] {
+trait TemporalRegionLaws[R[_[_], _], F[_], E]
+    extends TemporalLaws[R[F, *], E]
+    with ConcurrentRegionLaws[R, F, E] {
   implicit val F: TemporalRegion[R, F, E]
 }
 
 object TemporalRegionLaws {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: TemporalRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : TemporalRegionLaws[R, F, E] =
+  def apply[R[_[_], _], F[_], E](
+      implicit F0: TemporalRegion[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): TemporalRegionLaws[R, F, E] =
     new TemporalRegionLaws[R, F, E] {
       val F = F0
       val B = B0

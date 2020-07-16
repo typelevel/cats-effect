@@ -24,13 +24,14 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 import org.scalacheck._
 import org.scalacheck.util.Pretty
 
-trait ConcurrentRegionTests[R[_[_], _], F[_], E] extends ConcurrentTests[R[F, *], E] with RegionTests[R, F, E] {
+trait ConcurrentRegionTests[R[_[_], _], F[_], E]
+    extends ConcurrentTests[R[F, *], E]
+    with RegionTests[R, F, E] {
 
   val laws: ConcurrentRegionLaws[R, F, E]
 
   def concurrentRegion[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
-    implicit
-      ArbRFA: Arbitrary[R[F, A]],
+      implicit ArbRFA: Arbitrary[R[F, A]],
       ArbFA: Arbitrary[F[A]],
       ArbRFB: Arbitrary[R[F, B]],
       ArbFB: Arbitrary[F[B]],
@@ -75,8 +76,7 @@ trait ConcurrentRegionTests[R[_[_], _], F[_], E] extends ConcurrentTests[R[F, *]
       foaPP: F[Outcome[R[F, *], E, A]] => Pretty,
       feauPP: R[F, Either[A, Unit]] => Pretty,
       feuaPP: R[F, Either[Unit, A]] => Pretty,
-      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: R[F, Outcome[R[F, *], E, Unit]] => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "concurrent (region)"
@@ -89,14 +89,10 @@ trait ConcurrentRegionTests[R[_[_], _], F[_], E] extends ConcurrentTests[R[F, *]
 }
 
 object ConcurrentRegionTests {
-  def apply[
-      R[_[_], _],
-      F[_],
-      E](
-    implicit
-      F0: ConcurrentRegion[R, F, E],
-      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]])
-      : ConcurrentRegionTests[R, F, E] = new ConcurrentRegionTests[R, F, E] {
-    val laws = ConcurrentRegionLaws[R, F, E]
-  }
+  def apply[R[_[_], _], F[_], E](
+      implicit F0: ConcurrentRegion[R, F, E],
+      B0: Bracket.Aux[F, E, Outcome[R[F, *], E, *]]): ConcurrentRegionTests[R, F, E] =
+    new ConcurrentRegionTests[R, F, E] {
+      val laws = ConcurrentRegionLaws[R, F, E]
+    }
 }

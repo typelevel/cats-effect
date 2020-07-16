@@ -85,17 +85,18 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "access - setter should fail if value is modified before setter is called" in ticked { implicit ticker =>
-      val op = for {
-        r <- Ref[IO].of(0)
-        valueAndSetter <- r.access
-        (value, setter) = valueAndSetter
-        _ <- r.set(5)
-        success <- setter(value + 1)
-        result <- r.get
-      } yield !success && result == 5
+    "access - setter should fail if value is modified before setter is called" in ticked {
+      implicit ticker =>
+        val op = for {
+          r <- Ref[IO].of(0)
+          valueAndSetter <- r.access
+          (value, setter) = valueAndSetter
+          _ <- r.set(5)
+          success <- setter(value + 1)
+          result <- r.get
+        } yield !success && result == 5
 
-      op must completeAs(true)
+        op must completeAs(true)
     }
 
     "access - setter should fail if called twice" in ticked { implicit ticker =>
@@ -136,18 +137,20 @@ class RefSpec extends Specification with Discipline with ScalaCheck with BaseSpe
       op must completeAs(true)
     }
 
-    "tryUpdate - should fail to update if modification has occurred" in ticked { implicit ticker =>
-      val updateRefUnsafely: Ref[IO, Int] => Unit = (ref: Ref[IO, Int]) => unsafeRun(ref.update(_ + 1))
+    "tryUpdate - should fail to update if modification has occurred" in ticked {
+      implicit ticker =>
+        val updateRefUnsafely: Ref[IO, Int] => Unit =
+          (ref: Ref[IO, Int]) => unsafeRun(ref.update(_ + 1))
 
-      val op = for {
-        r <- Ref[IO].of(0)
-        result <- r.tryUpdate { currentValue =>
-          updateRefUnsafely(r)
-          currentValue + 1
-        }
-      } yield result
+        val op = for {
+          r <- Ref[IO].of(0)
+          result <- r.tryUpdate { currentValue =>
+            updateRefUnsafely(r)
+            currentValue + 1
+          }
+        } yield result
 
-      op must completeAs(false)
+        op must completeAs(false)
     }
 
     "tryModifyState - modification occurs successfully" in ticked { implicit ticker =>

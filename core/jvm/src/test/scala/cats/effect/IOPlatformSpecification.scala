@@ -57,9 +57,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
       val test = nameF flatMap { outer1 =>
         val inner1F = nameF flatMap { inner1 =>
-          val inner2F = nameF map { inner2 =>
-            (outer1, inner1, inner2)
-          }
+          val inner2F = nameF map { inner2 => (outer1, inner1, inner2) }
 
           inner2F.evalOn(ExecutionContext.fromExecutor(exec2))
         }
@@ -98,7 +96,7 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
     "race many things" in real {
       val task = (0 until 100).foldLeft(IO.never[Int]) { (acc, _) =>
         IO.race(acc, IO(1)).map {
-          case Left(i)  => i
+          case Left(i) => i
           case Right(i) => i
         }
       }

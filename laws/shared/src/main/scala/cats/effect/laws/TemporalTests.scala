@@ -31,8 +31,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
   val laws: TemporalLaws[F, E]
 
   def temporal[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
-    implicit
-      ArbFA: Arbitrary[F[A]],
+      implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
       ArbFU: Arbitrary[F[Unit]],
@@ -75,8 +74,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
       foaPP: F[Outcome[F, E, A]] => Pretty,
       feauPP: F[Either[A, Unit]] => Pretty,
       feuaPP: F[Either[Unit, A]] => Pretty,
-      fouPP: F[Outcome[F, E, Unit]] => Pretty)
-      : RuleSet = {
+      fouPP: F[Outcome[F, E, Unit]] => Pretty): RuleSet = {
 
     import laws.F
 
@@ -90,13 +88,15 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
       val props = Seq(
         "monotonic sleep sum identity" -> forAll(laws.monotonicSleepSumIdentity _),
         "sleep race minimum" -> forAll(laws.sleepRaceMinimum _),
-        "start sleep maximum" -> forAll(laws.startSleepMaximum _))
+        "start sleep maximum" -> forAll(laws.startSleepMaximum _)
+      )
     }
   }
 }
 
 object TemporalTests {
-  def apply[F[_], E](implicit F0: Temporal[F, E]): TemporalTests[F, E] = new TemporalTests[F, E] {
-    val laws = TemporalLaws[F, E]
-  }
+  def apply[F[_], E](implicit F0: Temporal[F, E]): TemporalTests[F, E] =
+    new TemporalTests[F, E] {
+      val laws = TemporalLaws[F, E]
+    }
 }

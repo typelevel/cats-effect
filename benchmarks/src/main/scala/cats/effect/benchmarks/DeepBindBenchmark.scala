@@ -22,7 +22,8 @@ import cats.effect.unsafe.implicits.global
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations._
 
-/** To do comparative benchmarks between versions:
+/**
+ * To do comparative benchmarks between versions:
  *
  *     benchmarks/run-benchmark DeepBindBenchmark
  *
