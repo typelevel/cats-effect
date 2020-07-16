@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, ParallelFGenerators, TestContext}
+import cats.effect.testkit.{AsyncGenerators, BracketGenerators, GenK, OutcomeGenerators, TestContext}
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit
 
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
-  import ParallelFGenerators._
 
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
