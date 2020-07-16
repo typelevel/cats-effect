@@ -67,11 +67,23 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         val arbitraryFD: Arbitrary[FiniteDuration] = outer.arbitraryFD
 
         override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[IO]) =
-          super.recursiveGen[B](deeper).filterNot(_._1 == "racePair")   // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
+          super
+            .recursiveGen[B](deeper)
+            .filterNot(
+              _._1 == "racePair"
+            ) // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
 
     Arbitrary(generators.generators[A])
   }
+
+  implicit def arbitraryParallelF[F[_], A](implicit ArbF: Arbitrary[F[A]]): Arbitrary[ParallelF[F, A]] =
+    Arbitrary {
+      ArbF.arbitrary.map(f => ParallelF(f))
+    }
+
+  implicit def eqParallelF[F[_], A](implicit EqF: Eq[F[A]]): Eq[ParallelF[F, A]] =
+    EqF.imap(ParallelF.apply)(ParallelF.value)
 
   implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
     import TimeUnit._
@@ -79,7 +91,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val genTU = Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS)
 
     Arbitrary {
-      genTU flatMap { u =>
+      genTU.flatMap { u =>
         Gen.choose[Long](0L, 48L).map(FiniteDuration(_, u))
       }
     }
@@ -102,13 +114,10 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   implicit def ordIOFD(implicit ticker: Ticker): Order[IO[FiniteDuration]] =
     Order by { ioa =>
-      unsafeRun(ioa).fold(
-        None,
-        _ => None,
-        fa => fa)
+      unsafeRun(ioa).fold(None, _ => None, fa => fa)
     }
 
-  implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] = {
+  implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
     /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
@@ -124,7 +133,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }*/
 
     Eq.by(unsafeRun(_))
-  }
 
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
@@ -139,17 +147,18 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Completed(None))
 
-  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(implicit ticker: Ticker): Matcher[IO[A]] = { (ioa: IO[A]) =>
-    val oc = unsafeRun(ioa)
-    (oc eqv expected, s"${oc.show} !== ${expected.show}")
+  def tickTo[A: Eq: Show](expected: Outcome[Option, Throwable, A])(implicit ticker: Ticker): Matcher[IO[A]] = {
+    (ioa: IO[A]) =>
+      val oc = unsafeRun(ioa)
+      (oc.eqv(expected), s"${oc.show} !== ${expected.show}")
   }
 
-  def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] = {
+  def unsafeRun[A](ioa: IO[A])(implicit ticker: Ticker): Outcome[Option, Throwable, A] =
     try {
       var results: Outcome[Option, Throwable, A] = Outcome.Completed(None)
 
       ioa.unsafeRunAsync {
-        case Left(t) => results = Outcome.Errored(t)
+        case Left(t)  => results = Outcome.Errored(t)
         case Right(a) => results = Outcome.Completed(Some(a))
       }(unsafe.IORuntime(ticker.ctx, scheduler, () => ()))
 
@@ -165,7 +174,6 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         t.printStackTrace()
         throw t
     }
-  }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
     unsafe.IORuntime(ticker.ctx, scheduler, () => ())
@@ -188,11 +196,9 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () =>
-      p.tryFailure(new TimeoutException)
-    })
+    val cancel = r.scheduler.sleep(duration, () => p.tryFailure(new TimeoutException))
 
-    f onComplete { result =>
+    f.onComplete { result =>
       p.tryComplete(result)
       cancel.run()
     }
