@@ -93,11 +93,11 @@ object Concurrent {
       def monad: Monad[M] = M
 
       def sequential: F ~> M = new (F ~> M) {
-        def apply[A](fa: F[A]): M[A] = ParallelF.value[F, A](fa)
+        def apply[A](fa: F[A]): M[A] = ParallelF.value[M, A](fa)
       }
 
       def parallel: M ~> F = new (M ~> F) {
-        def apply[A](ma: M[A]): F[A] = ParallelF[F, A](ma)
+        def apply[A](ma: M[A]): F[A] = ParallelF[M, A](ma)
       }
 
     }
