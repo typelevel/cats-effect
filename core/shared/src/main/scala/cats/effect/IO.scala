@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eval, Monoid, Now, Semigroup, Show, StackSafeMonad, ~>}
+import cats.{Eval, Monoid, Now, Parallel, Semigroup, Show, StackSafeMonad, ~>}
 import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
@@ -417,6 +417,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
+  implicit val parallelForIO: Parallel[IO] = Concurrent.parallelForConcurrent[IO, Throwable]
+
   // implementations
 
   private[effect] final case class Pure[+A](value: A) extends IO[A] {
@@ -452,3 +454,5 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // INTERNAL
   private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] { def tag = 18 }
 }
+
+private[effect] case class ParallelF[F[_], A](wrapped: F[A])
