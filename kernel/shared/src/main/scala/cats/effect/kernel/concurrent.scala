@@ -58,7 +58,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, f))  => as(f.cancel, a.asLeft[B])
+      case Left((a, f)) => as(f.cancel, a.asLeft[B])
       case Right((f, b)) => as(f.cancel, b.asRight[A])
     }
 
