@@ -79,8 +79,10 @@ val CatsVersion = "2.2.0-RC1"
 val Specs2Version = "4.9.4"
 val DisciplineVersion = "1.1.0"
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
-addCommandAlias("ciJS", "; project rootJS; headerCheck; clean; testIfRelevant")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
+addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; testIfRelevant")
+
+addCommandAlias("prePR", "; +root/scalafmtAll; +root/headerCreate")
 
 lazy val root = project.in(file("."))
   .aggregate(rootJVM, rootJS)
