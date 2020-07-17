@@ -118,12 +118,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
     }
 
-    "produce a failure when the registration raises an error after callback" in ticked {
-      implicit ticker =>
-        case object TestException extends RuntimeException
-        IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException)))
-          .void must failAs(TestException)
+    // format: off
+    "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+
+      IO.async[Int](cb => IO(cb(Right(42)))
+        .flatMap(_ => IO.raiseError(TestException)))
+        .void must failAs(TestException)
     }
+    // format: on
 
     "cancel an infinite chain of right-binds" in ticked { implicit ticker =>
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
@@ -520,6 +523,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           res mustEqual List(1, 2)
         }
       }
+    }
+
+    "reliably cancel infinite IO.cede(s)" in real {
+      IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
     }
 
     platformSpecs

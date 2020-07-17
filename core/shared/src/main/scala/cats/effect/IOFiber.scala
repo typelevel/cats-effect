@@ -551,7 +551,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
           // Cede
           case 17 =>
-            currentCtx.execute { () =>
+            currentCtx execute { () =>
               // println("continuing from cede ")
 
               runLoop(succeeded((), 0), nextIteration)
