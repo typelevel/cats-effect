@@ -522,6 +522,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
     }
 
+    "reliably cancel infinite IO.cede(s)" in real {
+      IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+    }
+
     platformSpecs
   }
 
