@@ -118,6 +118,10 @@ serve -b /cats-effect`. Finally point your browser at
 changes should be picked up immediately when you re-run `sbt
 microsite/makeMicrosite`.
 
+## Tool Sponsorship
+
+<img width="185px" height="44px" align="right" src="https://www.yourkit.com/images/yklogo.png"/>Development of Cats Effect is generously supported in part by [YourKit](https://www.yourkit.com) through the use of their excellent Java profiler.
+
 ## License
 
 ```
