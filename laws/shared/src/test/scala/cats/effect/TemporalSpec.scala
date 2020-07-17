@@ -26,7 +26,7 @@ import cats.effect.testkit.TimeT
 import org.specs2.mutable.Specification
 
 import scala.concurrent.duration._
-import scala.concurrent.TimeoutException
+// import scala.concurrent.TimeoutException
 
 class TemporalSpec extends Specification { outer =>
 
