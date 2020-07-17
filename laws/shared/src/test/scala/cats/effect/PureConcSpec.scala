@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Applicative, Align, Show}
+import cats.{Align, Applicative, Show}
 import cats.laws.discipline.{AlignTests, ApplicativeTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
@@ -42,8 +42,10 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   implicit val F: ConcurrentBracket[PureConc[Int, *], Int] = concurrentBForPureConc[Int]
 
-  implicit val Ap: Applicative[ParallelF[PureConc[Int, *], *]] = ParallelF.applicativeForParallelF[PureConc[Int, *], Int]
-  implicit val Al: Align[ParallelF[PureConc[Int, *], *]] = ParallelF.alignForParallelF[PureConc[Int, *], Int]
+  implicit val Ap: Applicative[ParallelF[PureConc[Int, *], *]] =
+    ParallelF.applicativeForParallelF[PureConc[Int, *], Int]
+  implicit val Al: Align[ParallelF[PureConc[Int, *], *]] =
+    ParallelF.alignForParallelF[PureConc[Int, *], Int]
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
@@ -55,5 +57,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
 
-  checkAll("ParallelF[PureConc]", AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
+  checkAll(
+    "ParallelF[PureConc]",
+    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
 }

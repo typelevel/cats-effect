@@ -38,7 +38,8 @@ object Par {
 
     def value[F[_], A](t: ParallelF[F, A]): F[A] = instance.value(t)
 
-    implicit def applicativeForParallelF[F[_], E](implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
+    implicit def applicativeForParallelF[F[_], E](
+        implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
       new Applicative[ParallelF[F, *]] {
 
         def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
@@ -52,16 +53,20 @@ object Par {
 
       }
 
-    implicit def alignForParallelF[F[_], E](implicit F: Concurrent[F, E]): Align[ParallelF[F, *]] =
+    implicit def alignForParallelF[F[_], E](
+        implicit F: Concurrent[F, E]): Align[ParallelF[F, *]] =
       new Align[ParallelF[F, *]] {
         val delegate = parallelForConcurrent[F, E]
 
         override def functor: Functor[ParallelF[F, *]] = applicativeForParallelF[F, E]
 
-        override def align[A, B](fa: ParallelF[F, A], fb: ParallelF[F, B]): ParallelF[F, Ior[A, B]] =
+        override def align[A, B](
+            fa: ParallelF[F, A],
+            fb: ParallelF[F, B]): ParallelF[F, Ior[A, B]] =
           alignWith(fa, fb)(identity)
 
-        override def alignWith[A, B, C](fa: ParallelF[F, A], fb: ParallelF[F, B])(f: Ior[A, B] => C): ParallelF[F, C] =
+        override def alignWith[A, B, C](fa: ParallelF[F, A], fb: ParallelF[F, B])(
+            f: Ior[A, B] => C): ParallelF[F, C] =
           ParallelF(
             (ParallelF.value(fa).attempt, ParallelF.value(fb).attempt)
               .parMapN((ea, eb) => catsStdInstancesForEither.alignWith(ea, eb)(f))
