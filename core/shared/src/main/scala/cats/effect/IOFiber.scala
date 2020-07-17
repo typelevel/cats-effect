@@ -164,6 +164,14 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
       }
     }
 
+  def joinWith[B](that: Fiber[IO, Throwable, B]): IO[Either[Outcome[IO, Throwable, A], Outcome[IO, Throwable, B]]] =
+    IO.async[Either[Outcome[IO, Throwable, A], Outcome[IO, Throwable, B]]] { cb =>
+      for {
+        fa <- join.flatMap(oc => IO(cb(Right(Left(oc))))).start
+        fb <- that.join.flatMap(oc => IO(cb(Right(Right(oc))))).start
+      } yield Some(fa.cancel *> fb.cancel)
+    }
+
   // can return null, meaning that no CallbackStack needs to be later invalidated
   private def registerListener(
       listener: Outcome[IO, Throwable, A] => Unit): CallbackStack[A] = {
@@ -446,90 +454,90 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
+//          case 13 =>
+//            // TODO self-cancelation within a nested poll could result in deadlocks in `both`
+//            // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
+//            // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
+//            val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+//
+//            val next = IO.async[
+//              Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] {
+//              cb =>
+//                IO {
+//                  val fiberA = new IOFiber[Any](
+//                    s"racePair-left-${childCount.getAndIncrement()}",
+//                    scheduler,
+//                    initMask)
+//                  val fiberB = new IOFiber[Any](
+//                    s"racePair-right-${childCount.getAndIncrement()}",
+//                    scheduler,
+//                    initMask)
+//
+//                  val firstError = new AtomicReference[Throwable](null)
+//                  val firstCanceled = new AtomicBoolean(false)
+//
+//                  def listener(left: Boolean)(oc: Outcome[IO, Throwable, Any]): Unit = {
+//                    // println(s"listener fired (left = $left; oc = $oc)")
+//
+//                    if (oc.isInstanceOf[Outcome.Completed[IO, Throwable, Any]]) {
+//                      val result = oc
+//                        .asInstanceOf[Outcome.Completed[IO, Throwable, Any]]
+//                        .fa
+//                        .asInstanceOf[IO.Pure[Any]]
+//                        .value
+//
+//                      val wrapped =
+//                        if (left)
+//                          Left((result, fiberB))
+//                        else
+//                          Right((fiberA, result))
+//
+//                      cb(Right(wrapped))
+//                    } else if (oc.isInstanceOf[Outcome.Errored[IO, Throwable, Any]]) {
+//                      val error = oc.asInstanceOf[Outcome.Errored[IO, Throwable, Any]].e
+//
+//                      if (!firstError.compareAndSet(null, error)) {
+//                        // we were the second to error, so report back
+//                        // TODO side-channel the error in firstError.get()
+//                        cb(Left(error))
+//                      } else {
+//                        // we were the first to error, double check to see if second is canceled and report
+//                        if (firstCanceled.get()) {
+//                          cb(Left(error))
+//                        }
+//                      }
+//                    } else {
+//                      if (!firstCanceled.compareAndSet(false, true)) {
+//                        // both are canceled, and we're the second, then cancel the outer fiber
+//                        canceled = true
+//                        // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
+//                        // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
+//                        runLoop(null, nextIteration)
+//                      } else {
+//                        val error = firstError.get()
+//                        if (error != null) {
+//                          // we were canceled, and the other errored, so use its error
+//                          cb(Left(error))
+//                        }
+//                      }
+//                    }
+//                  }
+//
+//                  fiberA.registerListener(listener(true))
+//                  fiberB.registerListener(listener(false))
+//
+//                  val ec = currentCtx
+//
+//                  execute(ec)(() => fiberA.run(cur.ioa, ec, masks))
+//                  execute(ec)(() => fiberB.run(cur.iob, ec, masks))
+//
+//                  Some(fiberA.cancel *> fiberB.cancel)
+//                }
+//            }
+//
+//            runLoop(next, nextIteration)
+
           case 13 =>
-            // TODO self-cancelation within a nested poll could result in deadlocks in `both`
-            // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
-            // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
-            val cur = cur0.asInstanceOf[RacePair[Any, Any]]
-
-            val next = IO.async[
-              Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] {
-              cb =>
-                IO {
-                  val fiberA = new IOFiber[Any](
-                    s"racePair-left-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
-                  val fiberB = new IOFiber[Any](
-                    s"racePair-right-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
-
-                  val firstError = new AtomicReference[Throwable](null)
-                  val firstCanceled = new AtomicBoolean(false)
-
-                  def listener(left: Boolean)(oc: Outcome[IO, Throwable, Any]): Unit = {
-                    // println(s"listener fired (left = $left; oc = $oc)")
-
-                    if (oc.isInstanceOf[Outcome.Completed[IO, Throwable, Any]]) {
-                      val result = oc
-                        .asInstanceOf[Outcome.Completed[IO, Throwable, Any]]
-                        .fa
-                        .asInstanceOf[IO.Pure[Any]]
-                        .value
-
-                      val wrapped =
-                        if (left)
-                          Left((result, fiberB))
-                        else
-                          Right((fiberA, result))
-
-                      cb(Right(wrapped))
-                    } else if (oc.isInstanceOf[Outcome.Errored[IO, Throwable, Any]]) {
-                      val error = oc.asInstanceOf[Outcome.Errored[IO, Throwable, Any]].e
-
-                      if (!firstError.compareAndSet(null, error)) {
-                        // we were the second to error, so report back
-                        // TODO side-channel the error in firstError.get()
-                        cb(Left(error))
-                      } else {
-                        // we were the first to error, double check to see if second is canceled and report
-                        if (firstCanceled.get()) {
-                          cb(Left(error))
-                        }
-                      }
-                    } else {
-                      if (!firstCanceled.compareAndSet(false, true)) {
-                        // both are canceled, and we're the second, then cancel the outer fiber
-                        canceled = true
-                        // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
-                        // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
-                        runLoop(null, nextIteration)
-                      } else {
-                        val error = firstError.get()
-                        if (error != null) {
-                          // we were canceled, and the other errored, so use its error
-                          cb(Left(error))
-                        }
-                      }
-                    }
-                  }
-
-                  fiberA.registerListener(listener(true))
-                  fiberB.registerListener(listener(false))
-
-                  val ec = currentCtx
-
-                  execute(ec)(() => fiberA.run(cur.ioa, ec, masks))
-                  execute(ec)(() => fiberB.run(cur.iob, ec, masks))
-
-                  Some(fiberA.cancel *> fiberB.cancel)
-                }
-            }
-
-            runLoop(next, nextIteration)
-
-          case 14 =>
             val cur = cur0.asInstanceOf[Sleep]
 
             val next = IO.async[Unit] { cb =>
@@ -542,22 +550,22 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             runLoop(next, nextIteration)
 
           // RealTime
-          case 15 =>
+          case 14 =>
             runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
 
           // Monotonic
-          case 16 =>
+          case 15 =>
             runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
 
           // Cede
-          case 17 =>
+          case 16 =>
             currentCtx.execute { () =>
               // println("continuing from cede ")
 
               runLoop(succeeded((), 0), nextIteration)
             }
 
-          case 18 =>
+          case 17 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
 
             if (masks == cur.id) {

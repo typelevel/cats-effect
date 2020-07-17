@@ -94,8 +94,32 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def racePair[B](that: IO[B]): IO[Either[
     (A @uncheckedVariance, Fiber[IO, Throwable, B]),
-    (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
-    IO.RacePair(this, that)
+    (Fiber[IO, Throwable, A @uncheckedVariance], B)]] = {
+    for {
+      f1 <- this.start
+      f2 <- that.start
+      oc <- f1.joinWith(f2)
+      r  <- oc match {
+        case Left(oca) => oca match {
+          case Outcome.Completed(fa) => fa.map(a => Left((a, f2)))
+          case Outcome.Errored(_) | Outcome.Canceled() => f2.join.flatMap {
+            case Outcome.Completed(fb) => fb.map(b => Right((f1, b)))
+            case Outcome.Errored(e) => IO.raiseError(e)
+            case Outcome.Canceled() => ???
+          }
+        }
+        case Right(ocb) => ocb match {
+          case Outcome.Completed(fb) => fb.map(b => Right((f1, b)))
+          case Outcome.Errored(_) | Outcome.Canceled() => f1.join.flatMap {
+            case Outcome.Completed(fa) => fa.map(a => Left((a, f2)))
+            case Outcome.Errored(e) => IO.raiseError(e)
+            case Outcome.Canceled() => ???
+          }
+        }
+      }
+    } yield r
+
+  }
 
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
@@ -127,6 +151,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         new Fiber[IO, Throwable, B] {
           val cancel = F.to[IO](f.cancel)
           val join = F.to[IO](f.join).map(_.mapK(F.toK[IO]))
+          def joinWith[C](that: Fiber[IO, Throwable, C]): IO[Either[Outcome[IO, Throwable, B], Outcome[IO, Throwable, C]]] =
+            ???
         }
 
       // the casting is unfortunate, but required to work around GADT unification bugs
@@ -164,13 +190,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case self: IO.Start[_] =>
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
-
-        case self: IO.RacePair[a, b] =>
-          val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
-            e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
-          }
-
-          back.asInstanceOf[F[A]]
 
         case self: IO.Sleep => F.sleep(self.delay).asInstanceOf[F[A]]
         case _: IO.RealTime.type => F.realTime.asInstanceOf[F[A]]
@@ -465,21 +484,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[Fiber[IO, Throwable, A]] {
     def tag = 12
   }
-  private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] {
-    def tag = 13
-  }
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
-    def tag = 14
+    def tag = 13
   }
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 15 }
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 16 }
+  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 14 }
+  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 15 }
 
-  private[effect] case object Cede extends IO[Unit] { def tag = 17 }
+  private[effect] case object Cede extends IO[Unit] { def tag = 16 }
 
   // INTERNAL
   private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] {
-    def tag = 18
+    def tag = 17
   }
 }
