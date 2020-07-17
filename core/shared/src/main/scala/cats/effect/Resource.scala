@@ -285,108 +285,109 @@ sealed abstract class Resource[+F[_], +A] {
   //   }
   // }
 
-  // /**
-  //  * Applies an effectful transformation to the allocated resource. Like a
-  //  * `flatMap` on `F[A]` while maintaining the resource context
-  //  */
-  // def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[?]]): Resource[G[?], B] =
-  //   this.flatMap(a => Resource.liftF(f(a)))
+  /**
+   * Applies an effectful transformation to the allocated resource. Like a
+   * `flatMap` on `F[A]` while maintaining the resource context
+   */
+  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[*]]): Resource[G[*], B] =
+    this.flatMap(a => Resource.liftF(f(a)))
 
-  // /**
-  //  * Applies an effectful transformation to the allocated resource. Like a
-  //  * `flatTap` on `F[A]` while maintaining the resource context
-  //  */
-  // def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[?]]): Resource[G[?], A] =
-  //   this.evalMap(a => f(a).as(a))
+  /**
+   * Applies an effectful transformation to the allocated resource. Like a
+   * `flatTap` on `F[A]` while maintaining the resource context
+   */
+  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[*]]): Resource[G[*], A] =
+    this.evalMap(a => f(a).as(a))
 }
 
 object Resource // extends ResourceInstances // with ResourcePlatform
 {
 
-  
-   // * Creates a resource from an allocating effect.
-   // *
-   // * @see [[make]] for a version that separates the needed resource
-   // *      with its finalizer tuple in two parameters
-   // *
-   // * @tparam F the effect type in which the resource is acquired and released
-   // * @tparam A the type of the resource
-   // * @param resource an effect that returns a tuple of a resource and
-   // *        an effect to release it
-  // def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
-  //   Allocate[F, A] {
-  //     resource.map {
-  //       case (a, release) =>
-  //         (a, (_: ExitCase[Throwable]) => release)
-  //     }
-  //   }
+  /** 
+   * Creates a resource from an allocating effect.
+   *
+   * @see [[make]] for a version that separates the needed resource
+   *      with its finalizer tuple in two parameters
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param resource an effect that returns a tuple of a resource and
+   *        an effect to release it
+   */
+  def apply[F[_], A](resource: F[(A, F[Unit])])(implicit F: Functor[F]): Resource[F, A] =
+    Allocate[F, A] {
+      resource.map {
+        case (a, release) =>
+          (a, (_: Outcome[F, Throwable, _]) => release)
+      }
+    }
 
-  // /**
-  //  * Creates a resource from an allocating effect, with a finalizer
-  //  * that is able to distinguish between [[ExitCase exit cases]].
-  //  *
-  //  * @see [[makeCase]] for a version that separates the needed resource
-  //  *      with its finalizer tuple in two parameters
-  //  *
-  //  * @tparam F the effect type in which the resource is acquired and released
-  //  * @tparam A the type of the resource
-  //  * @param resource an effect that returns a tuple of a resource and
-  //  *        an effectful function to release it
-  //  */
-  // def applyCase[F[_], A](resource: F[(A, ExitCase[Throwable] => F[Unit])]): Resource[F, A] =
-  //   Allocate(resource)
+  /**
+   * Creates a resource from an allocating effect, with a finalizer
+   * that is able to distinguish between [[ExitCase exit cases]].
+   *
+   * @see [[makeCase]] for a version that separates the needed resource
+   *      with its finalizer tuple in two parameters
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param resource an effect that returns a tuple of a resource and
+   *        an effectful function to release it
+   */
+  def applyCase[F[_], A](resource: F[(A, Outcome[F, Throwable, _] => F[Unit])]): Resource[F, A] =
+    Allocate(resource)
 
-  // /**
-  //  * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
-  //  */
-  // def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
-  //   Resource.Suspend(fr)
+  /**
+   * Given a `Resource` suspended in `F[_]`, lifts it in the `Resource` context.
+   */
+  def suspend[F[_], A](fr: F[Resource[F, A]]): Resource[F, A] =
+    Resource.Suspend(fr)
 
-  // /**
-  //  * Creates a resource from an acquiring effect and a release function.
-  //  *
-  //  * This builder mirrors the signature of [[Bracket.bracket]].
-  //  *
-  //  * @tparam F the effect type in which the resource is acquired and released
-  //  * @tparam A the type of the resource
-  //  * @param acquire a function to effectfully acquire a resource
-  //  * @param release a function to effectfully release the resource returned by `acquire`
-  //  */
-  // def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-  //   apply[F, A](acquire.map(a => a -> release(a)))
+  /**
+   * Creates a resource from an acquiring effect and a release function.
+   *
+   * This builder mirrors the signature of [[Bracket.bracket]].
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param acquire a function to effectfully acquire a resource
+   * @param release a function to effectfully release the resource returned by `acquire`
+   */
+  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    apply[F, A](acquire.map(a => a -> release(a)))
 
-  // /**
-  //  * Creates a resource from an acquiring effect and a release function that can
-  //  * discriminate between different [[ExitCase exit cases]].
-  //  *
-  //  * This builder mirrors the signature of [[Bracket.bracketCase]].
-  //  *
-  //  * @tparam F the effect type in which the resource is acquired and released
-  //  * @tparam A the type of the resource
-  //  * @param acquire a function to effectfully acquire a resource
-  //  * @param release a function to effectfully release the resource returned by `acquire`
-  //  */
-  // def makeCase[F[_], A](
-  //   acquire: F[A]
-  // )(release: (A, ExitCase[Throwable]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-  //   applyCase[F, A](acquire.map(a => (a, (e: ExitCase[Throwable]) => release(a, e))))
+  /**
+   * Creates a resource from an acquiring effect and a release function that can
+   * discriminate between different [[ExitCase exit cases]].
+   *
+   * This builder mirrors the signature of [[Bracket.bracketCase]].
+   *
+   * @tparam F the effect type in which the resource is acquired and released
+   * @tparam A the type of the resource
+   * @param acquire a function to effectfully acquire a resource
+   * @param release a function to effectfully release the resource returned by `acquire`
+   */
+  def makeCase[F[_], A](
+    acquire: F[A]
+  )(release: (A, Outcome[F, Throwable, _]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    applyCase[F, A](acquire.map(a => (a, (e: Outcome[F, Throwable, _]) => release(a, e))))
 
-  // /**
-  //  * Lifts a pure value into a resource. The resource has a no-op release.
-  //  *
-  //  * @param a the value to lift into a resource
-  //  */
+  /**
+   * Lifts a pure value into a resource. The resource has a no-op release.
+   *
+   * @param a the value to lift into a resource
+   */
   def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
     Allocate((a, (_: Outcome[F, Throwable, _]) => F.unit).pure[F])
 
-  // /**
-  //  * Lifts an applicative into a resource. The resource has a no-op release.
-  //  * Preserves interruptibility of `fa`.
-  //  *
-  //  * @param fa the value to lift into a resource
-  //  */
-  // def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
-  //   Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
+  /**
+   * Lifts an applicative into a resource. The resource has a no-op release.
+   * Preserves interruptibility of `fa`.
+   *
+   * @param fa the value to lift into a resource
+   */
+  def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
+    Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
 
   // /**
   //  * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
