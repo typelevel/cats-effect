@@ -131,8 +131,10 @@ class LensRefSpec extends BaseSpec { outer =>
 
     "tryUpdate - fails to modify original value if it's already been modified concurrently" in ticked {
       implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit =
-          (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
+        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+          unsafeRun(ref.set(5))
+          ()
+        }
 
         val op = for {
           refA <- Ref[IO].of(Foo(0, -1))
@@ -160,8 +162,10 @@ class LensRefSpec extends BaseSpec { outer =>
 
     "tryModify - fails to modify original value if it's already been modified concurrently" in ticked {
       implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Integer] => Unit =
-          (ref: Ref[IO, Integer]) => unsafeRun(ref.set(5))
+        val updateRefUnsafely: Ref[IO, Integer] => Unit = { (ref: Ref[IO, Integer]) =>
+          unsafeRun(ref.set(5))
+          ()
+        }
 
         val op = for {
           refA <- Ref[IO].of(Foo(0, -1))

@@ -43,8 +43,6 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       CogenC: Cogen[C],
       CogenE: Cogen[E],
       CogenCaseA: Cogen[laws.F.Case[A]],
-      CogenCaseB: Cogen[laws.F.Case[B]],
-      CogenCaseU: Cogen[laws.F.Case[Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
@@ -59,9 +57,7 @@ trait BracketTests[F[_], E] extends MonadErrorTests[F, E] {
       faPP: F[A] => Pretty,
       fbPP: F[B] => Pretty,
       fuPP: F[Unit] => Pretty,
-      ePP: E => Pretty,
-      feeaPP: F[Either[E, A]] => Pretty,
-      feeuPP: F[Either[E, Unit]] => Pretty): RuleSet = {
+      ePP: E => Pretty): RuleSet = {
 
     new RuleSet {
       val name = "bracket"

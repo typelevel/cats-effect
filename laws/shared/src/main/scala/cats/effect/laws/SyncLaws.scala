@@ -40,6 +40,7 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
 
     val isWithout = F.delay {
       var cur = a
+      cur = a // no-op to confuse the compiler
       F.delay(cur)
     }
 
