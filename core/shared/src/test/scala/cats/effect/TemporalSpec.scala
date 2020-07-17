@@ -41,8 +41,6 @@ class TemporalSpec extends BaseSpec { outer =>
       }
 
       "cancel a loop" in real {
-        val loop = IO.unit.foreverM
-
         val op = Temporal.timeout(loop, 5.millis).attempt
 
         op.flatMap { res =>
@@ -67,8 +65,6 @@ class TemporalSpec extends BaseSpec { outer =>
       }
 
       "use fallback" in real {
-        val loop = IO.unit.foreverM
-
         val op = Temporal.timeoutTo(loop, 5.millis, IO.pure(true))
 
         op.flatMap { res =>
@@ -79,4 +75,6 @@ class TemporalSpec extends BaseSpec { outer =>
       }
     }
   }
+
+  val loop = IO.async((cb: Either[Throwable, Unit] => Unit) => IO(cb(Right(()))).as(None)).foreverM
 }
