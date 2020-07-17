@@ -56,7 +56,6 @@ object Par {
     implicit def alignForParallelF[F[_], E](
         implicit F: Concurrent[F, E]): Align[ParallelF[F, *]] =
       new Align[ParallelF[F, *]] {
-        val delegate = parallelForConcurrent[F, E]
 
         override def functor: Functor[ParallelF[F, *]] = applicativeForParallelF[F, E]
 

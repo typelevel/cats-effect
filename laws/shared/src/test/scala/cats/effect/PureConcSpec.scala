@@ -40,11 +40,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
   import ParallelFGenerators._
 
-  implicit val F: ConcurrentBracket[PureConc[Int, *], Int] = concurrentBForPureConc[Int]
-
-  implicit val Ap: Applicative[ParallelF[PureConc[Int, *], *]] =
-    ParallelF.applicativeForParallelF[PureConc[Int, *], Int]
-  implicit val Al: Align[ParallelF[PureConc[Int, *], *]] =
+  implicit val A: Align[ParallelF[PureConc[Int, *], *]] =
     ParallelF.alignForParallelF[PureConc[Int, *], Int]
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
