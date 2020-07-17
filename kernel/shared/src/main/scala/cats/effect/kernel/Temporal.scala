@@ -44,9 +44,10 @@ object Temporal {
    * @param fallback is the task evaluated after the duration has passed and
    *        the source canceled
    */
-  def timeoutTo[F[_], A, E](fa: F[A], duration: FiniteDuration, fallback: F[A])(implicit F: Temporal[F, E]): F[A] =
+  def timeoutTo[F[_], A, E](fa: F[A], duration: FiniteDuration, fallback: F[A])(
+      implicit F: Temporal[F, E]): F[A] =
     F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a)  => F.pure(a)
+      case Left(a) => F.pure(a)
       case Right(_) => fallback
     }
 
@@ -61,7 +62,8 @@ object Temporal {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = {
+  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(
+      implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new TimeoutException(duration.toString))
     timeoutTo(fa, duration, timeoutException)
   }

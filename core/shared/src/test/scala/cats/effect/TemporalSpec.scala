@@ -24,9 +24,9 @@ import cats.effect.kernel.Temporal
 import scala.concurrent.duration._
 import scala.concurrent.TimeoutException
 
+//TODO delete this and enable the tests in laws/TemporalSpec once
+//Temporal for TimeT is fixed
 class TemporalSpec extends BaseSpec { outer =>
-
-  sequential
 
   "temporal" should {
     "timeout" should {
@@ -55,7 +55,8 @@ class TemporalSpec extends BaseSpec { outer =>
 
     "timeoutTo" should {
       "succeed" in real {
-        val op = Temporal.timeoutTo(IO.pure(true), 5.millis, IO.raiseError(new RuntimeException))
+        val op =
+          Temporal.timeoutTo(IO.pure(true), 5.millis, IO.raiseError(new RuntimeException))
 
         op.flatMap { res =>
           IO {
@@ -76,5 +77,5 @@ class TemporalSpec extends BaseSpec { outer =>
     }
   }
 
-  val loop = IO.async((cb: Either[Throwable, Unit] => Unit) => IO(cb(Right(()))).as(None)).foreverM
+  val loop = IO.cede.foreverM
 }

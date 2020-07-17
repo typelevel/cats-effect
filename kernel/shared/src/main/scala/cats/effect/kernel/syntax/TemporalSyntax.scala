@@ -38,7 +38,7 @@ import scala.concurrent.duration.FiniteDuration
 
 trait TemporalSyntax {
   implicit def temporalOps[F[_], A, E](
-    wrapped: F[A]
+      wrapped: F[A]
   ): ConcurrentOps[F, A, E] =
     new ConcurrentOps(wrapped)
 }
@@ -48,6 +48,7 @@ final class TemporalOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: Temporal[F, E]): F[A] =
     Temporal.timeoutTo(wrapped, duration, fallback)
 
-  def timeout(duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] = Temporal.timeout(wrapped, duration)
+  def timeout(duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] =
+    Temporal.timeout(wrapped, duration)
 
 }
