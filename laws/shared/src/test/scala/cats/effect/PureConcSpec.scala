@@ -17,8 +17,8 @@
 package cats.effect
 
 import cats.Show
-import cats.effect.laws.ConcurrentBracketTests
-import cats.effect.testkit.{pure, OutcomeGenerators, PureConcGenerators}
+import cats.effect.laws.ConcurrentTests
+import cats.effect.testkit.{pure, PureConcGenerators}
 import cats.syntax.all._
 
 // import org.scalacheck.rng.Seed
@@ -31,15 +31,14 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
-  import pure._
-  import OutcomeGenerators._
   import PureConcGenerators._
+  import pure._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
   checkAll(
     "PureConc",
-    ConcurrentBracketTests[PureConc[Int, *], Int].concurrentBracket[Int, Int, Int]
+    ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 }

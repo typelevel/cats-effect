@@ -27,7 +27,7 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait EffectTests[F[_]] extends AsyncBracketTests[F] {
+trait EffectTests[F[_]] extends AsyncTests[F] {
 
   val laws: EffectLaws[F]
 
@@ -45,7 +45,6 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
       CogenB: Cogen[B],
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
-      CogenCaseA: Cogen[Outcome[F, Throwable, A]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
@@ -78,7 +77,7 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
     new RuleSet {
       val name = "effect"
       val bases = Nil
-      val parents = Seq(asyncBracket[A, B, C](tolerance))
+      val parents = Seq(async[A, B, C](tolerance))
 
       val props = Seq("round trip" -> forAll(laws.roundTrip[A] _))
     }

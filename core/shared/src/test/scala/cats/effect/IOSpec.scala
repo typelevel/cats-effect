@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.EffectTests
-import cats.effect.testkit.{OutcomeGenerators, TestContext}
+import cats.effect.testkit.TestContext
 import cats.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
@@ -32,7 +32,6 @@ import scala.concurrent.duration._
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
-  import OutcomeGenerators._
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential
@@ -118,12 +117,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
     }
 
-    "produce a failure when the registration raises an error after callback" in ticked {
-      implicit ticker =>
-        case object TestException extends RuntimeException
-        IO.async[Int](cb => IO(cb(Right(42))).flatMap(_ => IO.raiseError(TestException)))
-          .void must failAs(TestException)
+    // format: off
+    "produce a failure when the registration raises an error after callback" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+
+      IO.async[Int](cb => IO(cb(Right(42)))
+        .flatMap(_ => IO.raiseError(TestException)))
+        .void must failAs(TestException)
     }
+    // format: on
 
     "cancel an infinite chain of right-binds" in ticked { implicit ticker =>
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
