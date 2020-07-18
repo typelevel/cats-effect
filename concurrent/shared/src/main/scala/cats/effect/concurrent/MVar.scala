@@ -271,7 +271,7 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
       case true =>
         F.unit // happy path
       case false =>
-        F.async(cb => unsafePut(a)(cb).map(Some(_)))
+        F.async(cb => F.defer(unsafePut(a)(cb)).map(Some(_)))
     }
 
   def tryPut(a: A): F[Boolean] =
@@ -285,11 +285,11 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
       case Some(a) =>
         F.pure(a) // happy path
       case None =>
-        F.async(cb => unsafeTake(cb).map(Some(_)))
+        F.async(cb => F.defer(unsafeTake(cb)).map(Some(_)))
     }
 
   val read: F[A] =
-    F.async(cb => F.pure(unsafeRead(cb)).map(Some(_)))
+    F.async(cb => F.delay(unsafeRead(cb)).map(Some(_)))
 
   def tryRead =
     F.delay {
