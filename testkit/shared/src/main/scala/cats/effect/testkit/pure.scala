@@ -168,7 +168,7 @@ object pure {
       case (_, false) => Outcome.Completed(None)
 
       // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
-      case o => Outcome.Completed(None)
+      case _ => Outcome.Completed(None)
     }
   }
 

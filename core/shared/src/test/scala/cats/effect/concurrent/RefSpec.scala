@@ -134,8 +134,10 @@ class RefSpec extends BaseSpec { outer =>
 
     "tryUpdate - should fail to update if modification has occurred" in ticked {
       implicit ticker =>
-        val updateRefUnsafely: Ref[IO, Int] => Unit =
-          (ref: Ref[IO, Int]) => unsafeRun(ref.update(_ + 1))
+        val updateRefUnsafely: Ref[IO, Int] => Unit = { (ref: Ref[IO, Int]) =>
+          unsafeRun(ref.update(_ + 1))
+          ()
+        }
 
         val op = for {
           r <- Ref[IO].of(0)

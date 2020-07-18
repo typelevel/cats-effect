@@ -23,13 +23,11 @@ import cats.implicits._
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.ClockTests
 
-import org.specs2.mutable.Specification
-
 import org.scalacheck.{Arbitrary, Gen, Prop}
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable._
+import org.specs2.mutable.Specification
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}; import eq._
@@ -66,7 +64,7 @@ class ClockSpec extends Specification with Discipline with ScalaCheck {
       Prop.exception(_),
       bE =>
         bE match {
-          case Left(e) => Prop.falsified
+          case Left(_) => Prop.falsified
           case Right(b) => if (b) Prop.proved else Prop.falsified
         })
 
@@ -100,7 +98,7 @@ class ClockSpec extends Specification with Discipline with ScalaCheck {
       sbool.run(b =>
         if (b) Monad[FreeEitherSync].pure(1)
         else MonadError[FreeEitherSync, Throwable].raiseError(new RuntimeException))
-    ).fold(Prop.exception(_), b => Prop.proved)
+    ).fold(Prop.exception(_), _ => Prop.proved)
 
   implicit def execReaderWriterStateT(
       sbool: ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, Boolean]): Prop =
@@ -132,7 +130,6 @@ class ClockSpec extends Specification with Discipline with ScalaCheck {
   //Shamelessly stolen from https://github.com/typelevel/cats/blob/master/tests/src/test/scala/cats/tests/IndexedReaderWriterStateTSuite.scala
   implicit def IRWSTEq[F[_], E, L, SA, SB, A](
       implicit SA: ExhaustiveCheck[SA],
-      SB: Arbitrary[SB],
       E: ExhaustiveCheck[E],
       FLSB: Eq[F[(L, SB, A)]],
       F: Monad[F]): Eq[IndexedReaderWriterStateT[F, E, L, SA, SB, A]] =
