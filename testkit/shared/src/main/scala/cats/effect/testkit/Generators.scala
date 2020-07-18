@@ -160,25 +160,6 @@ trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with Clock
     ("delay" -> arbitrary[A].map(F.delay(_))) :: super.baseGen[A]
 }
 
-trait BracketGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
-  implicit val F: Bracket[F, E]
-  type Case[A] = F.Case[A]
-  implicit def cogenCase[A: Cogen]: Cogen[Case[A]]
-
-  override protected def recursiveGen[A: Arbitrary: Cogen](
-      deeper: GenK[F]): List[(String, Gen[F[A]])] =
-    List(
-      "bracketCase" -> genBracketCase[A](deeper)
-    ) ++ super.recursiveGen[A](deeper)
-
-  private def genBracketCase[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-    for {
-      acquire <- deeper[A]
-      use <- Gen.function1[A, F[A]](deeper[A])
-      release <- Gen.function2[A, Case[A], F[Unit]](deeper[Unit])
-    } yield F.bracketCase(acquire)(use)(release)
-}
-
 trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   implicit val F: Concurrent[F, E]
 
@@ -195,7 +176,8 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       "uncancelable" -> genUncancelable[A](deeper),
       "racePair" -> genRacePair[A](deeper),
       "start" -> genStart[A](deeper),
-      "join" -> genJoin[A](deeper)
+      "join" -> genJoin[A](deeper),
+      "onCancel" -> genOnCancel[A](deeper)
     ) ++ super.recursiveGen(deeper)(AA, AC)
 
   private def genCanceled[A: Arbitrary]: Gen[F[A]] =
@@ -220,6 +202,12 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       cont <- deeper[Unit]
       a <- arbitrary[A]
     } yield F.start(fiber).flatMap(f => cont >> f.join).as(a)
+
+  private def genOnCancel[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+    for {
+      fa <- deeper[A]
+      fin <- deeper[Unit]
+    } yield F.onCancel(fa, fin)
 
   private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {

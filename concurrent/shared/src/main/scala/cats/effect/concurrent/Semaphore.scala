@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{AsyncBracket, Outcome, Sync}
+import cats.effect.kernel.{Async, Outcome, Sync}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
@@ -110,7 +110,7 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: AsyncBracket[F]): F[Semaphore[F]] =
+  def apply[F[_]](n: Long)(implicit F: Async[F]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
       Ref.of[F, State[F]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
 
@@ -118,7 +118,7 @@ object Semaphore {
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: AsyncBracket[G]): F[Semaphore[G]] =
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
     assertNonNegative[F](n) *>
       Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore(stateRef))
 
@@ -131,8 +131,7 @@ object Semaphore {
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
-  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: AsyncBracket[F])
+  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
@@ -263,7 +262,7 @@ object Semaphore {
       F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
   }
 
-  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: AsyncBracket[F])
+  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Async[F])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }

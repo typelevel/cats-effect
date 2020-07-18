@@ -134,6 +134,13 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
     F.canceled >> fa.void <-> F.canceled
+
+  def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
+    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <-> (F.uncancelable(_ =>
+      fin1.attempt >> fin2.attempt) >> F.canceled)
+
+  def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
+    F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
 }
 
 object ConcurrentLaws {
