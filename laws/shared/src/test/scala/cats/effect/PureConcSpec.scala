@@ -16,11 +16,11 @@
 
 package cats.effect
 
-import cats.{Align, Applicative, Show}
-import cats.laws.discipline.{AlignTests, ApplicativeTests, ParallelTests}
+import cats.Show
+import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
-import cats.effect.kernel.{ConcurrentBracket, ParallelF}
+import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentBracketTests
 import cats.effect.testkit.{pure, OutcomeGenerators, ParallelFGenerators, PureConcGenerators},
 pure._
@@ -39,9 +39,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   import OutcomeGenerators._
   import PureConcGenerators._
   import ParallelFGenerators._
-
-  implicit val A: Align[ParallelF[PureConc[Int, *], *]] =
-    ParallelF.alignForParallelF[PureConc[Int, *], Int]
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
