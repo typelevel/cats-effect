@@ -19,7 +19,7 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
-import cats.effect.kernel.{Concurrent, Fiber, Outcome, Temporal}
+import cats.effect.kernel.{Concurrent, Fiber, Temporal}
 import cats.syntax.all._
 
 import scala.concurrent.duration._
