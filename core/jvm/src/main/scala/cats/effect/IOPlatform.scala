@@ -49,8 +49,13 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     val cf = new CompletableFuture[A]()
 
     unsafeRunAsync {
-      case Left(t) => cf.completeExceptionally(t)
-      case Right(a) => cf.complete(a)
+      case Left(t) =>
+        cf.completeExceptionally(t)
+        ()
+
+      case Right(a) =>
+        cf.complete(a)
+        ()
     }
 
     cf

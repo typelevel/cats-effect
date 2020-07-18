@@ -34,6 +34,8 @@ abstract private[effect] class IOCompanionPlatform { self: IO.type =>
             cb(Left(e)): Unit | Thenable[Unit]
           }
         )
+
+        ()
       }
     }
 }

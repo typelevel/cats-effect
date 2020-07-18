@@ -106,12 +106,12 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled
-  private[this] val OutcomeErrored = IOFiber.OutcomeErrored
-  private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
+  // private[this] val OutcomeErrored = IOFiber.OutcomeErrored
+  // private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
-  private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
+  // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
   def this(
@@ -392,7 +392,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 try {
                   cur.f(oc)
                 } catch {
-                  case NonFatal(e) => IO.unit
+                  case NonFatal(_) => IO.unit // TODO side-channel
                 }
 
               if (ec eq currentCtx)
@@ -687,8 +687,10 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   }
 
   // TODO figure out if the JVM ever optimizes this away
-  private def readBarrier(): Unit =
+  private def readBarrier(): Unit = {
     suspended.get()
+    ()
+  }
 
   private def invalidate(): Unit = {
     // reenable any cancelation checks that fall through higher up in the call-stack
@@ -705,20 +707,16 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     finalizers.invalidate()
   }
 
-  /*private[effect] def debug(): Unit = {
+  private[effect] def debug(): Unit = {
     println("================")
     println(s"fiber: $name")
     println("================")
-    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == null)}")
+    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
     println(s"canceled = $canceled")
     println(s"masks = $masks (out of initMask = $initMask)")
     println(s"suspended = ${suspended.get()}")
     println(s"outcome = ${outcome.get()}")
-    println(s"leftListenerValue = ${leftListenerValue.get()}")
-    println(s"rightListenerValue = ${rightListenerValue.get()}")
-    println(s"callback = ${callback.get()}")
-    println(s"ranWithCallback = ${ranWithCallback.get()}")
-  }*/
+  }
 }
 
 private object IOFiber {
@@ -867,7 +865,8 @@ private object IOFiber {
       val f = popObjectState().asInstanceOf[Any => Any]
 
       var success = false
-      var transformed =
+
+      val transformed =
         try {
           val back = f(result)
           success = true

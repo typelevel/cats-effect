@@ -64,7 +64,7 @@ object TimeT {
         (left, right).mapN(_ |+| _)
 
       def inverse(a: TimeT[F, A]) =
-        a.map(_.inverse)
+        a.map(_.inverse())
     }
 
   implicit def temporalB[F[_], E](

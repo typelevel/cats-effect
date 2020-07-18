@@ -41,8 +41,6 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
       CogenCaseA: Cogen[Either[Throwable, A]],
-      CogenCaseB: Cogen[Either[Throwable, B]],
-      CogenCaseU: Cogen[Either[Throwable, Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],

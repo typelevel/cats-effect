@@ -25,11 +25,14 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
       self.unsafeRunAsync {
         case Left(JavaScriptException(e)) =>
           reject(e)
+          ()
 
         case Left(e) =>
           reject(e)
+          ()
 
         case Right(value) =>
           resolve(value)
+          ()
       })
 }

@@ -190,7 +190,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException) })
+    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException); () })
 
     f.onComplete { result =>
       p.tryComplete(result)

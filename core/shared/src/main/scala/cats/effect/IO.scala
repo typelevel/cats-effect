@@ -70,7 +70,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
   def guarantee(finalizer: IO[Unit]): IO[A] =
-    IO.uncancelable(p => p(this).onCase({ case _ => finalizer }))
+    guaranteeCase(_ => finalizer)
+
+  def guaranteeCase(
+      finalizer: Outcome[IO, Throwable, A @uncheckedVariance] => IO[Unit]): IO[A] =
+    IO.uncancelable(p => p(this).onCase({ case oc => finalizer(oc) }))
 
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f)
@@ -193,8 +197,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   // unsafe stuff
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
-      implicit runtime: unsafe.IORuntime): Unit =
+      implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(true)(cb)
+    ()
+  }
 
   def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
