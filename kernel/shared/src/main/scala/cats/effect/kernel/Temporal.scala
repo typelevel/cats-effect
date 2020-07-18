@@ -16,18 +16,12 @@
 
 package cats.effect.kernel
 
-import cats.implicits._
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
-}
-
-object Temporal {
-  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
 
   /**
    * Returns an effect that either completes with the result of the source within
@@ -44,12 +38,17 @@ object Temporal {
    * @param fallback is the task evaluated after the duration has passed and
    *        the source canceled
    */
-  def timeoutTo[F[_], A, E](fa: F[A], duration: FiniteDuration, fallback: F[A])(
-      implicit F: Temporal[F, E]): F[A] =
-    F.race(fa, F.sleep(duration)).flatMap {
-      case Left(a) => F.pure(a)
+  def timeoutTo[A](fa: F[A], duration: FiniteDuration, fallback: F[A]): F[A] =
+    flatMap(race(fa, sleep(duration))) {
+      case Left(a) => pure(a)
       case Right(_) => fallback
     }
+
+}
+
+object Temporal {
+  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
+  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
 
   /**
    * Returns an effect that either completes with the result of the source within
@@ -65,6 +64,6 @@ object Temporal {
   def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(
       implicit F: Temporal[F, Throwable]): F[A] = {
     val timeoutException = F.raiseError[A](new TimeoutException(duration.toString))
-    timeoutTo(fa, duration, timeoutException)
+    F.timeoutTo(fa, duration, timeoutException)
   }
 }

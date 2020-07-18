@@ -100,10 +100,14 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
-  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] = Temporal.timeout(this, duration)
+  def timeout[A2 >: A](duration: FiniteDuration): IO[A2] =
+    timeoutTo(duration, IO.raiseError(new TimeoutException(duration.toString)))
 
   def timeoutTo[A2 >: A](duration: FiniteDuration, fallback: IO[A2]): IO[A2] =
-    Temporal.timeoutTo(this, duration, fallback)
+    race(IO.sleep(duration)).flatMap {
+      case Right(_) => fallback
+      case Left(value) => IO.pure(value)
+    }
 
   def productL[B](that: IO[B]): IO[A] =
     flatMap(a => that.as(a))
@@ -383,6 +387,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
+
+    override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
+      ioa.timeoutTo(duration, fallback)
 
     def canceled: IO[Unit] =
       IO.canceled

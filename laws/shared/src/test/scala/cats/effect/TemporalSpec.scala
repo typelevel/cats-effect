@@ -28,6 +28,7 @@ import org.specs2.mutable.Specification
 import scala.concurrent.duration._
 // import scala.concurrent.TimeoutException
 
+//TODO uncomment these tests once the Temporal instance for PureConc supports them
 class TemporalSpec extends Specification { outer =>
 
   type F[A] = PureConc[Throwable, A]
@@ -36,7 +37,7 @@ class TemporalSpec extends Specification { outer =>
   implicit val F: TemporalBracket[TimeT[F, *], Throwable] =
     TimeT.temporalB[F, Throwable]
 
-  val loop: TimeT[F, Unit] = F.cede.foreverM
+  val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
   //TODO enable these tests once Temporal for TimeT is fixed
   "temporal" should {

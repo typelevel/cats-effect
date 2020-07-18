@@ -19,7 +19,7 @@ package cats.effect
 import cats.Show
 import cats.implicits._
 import cats.effect.laws.ConcurrentBracketTests
-import cats.effect.testkit.{pure, OutcomeGenerators, PureConcGenerators}
+import cats.effect.testkit.{OutcomeGenerators, PureConcGenerators}
 import cats.effect.testkit.pure._
 
 // import org.scalacheck.rng.Seed

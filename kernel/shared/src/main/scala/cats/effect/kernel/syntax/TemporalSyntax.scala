@@ -46,7 +46,7 @@ trait TemporalSyntax {
 final class TemporalOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: Temporal[F, E]): F[A] =
-    Temporal.timeoutTo(wrapped, duration, fallback)
+    F.timeoutTo(wrapped, duration, fallback)
 
   def timeout(duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] =
     Temporal.timeout(wrapped, duration)
