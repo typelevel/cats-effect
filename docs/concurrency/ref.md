@@ -4,7 +4,7 @@ title: Ref
 ---
 
 {:.responsive-pic}
-![concurrency ref](../img/concurrency-ref.png)
+![concurrency ref](../assets/concurrency-ref.png)
 
 An asynchronous, concurrent mutable reference.
 

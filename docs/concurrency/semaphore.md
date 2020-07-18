@@ -4,7 +4,7 @@ title: Semaphore
 ---
 
 {:.responsive-pic}
-![concurrency semaphore](../img/concurrency-semaphore.png)
+![concurrency semaphore](../assets/concurrency-semaphore.png)
 
 A semaphore has a non-negative number of permits available. Acquiring a permit decrements the current number of permits and releasing a permit increases the current number of permits. An acquire that occurs when there are no permits available results in semantic blocking until a permit becomes available.
 

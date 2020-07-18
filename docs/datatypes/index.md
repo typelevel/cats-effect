@@ -6,7 +6,7 @@ title:  "Data Types"
 # Data Types
 
 {:.responsive-pic}
-![datatypes cheat sheet](../img/datatypes-cheat-sheet.png)
+![datatypes cheat sheet](../assets/datatypes-cheat-sheet.png)
 
 ### [IO](io.md)
 A data type for encoding synchronous and asynchronous side effects as pure values

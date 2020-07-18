@@ -4,7 +4,7 @@ title: MVar
 ---
 
 {:.responsive-pic}
-![concurrency mvar](../img/concurrency-mvar.png)
+![concurrency mvar](../assets/concurrency-mvar.png)
 
 An `MVar2` is a mutable location that can be empty or contain a value,
 asynchronously blocking reads when empty and blocking writes when full.
