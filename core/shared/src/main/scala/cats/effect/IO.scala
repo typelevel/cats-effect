@@ -70,21 +70,34 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
   def guarantee(finalizer: IO[Unit]): IO[A] =
-    IO.uncancelable(p => p(this).onCase({ case _ => finalizer }))
+    guaranteeCase(_ => finalizer)
+
+  def guaranteeCase(
+      finalizer: Outcome[IO, Throwable, A @uncheckedVariance] => IO[Unit]): IO[A] =
+    onCase { case oc => finalizer(oc) }
 
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
     IO.HandleErrorWith(this, f)
 
   def map[B](f: A => B): IO[B] = IO.Map(this, f)
 
+  def onCancel(fin: IO[Unit]): IO[A] =
+    IO.OnCancel(this, fin)
+
   def onCase(
       pf: PartialFunction[Outcome[IO, Throwable, A @uncheckedVariance], IO[Unit]]): IO[A] =
-    IO.OnCase(
-      this,
-      (oc: Outcome[IO, Throwable, A]) => if (pf.isDefinedAt(oc)) pf(oc) else IO.unit)
+    IO uncancelable { poll =>
+      val base = poll(this)
+      val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
 
-  def onCancel(body: IO[Unit]): IO[A] =
-    onCase { case Outcome.Canceled() => body }
+      finalized.attempt flatMap {
+        case Left(e) =>
+          pf.lift(Outcome.Errored(e)).map(_.attempt).getOrElse(IO.unit) *> IO.raiseError(e)
+
+        case Right(a) =>
+          pf.lift(Outcome.Completed(IO.pure(a))).map(_.attempt).getOrElse(IO.unit).as(a)
+      }
+    }
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     racePair(that).flatMap {
@@ -143,12 +156,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
         case IO.HandleErrorWith(ioa, f) => ioa.to[F].handleErrorWith(f.andThen(_.to[F]))
 
-        case IO.OnCase(ioa, f) =>
-          val back = F.onCase(ioa.to[F]) {
-            case oc => f(oc.mapK(F.toK[IO])).to[F]
-          }
-
-          back.asInstanceOf[F[A]]
+        case IO.OnCancel(ioa, fin) =>
+          F.onCancel(ioa.to[F], fin.to[F]).asInstanceOf[F[A]]
 
         case IO.Uncancelable(body) =>
           F.uncancelable { poll =>
@@ -193,8 +202,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   // unsafe stuff
 
   def unsafeRunAsync(cb: Either[Throwable, A] => Unit)(
-      implicit runtime: unsafe.IORuntime): Unit =
+      implicit runtime: unsafe.IORuntime): Unit = {
     unsafeRunFiber(true)(cb)
+    ()
+  }
 
   def unsafeToFuture()(implicit runtime: unsafe.IORuntime): Future[A] = {
     val p = Promise[A]()
@@ -373,11 +384,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     val executionContext: IO[ExecutionContext] =
       IO.executionContext
 
-    override def onCase[A](ioa: IO[A])(
-        pf: PartialFunction[Outcome[IO, Throwable, A], IO[Unit]]): IO[A] =
-      ioa.onCase(pf)
+    def onCancel[A](ioa: IO[A], fin: IO[Unit]): IO[A] =
+      ioa.onCancel(fin)
 
-    def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
+    override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
         release: (A, Outcome[IO, Throwable, B]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
@@ -434,11 +444,16 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
   private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 2 }
+
   private[effect] final case class Async[+A](
       k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]])
-      extends IO[A] { def tag = 3 }
+      extends IO[A] {
+
+    def tag = 3
+  }
 
   private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 4 }
+
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
     def tag = 5
   }
@@ -446,20 +461,24 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
     def tag = 6
   }
+
   private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
     def tag = 7
   }
 
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
-      extends IO[A] { def tag = 8 }
-  private[effect] final case class OnCase[A](
-      ioa: IO[A],
-      f: Outcome[IO, Throwable, A] => IO[Unit])
-      extends IO[A] { def tag = 9 }
+      extends IO[A] {
+    def tag = 8
+  }
+
+  private[effect] final case class OnCancel[A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
+    def tag = 9
+  }
 
   private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
     def tag = 10
   }
+
   private[effect] case object Canceled extends IO[Unit] { def tag = 11 }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[Fiber[IO, Throwable, A]] {
@@ -467,12 +486,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
       extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] {
+
     def tag = 13
   }
 
   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 14
   }
+
   private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 15 }
   private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 16 }
 

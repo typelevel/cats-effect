@@ -27,7 +27,7 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait EffectTests[F[_]] extends AsyncBracketTests[F] {
+trait EffectTests[F[_]] extends AsyncTests[F] {
 
   val laws: EffectLaws[F]
 
@@ -43,12 +43,8 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
       ArbExecutionContext: Arbitrary[ExecutionContext],
       CogenA: Cogen[A],
       CogenB: Cogen[B],
-      CogenFB: Cogen[F[B]],
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
-      CogenCaseA: Cogen[Outcome[F, Throwable, A]],
-      CogenCaseB: Cogen[Outcome[F, Throwable, B]],
-      CogenCaseU: Cogen[Outcome[F, Throwable, Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
@@ -57,7 +53,6 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
       EqFEC: Eq[F[ExecutionContext]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
-      EqFEitherAB: Eq[F[Either[A, B]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFEitherEitherEAU: Eq[F[Either[Either[Throwable, A], Unit]]],
@@ -82,7 +77,7 @@ trait EffectTests[F[_]] extends AsyncBracketTests[F] {
     new RuleSet {
       val name = "effect"
       val bases = Nil
-      val parents = Seq(asyncBracket[A, B, C](tolerance))
+      val parents = Seq(async[A, B, C](tolerance))
 
       val props = Seq("round trip" -> forAll(laws.roundTrip[A] _))
     }

@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import scala.concurrent.duration.FiniteDuration
 
-trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E] =>
+trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] {
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
 }

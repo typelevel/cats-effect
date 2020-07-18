@@ -32,7 +32,7 @@ object pure {
 
   type PureConc[E, A] = MVarR[ThreadT[FiberR[E, *], *], A]
 
-  type Finalizer[E] = Outcome[PureConc[E, *], E, Nothing] => PureConc[E, Unit]
+  type Finalizer[E] = PureConc[E, Unit]
 
   final class MaskId
 
@@ -168,7 +168,7 @@ object pure {
       case (_, false) => Outcome.Completed(None)
 
       // we could make a writer that only receives one object, but that seems meh. just pretend we deadlocked
-      case o => Outcome.Completed(None)
+      case _ => Outcome.Completed(None)
     }
   }
 
@@ -213,8 +213,8 @@ object pure {
         F.raiseError(e)
     }
 
-  implicit def concurrentBForPureConc[E]: ConcurrentBracket[PureConc[E, *], E] =
-    new Concurrent[PureConc[E, *], E] with Bracket[PureConc[E, *], E] {
+  implicit def concurrentForPureConc[E]: Concurrent[PureConc[E, *], E] =
+    new Concurrent[PureConc[E, *], E] {
       private[this] val M: MonadError[PureConc[E, *], E] =
         Kleisli.catsDataMonadErrorForKleisli
 
@@ -229,47 +229,8 @@ object pure {
       def raiseError[A](e: E): PureConc[E, A] =
         M.raiseError(e)
 
-      def bracketCase[A, B](acquire: PureConc[E, A])(use: A => PureConc[E, B])(
-          release: (A, Outcome[PureConc[E, *], E, B]) => PureConc[E, Unit]): PureConc[E, B] =
-        uncancelable { poll =>
-          acquire.flatMap { a =>
-            val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
-            val handled = finalized onError {
-              case e => release(a, Outcome.Errored(e)).attempt.void
-            }
-            handled.flatMap(b => release(a, Outcome.Completed(pure(b))).attempt.as(b))
-          }
-        }
-
-      def onCancel[A](fa: PureConc[E, A], body: PureConc[E, Unit]): PureConc[E, A] =
-        onCase(fa) { case Outcome.Canceled() => body }
-
-      override def onCase[A](fa: PureConc[E, A])(
-          pf: PartialFunction[Outcome[PureConc[E, *], E, A], PureConc[E, Unit]])
-          : PureConc[E, A] = {
-
-        def pbody(oc: Outcome[PureConc[E, *], E, A]) = // ...and Sherman
-          pf.lift(oc).map(_.attempt.void).getOrElse(unit)
-
-        val finalizer: Finalizer[E] =
-          ec =>
-            uncancelable(_ =>
-              pbody(Functor[Outcome[PureConc[E, *], E, *]].widen(ec)) >> withCtx(
-                _.self.popFinalizer))
-
-        uncancelable { poll =>
-          val handled = poll(fa).handleErrorWith(e =>
-            withCtx[E, Unit](_.self.popFinalizer) >> poll(
-              pbody(Outcome.Errored(e))) >> raiseError[A](e))
-
-          val completed = handled flatMap { a =>
-            withCtx[E, Unit](_.self.popFinalizer) >> poll(
-              pbody(Outcome.Completed(pure(a))).as(a))
-          }
-
-          withCtx[E, Unit](_.self.pushFinalizer(finalizer)) >> completed
-        }
-      }
+      def onCancel[A](fa: PureConc[E, A], fin: PureConc[E, Unit]): PureConc[E, A] =
+        withCtx(_.self.pushFinalizer(fin.attempt.void) *> fa)
 
       def canceled: PureConc[E, Unit] =
         withCtx { ctx =>
@@ -285,9 +246,8 @@ object pure {
       def never[A]: PureConc[E, A] =
         Thread.done[A]
 
-      private def startOne[Result](
-          parentMasks: List[MaskId]
-      )(foldResult: Outcome[Id, E, Result] => PureConc[E, Unit])
+      private def startOne[Result](parentMasks: List[MaskId])(
+          foldResult: Outcome[Id, E, Result] => PureConc[E, Unit])
           : StartOnePartiallyApplied[Result] =
         new StartOnePartiallyApplied(parentMasks, foldResult)
 
@@ -555,7 +515,7 @@ object pure {
 
   final class PureFiber[E, A](
       state0: MVar[Outcome[PureConc[E, *], E, A]],
-      finalizers0: MVar[List[Finalizer[E]]])
+      finalizers0: MVar[List[PureConc[E, Unit]]])
       extends Fiber[PureConc[E, *], E, A] {
 
     private[this] val state = state0[PureConc[E, *]]
@@ -580,7 +540,7 @@ object pure {
     }
 
     private[pure] val runFinalizers: PureConc[E, Unit] =
-      finalizers.take.flatMap(_.traverse_(_(Outcome.Canceled()))) >> finalizers.put(Nil)
+      finalizers.take.flatMap(_.sequence_) >> finalizers.put(Nil)
 
     private[pure] def pushFinalizer(f: Finalizer[E]): PureConc[E, Unit] =
       finalizers.take.flatMap(fs => finalizers.put(f :: fs))

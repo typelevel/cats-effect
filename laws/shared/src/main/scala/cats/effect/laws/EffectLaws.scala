@@ -19,7 +19,7 @@ package laws
 
 import cats.effect.kernel.Effect
 
-trait EffectLaws[F[_]] extends AsyncBracketLaws[F] {
+trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit val F: Effect[F]
 
   def roundTrip[A](fa: F[A]) =

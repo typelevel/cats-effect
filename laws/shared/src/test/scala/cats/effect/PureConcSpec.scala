@@ -21,8 +21,8 @@ import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.effect.kernel.ParallelF
-import cats.effect.laws.ConcurrentBracketTests
-import cats.effect.testkit.{pure, OutcomeGenerators, ParallelFGenerators, PureConcGenerators},
+import cats.effect.laws.ConcurrentTests
+import cats.effect.testkit.{pure, ParallelFGenerators, PureConcGenerators},
 pure._
 import cats.effect.implicits._
 
@@ -36,7 +36,6 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
-  import OutcomeGenerators._
   import PureConcGenerators._
   import ParallelFGenerators._
 
@@ -45,7 +44,7 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   checkAll(
     "PureConc",
-    ConcurrentBracketTests[PureConc[Int, *], Int].concurrentBracket[Int, Int, Int]
+    ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 
   checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])

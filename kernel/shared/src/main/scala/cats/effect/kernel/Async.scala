@@ -20,7 +20,7 @@ import cats.implicits._
 
 import scala.concurrent.ExecutionContext
 
-trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] { self: Safe[F, Throwable] =>
+trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] {
 
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]

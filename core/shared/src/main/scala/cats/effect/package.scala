@@ -23,12 +23,6 @@ package object effect {
   type Outcome[F[_], E, A] = cekernel.Outcome[F, E, A]
   val Outcome = cekernel.Outcome
 
-  type Bracket[F[_], E] = cekernel.Bracket[F, E]
-  val Bracket = cekernel.Bracket
-
-  type Region[R[_[_], _], F[_], E] = cekernel.Region[R, F, E]
-  val Region = cekernel.Region
-
   type Concurrent[F[_], E] = cekernel.Concurrent[F, E]
   val Concurrent = cekernel.Concurrent
 
@@ -49,36 +43,11 @@ package object effect {
   type Async[F[_]] = cekernel.Async[F]
   val Async = cekernel.Async
 
-  type Managed[R[_[_], _], F[_]] = cekernel.Managed[R, F]
-  val Managed = cekernel.Managed
-
   type Effect[F[_]] = cekernel.Effect[F]
   val Effect = cekernel.Effect
 
-  type BracketThrow[F[_]] = cekernel.BracketThrow[F]
-  type RegionThrow[R[_[_], _], F[_]] = cekernel.RegionThrow[R, F]
-
   type ConcurrentThrow[F[_]] = cekernel.ConcurrentThrow[F]
-
-  type ConcurrentBracket[F[_], E] = cekernel.ConcurrentBracket[F, E]
-  val ConcurrentBracket = cekernel.ConcurrentBracket
-
-  type ConcurrentRegion[R[_[_], _], F[_], E] = cekernel.ConcurrentRegion[R, F, E]
-  val ConcurrentRegion = cekernel.ConcurrentRegion
-
   type TemporalThrow[F[_]] = cekernel.TemporalThrow[F]
-
-  type TemporalBracket[F[_], E] = cekernel.TemporalBracket[F, E]
-  val TemporalBracket = cekernel.TemporalBracket
-
-  type TemporalRegion[R[_[_], _], F[_], E] = cekernel.TemporalRegion[R, F, E]
-  val TemporalRegion = cekernel.TemporalRegion
-
-  type AsyncBracket[F[_]] = cekernel.AsyncBracket[F]
-  val AsyncBracket = cekernel.AsyncBracket
-
-  type AsyncRegion[R[_[_], _], F[_]] = cekernel.AsyncRegion[R, F]
-  val AsyncRegion = cekernel.AsyncRegion
 
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
   val ParallelF = cekernel.Par.ParallelF

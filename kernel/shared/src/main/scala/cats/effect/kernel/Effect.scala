@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.~>
 
-trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
+trait Effect[F[_]] extends Async[F] {
 
   def to[G[_]]: PartiallyApplied[G] =
     new PartiallyApplied[G]

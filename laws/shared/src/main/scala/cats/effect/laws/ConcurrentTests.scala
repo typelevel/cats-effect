@@ -39,12 +39,8 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       ArbE: Arbitrary[E],
       CogenA: Cogen[A],
       CogenB: Cogen[B],
-      CogenFB: Cogen[F[B]],
       CogenC: Cogen[C],
       CogenE: Cogen[E],
-      CogenCaseA: Cogen[Outcome[F, E, A]],
-      CogenCaseB: Cogen[Outcome[F, E, B]],
-      CogenCaseU: Cogen[Outcome[F, E, Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
@@ -52,7 +48,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       EqE: Eq[E],
       EqFEitherEU: Eq[F[Either[E, Unit]]],
       EqFEitherEA: Eq[F[Either[E, A]]],
-      EqFEitherAB: Eq[F[Either[A, B]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
       EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
@@ -113,7 +108,10 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "uncancelable canceled associates right over flatMap" -> forAll(
           laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
         "canceled associates left over flatMap" -> forAll(
-          laws.canceledAssociatesLeftOverFlatMap[A] _)
+          laws.canceledAssociatesLeftOverFlatMap[A] _),
+        "canceled sequences onCancel in order" -> forAll(
+          laws.canceledSequencesOnCancelInOrder _),
+        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _)
       )
     }
   }

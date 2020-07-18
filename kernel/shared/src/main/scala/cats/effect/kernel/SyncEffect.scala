@@ -17,12 +17,8 @@
 package cats.effect.kernel
 
 import cats.~>
-import cats.implicits._
 
-trait SyncEffect[F[_]] extends Sync[F] with Bracket[F, Throwable] {
-  type Case[A] = Either[Throwable, A]
-
-  def CaseInstance = catsStdInstancesForEither[Throwable]
+trait SyncEffect[F[_]] extends Sync[F] {
 
   def to[G[_]]: PartiallyApplied[G] =
     new PartiallyApplied[G]
