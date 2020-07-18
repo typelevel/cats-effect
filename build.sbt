@@ -388,7 +388,6 @@ lazy val siteSettings = Seq(
     yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
   ),
   micrositeCompilingDocsTool := WithMdoc,
-  mdocIn := (sourceDirectory in Compile).value / "mdoc",
   fork in mdoc := true,
   Compile / scalacOptions ~= (_.filterNot(
     Set(
@@ -408,9 +407,9 @@ lazy val siteSettings = Seq(
   addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
 
-lazy val microsite = project
-  .in(file("site"))
-  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .enablePlugins(SiteScaladocPlugin, MdocPlugin, DocusaurusPlugin)
   .settings(commonSettings ++ skipOnPublishSettings ++ sharedSourcesSettings)
   .settings(siteSettings)
   .dependsOn(coreJVM, lawsJVM)
