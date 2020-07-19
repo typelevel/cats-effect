@@ -460,7 +460,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 execute(ec)(() => fiberA.run(cur.ioa, ec))
                 execute(ec)(() => fiberB.run(cur.iob, ec))
 
-                Some(fiberA.cancel *> fiberB.cancel)
+                Some(fiberA.cancel.both(fiberB.cancel).void)
               }
             }
 

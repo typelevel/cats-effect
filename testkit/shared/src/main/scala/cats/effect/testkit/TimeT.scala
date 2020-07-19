@@ -40,7 +40,7 @@ object TimeT {
   def liftF[F[_], A](fa: F[A]): TimeT[F, A] =
     Kleisli.liftF(fa)
 
-  def liftK[F[_], A]: F ~> TimeT[F, *] =
+  def liftK[F[_]]: F ~> TimeT[F, *] =
     new (F ~> TimeT[F, *]) {
       override def apply[A](fa: F[A]): TimeT[F, A] = liftF(fa)
     }
@@ -98,11 +98,11 @@ object TimeT {
         F.racePair(fa.run(forkA), fb.run(forkB)).map {
           case Left((oca, delegate)) =>
             time.now = forkA.now
-            Left((oca.mapK(TimeT.liftK[F, A]), fiberize(forkB, delegate)))
+            Left((oca.mapK(TimeT.liftK[F]), fiberize(forkB, delegate)))
 
           case Right((delegate, ocb)) =>
             time.now = forkB.now
-            Right((fiberize(forkA, delegate), ocb.mapK(TimeT.liftK[F, B])))
+            Right((fiberize(forkA, delegate), ocb.mapK(TimeT.liftK[F])))
         }
       }
 

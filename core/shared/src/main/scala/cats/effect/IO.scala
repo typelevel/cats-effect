@@ -44,6 +44,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def attempt: IO[Either[Throwable, A]] =
     map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
 
+  def bothOutcome[B](that: IO[B]): IO[(Outcome[IO, Throwable, A @uncheckedVariance], Outcome[IO, Throwable, B])] =
+    racePair(that).flatMap {
+      case Left((oc, f)) => f.join.map((oc, _))
+      case Right((f, oc)) => f.join.map((_, oc))
+    }
+
   def both[B](that: IO[B]): IO[(A, B)] =
     racePair(that).flatMap {
       case Left((oc, f)) =>
@@ -123,43 +129,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     racePair(that).flatMap {
       case Left((oc, f)) =>
         oc match {
-          case Outcome.Completed(fa) => f.cancel *> fa.map(Left.apply)
-          case Outcome.Errored(ea) =>
-            f.join.flatMap {
-              case Outcome.Completed(fb) => fb.map(Right.apply)
-              case Outcome.Errored(eb) => IO.raiseError(eb)
-              case Outcome.Canceled() => IO.raiseError(ea)
-            }
+          case Outcome.Completed(fa) => f.cancel *> fa.map(Left(_))
+          case Outcome.Errored(ea) => IO.raiseError(ea)
           case Outcome.Canceled() =>
             f.join.flatMap {
-              case Outcome.Completed(fb) => fb.map(Right.apply)
+              case Outcome.Completed(fb) => fb.map(Right(_))
               case Outcome.Errored(eb) => IO.raiseError(eb)
               case Outcome.Canceled() => IO.canceled *> IO.never
             }
         }
       case Right((f, oc)) =>
         oc match {
-          case Outcome.Completed(fb) => f.cancel *> fb.map(Right.apply)
-          case Outcome.Errored(eb) =>
-            f.join.flatMap {
-              case Outcome.Completed(fa) => fa.map(Left.apply)
-              case Outcome.Errored(ea) => IO.raiseError(ea)
-              case Outcome.Canceled() => IO.raiseError(eb)
-            }
+          case Outcome.Completed(fb) => f.cancel *> fb.map(Right(_))
+          case Outcome.Errored(eb) => IO.raiseError(eb)
           case Outcome.Canceled() =>
             f.join.flatMap {
-              case Outcome.Completed(fa) => fa.map(Left.apply)
+              case Outcome.Completed(fa) => fa.map(Left(_))
               case Outcome.Errored(ea) => IO.raiseError(ea)
               case Outcome.Canceled() => IO.canceled *> IO.never
             }
         }
-    }
-
-  def raceOutcome[B](that: IO[B])
-      : IO[Either[Outcome[IO, Throwable, A @uncheckedVariance], Outcome[IO, Throwable, B]]] =
-    racePair(that).flatMap {
-      case Left((oc, f)) => f.cancel.as(Left(oc))
-      case Right((f, oc)) => f.cancel.as(Right(oc))
     }
 
   def racePair[B](that: IO[B]): IO[Either[
@@ -285,9 +274,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       0)
 
     if (shift)
-      runtime.compute.execute(() => fiber.run(this, runtime.compute, 0))
+      runtime.compute.execute(() => fiber.run(this, runtime.compute))
     else
-      fiber.run(this, runtime.compute, 0)
+      fiber.run(this, runtime.compute)
 
     fiber
   }
@@ -350,6 +339,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def unit: IO[Unit] = _unit
 
   // utilities
+
+  def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(Outcome[IO, Throwable, A], Outcome[IO, Throwable, B])] =
+    left.bothOutcome(right)
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
     left.both(right)

@@ -74,31 +74,37 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
       case Left((oc, f)) => oc match {
-        case Outcome.Completed(fa) =>  productR(f.cancel)(map(fa)(Left.apply))
+        case Outcome.Completed(fa) =>  productR(f.cancel)(map(fa)(Left(_)))
         case Outcome.Errored(ea) => flatMap(f.join) {
-          case Outcome.Completed(fb) => map(fb)(Right.apply)
+          case Outcome.Completed(fb) => map(fb)(Right(_))
           case Outcome.Errored(eb) => raiseError(eb)
           case Outcome.Canceled() => raiseError(ea)
         }
         case Outcome.Canceled() => flatMap(f.join) {
-          case Outcome.Completed(fb) => map(fb)(Right.apply)
+          case Outcome.Completed(fb) => map(fb)(Right(_))
           case Outcome.Errored(eb) => raiseError(eb)
           case Outcome.Canceled() => productR(canceled)(never)
         }
       }
       case Right((f, oc)) => oc match {
-        case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right.apply))
+        case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
         case Outcome.Errored(eb) => flatMap(f.join) {
-          case Outcome.Completed(fa) => map(fa)(Left.apply)
+          case Outcome.Completed(fa) => map(fa)(Left(_))
           case Outcome.Errored(ea) => raiseError(ea)
           case Outcome.Canceled() => raiseError(eb)
         }
         case Outcome.Canceled() => flatMap(f.join) {
-          case Outcome.Completed(fa) => map(fa)(Left.apply)
+          case Outcome.Completed(fa) => map(fa)(Left(_))
           case Outcome.Errored(ea) => raiseError(ea)
           case Outcome.Canceled() => productR(canceled)(never)
         }
       }
+    }
+
+  def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
+    flatMap(racePair(fa, fb)) {
+      case Left((oc, f)) => map(f.join)((oc, _))
+      case Right((f, oc)) => map(f.join)((_, oc))
     }
 
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
