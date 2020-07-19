@@ -180,7 +180,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           _ <- f.cancel
         } yield ()
 
-        ioa must nonTerminate  // we're canceling an uncancelable never
+        ioa must nonTerminate // we're canceling an uncancelable never
         affected must beFalse
     }
 
@@ -535,7 +535,9 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       lazy val cedeUntilStarted: IO[Unit] =
         IO(started).ifM(IO.unit, IO.cede >> cedeUntilStarted)
 
-      IO.uncancelable(_ => markStarted *> IO.never).start.flatMap(f => cedeUntilStarted *> f.cancel) must nonTerminate
+      IO.uncancelable(_ => markStarted *> IO.never)
+        .start
+        .flatMap(f => cedeUntilStarted *> f.cancel) must nonTerminate
     }
 
     "await cancelation of cancelation of uncancelable never" in ticked { implicit ticker =>
@@ -553,7 +555,8 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       val test = for {
         first <- IO.uncancelable(_ => markStarted *> IO.never).start
-        second <- IO.uncancelable(p => cedeUntilStarted *> markStarted2 *> p(first.cancel)).start
+        second <-
+          IO.uncancelable(p => cedeUntilStarted *> markStarted2 *> p(first.cancel)).start
         _ <- cedeUntilStarted2
         _ <- second.cancel
       } yield ()

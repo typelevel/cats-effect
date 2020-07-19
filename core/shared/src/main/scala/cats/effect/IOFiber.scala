@@ -148,7 +148,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
           IO.unit
         } else {
           // it was masked, so we need to wait for it to finish whatever it was doing and cancel itself
-          suspend()   // allow someone else to take the runloop
+          suspend() // allow someone else to take the runloop
           join.void
         }
       } else {
