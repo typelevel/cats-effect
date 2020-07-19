@@ -51,4 +51,7 @@ package object effect {
 
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
   val ParallelF = cekernel.Par.ParallelF
+
+  type IOOutcome[A] = Outcome[IO, Throwable, A]
+  type IOFiber[A] = Fiber[IO, Throwable, A]
 }
