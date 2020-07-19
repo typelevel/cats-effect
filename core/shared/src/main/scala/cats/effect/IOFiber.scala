@@ -443,7 +443,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
             val next = IO.async[
-              Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] {
+              Either[(Outcome[IO, Throwable, Any], Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Outcome[IO, Throwable, Any])]] {
               cb =>
                 IO {
                   val fiberA = new IOFiber[Any](
@@ -455,58 +455,8 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                     scheduler,
                     initMask)
 
-                  val firstError = new AtomicReference[Throwable](null)
-                  val firstCanceled = new AtomicBoolean(false)
-
-                  def listener(left: Boolean)(oc: Outcome[IO, Throwable, Any]): Unit = {
-                    // println(s"listener fired (left = $left; oc = $oc)")
-
-                    if (oc.isInstanceOf[Outcome.Completed[IO, Throwable, Any]]) {
-                      val result = oc
-                        .asInstanceOf[Outcome.Completed[IO, Throwable, Any]]
-                        .fa
-                        .asInstanceOf[IO.Pure[Any]]
-                        .value
-
-                      val wrapped =
-                        if (left)
-                          Left((result, fiberB))
-                        else
-                          Right((fiberA, result))
-
-                      cb(Right(wrapped))
-                    } else if (oc.isInstanceOf[Outcome.Errored[IO, Throwable, Any]]) {
-                      val error = oc.asInstanceOf[Outcome.Errored[IO, Throwable, Any]].e
-
-                      if (!firstError.compareAndSet(null, error)) {
-                        // we were the second to error, so report back
-                        // TODO side-channel the error in firstError.get()
-                        cb(Left(error))
-                      } else {
-                        // we were the first to error, double check to see if second is canceled and report
-                        if (firstCanceled.get()) {
-                          cb(Left(error))
-                        }
-                      }
-                    } else {
-                      if (!firstCanceled.compareAndSet(false, true)) {
-                        // both are canceled, and we're the second, then cancel the outer fiber
-                        canceled = true
-                        // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
-                        // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
-                        runLoop(null, nextIteration)
-                      } else {
-                        val error = firstError.get()
-                        if (error != null) {
-                          // we were canceled, and the other errored, so use its error
-                          cb(Left(error))
-                        }
-                      }
-                    }
-                  }
-
-                  fiberA.registerListener(listener(true))
-                  fiberB.registerListener(listener(false))
+                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
                   val ec = currentCtx
 

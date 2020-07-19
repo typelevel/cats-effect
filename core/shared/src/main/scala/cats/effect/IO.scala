@@ -46,8 +46,24 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def both[B](that: IO[B]): IO[(A, B)] =
     racePair(that).flatMap {
-      case Left((a, f)) => f.joinAndEmbedNever.map((a, _))
-      case Right((f, b)) => f.joinAndEmbedNever.map((_, b))
+      case Left((oc, f)) => oc match {
+        case Outcome.Completed(fa) => f.join.flatMap {
+          case Outcome.Completed(fb) => fa.product(fb)
+          case Outcome.Errored(eb) => IO.raiseError(eb)
+          case Outcome.Canceled() => IO.canceled *> IO.never
+        }
+        case Outcome.Errored(ea) => IO.raiseError(ea)
+        case Outcome.Canceled() => IO.canceled *> IO.never
+      }
+      case Right((f, oc)) => oc match {
+        case Outcome.Completed(fb) => f.join.flatMap {
+          case Outcome.Completed(fa) => fa.product(fb)
+          case Outcome.Errored(ea) => IO.raiseError(ea)
+          case Outcome.Canceled() => IO.canceled *> IO.never
+        }
+        case Outcome.Errored(eb) => IO.raiseError(eb)
+        case Outcome.Canceled() => IO.canceled *> IO.never
+      }
     }
 
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
@@ -101,13 +117,43 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     racePair(that).flatMap {
-      case Left((a, f)) => f.cancel.as(Left(a))
-      case Right((f, b)) => f.cancel.as(Right(b))
+      case Left((oc, f)) => oc match {
+        case Outcome.Completed(fa) => f.cancel *> fa.map(Left.apply)
+        case Outcome.Errored(ea) => f.join.flatMap {
+          case Outcome.Completed(fb) => fb.map(Right.apply)
+          case Outcome.Errored(eb) => IO.raiseError(eb)
+          case Outcome.Canceled() => IO.raiseError(ea)
+        }
+        case Outcome.Canceled() => f.join.flatMap {
+          case Outcome.Completed(fb) => fb.map(Right.apply)
+          case Outcome.Errored(eb) => IO.raiseError(eb)
+          case Outcome.Canceled() => IO.canceled *> IO.never
+        }
+      }
+      case Right((f, oc)) => oc match {
+        case Outcome.Completed(fb) => f.cancel *> fb.map(Right.apply)
+        case Outcome.Errored(eb) => f.join.flatMap {
+          case Outcome.Completed(fa) => fa.map(Left.apply)
+          case Outcome.Errored(ea) => IO.raiseError(ea)
+          case Outcome.Canceled() => IO.raiseError(eb)
+        }
+        case Outcome.Canceled() => f.join.flatMap {
+          case Outcome.Completed(fa) => fa.map(Left.apply)
+          case Outcome.Errored(ea) => IO.raiseError(ea)
+          case Outcome.Canceled() => IO.canceled *> IO.never
+        }
+      }
+    }
+
+  def raceOutcome[B](that: IO[B]): IO[Either[Outcome[IO, Throwable, A @uncheckedVariance], Outcome[IO, Throwable, B]]] =
+    racePair(that).flatMap {
+      case Left((oc, f)) => f.cancel.as(Left(oc))
+      case Right((f, oc)) => f.cancel.as(Right(oc))
     }
 
   def racePair[B](that: IO[B]): IO[Either[
-    (A @uncheckedVariance, Fiber[IO, Throwable, B]),
-    (Fiber[IO, Throwable, A @uncheckedVariance], B)]] =
+    (Outcome[IO, Throwable, A @uncheckedVariance], Fiber[IO, Throwable, B]),
+    (Fiber[IO, Throwable, A @uncheckedVariance], Outcome[IO, Throwable, B])]] =
     IO.RacePair(this, that)
 
   def delayBy(duration: FiniteDuration): IO[A] =
@@ -309,7 +355,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def racePair[A, B](
       left: IO[A],
-      right: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+      right: IO[B]): IO[Either[(Outcome[IO, Throwable, A], Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], Outcome[IO, Throwable, B])]] =
     left.racePair(right)
 
   def toK[F[_]: Effect]: IO ~> F =
@@ -405,7 +451,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def racePair[A, B](
         fa: IO[A],
-        fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
+        fb: IO[B]): IO[Either[(Outcome[IO, Throwable, A], Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], Outcome[IO, Throwable, B])]] =
       fa.racePair(fb)
 
     override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
@@ -485,7 +531,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 12
   }
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] {
+      extends IO[Either[(Outcome[IO, Throwable, A], Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], Outcome[IO, Throwable, B])]] {
 
     def tag = 13
   }
