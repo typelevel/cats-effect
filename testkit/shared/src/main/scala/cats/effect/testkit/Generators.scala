@@ -209,6 +209,7 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       fin <- deeper[Unit]
     } yield F.onCancel(fa, fin)
 
+  // Need to figure out how to restate this
   private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
       fa <- deeper[A]
