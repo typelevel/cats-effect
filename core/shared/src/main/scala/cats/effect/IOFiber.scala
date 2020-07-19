@@ -71,7 +71,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
-  private[this] var masks: Int = _
+  private[this] var masks: Int = initMask
   private[this] val finalizers =
     new ArrayStack[IO[Unit]](
       16
@@ -182,7 +182,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     }
   }
 
-  private[effect] def run(cur: IO[Any], ec: ExecutionContext, masks: Int): Unit = {
+  private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
     conts = new ByteStack(16)
     pushCont(RunTerminusK)
 
@@ -190,7 +190,6 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     currentCtx = ec
     ctxs.push(ec)
 
-    this.masks = masks
     runLoop(cur, 0)
   }
 
@@ -422,17 +421,14 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             val cur = cur0.asInstanceOf[Start[Any]]
 
             val childName = s"start-${childCount.getAndIncrement()}"
-
-            // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
-            // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-            val initMask2 = initMask + 255
+            val initMask2 = childMask
 
             val fiber = new IOFiber(childName, scheduler, initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
             val ec = currentCtx
-            execute(ec)(() => fiber.run(cur.ioa, ec, initMask2))
+            execute(ec)(() => fiber.run(cur.ioa, ec))
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -442,29 +438,30 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
-            val next = IO.async[
-              Either[(Outcome[IO, Throwable, Any], Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Outcome[IO, Throwable, Any])]] {
-              cb =>
-                IO {
-                  val fiberA = new IOFiber[Any](
-                    s"racePair-left-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
-                  val fiberB = new IOFiber[Any](
-                    s"racePair-right-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
+            val next = IO.async[Either[
+              (Outcome[IO, Throwable, Any], Fiber[IO, Throwable, Any]),
+              (Fiber[IO, Throwable, Any], Outcome[IO, Throwable, Any])]] { cb =>
+              IO {
+                val initMask2 = childMask
+                val fiberA = new IOFiber[Any](
+                  s"racePair-left-${childCount.getAndIncrement()}",
+                  scheduler,
+                  initMask2)
+                val fiberB = new IOFiber[Any](
+                  s"racePair-right-${childCount.getAndIncrement()}",
+                  scheduler,
+                  initMask2)
 
-                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+                fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
-                  val ec = currentCtx
+                val ec = currentCtx
 
-                  execute(ec)(() => fiberA.run(cur.ioa, ec, masks))
-                  execute(ec)(() => fiberB.run(cur.iob, ec, masks))
+                execute(ec)(() => fiberA.run(cur.ioa, ec))
+                execute(ec)(() => fiberB.run(cur.iob, ec))
 
-                  Some(fiberA.cancel *> fiberB.cancel)
-                }
+                Some(fiberA.cancel *> fiberB.cancel)
+              }
             }
 
             runLoop(next, nextIteration)
@@ -510,6 +507,11 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
       }
     }
   }
+
+  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
+  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+  private def childMask: Int =
+    initMask + 255
 
   // we use these forwarders because direct field access (private[this]) is faster
   private def isCanceled(): Boolean =
