@@ -120,7 +120,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     callbacks.push(cb)
   }
 
-  var cancel: IO[Unit] = {
+  var cancel: IO[Unit] = IO.uncancelable { _ =>
     val prelude = IO {
       canceled = true
       cancel = IO.unit
@@ -510,8 +510,9 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
                   val ec = currentCtx
 
-                  execute(ec)(() => fiberA.run(cur.ioa, ec, masks))
-                  execute(ec)(() => fiberB.run(cur.iob, ec, masks))
+                  val childMasks = masks
+                  execute(ec)(() => fiberA.run(cur.ioa, ec, childMasks))
+                  execute(ec)(() => fiberB.run(cur.iob, ec, childMasks))
 
                   Some(fiberA.cancel *> fiberB.cancel)
                 }
