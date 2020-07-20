@@ -38,9 +38,11 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
       val body = stackTraces.zipWithIndex
         .map {
           case (st, index) =>
-            val tag = getOpAndCallSite(st.stackTrace).map {
-              case (methodSite, _) => methodSite.getMethodName
-            }.getOrElse("???")
+            val tag = getOpAndCallSite(st.stackTrace)
+              .map {
+                case (methodSite, _) => methodSite.getMethodName
+              }
+              .getOrElse("???")
             val op = if (index == 0) s"$InverseTurnRight $tag\n" else s"$Junction $tag\n"
             val relevantLines = st.stackTrace
               .drop(options.ignoreStackTraceLines)
@@ -67,12 +69,14 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
             val junc = if (index == events.length - 1) TurnRight else Junction
             val message = event match {
               case ev: IOEvent.StackTrace => {
-                getOpAndCallSite(ev.stackTrace).map {
-                  case (methodSite, callSite) =>
-                    val loc = renderStackTraceElement(callSite)
-                    val tag = methodSite.getMethodName
-                    s"$tag at $loc"
-                }.getOrElse("???")
+                getOpAndCallSite(ev.stackTrace)
+                  .map {
+                    case (methodSite, callSite) =>
+                      val loc = renderStackTraceElement(callSite)
+                      val tag = methodSite.getMethodName
+                      s"$tag at $loc"
+                  }
+                  .getOrElse("???")
               }
             }
             s" $junc $message"
@@ -105,13 +109,15 @@ private[effect] object IOTrace {
     s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
   }
 
-  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] = {
-    frames.sliding(2).collect {
-      case a :: b :: Nil => (a, b)
-    }.find {
-      case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
-    }
-  }
+  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
+    frames
+      .sliding(2)
+      .collect {
+        case a :: b :: Nil => (a, b)
+      }
+      .find {
+        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+      }
 
   private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {
