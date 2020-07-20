@@ -44,6 +44,12 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
 
   def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
 
+  def guarantee[A](fa: F[A], fin: F[Unit]): F[A] =
+    guaranteeCase(fa)(_ => fin)
+
+  def guaranteeCase[A](fa: F[A])(fin: Outcome[F, E, A] => F[Unit]): F[A] =
+    bracketCase(unit)(_ => fa)((_, oc) => fin(oc))
+
   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
     bracketCase(acquire)(use)((a, _) => release(a))
 

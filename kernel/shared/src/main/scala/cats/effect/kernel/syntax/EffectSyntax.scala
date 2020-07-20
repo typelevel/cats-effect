@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.syntax
 
-package object syntax {
+import cats.effect.kernel.Effect
 
-  object all extends AllSyntax
+import scala.concurrent.ExecutionContext
 
-  object concurrent extends ConcurrentSyntax
-  object temporal extends TemporalSyntax
-  object async extends AsyncSyntax
-  object syncEffect extends SyncEffectSyntax
-  object effect extends EffectSyntax
+trait EffectSyntax {
+  implicit def effectOps[F[_], A](wrapped: F[A]): EffectOps[F, A] =
+    new EffectOps(wrapped)
+}
+
+final class EffectOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+  def to[G[_]](implicit F: Effect[F], G: Effect[G]): G[A] =
+    F.to[G](wrapped)
 }

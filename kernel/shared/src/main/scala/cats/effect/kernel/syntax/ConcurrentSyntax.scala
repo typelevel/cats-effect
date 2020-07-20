@@ -16,7 +16,7 @@
 
 package cats.effect.syntax
 
-import cats.effect.kernel.{Concurrent, Fiber}
+import cats.effect.kernel.{Concurrent, Fiber, Outcome}
 
 trait ConcurrentSyntax {
   implicit def concurrentOps[F[_], A, E](
@@ -29,4 +29,21 @@ final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
   def start(implicit F: Concurrent[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 
+  def uncancelable(implicit F: Concurrent[F, E]): F[A] =
+    F.uncancelable(_ => wrapped)
+
+  def onCancel(fin: F[Unit])(implicit F: Concurrent[F, E]): F[A] =
+    F.onCancel(wrapped, fin)
+
+  def guarantee(fin: F[Unit])(implicit F: Concurrent[F, E]): F[A] =
+    F.guarantee(wrapped, fin)
+
+  def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: Concurrent[F, E]): F[A] =
+    F.guaranteeCase(wrapped)(fin)
+
+  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: Concurrent[F, E]): F[B] =
+    F.bracket(wrapped)(use)(release)
+
+  def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(implicit F: Concurrent[F, E]): F[B] =
+    F.bracketCase(wrapped)(use)(release)
 }
