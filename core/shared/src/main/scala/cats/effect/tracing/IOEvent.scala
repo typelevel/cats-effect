@@ -16,13 +16,13 @@
 
 package cats.effect.tracing
 
-sealed abstract class IOEvent
+sealed trait IOEvent
 
 object IOEvent {
 
-  final case class StackTrace(tag: Int, throwable: Throwable) extends IOEvent {
+  final case class StackTrace() extends Throwable with IOEvent {
     def stackTrace: List[StackTraceElement] =
-      throwable.getStackTrace().toList
+      getStackTrace.toList
   }
 
 }

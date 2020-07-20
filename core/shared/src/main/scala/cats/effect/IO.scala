@@ -103,9 +103,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def map[B](f: A => B): IO[B] = {
     val trace = if (isCachedStackTracing) {
-      IOTracing.cached(4, f.getClass)
+      IOTracing.cached(f.getClass)
     } else if (isFullStackTracing) {
-      IOTracing.uncached(4)
+      IOTracing.uncached()
     } else {
       null
     }
@@ -130,9 +130,9 @@ sealed abstract class IO[+A] extends internals.IOBinaryCompat[A] {
    */
   final def flatMap[B](f: A => IO[B]): IO[B] = {
     val trace = if (isCachedStackTracing) {
-      IOTracing.cached(3, f.getClass)
+      IOTracing.cached(f.getClass)
     } else if (isFullStackTracing) {
-      IOTracing.uncached(3)
+      IOTracing.uncached()
     } else {
       null
     }
@@ -1143,7 +1143,7 @@ object IO extends IOInstances {
   def delay[A](body: => A): IO[A] = {
     val nextIo = Delay(() => body)
     if (isFullStackTracing) {
-      IOTracing.decorated(nextIo, 1)
+      IOTracing.decorated(nextIo)
     } else {
       nextIo
     }
@@ -1160,7 +1160,7 @@ object IO extends IOInstances {
   def suspend[A](thunk: => IO[A]): IO[A] = {
     val nextIo = Suspend(() => thunk)
     if (isFullStackTracing) {
-      IOTracing.decorated(nextIo, 2)
+      IOTracing.decorated(nextIo)
     } else {
       nextIo
     }
@@ -1179,7 +1179,7 @@ object IO extends IOInstances {
   def pure[A](a: A): IO[A] = {
     val nextIo = Pure(a)
     if (isFullStackTracing) {
-      IOTracing.decorated(nextIo, 0)
+      IOTracing.decorated(nextIo)
     } else {
       nextIo
     }
@@ -1250,9 +1250,9 @@ object IO extends IOInstances {
    */
   def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
     val trace = if (isCachedStackTracing) {
-      IOTracing.cached(5, k.getClass)
+      IOTracing.cached(k.getClass)
     } else if (isFullStackTracing) {
-      IOTracing.uncached(5)
+      IOTracing.uncached()
     } else {
       null
     }
@@ -1290,9 +1290,9 @@ object IO extends IOInstances {
    */
   def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
     val trace = if (isCachedStackTracing) {
-      IOTracing.cached(6, k.getClass)
+      IOTracing.cached(k.getClass)
     } else if (isFullStackTracing) {
-      IOTracing.uncached(6)
+      IOTracing.uncached()
     } else {
       null
     }
@@ -1355,9 +1355,9 @@ object IO extends IOInstances {
    */
   def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
     val trace = if (isCachedStackTracing) {
-      IOTracing.cached(7, k.getClass)
+      IOTracing.cached(k.getClass)
     } else if (isFullStackTracing) {
-      IOTracing.uncached(7)
+      IOTracing.uncached()
     } else {
       null
     }
@@ -1399,7 +1399,7 @@ object IO extends IOInstances {
   def raiseError[A](e: Throwable): IO[A] = {
     val nextIo = RaiseError(e)
     if (isFullStackTracing) {
-      IOTracing.decorated(nextIo, 8)
+      IOTracing.decorated(nextIo)
     } else {
       nextIo
     }

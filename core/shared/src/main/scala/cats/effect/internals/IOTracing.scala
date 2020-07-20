@@ -24,19 +24,19 @@ import cats.effect.tracing.IOEvent
 
 private[effect] object IOTracing {
 
-  def decorated[A](source: IO[A], tag: Int): IO[A] =
-    Trace(source, buildFrame(tag))
+  def decorated[A](source: IO[A]): IO[A] =
+    Trace(source, buildFrame())
 
-  def uncached(tag: Int): IOEvent =
-    buildFrame(tag)
+  def uncached(): IOEvent =
+    buildFrame()
 
-  def cached(tag: Int, clazz: Class[_]): IOEvent =
-    buildCachedFrame(tag, clazz)
+  def cached(clazz: Class[_]): IOEvent =
+    buildCachedFrame(clazz)
 
-  private def buildCachedFrame(tag: Int, clazz: Class[_]): IOEvent = {
+  private def buildCachedFrame(clazz: Class[_]): IOEvent = {
     val currentFrame = frameCache.get(clazz)
     if (currentFrame eq null) {
-      val newFrame = buildFrame(tag)
+      val newFrame = buildFrame()
       frameCache.put(clazz, newFrame)
       newFrame
     } else {
@@ -44,8 +44,8 @@ private[effect] object IOTracing {
     }
   }
 
-  private def buildFrame(tag: Int): IOEvent =
-    IOEvent.StackTrace(tag, new Throwable())
+  private def buildFrame(): IOEvent =
+    IOEvent.StackTrace()
 
   /**
    * Global cache for trace frames. Keys are references to lambda classes.
