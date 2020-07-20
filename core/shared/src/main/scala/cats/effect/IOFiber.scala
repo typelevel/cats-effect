@@ -57,11 +57,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private[effect] final class FiberHandle[A](
+private[effect] final class IOFiber[A](
     name: String,
     scheduler: unsafe.Scheduler,
     initMask: Int)
-    extends IOFiber[A] {
+    extends FiberIO[A] {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -86,27 +86,27 @@ private[effect] final class FiberHandle[A](
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(false)
 
   // TODO we may be able to weaken this to just a @volatile
-  private[this] val outcome: AtomicReference[IOOutcome[A]] =
+  private[this] val outcome: AtomicReference[OutcomeIO[A]] =
     new AtomicReference()
 
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
-  private[this] val childCount = FiberHandle.childCount
+  private[this] val childCount = IOFiber.childCount
 
   // pre-fetching of all continuations (to avoid memory barriers)
-  private[this] val CancelationLoopK = FiberHandle.CancelationLoopK
-  private[this] val RunTerminusK = FiberHandle.RunTerminusK
-  private[this] val AsyncK = FiberHandle.AsyncK
-  private[this] val EvalOnK = FiberHandle.EvalOnK
-  private[this] val MapK = FiberHandle.MapK
-  private[this] val FlatMapK = FiberHandle.FlatMapK
-  private[this] val HandleErrorWithK = FiberHandle.HandleErrorWithK
-  private[this] val OnCancelK = FiberHandle.OnCancelK
-  private[this] val UncancelableK = FiberHandle.UncancelableK
-  private[this] val UnmaskK = FiberHandle.UnmaskK
+  private[this] val CancelationLoopK = IOFiber.CancelationLoopK
+  private[this] val RunTerminusK = IOFiber.RunTerminusK
+  private[this] val AsyncK = IOFiber.AsyncK
+  private[this] val EvalOnK = IOFiber.EvalOnK
+  private[this] val MapK = IOFiber.MapK
+  private[this] val FlatMapK = IOFiber.FlatMapK
+  private[this] val HandleErrorWithK = IOFiber.HandleErrorWithK
+  private[this] val OnCancelK = IOFiber.OnCancelK
+  private[this] val UncancelableK = IOFiber.UncancelableK
+  private[this] val UnmaskK = IOFiber.UnmaskK
 
   // similar prefetch for Outcome
-  private[this] val OutcomeCanceled = FiberHandle.OutcomeCanceled
+  private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled
   // private[this] val OutcomeErrored = IOFiber.OutcomeErrored
   // private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
@@ -115,7 +115,7 @@ private[effect] final class FiberHandle[A](
   // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(scheduler: unsafe.Scheduler, cb: IOOutcome[A] => Unit, initMask: Int) = {
+  def this(scheduler: unsafe.Scheduler, cb: OutcomeIO[A] => Unit, initMask: Int) = {
     this("main", scheduler, initMask)
     callbacks.push(cb)
   }
@@ -130,9 +130,9 @@ private[effect] final class FiberHandle[A](
       IO {
         // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-        val oc = OutcomeCanceled.asInstanceOf[IOOutcome[Nothing]]
-        if (outcome.compareAndSet(null, oc.asInstanceOf[IOOutcome[A]])) {
-          done(oc.asInstanceOf[IOOutcome[A]])
+        val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[Nothing]]
+        if (outcome.compareAndSet(null, oc.asInstanceOf[OutcomeIO[A]])) {
+          done(oc.asInstanceOf[OutcomeIO[A]])
 
           if (!finalizers.isEmpty()) {
             conts = new ByteStack(16)
@@ -150,7 +150,7 @@ private[effect] final class FiberHandle[A](
   }
 
   // this is swapped for an IO.pure(outcome.get()) when we complete
-  var join: IO[IOOutcome[A]] =
+  var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
       IO {
         val handle = registerListener(oc => cb(Right(oc)))
@@ -163,7 +163,7 @@ private[effect] final class FiberHandle[A](
     }
 
   // can return null, meaning that no CallbackStack needs to be later invalidated
-  private def registerListener(listener: IOOutcome[A] => Unit): CallbackStack[A] = {
+  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome.get() == null) {
       val back = callbacks.push(listener)
 
@@ -192,7 +192,7 @@ private[effect] final class FiberHandle[A](
     runLoop(cur, 0)
   }
 
-  private def done(oc: IOOutcome[A]): Unit = {
+  private def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
 
@@ -235,7 +235,7 @@ private[effect] final class FiberHandle[A](
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      val oc = OutcomeCanceled.asInstanceOf[IOOutcome[A]]
+      val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
       if (outcome.compareAndSet(null, oc)) {
         done(oc)
 
@@ -422,7 +422,7 @@ private[effect] final class FiberHandle[A](
             val childName = s"start-${childCount.getAndIncrement()}"
             val initMask2 = childMask
 
-            val fiber = new FiberHandle(childName, scheduler, initMask2)
+            val fiber = new IOFiber(childName, scheduler, initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
@@ -438,15 +438,15 @@ private[effect] final class FiberHandle[A](
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
             val next =
-              IO.async[Either[(IOOutcome[Any], IOFiber[Any]), (IOFiber[Any], IOOutcome[Any])]] {
+              IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
                 cb =>
                   IO {
                     val initMask2 = childMask
-                    val fiberA = new FiberHandle[Any](
+                    val fiberA = new IOFiber[Any](
                       s"racePair-left-${childCount.getAndIncrement()}",
                       scheduler,
                       initMask2)
-                    val fiberB = new FiberHandle[Any](
+                    val fiberB = new IOFiber[Any](
                       s"racePair-right-${childCount.getAndIncrement()}",
                       scheduler,
                       initMask2)
@@ -516,10 +516,10 @@ private[effect] final class FiberHandle[A](
   private def isCanceled(): Boolean =
     canceled
 
-  private def currentOutcome(): IOOutcome[A] =
+  private def currentOutcome(): OutcomeIO[A] =
     outcome.get()
 
-  private def casOutcome(old: IOOutcome[A], value: IOOutcome[A]): Boolean =
+  private def casOutcome(old: OutcomeIO[A], value: OutcomeIO[A]): Boolean =
     outcome.compareAndSet(old, value)
 
   private def hasFinalizers(): Boolean =
@@ -646,7 +646,7 @@ private[effect] final class FiberHandle[A](
   }
 }
 
-private object FiberHandle {
+private object IOFiber {
 
   private val MaxStackDepth = 512
 
@@ -667,7 +667,7 @@ private object FiberHandle {
   ////////////////////////////////////////////////
 
   private object CancelationLoopK extends IOCont(0) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       if (hasFinalizers()) {
@@ -682,11 +682,11 @@ private object FiberHandle {
   }
 
   private object RunTerminusK extends IOCont(1) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self.{casOutcome, currentOutcome, done, isCanceled}
 
       if (isCanceled()) // this can happen if we don't check the canceled flag before completion
-        casOutcome(null, OutcomeCanceled.asInstanceOf[IOOutcome[A]])
+        casOutcome(null, OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       else if (success)
         casOutcome(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
       else
@@ -699,7 +699,7 @@ private object FiberHandle {
   }
 
   private object AsyncK extends IOCont(2) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       val state = popObjectState().asInstanceOf[AtomicReference[AsyncState]]
@@ -765,7 +765,7 @@ private object FiberHandle {
   }
 
   private object EvalOnK extends IOCont(3) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       val ec = popContext()
@@ -786,7 +786,7 @@ private object FiberHandle {
 
   // NB: this means repeated map is stack-unsafe
   private object MapK extends IOCont(4) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       val f = popObjectState().asInstanceOf[Any => Any]
@@ -817,7 +817,7 @@ private object FiberHandle {
   }
 
   private object FlatMapK extends IOCont(5) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       val f = popObjectState().asInstanceOf[Any => IO[Any]]
@@ -831,7 +831,7 @@ private object FiberHandle {
   }
 
   private object HandleErrorWithK extends IOCont(6) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
@@ -853,7 +853,7 @@ private object FiberHandle {
   }
 
   private object OnCancelK extends IOCont(7) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       popFinalizer()
@@ -866,7 +866,7 @@ private object FiberHandle {
   }
 
   private object UncancelableK extends IOCont(8) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       popMask()
@@ -878,7 +878,7 @@ private object FiberHandle {
   }
 
   private object UnmaskK extends IOCont(9) {
-    def apply[A](self: FiberHandle[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
+    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self._
 
       pushMask()

@@ -72,10 +72,10 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "race is racePair identity (left)" -> forAll(
-          laws.raceIsRacePairCancelIdentityLeft[A] _),
-        "race is racePair identity (right)" -> forAll(
-          laws.raceIsRacePairCancelIdentityRight[A] _),
+//        "race is racePair identity (left)" -> forAll(
+//          laws.raceIsRacePairCancelIdentityLeft[A] _),
+//        "race is racePair identity (right)" -> forAll(
+//          laws.raceIsRacePairCancelIdentityRight[A] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),

@@ -20,11 +20,11 @@ import scala.annotation.tailrec
 
 import java.util.concurrent.atomic.AtomicReference
 
-private[effect] final class CallbackStack[A](private[this] var callback: IOOutcome[A] => Unit)
+private[effect] final class CallbackStack[A](private[this] var callback: OutcomeIO[A] => Unit)
     extends AtomicReference[CallbackStack[A]] {
 
   @tailrec
-  def push(next: IOOutcome[A] => Unit): CallbackStack[A] = {
+  def push(next: OutcomeIO[A] => Unit): CallbackStack[A] = {
     val cur = get()
     val attempt = new CallbackStack(next)
     attempt.set(cur)
@@ -39,7 +39,7 @@ private[effect] final class CallbackStack[A](private[this] var callback: IOOutco
    * Invokes *all* non-null callbacks in the queue, starting with the current one.
    */
   @tailrec
-  def apply(oc: IOOutcome[A]): Unit = {
+  def apply(oc: OutcomeIO[A]): Unit = {
     if (callback != null) {
       callback(oc)
     }

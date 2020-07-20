@@ -44,7 +44,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def attempt: IO[Either[Throwable, A]] =
     map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
 
-  def bothOutcome[B](that: IO[B]): IO[(IOOutcome[A @uncheckedVariance], IOOutcome[B])] =
+  def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     racePair(that).flatMap {
       case Left((oc, f)) => f.join.map((oc, _))
       case Right((f, oc)) => f.join.map((_, oc))
@@ -79,7 +79,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, IOOutcome[B]) => IO[Unit]): IO[B] =
+  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
     IO uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
@@ -97,7 +97,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def guarantee(finalizer: IO[Unit]): IO[A] =
     guaranteeCase(_ => finalizer)
 
-  def guaranteeCase(finalizer: IOOutcome[A @uncheckedVariance] => IO[Unit]): IO[A] =
+  def guaranteeCase(finalizer: OutcomeIO[A @uncheckedVariance] => IO[Unit]): IO[A] =
     onCase { case oc => finalizer(oc) }
 
   def handleErrorWith[B >: A](f: Throwable => IO[B]): IO[B] =
@@ -108,7 +108,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
-  def onCase(pf: PartialFunction[IOOutcome[A @uncheckedVariance], IO[Unit]]): IO[A] =
+  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] =
     IO uncancelable { poll =>
       val base = poll(this)
       val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
@@ -149,8 +149,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     }
 
   def racePair[B](that: IO[B]): IO[Either[
-    (IOOutcome[A @uncheckedVariance], IOFiber[B]),
-    (IOFiber[A @uncheckedVariance], IOOutcome[B])]] =
+    (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
+    (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.RacePair(this, that)
 
   def delayBy(duration: FiniteDuration): IO[A] =
@@ -171,7 +171,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def productR[B](that: IO[B]): IO[B] =
     flatMap(_ => that)
 
-  def start: IO[IOFiber[A @uncheckedVariance]] =
+  def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
 
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] =
@@ -179,8 +179,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     if (F eq IO.effectForIO) {
       asInstanceOf[F[A]]
     } else {
-      def fiberFrom[B](f: Fiber[F, Throwable, B]): IOFiber[B] =
-        new IOFiber[B] {
+      def fiberFrom[B](f: Fiber[F, Throwable, B]): FiberIO[B] =
+        new FiberIO[B] {
           val cancel = F.to[IO](f.cancel)
           val join = F.to[IO](f.join).map(_.mapK(F.toK[IO]))
         }
@@ -262,11 +262,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   }
 
   private[effect] def unsafeRunFiber(shift: Boolean)(cb: Either[Throwable, A] => Unit)(
-      implicit runtime: unsafe.IORuntime): FiberHandle[A @uncheckedVariance] = {
+      implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
-    val fiber = new FiberHandle(
+    val fiber = new IOFiber(
       runtime.scheduler,
-      (oc: IOOutcome[A]) =>
+      (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       0)
 
@@ -337,7 +337,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // utilities
 
-  def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(IOOutcome[A], IOOutcome[B])] =
+  def bothOutcome[A, B](left: IO[A], right: IO[B]): IO[(OutcomeIO[A], OutcomeIO[B])] =
     left.bothOutcome(right)
 
   def both[A, B](left: IO[A], right: IO[B]): IO[(A, B)] =
@@ -355,7 +355,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def racePair[A, B](
       left: IO[A],
-      right: IO[B]): IO[Either[(IOOutcome[A], IOFiber[B]), (IOFiber[A], IOOutcome[B])]] =
+      right: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
     left.racePair(right)
 
   def toK[F[_]: Effect]: IO ~> F =
@@ -434,7 +434,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       ioa.onCancel(fin)
 
     override def bracketCase[A, B](acquire: IO[A])(use: A => IO[B])(
-        release: (A, IOOutcome[B]) => IO[Unit]): IO[B] =
+        release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
       acquire.bracketCase(use)(release)
 
     val monotonic: IO[FiniteDuration] = IO.monotonic
@@ -451,7 +451,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def racePair[A, B](
         fa: IO[A],
-        fb: IO[B]): IO[Either[(IOOutcome[A], IOFiber[B]), (IOFiber[A], IOOutcome[B])]] =
+        fb: IO[B]): IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] =
       fa.racePair(fb)
 
     override def race[A, B](fa: IO[A], fb: IO[B]): IO[Either[A, B]] =
@@ -460,7 +460,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def both[A, B](fa: IO[A], fb: IO[B]): IO[(A, B)] =
       fa.both(fb)
 
-    def start[A](fa: IO[A]): IO[IOFiber[A]] =
+    def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
     def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
@@ -527,11 +527,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] case object Canceled extends IO[Unit] { def tag = 11 }
 
-  private[effect] final case class Start[A](ioa: IO[A]) extends IO[IOFiber[A]] {
+  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
     def tag = 12
   }
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
-      extends IO[Either[(IOOutcome[A], IOFiber[B]), (IOFiber[A], IOOutcome[B])]] {
+      extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
 
     def tag = 13
   }
