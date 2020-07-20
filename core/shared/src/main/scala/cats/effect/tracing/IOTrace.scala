@@ -65,10 +65,13 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
             val junc = if (index == events.length - 1) TurnRight else Junction
             val message = event match {
               case ev: IOEvent.StackTrace => {
-                val first = bestTraceElement(ev.stackTrace)
-                val nameTag = tagToName(ev.tag)
-                val codeLine = first.map(renderStackTraceElement).getOrElse("(...)")
-                s"$nameTag at $codeLine"
+                val pair = getOpAndCallSite(ev.stackTrace)
+                pair.map {
+                  case (methodSite, callSite) =>
+                    val loc = renderStackTraceElement(callSite)
+                    val op = methodSite.getMethodName
+                    s"$op at $loc"
+                }.getOrElse("at ???")
               }
             }
             s" $junc $message"
@@ -101,8 +104,13 @@ private[effect] object IOTrace {
     s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
   }
 
-  private def bestTraceElement(frames: List[StackTraceElement]): Option[StackTraceElement] =
-    frames.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
+  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] = {
+    frames.sliding(2).collect {
+      case a :: b :: Nil => (a, b)
+    }.find {
+      case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+    }
+  }
 
   private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {

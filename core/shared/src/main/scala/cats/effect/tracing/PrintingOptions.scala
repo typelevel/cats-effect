@@ -42,4 +42,6 @@ object PrintingOptions {
     maxStackTraceLines = Int.MaxValue,
     ignoreStackTraceLines = 3 // the number of frames to ignore because of IOTracing
   )
+
+  def apply(): PrintingOptions = Default
 }
