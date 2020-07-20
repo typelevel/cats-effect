@@ -398,6 +398,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def sleep(time: FiniteDuration): IO[Unit] =
       IO.sleep(time)
 
+    override def timeoutTo[A](ioa: IO[A], duration: FiniteDuration, fallback: IO[A]): IO[A] =
+      ioa.timeoutTo(duration, fallback)
+
     def canceled: IO[Unit] =
       IO.canceled
 

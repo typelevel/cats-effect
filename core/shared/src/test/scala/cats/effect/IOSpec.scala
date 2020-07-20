@@ -27,7 +27,7 @@ import org.specs2.ScalaCheck
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
@@ -562,6 +562,59 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       } yield ()
 
       test must nonTerminate
+    }
+
+    "temporal" should {
+      "timeout" should {
+        "succeed" in real {
+          val op = IO.pure(true).timeout(100.millis)
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+
+        "cancel a loop" in real {
+          val loop = IO.cede.foreverM
+
+          val op = loop.timeout(5.millis).attempt
+
+          op.flatMap { res =>
+            IO {
+              res must beLike {
+                case Left(e) => e must haveClass[TimeoutException]
+              }
+            }
+          }
+        }
+      }
+
+      "timeoutTo" should {
+        "succeed" in real {
+          val op =
+            IO.pure(true).timeoutTo(5.millis, IO.raiseError(new RuntimeException))
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+
+        "use fallback" in real {
+          val loop = IO.cede.foreverM
+
+          val op = loop.timeoutTo(5.millis, IO.pure(true))
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+      }
     }
 
     platformSpecs
