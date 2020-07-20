@@ -38,6 +38,14 @@ jobs:
             java: adopt@1.8
             scala: 2.13.3
             ci: ciJS
+          - os: ubuntu-latest
+            java: adopt@1.8
+            scala: 2.12.12
+            ci: ciFirefox
+          - os: ubuntu-latest
+            java: adopt@1.8
+            scala: 2.13.3
+            ci: ciFirefox
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout current branch (fast)
