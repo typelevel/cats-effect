@@ -402,6 +402,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     def cede: IO[Unit] = IO.cede
 
+    override def productL[A, B](left: IO[A])(right: IO[B]): IO[A] =
+      left.productL(right)
+
+    override def productR[A, B](left: IO[A])(right: IO[B]): IO[B] =
+      left.productR(right)
+
     def racePair[A, B](
         fa: IO[A],
         fb: IO[B]): IO[Either[(A, Fiber[IO, Throwable, B]), (Fiber[IO, Throwable, A], B)]] =
@@ -429,6 +435,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       fa.flatMap(f)
 
     def delay[A](thunk: => A): IO[A] = IO(thunk)
+
+    override def void[A](ioa: IO[A]): IO[Unit] = ioa.void
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO
