@@ -41,7 +41,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo(Set(1, 3))
+        res mustEqual Set(1, 3)
       }
     }
   }
@@ -65,7 +65,7 @@ class MVarSpec extends BaseSpec {
         for {
           x <- res1
           y <- res2
-        } yield Set(x, y) must beEqualTo(Set(1, 3))
+        } yield Set(x, y) mustEqual Set(1, 3)
       case x => fail(x)
     }
   }
@@ -84,7 +84,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo(Right(0))
+        res must beRight(0)
       }
     }
   }
@@ -102,7 +102,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo((true, false, 10, 20))
+        res mustEqual ((true, false, 10, 20))
       }
     }
   }
@@ -122,7 +122,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo((true, true, false, false, Some(10), None, 20))
+        res mustEqual ((true, true, false, false, Some(10), None, 20))
       }
     }
   }
@@ -143,7 +143,7 @@ class MVarSpec extends BaseSpec {
         for {
           x <- res1
           y <- res2
-        } yield Set(x, y) must beEqualTo(Set(10, 20))
+        } yield Set(x, y) mustEqual Set(10, 20)
       case x => fail(x)
     }
   }
@@ -164,7 +164,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo(Set(10, 20, 30))
+        res mustEqual Set(10, 20, 30)
       }
     }
   }
@@ -189,7 +189,8 @@ class MVarSpec extends BaseSpec {
           x <- res1
           y <- res2
           z <- res3
-        } yield Set(x, y, z) must beEqualTo(Set(10, 20, 30))
+          r <- IO(Set(x, y, z) mustEqual Set(10, 20, 30))
+        } yield r
       case x => fail(x)
     }
   }
@@ -205,7 +206,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo((false, 10, 20))
+        res mustEqual ((false, 10, 20))
       }
     }
   }
@@ -219,7 +220,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo(20)
+        res mustEqual 20
       }
     }
   }
@@ -236,7 +237,7 @@ class MVarSpec extends BaseSpec {
       case Completed(res) =>
         res.flatMap { r =>
           IO {
-            r must beEqualTo(10)
+            r mustEqual 10
           }
         }
       case x => fail(x)
@@ -257,7 +258,7 @@ class MVarSpec extends BaseSpec {
       case (None, Some(10), Completed(res)) =>
         res.flatMap { r =>
           IO {
-            r must beEqualTo(10)
+            r mustEqual 10
           }
         }
       case x => fail(x)
@@ -275,7 +276,7 @@ class MVarSpec extends BaseSpec {
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo((20, 10))
+        res mustEqual ((20, 10))
       }
     }
   }
@@ -312,12 +313,12 @@ class MVarSpec extends BaseSpec {
           IO.pure(sum) // we are done!
       }
 
-    val count = 10000
+    val count = 1000
     val op = for {
       channel <- init(Option(0))
       // Ensure they run in parallel
-      producerFiber <- (IO.cede *> producer(channel, (0 until count).toList)).start
-      consumerFiber <- (IO.cede *> consumer(channel, 0L)).start
+      producerFiber <- producer(channel, (0 until count).toList).start
+      consumerFiber <- consumer(channel, 0L).start
       _ <- producerFiber.join
       sum <- consumerFiber.join
     } yield sum
@@ -327,7 +328,7 @@ class MVarSpec extends BaseSpec {
       case Completed(res) =>
         res.flatMap { r =>
           IO {
-            r must beEqualTo(count.toLong * (count - 1) / 2)
+            r mustEqual (count.toLong * (count - 1) / 2)
           }
         }
       case x => fail(x)
@@ -377,18 +378,18 @@ class MVarSpec extends BaseSpec {
       else
         ch.take.flatMap { x => ch.put(1).flatMap(_ => loop(n - 1, acc + x)(ch)) }
 
-    val count = 10000
+    val count = 1000
     val op = init(1).flatMap(loop(count, 0))
 
     op.flatMap { res =>
       IO {
-        res must beEqualTo(count)
+        res mustEqual count
       }
     }
   }
 
   def testStackSequential(channel: MVar[IO, Int]): (Int, IO[Int], IO[Unit]) = {
-    val count = 10000
+    val count = 1000
 
     def readLoop(n: Int, acc: Int): IO[Int] =
       if (n > 0)
@@ -407,18 +408,13 @@ class MVarSpec extends BaseSpec {
   }
 
   "put is stack safe when repeated sequentially" in real {
-    val op = for {
+    for {
       channel <- MVar[IO].empty[Int]
       (count, reads, writes) = testStackSequential(channel)
       _ <- writes.start
       r <- reads
-    } yield r == count
-
-    op.flatMap { res =>
-      IO {
-        res must beTrue
-      }
-    }
+      results <- IO(r mustEqual count)
+    } yield results
   }
 
   "take is stack safe when repeated sequentially" in real {
@@ -434,7 +430,7 @@ class MVarSpec extends BaseSpec {
       case (Completed(res), count) =>
         res.flatMap { r =>
           IO {
-            r must beEqualTo(count)
+            r mustEqual count
           }
         }
       case x => fail(x)

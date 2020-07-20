@@ -117,7 +117,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     callbacks.push(cb)
   }
 
-  var cancel: IO[Unit] = {
+  var cancel: IO[Unit] = IO.uncancelable { _ =>
     val prelude = IO {
       canceled = true
       cancel = IO.unit
@@ -484,7 +484,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
           // Cede
           case 17 =>
-            currentCtx.execute { () =>
+            currentCtx execute { () =>
               // println("continuing from cede ")
 
               runLoop(succeeded((), 0), nextIteration)
