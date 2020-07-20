@@ -68,7 +68,14 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   val iterations = if (isCI) 1000 else 10000
   val timeout = if (isCI) 30.seconds else 10.seconds
 
-  def cleanupOnError[A](task: IO[A], f: Fiber[IO, Throwable, _]) = f.cancel
+  def cleanupOnError[A](task: IO[A], f: Fiber[IO, Throwable, _]) =
+    task guaranteeCase {
+      case Outcome.Canceled() | Outcome.Errored(_) =>
+        f.cancel
+
+      case _ =>
+        IO.unit
+    }
 
   "Deferred — issue #380: producer keeps its thread, consumer stays forked" in {
     for (_ <- 0 until iterations) {

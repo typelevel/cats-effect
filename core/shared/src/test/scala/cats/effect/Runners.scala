@@ -17,13 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.effect.testkit.{
-  AsyncGenerators,
-  BracketGenerators,
-  GenK,
-  OutcomeGenerators,
-  TestContext
-}
+import cats.effect.testkit.{AsyncGenerators, GenK, OutcomeGenerators, TestContext}
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -53,14 +47,14 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   implicit def arbitraryIO[A: Arbitrary: Cogen](implicit ticker: Ticker): Arbitrary[IO[A]] = {
     val generators =
-      new AsyncGenerators[IO] with BracketGenerators[IO, Throwable] {
+      new AsyncGenerators[IO] {
 
         val arbitraryE: Arbitrary[Throwable] =
           arbitraryThrowable
 
         val cogenE: Cogen[Throwable] = Cogen[Throwable]
 
-        val F: AsyncBracket[IO] = IO.effectForIO
+        val F: Async[IO] = IO.effectForIO
 
         def cogenCase[B: Cogen]: Cogen[Outcome[IO, Throwable, B]] =
           OutcomeGenerators.cogenOutcome[IO, Throwable, B]
@@ -190,7 +184,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     val r = runtime()
     implicit val ec = r.compute
 
-    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException) })
+    val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException); () })
 
     f.onComplete { result =>
       p.tryComplete(result)

@@ -19,20 +19,8 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
-import cats.effect.kernel.{
-  Bracket,
-  Concurrent,
-  ConcurrentBracket,
-  ConcurrentRegion,
-  Fiber,
-  Outcome,
-  Region,
-  Safe,
-  Temporal,
-  TemporalBracket,
-  TemporalRegion
-}
-import cats.implicits._
+import cats.effect.kernel.{Concurrent, Fiber, Temporal}
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -64,46 +52,16 @@ object TimeT {
         (left, right).mapN(_ |+| _)
 
       def inverse(a: TimeT[F, A]) =
-        a.map(_.inverse)
+        a.map(_.inverse())
     }
 
-  implicit def temporalB[F[_], E](
-      implicit F: ConcurrentBracket[F, E]): TemporalBracket[TimeT[F, *], E] =
-    new TimeTTemporal[F, E] with Bracket[TimeT[F, *], E] {
-      def bracketCase[A, B](acquire: TimeT[F, A])(use: A => TimeT[F, B])(
-          release: (A, Outcome[TimeT[F, *], E, B]) => TimeT[F, Unit]): TimeT[F, B] =
-        Kleisli { time =>
-          F.bracketCase(acquire.run(time))(use.andThen(_.run(time))) { (a, oc) =>
-            release(a, oc.mapK(Kleisli.liftK[F, Time])).run(time)
-          }
-        }
-    }
+  implicit def temporalForTimeT[F[_], E](
+      implicit F: Concurrent[F, E]): Temporal[TimeT[F, *], E] =
+    new TimeTTemporal[F, E]
 
-  type TimeTR[R[_[_], _]] = { type L[F[_], A] = TimeT[R[F, *], A] }
+  private[this] class TimeTTemporal[F[_], E](implicit F: Concurrent[F, E])
+      extends Temporal[TimeT[F, *], E] {
 
-  implicit def temporalR[R[_[_], _], F[_], E](
-      implicit F: ConcurrentRegion[R, F, E]): TemporalRegion[TimeTR[R]#L, F, E] =
-    new TimeTTemporal[R[F, *], E] with Region[TimeTR[R]#L, F, E] {
-
-      def liftF[A](fa: F[A]): TimeT[R[F, *], A] =
-        Kleisli.liftF(F.liftF(fa))
-
-      def openCase[A, E0](acquire: F[A])(
-          release: (A, Outcome[TimeT[R[F, *], *], E, E0]) => F[Unit]): TimeT[R[F, *], A] =
-        Kleisli.liftF[R[F, *], Time, A] {
-          F.openCase[A, E0](acquire) { (a, oc) =>
-            release(a, oc.mapK(Kleisli.liftK[R[F, *], Time]))
-          }
-        }
-
-      def supersededBy[B, E0](
-          rfa: TimeT[R[F, *], E0],
-          rfb: TimeT[R[F, *], B]): TimeT[R[F, *], B] =
-        Kleisli { time => F.supersededBy(rfa.run(time), rfb.run(time)) }
-    }
-
-  private[this] abstract class TimeTTemporal[F[_], E](implicit F: Concurrent[F, E])
-      extends Temporal[TimeT[F, *], E] { self: Safe[TimeT[F, *], E] =>
     def pure[A](x: A): TimeT[F, A] =
       Kleisli.pure(x)
 
@@ -115,6 +73,9 @@ object TimeT {
 
     val canceled: TimeT[F, Unit] =
       TimeT.liftF(F.canceled)
+
+    def onCancel[A](fa: TimeT[F, A], fin: TimeT[F, Unit]): TimeT[F, A] =
+      Kleisli { time => F.onCancel(fa.run(time), fin.run(time)) }
 
     val cede: TimeT[F, Unit] =
       TimeT.liftF(F.cede)

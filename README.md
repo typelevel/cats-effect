@@ -6,7 +6,7 @@ Cats Effect 3 (or "ce3") is an ongoing project designed to fully replace the exi
 
 ## Getting Started
 
-At present, no full releases have been published. However, Cats Effect adheres to a stable Git hash snapshot scheme. No guarantees are made about the actual *code* stability of snapshot releases, but the versions themselves are permanent. The latest snapshot release of Cats Effect 3 is [**3.0-87c19b5**](https://github.com/typelevel/cats-effect/tree/87c19b5). If you need a newer snapshot for whatever reason, get in touch with us [in Gitter](https://gitter.im/typelevel/cats-effect-dev)!
+At present, no full releases have been published. However, Cats Effect adheres to a stable Git hash snapshot scheme. No guarantees are made about the actual *code* stability of snapshot releases, but the versions themselves are permanent. The latest snapshot release of Cats Effect 3 is [**3.0-bb20d55**](https://github.com/typelevel/cats-effect/tree/bb20d55). If you need a newer snapshot for whatever reason, get in touch with us [in Gitter](https://gitter.im/typelevel/cats-effect-dev)!
 
 At the present time, ce3 is cross-built for Scala 2.12, 2.13, and Dotty 0.25.0-RC2 (once 0.25 goes final, we will be tracking the latest RC in addition to the most recent final build). ScalaJS cross-builds are available for Scala 2.12 and 2.13.
 
@@ -74,19 +74,21 @@ To this end, the CE3 hierarchy has been entirely redesigned:
 
 <img width="1383px" height="844px" src="hierarchy.svg"/>
 
-`Concurrent` now sits *almost* at the top of the hierarchy. `Bracket` and `Region` (which is new) represent resource safety and nothing else, and `Concurrent` has no ability to capture or control side-effects. Its sole purpose is to describe parallel evaluation. Similarly, `Temporal` sits below `Concurrent` and enriches it with time-related semantics. Finally, `Async` and `Sync` still represent an FFI for interacting with effectful, imperative side-effects, and they sit at the *bottom* of the hierarchy, representing nearly the most powerful capability you can have. The only capability which sits below `Async` is `Effect`, which represents an `F` which is *literally* `IO` (or something very very much like it).
+`Concurrent` now sits at the top of the hierarchy. `Concurrent` has no ability to capture or control side-effects; its sole purpose is to describe parallel evaluation. Similarly, `Temporal` sits below `Concurrent` and enriches it with time-related semantics. Finally, `Async` and `Sync` still represent an FFI for interacting with effectful, imperative side-effects, and they sit at the *bottom* of the hierarchy, representing nearly the most powerful capability you can have. The only capability which sits below `Async` is `Effect`, which represents an `F` which is *literally* `IO` (or something very very much like it).
+
+You'll note that `Bracket` is absent. This is because the addition of a more general `uncancelable` combinator on `Concurrent` has rendered `bracket` a derivative operation, and it is simply defined by `Concurrent` in terms of other primitives.
 
 #### Simplifying Dependencies
 
 Speaking of `Effect`, it has been redefined to remove the dependency on `IO`. The following is its simplified definition:
 
 ```scala
-trait Effect[F[_]] extends Async[F] with Bracket[F, Throwable] {
-  def to[G[_]](fa: F[A])(implicit G: Async[G] with Bracket[G, Throwable]): G[A]
+trait Effect[F[_]] extends Async[F] {
+  def to[G[_]](fa: F[A])(implicit G: Effect[G]): G[A]
 }
 ```
 
-In other words, any `Effect` is defined by its ability to replicate itself in terms of some arbitrary `G` which is `Async` (and `Bracket`), meaning that it must be exactly as powerful as any other effect type, including `IO` itself.
+In other words, any `Effect` is defined by its ability to replicate itself in terms of some arbitrary `G` which is itself an `Effect`, meaning that it must be exactly as powerful as any other effect type, including `IO` itself.
 
 For framework authors who require the ability to *run* an effect in a polymorphic context, the following idiom is now available:
 
@@ -144,38 +146,44 @@ All laws in ce3 must pass the litmus test of step-wise evaluation in sufficient 
 
 ### Generality
 
-Several abstractions have been generalized to avoid over-specifying semantics and closing off useful possibilities. The most obvious example of this is the generalization of monadic regions for resource safety.
-
-The concept of a "monadic region" is a rather broad thing, since it really just refers to the demarcation of some sub-program consisting of a series of `flatMap`s (and other operations). The idea is that these regions, once denoted, can be interpreted to imply semantic meaning. `Bracket` is one implementation of a monadic region, specifically intended to denote resource safety. Its (simplified) definition is as follows:
+Several abstractions have been generalized to avoid over-specifying semantics and closing off useful possibilities. A good example of this is the simplification of `bracket` within the hierarchy. In Cats Effect 2, `bracketCase` is a primitive defined by the `Bracket` typeclass:
 
 ```scala
-trait Bracket[F[_], E] extends MonadError[F, E] {
-  def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B]
+def bracketCase[A, B](acquire: F[A])(use: A => F[B])(release: (A, ExitCase[E]) => F[Unit]): F[B]
+```
+
+Unfortunately, this operation does not compose in a fashion which is consistent with other operations, such as `handleErrorWith`. For example, if we attempt to define this function for `EitherT[F, E, A]` where `F` forms a `Bracket`, we're going to run into problems with the following type of code:
+
+```scala
+bracketCase(acquire)(use) { (a, c) =>
+  EitherT.leftT[F, A](MyError)
 }
 ```
 
-The idea here is pretty simple. Whenever you have a critical resource (such as a file or a socket) which must be released upon completion of some action (say, reading from the file), you can use `bracket` to safely ensure that this happens. The `acquire` effect represents opening the resource, while `use` *uses* the resource and computes some value from it (perhaps `B` is the contents of the file as a `String`), while `release` effectively represents the `finally` part of a `try`/`finally` block in imperative logic, closing the resource when it is no longer in use. This `bracket` construct is also cancelation-aware, meaning that the `release` action will be run regardless of whether the `use` action completed successfully, produced an error, or was canceled by another fiber.
+Where does `MyError` go? The only sane answer is that it propagates out and is the final result of the `bracketCase` effect in this instance, but the only way to achieve this on CE2 is to use a mutable `Ref` which catches the error case and rematerializes it after the finalizer has run. This is extremely broken, and that brokenness manifests in the fact that the `Bracket[EitherT[F, E1, *], E2]`  instance actually requires a `Sync[F]`, rather than a `Bracket[F, E2]` (which would be much more sensible).
 
-`bracket` represents a monadic region around the `use` action. If you squint, you can see a hint of `flatMap` within this type signature, and that's no coincidence. However, `bracket` is limited in that the region it defines is *static*. There's no notion of an "open ended" resource which is safely created, will be disposed of when no longer needed, but is held open and used for some indeterminate amount of time. An easy example of this is a server socket, which should be opened and held open for as long as the program wants to accept connections (perhaps forever!), but still safely disposed of when that time is past.
-
-Certainly, you *could* use `bracket` to encode this semantic by putting *your entire program* inside of the `use` block, but that's very awkward at the best of times, and nearly impossible in many cases. In many cases, you want to write a function (like `startServer`) which *returns* the notion of an open resource which can be utilized and for which the safety and finalization semantics are fully encapsulated.
-
-In Cats Effect 2, this turned out to be a very common pattern. So common, in fact, that the `Resource` type represents a concrete implementation of the idea. Additionally, there are numerous other examples of this *type* of resource scoping throughout the ecosystem, including fs2's `Stream`, Monix's `Iterant`, and ZIO's `Managed`.
-
-These are all examples of *dynamic* monadic regions. Unlike `bracket`, where the entire region must be specified in one place, once, and passed as the `use` function, dynamic regions may be of *unbounded* size. Conceptually, the region is extended by calling `flatMap` and adding another computation to the chain, and another, and another, and another.
-
-Dynamic monadic regions are actually much closer to the original conception of a monadic region set forth in academia, but they have proven to be somewhat difficult to generalize and implement in practice, which is why `bracket` is a pervasive abstraction in functional effect systems. However, they are still the obvious corollary to `bracket`, and ce3 formalizes this with the `Region` class (simplified below):
+Cats Effect 3 resolves this issue by removing `bracketCase` as a *primitive*. Instead, it is now defined in terms of `uncancelable`, `onError`, `onCancel`, and `flatMap`. Specifically, it looks like this:
 
 ```scala
-trait Region[R[_[_], _], F[_], E] extends MonadError[R[F, *], E] {
-  def open[A](acquire: F[A])(release: A => F[Unit]): R[F, A]
-  def supersededBy[B, e](rfe: R[F, e], rfb: R[F, B]): R[F, B]
-}
+def bracketCase[A, B](
+    acquire: F[A])(
+    use: A => F[B])(
+    release: (A, Outcome[F, E, B]) => F[Unit])(
+    implicit F: Concurrent[F, E])
+    : F[B] =
+  F uncancelable { poll =>
+    acquire flatMap { a =>
+      val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
+      val handled = finalized onError {
+        case e => release(a, Outcome.Errored(e)).attempt.void
+      }
+
+      handled.flatTap(b => release(a, Outcome.Completed(pure(b))).attempt)
+    }
+  }
 ```
 
-Thus, you can `open` a `Region` by defining how a resource is acquired and released, but nothing more. The `Region` then remains open, continually extended by `flatMap`, until it is *superseded*. The concept behind `supersededBy` is that the `rfe` region is *complete* and the `rfb` region needs to be joined to it, such that when `rfe` finishes evaluating, `rfb` will begin. However, `rfb` is constrained by the types such that it *must* be entirely agnostic of any values computed within `rfe`, meaning that any resources held open by `rfe` may be safely closed.
-
-In practice, most concrete implementations of this abstraction will likely provide additional mechanisms for finishing a monadic region. These mechanisms vary depending on intended semantics and cannot be generalized.
+Note that `onError` is defined by `ApplicativeError` in terms of `handleErrorWith`, which does the right thing with our `EitherT` example from earlier. `onCancel` is now a primitive, rather than being derived from `bracketCase`, and this *in turn* actually considerably simplifies and improves the performance of concrete effect types such as `IO`.
 
 ### Ergonomics
 

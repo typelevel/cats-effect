@@ -16,8 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.{~>, ApplicativeError, MonadError}
-import cats.implicits._
+import cats.{~>, MonadError}
+import cats.syntax.all._
 
 trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
@@ -30,11 +30,7 @@ trait Fiber[F[_], E, A] {
     joinAndEmbed(F.never)
 }
 
-trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
-  type Case[A] = Outcome[F, E, A]
-
-  final def CaseInstance: ApplicativeError[Outcome[F, E, *], E] =
-    Outcome.applicativeError[F, E](this)
+trait Concurrent[F[_], E] extends MonadError[F, E] {
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
@@ -45,6 +41,27 @@ trait Concurrent[F[_], E] extends MonadError[F, E] { self: Safe[F, E] =>
   // The fallback (unit) value is produced if the effect is sequenced into a block in which
   // cancelation is suppressed.
   def canceled: F[Unit]
+
+  def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
+
+  def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
+    bracketCase(acquire)(use)((a, _) => release(a))
+
+  def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+      release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
+    bracketFull(_ => acquire)(use)(release)
+
+  def bracketFull[A, B](acquire: (F ~> F) => F[A])(use: A => F[B])(
+      release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
+    uncancelable { poll =>
+      flatMap(acquire(poll)) { a =>
+        val finalized = onCancel(poll(use(a)), release(a, Outcome.Canceled()))
+        val handled = onError(finalized) {
+          case e => void(attempt(release(a, Outcome.Errored(e))))
+        }
+        flatMap(handled)(b => as(attempt(release(a, Outcome.Completed(pure(b)))), b))
+      }
+    }
 
   // produces an effect which never returns
   def never[A]: F[A]

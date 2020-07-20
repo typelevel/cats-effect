@@ -24,7 +24,7 @@ import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 
-trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable] {
+trait SyncEffectTests[F[_]] extends SyncTests[F] {
 
   val laws: SyncEffectLaws[F]
 
@@ -40,13 +40,9 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
       CogenB: Cogen[B],
       CogenC: Cogen[C],
       CogenE: Cogen[Throwable],
-      CogenCaseA: Cogen[Either[Throwable, A]],
-      CogenCaseB: Cogen[Either[Throwable, B]],
-      CogenCaseU: Cogen[Either[Throwable, Unit]],
       EqFA: Eq[F[A]],
       EqFB: Eq[F[B]],
       EqFC: Eq[F[C]],
-      EqFU: Eq[F[Unit]],
       EqE: Eq[Throwable],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
@@ -59,7 +55,7 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] with BracketTests[F, Throwable]
     new RuleSet {
       val name = "syncEffect"
       val bases = Nil
-      val parents = Seq(sync[A, B, C], bracket[A, B, C])
+      val parents = Seq(sync[A, B, C])
 
       val props = Seq("roundTrip" -> forAll(laws.roundTrip[A] _))
     }

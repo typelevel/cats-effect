@@ -17,10 +17,14 @@
 package cats.effect
 
 import cats.Show
+import cats.laws.discipline.{AlignTests, ParallelTests}
+import cats.laws.discipline.arbitrary._
 import cats.implicits._
-import cats.effect.laws.ConcurrentBracketTests
-import cats.effect.testkit.{OutcomeGenerators, PureConcGenerators}
-import cats.effect.testkit.pure._
+import cats.effect.kernel.ParallelF
+import cats.effect.laws.ConcurrentTests
+import cats.effect.testkit.{pure, ParallelFGenerators, PureConcGenerators},
+pure._
+import cats.effect.implicits._
 
 // import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
@@ -32,14 +36,20 @@ import org.specs2.mutable._
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
-  import OutcomeGenerators._
   import PureConcGenerators._
+  import ParallelFGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
   checkAll(
     "PureConc",
-    ConcurrentBracketTests[PureConc[Int, *], Int].concurrentBracket[Int, Int, Int]
+    ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
+
+  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
+
+  checkAll(
+    "ParallelF[PureConc]",
+    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
 }

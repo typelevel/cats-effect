@@ -26,7 +26,11 @@ private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type
     new Scheduler {
       def sleep(delay: FiniteDuration, task: Runnable): Runnable = {
         val future = scheduler.schedule(task, delay.length, delay.unit)
-        () => future.cancel(false)
+
+        { () =>
+          future.cancel(false)
+          ()
+        }
       }
 
       def nowMillis() = System.currentTimeMillis()

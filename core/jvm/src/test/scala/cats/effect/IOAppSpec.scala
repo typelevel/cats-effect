@@ -78,7 +78,7 @@ class IOAppSpec extends Specification {
       while (readTest() == null && i < 100) {
         i += 1
       }
-      readTest() must contain("Canceled")
+      readTest() must contain("canceled")
     }
   }
 
@@ -121,7 +121,7 @@ package examples {
     import java.io.FileWriter
 
     def writeToFile(string: String, file: File): IO[Unit] =
-      IO(new FileWriter(file)).bracket { writer => IO(writer.write("Canceled")) }(writer =>
+      IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
         IO(writer.close()))
 
     def run(args: List[String]): IO[Int] =

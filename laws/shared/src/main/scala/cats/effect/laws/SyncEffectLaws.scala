@@ -19,7 +19,7 @@ package laws
 
 import cats.effect.kernel.SyncEffect
 
-trait SyncEffectLaws[F[_]] extends SyncLaws[F] with BracketLaws[F, Throwable] {
+trait SyncEffectLaws[F[_]] extends SyncLaws[F] {
   implicit val F: SyncEffect[F]
 
   def roundTrip[A](fa: F[A]) =
