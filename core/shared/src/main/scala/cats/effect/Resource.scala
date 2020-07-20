@@ -98,36 +98,36 @@ import scala.annotation.tailrec
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
-  // private def fold[G[x] >: F[x], B](
-  //   onOutput: A => G[B],
-  //   onRelease: G[Unit] => G[Unit]
-  // )(implicit F: Bracket): G[B] = {
-  //   // Indirection for calling `loop` needed because `loop` must be @tailrec
-  //   def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-  //     loop(current, stack)
+  private def fold[G[x] >: F[x], B](
+    onOutput: A => G[B],
+    onRelease: G[Unit] => G[Unit]
+  )(implicit G: Resource.Bracket[G]): G[B] = {
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+      loop(current, stack)
 
-  //   // Interpreter that knows how to evaluate a Resource data structure;
-  //   // Maintains its own stack for dealing with Bind chains
-  //   @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
-  //     current match {
-  //       case a: Allocate[G, Any] =>
-  //         F.bracketCase(a.resource) {
-  //           case (a, _) =>
-  //             stack match {
-  //               case Nil => onOutput.asInstanceOf[Any => G[Any]](a)
-  //               case l   => continue(l.head(a), l.tail)
-  //             }
-  //         } {
-  //           case ((_, release), ec) =>
-  //             onRelease(release(ec))
-  //         }
-  //       case b: Bind[G, _, Any] =>
-  //         loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
-  //       case s: Suspend[G, Any] =>
-  //         s.resource.flatMap(continue(_, stack))
-  //     }
-  //   loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
-  // }
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+      current match {
+        case a: Allocate[G, Any] =>
+          G.bracketCase(a.resource) {
+            case (a, _) =>
+              stack match {
+                case Nil => onOutput.asInstanceOf[Any => G[Any]](a)
+                case l   => continue(l.head(a), l.tail)
+              }
+          } {
+            case ((_, release), ec) =>
+              onRelease(release(ec))
+          }
+        case b: Bind[G, _, Any] =>
+          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
+        case s: Suspend[G, Any] =>
+          s.resource.flatMap(continue(_, stack))
+      }
+    loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
+  }
 
   /**
    * Allocates a resource and supplies it to the given function.
@@ -137,8 +137,8 @@ sealed abstract class Resource[+F[_], +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  // def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket): G[B] =
-  //   fold[G, B](f, identity)
+  def use[G[x] >: F[x]: Resource.Bracket, B](f: A => G[B]): G[B] =
+    fold[G, B](f, identity)
 
   // /**
   //  * Allocates two resources concurrently, and combines their results in a tuple.
