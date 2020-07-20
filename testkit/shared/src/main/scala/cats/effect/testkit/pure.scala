@@ -246,13 +246,12 @@ object pure {
       def never[A]: PureConc[E, A] =
         Thread.done[A]
 
-      private def startOne[Result](parentMasks: List[MaskId])(
+      private def startOne[Result](
           foldResult: Result => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =
-        new StartOnePartiallyApplied(parentMasks, foldResult)
+        new StartOnePartiallyApplied(foldResult)
 
       // Using the partially applied pattern to defer the choice of L/R
       final class StartOnePartiallyApplied[Result](
-          parentMasks: List[MaskId],
           // resultReg is passed in here
           foldResult: Result => PureConc[E, Unit]
       ) {
@@ -273,7 +272,7 @@ object pure {
                 } yield ()
             }
 
-            localCtx(ctx2.copy(masks = ctx2.masks ::: parentMasks), body)
+            localCtx(ctx2.copy(masks = ctx2.masks), body)
           }
       }
 
@@ -312,7 +311,7 @@ object pure {
             resultReg: (Result => PureConc[E, Unit]) =
               (result: Result) => results.tryPut(result).void
 
-            start0 = startOne[Result](ctx.masks)(resultReg)
+            start0 = startOne[Result](resultReg)
 
             fa2 = start0(fa, fiberBVar.read) { (oca, fiberB) => Left((oca, fiberB)) }
             fb2 = start0(fb, fiberAVar.read) { (ocb, fiberA) => Right((fiberA, ocb)) }

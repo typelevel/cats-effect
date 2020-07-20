@@ -77,12 +77,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
       case Left((oc, f)) =>
         oc match {
           case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
-          case Outcome.Errored(ea) =>
-            flatMap(f.join) {
-              case Outcome.Completed(fb) => map(fb)(Right(_))
-              case Outcome.Errored(eb) => raiseError(eb)
-              case Outcome.Canceled() => raiseError(ea)
-            }
+          case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
           case Outcome.Canceled() =>
             flatMap(f.join) {
               case Outcome.Completed(fb) => map(fb)(Right(_))
@@ -93,12 +88,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
       case Right((f, oc)) =>
         oc match {
           case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
-          case Outcome.Errored(eb) =>
-            flatMap(f.join) {
-              case Outcome.Completed(fa) => map(fa)(Left(_))
-              case Outcome.Errored(ea) => raiseError(ea)
-              case Outcome.Canceled() => raiseError(eb)
-            }
+          case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
           case Outcome.Canceled() =>
             flatMap(f.join) {
               case Outcome.Completed(fa) => map(fa)(Left(_))

@@ -31,11 +31,11 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def raceCanceledIdentityRight[A](fa: F[A]) =
     F.race(fa, F.canceled) <-> fa.map(_.asLeft[Unit])
 
-  def raceNeverIdentityAttemptLeft[A](fa: F[A]) =
-    F.race(F.never[Unit], fa.attempt) <-> fa.attempt.map(_.asRight[Unit])
+  def raceNeverIdentityLeft[A](fa: F[A]) =
+    F.race(F.never[Unit], fa) <-> fa.map(_.asRight[Unit])
 
-  def raceNeverIdentityAttemptRight[A](fa: F[A]) =
-    F.race(fa.attempt, F.never[Unit]) <-> fa.attempt.map(_.asLeft[Unit])
+  def raceNeverIdentityRight[A](fa: F[A]) =
+    F.race(fa, F.never[Unit]) <-> fa.map(_.asLeft[Unit])
 
   // I really like these laws, since they relate cede to timing, but they're definitely nondeterministic
   /*def raceLeftCedeYields[A](a: A) =
@@ -75,18 +75,6 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   // this law shows that inverted polls do not apply
   def uncancelablePollInverseNestIsUncancelable[A](fa: F[A]) =
     F.uncancelable(op => F.uncancelable(ip => op(ip(fa)))) <-> F.uncancelable(_ => fa)
-
-  // TODO PureConc *passes* this as-written... and shouldn't (never is masked, meaning cancelation needs to wait for it, meaning this *should* be <-> F.never)
-  /*def uncancelableDistributesOverRaceAttemptLeft[A](fa: F[A]) =
-    F.uncancelable(_ => F.race(fa.attempt, F.never[Unit])) <-> F.uncancelable(_ => fa.attempt.map(_.asLeft[Unit]))*/
-
-  def uncancelableDistributesOverRaceAttemptLeft[A](fa: F[A]) =
-    F.uncancelable(p => F.race(fa.attempt, p(F.never[Unit]))) <-> F.uncancelable(_ =>
-      fa.attempt.map(_.asLeft[Unit]))
-
-  def uncancelableDistributesOverRaceAttemptRight[A](fa: F[A]) =
-    F.uncancelable(p => F.race(p(F.never[Unit]), fa.attempt)) <-> F.uncancelable(_ =>
-      fa.attempt.map(_.asRight[Unit]))
 
   def uncancelableRaceDisplacesCanceled =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.canceled
