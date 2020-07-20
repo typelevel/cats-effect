@@ -26,6 +26,14 @@ import cats.effect.implicits._
 import scala.annotation.tailrec
 
 /**
+ TODO
+ initial scaladoc
+ delete deprecated mapK
+ add useForever
+ bring instances back
+*/
+
+/**
  * The `Resource` is a data structure that captures the effectful
  * allocation of a resource, along with its finalizer.
  *
@@ -137,7 +145,7 @@ sealed abstract class Resource[+F[_], +A] {
    * @param f the function to apply to the allocated resource
    * @return the result of applying [F] to
    */
-  def use[G[x] >: F[x]: Resource.Bracket, B](f: A => G[B]): G[B] =
+  def use[G[x] >: F[x], B](f: A => G[B])(implicit G: Resource.Bracket[G[*]]): G[B] =
     fold[G, B](f, identity)
 
   // /**
@@ -168,8 +176,8 @@ sealed abstract class Resource[+F[_], +A] {
   //  *
   //  **/
   // def parZip[G[x] >: F[x]: Sync: Parallel, B](
-  //   that: Resource[G[?], B]
-  // ): Resource[G[?], (A, B)] = {
+  //   that: Resource[G[*], B]
+  // ): Resource[G[*], (A, B)] = {
   //   type Update = (G[Unit] => G[Unit]) => G[Unit]
 
   //   def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
@@ -191,7 +199,7 @@ sealed abstract class Resource[+F[_], +A] {
    * Implementation for the `flatMap` operation, as described via the
    * `cats.Monad` type class.
    */
-  def flatMap[G[x] >: F[x], B](f: A => Resource[G[?], B]): Resource[G[?], B] =
+  def flatMap[G[x] >: F[x], B](f: A => Resource[G[*], B]): Resource[G[*], B] =
     Bind(this, f)
 
   /**
@@ -200,7 +208,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    *  This is the standard `Functor.map`.
    */
-  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G[?]]): Resource[G[?], B] =
+  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G[*]]): Resource[G[*], B] =
     flatMap(a => Resource.pure[G, B](f(a)))
 
   // @deprecated("Use the overload that doesn't require Bracket", "2.2.0")
@@ -249,7 +257,7 @@ sealed abstract class Resource[+F[_], +A] {
   //  * resource.
   //  *
   //  */
-  // def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G[?], Throwable]): G[(B, G[Unit])] = {
+  // def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G[*]]): G[(B, G[Unit])] = {
   //   // Indirection for calling `loop` needed because `loop` must be @tailrec
   //   def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
   //     loop(current, stack, release)
