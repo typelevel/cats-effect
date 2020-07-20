@@ -148,52 +148,55 @@ sealed abstract class Resource[+F[_], +A] {
   def use[G[x] >: F[x], B](f: A => G[B])(implicit G: Resource.Bracket[G[*]]): G[B] =
     fold[G, B](f, identity)
 
-  // /**
-  //  * Allocates two resources concurrently, and combines their results in a tuple.
-  //  *
-  //  * The finalizers for the two resources are also run concurrently with each other,
-  //  * but within _each_ of the two resources, nested finalizers are run in the usual
-  //  * reverse order of acquisition.
-  //  *
-  //  * Note that `Resource` also comes with a `cats.Parallel` instance
-  //  * that offers more convenient access to the same functionality as
-  //  * `parZip`, for example via `parMapN`:
-  //  *
-  //  * {{{
-  //  *   def mkResource(name: String) = {
-  //  *     val acquire =
-  //  *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
-  //  *       IO(println(s"Acquiring $$name")).as(name)
-  //  *
-  //  *     val release = IO(println(s"Releasing $$name"))
-  //  *     Resource.make(acquire)(release)
-  //  *   }
-  //  *
-  //  *  val r = (mkResource("one"), mkResource("two"))
-  //  *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
-  //  *             .use(msg => IO(println(msg)))
-  //  * }}}
-  //  *
-  //  **/
-  // def parZip[G[x] >: F[x]: Sync: Parallel, B](
-  //   that: Resource[G[*], B]
-  // ): Resource[G[*], (A, B)] = {
-  //   type Update = (G[Unit] => G[Unit]) => G[Unit]
+  /**
+   * Allocates two resources concurrently, and combines their results in a tuple.
+   *
+   * The finalizers for the two resources are also run concurrently with each other,
+   * but within _each_ of the two resources, nested finalizers are run in the usual
+   * reverse order of acquisition.
+   *
+   * Note that `Resource` also comes with a `cats.Parallel` instance
+   * that offers more convenient access to the same functionality as
+   * `parZip`, for example via `parMapN`:
+   *
+   * {{{
+   *   def mkResource(name: String) = {
+   *     val acquire =
+   *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
+   *       IO(println(s"Acquiring $$name")).as(name)
+   *
+   *     val release = IO(println(s"Releasing $$name"))
+   *     Resource.make(acquire)(release)
+   *   }
+   *
+   *  val r = (mkResource("one"), mkResource("two"))
+   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
+   *             .use(msg => IO(println(msg)))
+   * }}}
+   *
+   **/
+  def parZip[G[x] >: F[x]: Async, B](
+    that: Resource[G[*], B]
+  ): Resource[G[*], (A, B)] = {
+    type Update = (G[Unit] => G[Unit]) => G[Unit]
 
-  //   def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
-  //     r.fold[G, C](_.pure[G], release => storeFinalizer(_.guarantee(release)))
+    def allocate[C](r: Resource[G, C], storeFinalizer: Update): G[C] =
+      r.fold[G, C](
+        _.pure[G],
+        release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
+      )
 
-  //   val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
+    val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
 
-  //   Resource
-  //     .make(bothFinalizers)(_.get.flatMap(_.parTupled).void)
-  //     .evalMap { store =>
-  //       val leftStore: Update = f => store.update(_.leftMap(f))
-  //       val rightStore: Update = f => store.update(_.map(f))
+    Resource
+      .make(bothFinalizers)(_.get.flatMap(_.parTupled).void)
+      .evalMap { store =>
+        val leftStore: Update = f => store.update(_.leftMap(f))
+        val rightStore: Update = f => store.update(_.map(f))
 
-  //       (allocate(this, leftStore), allocate(that, rightStore)).parTupled
-  //     }
-  // }
+        (allocate(this, leftStore), allocate(that, rightStore)).parTupled
+      }
+  }
 
   /**
    * Implementation for the `flatMap` operation, as described via the
@@ -532,6 +535,8 @@ object Resource // extends ResourceInstances // with ResourcePlatform
   }
 
   object Bracket extends Bracket0 {
+    def apply[F[_]](implicit F: Bracket[F]): F.type = F
+
     implicit def catsEffectResourceBracketForConcurrent[F[_]](
         implicit F: Concurrent[F, Throwable]): Bracket[F] =
       new Bracket[F] {
