@@ -21,7 +21,7 @@ import scala.concurrent.ExecutionContext
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
+private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
   def createDefaultComputeExecutionContext(
       threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)

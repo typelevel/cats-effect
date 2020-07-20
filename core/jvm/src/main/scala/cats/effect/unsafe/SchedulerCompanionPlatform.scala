@@ -20,7 +20,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import java.util.concurrent.ScheduledExecutorService
 
-private[unsafe] abstract class SchedulerCompanionPlatform { self: Scheduler.type =>
+private[unsafe] abstract class SchedulerCompanionPlatform { this: Scheduler.type =>
 
   def fromScheduledExecutor(scheduler: ScheduledExecutorService): Scheduler =
     new Scheduler {
