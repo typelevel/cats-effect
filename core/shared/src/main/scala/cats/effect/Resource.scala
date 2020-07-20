@@ -234,64 +234,64 @@ sealed abstract class Resource[+F[_], +A] {
   //       Suspend(f(resource).map(_.mapK(f)))
   //   }
 
-  // /**
-  //  * Given a `Resource`, possibly built by composing multiple
-  //  * `Resource`s monadically, returns the acquired resource, as well
-  //  * as an action that runs all the finalizers for releasing it.
-  //  *
-  //  * If the outer `F` fails or is interrupted, `allocated` guarantees
-  //  * that the finalizers will be called. However, if the outer `F`
-  //  * succeeds, it's up to the user to ensure the returned `F[Unit]`
-  //  * is called once `A` needs to be released. If the returned
-  //  * `F[Unit]` is not called, the finalizers will not be run.
-  //  *
-  //  * For this reason, this is an advanced and potentially unsafe api
-  //  * which can cause a resource leak if not used correctly, please
-  //  * prefer [[use]] as the standard way of running a `Resource`
-  //  * program.
-  //  *
-  //  * Use cases include interacting with side-effectful apis that
-  //  * expect separate acquire and release actions (like the `before`
-  //  * and `after` methods of many test frameworks), or complex library
-  //  * code that needs to modify or move the finalizer for an existing
-  //  * resource.
-  //  *
-  //  */
-  // def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G[*]]): G[(B, G[Unit])] = {
-  //   // Indirection for calling `loop` needed because `loop` must be @tailrec
-  //   def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
-  //     loop(current, stack, release)
+  /**
+   * Given a `Resource`, possibly built by composing multiple
+   * `Resource`s monadically, returns the acquired resource, as well
+   * as an action that runs all the finalizers for releasing it.
+   *
+   * If the outer `F` fails or is interrupted, `allocated` guarantees
+   * that the finalizers will be called. However, if the outer `F`
+   * succeeds, it's up to the user to ensure the returned `F[Unit]`
+   * is called once `A` needs to be released. If the returned
+   * `F[Unit]` is not called, the finalizers will not be run.
+   *
+   * For this reason, this is an advanced and potentially unsafe api
+   * which can cause a resource leak if not used correctly, please
+   * prefer [[use]] as the standard way of running a `Resource`
+   * program.
+   *
+   * Use cases include interacting with side-effectful apis that
+   * expect separate acquire and release actions (like the `before`
+   * and `after` methods of many test frameworks), or complex library
+   * code that needs to modify or move the finalizer for an existing
+   * resource.
+   *
+   */
+  def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G[*]]): G[(B, G[Unit])] = {
+    // Indirection for calling `loop` needed because `loop` must be @tailrec
+    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
+      loop(current, stack, release)
 
-  //   // Interpreter that knows how to evaluate a Resource data structure;
-  //   // Maintains its own stack for dealing with Bind chains
-  //   @tailrec def loop(current: Resource[G, Any],
-  //                     stack: List[Any => Resource[G, Any]],
-  //                     release: G[Unit]): G[(Any, G[Unit])] =
-  //     current match {
-  //       case a: Allocate[G, Any] =>
-  //         F.bracketCase(a.resource) {
-  //           case (a, rel) =>
-  //             stack match {
-  //               case Nil => F.pure(a -> F.guarantee(rel(ExitCase.Completed))(release))
-  //               case l   => continue(l.head(a), l.tail, F.guarantee(rel(ExitCase.Completed))(release))
-  //             }
-  //         } {
-  //           case (_, ExitCase.Completed) =>
-  //             F.unit
-  //           case ((_, release), ec) =>
-  //             release(ec)
-  //         }
-  //       case b: Bind[G, _, Any] =>
-  //         loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack, release)
-  //       case s: Suspend[G, Any] =>
-  //         s.resource.flatMap(continue(_, stack, release))
-  //     }
+    // Interpreter that knows how to evaluate a Resource data structure;
+    // Maintains its own stack for dealing with Bind chains
+    @tailrec def loop(current: Resource[G, Any],
+                      stack: List[Any => Resource[G, Any]],
+                      release: G[Unit]): G[(Any, G[Unit])] =
+      current match {
+        case a: Allocate[G, Any] =>
+          G.bracketCase(a.resource) {
+            case (a, rel) =>
+              stack match {
+                case Nil => G.pure(a -> G.guarantee(rel(Outcome.completed(G.pure(a))))(release))
+                case l   => continue(l.head(a), l.tail, G.guarantee(rel(Outcome.completed(G.pure(a))))(release))
+              }
+          } {
+            case (_, Outcome.Completed(_)) =>
+              G.unit
+            case ((_, release), ec) =>
+              release(ec)
+          }
+        case b: Bind[G, _, Any] =>
+          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack, release)
+        case s: Suspend[G, Any] =>
+          s.resource.flatMap(continue(_, stack, release))
+      }
 
-  //   loop(this.asInstanceOf[Resource[F, Any]], Nil, F.unit).map {
-  //     case (a, release) =>
-  //       (a.asInstanceOf[A], release)
-  //   }
-  // }
+    loop(this.asInstanceOf[Resource[F, Any]], Nil, G.unit).map {
+      case (a, release) =>
+        (a.asInstanceOf[A], release)
+    }
+  }
 
   /**
    * Applies an effectful transformation to the allocated resource. Like a
