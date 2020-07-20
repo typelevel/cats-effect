@@ -18,21 +18,30 @@ package cats.effect.syntax
 
 import cats.effect.kernel.Temporal
 
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
 trait TemporalSyntax {
+
   implicit def temporalOps[F[_], A, E](
       wrapped: F[A]
-  ): ConcurrentOps[F, A, E] =
-    new ConcurrentOps(wrapped)
+  ): TemporalOps[F, A, E] =
+    new TemporalOps(wrapped)
+
+  implicit def temporalTimeoutOps[F[_], A](
+      wrapped: F[A]
+  ): TemporalTimeoutOps[F, A] =
+    new TemporalTimeoutOps(wrapped)
 }
 
 final class TemporalOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
   def timeoutTo(duration: FiniteDuration, fallback: F[A])(implicit F: Temporal[F, E]): F[A] =
     F.timeoutTo(wrapped, duration, fallback)
+}
 
-  def timeout(duration: FiniteDuration)(implicit F: Temporal[F, Throwable]): F[A] =
+final class TemporalTimeoutOps[F[_], A](val wrapped: F[A]) extends AnyVal {
+
+  def timeout(duration: FiniteDuration)(implicit F: Temporal[F, _ >: TimeoutException]): F[A] =
     F.timeout(wrapped, duration)
-
 }

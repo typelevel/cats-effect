@@ -18,14 +18,13 @@ package cats.effect.syntax
 
 import cats.effect.kernel.SyncEffect
 
-import scala.concurrent.ExecutionContext
-
 trait SyncEffectSyntax {
-  implicit def syncEffectOps[F[_], A](wrapped: F[A]): SyncEffectOps[F, A] =
+  // `to` is also available on EffectSyntax, so we break the pattern to avoid ambiguity
+  implicit def syncEffectOps[F[_], A](wrapped: F[A])(implicit F: SyncEffect[F]): SyncEffectOps[F, A] =
     new SyncEffectOps(wrapped)
 }
 
-final class SyncEffectOps[F[_], A](val wrapped: F[A]) extends AnyVal {
-  def to[G[_]](implicit F: SyncEffect[F], G: SyncEffect[G]): G[A] =
+final class SyncEffectOps[F[_], A](val wrapped: F[A])(implicit F: SyncEffect[F]) {
+  def to[G[_]](implicit G: SyncEffect[G]): G[A] =
     F.to[G](wrapped)
 }

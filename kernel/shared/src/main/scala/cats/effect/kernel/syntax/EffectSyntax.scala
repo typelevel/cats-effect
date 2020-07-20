@@ -18,14 +18,13 @@ package cats.effect.syntax
 
 import cats.effect.kernel.Effect
 
-import scala.concurrent.ExecutionContext
-
 trait EffectSyntax {
-  implicit def effectOps[F[_], A](wrapped: F[A]): EffectOps[F, A] =
+  // `to` is also available on EffectSyntax, so we break the pattern to avoid ambiguity
+  implicit def effectOps[F[_], A](wrapped: F[A])(implicit F: Effect[F]): EffectOps[F, A] =
     new EffectOps(wrapped)
 }
 
-final class EffectOps[F[_], A](val wrapped: F[A]) extends AnyVal {
-  def to[G[_]](implicit F: Effect[F], G: Effect[G]): G[A] =
+final class EffectOps[F[_], A](val wrapped: F[A])(implicit F: Effect[F]) {
+  def to[G[_]](implicit G: Effect[G]): G[A] =
     F.to[G](wrapped)
 }

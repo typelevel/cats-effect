@@ -19,6 +19,7 @@ package cats.effect.syntax
 import cats.effect.kernel.{Concurrent, Fiber, Outcome}
 
 trait ConcurrentSyntax {
+
   implicit def concurrentOps[F[_], A, E](
       wrapped: F[A]
   ): ConcurrentOps[F, A, E] =
