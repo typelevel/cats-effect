@@ -57,10 +57,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private[effect] final class IOFiber[A](
-    name: String,
-    scheduler: unsafe.Scheduler,
-    initMask: Int)
+private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, initMask: Int)
     extends FiberIO[A] {
   import IO._
 

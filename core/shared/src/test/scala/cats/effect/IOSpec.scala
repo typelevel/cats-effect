@@ -354,8 +354,10 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
 
     "return the left when racing against never" in ticked { implicit ticker =>
-      IO.pure(42).racePair(IO.never: IO[Unit]).map(_.left.toOption.map(_._1)) must completeAs(
-        Some(42))
+      IO.pure(42)
+        .racePair(IO.never: IO[Unit])
+        .map(_.left.toOption.map(_._1).get) must completeAs(
+        Outcome.completed[IO, Throwable, Int](IO.pure(42)))
     }
 
     "produce Canceled from start of canceled" in ticked { implicit ticker =>
@@ -383,12 +385,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
       test must completeAs(())
       passed must beTrue
-    }
-
-    "produce the left when the right errors in racePair" in ticked { implicit ticker =>
-      (IO.cede >> IO.pure(42))
-        .racePair(IO.raiseError(new Throwable): IO[Unit])
-        .map(_.left.toOption.map(_._1)) must completeAs(Some(42))
     }
 
     "run three finalizers when an async is canceled while suspended" in ticked {

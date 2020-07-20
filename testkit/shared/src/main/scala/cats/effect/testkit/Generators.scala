@@ -174,7 +174,7 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
     List(
       "uncancelable" -> genUncancelable[A](deeper),
-//      "racePair" -> genRacePair[A](deeper),
+      "racePair" -> genRacePair[A](deeper),
       "start" -> genStart[A](deeper),
       "join" -> genJoin[A](deeper),
       "onCancel" -> genOnCancel[A](deeper)
@@ -209,28 +209,27 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       fin <- deeper[Unit]
     } yield F.onCancel(fa, fin)
 
-  // Need to figure out how to restate this
-//  private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-//    for {
-//      fa <- deeper[A]
-//      fb <- deeper[A]
-//
-//      cancel <- arbitrary[Boolean]
-//
-//      back = F.racePair(fa, fb).flatMap {
-//        case Left((a, f)) =>
-//          if (cancel)
-//            f.cancel.as(a)
-//          else
-//            f.join.as(a)
-//
-//        case Right((f, a)) =>
-//          if (cancel)
-//            f.cancel.as(a)
-//          else
-//            f.join.as(a)
-//      }
-//    } yield back
+  private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+    for {
+      fa <- deeper[A]
+      fb <- deeper[A]
+
+      cancel <- arbitrary[Boolean]
+
+      back = F.racePair(fa, fb).flatMap {
+        case Left((oc, f)) =>
+          if (cancel)
+            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+          else
+            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+
+        case Right((f, oc)) =>
+          if (cancel)
+            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+          else
+            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+      }
+    } yield back
 }
 
 trait TemporalGenerators[F[_], E] extends ConcurrentGenerators[F, E] with ClockGenerators[F] {

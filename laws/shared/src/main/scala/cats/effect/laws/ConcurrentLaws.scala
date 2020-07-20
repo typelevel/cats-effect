@@ -25,26 +25,6 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: Concurrent[F, E]
 
-  // Need to figure out how to restate this
-//  def raceIsRacePairCancelIdentityLeft[A](fa: F[A]) = {
-//    val identity = F.racePair(fa, F.never[Unit]).flatMap {
-//      case Left((a, f)) => f.cancel.as(a.asLeft[Unit])
-//      case Right((f, b)) => f.cancel.as(b.asRight[A])
-//    }
-//
-//    F.race(fa, F.never[Unit]) <-> identity
-//  }
-//
-//  // Need to figure out how to restate this
-//  def raceIsRacePairCancelIdentityRight[A](fa: F[A]) = {
-//    val identity = F.racePair(F.never[Unit], fa).flatMap {
-//      case Left((a, f)) => f.cancel.as(a.asLeft[A])
-//      case Right((f, b)) => f.cancel.as(b.asRight[Unit])
-//    }
-//
-//    F.race(F.never[Unit], fa) <-> identity
-//  }
-
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa) <-> fa.map(_.asRight[Unit])
 
