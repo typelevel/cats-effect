@@ -22,8 +22,7 @@ import cats.laws.discipline.arbitrary._
 import cats.implicits._
 import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentTests
-import cats.effect.testkit.{pure, ParallelFGenerators, PureConcGenerators},
-pure._
+import cats.effect.testkit.{pure, ParallelFGenerators, PureConcGenerators}, pure._
 import cats.effect.implicits._
 
 // import org.scalacheck.rng.Seed

@@ -247,8 +247,7 @@ object pure {
         Thread.done[A]
 
       private def startOne[Result](parentMasks: List[MaskId])(
-          foldResult: Result => PureConc[E, Unit])
-          : StartOnePartiallyApplied[Result] =
+          foldResult: Result => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =
         new StartOnePartiallyApplied(parentMasks, foldResult)
 
       // Using the partially applied pattern to defer the choice of L/R
@@ -291,10 +290,14 @@ object pure {
        */
       def racePair[A, B](fa: PureConc[E, A], fb: PureConc[E, B]): PureConc[
         E,
-        Either[(Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]), (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] =
+        Either[
+          (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
+          (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] =
         withCtx { (ctx: FiberCtx[E]) =>
           type Result =
-            Either[(Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]), (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]
+            Either[
+              (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
+              (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]
 
           for {
             results0 <- MVar.empty[PureConc[E, *], Result]
@@ -306,7 +309,8 @@ object pure {
             fiberAVar = fiberAVar0[PureConc[E, *]]
             fiberBVar = fiberBVar0[PureConc[E, *]]
 
-            resultReg: (Result => PureConc[E, Unit]) = (result: Result) => results.tryPut(result).void
+            resultReg: (Result => PureConc[E, Unit]) =
+              (result: Result) => results.tryPut(result).void
 
             start0 = startOne[Result](ctx.masks)(resultReg)
 

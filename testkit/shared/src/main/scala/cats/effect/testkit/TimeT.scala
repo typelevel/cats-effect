@@ -17,7 +17,7 @@
 package cats.effect
 package testkit
 
-import cats.{Group, Monad, Monoid, ~>}
+import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
 import cats.effect.kernel.{Concurrent, Fiber, Outcome, Temporal}
 import cats.syntax.all._
@@ -88,8 +88,11 @@ object TimeT {
     def never[A]: TimeT[F, A] =
       TimeT.liftF(F.never[A])
 
-    def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B])
-        : TimeT[F, Either[(Outcome[TimeT[F, *], E, A], Fiber[TimeT[F, *], E, B]), (Fiber[TimeT[F, *], E, A], Outcome[TimeT[F, *], E, B])]] =
+    def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
+      F,
+      Either[
+        (Outcome[TimeT[F, *], E, A], Fiber[TimeT[F, *], E, B]),
+        (Fiber[TimeT[F, *], E, A], Outcome[TimeT[F, *], E, B])]] =
       Kleisli { time =>
         val forkA = time.fork()
         val forkB = time.fork()
