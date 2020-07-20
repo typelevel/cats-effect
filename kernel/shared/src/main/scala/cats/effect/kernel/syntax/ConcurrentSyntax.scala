@@ -45,6 +45,7 @@ final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
   def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: Concurrent[F, E]): F[B] =
     F.bracket(wrapped)(use)(release)
 
-  def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(implicit F: Concurrent[F, E]): F[B] =
+  def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(
+      implicit F: Concurrent[F, E]): F[B] =
     F.bracketCase(wrapped)(use)(release)
 }

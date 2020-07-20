@@ -20,7 +20,8 @@ import cats.effect.kernel.SyncEffect
 
 trait SyncEffectSyntax {
   // `to` is also available on EffectSyntax, so we break the pattern to avoid ambiguity
-  implicit def syncEffectOps[F[_], A](wrapped: F[A])(implicit F: SyncEffect[F]): SyncEffectOps[F, A] =
+  implicit def syncEffectOps[F[_], A](wrapped: F[A])(
+      implicit F: SyncEffect[F]): SyncEffectOps[F, A] =
     new SyncEffectOps(wrapped)
 }
 

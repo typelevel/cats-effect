@@ -84,7 +84,8 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(implicit F: Temporal[F, TimeoutException]) = {
+  def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(
+      implicit F: Temporal[F, TimeoutException]) = {
     import cats.effect.syntax.temporal._
 
     {
@@ -106,7 +107,8 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def syncEffectSyntax[F[_], G[_], A](target: F[A])(implicit F: SyncEffect[F], G: SyncEffect[G]) = {
+  def syncEffectSyntax[F[_], G[_], A](
+      target: F[A])(implicit F: SyncEffect[F], G: SyncEffect[G]) = {
     import cats.effect.syntax.syncEffect._
 
     SyncEffect[F]: F.type

@@ -55,7 +55,8 @@ trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  def timeout[A](fa: F[A], duration: FiniteDuration)(implicit ev: TimeoutException <:< E): F[A] = {
+  def timeout[A](fa: F[A], duration: FiniteDuration)(
+      implicit ev: TimeoutException <:< E): F[A] = {
     val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
     timeoutTo(fa, duration, timeoutException)
   }
