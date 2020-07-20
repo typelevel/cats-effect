@@ -303,7 +303,7 @@ sealed abstract class Resource[+F[_], +A] {
 object Resource // extends ResourceInstances // with ResourcePlatform
 {
 
-  /** 
+  /**
    * Creates a resource from an allocating effect.
    *
    * @see [[make]] for a version that separates the needed resource
@@ -334,7 +334,8 @@ object Resource // extends ResourceInstances // with ResourcePlatform
    * @param resource an effect that returns a tuple of a resource and
    *        an effectful function to release it
    */
-  def applyCase[F[_], A](resource: F[(A, Outcome[F, Throwable, _] => F[Unit])]): Resource[F, A] =
+  def applyCase[F[_], A](
+      resource: F[(A, Outcome[F, Throwable, _] => F[Unit])]): Resource[F, A] =
     Allocate(resource)
 
   /**
@@ -353,7 +354,8 @@ object Resource // extends ResourceInstances // with ResourcePlatform
    * @param acquire a function to effectfully acquire a resource
    * @param release a function to effectfully release the resource returned by `acquire`
    */
-  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+  def make[F[_], A](acquire: F[A])(release: A => F[Unit])(
+      implicit F: Functor[F]): Resource[F, A] =
     apply[F, A](acquire.map(a => a -> release(a)))
 
   /**
@@ -368,7 +370,7 @@ object Resource // extends ResourceInstances // with ResourcePlatform
    * @param release a function to effectfully release the resource returned by `acquire`
    */
   def makeCase[F[_], A](
-    acquire: F[A]
+      acquire: F[A]
   )(release: (A, Outcome[F, Throwable, _]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
     applyCase[F, A](acquire.map(a => (a, (e: Outcome[F, Throwable, _]) => release(a, e))))
 
@@ -471,18 +473,70 @@ object Resource // extends ResourceInstances // with ResourcePlatform
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
-  final case class Allocate[F[_], A](resource: F[(A, Outcome[F, Throwable, _] => F[Unit])]) extends Resource[F, A]
+  final case class Allocate[F[_], A](resource: F[(A, Outcome[F, Throwable, _] => F[Unit])])
+      extends Resource[F, A]
 
   /**
    * `Resource` data constructor that encodes the `flatMap` operation.
    */
-  final case class Bind[F[_], S, +A](source: Resource[F, S], fs: S => Resource[F, A]) extends Resource[F, A]
+  final case class Bind[F[_], S, +A](source: Resource[F, S], fs: S => Resource[F, A])
+      extends Resource[F, A]
 
   /**
    * `Resource` data constructor that suspends the evaluation of another
    * resource value.
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Resource[F, A]
+
+  trait Bracket[F[_]] extends MonadError[F, Throwable] {
+    def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+        release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B]
+
+    def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
+      bracketCase(acquire)(use)((a, _) => release(a))
+
+    def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
+      bracket(unit)(_ => fa)(_ => finalizer)
+
+    def guaranteeCase[A](fa: F[A])(finalizer: Outcome[F, Throwable, A] => F[Unit]): F[A] =
+      bracketCase(unit)(_ => fa)((_, e) => finalizer(e))
+  }
+
+  trait Bracket0 {
+    implicit def catsEffectResourceBracketForSyncEffect[F[_]](
+        implicit F: SyncEffect[F]): Bracket[F] =
+      new Bracket[F] {
+        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+            release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B] =
+          flatMap(acquire) { a =>
+            val handled = onError(use(a)) {
+              case e => void(attempt(release(a, Outcome.Errored(e))))
+            }
+            flatMap(handled)(b => as(attempt(release(a, Outcome.Completed(pure(b)))), b))
+          }
+
+        def pure[A](x: A): F[A] = F.pure(x)
+        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+      }
+  }
+
+  object Bracket extends Bracket0 {
+    implicit def catsEffectResourceBracketForConcurrent[F[_]](
+        implicit F: Concurrent[F, Throwable]): Bracket[F] =
+      new Bracket[F] {
+        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+            release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B] =
+          F.bracketCase(acquire)(use)(release)
+        def pure[A](x: A): F[A] = F.pure(x)
+        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+      }
+  }
 
   // /**
   //  * Newtype encoding for a `Resource` datatype that has a `cats.Applicative`
