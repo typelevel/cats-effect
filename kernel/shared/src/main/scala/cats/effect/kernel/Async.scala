@@ -20,7 +20,7 @@ import cats.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] {
+trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwable] {
 
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
@@ -40,8 +40,6 @@ trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] {
         async_[A](cb => f.onComplete(t => cb(t.toEither)))
       }
     }
-
-  // TODO fromCompletableFuture / fromPromise
 }
 
 object Async {

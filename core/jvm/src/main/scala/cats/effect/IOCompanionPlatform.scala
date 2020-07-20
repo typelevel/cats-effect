@@ -21,16 +21,5 @@ import java.util.concurrent.CompletableFuture
 abstract private[effect] class IOCompanionPlatform { self: IO.type =>
 
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
-    fut.flatMap { cf =>
-      IO.async[A] { cb =>
-        IO {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
-          }
-
-          Some(IO(stage.cancel(false)).void)
-        }
-      }
-    }
+    effectForIO.fromCompletableFuture(fut)
 }

@@ -298,11 +298,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.both(right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
-    fut flatMap { f =>
-      executionContext flatMap { implicit ec =>
-        async_[A] { cb => f.onComplete(t => cb(t.toEither)) }
-      }
-    }
+    effectForIO.fromFuture(fut)
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     left.race(right)
@@ -358,7 +354,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def empty = IO.pure(A.empty)
   }
 
-  implicit val effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
+  private[this] val _effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
@@ -435,8 +431,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def delay[A](thunk: => A): IO[A] = IO(thunk)
   }
 
-  implicit val parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
+  implicit def effectForIO: Effect[IO] = _effectForIO
+
+  private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
     parallelForConcurrent[IO, Throwable]
+
+  implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 
   // implementations
 

@@ -14,12 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import scala.scalajs.js.Promise
+import java.util.concurrent.CompletableFuture
 
-abstract private[effect] class IOCompanionPlatform { self: IO.type =>
+private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
 
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    effectForIO.fromPromise(iop)
+  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
+    flatMap(fut) { cf =>
+      async[A] { cb =>
+        delay {
+          val stage = cf.handle[Unit] {
+            case (a, null) => cb(Right(a))
+            case (_, t) => cb(Left(t))
+          }
+
+          Some(void(delay(stage.cancel(false))))
+        }
+      }
+    }
 }
