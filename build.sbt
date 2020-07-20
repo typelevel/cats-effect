@@ -16,6 +16,9 @@
 
 import java.io.File
 
+import org.openqa.selenium.firefox.FirefoxOptions
+import org.scalajs.jsenv.selenium.SeleniumJSEnv
+
 ThisBuild / baseVersion := "3.0"
 
 ThisBuild / organization := "org.typelevel"
@@ -61,12 +64,31 @@ ThisBuild / githubWorkflowBuild := Seq(
 
 ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM")
 
+val JsRuns = List("ciJS", "ciFirefox")
+
 ThisBuild / githubWorkflowBuildMatrixInclusions ++=
-  (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")) map { scala =>
-    MatrixInclude(
-      Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> scala),
-      Map("ci" -> "ciJS"))
+  JsRuns flatMap { run =>
+    (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")) map { scala =>
+      MatrixInclude(
+        Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> scala),
+        Map("ci" -> run))
+    }
   }
+
+lazy val useFirefoxEnv = settingKey[Boolean]("Use headless Firefox (via geckodriver) for running tests")
+Global / useFirefoxEnv := false
+
+ThisBuild / Test / jsEnv := {
+  val old = (Test / jsEnv).value
+
+  if (useFirefoxEnv.value) {
+    val options = new FirefoxOptions()
+    options.addArguments("-headless")
+    new SeleniumJSEnv(options)
+  } else {
+    old
+  }
+}
 
 Global / homepage := Some(url("https://github.com/typelevel/cats-effect"))
 
@@ -81,6 +103,9 @@ val DisciplineVersion = "1.1.0"
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; testIfRelevant")
+
+// we do the firefox ci *only* on core because we're only really interested in IO here
+addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; coreJS/test; set Global / useFirefoxEnv := false")
 
 addCommandAlias("prePR", "; +root/scalafmtAll; +root/headerCreate")
 
