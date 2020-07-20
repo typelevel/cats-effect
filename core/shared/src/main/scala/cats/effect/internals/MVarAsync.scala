@@ -77,6 +77,20 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
       }
     }
 
+  def use[B](f: A => F[B]): F[B] =
+    modify(a => F.map(f(a))((a, _)))
+
+  def modify[B](f: A => F[(A, B)]): F[B] =
+    F.flatMap(take) { a =>
+      F.flatMap(F.onError(f(a)) { case _ => put(a) }) {
+        case (newA, b) =>
+          F.as(put(newA), b)
+      }
+    }
+
+  def modify_(f: A => F[A]): F[Unit] =
+    modify(a => F.map(f(a))((_, ())))
+
   @tailrec
   private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
