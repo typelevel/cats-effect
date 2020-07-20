@@ -44,12 +44,6 @@ trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] { self: Safe[F, E
       case Right(_) => fallback
     }
 
-}
-
-object Temporal {
-  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
-
   /**
    * Returns an effect that either completes with the result of the source within
    * the specified time `duration` or otherwise raises a `TimeoutException`.
@@ -61,9 +55,15 @@ object Temporal {
    *        complete; in the event that the specified time has passed without
    *        the source completing, a `TimeoutException` is raised
    */
-  def timeout[F[_], A](fa: F[A], duration: FiniteDuration)(
-      implicit F: Temporal[F, Throwable]): F[A] = {
-    val timeoutException = F.raiseError[A](new TimeoutException(duration.toString))
-    F.timeoutTo(fa, duration, timeoutException)
+  def timeout[A](fa: F[A], duration: FiniteDuration)(implicit ev: Throwable <:< E): F[A] = {
+    val timeoutException = raiseError[A](ev(new TimeoutException(duration.toString)))
+    timeoutTo(fa, duration, timeoutException)
   }
+
+}
+
+object Temporal {
+  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
+  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
+
 }

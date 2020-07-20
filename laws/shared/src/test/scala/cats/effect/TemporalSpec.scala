@@ -43,7 +43,7 @@ class TemporalSpec extends Specification { outer =>
   "temporal" should {
     "timeout" should {
       "succeed" in {
-        val op = Temporal.timeout(F.pure(true), 100.millis)
+        val op = F.timeout(F.pure(true), 100.millis)
 
         run(TimeT.run(op)) mustEqual Completed(Some(true))
       }
