@@ -80,6 +80,13 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
 
       if (canUsePostMessage()) {
         // postMessage is what we use for most modern browsers (when not in a webworker)
+
+        // generate a unique messagePrefix for everything we do
+        // collision here is *extremely* unlikely, but the random makes it somewhat less so
+        // as an example, if end-user code is using the setImmediate.js polyfill, we don't
+        // want to accidentally collide. Then again, if they *are* using the polyfill, we
+        // would pick it up above unless they init us first. Either way, the odds of
+        // collision here are microscopic.
         val messagePrefix = "setImmediate$" + Random.nextInt() + "$"
 
         def onGlobalMessage(event: js.Dynamic): Unit = {
