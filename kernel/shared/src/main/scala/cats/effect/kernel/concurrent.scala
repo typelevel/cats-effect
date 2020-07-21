@@ -27,7 +27,7 @@ trait Fiber[F[_], E, A] {
     join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
 
   def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
-    joinAndEmbed(F.never)
+    joinAndEmbed(F.canceled *> F.never)
 }
 
 trait Concurrent[F[_], E] extends MonadError[F, E] {
