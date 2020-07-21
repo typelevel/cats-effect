@@ -469,29 +469,6 @@ object Resource // extends ResourceInstances
   // )(acquire: F[A]): Resource[F, A] =
   //   Resource.make(blocker.blockOn(acquire))(autoCloseable => blocker.delay(autoCloseable.close()))
 
-  // /**
-  //  * Implementation for the `tailRecM` operation, as described via
-  //  * the `cats.Monad` type class.
-  //  */
-  // def tailRecM[F[_], A, B](a: A)(f: A => Resource[F, Either[A, B]])(implicit F: Monad[F]): Resource[F, B] = {
-  //   def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
-  //     r match {
-  //       case a: Allocate[F, Either[A, B]] =>
-  //         Suspend(a.resource.flatMap[Resource[F, B]] {
-  //           case (Left(a), release) =>
-  //             release(Completed).map(_ => tailRecM[F, A, B](a)(f))
-  //           case (Right(b), release) =>
-  //             F.pure(Allocate[F, B](F.pure((b, release))))
-  //         })
-  //       case s: Suspend[F, Either[A, B]] =>
-  //         Suspend(s.resource.map(continue))
-  //       case b: Bind[F, _, Either[A, B]] =>
-  //         Bind(b.source, AndThen(b.fs).andThen(continue))
-  //     }
-
-  //   continue(f(a))
-  // }
-
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
@@ -739,21 +716,37 @@ object ExitCase {
 //     Resource.applyCase[F, A](F.raiseError(e))
 // }
 
-// abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
-//   implicit protected def F: Monad[F]
+abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
+  implicit protected def F: Monad[F]
 
-//   override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
-//     fa.map(f)
+  override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
+    fa.map(f)
 
-//   def pure[A](a: A): Resource[F, A] =
-//     Resource.applyCase[F, A](F.pure((a, _ => F.unit)))
+  def pure[A](a: A): Resource[F, A] =
+    Resource.applyCase[F, A](F.pure((a, _ => F.unit)))
 
-//   def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
-//     fa.flatMap(f)
+  def flatMap[A, B](fa: Resource[F, A])(f: A => Resource[F, B]): Resource[F, B] =
+    fa.flatMap(f)
 
-//   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] =
-//     Resource.tailRecM(a)(f)
-// }
+  def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
+    def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
+      r match {
+        case a: Resource.Allocate[F, Either[A, B]] =>
+          Resource.Suspend(a.resource.flatMap[Resource[F, B]] {
+            case (Left(a), release) =>
+              release(ExitCase.Completed).map(_ => tailRecM(a)(f))
+            case (Right(b), release) =>
+              F.pure(Resource.Allocate[F, B](F.pure((b, release))))
+          })
+        case s: Resource.Suspend[F, Either[A, B]] =>
+          Resource.Suspend(s.resource.map(continue))
+        case b: Resource.Bind[F, _, Either[A, B]] =>
+          Resource.Bind(b.source, AndThen(b.fs).andThen(continue))
+      }
+
+    continue(f(a))
+  }
+}
 
 // abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
 //   implicit protected def A: Monoid[A]
