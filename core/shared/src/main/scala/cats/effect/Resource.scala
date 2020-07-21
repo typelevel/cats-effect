@@ -230,28 +230,21 @@ sealed abstract class Resource[+F[_], +A] {
   def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G[*]]): Resource[G[*], B] =
     flatMap(a => Resource.pure[G, B](f(a)))
 
-  // @deprecated("Use the overload that doesn't require Bracket", "2.2.0")
-  // private[effect] def mapK[G[x] >: F[x], H[_]](f: G ~> H,
-  //                                              B: Bracket[G, Throwable],
-  //                                              D: Defer[H],
-  //                                              G: Applicative[H]): Resource[H, A] =
-  //   this.mapK[G, H](f)(D, G)
-
-  // /**
-  //  * Given a natural transformation from `F` to `G`, transforms this
-  //  * Resource from effect `F` to effect `G`.
-  //  */
-  // def mapK[G[x] >: F[x], H[_]](
-  //   f: G ~> H
-  // )(implicit D: Defer[H], G: Applicative[H]): Resource[H, A] =
-  //   this match {
-  //     case Allocate(resource) =>
-  //       Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
-  //     case Bind(source, f0) =>
-  //       Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
-  //     case Suspend(resource) =>
-  //       Suspend(f(resource).map(_.mapK(f)))
-  //   }
+  /**
+   * Given a natural transformation from `F` to `G`, transforms this
+   * Resource from effect `F` to effect `G`.
+   */
+  def mapK[G[x] >: F[x], H[_]](
+    f: G ~> H
+  )(implicit D: Defer[H], G: Applicative[H]): Resource[H, A] =
+    this match {
+      case Allocate(resource) =>
+        Allocate(f(resource).map { case (a, r) => (a, r.andThen(u => f(u))) })
+      case Bind(source, f0) =>
+        Bind(Suspend(D.defer(G.pure(source.mapK(f)))), f0.andThen(_.mapK(f)))
+      case Suspend(resource) =>
+        Suspend(f(resource).map(_.mapK(f)))
+    }
 
   /**
    * Given a `Resource`, possibly built by composing multiple
