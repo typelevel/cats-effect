@@ -292,7 +292,7 @@ object pure {
         Either[
           (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
           (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] =
-        withCtx { (ctx: FiberCtx[E]) =>
+        withCtx { _ =>
           type Result =
             Either[
               (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),

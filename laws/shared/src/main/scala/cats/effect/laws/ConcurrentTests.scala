@@ -50,8 +50,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFEitherEA: Eq[F[Either[E, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
-      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
-      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
