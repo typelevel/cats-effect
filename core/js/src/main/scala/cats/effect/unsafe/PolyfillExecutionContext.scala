@@ -16,9 +16,10 @@
 
 package cats.effect.unsafe
 
-// import scala.collection.mutable
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.scalajs.js
+import scala.util.Random
 
 /**
  * Based on https://github.com/YuzuJS/setImmediate
@@ -34,20 +35,85 @@ private[unsafe] object PolyfillExecutionContext extends ExecutionContext {
 
   private[this] val setImmediate: (() => Unit) => Unit = {
     if (js.typeOf(js.Dynamic.global.setImmediate) == Undefined) {
-      /*var nextHandle = 1
+      var nextHandle = 1
       val tasksByHandle = mutable.Map[Int, () => Unit]()
       var currentlyRunningATask = false
-      val doc = js.Dynamic.global.document*/
 
-      /*if (js.eval("{}.toString.call(global.process)") == "[object process]") {
-        // Node.js before 0.9
-        js.Dynamic.process.nextTick(function () { runIfPresent(handle); })
-      } else {
+      def canUsePostMessage(): Boolean = {
+        // The test against `importScripts` prevents this implementation from being installed inside a web worker,
+        // where `global.postMessage` means something completely different and can't be used for this purpose.
+        if (js.typeOf(js.Dynamic.global.postMessage) != Undefined && js.typeOf(
+            js.Dynamic.global.importScripts) == Undefined) {
+          var postMessageIsAsynchronous = true
+          val oldOnMessage = js.Dynamic.global.onmessage
 
-      }*/
-      { k =>
-        js.Dynamic.global.setTimeout(k, 0)
+          js.Dynamic.global.onmessage = { () => postMessageIsAsynchronous = false }
+
+          js.Dynamic.global.postMessage("", "*")
+          js.Dynamic.global.onmessage = oldOnMessage
+          postMessageIsAsynchronous
+        } else {
+          false
+        }
+      }
+
+      def runIfPresent(handle: Int): Unit = {
+        if (currentlyRunningATask) {
+          js.Dynamic.global.setTimeout(() => runIfPresent(handle), 0)
+        } else {
+          tasksByHandle.get(handle) match {
+            case Some(task) =>
+              currentlyRunningATask = true
+              try {
+                task()
+              } finally {
+                tasksByHandle -= handle
+                currentlyRunningATask = false
+              }
+
+            case None =>
+          }
+        }
+
         ()
+      }
+
+      if (canUsePostMessage()) {
+        // postMessage is what we use for most modern browsers (when not in a webworker)
+        val messagePrefix = "setImmediate$" + Random.nextInt() + "$"
+
+        def onGlobalMessage(event: js.Dynamic): Unit = {
+          if (/*event.source == js.Dynamic.global.global &&*/ js.typeOf(
+              event.data) == "string" && event
+              .data
+              .indexOf(messagePrefix)
+              .asInstanceOf[Int] == 0) {
+            runIfPresent(event.data.toString.substring(messagePrefix.length).toInt)
+          }
+        }
+
+        if (js.typeOf(js.Dynamic.global.addEventListener) != Undefined) {
+          js.Dynamic.global.addEventListener("message", onGlobalMessage _, false)
+        } else {
+          js.Dynamic.global.attachEvent("onmessage", onGlobalMessage _)
+        }
+
+        { k =>
+          val handle = nextHandle
+          nextHandle += 1
+
+          tasksByHandle += (handle -> k)
+          js.Dynamic.global.postMessage(messagePrefix + handle, "*")
+          ()
+        }
+      } else {
+        // we don't try to look for process.nextTick since scalajs doesn't support old node
+        // we're also not going to bother fast-pathing for IE6; just fall through
+
+        { k =>
+          js.Dynamic.global.setTimeout(k, 0)
+          ()
+        }
       }
     } else {
       { k =>
