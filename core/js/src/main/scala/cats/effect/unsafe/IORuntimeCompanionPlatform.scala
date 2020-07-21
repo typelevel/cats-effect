@@ -18,13 +18,14 @@ package cats.effect.unsafe
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import scala.scalajs.concurrent.QueueExecutionContext
+// import scala.scalajs.concurrent.QueueExecutionContext
 import scala.scalajs.js.timers
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
 
   // the promises executor doesn't yield (scala-js/scala-js#4129)
-  def defaultComputeExecutionContext: ExecutionContext = QueueExecutionContext.timeouts()
+  def defaultComputeExecutionContext: ExecutionContext =
+    PolyfillExecutionContext
 
   def defaultScheduler: Scheduler =
     new Scheduler {

@@ -27,7 +27,7 @@ import org.specs2.ScalaCheck
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, TimeoutException}
 import scala.concurrent.duration._
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
@@ -180,7 +180,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
           _ <- f.cancel
         } yield ()
 
-        ioa must completeAs(())
+        ioa must nonTerminate // we're canceling an uncancelable never
         affected must beFalse
     }
 
@@ -522,6 +522,95 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "reliably cancel infinite IO.cede(s)" in real {
       IO.cede.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+    }
+
+    "await uncancelable blocks in cancelation" in ticked { implicit ticker =>
+      var started = false
+
+      val markStarted = IO { started = true }
+      lazy val cedeUntilStarted: IO[Unit] =
+        IO(started).ifM(IO.unit, IO.cede >> cedeUntilStarted)
+
+      IO.uncancelable(_ => markStarted *> IO.never)
+        .start
+        .flatMap(f => cedeUntilStarted *> f.cancel) must nonTerminate
+    }
+
+    "await cancelation of cancelation of uncancelable never" in ticked { implicit ticker =>
+      var started = false
+
+      val markStarted = IO { started = true }
+      lazy val cedeUntilStarted: IO[Unit] =
+        IO(started).ifM(IO.unit, IO.cede >> cedeUntilStarted)
+
+      var started2 = false
+
+      val markStarted2 = IO { started2 = true }
+      lazy val cedeUntilStarted2: IO[Unit] =
+        IO(started2).ifM(IO.unit, IO.cede >> cedeUntilStarted2)
+
+      val test = for {
+        first <- IO.uncancelable(_ => markStarted *> IO.never).start
+        second <-
+          IO.uncancelable(p => cedeUntilStarted *> markStarted2 *> p(first.cancel)).start
+        _ <- cedeUntilStarted2
+        _ <- second.cancel
+      } yield ()
+
+      test must nonTerminate
+    }
+
+    "temporal" should {
+      "timeout" should {
+        "succeed" in real {
+          val op = IO.pure(true).timeout(100.millis)
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+
+        "cancel a loop" in real {
+          val loop = IO.cede.foreverM
+
+          val op = loop.timeout(5.millis).attempt
+
+          op.flatMap { res =>
+            IO {
+              res must beLike {
+                case Left(e) => e must haveClass[TimeoutException]
+              }
+            }
+          }
+        }
+      }
+
+      "timeoutTo" should {
+        "succeed" in real {
+          val op =
+            IO.pure(true).timeoutTo(5.millis, IO.raiseError(new RuntimeException))
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+
+        "use fallback" in real {
+          val loop = IO.cede.foreverM
+
+          val op = loop.timeoutTo(5.millis, IO.pure(true))
+
+          op.flatMap { res =>
+            IO {
+              res must beTrue
+            }
+          }
+        }
+      }
     }
 
     platformSpecs
