@@ -318,7 +318,8 @@ sealed abstract class Resource[+F[_], +A] {
     this.evalMap(a => f(a).as(a))
 }
 
-object Resource // extends ResourceInstances // with ResourcePlatform
+object Resource // extends ResourceInstances
+ extends ResourcePlatform
 {
 
   /**
@@ -417,28 +418,28 @@ object Resource // extends ResourceInstances // with ResourcePlatform
       def apply[A](fa: F[A]): Resource[F,A] = Resource.liftF(fa)
     }
 
-  // /**
-  //  * Creates a [[Resource]] by wrapping a Java
-  //  * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
-  //  *
-  //  * Example:
-  //  * {{{
-  //  *   import cats.effect._
-  //  *   import scala.io.Source
-  //  *
-  //  *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
-  //  *     Resource.fromAutoCloseable(F.delay {
-  //  *       Source.fromString(data)
-  //  *     })
-  //  * }}}
-  //  * @param acquire The effect with the resource to acquire.
-  //  * @param F the effect type in which the resource was acquired and will be released
-  //  * @tparam F the type of the effect
-  //  * @tparam A the type of the autocloseable resource
-  //  * @return a Resource that will automatically close after use
-  //  */
-  // def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
-  //   Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
+  /**
+   * Creates a [[Resource]] by wrapping a Java
+   * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
+   *
+   * Example:
+   * {{{
+   *   import cats.effect._
+   *   import scala.io.Source
+   *
+   *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
+   *     Resource.fromAutoCloseable(F.delay {
+   *       Source.fromString(data)
+   *     })
+   * }}}
+   * @param acquire The effect with the resource to acquire.
+   * @param F the effect type in which the resource was acquired and will be released
+   * @tparam F the type of the effect
+   * @tparam A the type of the autocloseable resource
+   * @return a Resource that will automatically close after use
+   */
+  def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
+    Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
 
   // /**
   //  * Creates a [[Resource]] by wrapping a Java
@@ -589,7 +590,7 @@ object Resource // extends ResourceInstances // with ResourcePlatform
   // }
 }
 
-// abstract private[effect] class ResourceInstances extends ResourceInstances0 {
+//abstract private[effect] class ResourceInstances extends ResourceInstances0 {
 //   implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
 //     new ResourceMonadError[F, E] {
 //       def F = F0
@@ -622,7 +623,7 @@ object Resource // extends ResourceInstances // with ResourcePlatform
 //       def F0 = catsEffectCommutativeApplicativeForResourcePar
 //       def F1 = catsEffectMonadForResource
 //     }
-// }
+//}
 
 // abstract private[effect] class ResourceInstances0 {
 //   implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
