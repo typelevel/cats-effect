@@ -750,34 +750,34 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
   }
 }
 
-// abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
-//   implicit protected def A: Monoid[A]
+abstract private[effect] class ResourceMonoid[F[_], A] extends ResourceSemigroup[F, A] with Monoid[Resource[F, A]] {
+  implicit protected def A: Monoid[A]
 
-//   def empty: Resource[F, A] = Resource.pure[F, A](A.empty)
-// }
+  def empty: Resource[F, A] = Resource.pure[F, A](A.empty)
+}
 
-// abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
-//   implicit protected def F: Monad[F]
-//   implicit protected def A: Semigroup[A]
+abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Resource[F, A]] {
+  implicit protected def F: Monad[F]
+  implicit protected def A: Semigroup[A]
 
-//   def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-//     for {
-//       x <- rx
-//       y <- ry
-//     } yield A.combine(x, y)
-// }
+  def combine(rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+    } yield A.combine(x, y)
+}
 
-// abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
-//   implicit protected def F: Monad[F]
-//   implicit protected def K: SemigroupK[F]
+abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
+  implicit protected def F: Monad[F]
+  implicit protected def K: SemigroupK[F]
 
-//   def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-//     for {
-//       x <- rx
-//       y <- ry
-//       xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
-//     } yield xy
-// }
+  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
+    } yield xy
+}
 
 // abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
 //   implicit protected def F0: LiftIO[F]
