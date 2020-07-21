@@ -29,8 +29,15 @@ import scala.annotation.tailrec
  TODO
  initial scaladoc
  delete deprecated mapK
+ plan for mapK: it cannot be implemented, you need imapK because of Outcome
+  do we add imapK? do we add something for the SyncIO ~> IO use case?
+  rewrite bracket with onCancel, and a custom ExitCase type
+
+ port tests
+ introduce platform specific things
  add useForever
  bring instances back
+ change bracket instances to follow same code org strategy as the others
 */
 
 /**
@@ -402,11 +409,13 @@ object Resource // extends ResourceInstances // with ResourcePlatform
   def liftF[F[_], A](fa: F[A])(implicit F: Applicative[F]): Resource[F, A] =
     Resource.suspend(fa.map(a => Resource.pure[F, A](a)))
 
-  // /**
-  //  * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
-  //  */
-  // def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
-  //   λ[F ~> Resource[F, *]](Resource.liftF(_))
+  /**
+   * Lifts an applicative into a resource as a `FunctionK`. The resource has a no-op release.
+   */
+  def liftK[F[_]](implicit F: Applicative[F]): F ~> Resource[F, *] =
+    new (F ~> Resource[F, *]) {
+      def apply[A](fa: F[A]): Resource[F,A] = Resource.liftF(fa)
+    }
 
   // /**
   //  * Creates a [[Resource]] by wrapping a Java
