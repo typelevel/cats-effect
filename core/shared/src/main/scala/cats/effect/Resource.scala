@@ -18,12 +18,13 @@ package cats.effect
 
 import cats._
 import cats.data.AndThen
-import cats.effect.kernel.Outcome
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
 
 import scala.annotation.tailrec
+
+import Resource.ExitCase
 
 /**
  TODO
@@ -33,11 +34,19 @@ import scala.annotation.tailrec
   do we add imapK? do we add something for the SyncIO ~> IO use case?
   rewrite bracket with onCancel, and a custom ExitCase type
 
- port tests
- introduce platform specific things
+ port tests (ResourceSyntax, ResourceTests, ResourceJVMTests)
+  look at IOSpec, it's mostly going to be that (plus a mixin for the jvm stuff)
+  otoh I need to port the generators
+
+  also need to write compilation & runtime test once SyncIO is here
+
+
+ port blocking fromAutocloseable once blocker is here
  add useForever
  bring instances back
  change bracket instances to follow same code org strategy as the others
+
+ check that the comment on ExitCase.Completed is still valid
 */
 
 /**
@@ -282,11 +291,11 @@ sealed abstract class Resource[+F[_], +A] {
           G.bracketCase(a.resource) {
             case (a, rel) =>
               stack match {
-                case Nil => G.pure(a -> G.guarantee(rel(Outcome.completed(G.pure(a))))(release))
-                case l   => continue(l.head(a), l.tail, G.guarantee(rel(Outcome.completed(G.pure(a))))(release))
+                case Nil => G.pure(a -> G.guarantee(rel(ExitCase.Completed))(release))
+                case l   => continue(l.head(a), l.tail, G.guarantee(rel(ExitCase.Completed))(release))
               }
           } {
-            case (_, Outcome.Completed(_)) =>
+            case (_, ExitCase.Completed) =>
               G.unit
             case ((_, release), ec) =>
               release(ec)
@@ -337,7 +346,7 @@ object Resource // extends ResourceInstances
     Allocate[F, A] {
       resource.map {
         case (a, release) =>
-          (a, (_: Outcome[F, Throwable, _]) => release)
+          (a, (_: ExitCase) => release)
       }
     }
 
@@ -354,7 +363,7 @@ object Resource // extends ResourceInstances
    *        an effectful function to release it
    */
   def applyCase[F[_], A](
-      resource: F[(A, Outcome[F, Throwable, _] => F[Unit])]): Resource[F, A] =
+      resource: F[(A, ExitCase => F[Unit])]): Resource[F, A] =
     Allocate(resource)
 
   /**
@@ -390,8 +399,8 @@ object Resource // extends ResourceInstances
    */
   def makeCase[F[_], A](
       acquire: F[A]
-  )(release: (A, Outcome[F, Throwable, _]) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
-    applyCase[F, A](acquire.map(a => (a, (e: Outcome[F, Throwable, _]) => release(a, e))))
+  )(release: (A, ExitCase) => F[Unit])(implicit F: Functor[F]): Resource[F, A] =
+    applyCase[F, A](acquire.map(a => (a, e => release(a, e))))
 
   /**
    * Lifts a pure value into a resource. The resource has a no-op release.
@@ -399,7 +408,7 @@ object Resource // extends ResourceInstances
    * @param a the value to lift into a resource
    */
   def pure[F[_], A](a: A)(implicit F: Applicative[F]): Resource[F, A] =
-    Allocate((a, (_: Outcome[F, Throwable, _]) => F.unit).pure[F])
+    Allocate((a, (_: ExitCase) => F.unit).pure[F])
 
   /**
    * Lifts an applicative into a resource. The resource has a no-op release.
@@ -494,7 +503,7 @@ object Resource // extends ResourceInstances
    * `Resource` data constructor that wraps an effect allocating a resource,
    * along with its finalizers.
    */
-  final case class Allocate[F[_], A](resource: F[(A, Outcome[F, Throwable, _] => F[Unit])])
+  final case class Allocate[F[_], A](resource: F[(A, ExitCase => F[Unit])])
       extends Resource[F, A]
 
   /**
@@ -509,9 +518,54 @@ object Resource // extends ResourceInstances
    */
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Resource[F, A]
 
+
+  /**
+ * Type for signaling the exit condition of an effectful
+ * computation, that may either succeed, fail with an error or
+ * get canceled.
+ *
+ * The types of exit signals are:
+ *
+ *  - [[ExitCase$.Completed Completed]]: for successful completion
+ *  - [[ExitCase$.Error Error]]: for termination in failure
+ *  - [[ExitCase$.Canceled Canceled]]: for abortion
+ */
+sealed trait ExitCase extends Product with Serializable
+object ExitCase {
+
+  /**
+   * An [[ExitCase]] that signals successful completion.
+   *
+   * Note that "successful" is from the type of view of the
+   * `MonadError` type that's implementing [[Bracket]].
+   * When combining such a type with `EitherT` or `OptionT` for
+   * example, this exit condition might not signal a successful
+   * outcome for the user, but it does for the purposes of the
+   * `bracket` operation. 
+   */
+  case object Completed extends ExitCase
+
+  /**
+   * An [[ExitCase]] signaling completion in failure.
+   */
+  final case class Errored(e: Throwable) extends ExitCase
+
+  /**
+   * An [[ExitCase]] signaling that the action was aborted.
+   *
+   * As an example this can happen when we have a cancelable data type,
+   * like [[IO]] and the task yielded by `bracket` gets canceled
+   * when it's at its `use` phase.
+   *
+   * Thus [[Bracket]] allows you to observe interruption conditions
+   * and act on them.
+   */
+  case object Canceled extends ExitCase
+}
+
   trait Bracket[F[_]] extends MonadError[F, Throwable] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-        release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B]
+        release: (A, ExitCase) => F[Unit]): F[B]
 
     def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
       bracketCase(acquire)(use)((a, _) => release(a))
@@ -519,7 +573,7 @@ object Resource // extends ResourceInstances
     def guarantee[A](fa: F[A])(finalizer: F[Unit]): F[A] =
       bracket(unit)(_ => fa)(_ => finalizer)
 
-    def guaranteeCase[A](fa: F[A])(finalizer: Outcome[F, Throwable, A] => F[Unit]): F[A] =
+    def guaranteeCase[A](fa: F[A])(finalizer: ExitCase => F[Unit]): F[A] =
       bracketCase(unit)(_ => fa)((_, e) => finalizer(e))
   }
 
@@ -528,12 +582,12 @@ object Resource // extends ResourceInstances
         implicit F: SyncEffect[F]): Bracket[F] =
       new Bracket[F] {
         def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B] =
+            release: (A, ExitCase) => F[Unit]): F[B] =
           flatMap(acquire) { a =>
             val handled = onError(use(a)) {
-              case e => void(attempt(release(a, Outcome.Errored(e))))
+              case e => void(attempt(release(a, ExitCase.Errored(e))))
             }
-            flatMap(handled)(b => as(attempt(release(a, Outcome.Completed(pure(b)))), b))
+            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
           }
 
         def pure[A](x: A): F[A] = F.pure(x)
@@ -551,8 +605,16 @@ object Resource // extends ResourceInstances
         implicit F: Concurrent[F, Throwable]): Bracket[F] =
       new Bracket[F] {
         def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, Outcome[F, Throwable, B]) => F[Unit]): F[B] =
-          F.bracketCase(acquire)(use)(release)
+          release: (A, ExitCase) => F[Unit]): F[B] =
+          F.uncancelable { poll =>
+            flatMap(acquire) { a =>
+              val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
+              val handled = onError(finalized) {
+                case e => void(attempt(release(a, ExitCase.Errored(e))))
+              }
+              flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+            }
+          }
         def pure[A](x: A): F[A] = F.pure(x)
         def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
         def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
