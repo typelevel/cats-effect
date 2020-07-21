@@ -72,6 +72,12 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
   def racePair[A, B](fa: F[A], fb: F[B])
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 
+  def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
+    flatMap(racePair(fa, fb)) {
+      case Left((oc, f)) => as(f.cancel, Left(oc))
+      case Right((f, oc)) => as(f.cancel, Right(oc))
+    }
+
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
       case Left((oc, f)) =>

@@ -148,6 +148,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         }
     }
 
+  def raceOutcome[B](that: IO[B]): IO[Either[OutcomeIO[A @uncheckedVariance], OutcomeIO[B]]] =
+    racePair(that).flatMap {
+      case Left((oc, f)) => f.cancel.as(Left(oc))
+      case Right((f, oc)) => f.cancel.as(Right(oc))
+    }
+
   def racePair[B](that: IO[B]): IO[Either[
     (OutcomeIO[A @uncheckedVariance], FiberIO[B]),
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
