@@ -678,45 +678,47 @@ object ExitCase {
 //     }
 // }
 
-// abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
-//   import Resource.{Allocate, Bind, Suspend}
+abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
+  import Resource.{Allocate, Bind, Suspend}
 
-//   implicit protected def F: MonadError[F, E]
+  implicit protected def F: MonadError[F, E]
 
-//   override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
-//     fa match {
-//       case Allocate(fa) =>
-//         Allocate[F, Either[E, A]](F.attempt(fa).map {
-//           case Left(error)         => (Left(error), (_: ExitCase[Throwable]) => F.unit)
-//           case Right((a, release)) => (Right(a), release)
-//         })
-//       case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
-//         Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
-//           Bind(attempt(source),
-//                (r: Either[E, Any]) =>
-//                  r match {
-//                    case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
-//                    case Right(s)    => attempt(fs(s))
-//                  })
-//         })
-//       case Suspend(resource) =>
-//         Suspend(resource.attempt.map {
-//           case Left(error)               => Resource.pure[F, Either[E, A]](Left(error))
-//           case Right(fa: Resource[F, A]) => attempt(fa)
-//         })
-//     }
+  override def attempt[A](fa: Resource[F, A]): Resource[F, Either[E, A]] =
+    fa match {
+      case Allocate(fa) =>
+        Allocate[F, Either[E, A]](F.attempt(fa).map {
+          case Left(error)         => (Left(error), (_: ExitCase) => F.unit)
+          case Right((a, release)) => (Right(a), release)
+        })
+      case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
+        Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
+          Bind(attempt(source),
+               (r: Either[E, Any]) =>
+                 r match {
+                   case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
+                   case Right(s)    => attempt(fs(s))
+                 })
+        })
+      case Suspend(resource) =>
+        Suspend(resource.attempt.map {
+          case Left(error)               => Resource.pure[F, Either[E, A]](Left(error))
+          case Right(fa: Resource[F, A]) => attempt(fa)
+        })
+    }
 
-//   def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
-//     flatMap(attempt(fa)) {
-//       case Right(a) => Resource.pure[F, A](a)
-//       case Left(e)  => f(e)
-//     }
+  def handleErrorWith[A](fa: Resource[F, A])(f: E => Resource[F, A]): Resource[F, A] =
+    flatMap(attempt(fa)) {
+      case Right(a) => Resource.pure[F, A](a)
+      case Left(e)  => f(e)
+    }
 
-//   def raiseError[A](e: E): Resource[F, A] =
-//     Resource.applyCase[F, A](F.raiseError(e))
-// }
+  def raiseError[A](e: E): Resource[F, A] =
+    Resource.applyCase[F, A](F.raiseError(e))
+}
 
 abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]] {
+  import Resource.{Allocate, Bind, Suspend}
+
   implicit protected def F: Monad[F]
 
   override def map[A, B](fa: Resource[F, A])(f: A => B): Resource[F, B] =
@@ -731,17 +733,17 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r match {
-        case a: Resource.Allocate[F, Either[A, B]] =>
-          Resource.Suspend(a.resource.flatMap[Resource[F, B]] {
+        case a: Allocate[F, Either[A, B]] =>
+          Suspend(a.resource.flatMap[Resource[F, B]] {
             case (Left(a), release) =>
               release(ExitCase.Completed).map(_ => tailRecM(a)(f))
             case (Right(b), release) =>
-              F.pure(Resource.Allocate[F, B](F.pure((b, release))))
+              F.pure(Allocate[F, B](F.pure((b, release))))
           })
-        case s: Resource.Suspend[F, Either[A, B]] =>
-          Resource.Suspend(s.resource.map(continue))
-        case b: Resource.Bind[F, _, Either[A, B]] =>
-          Resource.Bind(b.source, AndThen(b.fs).andThen(continue))
+        case s: Suspend[F, Either[A, B]] =>
+          Suspend(s.resource.map(continue))
+        case b: Bind[F, _, Either[A, B]] =>
+          Bind(b.source, AndThen(b.fs).andThen(continue))
       }
 
     continue(f(a))
