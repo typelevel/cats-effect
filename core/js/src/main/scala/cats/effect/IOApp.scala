@@ -33,16 +33,19 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
-    val argList = if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(js.Dynamic.global.process.argv) != "undefined")
-      js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
-    else
-      args.toList
+    val argList =
+      if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(
+          js.Dynamic.global.process.argv) != "undefined")
+        js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
+      else
+        args.toList
 
-    IO.race(run(argList), keepAlive).unsafeRunAsync({
-      case Left(t) => throw t
-      case Right(Left(code)) => reportExitCode(code)
-      case Right(Right(_)) => sys.error("impossible")
-    })(unsafe.IORuntime.global)
+    IO.race(run(argList), keepAlive)
+      .unsafeRunAsync({
+        case Left(t) => throw t
+        case Right(Left(code)) => reportExitCode(code)
+        case Right(Right(_)) => sys.error("impossible")
+      })(unsafe.IORuntime.global)
   }
 
   private[this] def reportExitCode(code: Int): Unit =
