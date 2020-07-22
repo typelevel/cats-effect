@@ -253,26 +253,19 @@ object pure {
       // Using the partially applied pattern to defer the choice of L/R
       final class StartOnePartiallyApplied[Result](
           // resultReg is passed in here
-          foldResult: Result => PureConc[E, Unit]
-      ) {
-        // we play careful tricks here to forward the masks on from the parent to the child
-        // this is necessary because start drops masks
+          foldResult: Result => PureConc[E, Unit]) {
+
         def apply[L, OtherFiber](
             that: PureConc[E, L],
-            getOtherFiber: PureConc[E, OtherFiber]
-        )(
-            toResult: (Outcome[PureConc[E, *], E, L], OtherFiber) => Result
-        ): PureConc[E, L] =
-          withCtx { (ctx2: FiberCtx[E]) =>
-            val body = bracketCase(unit)(_ => that) {
-              case (_, oc) =>
-                for {
-                  fiberB <- getOtherFiber
-                  _ <- foldResult(toResult(oc, fiberB))
-                } yield ()
-            }
-
-            localCtx(ctx2.copy(masks = ctx2.masks), body)
+            getOtherFiber: PureConc[E, OtherFiber])(
+            toResult: (Outcome[PureConc[E, *], E, L], OtherFiber) => Result)
+            : PureConc[E, L] =
+          bracketCase(unit)(_ => that) {
+            case (_, oc) =>
+              for {
+                fiberB <- getOtherFiber
+                _ <- foldResult(toResult(oc, fiberB))
+              } yield ()
           }
       }
 
@@ -291,45 +284,44 @@ object pure {
         E,
         Either[
           (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
-          (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] =
-        withCtx { _ =>
-          type Result =
-            Either[
-              (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
-              (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]
+          (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] = {
 
-          for {
-            results0 <- MVar.empty[PureConc[E, *], Result]
-            results = results0[PureConc[E, *]]
+        type Result =
+          Either[
+            (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
+            (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]
 
-            fiberAVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, A]]
-            fiberBVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, B]]
+        for {
+          results0 <- MVar.empty[PureConc[E, *], Result]
+          results = results0[PureConc[E, *]]
 
-            fiberAVar = fiberAVar0[PureConc[E, *]]
-            fiberBVar = fiberBVar0[PureConc[E, *]]
+          fiberAVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, A]]
+          fiberBVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, B]]
 
-            resultReg: (Result => PureConc[E, Unit]) =
-              (result: Result) => results.tryPut(result).void
+          fiberAVar = fiberAVar0[PureConc[E, *]]
+          fiberBVar = fiberBVar0[PureConc[E, *]]
 
-            start0 = startOne[Result](resultReg)
+          resultReg: (Result => PureConc[E, Unit]) =
+            (result: Result) => results.tryPut(result).void
 
-            fa2 = start0(fa, fiberBVar.read) { (oca, fiberB) => Left((oca, fiberB)) }
-            fb2 = start0(fb, fiberAVar.read) { (ocb, fiberA) => Right((fiberA, ocb)) }
+          start0 = startOne[Result](resultReg)
 
-            back <- uncancelable { poll =>
-              for {
-                // note that we're uncancelable here, but we captured the masks *earlier* so we forward those along, ignoring this one
-                fiberA <- start(fa2)
-                fiberB <- start(fb2)
+          fa2 = start0(fa, fiberBVar.read) { (oca, fiberB) => Left((oca, fiberB)) }
+          fb2 = start0(fb, fiberAVar.read) { (ocb, fiberA) => Right((fiberA, ocb)) }
 
-                _ <- fiberAVar.put(fiberA)
-                _ <- fiberBVar.put(fiberB)
+          back <- uncancelable { poll =>
+            for {
+              fiberA <- start(fa2)
+              fiberB <- start(fb2)
 
-                back <- onCancel(poll(results.read), fiberA.cancel >> fiberB.cancel)
-              } yield back
-            }
-          } yield back
-        }
+              _ <- fiberAVar.put(fiberA)
+              _ <- fiberBVar.put(fiberB)
+
+              back <- onCancel(poll(results.read), fiberA.cancel >> fiberB.cancel)
+            } yield back
+          }
+        } yield back
+      }
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
         MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>

@@ -49,6 +49,9 @@ trait ConcurrentInstances {
 
       def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
 
+      override def map[A, B](fa: ParallelF[F, A])(f: A => B): ParallelF[F, B] =
+        ParallelF(ParallelF.value(fa).map(f))
+
       def ap[A, B](ff: ParallelF[F, A => B])(fa: ParallelF[F, A]): ParallelF[F, B] =
         ParallelF(
           F.both(ParallelF.value(ff), ParallelF.value(fa)).map {
