@@ -14,24 +14,28 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import java.util.concurrent.CompletableFuture
+import scala.scalajs.js.{|, defined, JavaScriptException, Promise, Thenable}
 
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
+private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
 
-  // TODO deduplicate with AsyncPlatform#fromCompletableFuture (requires Dotty 0.26 or higher)
-  def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
-    fut flatMap { cf =>
-      async[A] { cb =>
-        IO {
-          val stage = cf.handle[Unit] {
-            case (a, null) => cb(Right(a))
-            case (_, t) => cb(Left(t))
+  def fromPromise[A](iop: F[Promise[A]]): F[A] =
+    flatMap(iop) { p =>
+      async_[A] { cb =>
+        p.`then`[Unit](
+          (v: A) => cb(Right(v)): Unit | Thenable[Unit],
+          defined { (a: Any) =>
+            val e = a match {
+              case th: Throwable => th
+              case _ => JavaScriptException(a)
+            }
+
+            cb(Left(e)): Unit | Thenable[Unit]
           }
+        )
 
-          Some(IO(stage.cancel(false)).void)
-        }
+        ()
       }
     }
 }

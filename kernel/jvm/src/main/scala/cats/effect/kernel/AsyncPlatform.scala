@@ -14,11 +14,23 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats.effect.kernel
 
-trait AllSyntax
-    extends ConcurrentSyntax
-    with TemporalSyntax
-    with AsyncSyntax
-    with SyncEffectSyntax
-    with EffectSyntax
+import java.util.concurrent.CompletableFuture
+
+private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
+
+  def fromCompletableFuture[A](fut: F[CompletableFuture[A]]): F[A] =
+    flatMap(fut) { cf =>
+      async[A] { cb =>
+        delay {
+          val stage = cf.handle[Unit] {
+            case (a, null) => cb(Right(a))
+            case (_, t) => cb(Left(t))
+          }
+
+          Some(void(delay(stage.cancel(false))))
+        }
+      }
+    }
+}

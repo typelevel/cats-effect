@@ -16,9 +16,15 @@
 
 package cats.effect.syntax
 
-trait AllSyntax
-    extends ConcurrentSyntax
-    with TemporalSyntax
-    with AsyncSyntax
-    with SyncEffectSyntax
-    with EffectSyntax
+import cats.effect.kernel.Effect
+
+trait EffectSyntax {
+  // `to` is also available on EffectSyntax, so we break the pattern to avoid ambiguity
+  implicit def effectOps[F[_], A](wrapped: F[A])(implicit F: Effect[F]): EffectOps[F, A] =
+    new EffectOps(wrapped)
+}
+
+final class EffectOps[F[_], A](val wrapped: F[A])(implicit F: Effect[F]) {
+  def to[G[_]](implicit G: Effect[G]): G[A] =
+    F.to[G](wrapped)
+}

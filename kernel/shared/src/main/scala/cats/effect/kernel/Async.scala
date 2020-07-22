@@ -18,18 +18,28 @@ package cats.effect.kernel
 
 import cats.implicits._
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
-trait Async[F[_]] extends Sync[F] with Temporal[F, Throwable] {
+trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwable] {
 
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+
+  def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
+    async[A](cb => as(delay(k(cb)), None))
 
   def never[A]: F[A] = async(_ => pure(none[F[Unit]]))
 
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
   def executionContext: F[ExecutionContext]
+
+  def fromFuture[A](fut: F[Future[A]]): F[A] =
+    flatMap(fut) { f =>
+      flatMap(executionContext) { implicit ec =>
+        async_[A](cb => f.onComplete(t => cb(t.toEither)))
+      }
+    }
 }
 
 object Async {

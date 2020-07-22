@@ -128,10 +128,12 @@ lazy val rootJS = project
 lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
   .settings(
     name := "cats-effect-kernel",
-    libraryDependencies += "org.typelevel" %%% "cats-core" % CatsVersion)
+
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-core"   % CatsVersion,
+      "org.specs2"    %%% "specs2-core" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck

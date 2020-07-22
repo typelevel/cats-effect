@@ -16,9 +16,16 @@
 
 package cats.effect.syntax
 
-trait AllSyntax
-    extends ConcurrentSyntax
-    with TemporalSyntax
-    with AsyncSyntax
-    with SyncEffectSyntax
-    with EffectSyntax
+import cats.effect.kernel.SyncEffect
+
+trait SyncEffectSyntax {
+  // `to` is also available on EffectSyntax, so we break the pattern to avoid ambiguity
+  implicit def syncEffectOps[F[_], A](wrapped: F[A])(
+      implicit F: SyncEffect[F]): SyncEffectOps[F, A] =
+    new SyncEffectOps(wrapped)
+}
+
+final class SyncEffectOps[F[_], A](val wrapped: F[A])(implicit F: SyncEffect[F]) {
+  def to[G[_]](implicit G: SyncEffect[G]): G[A] =
+    F.to[G](wrapped)
+}

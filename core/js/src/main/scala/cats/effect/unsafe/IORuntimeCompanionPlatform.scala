@@ -21,7 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 // import scala.scalajs.concurrent.QueueExecutionContext
 import scala.scalajs.js.timers
 
-private[unsafe] abstract class IORuntimeCompanionPlatform { self: IORuntime.type =>
+private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
 
   // the promises executor doesn't yield (scala-js/scala-js#4129)
   def defaultComputeExecutionContext: ExecutionContext =
