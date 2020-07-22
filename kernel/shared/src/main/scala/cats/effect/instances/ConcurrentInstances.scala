@@ -16,18 +16,19 @@
 
 package cats.effect.instances
 
-import cats.{~>, Align, Applicative, Functor, Monad, Parallel}
+import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
 import cats.data.Ior
 import cats.implicits._
 import cats.effect.kernel.{Concurrent, ParallelF}
 
 trait ConcurrentInstances {
+
   implicit def parallelForConcurrent[M[_], E](
       implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
     new Parallel[M] {
       type F[A] = ParallelF[M, A]
 
-      def applicative: Applicative[F] = applicativeForParallelF[M, E]
+      def applicative: Applicative[F] = commutativeApplicativeForParallelF[M, E]
 
       def monad: Monad[M] = M
 
@@ -43,29 +44,41 @@ trait ConcurrentInstances {
 
     }
 
-  implicit def applicativeForParallelF[F[_], E](
-      implicit F: Concurrent[F, E]): Applicative[ParallelF[F, *]] =
-    new Applicative[ParallelF[F, *]] {
+  implicit def commutativeApplicativeForParallelF[F[_], E](
+      implicit F: Concurrent[F, E]): CommutativeApplicative[ParallelF[F, *]] =
+    new CommutativeApplicative[ParallelF[F, *]] {
 
-      def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
+      final override def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
 
-      override def map[A, B](fa: ParallelF[F, A])(f: A => B): ParallelF[F, B] =
-        ParallelF(ParallelF.value(fa).map(f))
-
-      def ap[A, B](ff: ParallelF[F, A => B])(fa: ParallelF[F, A]): ParallelF[F, B] =
+      final override def map2[A, B, Z](fa: ParallelF[F, A], fb: ParallelF[F, B])(
+          f: (A, B) => Z): ParallelF[F, Z] =
         ParallelF(
-          F.both(ParallelF.value(ff), ParallelF.value(fa)).map {
-            case (f, a) => f(a)
+          F.both(ParallelF.value(fa), ParallelF.value(fb)).map {
+            case (a, b) => f(a, b)
           }
         )
 
+      final override def ap[A, B](ff: ParallelF[F, A => B])(
+          fa: ParallelF[F, A]): ParallelF[F, B] =
+        map2(ff, fa)(_(_))
+
+      final override def product[A, B](
+          fa: ParallelF[F, A],
+          fb: ParallelF[F, B]): ParallelF[F, (A, B)] =
+        map2(fa, fb)((_, _))
+
+      final override def map[A, B](fa: ParallelF[F, A])(f: A => B): ParallelF[F, B] =
+        ParallelF(ParallelF.value(fa).map(f))
+
+      final override def unit: ParallelF[F, Unit] =
+        ParallelF(F.unit)
     }
 
   implicit def alignForParallelF[F[_], E](
       implicit F: Concurrent[F, E]): Align[ParallelF[F, *]] =
     new Align[ParallelF[F, *]] {
 
-      override def functor: Functor[ParallelF[F, *]] = applicativeForParallelF[F, E]
+      override def functor: Functor[ParallelF[F, *]] = commutativeApplicativeForParallelF[F, E]
 
       override def align[A, B](
           fa: ParallelF[F, A],
