@@ -17,10 +17,9 @@
 package cats.effect
 package concurrent
 
+import cats.~>
 import cats.implicits._
 import cats.effect.kernel.{Async, Fiber, Sync}
-import cats.effect.concurrent.MVar.TransformedMVar
-import cats.~>
 
 import scala.annotation.tailrec
 
@@ -142,10 +141,48 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
   def tryRead: F[Option[A]]
 
   /**
-   * Modify the context `F` using transformation `f`.
+   * Applies the effectful function `f` on the contents of this `MVar`. In case of failure, it sets the contents of the
+   * `MVar` to the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return the value produced by applying `f` to the contents of this `MVar`
    */
-  def mapK[G[_]](f: F ~> G): MVar[G, A] =
-    new TransformedMVar(this, f)
+  def use[B](f: A => F[B]): F[B]
+
+  /**
+   * Modifies the contents of the `MVar` using the effectful function `f`, but also allows for returning a value derived
+   * from the original contents of the `MVar`. Like [[use]], in case of failure, it sets the contents of the `MVar` to
+   * the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return the second value produced by applying `f` to the contents of this `MVar`
+   */
+  def modify[B](f: A => F[(A, B)]): F[B]
+
+  /**
+   * Modifies the contents of the `MVar` using the effectful function `f`. Like [[use]], in case of failure, it sets the
+   * contents of the `MVar` to the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return no useful value. Executed only for the effects.
+   */
+  def modify_(f: A => F[A]): F[Unit]
+
+  /**
+   * Modify the context `F` using natural isomorphism `f` with `g`.
+   *
+   * @param f functor transformation from `F` to `G`
+   * @param g functor transformation from `G` to `F`
+   * @return `MVar2` with a modified context `G` derived using a natural isomorphism from `F`
+   */
+  def imapK[G[_]](f: F ~> G, g: G ~> F): MVar[G, A] =
+    new MVar.TransformedMVar(this, f, g)
 }
 
 /**
@@ -181,9 +218,7 @@ object MVar {
   /**
    * Creates a cancelable `MVar` that starts as empty.
    *
-   * @see [[uncancelableEmpty]] for non-cancelable MVars
-   *
-   * @param F is a [[Concurrent]] constraint, needed in order to
+   * @param F is an [[Async]] constraint, needed in order to
    *        describe cancelable operations
    */
   def empty[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
@@ -192,8 +227,6 @@ object MVar {
   /**
    * Creates a cancelable `MVar` that's initialized to an `initial`
    * value.
-   *
-   * @see [[uncancelableOf]] for non-cancelable MVars
    *
    * @param initial is a value that will be immediately available
    *        for the first `read` or `take` operation
@@ -240,7 +273,8 @@ object MVar {
 
   final private[concurrent] class TransformedMVar[F[_], G[_], A](
       underlying: MVar[F, A],
-      trans: F ~> G)
+      trans: F ~> G,
+      inverse: G ~> F)
       extends MVar[G, A] {
     override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
     override def put(a: A): G[Unit] = trans(underlying.put(a))
@@ -250,6 +284,10 @@ object MVar {
     override def read: G[A] = trans(underlying.read)
     override def tryRead: G[Option[A]] = trans(underlying.tryRead)
     override def swap(newValue: A): G[A] = trans(underlying.swap(newValue))
+    override def use[B](f: A => G[B]): G[B] = trans(underlying.use(a => inverse(f(a))))
+    override def modify[B](f: A => G[(A, B)]): G[B] =
+      trans(underlying.modify(a => inverse(f(a))))
+    override def modify_(f: A => G[A]): G[Unit] = trans(underlying.modify_(a => inverse(f(a))))
   }
 }
 
@@ -308,7 +346,25 @@ final private[effect] class MVarAsync[F[_], A] private (initial: MVarAsync.State
     }
 
   def swap(newValue: A): F[A] =
-    F.flatMap(take) { oldValue => F.map(put(newValue))(_ => oldValue) }
+    F.uncancelable { poll =>
+      F.flatMap(poll(take)) { oldValue => F.as(put(newValue), oldValue) }
+    }
+
+  def use[B](f: A => F[B]): F[B] =
+    modify(a => F.map(f(a))((a, _)))
+
+  def modify[B](f: A => F[(A, B)]): F[B] =
+    F.uncancelable { poll =>
+      F.flatMap(poll(take)) { a =>
+        F.flatMap(F.onCancel(poll(f(a)), put(a))) {
+          case (newA, b) =>
+            F.as(put(newA), b)
+        }
+      }
+    }
+
+  def modify_(f: A => F[A]): F[Unit] =
+    modify(a => F.map(f(a))((_, ())))
 
   @tailrec private def unsafeTryPut(a: A): F[Boolean] =
     stateRef.get match {
