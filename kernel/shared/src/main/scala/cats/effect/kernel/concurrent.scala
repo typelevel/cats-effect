@@ -79,67 +79,75 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 
   def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    flatMap(racePair(fa, fb)) {
-      case Left((oc, f)) => as(f.cancel, Left(oc))
-      case Right((f, oc)) => as(f.cancel, Right(oc))
+    uncancelable { _ =>
+      flatMap(racePair(fa, fb)) {
+        case Left((oc, f)) => as(f.cancel, Left(oc))
+        case Right((f, oc)) => as(f.cancel, Right(oc))
+      }
     }
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    flatMap(racePair(fa, fb)) {
-      case Left((oc, f)) =>
-        oc match {
-          case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
-          case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
-          case Outcome.Canceled() =>
-            flatMap(f.join) {
-              case Outcome.Completed(fb) => map(fb)(Right(_))
-              case Outcome.Errored(eb) => raiseError(eb)
-              case Outcome.Canceled() => productR(canceled)(never)
-            }
-        }
-      case Right((f, oc)) =>
-        oc match {
-          case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
-          case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
-          case Outcome.Canceled() =>
-            flatMap(f.join) {
-              case Outcome.Completed(fa) => map(fa)(Left(_))
-              case Outcome.Errored(ea) => raiseError(ea)
-              case Outcome.Canceled() => productR(canceled)(never)
-            }
-        }
+    uncancelable { poll =>
+      flatMap(racePair(fa, fb)) {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
+            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
+            case Outcome.Canceled() =>
+              flatMap(onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fb) => map(fb)(Right(_))
+                case Outcome.Errored(eb) => raiseError(eb)
+                case Outcome.Canceled() => productR(canceled)(never)
+              }
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
+            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
+            case Outcome.Canceled() =>
+              flatMap(onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fa) => map(fa)(Left(_))
+                case Outcome.Errored(ea) => raiseError(ea)
+                case Outcome.Canceled() => productR(canceled)(never)
+              }
+          }
+      }
     }
 
   def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
-    flatMap(racePair(fa, fb)) {
-      case Left((oc, f)) => map(f.join)((oc, _))
-      case Right((f, oc)) => map(f.join)((_, oc))
+    uncancelable { poll =>
+      flatMap(racePair(fa, fb)) {
+        case Left((oc, f)) => map(onCancel(poll(f.join), f.cancel))((oc, _))
+        case Right((f, oc)) => map(onCancel(poll(f.join), f.cancel))((_, oc))
+      }
     }
 
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
-    flatMap(racePair(fa, fb)) {
-      case Left((oc, f)) =>
-        oc match {
-          case Outcome.Completed(fa) =>
-            flatMap(f.join) {
-              case Outcome.Completed(fb) => product(fa, fb)
-              case Outcome.Errored(eb) => raiseError(eb)
-              case Outcome.Canceled() => productR(canceled)(never)
-            }
-          case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
-          case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
-        }
-      case Right((f, oc)) =>
-        oc match {
-          case Outcome.Completed(fb) =>
-            flatMap(f.join) {
-              case Outcome.Completed(fa) => product(fa, fb)
-              case Outcome.Errored(ea) => raiseError(ea)
-              case Outcome.Canceled() => productR(canceled)(never)
-            }
-          case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
-          case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
-        }
+    uncancelable { poll =>
+      flatMap(racePair(fa, fb)) {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Completed(fa) =>
+              flatMap(onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fb) => product(fa, fb)
+                case Outcome.Errored(eb) => raiseError(eb)
+                case Outcome.Canceled() => productR(canceled)(never)
+              }
+            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
+            case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Completed(fb) =>
+              flatMap(onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fa) => product(fa, fb)
+                case Outcome.Errored(ea) => raiseError(ea)
+                case Outcome.Canceled() => productR(canceled)(never)
+              }
+            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
+            case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
+          }
+      }
     }
 }
 
