@@ -246,48 +246,23 @@ object pure {
       def never[A]: PureConc[E, A] =
         Thread.done[A]
 
-      private def startOne[Result](parentMasks: List[MaskId])(
-          foldResult: Outcome[Id, E, Result] => PureConc[E, Unit])
-          : StartOnePartiallyApplied[Result] =
-        new StartOnePartiallyApplied(parentMasks, foldResult)
+      private def startOne[Result](
+          foldResult: Result => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =
+        new StartOnePartiallyApplied(foldResult)
 
       // Using the partially applied pattern to defer the choice of L/R
       final class StartOnePartiallyApplied[Result](
-          parentMasks: List[MaskId],
-          foldResult: Outcome[Id, E, Result] => PureConc[E, Unit]
-      ) {
-        // we play careful tricks here to forward the masks on from the parent to the child
-        // this is necessary because start drops masks
-        def apply[L, OtherFiber](
-            that: PureConc[E, L],
-            getOtherFiber: PureConc[E, OtherFiber]
-        )(
-            toResult: (L, OtherFiber) => Result
-        ): PureConc[E, L] =
-          withCtx { (ctx2: FiberCtx[E]) =>
-            val body = bracketCase(unit)(_ => that) {
-              case (_, Outcome.Completed(fa)) =>
-                // we need to do special magic to make cancelation distribute over race analogously to uncancelable
-                ctx2
-                  .self
-                  .canceled
-                  .ifM(
-                    foldResult(Outcome.Canceled()),
-                    for {
-                      a <- fa
-                      fiberB <- getOtherFiber
-                      _ <- foldResult(Outcome.Completed[Id, E, Result](toResult(a, fiberB)))
-                    } yield ()
-                  )
+          // resultReg is passed in here
+          foldResult: Result => PureConc[E, Unit]) {
 
-              case (_, Outcome.Errored(e)) =>
-                foldResult(Outcome.Errored(e))
-
-              case (_, Outcome.Canceled()) =>
-                foldResult(Outcome.Canceled())
-            }
-
-            localCtx(ctx2.copy(masks = ctx2.masks ::: parentMasks), body)
+        def apply[L, OtherFiber](that: PureConc[E, L], getOtherFiber: PureConc[E, OtherFiber])(
+            toResult: (Outcome[PureConc[E, *], E, L], OtherFiber) => Result): PureConc[E, L] =
+          bracketCase(unit)(_ => that) {
+            case (_, oc) =>
+              for {
+                fiberB <- getOtherFiber
+                _ <- foldResult(toResult(oc, fiberB))
+              } yield ()
           }
       }
 
@@ -304,118 +279,46 @@ object pure {
        */
       def racePair[A, B](fa: PureConc[E, A], fb: PureConc[E, B]): PureConc[
         E,
-        Either[(A, Fiber[PureConc[E, *], E, B]), (Fiber[PureConc[E, *], E, A], B)]] =
-        withCtx { (ctx: FiberCtx[E]) =>
-          type Result =
-            Either[(A, Fiber[PureConc[E, *], E, B]), (Fiber[PureConc[E, *], E, A], B)]
+        Either[
+          (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
+          (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]] = {
 
-          for {
-            results0 <- MVar.empty[PureConc[E, *], Outcome[Id, E, Result]]
-            results = results0[PureConc[E, *]]
+        type Result =
+          Either[
+            (Outcome[PureConc[E, *], E, A], Fiber[PureConc[E, *], E, B]),
+            (Fiber[PureConc[E, *], E, A], Outcome[PureConc[E, *], E, B])]
 
-            fiberAVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, A]]
-            fiberBVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, B]]
+        for {
+          results0 <- MVar.empty[PureConc[E, *], Result]
+          results = results0[PureConc[E, *]]
 
-            fiberAVar = fiberAVar0[PureConc[E, *]]
-            fiberBVar = fiberBVar0[PureConc[E, *]]
+          fiberAVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, A]]
+          fiberBVar0 <- MVar.empty[PureConc[E, *], Fiber[PureConc[E, *], E, B]]
 
-            cancelVar0 <- MVar.empty[PureConc[E, *], Unit]
-            errorVar0 <- MVar.empty[PureConc[E, *], E]
+          fiberAVar = fiberAVar0[PureConc[E, *]]
+          fiberBVar = fiberBVar0[PureConc[E, *]]
 
-            cancelVar = cancelVar0[PureConc[E, *]]
-            errorVar = errorVar0[PureConc[E, *]]
+          resultReg: (Result => PureConc[E, Unit]) =
+            (result: Result) => results.tryPut(result).void
 
-            completeWithError = (e: E) => results.tryPut(Outcome.Errored(e)).void // last wins
-            completeWithCancel = results.tryPut(Outcome.Canceled()).void
+          start0 = startOne[Result](resultReg)
 
-            cancelReg = cancelVar.tryRead.flatMap {
-              case Some(_) =>
-                completeWithCancel // the other one has canceled, so cancel the whole
+          fa2 = start0(fa, fiberBVar.read) { (oca, fiberB) => Left((oca, fiberB)) }
+          fb2 = start0(fb, fiberAVar.read) { (ocb, fiberA) => Right((fiberA, ocb)) }
 
-              case None =>
-                cancelVar
-                  .tryPut(())
-                  .ifM( // we're the first to cancel
-                    errorVar.tryRead flatMap {
-                      case Some(e) =>
-                        completeWithError(
-                          e
-                        ) // ...because the other one errored, so use that error
-                      case None => unit // ...because the other one is still in progress
-                    },
-                    completeWithCancel
-                  ) // race condition happened and both are now canceled
-            }
+          back <- uncancelable { poll =>
+            for {
+              fiberA <- start(fa2)
+              fiberB <- start(fb2)
 
-            errorReg = { (e: E) =>
-              errorVar.tryRead.flatMap {
-                case Some(_) =>
-                  completeWithError(e) // both have errored, use the last one (ours)
+              _ <- fiberAVar.put(fiberA)
+              _ <- fiberBVar.put(fiberB)
 
-                case None =>
-                  errorVar
-                    .tryPut(e)
-                    .ifM( // we were the first to error
-                      cancelVar.tryRead flatMap {
-                        case Some(_) =>
-                          completeWithError(e) // ...because the other one canceled, so use ours
-                        case None => unit // ...because the other one is still in progress
-                      },
-                      completeWithError(e)
-                    ) // both have errored, there was a race condition, and we were the loser (use our error)
-              }
-            }
-
-            resultReg: (Outcome[Id, E, Result] => PureConc[E, Unit]) = _.fold(
-              cancelReg,
-              errorReg,
-              result => results.tryPut(Outcome.Completed(result)).void
-            )
-
-            start0 = startOne[Result](ctx.masks)(resultReg)
-
-            fa2 = start0(fa, fiberBVar.read) { (a, fiberB) => Left((a, fiberB)) }
-
-            fb2 = start0(fb, fiberAVar.read) { (b, fiberA) => Right((fiberA, b)) }
-
-            back <- uncancelable { poll =>
-              for {
-                // note that we're uncancelable here, but we captured the masks *earlier* so we forward those along, ignoring this one
-                fiberA <- start(fa2)
-                fiberB <- start(fb2)
-
-                _ <- fiberAVar.put(fiberA)
-                _ <- fiberBVar.put(fiberB)
-
-                backOC <- onCancel(poll(results.read), fiberA.cancel >> fiberB.cancel)
-
-                back <- backOC match {
-                  case Outcome.Completed(res) =>
-                    pure(res)
-
-                  case Outcome.Errored(e) =>
-                    raiseError[Result](e)
-
-                  /*
-                   * This is REALLY tricky, but poll isn't enough here. For example:
-                   *
-                   * uncancelable(p => racePair(p(canceled), p(canceled))) <-> canceled
-                   *
-                   * This semantic is pretty natural, but we can't do it here without
-                   * directly manipulating the masks because we don't have the outer poll!
-                   * To solve this problem, we just nuke the masks and forcibly self-cancel.
-                   * We don't really have to worry about nesting problems here because, if
-                   * our children were somehow able to cancel, then whatever combination of
-                   * masks exists must have all been polled away *there*, so we can pretend
-                   * that they were similarly polled here.
-                   */
-                  case Outcome.Canceled() =>
-                    localCtx(ctx.copy(masks = Nil), canceled >> never[Result])
-                }
-              } yield back
-            }
-          } yield back
-        }
+              back <- onCancel(poll(results.read), fiberA.cancel >> fiberB.cancel)
+            } yield back
+          }
+        } yield back
+      }
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
         MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>

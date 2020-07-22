@@ -50,8 +50,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFEitherEA: Eq[F[Either[E, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
-      EqFEitherEitherEAU: Eq[F[Either[Either[E, A], Unit]]],
-      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[E, A]]]],
       EqFOutcomeEA: Eq[F[Outcome[F, E, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, E, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],
@@ -72,14 +70,10 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
-        "race is racePair identity (left)" -> forAll(
-          laws.raceIsRacePairCancelIdentityLeft[A] _),
-        "race is racePair identity (right)" -> forAll(
-          laws.raceIsRacePairCancelIdentityRight[A] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
-        "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),
-        "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityAttemptLeft[A] _),
+        "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityLeft[A] _),
+        "race never identity attempt (right)" -> forAll(laws.raceNeverIdentityLeft[A] _),
         // "race left cede yields" -> forAll(laws.raceLeftCedeYields[A] _),
         // "race right cede yields" -> forAll(laws.raceRightCedeYields[A] _),
         "fiber pure is completed pure" -> forAll(laws.fiberPureIsOutcomeCompletedPure[A] _),
@@ -94,10 +88,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
           laws.uncancelableIgnoredPollEliminatesNesting[A] _),
         "uncancelable poll inverse nest is uncancelable" -> forAll(
           laws.uncancelablePollInverseNestIsUncancelable[A] _),
-        "uncancelable distributes over race attempt (left)" -> forAll(
-          laws.uncancelableDistributesOverRaceAttemptLeft[A] _),
-        "uncancelable distributes over race attempt (right)" -> forAll(
-          laws.uncancelableDistributesOverRaceAttemptRight[A] _),
         "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
         "uncancelable race poll canceled identity (left)" -> forAll(
           laws.uncancelableRacePollCanceledIdentityLeft[A] _),

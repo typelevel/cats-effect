@@ -58,7 +58,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * merely a fast-path and are not necessary for correctness.
  */
 private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, initMask: Int)
-    extends Fiber[IO, Throwable, A] {
+    extends FiberIO[A] {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -71,7 +71,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
-  private[this] var masks: Int = _
+  private[this] var masks: Int = initMask
   private[this] val finalizers =
     new ArrayStack[IO[Unit]](
       16
@@ -83,7 +83,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
 
   // TODO we may be able to weaken this to just a @volatile
-  private[this] val outcome: AtomicReference[Outcome[IO, Throwable, A]] =
+  private[this] val outcome: AtomicReference[OutcomeIO[A]] =
     new AtomicReference()
 
   private[this] val objectState = new ArrayStack[AnyRef](16)
@@ -112,10 +112,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(
-      scheduler: unsafe.Scheduler,
-      cb: Outcome[IO, Throwable, A] => Unit,
-      initMask: Int) = {
+  def this(scheduler: unsafe.Scheduler, cb: OutcomeIO[A] => Unit, initMask: Int) = {
     this("main", scheduler, initMask)
     callbacks.push(cb)
   }
@@ -132,9 +129,9 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
           // ...nope! take over the target fiber's runloop and run the finalizers
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-          val oc = OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, Nothing]]
-          if (outcome.compareAndSet(null, oc.asInstanceOf[Outcome[IO, Throwable, A]])) {
-            done(oc.asInstanceOf[Outcome[IO, Throwable, A]])
+          val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[Nothing]]
+          if (outcome.compareAndSet(null, oc.asInstanceOf[OutcomeIO[A]])) {
+            done(oc.asInstanceOf[OutcomeIO[A]])
 
             if (!finalizers.isEmpty()) {
               conts = new ByteStack(16)
@@ -159,7 +156,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   }
 
   // this is swapped for an IO.pure(outcome.get()) when we complete
-  var join: IO[Outcome[IO, Throwable, A]] =
+  var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
       IO {
         val handle = registerListener(oc => cb(Right(oc)))
@@ -172,8 +169,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     }
 
   // can return null, meaning that no CallbackStack needs to be later invalidated
-  private def registerListener(
-      listener: Outcome[IO, Throwable, A] => Unit): CallbackStack[A] = {
+  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome.get() == null) {
       val back = callbacks.push(listener)
 
@@ -191,7 +187,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     }
   }
 
-  private[effect] def run(cur: IO[Any], ec: ExecutionContext, masks: Int): Unit = {
+  private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
     conts = new ByteStack(16)
     pushCont(RunTerminusK)
 
@@ -199,14 +195,12 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     currentCtx = ec
     ctxs.push(ec)
 
-    this.masks = masks
-
     if (resume()) {
       runLoop(cur, 0)
     }
   }
 
-  private def done(oc: Outcome[IO, Throwable, A]): Unit = {
+  private def done(oc: OutcomeIO[A]): Unit = {
     // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
 
@@ -249,7 +243,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
       // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      val oc = OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]]
+      val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
       if (outcome.compareAndSet(null, oc)) {
         done(oc)
 
@@ -434,17 +428,14 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             val cur = cur0.asInstanceOf[Start[Any]]
 
             val childName = s"start-${childCount.getAndIncrement()}"
-
-            // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
-            // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-            val initMask2 = initMask + 255
+            val initMask2 = childMask
 
             val fiber = new IOFiber(childName, scheduler, initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
             val ec = currentCtx
-            execute(ec)(() => fiber.run(cur.ioa, ec, initMask2))
+            execute(ec)(() => fiber.run(cur.ioa, ec))
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -454,81 +445,31 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
             val cur = cur0.asInstanceOf[RacePair[Any, Any]]
 
-            val next = IO.async[
-              Either[(Any, Fiber[IO, Throwable, Any]), (Fiber[IO, Throwable, Any], Any)]] {
-              cb =>
-                IO {
-                  val fiberA = new IOFiber[Any](
-                    s"racePair-left-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
-                  val fiberB = new IOFiber[Any](
-                    s"racePair-right-${childCount.getAndIncrement()}",
-                    scheduler,
-                    initMask)
+            val next =
+              IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
+                cb =>
+                  IO {
+                    val initMask2 = childMask
+                    val fiberA = new IOFiber[Any](
+                      s"racePair-left-${childCount.getAndIncrement()}",
+                      scheduler,
+                      initMask2)
+                    val fiberB = new IOFiber[Any](
+                      s"racePair-right-${childCount.getAndIncrement()}",
+                      scheduler,
+                      initMask2)
 
-                  val firstError = new AtomicReference[Throwable](null)
-                  val firstCanceled = new AtomicBoolean(false)
+                    fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                    fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
-                  def listener(left: Boolean)(oc: Outcome[IO, Throwable, Any]): Unit = {
-                    // println(s"listener fired (left = $left; oc = $oc)")
+                    val ec = currentCtx
 
-                    if (oc.isInstanceOf[Outcome.Completed[IO, Throwable, Any]]) {
-                      val result = oc
-                        .asInstanceOf[Outcome.Completed[IO, Throwable, Any]]
-                        .fa
-                        .asInstanceOf[IO.Pure[Any]]
-                        .value
+                    execute(ec)(() => fiberA.run(cur.ioa, ec))
+                    execute(ec)(() => fiberB.run(cur.iob, ec))
 
-                      val wrapped =
-                        if (left)
-                          Left((result, fiberB))
-                        else
-                          Right((fiberA, result))
-
-                      cb(Right(wrapped))
-                    } else if (oc.isInstanceOf[Outcome.Errored[IO, Throwable, Any]]) {
-                      val error = oc.asInstanceOf[Outcome.Errored[IO, Throwable, Any]].e
-
-                      if (!firstError.compareAndSet(null, error)) {
-                        // we were the second to error, so report back
-                        // TODO side-channel the error in firstError.get()
-                        cb(Left(error))
-                      } else {
-                        // we were the first to error, double check to see if second is canceled and report
-                        if (firstCanceled.get()) {
-                          cb(Left(error))
-                        }
-                      }
-                    } else {
-                      if (!firstCanceled.compareAndSet(false, true)) {
-                        // both are canceled, and we're the second, then cancel the outer fiber
-                        canceled = true
-                        // TODO manually reset our masks to initMask; IO.uncancelable(p => IO.race(p(IO.canceled), IO.pure(42))) doesn't work
-                        // this is tricky, but since we forward our masks to our child, we *know* that we aren't masked, so the runLoop will just immediately run the finalizers for us
-                        runLoop(null, nextIteration)
-                      } else {
-                        val error = firstError.get()
-                        if (error != null) {
-                          // we were canceled, and the other errored, so use its error
-                          cb(Left(error))
-                        }
-                      }
-                    }
+                    Some(fiberA.cancel.both(fiberB.cancel).void)
                   }
-
-                  fiberA.registerListener(listener(true))
-                  fiberB.registerListener(listener(false))
-
-                  val ec = currentCtx
-
-                  val childMasks = masks
-                  execute(ec)(() => fiberA.run(cur.ioa, ec, childMasks))
-                  execute(ec)(() => fiberB.run(cur.iob, ec, childMasks))
-
-                  Some(fiberA.cancel *> fiberB.cancel)
-                }
-            }
+              }
 
             runLoop(next, nextIteration)
 
@@ -574,16 +515,19 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     }
   }
 
+  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
+  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+  private def childMask: Int =
+    initMask + 255
+
   // we use these forwarders because direct field access (private[this]) is faster
   private def isCanceled(): Boolean =
     canceled
 
-  private def currentOutcome(): Outcome[IO, Throwable, A] =
+  private def currentOutcome(): OutcomeIO[A] =
     outcome.get()
 
-  private def casOutcome(
-      old: Outcome[IO, Throwable, A],
-      value: Outcome[IO, Throwable, A]): Boolean =
+  private def casOutcome(old: OutcomeIO[A], value: OutcomeIO[A]): Boolean =
     outcome.compareAndSet(old, value)
 
   private def hasFinalizers(): Boolean =
@@ -752,7 +696,7 @@ private object IOFiber {
       import self.{casOutcome, currentOutcome, done, isCanceled}
 
       if (isCanceled()) // this can happen if we don't check the canceled flag before completion
-        casOutcome(null, OutcomeCanceled.asInstanceOf[Outcome[IO, Throwable, A]])
+        casOutcome(null, OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       else if (success)
         casOutcome(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
       else

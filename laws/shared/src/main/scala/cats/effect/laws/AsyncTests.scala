@@ -55,8 +55,6 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
       EqFEitherAU: Eq[F[Either[A, Unit]]],
-      EqFEitherEitherEAU: Eq[F[Either[Either[Throwable, A], Unit]]],
-      EqFEitherUEitherEA: Eq[F[Either[Unit, Either[Throwable, A]]]],
       EqFOutcomeEA: Eq[F[Outcome[F, Throwable, A]]],
       EqFOutcomeEU: Eq[F[Outcome[F, Throwable, Unit]]],
       EqFABC: Eq[F[(A, B, C)]],

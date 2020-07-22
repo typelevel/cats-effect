@@ -217,17 +217,17 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       cancel <- arbitrary[Boolean]
 
       back = F.racePair(fa, fb).flatMap {
-        case Left((a, f)) =>
+        case Left((oc, f)) =>
           if (cancel)
-            f.cancel.as(a)
+            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
           else
-            f.join.as(a)
+            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
 
-        case Right((f, a)) =>
+        case Right((f, oc)) =>
           if (cancel)
-            f.cancel.as(a)
+            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
           else
-            f.join.as(a)
+            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
       }
     } yield back
 }

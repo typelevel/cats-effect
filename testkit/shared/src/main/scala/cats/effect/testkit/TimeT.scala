@@ -19,7 +19,7 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid}
 import cats.data.Kleisli
-import cats.effect.kernel.{Concurrent, Fiber, Temporal}
+import cats.effect.kernel.{Concurrent, Fiber, Outcome, Temporal}
 import cats.syntax.all._
 
 import scala.concurrent.duration._
@@ -39,6 +39,11 @@ object TimeT {
 
   def liftF[F[_], A](fa: F[A]): TimeT[F, A] =
     Kleisli.liftF(fa)
+
+  def liftK[F[_]]: F ~> TimeT[F, *] =
+    new (F ~> TimeT[F, *]) {
+      override def apply[A](fa: F[A]): TimeT[F, A] = liftF(fa)
+    }
 
   def run[F[_], A](tfa: TimeT[F, A]): F[A] =
     tfa.run(new Time(0.millis))
@@ -83,21 +88,24 @@ object TimeT {
     def never[A]: TimeT[F, A] =
       TimeT.liftF(F.never[A])
 
-    def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B])
-        : TimeT[F, Either[(A, Fiber[TimeT[F, *], E, B]), (Fiber[TimeT[F, *], E, A], B)]] =
+    def racePair[A, B](fa: TimeT[F, A], fb: TimeT[F, B]): TimeT[
+      F,
+      Either[
+        (Outcome[TimeT[F, *], E, A], Fiber[TimeT[F, *], E, B]),
+        (Fiber[TimeT[F, *], E, A], Outcome[TimeT[F, *], E, B])]] =
       Kleisli { time =>
         val forkA = time.fork()
         val forkB = time.fork()
 
         // TODO this doesn't work (yet) because we need to force the "faster" effect to win the race, which right now isn't happening
         F.racePair(fa.run(forkA), fb.run(forkB)).map {
-          case Left((a, delegate)) =>
+          case Left((oca, delegate)) =>
             time.now = forkA.now
-            Left((a, fiberize(forkB, delegate)))
+            Left((oca.mapK(TimeT.liftK[F]), fiberize(forkB, delegate)))
 
-          case Right((delegate, b)) =>
+          case Right((delegate, ocb)) =>
             time.now = forkB.now
-            Right((fiberize(forkA, delegate), b))
+            Right((fiberize(forkA, delegate), ocb.mapK(TimeT.liftK[F])))
         }
       }
 

@@ -27,7 +27,7 @@ trait Fiber[F[_], E, A] {
     join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
 
   def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
-    joinAndEmbed(F.never)
+    joinAndEmbed(F.canceled *> F.never)
 }
 
 trait Concurrent[F[_], E] extends MonadError[F, E] {
@@ -69,29 +69,70 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
   // introduces a fairness boundary by yielding control to the underlying dispatcher
   def cede: F[Unit]
 
-  def racePair[A, B](fa: F[A], fb: F[B]): F[Either[(A, Fiber[F, E, B]), (Fiber[F, E, A], B)]]
+  def racePair[A, B](fa: F[A], fb: F[B])
+      : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
+
+  def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
+    flatMap(racePair(fa, fb)) {
+      case Left((oc, f)) => as(f.cancel, Left(oc))
+      case Right((f, oc)) => as(f.cancel, Right(oc))
+    }
 
   def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, f)) => as(f.cancel, a.asLeft[B])
-      case Right((f, b)) => as(f.cancel, b.asRight[A])
+      case Left((oc, f)) =>
+        oc match {
+          case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
+          case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
+          case Outcome.Canceled() =>
+            flatMap(f.join) {
+              case Outcome.Completed(fb) => map(fb)(Right(_))
+              case Outcome.Errored(eb) => raiseError(eb)
+              case Outcome.Canceled() => productR(canceled)(never)
+            }
+        }
+      case Right((f, oc)) =>
+        oc match {
+          case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
+          case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
+          case Outcome.Canceled() =>
+            flatMap(f.join) {
+              case Outcome.Completed(fa) => map(fa)(Left(_))
+              case Outcome.Errored(ea) => raiseError(ea)
+              case Outcome.Canceled() => productR(canceled)(never)
+            }
+        }
+    }
+
+  def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
+    flatMap(racePair(fa, fb)) {
+      case Left((oc, f)) => map(f.join)((oc, _))
+      case Right((f, oc)) => map(f.join)((_, oc))
     }
 
   def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
     flatMap(racePair(fa, fb)) {
-      case Left((a, f)) =>
-        flatMap(f.join) { c =>
-          c.fold(
-            flatMap(canceled)(_ =>
-              never), // if our child canceled, then we must also be cancelable since racePair forwards our masks along, so it's safe to use never
-            e => raiseError[(A, B)](e),
-            tupleLeft(_, a)
-          )
+      case Left((oc, f)) =>
+        oc match {
+          case Outcome.Completed(fa) =>
+            flatMap(f.join) {
+              case Outcome.Completed(fb) => product(fa, fb)
+              case Outcome.Errored(eb) => raiseError(eb)
+              case Outcome.Canceled() => productR(canceled)(never)
+            }
+          case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
+          case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
         }
-
-      case Right((f, b)) =>
-        flatMap(f.join) { c =>
-          c.fold(flatMap(canceled)(_ => never), e => raiseError[(A, B)](e), tupleRight(_, b))
+      case Right((f, oc)) =>
+        oc match {
+          case Outcome.Completed(fb) =>
+            flatMap(f.join) {
+              case Outcome.Completed(fa) => product(fa, fb)
+              case Outcome.Errored(ea) => raiseError(ea)
+              case Outcome.Canceled() => productR(canceled)(never)
+            }
+          case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
+          case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
         }
     }
 }
