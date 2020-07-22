@@ -255,11 +255,8 @@ object pure {
           // resultReg is passed in here
           foldResult: Result => PureConc[E, Unit]) {
 
-        def apply[L, OtherFiber](
-            that: PureConc[E, L],
-            getOtherFiber: PureConc[E, OtherFiber])(
-            toResult: (Outcome[PureConc[E, *], E, L], OtherFiber) => Result)
-            : PureConc[E, L] =
+        def apply[L, OtherFiber](that: PureConc[E, L], getOtherFiber: PureConc[E, OtherFiber])(
+            toResult: (Outcome[PureConc[E, *], E, L], OtherFiber) => Result): PureConc[E, L] =
           bracketCase(unit)(_ => that) {
             case (_, oc) =>
               for {

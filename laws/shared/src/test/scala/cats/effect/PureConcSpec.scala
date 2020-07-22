@@ -46,9 +46,9 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
     ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 
-  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
+//  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
 
-  checkAll(
-    "ParallelF[PureConc]",
-    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
+//  checkAll(
+//    "ParallelF[PureConc]",
+//    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
 }
