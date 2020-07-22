@@ -51,6 +51,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       EqFU: Eq[F[Unit]],
       EqE: Eq[Throwable],
       EqFEC: Eq[F[ExecutionContext]],
+      EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
@@ -79,7 +80,8 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
 
       val props = Seq(
         "async right is sequenced pure" -> forAll(laws.asyncRightIsSequencedPure[A] _),
-        "async left is sequenced raiseError" -> forAll(laws.asyncLeftIsSequencedRaiseError[A] _),
+        "async left is sequenced raiseError" -> forAll(
+          laws.asyncLeftIsSequencedRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
         "async cancel token is unsequenced on complete" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
