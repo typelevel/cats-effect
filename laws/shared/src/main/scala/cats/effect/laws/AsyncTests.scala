@@ -87,7 +87,6 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
           laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
         "async cancel token is unsequenced on error" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnError[A] _),
-        // "async cancel token is sequenced on cancel" -> forAll(laws.asyncCancelTokenIsSequencedOnCancel _),
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
         "executionContext commutativity" -> forAll(laws.executionContextCommutativity[A] _),
         "evalOn local pure" -> forAll(laws.evalOnLocalPure _),
