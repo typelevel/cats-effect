@@ -60,8 +60,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
               case Outcome.Errored(eb) => IO.raiseError(eb)
               case Outcome.Canceled() => IO.canceled *> IO.never
             }
-          case Outcome.Errored(ea) => IO.raiseError(ea)
-          case Outcome.Canceled() => IO.canceled *> IO.never
+          case Outcome.Errored(ea) => f.cancel *> IO.raiseError(ea)
+          case Outcome.Canceled() => f.cancel *> IO.canceled *> IO.never
         }
       case Right((f, oc)) =>
         oc match {
@@ -71,8 +71,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
               case Outcome.Errored(ea) => IO.raiseError(ea)
               case Outcome.Canceled() => IO.canceled *> IO.never
             }
-          case Outcome.Errored(eb) => IO.raiseError(eb)
-          case Outcome.Canceled() => IO.canceled *> IO.never
+          case Outcome.Errored(eb) => f.cancel *> IO.raiseError(eb)
+          case Outcome.Canceled() => f.ancel *> IO.canceled *> IO.never
         }
     }
 
