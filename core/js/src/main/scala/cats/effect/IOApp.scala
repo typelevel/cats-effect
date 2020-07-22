@@ -17,10 +17,11 @@
 package cats.effect
 
 import scala.concurrent.duration._
+import scala.scalajs.js
 
 trait IOApp {
 
-  val run: IO[Unit]
+  val run: IO[Int]
 
   final def main(args: Array[String]): Unit = {
     // An infinite heartbeat to keep main alive.  This is similar to
@@ -34,7 +35,13 @@ trait IOApp {
 
     IO.race(run, keepAlive).unsafeRunAsync({
       case Left(t) => throw t
-      case Right(_) => ()
+      case Right(Left(code)) => reportExitCode(code)
+      case Right(Right(_)) => sys.error("impossible")
     })(unsafe.IORuntime.global)
   }
+
+  private[this] def reportExitCode(code: Int): Unit =
+    if (js.typeOf(js.Dynamic.global.process) != "undefined") {
+      js.Dynamic.global.process.exitCode = code
+    }
 }
