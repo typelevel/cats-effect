@@ -29,23 +29,16 @@ import Resource.ExitCase
 /**
  TODO
  initial scaladoc
- delete deprecated mapK
- plan for mapK: it cannot be implemented, you need imapK because of Outcome
-  do we add imapK? do we add something for the SyncIO ~> IO use case?
-  rewrite bracket with onCancel, and a custom ExitCase type
-
  port tests (ResourceSyntax, ResourceTests, ResourceJVMTests)
   look at IOSpec, it's mostly going to be that (plus a mixin for the jvm stuff)
   otoh I need to port the generators
 
   also need to write compilation & runtime test once SyncIO is here
 
-
  port blocking fromAutocloseable once blocker is here
  add useForever
- bring instances back
  change bracket instances to follow same code org strategy as the others
-
+ add implicit not found to bracket
  check that the comment on ExitCase.Completed is still valid
 */
 
@@ -622,61 +615,59 @@ object ExitCase {
   }
 }
 
-//abstract private[effect] class ResourceInstances extends ResourceInstances0 {
-//   implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
-//     new ResourceMonadError[F, E] {
-//       def F = F0
-//     }
+abstract private[effect] class ResourceInstances extends ResourceInstances0 {
+  implicit def catsEffectMonadErrorForResource[F[_], E](implicit F0: MonadError[F, E]): MonadError[Resource[F, *], E] =
+    new ResourceMonadError[F, E] {
+      def F = F0
+    }
 
-//   implicit def catsEffectMonoidForResource[F[_], A](implicit F0: Monad[F], A0: Monoid[A]): Monoid[Resource[F, A]] =
-//     new ResourceMonoid[F, A] {
-//       def A = A0
-//       def F = F0
-//     }
+  implicit def catsEffectMonoidForResource[F[_], A](implicit F0: Monad[F], A0: Monoid[A]): Monoid[Resource[F, A]] =
+    new ResourceMonoid[F, A] {
+      def A = A0
+      def F = F0
+    }
 
-//   // implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
-//   //   new ResourceLiftIO[F] {
-//   //     def F0 = F00
-//   //     def F1 = F10
-//   //   }
+  // implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
+  //   new ResourceLiftIO[F] {
+  //     def F0 = F00
+  //     def F1 = F10
+  //   }
 
-//   implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
-//     implicit F: Sync[F],
-//     P: Parallel[F]
-//   ): CommutativeApplicative[Resource.Par[F, *]] =
-//     new ResourceParCommutativeApplicative[F] {
-//       def F0 = F
-//       def F1 = P
-//     }
+  implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
+    implicit F: Async[F]
+  ): CommutativeApplicative[Resource.Par[F, *]] =
+    new ResourceParCommutativeApplicative[F] {
+      def F0 = F
+    }
 
-//   implicit def catsEffectParallelForResource[F0[_]: Sync: Parallel]
-//     : Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
-//     new ResourceParallel[F0] {
-//       def F0 = catsEffectCommutativeApplicativeForResourcePar
-//       def F1 = catsEffectMonadForResource
-//     }
-//}
+  implicit def catsEffectParallelForResource[F0[_]: Async]
+    : Parallel.Aux[Resource[F0, *], Resource.Par[F0, *]] =
+    new ResourceParallel[F0] {
+      def F0 = catsEffectCommutativeApplicativeForResourcePar
+      def F1 = catsEffectMonadForResource
+    }
+}
 
-// abstract private[effect] class ResourceInstances0 {
-//   implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
-//     new ResourceMonad[F] {
-//       def F = F0
-//     }
+abstract private[effect] class ResourceInstances0 {
+  implicit def catsEffectMonadForResource[F[_]](implicit F0: Monad[F]): Monad[Resource[F, *]] =
+    new ResourceMonad[F] {
+      def F = F0
+    }
 
-//   implicit def catsEffectSemigroupForResource[F[_], A](implicit F0: Monad[F],
-//                                                        A0: Semigroup[A]): ResourceSemigroup[F, A] =
-//     new ResourceSemigroup[F, A] {
-//       def A = A0
-//       def F = F0
-//     }
+  implicit def catsEffectSemigroupForResource[F[_], A](implicit F0: Monad[F],
+                                                       A0: Semigroup[A]): ResourceSemigroup[F, A] =
+    new ResourceSemigroup[F, A] {
+      def A = A0
+      def F = F0
+    }
 
-//   implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F],
-//                                                         K0: SemigroupK[F]): ResourceSemigroupK[F] =
-//     new ResourceSemigroupK[F] {
-//       def F = F0
-//       def K = K0
-//     }
-// }
+  implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F],
+                                                        K0: SemigroupK[F]): ResourceSemigroupK[F] =
+    new ResourceSemigroupK[F] {
+      def F = F0
+      def K = K0
+    }
+}
 
 abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
   import Resource.{Allocate, Bind, Suspend}
