@@ -15,7 +15,7 @@ expected=$(mktemp)
 cd example/js/target/scala-${1:0:4}/
 
 set +e
-node cats-effect-example-fastopt.js > $output
+node cats-effect-example-fastopt.js left right > $output
 result=$?
 set -e
 

@@ -21,7 +21,7 @@ import scala.scalajs.js
 
 trait IOApp {
 
-  val run: IO[Int]
+  def run(args: List[String]): IO[Int]
 
   final def main(args: Array[String]): Unit = {
     // An infinite heartbeat to keep main alive.  This is similar to
@@ -33,7 +33,12 @@ trait IOApp {
     lazy val keepAlive: IO[Nothing] =
       IO.sleep(1.hour) >> keepAlive
 
-    IO.race(run, keepAlive).unsafeRunAsync({
+    val argList = if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(js.Dynamic.global.process.argv) != "undefined")
+      js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
+    else
+      args.toList
+
+    IO.race(run(argList), keepAlive).unsafeRunAsync({
       case Left(t) => throw t
       case Right(Left(code)) => reportExitCode(code)
       case Right(Right(_)) => sys.error("impossible")
