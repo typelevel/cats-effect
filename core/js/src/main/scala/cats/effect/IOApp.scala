@@ -16,13 +16,25 @@
 
 package cats.effect
 
+import scala.concurrent.duration._
+
 trait IOApp {
 
   val run: IO[Unit]
 
-  final def main(args: Array[String]): Unit =
-    run.unsafeRunAsync {
+  final def main(args: Array[String]): Unit = {
+    // An infinite heartbeat to keep main alive.  This is similar to
+    // `IO.never`, except `IO.never` doesn't schedule any tasks and is
+    // insufficient to keep main alive.  The tick is fast enough that
+    // it isn't silently discarded, as longer ticks are, but slow
+    // enough that we don't interrupt often.  1 hour was chosen
+    // empirically.
+    lazy val keepAlive: IO[Nothing] =
+      IO.sleep(1.hour) >> keepAlive
+
+    IO.race(run, keepAlive).unsafeRunAsync({
       case Left(t) => throw t
       case Right(_) => ()
-    }(unsafe.IORuntime.global)
+    })(unsafe.IORuntime.global)
+  }
 }
