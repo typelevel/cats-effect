@@ -72,7 +72,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
               case Outcome.Canceled() => IO.canceled *> IO.never
             }
           case Outcome.Errored(eb) => f.cancel *> IO.raiseError(eb)
-          case Outcome.Canceled() => f.ancel *> IO.canceled *> IO.never
+          case Outcome.Canceled() => f.cancel *> IO.canceled *> IO.never
         }
     }
 
