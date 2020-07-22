@@ -18,6 +18,7 @@ package cats.effect
 package concurrent
 
 import cats.effect.kernel.Outcome._
+import cats.implicits._
 
 import scala.concurrent.duration._
 
@@ -433,6 +434,59 @@ class MVarSpec extends BaseSpec {
             r mustEqual count
           }
         }
+      case x => fail(x)
+    }
+  }
+
+  "swap is cancelable on take" in real {
+    val task = for {
+      mVar <- MVar[IO].empty[Int]
+      finished <- Deferred[IO, Int]
+      fiber <- mVar.swap(20).flatMap(finished.complete).start
+      _ <- fiber.cancel
+      _ <- mVar.put(10)
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    task.flatMap {
+      case Right(v) => IO(v mustEqual 10)
+      case x => fail(x)
+    }
+  }
+
+  "modify is cancelable on take" in real {
+    val task = for {
+      mVar <- MVar[IO].empty[Int]
+      finished <- Deferred[IO, String]
+      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _ <- fiber.cancel
+      _ <- mVar.put(10)
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    task.flatMap {
+      case Right(v) => IO(v mustEqual 10)
+      case x => fail(x)
+    }
+  }
+
+  "modify is cancelable on f" in real {
+    val task = for {
+      mVar <- MVar[IO].empty[Int]
+      finished <- Deferred[IO, String]
+      fiber <-
+        mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      _ <- mVar.put(10)
+      _ <- IO.sleep(10.millis)
+      _ <- fiber.cancel
+      fallback = IO.sleep(100.millis) *> mVar.take
+      v <- IO.race(finished.get, fallback)
+    } yield v
+
+    task.flatMap {
+      case Right(v) => IO(v mustEqual 10)
       case x => fail(x)
     }
   }
