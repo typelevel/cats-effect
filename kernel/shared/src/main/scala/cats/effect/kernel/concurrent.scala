@@ -17,6 +17,7 @@
 package cats.effect.kernel
 
 import cats.{~>, MonadError}
+import cats.data.OptionT
 import cats.syntax.all._
 
 trait Fiber[F[_], E, A] {
@@ -157,4 +158,29 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
 object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
+
+  trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
+
+    implicit protected def F: Concurrent[F, E]
+
+    def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] = ???
+
+    def uncancelable[A](
+        body: (OptionT[F, *] ~> OptionT[F, *]) => OptionT[F, A]): OptionT[F, A] = ???
+
+    def canceled: OptionT[F, Unit] = OptionT.liftF(F.canceled)
+
+    def onCancel[A](fa: OptionT[F, A], fin: OptionT[F, Unit]): OptionT[F, A] =
+      OptionT(F.onCancel(fa.value, fin.value.as(())))
+
+    def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
+
+    def cede: OptionT[F, Unit] = OptionT.liftF(F.cede)
+
+    def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[
+      F,
+      Either[
+        (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
+        (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = ???
+  }
 }
