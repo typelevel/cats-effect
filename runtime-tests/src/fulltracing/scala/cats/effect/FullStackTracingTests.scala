@@ -30,39 +30,51 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
   def traced[A](io: IO[A]): IO[IOTrace] =
     io.flatMap(_ => IO.trace)
 
-  test("full stack tracing captures map frames") {
+  test("captures map frames") {
     val task = IO.pure(0).map(_ + 1).map(_ + 1)
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 4).length shouldBe 2
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "map"))
+        .length shouldBe 2
     }
   }
 
-  test("full stack tracing captures bind frames") {
+  test("captures bind frames") {
     val task = IO.pure(0).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 3).length shouldBe 3 // the extra one is used to capture the trace
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "flatMap"))
+        .length shouldBe 3 // the extra one is used to capture the trace
     }
   }
 
-  test("full stack tracing captures async frames") {
+  test("captures async frames") {
     val task = IO.async[Int](_(Right(0))).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 5).length shouldBe 1
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "async"))
+        .length shouldBe 1
     }
   }
 
-  test("full stack tracing captures pure frames") {
+  test("captures pure frames") {
     val task = IO.pure(0).flatMap(a => IO.pure(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 0).length shouldBe 2
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "pure"))
+        .length shouldBe 2
     }
   }
 
@@ -71,7 +83,10 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 1).length shouldBe 2
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "delay"))
+        .length shouldBe 2
     }
   }
 
@@ -80,16 +95,46 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 6
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 2).length shouldBe 2
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "suspend"))
+        .length shouldBe 2
     }
   }
 
-  test("full stack tracing captures raiseError frames") {
+  test("captures raiseError frames") {
     val task = IO(0).flatMap(_ => IO.raiseError(new Throwable())).handleErrorWith(_ => IO.unit)
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 5
-      r.events.collect { case e: IOEvent.StackTrace => e }.filter(_.tag == 8).length shouldBe 1
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "raiseError"))
+        .length shouldBe 1
+    }
+  }
+
+  test("captures bracket frames") {
+    val task = IO.unit.bracket(_ => IO.pure(10))(_ => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
+
+    for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 13
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "bracket"))
+        .length shouldBe 1
+    }
+  }
+
+  test("captures bracketCase frames") {
+    val task = IO.unit.bracketCase(_ => IO.pure(10))((_, _) => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
+
+    for (r <- traced(task).unsafeToFuture()) yield {
+      r.captured shouldBe 13
+      r.events
+        .collect { case e: IOEvent.StackTrace => e }
+        .filter(_.stackTrace.exists(_.getMethodName == "bracketCase"))
+        .length shouldBe 1
     }
   }
 }
