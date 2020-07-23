@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
   def createDefaultComputeExecutionContext(
-      threadPrefix: String = "io-compute-"): (ExecutionContext, () => Unit) = {
+      threadPrefix: String = "io-compute"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newFixedThreadPool(
       Runtime.getRuntime().availableProcessors(),
@@ -38,7 +38,7 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   }
 
   def createDefaultBlockingExecutionContext(
-      threadPrefix: String = "io-blocking-"): (ExecutionContext, () => Unit) = {
+      threadPrefix: String = "io-blocking"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
     val executor = Executors.newCachedThreadPool { (r: Runnable) =>
       val t = new Thread(r)
