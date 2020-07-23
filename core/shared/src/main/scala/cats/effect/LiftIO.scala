@@ -16,8 +16,8 @@
 
 package cats.effect
 
-import cats.{~>, Applicative, Functor}
-import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
+import cats.{~>, Applicative, FlatMap, Functor}
+import cats.data.{ContT, EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.kernel.Monoid
 
 import scala.annotation.implicitNotFound
@@ -122,4 +122,22 @@ object LiftIO {
       override def liftIO[A](ioa: IO[A]): ReaderWriterStateT[F, E, L, S, A] =
         ReaderWriterStateT.liftF(F.liftIO(ioa))
     }
+
+  /**
+   * [[LiftIO]] instance built for `cats.data.ContT` values initialized
+   * with any `F` data type that also implements `LiftIO`.
+   */
+  implicit def catsContTLiftIO[F[_], R](
+      implicit F: LiftIO[F],
+      FF: FlatMap[F]): LiftIO[ContT[F, R, *]] =
+    new LiftIO[ContT[F, R, *]] {
+      override def liftIO[A](ioa: IO[A]): ContT[F, R, A] =
+        ContT.liftF(F.liftIO(ioa))
+    }
+
+  /**
+   * [[LiftIO]] instance for [[IO]] values.
+   */
+  implicit val ioLiftIO: LiftIO[IO] =
+    new LiftIO[IO] { override def liftIO[A](ioa: IO[A]): IO[A] = ioa }
 }
