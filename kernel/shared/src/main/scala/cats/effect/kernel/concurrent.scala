@@ -156,9 +156,17 @@ object Concurrent {
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
 
+  implicit def concurrentForOptionT[F[_], E](
+      implicit F0: Concurrent[F, E]): Concurrent[OptionT[F, *], E] =
+    new OptionTConcurrent[F, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
+    }
+
   trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
 
     implicit protected def F: Concurrent[F, E]
+
+    val delegate = OptionT.catsDataMonadErrorForOptionT[F, E]
 
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
@@ -193,6 +201,19 @@ object Concurrent {
         case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
       })
     }
+
+    def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
+
+    def raiseError[A](e: E): OptionT[F, A] = delegate.raiseError(e)
+
+    def handleErrorWith[A](fa: OptionT[F, A])(f: E => OptionT[F, A]): OptionT[F, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: OptionT[F, A])(f: A => OptionT[F, B]): OptionT[F, B] =
+      delegate.flatMap(fa)(f)
+
+    def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
+      delegate.tailRecM(a)(f)
 
     def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
       oc match {
