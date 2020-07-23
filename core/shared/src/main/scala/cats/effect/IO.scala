@@ -1248,21 +1248,12 @@ object IO extends IOInstances {
    *
    * @see [[asyncF]] and [[cancelable]]
    */
-  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] = {
-    val trace = if (isCachedStackTracing) {
-      IOTracing.cached(k.getClass)
-    } else if (isFullStackTracing) {
-      IOTracing.uncached()
-    } else {
-      null
-    }
-
-    Async[A]((_, _, cb) => {
+  def async[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
+    IOAsync[A]((_, _, cb) => {
       val cb2 = Callback.asyncIdempotent(null, cb)
       try k(cb2)
       catch { case NonFatal(t) => cb2(Left(t)) }
-    }, trace = trace)
-  }
+    }, traceKey = k)
 
   /**
    * Suspends an asynchronous side effect in `IO`, this being a variant
@@ -1288,16 +1279,8 @@ object IO extends IOInstances {
    *
    * @see [[async]] and [[cancelable]]
    */
-  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] = {
-    val trace = if (isCachedStackTracing) {
-      IOTracing.cached(k.getClass)
-    } else if (isFullStackTracing) {
-      IOTracing.uncached()
-    } else {
-      null
-    }
-
-    Async[A](
+  def asyncF[A](k: (Either[Throwable, A] => Unit) => IO[Unit]): IO[A] =
+    IOAsync[A](
       (conn, _, cb) => {
         // Must create new connection, otherwise we can have a race
         // condition b/t the bind continuation and `startCancelable` below
@@ -1310,9 +1293,8 @@ object IO extends IOInstances {
           catch { case NonFatal(t) => IO(cb2(Left(t))) }
         IORunLoop.startCancelable(fa, conn2, Callback.report)
       },
-      trace = trace
+      traceKey = k
     )
-  }
 
   /**
    * Builds a cancelable `IO`.
@@ -1353,16 +1335,8 @@ object IO extends IOInstances {
    * @see [[asyncF]] for a more potent version that does hook into
    *      the underlying cancelation model
    */
-  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] = {
-    val trace = if (isCachedStackTracing) {
-      IOTracing.cached(k.getClass)
-    } else if (isFullStackTracing) {
-      IOTracing.uncached()
-    } else {
-      null
-    }
-
-    Async[A](
+  def cancelable[A](k: (Either[Throwable, A] => Unit) => CancelToken[IO]): IO[A] =
+    IOAsync[A](
       (conn, _, cb) => {
         val cb2 = Callback.asyncIdempotent(conn, cb)
         val ref = ForwardCancelable()
@@ -1382,9 +1356,8 @@ object IO extends IOInstances {
         else
           ref.complete(IO.unit)
       },
-      trace = trace
+      traceKey = k
     )
-  }
 
   /**
    * Constructs an `IO` which sequences the specified exception.

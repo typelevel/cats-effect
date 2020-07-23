@@ -76,7 +76,7 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
                       val tag = methodSite.getMethodName
                       s"$tag at $loc"
                   }
-                  .getOrElse("???")
+                  .getOrElse("(...)")
               }
             }
             s" $junc $message"
