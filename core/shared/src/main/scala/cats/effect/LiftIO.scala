@@ -20,11 +20,6 @@ import cats.{~>, Applicative, FlatMap, Functor}
 import cats.data.{ContT, EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.kernel.Monoid
 
-import scala.annotation.implicitNotFound
-
-@implicitNotFound("""Cannot find implicit value for LiftIO[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
 trait LiftIO[F[_]] {
   def liftIO[A](ioa: IO[A]): F[A]
 }
