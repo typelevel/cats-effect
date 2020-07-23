@@ -26,6 +26,8 @@ trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
 
   def defer[A](thunk: => F[A]): F[A] =
     flatMap(delay(thunk))(x => x)
+
+  def blocking[A](thunk: => A): F[A]
 }
 
 object Sync {
@@ -59,5 +61,8 @@ object Sync {
 
       def delay[A](thunk: => A): OptionT[F, A] =
         OptionT.liftF(F.delay(thunk))
+
+      def blocking[A](thunk: => A): OptionT[F, A] =
+        OptionT.liftF(F.blocking(thunk))
     }
 }

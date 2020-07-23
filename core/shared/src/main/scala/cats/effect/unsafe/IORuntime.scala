@@ -33,6 +33,7 @@ avoid unintentionally degrading your application performance.
 """)
 final class IORuntime private (
     val compute: ExecutionContext,
+    val blocking: ExecutionContext,
     val scheduler: Scheduler,
     val shutdown: () => Unit) {
 
@@ -40,6 +41,6 @@ final class IORuntime private (
 }
 
 object IORuntime extends IORuntimeCompanionPlatform {
-  def apply(compute: ExecutionContext, scheduler: Scheduler, shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, scheduler, shutdown)
+  def apply(compute: ExecutionContext, blocking: ExecutionContext, scheduler: Scheduler, shutdown: () => Unit): IORuntime =
+    new IORuntime(compute, blocking, scheduler, shutdown)
 }

@@ -57,7 +57,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, initMask: Int)
+private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, blockingEc: ExecutionContext, initMask: Int)
     extends FiberIO[A] {
   import IO._
 
@@ -112,8 +112,8 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(scheduler: unsafe.Scheduler, cb: OutcomeIO[A] => Unit, initMask: Int) = {
-    this("main", scheduler, initMask)
+  def this(scheduler: unsafe.Scheduler, blockingEc: ExecutionContext, cb: OutcomeIO[A] => Unit, initMask: Int) = {
+    this("main", scheduler, blockingEc, initMask)
     callbacks.push(cb)
   }
 
@@ -288,10 +288,33 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             runLoop(next, nextIteration)
 
           case 2 =>
+            val cur = cur0.asInstanceOf[Blocking[Any]]
+
+            execute(blockingEc) { () => 
+              var success = false
+              val r =
+                try {
+                  val r = cur.thunk()
+                  success = true
+                  r
+                } catch {
+                  case NonFatal(t) => t
+                }
+
+              val next =
+                if (success)
+                  succeeded(r, 0)
+                else
+                  failed(r, 0) 
+
+              execute(currentCtx) { () => runLoop(next, nextIteration) }
+            }
+
+          case 3 =>
             val cur = cur0.asInstanceOf[Error]
             runLoop(failed(cur.t, 0), nextIteration)
 
-          case 3 =>
+          case 4 =>
             val cur = cur0.asInstanceOf[Async[Any]]
 
             val done = new AtomicBoolean()
@@ -350,10 +373,10 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             runLoop(next, nextIteration)
 
           // ReadEC
-          case 4 =>
+          case 5 =>
             runLoop(succeeded(currentCtx, 0), nextIteration)
 
-          case 5 =>
+          case 6 =>
             val cur = cur0.asInstanceOf[EvalOn[Any]]
 
             // fast-path when it's an identity transformation
@@ -368,7 +391,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
               execute(ec) { () => runLoop(cur.ioa, nextIteration) }
             }
 
-          case 6 =>
+          case 7 =>
             val cur = cur0.asInstanceOf[Map[Any, Any]]
 
             objectState.push(cur.f)
@@ -376,7 +399,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(cur.ioe, nextIteration)
 
-          case 7 =>
+          case 8 =>
             val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
             objectState.push(cur.f)
@@ -384,7 +407,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(cur.ioe, nextIteration)
 
-          case 8 =>
+          case 9 =>
             val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
             objectState.push(cur.f)
@@ -392,7 +415,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(cur.ioa, nextIteration)
 
-          case 9 =>
+          case 10 =>
             val cur = cur0.asInstanceOf[OnCancel[Any]]
 
             finalizers.push(EvalOn(cur.fin, currentCtx))
@@ -401,7 +424,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             pushCont(OnCancelK)
             runLoop(cur.ioa, nextIteration)
 
-          case 10 =>
+          case 11 =>
             val cur = cur0.asInstanceOf[Uncancelable[Any]]
 
             masks += 1
@@ -414,7 +437,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             runLoop(cur.body(poll), nextIteration)
 
           // Canceled
-          case 11 =>
+          case 12 =>
             canceled = true
             if (masks != initMask)
               runLoop(succeeded((), 0), nextIteration)
@@ -424,13 +447,13 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 nextIteration
               ) // trust the cancelation check at the start of the loop
 
-          case 12 =>
+          case 13 =>
             val cur = cur0.asInstanceOf[Start[Any]]
 
             val childName = s"start-${childCount.getAndIncrement()}"
             val initMask2 = childMask
 
-            val fiber = new IOFiber(childName, scheduler, initMask2)
+            val fiber = new IOFiber(childName, scheduler, blockingEc, initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
@@ -439,7 +462,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
-          case 13 =>
+          case 14 =>
             // TODO self-cancelation within a nested poll could result in deadlocks in `both`
             // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
             // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
@@ -453,10 +476,12 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                     val fiberA = new IOFiber[Any](
                       s"racePair-left-${childCount.getAndIncrement()}",
                       scheduler,
+                      blockingEc,
                       initMask2)
                     val fiberB = new IOFiber[Any](
                       s"racePair-right-${childCount.getAndIncrement()}",
                       scheduler,
+                      blockingEc,
                       initMask2)
 
                     fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
@@ -473,7 +498,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
             runLoop(next, nextIteration)
 
-          case 14 =>
+          case 15 =>
             val cur = cur0.asInstanceOf[Sleep]
 
             val next = IO.async[Unit] { cb =>
@@ -486,22 +511,22 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             runLoop(next, nextIteration)
 
           // RealTime
-          case 15 =>
+          case 16 =>
             runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
 
           // Monotonic
-          case 16 =>
+          case 17 =>
             runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
 
           // Cede
-          case 17 =>
+          case 18 =>
             currentCtx execute { () =>
               // println("continuing from cede ")
 
               runLoop(succeeded((), 0), nextIteration)
             }
 
-          case 18 =>
+          case 19 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
 
             if (masks == cur.id) {
