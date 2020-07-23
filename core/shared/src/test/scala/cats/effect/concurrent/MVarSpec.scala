@@ -30,12 +30,16 @@ class MVarSpec extends BaseSpec {
   "put is cancelable" in real {
     val op = for {
       mVar <- init(0)
-      _ <- mVar.put(1).start
-      p2 <- mVar.put(2).start
-      _ <- mVar.put(3).start
-      _ <- IO.sleep(10.millis) // Give put callbacks a chance to register
+      gate1 <- Deferred[IO, Unit]
+      gate2 <- Deferred[IO, Unit]
+      gate3 <- Deferred[IO, Unit]
+      _ <- (mVar.put(1) *> gate1.complete(()) *> gate3.get *> mVar.put(3)).start
+      p2 <- (gate1.get *> gate2.complete(()) *> mVar.put(2)).start
+      _ <- mVar.take // Take the initial 0
+      _ <- gate2.get
+      _ <- IO.sleep(10.millis) // Give more chance for `p2` put to register
       _ <- p2.cancel
-      _ <- mVar.take
+      _ <- gate3.complete(())
       r1 <- mVar.take
       r3 <- mVar.take
     } yield Set(r1, r3)
@@ -50,12 +54,16 @@ class MVarSpec extends BaseSpec {
   "take is cancelable" in real {
     val op = for {
       mVar <- MVar[IO].empty[Int]
-      t1 <- mVar.take.start
-      t2 <- mVar.take.start
-      t3 <- mVar.take.start
-      _ <- IO.sleep(10.millis) // Give take callbacks a chance to register
-      _ <- t2.cancel
+      gate1 <- Deferred[IO, Unit]
+      gate2 <- Deferred[IO, Unit]
+      t1 <- (mVar.take <* gate1.complete(())).start
+      t2 <- (gate1.get *> mVar.take).start
+      t3 <- (gate2.get *> mVar.take).start
       _ <- mVar.put(1)
+      _ <- gate1.get
+      _ <- IO.sleep(10.millis) // Give more chance for `t2` take to register
+      _ <- t2.cancel
+      _ <- gate2.complete(())
       _ <- mVar.put(3)
       r1 <- t1.join
       r3 <- t3.join
