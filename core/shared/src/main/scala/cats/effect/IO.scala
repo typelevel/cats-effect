@@ -98,6 +98,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
+  def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
+
   def guarantee(finalizer: IO[Unit]): IO[A] =
     guaranteeCase(_ => finalizer)
 

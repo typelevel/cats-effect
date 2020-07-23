@@ -116,6 +116,9 @@ private[effect] final class IOFiber[A](
   // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
+  private[this] val TypeBlocking = Sync.Type.Blocking
+  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
+
   def this(
       scheduler: unsafe.Scheduler,
       blockingEc: ExecutionContext,
@@ -297,28 +300,90 @@ private[effect] final class IOFiber[A](
 
           case 2 =>
             val cur = cur0.asInstanceOf[Blocking[Any]]
+            // we know we're on the JVM here
 
-            blockingEc execute { () =>
-              var success0 = false
-              val r =
-                try {
-                  val r = cur.thunk()
-                  success0 = true
-                  r
-                } catch {
-                  case NonFatal(t) => t
+            if (cur.hint eq TypeBlocking) {
+              blockingEc execute { () =>
+                var success0 = false
+                val r =
+                  try {
+                    val r = cur.thunk()
+                    success0 = true
+                    r
+                  } catch {
+                    case NonFatal(t) => t
+                  }
+                val success = success0
+
+                currentCtx execute { () =>
+                  val next =
+                    if (success)
+                      succeeded(r, 0)
+                    else
+                      failed(r, 0)
+
+                  runLoop(next, nextIteration)
                 }
-              val success = success0
-
-              currentCtx execute { () =>
-                val next =
-                  if (success)
-                    succeeded(r, 0)
-                  else
-                    failed(r, 0)
-
-                runLoop(next, nextIteration)
               }
+            } else {
+              // InterruptibleMany | InterruptibleOnce
+
+              val many = cur.hint eq TypeInterruptibleMany
+              val next = IO.async[Any] { nextCb =>
+                for {
+                  done <- IO(new AtomicBoolean(false))
+                  cb <- IO(new AtomicReference[() => Unit](null))
+
+                  target <- IO.async_[Thread] { initCb =>
+                    blockingEc execute { () =>
+                      initCb(Right(Thread.currentThread()))
+
+                      try {
+                        nextCb(Right(cur.thunk()))
+                      } catch {
+                        case _: InterruptedException =>
+                          if (many) {
+                            done.set(true)
+                          } else {
+                            val cb0 = cb.get()
+                            if (cb0 != null) {
+                              cb0()
+                            }
+                          }
+
+                        case NonFatal(t) =>
+                          nextCb(Left(t))
+                      }
+                    }
+                  }
+
+                  isSelf <- IO(target eq Thread.currentThread())
+                } yield {
+                  if (isSelf) {
+                    None
+                  } else {
+                    Some {
+                      IO defer {
+                        target.interrupt()
+
+                        if (many) {
+                          IO blocking {
+                            while (!done.get()) {
+                              target.interrupt()    // it's hammer time!
+                            }
+                          }
+                        } else {
+                          IO.async_[Unit] { finCb =>
+                            cb.set(() => finCb(Right(())))
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+
+              runLoop(next, nextIteration)
             }
 
           case 3 =>
