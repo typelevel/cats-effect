@@ -19,7 +19,7 @@ package laws
 
 import cats.Eq
 import cats.data.EitherT
-import cats.effect.kernel.SyncEffect
+import cats.effect.kernel.{Sync, SyncEffect}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -36,6 +36,7 @@ trait SyncEffectTests[F[_]] extends SyncTests[F] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
       CogenA: Cogen[A],
       CogenB: Cogen[B],
       CogenC: Cogen[C],
