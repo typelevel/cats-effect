@@ -299,15 +299,16 @@ private[effect] final class IOFiber[A](
             val cur = cur0.asInstanceOf[Blocking[Any]]
 
             blockingEc execute { () =>
-              var success = false
+              var success0 = false
               val r =
                 try {
                   val r = cur.thunk()
-                  success = true
+                  success0 = true
                   r
                 } catch {
                   case NonFatal(t) => t
                 }
+              val success = success0
 
               currentCtx execute { () =>
                 val next =
