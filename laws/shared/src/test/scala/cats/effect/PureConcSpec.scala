@@ -17,8 +17,9 @@
 package cats.effect
 
 import cats.Show
+import cats.data.OptionT
 //import cats.laws.discipline.{AlignTests, ParallelTests}
-//import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.arbitrary._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentTests
@@ -43,6 +44,11 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "PureConc",
     ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
+  ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
+
+  checkAll(
+    "optionT[PureConc]",
+    ConcurrentTests[OptionT[PureConc[Int, *], *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 
 //  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
