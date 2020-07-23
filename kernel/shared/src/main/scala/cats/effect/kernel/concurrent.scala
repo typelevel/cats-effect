@@ -164,20 +164,7 @@ object Concurrent {
     implicit protected def F: Concurrent[F, E]
 
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
-      OptionT.liftF(F.start(fa.value).map { fib =>
-        new Fiber[OptionT[F, *], E, A] {
-          def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
-          def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
-            OptionT.liftF(for {
-              o <- fib.join
-              res: Outcome[OptionT[F, *], E, A] = o match {
-                case Outcome.Canceled() => Outcome.Canceled()
-                case Outcome.Errored(e) => Outcome.Errored(e)
-                case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
-              }
-            } yield res)
-        }
-      })
+      OptionT.liftF(F.start(fa.value).map(liftFiber))
 
     def uncancelable[A](
         body: (OptionT[F, *] ~> OptionT[F, *]) => OptionT[F, A]): OptionT[F, A] =
@@ -203,6 +190,25 @@ object Concurrent {
       F,
       Either[
         (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
-        (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = ???
+        (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = {
+      OptionT.liftF(F.racePair(fa.value, fb.value).map {
+        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+      })
+    }
+
+    def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
+      oc match {
+        case Outcome.Canceled() => Outcome.Canceled()
+        case Outcome.Errored(e) => Outcome.Errored(e)
+        case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
+      }
+
+    def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
+      new Fiber[OptionT[F, *], E, A] {
+        def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
+        def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
+          OptionT.liftF(fib.join.map(liftOutcome))
+      }
   }
 }
