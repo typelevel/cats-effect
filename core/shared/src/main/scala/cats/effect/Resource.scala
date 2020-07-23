@@ -313,9 +313,7 @@ sealed abstract class Resource[+F[_], +A] {
     this.evalMap(a => f(a).as(a))
 }
 
-object Resource // extends ResourceInstances
- extends ResourcePlatform
-{
+object Resource extends ResourceInstances with ResourcePlatform {
 
   /**
    * Creates a resource from an allocating effect.
