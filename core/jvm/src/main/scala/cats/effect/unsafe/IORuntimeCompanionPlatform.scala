@@ -40,14 +40,12 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultBlockingExecutionContext(
       threadPrefix: String = "io-blocking-"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
-    val executor = Executors.newCachedThreadPool(
-      { (r: Runnable) =>
-        val t = new Thread(r)
-        t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
-        t.setDaemon(true)
-        t
-      }
-    )
+    val executor = Executors.newCachedThreadPool { (r: Runnable) =>
+      val t = new Thread(r)
+      t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
+      t.setDaemon(true)
+      t
+    }
     (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
   }
 
@@ -63,5 +61,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   }
 
   lazy val global: IORuntime =
-    IORuntime(createDefaultComputeExecutionContext()._1, createDefaultBlockingExecutionContext()._1, createDefaultScheduler()._1, () => ())
+    IORuntime(
+      createDefaultComputeExecutionContext()._1,
+      createDefaultBlockingExecutionContext()._1,
+      createDefaultScheduler()._1,
+      () => ())
 }

@@ -57,7 +57,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler, blockingEc: ExecutionContext, initMask: Int)
+private[effect] final class IOFiber[A](
+    name: String,
+    scheduler: unsafe.Scheduler,
+    blockingEc: ExecutionContext,
+    initMask: Int)
     extends FiberIO[A] {
   import IO._
 
@@ -112,7 +116,11 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(scheduler: unsafe.Scheduler, blockingEc: ExecutionContext, cb: OutcomeIO[A] => Unit, initMask: Int) = {
+  def this(
+      scheduler: unsafe.Scheduler,
+      blockingEc: ExecutionContext,
+      cb: OutcomeIO[A] => Unit,
+      initMask: Int) = {
     this("main", scheduler, blockingEc, initMask)
     callbacks.push(cb)
   }
@@ -290,7 +298,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
           case 2 =>
             val cur = cur0.asInstanceOf[Blocking[Any]]
 
-            execute(blockingEc) { () => 
+            execute(blockingEc) { () =>
               var success = false
               val r =
                 try {
@@ -305,7 +313,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 if (success)
                   succeeded(r, 0)
                 else
-                  failed(r, 0) 
+                  failed(r, 0)
 
               execute(currentCtx) { () => runLoop(next, nextIteration) }
             }

@@ -39,5 +39,9 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
     }
 
   lazy val global: IORuntime =
-    IORuntime(defaultComputeExecutionContext, defaultComputeExecutionContext, defaultScheduler, () => ())
+    IORuntime(
+      defaultComputeExecutionContext,
+      defaultComputeExecutionContext,
+      defaultScheduler,
+      () => ())
 }
