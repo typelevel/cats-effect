@@ -298,7 +298,7 @@ private[effect] final class IOFiber[A](
           case 2 =>
             val cur = cur0.asInstanceOf[Blocking[Any]]
 
-            execute(blockingEc) { () =>
+            blockingEc execute { () =>
               var success = false
               val r =
                 try {
@@ -309,13 +309,15 @@ private[effect] final class IOFiber[A](
                   case NonFatal(t) => t
                 }
 
-              val next =
-                if (success)
-                  succeeded(r, 0)
-                else
-                  failed(r, 0)
+              currentCtx execute { () =>
+                val next =
+                  if (success)
+                    succeeded(r, 0)
+                  else
+                    failed(r, 0)
 
-              execute(currentCtx) { () => runLoop(next, nextIteration) }
+                runLoop(next, nextIteration)
+              }
             }
 
           case 3 =>
