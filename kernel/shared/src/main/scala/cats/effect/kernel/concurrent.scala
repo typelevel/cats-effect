@@ -161,9 +161,27 @@ object Concurrent {
 
   trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
 
+    val nat: F ~> OptionT[F, *] = new ~>[F, OptionT[F, *]] {
+      def apply[A](fa: F[A]): OptionT[F, A] = OptionT.liftF(fa)
+    }
+
     implicit protected def F: Concurrent[F, E]
 
-    def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] = ???
+    def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
+      OptionT.liftF(F.start(fa.value).map { fib =>
+        new Fiber[OptionT[F, *], E, A] {
+          def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
+          def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
+            OptionT.liftF(for {
+              o <- fib.join
+              res: Outcome[OptionT[F, *], E, A] = o match {
+                case Outcome.Canceled() => Outcome.Canceled()
+                case Outcome.Errored(e) => Outcome.Errored(e)
+                case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
+              }
+            } yield res)
+        }
+      })
 
     def uncancelable[A](
         body: (OptionT[F, *] ~> OptionT[F, *]) => OptionT[F, A]): OptionT[F, A] = ???
