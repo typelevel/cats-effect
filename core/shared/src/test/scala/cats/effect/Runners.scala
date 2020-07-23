@@ -148,7 +148,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       ioa.unsafeRunAsync {
         case Left(t) => results = Outcome.Errored(t)
         case Right(a) => results = Outcome.Completed(Some(a))
-      }(unsafe.IORuntime(ticker.ctx, scheduler, () => ()))
+      }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
       ticker.ctx.tickAll(3.days)
 
@@ -164,7 +164,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
 
   implicit def materializeRuntime(implicit ticker: Ticker): unsafe.IORuntime =
-    unsafe.IORuntime(ticker.ctx, scheduler, () => ())
+    unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ())
 
   def scheduler(implicit ticker: Ticker): unsafe.Scheduler =
     new unsafe.Scheduler {

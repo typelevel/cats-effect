@@ -70,6 +70,9 @@ object freeEval {
             }
           }
         }
+
+      def blocking[A](thunk: => A): FreeT[Eval, F, A] =
+        delay(thunk)
     }
 
   implicit def eqFreeSync[F[_]: Monad, A](implicit F: Eq[F[A]]): Eq[FreeT[Eval, F, A]] =

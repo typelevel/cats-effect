@@ -29,14 +29,18 @@ trait RunnersPlatform extends BeforeAfterAll {
   def beforeAll(): Unit = {
     val (ctx, disp1) =
       IORuntime.createDefaultComputeExecutionContext(s"io-compute-${getClass.getName}")
-    val (sched, disp2) = IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
+    val (blk, disp2) =
+      IORuntime.createDefaultComputeExecutionContext(s"io-blocking-${getClass.getName}")
+    val (sched, disp3) = IORuntime.createDefaultScheduler(s"io-scheduler-${getClass.getName}")
 
     runtime0 = IORuntime(
       ctx,
+      blk,
       sched,
       { () =>
         disp1()
         disp2()
+        disp3()
       })
   }
 
