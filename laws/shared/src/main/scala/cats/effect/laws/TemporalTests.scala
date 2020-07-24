@@ -48,6 +48,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
       EqFC: Eq[F[C]],
       EqFU: Eq[F[Unit]],
       EqE: Eq[E],
+      EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[E, Unit]]],
       EqFEitherEA: Eq[F[Either[E, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
