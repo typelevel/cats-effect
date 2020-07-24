@@ -244,7 +244,9 @@ private[effect] final class IOFiber[A](
 
     val ec = currentCtx
 
-    if (!isCanceled()) { // hard cancelation check, basically
+    println(s"$name: Attempting to asyncContinue with ${isCanceled()}, ${masks} , ${initMask}")
+
+    if (!isCanceled() || !isUnmasked()) { // hard cancelation check, basically
       execute(ec) { () =>
         val next = e match {
           case Left(t) => failed(t, 0)
@@ -382,7 +384,7 @@ private[effect] final class IOFiber[A](
                 @tailrec
                 def loop(): Unit =
                   if (resume()) {
-                    if (!isCanceled()) { // double-check to see if we were canceled while suspended
+                    if (!isCanceled() || !isUnmasked()) { // double-check to see if we were canceled while suspended
                       if (old == AsyncStateRegisteredWithFinalizer) {
                         // we completed and were not canceled, so we pop the finalizer
                         // note that we're safe to do so since we own the runloop
@@ -391,7 +393,7 @@ private[effect] final class IOFiber[A](
 
                       asyncContinue(state, e)
                     }
-                  } else if (!isCanceled()) {
+                  } else if (!isCanceled() || !isUnmasked()) {
                     loop()
                   }
 
