@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
+import cats._, implicits._
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -24,9 +24,8 @@ import cats.effect.testkit.{
   SyncGenerators,
   TestContext
 }
-import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
 
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
@@ -100,6 +99,41 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     }
 
     Arbitrary(generators.generators[A])
+  }
+
+  implicit def arbitraryResource[F[_], A](implicit F: Applicative[F],
+                                                           AFA: Arbitrary[F[A]],
+                                                           AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+    Arbitrary(Gen.delay(genResource[F, A]))
+
+  implicit def arbitraryResourceParallel[F[_], A](
+    implicit A: Arbitrary[Resource[F, A]]
+  ): Arbitrary[Resource.Par[F, A]] =
+    Arbitrary(A.arbitrary.map(Resource.Par.apply))
+
+  // Improve this using a strategy similar to Generators.
+  // Currently doesn't generate Resource values that meaningfully test the MonadError instance.
+  // Also, resource cleanup is a no op.
+  def genResource[F[_], A](implicit F: Applicative[F],
+    AFA: Arbitrary[F[A]],
+    AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+    def genAllocate: Gen[Resource[F, A]] =
+      for {
+        alloc <- arbitrary[F[A]]
+        dispose <- arbitrary[F[Unit]]
+      } yield Resource(alloc.map(a => a -> dispose))
+
+    def genBind: Gen[Resource[F, A]] =
+      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
+
+    def genSuspend: Gen[Resource[F, A]] =
+      genAllocate.map(r => Resource.suspend(r.pure[F]))
+
+    Gen.frequency(
+      5 -> genAllocate,
+      1 -> genBind,
+      1 -> genSuspend
+    )
   }
 
   implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
