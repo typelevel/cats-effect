@@ -23,7 +23,7 @@ import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.{eq, MiniInt}; import eq._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
-import cats.effect.laws.ConcurrentTests
+import cats.effect.laws.TemporalTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
 // import org.scalacheck.rng.Seed
@@ -47,36 +47,36 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   checkAll(
     "PureConc",
-    ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
+    TemporalTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 
   checkAll(
     "OptionT[PureConc]",
-    ConcurrentTests[OptionT[PureConc[Int, *], *], Int].concurrent[Int, Int, Int]
+    TemporalTests[OptionT[PureConc[Int, *], *], Int].concurrent[Int, Int, Int]
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "EitherT[PureConc]",
-    ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    TemporalTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "IorT[PureConc]",
-    ConcurrentTests[IorT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    TemporalTests[IorT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "Kleisli[PureConc]",
-    ConcurrentTests[Kleisli[PureConc[Int, *], MiniInt, *], Int].concurrent[Int, Int, Int]
+    TemporalTests[Kleisli[PureConc[Int, *], MiniInt, *], Int].concurrent[Int, Int, Int]
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "WriterT[PureConc]",
-    ConcurrentTests[WriterT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    TemporalTests[WriterT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
