@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.EffectTests
-import cats.effect.testkit.TestContext
+import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
 
 import org.scalacheck.Prop, Prop.forAll
@@ -32,6 +32,8 @@ import scala.concurrent.duration._
 
 class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck with BaseSpec {
   outer =>
+
+  import SyncTypeGenerators._
 
   // we just need this because of the laws testing, since the prop runs can interfere with each other
   sequential

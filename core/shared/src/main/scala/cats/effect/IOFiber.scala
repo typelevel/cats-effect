@@ -126,7 +126,7 @@ private[effect] final class IOFiber[A](
   }
 
   var cancel: IO[Unit] = IO uncancelable { _ =>
-    IO suspend {
+    IO defer {
       canceled = true
       cancel = IO.unit
 

@@ -310,3 +310,23 @@ object OutcomeGenerators {
       case Outcome.Errored(e) => Some(Left(e))
     }
 }
+
+object SyncTypeGenerators {
+
+  implicit val arbitrarySyncType: Arbitrary[Sync.Type] = {
+    import Sync.Type._
+
+    Arbitrary(Gen.oneOf(Delay, Blocking, InterruptibleOnce, InterruptibleMany))
+  }
+
+  implicit val cogenSyncType: Cogen[Sync.Type] = {
+    import Sync.Type._
+
+    Cogen[Int] contramap {
+      case Delay => 0
+      case Blocking => 1
+      case InterruptibleOnce => 2
+      case InterruptibleMany => 3
+    }
+  }
+}

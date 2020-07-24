@@ -203,7 +203,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       this match {
         case IO.Pure(a) => F.pure(a)
         case IO.Delay(thunk) => F.delay(thunk())
-        case IO.Blocking(thunk) => F.blocking(thunk())
+        case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
         case IO.Error(t) => F.raiseError(t)
         case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
 
@@ -314,16 +314,31 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  private[this] val TypeDelay = Sync.Type.Delay
+  private[this] val TypeBlocking = Sync.Type.Blocking
+  private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
+  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
+
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
   def delay[A](thunk: => A): IO[A] = apply(thunk)
 
-  def suspend[A](thunk: => IO[A]): IO[A] =
-    delay(thunk).flatten
+  def blocking[A](thunk: => A): IO[A] =
+    Blocking(TypeBlocking, () => thunk)
 
-  def blocking[A](thunk: => A): IO[A] = Blocking(() => thunk)
+  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
+    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
+
+  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+    if (hint eq TypeDelay)
+      apply(thunk)
+    else
+      Blocking(hint, () => thunk)
+
+  def defer[A](thunk: => IO[A]): IO[A] =
+    delay(thunk).flatten
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
 
@@ -501,9 +516,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)
 
-    def delay[A](thunk: => A): IO[A] = IO(thunk)
+    override def delay[A](thunk: => A): IO[A] = IO(thunk)
 
-    def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
+    def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+      IO.suspend(hint)(thunk)
 
     override def void[A](ioa: IO[A]): IO[Unit] = ioa.void
   }
@@ -522,8 +538,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
+  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
   private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
-  private[effect] final case class Blocking[+A](thunk: () => A) extends IO[A] { def tag = 2 }
+
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+    def tag = 2
+  }
+
   private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
 
   private[effect] final case class Async[+A](

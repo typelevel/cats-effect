@@ -25,20 +25,20 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
 
   implicit val F: Sync[F]
 
-  def delayValueIsPure[A](a: A) =
-    F.delay(a) <-> F.pure(a)
+  def suspendValueIsPure[A](a: A, hint: Sync.Type) =
+    F.suspend(hint)(a) <-> F.pure(a)
 
-  def delayThrowIsRaiseError[A](e: Throwable) =
-    F.delay[A](throw e) <-> F.raiseError(e)
+  def suspendThrowIsRaiseError[A](e: Throwable, hint: Sync.Type) =
+    F.suspend[A](hint)(throw e) <-> F.raiseError(e)
 
-  def unsequencedDelayIsNoop[A](a: A, f: A => A) = {
-    val isWith = F.delay {
+  def unsequencedSuspendIsNoop[A](a: A, f: A => A, hint: Sync.Type) = {
+    val isWith = F delay {
       var cur = a
-      val _ = F.delay { cur = f(cur) }
+      val _ = F.suspend(hint) { cur = f(cur) }
       F.delay(cur)
     }
 
-    val isWithout = F.delay {
+    val isWithout = F delay {
       var cur = a
       cur = a // no-op to confuse the compiler
       F.delay(cur)
@@ -47,11 +47,11 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
     isWith.flatten <-> isWithout.flatten
   }
 
-  def repeatedDelayNotMemoized[A](a: A, f: A => A) = {
-    val isWith = F.delay {
+  def repeatedSuspendNotMemoized[A](a: A, f: A => A, hint: Sync.Type) = {
+    val isWith = F delay {
       var cur = a
 
-      val changeF = F.delay {
+      val changeF = F.suspend(hint) {
         cur = f(cur)
         cur
       }
@@ -59,10 +59,10 @@ trait SyncLaws[F[_]] extends MonadErrorLaws[F, Throwable] with ClockLaws[F] {
       changeF >> changeF
     }
 
-    val isWithout = F.delay {
+    val isWithout = F delay {
       var cur = a
 
-      F.delay {
+      F.suspend(hint) {
         cur = f(f(cur))
         cur
       }

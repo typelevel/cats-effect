@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
-import cats.effect.kernel.{Effect, Outcome}
+import cats.effect.kernel.{Effect, Outcome, Sync}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -39,6 +39,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
       ArbFiniteDuration: Arbitrary[FiniteDuration],
       ArbExecutionContext: Arbitrary[ExecutionContext],
       CogenA: Cogen[A],
