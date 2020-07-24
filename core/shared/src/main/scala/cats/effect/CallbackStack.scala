@@ -41,7 +41,6 @@ private[effect] final class CallbackStack[A](private[this] var callback: Outcome
   @tailrec
   def apply(oc: OutcomeIO[A]): Unit = {
     if (callback != null) {
-      println(s"Found and invoking a callback: ${oc}")
       callback(oc)
     }
 
