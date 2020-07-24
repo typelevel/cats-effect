@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.Show
-import cats.data.{OptionT, EitherT}
+import cats.data.{OptionT, EitherT, IorT}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
@@ -57,6 +57,12 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "EitherT[PureConc]",
     ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
+
+  checkAll(
+    "IorT[PureConc]",
+    ConcurrentTests[IorT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
   // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
