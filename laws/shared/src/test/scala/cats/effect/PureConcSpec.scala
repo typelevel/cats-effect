@@ -16,10 +16,11 @@
 
 package cats.effect
 
-import cats.Show
-import cats.data.{OptionT, EitherT, IorT}
+import cats.{Show, Eq}
+import cats.data.{OptionT, EitherT, IorT, Kleisli}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}; import eq._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentTests
@@ -43,6 +44,10 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
+
+  implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
+    Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
+
   checkAll(
     "PureConc",
     ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
@@ -63,6 +68,12 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "IorT[PureConc]",
     ConcurrentTests[IorT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
+
+  checkAll(
+    "Kleisli[PureConc]",
+    ConcurrentTests[Kleisli[PureConc[Int, *], MiniInt, *], Int].concurrent[Int, Int, Int]
   // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
