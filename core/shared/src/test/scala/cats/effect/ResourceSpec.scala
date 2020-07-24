@@ -48,35 +48,48 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int]
     )
   }
-       // checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
 
+  {
+    implicit val ticker = Ticker(TestContext())
 
-  // checkAllAsync("Resource[IO, *]", implicit ec => MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int])
-  // checkAllAsync("Resource[IO, Int]", implicit ec => MonoidTests[Resource[IO, Int]].monoid)
-  // checkAllAsync("Resource[IO, *]", implicit ec => SemigroupKTests[Resource[IO, *]].semigroupK[Int])
-  // checkAllAsync(
-  //   "Resource.Par[IO, *]",
-  //   implicit ec => {
-  //     implicit val cs = ec.contextShift[IO]
-  //     CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
-  //   }
-  // )
-  // checkAllAsync(
-  //   "Resource[IO, *]",
-  //   implicit ec => {
-  //     implicit val cs = ec.contextShift[IO]
+    checkAll(
+      "Resource[IO, Int]",
+      MonoidTests[Resource[IO, Int]].monoid
+    )
+  }
 
-  //     // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-  //     val module = ParallelTests[IO]
-  //     module.parallel[Int, Int]
-  //   }
-  // )
+  // TODO We're missing a semigroupK instance for IO
+  // {
+  //   implicit val ticker = Ticker(TestContext())
 
-  // testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
-  //   check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
-  //     acquire.bracket(f)(release) <-> Resource.make(acquire)(release).use(f)
-  //   }
+  //   checkAll(
+  //     "Resource[IO, *]",
+  //     SemigroupKTests[Resource[IO, *]].semigroupK[Int]
+  //   )
   // }
+
+  // TODO Investigate failure
+  // {
+  //   implicit val ticker = Ticker(TestContext())
+
+  //   checkAll(
+  //     "Resource.Par[IO, *]",
+  //     CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
+  //   )
+  // }
+
+  {
+    implicit val ticker = Ticker(TestContext())
+
+    // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+    val module: ParallelTests.Aux[Resource[IO, *], Resource.Par[IO, *]] =
+      ParallelTests[Resource[IO, *]]
+
+    checkAll(
+      "Resource[IO, *]",
+      module.parallel[Int, Int]
+    )
+  }
 
   // test("releases resources in reverse order of acquisition") {
   //   check { (as: List[(Int, Either[Throwable, Unit])]) =>
