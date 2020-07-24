@@ -47,7 +47,7 @@ class ResourceTests extends BaseTestsSuite {
       implicit val cs = ec.contextShift[IO]
 
       // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-      val module = ParallelTests[IO]
+      val module = ParallelTests[Resource[IO, *]]
       module.parallel[Int, Int]
     }
   )
