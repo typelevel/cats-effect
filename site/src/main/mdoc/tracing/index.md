@@ -50,7 +50,7 @@ indicates that the feature has been merged into master.
 1. **Asynchronous stack tracing**. This is essentially what is described above,
 where stack frames are collected across asynchronous boundaries for a given
 fiber.
-2. Combinator inference. Stack traces can be walked to determine what
+2. **Combinator inference**. Stack traces can be walked to determine what
 combinator was actually called by user code. For example, `void` and `as` are 
 combinators that are derived from `map`, and should appear in the fiber trace
 rather than `map`.
