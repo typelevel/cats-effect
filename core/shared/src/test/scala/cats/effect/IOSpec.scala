@@ -560,6 +560,28 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       test must nonTerminate
     }
 
+    "first canceller backpressures subsequent cancellers" in ticked { implicit ticker =>
+      var started = false
+
+      val markStarted = IO { started = true }
+      lazy val cedeUntilStarted: IO[Unit] =
+        IO(started).ifM(IO.unit, IO.cede >> cedeUntilStarted)
+
+      var started2 = false
+
+      val markStarted2 = IO { started2 = true }
+      lazy val cedeUntilStarted2: IO[Unit] =
+        IO(started2).ifM(IO.unit, IO.cede >> cedeUntilStarted2)
+
+      val test = for {
+        first <- (markStarted *> IO.never).onCancel(IO.never).start
+        _ <- (cedeUntilStarted *> markStarted2 *> first.cancel).start
+        _ <- cedeUntilStarted2 *> first.cancel
+      } yield ()
+
+      test must nonTerminate
+    }
+
     "temporal" should {
       "timeout" should {
         "succeed" in real {

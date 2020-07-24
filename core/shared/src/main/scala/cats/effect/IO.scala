@@ -126,7 +126,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     racePair(that).flatMap {
       case Left((oc, f)) =>
         oc match {
-          case Outcome.Completed(fa) => f.cancel *> fa.map(Left(_))
+          case Outcome.Completed(fa) => IO(println("Cancelled 0")) *> f.cancel *> IO(println("Cancelled 1")) *> fa.map(Left(_))
           case Outcome.Errored(ea) => f.cancel *> IO.raiseError(ea)
           case Outcome.Canceled() =>
             f.join.flatMap {
@@ -137,7 +137,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         }
       case Right((f, oc)) =>
         oc match {
-          case Outcome.Completed(fb) => f.cancel *> fb.map(Right(_))
+          case Outcome.Completed(fb) => IO(println("Cancelled 3")) *> f.cancel *> IO(println("Cancelled 2")) *> fb.map(Right(_))
           case Outcome.Errored(eb) => f.cancel *> IO.raiseError(eb)
           case Outcome.Canceled() =>
             f.join.flatMap {

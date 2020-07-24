@@ -104,8 +104,6 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled
-  // private[this] val OutcomeErrored = IOFiber.OutcomeErrored
-  // private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
@@ -122,6 +120,8 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
       canceled = true
       cancel = IO.unit
 
+      println(s"$name: ${Thread.currentThread().getName()}starting cancel")
+
       // check to see if the target fiber is suspended
       if (resume()) {
         // ...it was! was it masked?
@@ -129,26 +129,37 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
           // ...nope! take over the target fiber's runloop and run the finalizers
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
-          val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[Nothing]]
-          if (outcome.compareAndSet(null, oc.asInstanceOf[OutcomeIO[A]])) {
-            done(oc.asInstanceOf[OutcomeIO[A]])
+          // if we have async finalizers, runLoop may return early
+          IO.async_[Unit] { fin =>
+            if (outcome.get() == null) {
+              if (!finalizers.isEmpty()) {
+                println(s"$name: ${Thread.currentThread().getName()}attempting to cancel")
+                objectState.push(fin)
 
-            if (!finalizers.isEmpty()) {
-              conts = new ByteStack(16)
-              pushCont(CancelationLoopK)
+                conts = new ByteStack(16)
+                pushCont(CancelationLoopK)
 
-              masks += 1
-              runLoop(finalizers.pop(), 0)
+                masks += 1
+                runLoop(finalizers.pop(), 0)
+              } else {
+                println(s"$name: ${Thread.currentThread().getName()}marking as canceled 2")
+                done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+                fin(Right(()))
+              }
+            } else {
+              println(s"$name: ${Thread.currentThread().getName()}marking as canceled")
+              done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+              fin(Right(()))
             }
           }
-
-          IO.unit
         } else {
+          println(s"$name: ${Thread.currentThread().getName()}joining on 1")
           // it was masked, so we need to wait for it to finish whatever it was doing and cancel itself
           suspend() // allow someone else to take the runloop
           join.void
         }
       } else {
+        println(s"$name: ${Thread.currentThread().getName()}joining on 2")
         // it's already being run somewhere; await the finalizers
         join.void
       }
@@ -158,6 +169,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   // this is swapped for an IO.pure(outcome.get()) when we complete
   var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
+      println(s"$name: ${Thread.currentThread().getName()}registered a join")
       IO {
         val handle = registerListener(oc => cb(Right(oc)))
 
@@ -188,6 +200,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   }
 
   private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
+    println(s"$name: ${Thread.currentThread().getName()}starting")
     conts = new ByteStack(16)
     pushCont(RunTerminusK)
 
@@ -201,14 +214,19 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   }
 
   private def done(oc: OutcomeIO[A]): Unit = {
-    // println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+//     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    println(s"$name: ${Thread.currentThread().getName()} done with $oc")
     join = IO.pure(oc)
+
+    outcome.set(oc)
 
     try {
       callbacks(oc)
     } finally {
       callbacks.lazySet(null) // avoid leaks
     }
+
+    invalidate()
   }
 
   private def asyncContinue(
@@ -218,7 +236,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
     val ec = currentCtx
 
-    if (outcome.get() == null) { // hard cancelation check, basically
+    if (!isCanceled()) { // hard cancelation check, basically
       execute(ec) { () =>
         val next = e match {
           case Left(t) => failed(t, 0)
@@ -240,21 +258,20 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
     }
 
     if (canceled && masks == initMask) {
-      // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+//       println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      val oc = OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
-      if (outcome.compareAndSet(null, oc)) {
-        done(oc)
+      if (hasFinalizers()) {
+        objectState.push(null)
 
-        if (!finalizers.isEmpty()) {
-          conts = new ByteStack(16)
-          pushCont(CancelationLoopK)
+        conts = new ByteStack(16)
+        pushCont(CancelationLoopK)
 
-          // suppress all subsequent cancelation on this fiber
-          masks += 1
-          runLoop(finalizers.pop(), 0)
-        }
+        // suppress all subsequent cancelation on this fiber
+        masks += 1
+        runLoop(finalizers.pop(), 0)
+      } else {
+        done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       }
     } else {
       // println(s"<$name> looping on $cur0")
@@ -276,7 +293,10 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 success = true
                 r
               } catch {
-                case NonFatal(t) => t
+                case NonFatal(t) => {
+                  t.printStackTrace()
+                  t
+                }
               }
 
             val next =
@@ -309,6 +329,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
             objectState.push(done)
             objectState.push(state)
 
+            println(s"$name: ${Thread.currentThread().getName()}Invoking an async")
             val next = cur.k { e =>
               // println(s"<$name> callback run with $e")
               if (!done.getAndSet(true)) {
@@ -327,7 +348,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
                 @tailrec
                 def loop(): Unit =
                   if (resume()) {
-                    if (outcome.get() == null) { // double-check to see if we were canceled while suspended
+                    if (!isCanceled()) { // double-check to see if we were canceled while suspended
                       if (old == AsyncStateRegisteredWithFinalizer) {
                         // we completed and were not canceled, so we pop the finalizer
                         // note that we're safe to do so since we own the runloop
@@ -336,7 +357,7 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
 
                       asyncContinue(state, e)
                     }
-                  } else if (outcome.get() == null) {
+                  } else if (!isCanceled()) {
                     loop()
                   }
 
@@ -524,12 +545,6 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   private def isCanceled(): Boolean =
     canceled
 
-  private def currentOutcome(): OutcomeIO[A] =
-    outcome.get()
-
-  private def casOutcome(old: OutcomeIO[A], value: OutcomeIO[A]): Boolean =
-    outcome.compareAndSet(old, value)
-
   private def hasFinalizers(): Boolean =
     !finalizers.isEmpty()
 
@@ -631,17 +646,18 @@ private[effect] final class IOFiber[A](name: String, scheduler: unsafe.Scheduler
   }
 
   private def invalidate(): Unit = {
-    // reenable any cancelation checks that fall through higher up in the call-stack
-    masks = initMask
-
     // clear out literally everything to avoid any possible memory leaks
-    conts.invalidate()
-    currentCtx = null
-    ctxs = null
 
-    objectState.invalidate()
-
-    finalizers.invalidate()
+    // null check in case fiber hasn't actually started
+//    if (conts != null)
+//      conts.invalidate()
+//
+//    currentCtx = null
+//    ctxs = null
+//
+//    objectState.invalidate()
+//
+//    finalizers.invalidate()
   }
 
   private[effect] def debug(): Unit = {
@@ -684,7 +700,13 @@ private object IOFiber {
         pushCont(this)
         runLoop(popFinalizer(), 0)
       } else {
-        invalidate()
+        // resume external canceller
+        val cb = popObjectState()
+        if (cb != null) {
+          cb.asInstanceOf[Either[Throwable, Unit] => Unit](Right(()))
+        }
+        // resume joiners
+        done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       }
 
       null
@@ -693,16 +715,16 @@ private object IOFiber {
 
   private object RunTerminusK extends IOCont(1) {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self.{casOutcome, currentOutcome, done, isCanceled}
+      import self.{done, isCanceled}
 
-      if (isCanceled()) // this can happen if we don't check the canceled flag before completion
-        casOutcome(null, OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+      val outcome: OutcomeIO[A] = if (isCanceled()) // this can happen if we don't check the canceled flag before completion
+        OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
       else if (success)
-        casOutcome(null, OutcomeCompleted(IO.pure(result.asInstanceOf[A])))
+        OutcomeCompleted(IO.pure(result.asInstanceOf[A]))
       else
-        casOutcome(null, OutcomeErrored(result.asInstanceOf[Throwable]))
+        OutcomeErrored(result.asInstanceOf[Throwable])
 
-      done(currentOutcome())
+      done(outcome)
 
       null
     }
