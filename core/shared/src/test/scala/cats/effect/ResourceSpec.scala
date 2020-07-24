@@ -43,8 +43,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   {
     implicit val ticker = Ticker(TestContext())
 
-    implicit def todo2[A]: cats.kernel.Eq[cats.effect.Resource[cats.effect.IO,A]] = ???
-
     checkAll(
       "Resource[IO, *]",
       MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int]

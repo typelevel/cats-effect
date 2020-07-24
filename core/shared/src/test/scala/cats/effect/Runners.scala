@@ -111,9 +111,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   ): Arbitrary[Resource.Par[F, A]] =
     Arbitrary(A.arbitrary.map(Resource.Par.apply))
 
-  // Improve this using a strategy similar to Generators.
-  // Currently doesn't generate Resource values that meaningfully test the MonadError instance.
-  // Also, resource cleanup is a no op.
+  // Consider improving this a strategy similar to Generators.
   def genResource[F[_], A](implicit F: Applicative[F],
     AFA: Arbitrary[F[A]],
     AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
@@ -165,6 +163,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Order by { ioa => unsafeRun(ioa).fold(None, _ => None, fa => fa) }
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
+    Eq.by(unsafeRun(_))
     /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
@@ -179,7 +178,28 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       back
     }*/
 
-    Eq.by(unsafeRun(_))
+   /**
+   * Defines equality for a `Resource`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResource[F[_], A](implicit E: Eq[F[A]], F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+    new Eq[Resource[F, A]] {
+      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
+        E.eqv(x.use(F.pure), y.use(F.pure))
+    }
+
+  /**
+   * Defines equality for `Resource.Par`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResourcePar[F[_], A](implicit E: Eq[Resource[F, A]]): Eq[Resource.Par[F, A]] =
+    new Eq[Resource.Par[F, A]] {
+      import Resource.Par.unwrap
+      def eqv(x: Resource.Par[F, A], y: Resource.Par[F, A]): Boolean =
+        E.eqv(unwrap(x), unwrap(y))
+    }
 
   def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
     Try(io.unsafeRunSync()).toEither
