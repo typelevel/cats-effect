@@ -16,26 +16,24 @@
 
 package cats.effect
 
-import cats.{Show, Eq}
-import cats.data.{OptionT, EitherT, IorT, Kleisli}
+import cats.{Eq, Show}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}; import eq._
+import cats.laws.discipline.{eq, MiniInt}; import eq._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
-import org.scalacheck.rng.Seed
+// import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.scalacheck.Parameters
+// import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
-import org.scalacheck.Prop
 
 import org.typelevel.discipline.specs2.mutable.Discipline
-import cats.effect.laws.ConcurrentLaws
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
@@ -43,7 +41,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
-
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
@@ -56,25 +53,31 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   checkAll(
     "OptionT[PureConc]",
     ConcurrentTests[OptionT[PureConc[Int, *], *], Int].concurrent[Int, Int, Int]
-  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "EitherT[PureConc]",
     ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
-  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "IorT[PureConc]",
     ConcurrentTests[IorT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
-  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
   checkAll(
     "Kleisli[PureConc]",
     ConcurrentTests[Kleisli[PureConc[Int, *], MiniInt, *], Int].concurrent[Int, Int, Int]
-  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
+
+  checkAll(
+    "WriterT[PureConc]",
+    ConcurrentTests[WriterT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 
 //  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
