@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats.{~>, MonadError}
-import cats.data.OptionT
+import cats.data.{OptionT, EitherT}
 import cats.syntax.all._
 
 trait Fiber[F[_], E, A] {
@@ -165,6 +165,12 @@ object Concurrent {
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
+  implicit def concurrentForEitherT[F[_], E0, E](
+      implicit F0: Concurrent[F, E]): Concurrent[EitherT[F, E0, *], E] =
+    new EitherTConcurrent[F, E0, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
+    }
+
   trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
 
     implicit protected def F: Concurrent[F, E]
@@ -230,6 +236,75 @@ object Concurrent {
         def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
         def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
           OptionT.liftF(fib.join.map(liftOutcome))
+      }
+  }
+
+  trait EitherTConcurrent[F[_], E0, E] extends Concurrent[EitherT[F, E0, *], E] {
+
+    implicit protected def F: Concurrent[F, E]
+
+    val delegate = EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
+
+    def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
+      EitherT.liftF(F.start(fa.value).map(liftFiber))
+
+    def uncancelable[A](
+        body: (EitherT[F, E0, *] ~> EitherT[F, E0, *]) => EitherT[F, E0, A]): EitherT[F, E0, A] =
+      EitherT(
+        F.uncancelable { nat =>
+          val natT: EitherT[F, E0, *] ~> EitherT[F, E0, *] = new ~>[EitherT[F, E0, *], EitherT[F, E0, *]] {
+            def apply[A](optfa: EitherT[F, E0, A]): EitherT[F, E0, A] = EitherT(nat(optfa.value))
+          }
+          body(natT).value
+        }
+      )
+
+    def canceled: EitherT[F, E0, Unit] = EitherT.liftF(F.canceled)
+
+    def onCancel[A](fa: EitherT[F, E0, A], fin: EitherT[F, E0, Unit]): EitherT[F, E0, A] =
+      EitherT(F.onCancel(fa.value, fin.value.as(())))
+
+    def never[A]: EitherT[F, E0, A] = EitherT.liftF(F.never)
+
+    def cede: EitherT[F, E0, Unit] = EitherT.liftF(F.cede)
+
+    def racePair[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
+      F,
+      E0,
+      Either[
+        (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
+        (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
+      EitherT.liftF(F.racePair(fa.value, fb.value).map {
+        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+      })
+    }
+
+    def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
+
+    def raiseError[A](e: E): EitherT[F, E0, A] = delegate.raiseError(e)
+
+    def handleErrorWith[A](fa: EitherT[F, E0, A])(f: E => EitherT[F, E0, A]): EitherT[F, E0, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: EitherT[F, E0, A])(f: A => EitherT[F, E0, B]): EitherT[F, E0, B] =
+      delegate.flatMap(fa)(f)
+
+    def tailRecM[A, B](a: A)(f: A => EitherT[F, E0, Either[A, B]]): EitherT[F, E0, B] =
+      delegate.tailRecM(a)(f)
+
+    def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
+      oc match {
+        case Outcome.Canceled() => Outcome.Canceled()
+        case Outcome.Errored(e) => Outcome.Errored(e)
+        case Outcome.Completed(foa) => Outcome.Completed(EitherT(foa))
+      }
+
+    def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
+      new Fiber[EitherT[F, E0, *], E, A] {
+        def cancel: EitherT[F, E0, Unit] = EitherT.liftF(fib.cancel)
+        def join: EitherT[F, E0, Outcome[EitherT[F, E0, *], E, A]] =
+          EitherT.liftF(fib.join.map(liftOutcome))
       }
   }
 }

@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.Show
-import cats.data.OptionT
+import cats.data.{OptionT, EitherT}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
@@ -25,14 +25,16 @@ import cats.implicits._
 import cats.effect.laws.ConcurrentTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
-// import org.scalacheck.rng.Seed
+import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
+import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
+import org.scalacheck.Prop
 
 import org.typelevel.discipline.specs2.mutable.Discipline
+import cats.effect.laws.ConcurrentLaws
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
@@ -47,9 +49,16 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
 
   checkAll(
-    "optionT[PureConc]",
+    "OptionT[PureConc]",
     ConcurrentTests[OptionT[PureConc[Int, *], *], Int].concurrent[Int, Int, Int]
-  ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
+  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
+
+  checkAll(
+    "EitherT[PureConc]",
+    ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+  // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
 
 //  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
 
