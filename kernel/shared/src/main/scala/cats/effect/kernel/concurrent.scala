@@ -17,8 +17,8 @@
 package cats.effect.kernel
 
 import cats.{~>, MonadError}
-import cats.data.{EitherT, Ior, IorT, OptionT, Kleisli}
-import cats.Semigroup
+import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
+import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
 trait Fiber[F[_], E, A] {
@@ -182,6 +182,15 @@ object Concurrent {
       override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
+    }
+
+  implicit def concurrentForWriterT[F[_], L, E](
+      implicit F0: Concurrent[F, E],
+      L0: Monoid[L]): Concurrent[WriterT[F, L, *], E] =
+    new WriterTConcurrent[F, L, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
+
+      override implicit protected def L: Monoid[L] = L0
     }
 
   trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
@@ -402,19 +411,17 @@ object Concurrent {
     val delegate = Kleisli.catsDataMonadErrorForKleisli[F, R, E]
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r =>
-        (F.start(fa.run(r)).map(liftFiber))
-      }
+      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
 
     def uncancelable[A](
         body: (Kleisli[F, R, *] ~> Kleisli[F, R, *]) => Kleisli[F, R, A]): Kleisli[F, R, A] =
-      Kleisli{ r =>
+      Kleisli { r =>
         F.uncancelable { nat =>
-          val natT: Kleisli[F, R, *] ~> Kleisli[F, R, *] = new ~>[Kleisli[F, R, *], Kleisli[F, R, *]] {
-            def apply[A](stfa: Kleisli[F, R, A]): Kleisli[F, R, A] = Kleisli { r =>
-              nat(stfa.run(r))
+          val natT: Kleisli[F, R, *] ~> Kleisli[F, R, *] =
+            new ~>[Kleisli[F, R, *], Kleisli[F, R, *]] {
+              def apply[A](stfa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+                Kleisli { r => nat(stfa.run(r)) }
             }
-          }
           body(natT).run(r)
         }
       }
@@ -422,9 +429,7 @@ object Concurrent {
     def canceled: Kleisli[F, R, Unit] = Kleisli.liftF(F.canceled)
 
     def onCancel[A](fa: Kleisli[F, R, A], fin: Kleisli[F, R, Unit]): Kleisli[F, R, A] =
-      Kleisli{ r =>
-        F.onCancel(fa.run(r), fin.run(r))
-      }
+      Kleisli { r => F.onCancel(fa.run(r), fin.run(r)) }
 
     def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
 
@@ -438,9 +443,9 @@ object Concurrent {
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
         (F.racePair(fa.run(r), fb.run(r)).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        })
       }
     }
 
@@ -468,6 +473,79 @@ object Concurrent {
         def cancel: Kleisli[F, R, Unit] = Kleisli.liftF(fib.cancel)
         def join: Kleisli[F, R, Outcome[Kleisli[F, R, *], E, A]] =
           Kleisli.liftF(fib.join.map(liftOutcome))
+      }
+  }
+
+  trait WriterTConcurrent[F[_], L, E] extends Concurrent[WriterT[F, L, *], E] {
+
+    implicit protected def F: Concurrent[F, E]
+
+    implicit protected def L: Monoid[L]
+
+    val delegate = WriterT.catsDataMonadErrorForWriterT[F, L, E]
+
+    def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
+      WriterT.liftF(F.start(fa.run).map(liftFiber))
+
+    def uncancelable[A](
+        body: (WriterT[F, L, *] ~> WriterT[F, L, *]) => WriterT[F, L, A]): WriterT[F, L, A] =
+      WriterT(
+        F.uncancelable { nat =>
+          val natT: WriterT[F, L, *] ~> WriterT[F, L, *] =
+            new ~>[WriterT[F, L, *], WriterT[F, L, *]] {
+              def apply[A](optfa: WriterT[F, L, A]): WriterT[F, L, A] = WriterT(nat(optfa.run))
+            }
+          body(natT).run
+        }
+      )
+
+    def canceled: WriterT[F, L, Unit] = WriterT.liftF(F.canceled)
+
+    //Note that this does not preserve the log from the finalizer
+    def onCancel[A](fa: WriterT[F, L, A], fin: WriterT[F, L, Unit]): WriterT[F, L, A] =
+      WriterT(F.onCancel(fa.run, fin.value.void))
+
+    def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
+
+    def cede: WriterT[F, L, Unit] = WriterT.liftF(F.cede)
+
+    def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
+      F,
+      L,
+      Either[
+        (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
+        (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] = {
+      WriterT.liftF(F.racePair(fa.run, fb.run).map {
+        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+      })
+    }
+
+    def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
+
+    def raiseError[A](e: E): WriterT[F, L, A] = delegate.raiseError(e)
+
+    def handleErrorWith[A](fa: WriterT[F, L, A])(f: E => WriterT[F, L, A]): WriterT[F, L, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: WriterT[F, L, A])(f: A => WriterT[F, L, B]): WriterT[F, L, B] =
+      delegate.flatMap(fa)(f)
+
+    def tailRecM[A, B](a: A)(f: A => WriterT[F, L, Either[A, B]]): WriterT[F, L, B] =
+      delegate.tailRecM(a)(f)
+
+    def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
+      oc match {
+        case Outcome.Canceled() => Outcome.Canceled()
+        case Outcome.Errored(e) => Outcome.Errored(e)
+        case Outcome.Completed(foa) => Outcome.Completed(WriterT(foa))
+      }
+
+    def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
+      new Fiber[WriterT[F, L, *], E, A] {
+        def cancel: WriterT[F, L, Unit] = WriterT.liftF(fib.cancel)
+        def join: WriterT[F, L, Outcome[WriterT[F, L, *], E, A]] =
+          WriterT.liftF(fib.join.map(liftOutcome))
       }
   }
 }
