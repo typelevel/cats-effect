@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats.{~>, MonadError}
-import cats.data.{EitherT, Ior, IorT, OptionT}
+import cats.data.{EitherT, Ior, IorT, OptionT, Kleisli}
 import cats.Semigroup
 import cats.syntax.all._
 
@@ -172,6 +172,12 @@ object Concurrent {
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
+  implicit def concurrentForKleisli[F[_], R, E](
+      implicit F0: Concurrent[F, E]): Concurrent[Kleisli[F, R, *], E] =
+    new KleisliConcurrent[F, R, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
+    }
+
   implicit def concurrentForIorT[F[_], L, E](
       implicit F0: Concurrent[F, E],
       L0: Semigroup[L]): Concurrent[IorT[F, L, *], E] =
@@ -204,7 +210,7 @@ object Concurrent {
     def canceled: OptionT[F, Unit] = OptionT.liftF(F.canceled)
 
     def onCancel[A](fa: OptionT[F, A], fin: OptionT[F, Unit]): OptionT[F, A] =
-      OptionT(F.onCancel(fa.value, fin.value.as(())))
+      OptionT(F.onCancel(fa.value, fin.value.void))
 
     def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
 
@@ -274,7 +280,7 @@ object Concurrent {
     def canceled: EitherT[F, E0, Unit] = EitherT.liftF(F.canceled)
 
     def onCancel[A](fa: EitherT[F, E0, A], fin: EitherT[F, E0, Unit]): EitherT[F, E0, A] =
-      EitherT(F.onCancel(fa.value, fin.value.as(())))
+      EitherT(F.onCancel(fa.value, fin.value.void))
 
     def never[A]: EitherT[F, E0, A] = EitherT.liftF(F.never)
 
@@ -320,6 +326,7 @@ object Concurrent {
           EitherT.liftF(fib.join.map(liftOutcome))
       }
   }
+
   trait IorTConcurrent[F[_], L, E] extends Concurrent[IorT[F, L, *], E] {
 
     implicit protected def F: Concurrent[F, E]
@@ -345,7 +352,7 @@ object Concurrent {
     def canceled: IorT[F, L, Unit] = IorT.liftF(F.canceled)
 
     def onCancel[A](fa: IorT[F, L, A], fin: IorT[F, L, Unit]): IorT[F, L, A] =
-      IorT(F.onCancel(fa.value, fin.value.as(())))
+      IorT(F.onCancel(fa.value, fin.value.void))
 
     def never[A]: IorT[F, L, A] = IorT.liftF(F.never)
 
@@ -388,6 +395,82 @@ object Concurrent {
         def cancel: IorT[F, L, Unit] = IorT.liftF(fib.cancel)
         def join: IorT[F, L, Outcome[IorT[F, L, *], E, A]] =
           IorT.liftF(fib.join.map(liftOutcome))
+      }
+  }
+
+  trait KleisliConcurrent[F[_], R, E] extends Concurrent[Kleisli[F, R, *], E] {
+
+    implicit protected def F: Concurrent[F, E]
+
+    val delegate = Kleisli.catsDataMonadErrorForKleisli[F, R, E]
+
+    def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
+      Kleisli { r =>
+        (F.start(fa.run(r)).map(liftFiber))
+      }
+
+    def uncancelable[A](
+        body: (Kleisli[F, R, *] ~> Kleisli[F, R, *]) => Kleisli[F, R, A]): Kleisli[F, R, A] =
+      Kleisli{ r =>
+        F.uncancelable { nat =>
+          val natT: Kleisli[F, R, *] ~> Kleisli[F, R, *] = new ~>[Kleisli[F, R, *], Kleisli[F, R, *]] {
+            def apply[A](stfa: Kleisli[F, R, A]): Kleisli[F, R, A] = Kleisli { r =>
+              nat(stfa.run(r))
+            }
+          }
+          body(natT).run(r)
+        }
+      }
+
+    def canceled: Kleisli[F, R, Unit] = Kleisli.liftF(F.canceled)
+
+    def onCancel[A](fa: Kleisli[F, R, A], fin: Kleisli[F, R, Unit]): Kleisli[F, R, A] =
+      Kleisli{ r =>
+        F.onCancel(fa.run(r), fin.run(r))
+      }
+
+    def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
+
+    def cede: Kleisli[F, R, Unit] = Kleisli.liftF(F.cede)
+
+    def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
+      F,
+      R,
+      Either[
+        (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
+        (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
+      Kleisli { r =>
+        (F.racePair(fa.run(r), fb.run(r)).map {
+        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+      })
+      }
+    }
+
+    def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
+
+    def raiseError[A](e: E): Kleisli[F, R, A] = delegate.raiseError(e)
+
+    def handleErrorWith[A](fa: Kleisli[F, R, A])(f: E => Kleisli[F, R, A]): Kleisli[F, R, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def flatMap[A, B](fa: Kleisli[F, R, A])(f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
+      delegate.flatMap(fa)(f)
+
+    def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
+      delegate.tailRecM(a)(f)
+
+    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = oc.mapK(nat)
+
+    val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
+      def apply[A](fa: F[A]) = Kleisli.liftF(fa)
+    }
+
+    def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
+      new Fiber[Kleisli[F, R, *], E, A] {
+        def cancel: Kleisli[F, R, Unit] = Kleisli.liftF(fib.cancel)
+        def join: Kleisli[F, R, Outcome[Kleisli[F, R, *], E, A]] =
+          Kleisli.liftF(fib.join.map(liftOutcome))
       }
   }
 }
