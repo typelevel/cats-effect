@@ -34,4 +34,3 @@ cache:
     - $HOME/.ivy2/cache
     - $HOME/.coursier/cache
     - $HOME/.sbt
-    - $HOME/.rvm
