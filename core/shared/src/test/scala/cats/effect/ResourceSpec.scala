@@ -40,6 +40,21 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
   sequential
 
+  "Resource[IO, *]" should {
+    "release resources in reverse order of acquisition" in ticked { implicit ticker =>
+      forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
+        var released: List[Int] = Nil
+        val r = as.traverse {
+          case (a, e) =>
+            Resource.make(IO(a))(a => IO { released = a :: released } *> IO.fromEither(e))
+        }
+        r.use(IO.pure).attempt.void must completeAs(())
+        released mustEqual as.map(_._1)
+      }
+    }
+
+  }
+
   {
     implicit val ticker = Ticker(TestContext())
 
