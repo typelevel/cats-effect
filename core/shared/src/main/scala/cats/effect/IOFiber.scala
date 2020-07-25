@@ -312,355 +312,353 @@ private[effect] final class IOFiber[A](
       }
     } else {
       // println(s"<$name> looping on $cur0")
-      if (!conts.isEmpty()) {
-        (cur0.tag: @switch) match {
-          case 0 =>
-            val cur = cur0.asInstanceOf[Pure[Any]]
-            runLoop(succeeded(cur.value, 0), nextIteration)
+      (cur0.tag: @switch) match {
+        case 0 =>
+          val cur = cur0.asInstanceOf[Pure[Any]]
+          runLoop(succeeded(cur.value, 0), nextIteration)
 
-          case 1 =>
-            val cur = cur0.asInstanceOf[Delay[Any]]
+        case 1 =>
+          val cur = cur0.asInstanceOf[Delay[Any]]
 
-            var success = false
-            val r =
-              try {
-                val r = cur.thunk()
-                success = true
-                r
-              } catch {
-                case NonFatal(t) => t
-              }
-
-            val next =
-              if (success)
-                succeeded(r, 0)
-              else
-                failed(r, 0)
-
-            runLoop(next, nextIteration)
-
-          case 2 =>
-            val cur = cur0.asInstanceOf[Blocking[Any]]
-            // we know we're on the JVM here
-
-            if (cur.hint eq TypeBlocking) {
-              blockingEc execute { () =>
-                var success0 = false
-                val r =
-                  try {
-                    val r = cur.thunk()
-                    success0 = true
-                    r
-                  } catch {
-                    case NonFatal(t) => t
-                  }
-                val success = success0
-
-                currentCtx execute { () =>
-                  val next =
-                    if (success)
-                      succeeded(r, 0)
-                    else
-                      failed(r, 0)
-
-                  runLoop(next, nextIteration)
-                }
-              }
-            } else {
-              // InterruptibleMany | InterruptibleOnce
-
-              val many = cur.hint eq TypeInterruptibleMany
-              val next = IO.async[Any] { nextCb =>
-                for {
-                  done <- IO(new AtomicBoolean(false))
-                  cb <- IO(new AtomicReference[() => Unit](null))
-
-                  target <- IO.async_[Thread] { initCb =>
-                    blockingEc execute { () =>
-                      initCb(Right(Thread.currentThread()))
-
-                      try {
-                        nextCb(Right(cur.thunk()))
-                      } catch {
-                        case _: InterruptedException =>
-                          if (many) {
-                            done.set(true)
-                          } else {
-                            val cb0 = cb.get()
-                            if (cb0 != null) {
-                              cb0()
-                            }
-                          }
-
-                        case NonFatal(t) =>
-                          nextCb(Left(t))
-                      }
-                    }
-                  }
-
-                  isSelf <- IO(target eq Thread.currentThread())
-                } yield {
-                  if (isSelf) {
-                    None
-                  } else {
-                    Some {
-                      IO defer {
-                        target.interrupt()
-
-                        if (many) {
-                          IO blocking {
-                            while (!done.get()) {
-                              target.interrupt() // it's hammer time!
-                            }
-                          }
-                        } else {
-                          IO.async_[Unit] { finCb => cb.set(() => finCb(Right(()))) }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-
-              runLoop(next, nextIteration)
+          var success = false
+          val r =
+            try {
+              val r = cur.thunk()
+              success = true
+              r
+            } catch {
+              case NonFatal(t) => t
             }
 
-          case 3 =>
-            val cur = cur0.asInstanceOf[Error]
-            runLoop(failed(cur.t, 0), nextIteration)
+          val next =
+            if (success)
+              succeeded(r, 0)
+            else
+              failed(r, 0)
 
-          case 4 =>
-            val cur = cur0.asInstanceOf[Async[Any]]
+          runLoop(next, nextIteration)
 
-            val done = new AtomicBoolean()
+        case 2 =>
+          val cur = cur0.asInstanceOf[Blocking[Any]]
+          // we know we're on the JVM here
 
-            /*
-             * The purpose of this buffer is to ensure that registration takes
-             * primacy over callbacks in the event that registration produces
-             * errors in sequence. This implements a "queueing" semantic to
-             * the callbacks, implying that the callback is sequenced after
-             * registration has fully completed, giving us deterministic
-             * serialization.
-             */
-            val state = new AtomicReference[AsyncState](AsyncStateInitial)
+          if (cur.hint eq TypeBlocking) {
+            blockingEc execute { () =>
+              var success0 = false
+              val r =
+                try {
+                  val r = cur.thunk()
+                  success0 = true
+                  r
+                } catch {
+                  case NonFatal(t) => t
+                }
+              val success = success0
 
-            objectState.push(done)
-            objectState.push(state)
+              currentCtx execute { () =>
+                val next =
+                  if (success)
+                    succeeded(r, 0)
+                  else
+                    failed(r, 0)
 
-            val next = cur.k { e =>
-              // println(s"<$name> callback run with $e")
-              if (!done.getAndSet(true)) {
-                val old = state.getAndSet(AsyncState.Complete(e))
+                runLoop(next, nextIteration)
+              }
+            }
+          } else {
+            // InterruptibleMany | InterruptibleOnce
 
-                /*
-                 * We *need* to own the runloop when we return, so we CAS loop
-                 * on suspended to break the race condition in AsyncK where
-                 * `state` is set but suspend() has not yet run. If `state` is
-                 * set then `suspend()` should be right behind it *unless* we
-                 * have been canceled. If we were canceled, then some other
-                 * fiber is taking care of our finalizers and will have
-                 * marked suspended as false, meaning that `canceled` will be set
-                 * to true. Either way, we won't own the runloop.
-                 */
-                @tailrec
-                def loop(): Unit =
-                  if (resume()) {
-//                    if (!isCanceled() || !isUnmasked()) { // double-check to see if we were canceled while suspended
-                    if (old == AsyncStateRegisteredWithFinalizer) {
-                      // we completed and were not canceled, so we pop the finalizer
-                      // note that we're safe to do so since we own the runloop
-                      finalizers.pop()
+            val many = cur.hint eq TypeInterruptibleMany
+            val next = IO.async[Any] { nextCb =>
+              for {
+                done <- IO(new AtomicBoolean(false))
+                cb <- IO(new AtomicReference[() => Unit](null))
+
+                target <- IO.async_[Thread] { initCb =>
+                  blockingEc execute { () =>
+                    initCb(Right(Thread.currentThread()))
+
+                    try {
+                      nextCb(Right(cur.thunk()))
+                    } catch {
+                      case _: InterruptedException =>
+                        if (many) {
+                          done.set(true)
+                        } else {
+                          val cb0 = cb.get()
+                          if (cb0 != null) {
+                            cb0()
+                          }
+                        }
+
+                      case NonFatal(t) =>
+                        nextCb(Left(t))
                     }
+                  }
+                }
 
-                    asyncContinue(state, e)
+                isSelf <- IO(target eq Thread.currentThread())
+              } yield {
+                if (isSelf) {
+                  None
+                } else {
+                  Some {
+                    IO defer {
+                      target.interrupt()
+
+                      if (many) {
+                        IO blocking {
+                          while (!done.get()) {
+                            target.interrupt() // it's hammer time!
+                          }
+                        }
+                      } else {
+                        IO.async_[Unit] { finCb => cb.set(() => finCb(Right(()))) }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            runLoop(next, nextIteration)
+          }
+
+        case 3 =>
+          val cur = cur0.asInstanceOf[Error]
+          runLoop(failed(cur.t, 0), nextIteration)
+
+        case 4 =>
+          val cur = cur0.asInstanceOf[Async[Any]]
+
+          val done = new AtomicBoolean()
+
+          /*
+           * The purpose of this buffer is to ensure that registration takes
+           * primacy over callbacks in the event that registration produces
+           * errors in sequence. This implements a "queueing" semantic to
+           * the callbacks, implying that the callback is sequenced after
+           * registration has fully completed, giving us deterministic
+           * serialization.
+           */
+          val state = new AtomicReference[AsyncState](AsyncStateInitial)
+
+          objectState.push(done)
+          objectState.push(state)
+
+          val next = cur.k { e =>
+            // println(s"<$name> callback run with $e")
+            if (!done.getAndSet(true)) {
+              val old = state.getAndSet(AsyncState.Complete(e))
+
+              /*
+               * We *need* to own the runloop when we return, so we CAS loop
+               * on suspended to break the race condition in AsyncK where
+               * `state` is set but suspend() has not yet run. If `state` is
+               * set then `suspend()` should be right behind it *unless* we
+               * have been canceled. If we were canceled, then some other
+               * fiber is taking care of our finalizers and will have
+               * marked suspended as false, meaning that `canceled` will be set
+               * to true. Either way, we won't own the runloop.
+               */
+              @tailrec
+              def loop(): Unit =
+                if (resume()) {
+//                    if (!isCanceled() || !isUnmasked()) { // double-check to see if we were canceled while suspended
+                  if (old == AsyncStateRegisteredWithFinalizer) {
+                    // we completed and were not canceled, so we pop the finalizer
+                    // note that we're safe to do so since we own the runloop
+                    finalizers.pop()
+                  }
+
+                  asyncContinue(state, e)
 //                    } else {
 //                      runFinalizers(null)
 //                    }
-                  } else if (!isCanceled() || !isUnmasked()) {
-                    loop()
-                  }
-
-                // TODO: ELSE?
-
-                if (old != AsyncStateInitial) { // registration already completed, we're good to go
+                } else if (!isCanceled() || !isUnmasked()) {
                   loop()
                 }
+
+              // TODO: ELSE?
+
+              if (old != AsyncStateInitial) { // registration already completed, we're good to go
+                loop()
               }
             }
+          }
 
-            pushCont(AsyncK)
-            runLoop(next, nextIteration)
+          pushCont(AsyncK)
+          runLoop(next, nextIteration)
 
-          // ReadEC
-          case 5 =>
-            runLoop(succeeded(currentCtx, 0), nextIteration)
+        // ReadEC
+        case 5 =>
+          runLoop(succeeded(currentCtx, 0), nextIteration)
 
-          case 6 =>
-            val cur = cur0.asInstanceOf[EvalOn[Any]]
+        case 6 =>
+          val cur = cur0.asInstanceOf[EvalOn[Any]]
 
-            // fast-path when it's an identity transformation
-            if (cur.ec eq currentCtx) {
-              runLoop(cur.ioa, nextIteration)
-            } else {
-              val ec = cur.ec
-              currentCtx = ec
-              ctxs.push(ec)
-              pushCont(EvalOnK)
-
-              execute(ec) { () => runLoop(cur.ioa, nextIteration) }
-            }
-
-          case 7 =>
-            val cur = cur0.asInstanceOf[Map[Any, Any]]
-
-            objectState.push(cur.f)
-            pushCont(MapK)
-
-            runLoop(cur.ioe, nextIteration)
-
-          case 8 =>
-            val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
-
-            objectState.push(cur.f)
-            pushCont(FlatMapK)
-
-            runLoop(cur.ioe, nextIteration)
-
-          case 9 =>
-            val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
-
-            objectState.push(cur.f)
-            pushCont(HandleErrorWithK)
-
+          // fast-path when it's an identity transformation
+          if (cur.ec eq currentCtx) {
             runLoop(cur.ioa, nextIteration)
+          } else {
+            val ec = cur.ec
+            currentCtx = ec
+            ctxs.push(ec)
+            pushCont(EvalOnK)
 
-          case 10 =>
-            val cur = cur0.asInstanceOf[OnCancel[Any]]
+            execute(ec) { () => runLoop(cur.ioa, nextIteration) }
+          }
 
-            finalizers.push(EvalOn(cur.fin, currentCtx))
-            // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
+        case 7 =>
+          val cur = cur0.asInstanceOf[Map[Any, Any]]
 
-            pushCont(OnCancelK)
-            runLoop(cur.ioa, nextIteration)
+          objectState.push(cur.f)
+          pushCont(MapK)
 
-          case 11 =>
-            val cur = cur0.asInstanceOf[Uncancelable[Any]]
+          runLoop(cur.ioe, nextIteration)
 
-            masks += 1
-            val id = masks
-            val poll = new (IO ~> IO) {
-              def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
-            }
+        case 8 =>
+          val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
-            pushCont(UncancelableK)
-            runLoop(cur.body(poll), nextIteration)
+          objectState.push(cur.f)
+          pushCont(FlatMapK)
 
-          // Canceled
-          case 12 =>
-            canceled = true
-            if (!isUnmasked())
-              runLoop(succeeded((), 0), nextIteration)
-            else
+          runLoop(cur.ioe, nextIteration)
+
+        case 9 =>
+          val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
+
+          objectState.push(cur.f)
+          pushCont(HandleErrorWithK)
+
+          runLoop(cur.ioa, nextIteration)
+
+        case 10 =>
+          val cur = cur0.asInstanceOf[OnCancel[Any]]
+
+          finalizers.push(EvalOn(cur.fin, currentCtx))
+          // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
+
+          pushCont(OnCancelK)
+          runLoop(cur.ioa, nextIteration)
+
+        case 11 =>
+          val cur = cur0.asInstanceOf[Uncancelable[Any]]
+
+          masks += 1
+          val id = masks
+          val poll = new (IO ~> IO) {
+            def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
+          }
+
+          pushCont(UncancelableK)
+          runLoop(cur.body(poll), nextIteration)
+
+        // Canceled
+        case 12 =>
+          canceled = true
+          if (!isUnmasked())
+            runLoop(succeeded((), 0), nextIteration)
+          else
 //              runLoop(
 //                null,
 //                nextIteration
 //              )
-            // we can't trust the cancelation check at the start of the loop
-            if (hasFinalizers()) {
-              runFinalizers(null)
-            } else {
-              done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+          // we can't trust the cancelation check at the start of the loop
+          if (hasFinalizers()) {
+            runFinalizers(null)
+          } else {
+            done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+          }
+
+        case 13 =>
+          val cur = cur0.asInstanceOf[Start[Any]]
+
+          val childName = s"start-${childCount.getAndIncrement()}"
+          val initMask2 = childMask
+
+          val fiber = new IOFiber(childName, scheduler, blockingEc, initMask2)
+
+          // println(s"<$name> spawning <$childName>")
+
+          val ec = currentCtx
+          execute(ec)(() => fiber.run(cur.ioa, ec))
+
+          runLoop(succeeded(fiber, 0), nextIteration)
+
+        case 14 =>
+          // TODO self-cancelation within a nested poll could result in deadlocks in `both`
+          // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
+          // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
+          val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+
+          val next =
+            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
+              cb =>
+                IO {
+                  val initMask2 = childMask
+                  val fiberA = new IOFiber[Any](
+                    s"racePair-left-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2)
+                  val fiberB = new IOFiber[Any](
+                    s"racePair-right-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2)
+
+                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+
+                  val ec = currentCtx
+
+                  execute(ec)(() => fiberA.run(cur.ioa, ec))
+                  execute(ec)(() => fiberB.run(cur.iob, ec))
+
+                  Some(fiberA.cancel.both(fiberB.cancel).void)
+                }
             }
 
-          case 13 =>
-            val cur = cur0.asInstanceOf[Start[Any]]
+          runLoop(next, nextIteration)
 
-            val childName = s"start-${childCount.getAndIncrement()}"
-            val initMask2 = childMask
+        case 15 =>
+          val cur = cur0.asInstanceOf[Sleep]
 
-            val fiber = new IOFiber(childName, scheduler, blockingEc, initMask2)
-
-            // println(s"<$name> spawning <$childName>")
-
-            val ec = currentCtx
-            execute(ec)(() => fiber.run(cur.ioa, ec))
-
-            runLoop(succeeded(fiber, 0), nextIteration)
-
-          case 14 =>
-            // TODO self-cancelation within a nested poll could result in deadlocks in `both`
-            // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
-            // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
-            val cur = cur0.asInstanceOf[RacePair[Any, Any]]
-
-            val next =
-              IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-                cb =>
-                  IO {
-                    val initMask2 = childMask
-                    val fiberA = new IOFiber[Any](
-                      s"racePair-left-${childCount.getAndIncrement()}",
-                      scheduler,
-                      blockingEc,
-                      initMask2)
-                    val fiberB = new IOFiber[Any](
-                      s"racePair-right-${childCount.getAndIncrement()}",
-                      scheduler,
-                      blockingEc,
-                      initMask2)
-
-                    fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                    fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
-
-                    val ec = currentCtx
-
-                    execute(ec)(() => fiberA.run(cur.ioa, ec))
-                    execute(ec)(() => fiberB.run(cur.iob, ec))
-
-                    Some(fiberA.cancel.both(fiberB.cancel).void)
-                  }
-              }
-
-            runLoop(next, nextIteration)
-
-          case 15 =>
-            val cur = cur0.asInstanceOf[Sleep]
-
-            val next = IO.async[Unit] { cb =>
-              IO {
-                val cancel = scheduler.sleep(cur.delay, () => cb(Right(())))
-                Some(IO(cancel.run()))
-              }
+          val next = IO.async[Unit] { cb =>
+            IO {
+              val cancel = scheduler.sleep(cur.delay, () => cb(Right(())))
+              Some(IO(cancel.run()))
             }
+          }
 
-            runLoop(next, nextIteration)
+          runLoop(next, nextIteration)
 
-          // RealTime
-          case 16 =>
-            runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
+        // RealTime
+        case 16 =>
+          runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
 
-          // Monotonic
-          case 17 =>
-            runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
+        // Monotonic
+        case 17 =>
+          runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
 
-          // Cede
-          case 18 =>
-            currentCtx execute { () =>
-              // println("continuing from cede ")
+        // Cede
+        case 18 =>
+          currentCtx execute { () =>
+            // println("continuing from cede ")
 
-              runLoop(succeeded((), 0), nextIteration)
-            }
+            runLoop(succeeded((), 0), nextIteration)
+          }
 
-          case 19 =>
-            val cur = cur0.asInstanceOf[Unmask[Any]]
+        case 19 =>
+          val cur = cur0.asInstanceOf[Unmask[Any]]
 
-            if (masks == cur.id) {
-              masks -= 1
-              pushCont(UnmaskK)
-            }
+          if (masks == cur.id) {
+            masks -= 1
+            pushCont(UnmaskK)
+          }
 
-            runLoop(cur.ioa, nextIteration)
-        }
+          runLoop(cur.ioa, nextIteration)
       }
     }
   }
