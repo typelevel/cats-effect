@@ -403,13 +403,13 @@ private[effect] final class IOFiber[A](
                 def loop(): Unit =
                   if (resume()) {
 //                    if (!isCanceled() || !isUnmasked()) { // double-check to see if we were canceled while suspended
-                      if (old == AsyncStateRegisteredWithFinalizer) {
-                        // we completed and were not canceled, so we pop the finalizer
-                        // note that we're safe to do so since we own the runloop
-                        finalizers.pop()
-                      }
+                    if (old == AsyncStateRegisteredWithFinalizer) {
+                      // we completed and were not canceled, so we pop the finalizer
+                      // note that we're safe to do so since we own the runloop
+                      finalizers.pop()
+                    }
 
-                      asyncContinue(state, e)
+                    asyncContinue(state, e)
 //                    } else {
 //                      runFinalizers(null)
 //                    }
@@ -502,12 +502,12 @@ private[effect] final class IOFiber[A](
 //                null,
 //                nextIteration
 //              )
-              // we can't trust the cancelation check at the start of the loop
-              if (hasFinalizers()) {
-                runFinalizers(null)
-              } else {
-                done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
-              }
+            // we can't trust the cancelation check at the start of the loop
+            if (hasFinalizers()) {
+              runFinalizers(null)
+            } else {
+              done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+            }
 
           case 13 =>
             val cur = cur0.asInstanceOf[Start[Any]]
@@ -787,12 +787,13 @@ private object IOFiber {
     def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
       import self.{done, isCanceled}
 
-      val outcome: OutcomeIO[A] = if (isCanceled()) // this can happen if we don't check the canceled flag before completion
-        OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
-      else if (success)
-        OutcomeCompleted(IO.pure(result.asInstanceOf[A]))
-      else
-        OutcomeErrored(result.asInstanceOf[Throwable])
+      val outcome: OutcomeIO[A] =
+        if (isCanceled()) // this can happen if we don't check the canceled flag before completion
+          OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
+        else if (success)
+          OutcomeCompleted(IO.pure(result.asInstanceOf[A]))
+        else
+          OutcomeErrored(result.asInstanceOf[Throwable])
 
       done(outcome)
 
@@ -829,9 +830,7 @@ private object IOFiber {
               pushFinalizer(cancelToken)
 
               // indicate the presence of the cancel token by pushing Right instead of Left
-              if (!state.compareAndSet(
-                  AsyncStateInitial,
-                  AsyncStateRegisteredWithFinalizer)) {
+              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
                 // the callback was invoked before registration
                 popFinalizer()
                 asyncContinue(state, state.get().result)
@@ -870,12 +869,12 @@ private object IOFiber {
 
       // special cancelation check to ensure we don't accidentally fork the runloop here
 //      if (!isCanceled() || !isUnmasked()) {
-        execute(ec) { () =>
-          if (success)
-            runLoop(succeeded(result, 0), 0)
-          else
-            runLoop(failed(result, 0), 0)
-        }
+      execute(ec) { () =>
+        if (success)
+          runLoop(succeeded(result, 0), 0)
+        else
+          runLoop(failed(result, 0), 0)
+      }
 //      } else {
 //        runFinalizers(null)
 //      }
