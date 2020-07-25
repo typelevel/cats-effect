@@ -238,7 +238,33 @@ private[effect] final class IOFiber[A](
     }
   }
 
+  private[this] def blockingK(success: Boolean, result: Any, nextIteration: Int) =
+    new Runnable {
+      def run(): Unit = {
+        val next =
+          if (success)
+            succeeded(result, 0)
+          else
+            failed(result, 0)
+
+        runLoop(next, nextIteration)
+      }
+    }
+
+  private[this] def evalOnK(ioa: IO[Any], nextIteration: Int) =
+    new Runnable {
+      def run(): Unit =
+        runLoop(ioa, nextIteration)
+    }
+
+  private[this] def cedeK(nextIteration: Int) =
+    new Runnable {
+      def run(): Unit =
+        runLoop(succeeded((), 0), nextIteration)
+    }
+
   // masks encoding: initMask => no masks, ++ => push, -- => pop
+  @tailrec
   private def runLoop(cur0: IO[Any], iteration: Int): Unit = {
     val nextIteration = if (iteration > 512) {
       readBarrier()
@@ -310,15 +336,7 @@ private[effect] final class IOFiber[A](
                 }
               val success = success0
 
-              currentCtx execute { () =>
-                val next =
-                  if (success)
-                    succeeded(r, 0)
-                  else
-                    failed(r, 0)
-
-                runLoop(next, nextIteration)
-              }
+              currentCtx.execute(blockingK(success, r, nextIteration))
             }
 
           case 3 =>
@@ -399,7 +417,7 @@ private[effect] final class IOFiber[A](
               ctxs.push(ec)
               pushCont(EvalOnK)
 
-              execute(ec) { () => runLoop(cur.ioa, nextIteration) }
+              execute(ec)(evalOnK(cur.ioa, nextIteration))
             }
 
           case 7 =>
@@ -531,11 +549,7 @@ private[effect] final class IOFiber[A](
 
           // Cede
           case 18 =>
-            currentCtx execute { () =>
-              // println("continuing from cede ")
-
-              runLoop(succeeded((), 0), nextIteration)
-            }
+            currentCtx.execute(cedeK(nextIteration))
 
           case 19 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
