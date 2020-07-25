@@ -582,6 +582,23 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       test must nonTerminate
     }
 
+    "run the continuation of an async finalizer within async" in ticked { implicit ticker =>
+      var success = false
+
+      val target = IO.async[Unit] { _ =>
+        val fin = IO.async_[Unit] { cb => ticker.ctx.execute(() => cb(Right(()))) } *> IO {
+          success = true
+        }
+
+        IO.pure(Some(fin))
+      }
+
+      val test = target.start flatMap { f => IO(ticker.ctx.tickAll()) *> f.cancel }
+
+      test must completeAs(())
+      success must beTrue
+    }
+
     "temporal" should {
       "timeout" should {
         "succeed" in real {

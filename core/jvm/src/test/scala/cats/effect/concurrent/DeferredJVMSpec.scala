@@ -31,37 +31,9 @@ class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
 abstract class BaseDeferredJVMTests(parallelism: Int)
-    extends Specification
-    with BeforeAfterEach {
-  var service: ExecutorService = _
-
-  implicit val context: ExecutionContext = new ExecutionContext {
-    def execute(runnable: Runnable): Unit =
-      service.execute(runnable)
-    def reportFailure(cause: Throwable): Unit =
-      cause.printStackTrace()
-  }
+    extends Specification {
 
   implicit val runtime: IORuntime = IORuntime.global
-
-  def before =
-    service = Executors.newFixedThreadPool(
-      parallelism,
-      new ThreadFactory {
-        private[this] val index = new AtomicLong(0)
-        def newThread(r: Runnable): Thread = {
-          val th = new Thread(r)
-          th.setName(s"semaphore-tests-${index.getAndIncrement()}")
-          th.setDaemon(false)
-          th
-        }
-      }
-    )
-
-  def after = {
-    service.shutdown()
-    assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
-  }
 
   // ----------------------------------------------------------------------------
   val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
