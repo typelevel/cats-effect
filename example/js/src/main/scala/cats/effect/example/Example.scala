@@ -21,13 +21,13 @@ import cats.implicits._
 
 object Example extends IOApp {
 
-  val run: IO[Unit] =
+  def run(args: List[String]): IO[Int] =
     for {
-      leftF <- (printFive("left") >> IO.cede >> printFive("left")).start
-      rightF <- (printFive("right") >> IO.cede >> printFive("right")).start
+      leftF <- (printFive(args(0)) >> IO.cede >> printFive(args(0))).start
+      rightF <- (printFive(args(1)) >> IO.cede >> printFive(args(1))).start
       _ <- leftF.join
       _ <- rightF.join
-    } yield ()
+    } yield 2
 
   def printFive(text: String): IO[Unit] =
     IO(println(text)).replicateA(5).void

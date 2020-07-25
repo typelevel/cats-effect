@@ -16,13 +16,40 @@
 
 package cats.effect
 
+import scala.concurrent.duration._
+import scala.scalajs.js
+
 trait IOApp {
 
-  val run: IO[Unit]
+  def run(args: List[String]): IO[Int]
 
-  final def main(args: Array[String]): Unit =
-    run.unsafeRunAsync {
-      case Left(t) => throw t
-      case Right(_) => ()
-    }(unsafe.IORuntime.global)
+  final def main(args: Array[String]): Unit = {
+    // An infinite heartbeat to keep main alive.  This is similar to
+    // `IO.never`, except `IO.never` doesn't schedule any tasks and is
+    // insufficient to keep main alive.  The tick is fast enough that
+    // it isn't silently discarded, as longer ticks are, but slow
+    // enough that we don't interrupt often.  1 hour was chosen
+    // empirically.
+    lazy val keepAlive: IO[Nothing] =
+      IO.sleep(1.hour) >> keepAlive
+
+    val argList =
+      if (js.typeOf(js.Dynamic.global.process) != "undefined" && js.typeOf(
+          js.Dynamic.global.process.argv) != "undefined")
+        js.Dynamic.global.process.argv.asInstanceOf[js.Array[String]].toList.drop(2)
+      else
+        args.toList
+
+    IO.race(run(argList), keepAlive)
+      .unsafeRunAsync({
+        case Left(t) => throw t
+        case Right(Left(code)) => reportExitCode(code)
+        case Right(Right(_)) => sys.error("impossible")
+      })(unsafe.IORuntime.global)
+  }
+
+  private[this] def reportExitCode(code: Int): Unit =
+    if (js.typeOf(js.Dynamic.global.process) != "undefined") {
+      js.Dynamic.global.process.exitCode = code
+    }
 }
