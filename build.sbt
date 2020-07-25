@@ -31,7 +31,7 @@ val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
 
-ThisBuild / crossScalaVersions := Seq("0.25.0-RC2", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.25.0", "0.26.0-RC1", "2.12.12", "2.13.3")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -97,8 +97,8 @@ Global / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.2.0-RC1"
-val Specs2Version = "4.9.4"
+val CatsVersion = "2.2.0-RC2"
+val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
 addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
@@ -149,7 +149,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
       "org.scalacheck" %%% "scalacheck" % "1.14.3"))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.1")
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.2")
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
