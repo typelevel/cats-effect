@@ -256,7 +256,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "run an identity finalizer" in ticked { implicit ticker =>
       var affected = false
 
-      IO.unit.onCase {
+      IO.unit onCase {
         case _ => IO { affected = true }
       } must completeAs(())
 
@@ -266,7 +266,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     "run an identity finalizer and continue" in ticked { implicit ticker =>
       var affected = false
 
-      val seed = IO.unit.onCase {
+      val seed = IO.unit onCase {
         case _ => IO { affected = true }
       }
 
