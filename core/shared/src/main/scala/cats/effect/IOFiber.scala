@@ -109,7 +109,7 @@ private[effect] final class IOFiber[A](
   private[this] val UnmaskK = IOFiber.UnmaskK
 
   // similar prefetch for Outcome
-  private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled
+  private[this] val _OutcomeCanceled = IOFiber.OutcomeCanceled
 
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
@@ -145,7 +145,7 @@ private[effect] final class IOFiber[A](
             if (hasFinalizers()) {
               runFinalizers(fin)
             } else {
-              done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+              done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
               fin(Right(()))
             }
           }
@@ -267,7 +267,7 @@ private[effect] final class IOFiber[A](
       if (hasFinalizers()) {
         runFinalizers(null)
       } else {
-        done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+        done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       }
     }
   }
@@ -305,7 +305,7 @@ private[effect] final class IOFiber[A](
       if (hasFinalizers()) {
         runFinalizers(null)
       } else {
-        done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+        done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
       }
     } else {
       // println(s"<$name> looping on $cur0")
@@ -506,7 +506,7 @@ private[effect] final class IOFiber[A](
             if (hasFinalizers()) {
               runFinalizers(null)
             } else {
-              done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+              done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
             }
 
           case 13 =>
@@ -650,7 +650,7 @@ private[effect] final class IOFiber[A](
         if (hasFinalizers()) {
           runFinalizers(null)
         } else {
-          done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+          done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
         }
       }
     }
