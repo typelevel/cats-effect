@@ -77,6 +77,10 @@ private[effect] final class IOFiber[A](
   // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
+  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
+  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+  private[this] val ChildMask: Int = initMask + 255
+
   private[this] var masks: Int = initMask
   private[this] val finalizers =
     new ArrayStack[IO[Unit]](
@@ -139,14 +143,14 @@ private[effect] final class IOFiber[A](
       // check to see if the target fiber is suspended
       if (resume()) {
         // ...it was! was it masked?
-        if (isUnmasked()) {
+        if (masks == initMask) {
           // ...nope! take over the target fiber's runloop and run the finalizers
           // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
           // if we have async finalizers, runLoop may return early
           IO.async_[Unit] { fin =>
 //            println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
-            if (hasFinalizers()) {
+            if (!finalizers.isEmpty()) {
               runFinalizers(fin)
             } else {
               done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
@@ -200,7 +204,7 @@ private[effect] final class IOFiber[A](
 
   private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
     conts = new ByteStack(16)
-    pushCont(RunTerminusK)
+    conts.push(RunTerminusK)
 
     ctxs = new ArrayStack[ExecutionContext](2)
     currentCtx = ec
@@ -258,7 +262,7 @@ private[effect] final class IOFiber[A](
 
     val ec = currentCtx
 
-    if (!isCanceled() || !isUnmasked()) { // hard cancelation check, basically
+    if (!(canceled && masks == initMask)) { // hard cancelation check, basically
       execute(ec) { () =>
         val next = e match {
           case Left(t) => failed(t, 0)
@@ -268,7 +272,7 @@ private[effect] final class IOFiber[A](
         runLoop(next, 0) // we've definitely hit suspended as part of evaluating async
       }
     } else {
-      if (hasFinalizers()) {
+      if (!finalizers.isEmpty()) {
         runFinalizers(null)
       } else {
         done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
@@ -280,7 +284,7 @@ private[effect] final class IOFiber[A](
     objectState.push(cb)
 
     conts = new ByteStack(16)
-    pushCont(CancelationLoopK)
+    conts.push(CancelationLoopK)
 
     // suppress all subsequent cancelation on this fiber
     masks += 1
@@ -302,11 +306,11 @@ private[effect] final class IOFiber[A](
       iteration + 1
     }
 
-    if (isCanceled() && isUnmasked()) {
+    if (canceled && masks == initMask) {
 //       println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
 
       // this code is (mostly) redundant with Fiber#cancel for purposes of TCO
-      if (hasFinalizers()) {
+      if (!finalizers.isEmpty()) {
         runFinalizers(null)
       } else {
         done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
@@ -465,7 +469,7 @@ private[effect] final class IOFiber[A](
               @tailrec
               def loop(): Unit =
                 if (resume()) {
-//                    if (!isCanceled() || !isUnmasked()) { // double-check to see if we were canceled while suspended
+//                    if (!canceled || !masks == initMask) { // double-check to see if we were canceled while suspended
                   if (old == AsyncStateRegisteredWithFinalizer) {
                     // we completed and were not canceled, so we pop the finalizer
                     // note that we're safe to do so since we own the runloop
@@ -476,7 +480,7 @@ private[effect] final class IOFiber[A](
 //                    } else {
 //                      runFinalizers(null)
 //                    }
-                } else if (!isCanceled() || !isUnmasked()) {
+                } else if (!(canceled && masks == initMask)) {
                   loop()
                 }
 
@@ -488,7 +492,7 @@ private[effect] final class IOFiber[A](
             }
           }
 
-          pushCont(AsyncK)
+          conts.push(AsyncK)
           runLoop(next, nextIteration)
 
         // ReadEC
@@ -505,7 +509,7 @@ private[effect] final class IOFiber[A](
             val ec = cur.ec
             currentCtx = ec
             ctxs.push(ec)
-            pushCont(EvalOnK)
+            conts.push(EvalOnK)
 
             execute(ec) { () => runLoop(cur.ioa, nextIteration) }
           }
@@ -514,7 +518,7 @@ private[effect] final class IOFiber[A](
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
           objectState.push(cur.f)
-          pushCont(MapK)
+          conts.push(MapK)
 
           runLoop(cur.ioe, nextIteration)
 
@@ -522,7 +526,7 @@ private[effect] final class IOFiber[A](
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
           objectState.push(cur.f)
-          pushCont(FlatMapK)
+          conts.push(FlatMapK)
 
           runLoop(cur.ioe, nextIteration)
 
@@ -530,7 +534,7 @@ private[effect] final class IOFiber[A](
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
           objectState.push(cur.f)
-          pushCont(HandleErrorWithK)
+          conts.push(HandleErrorWithK)
 
           runLoop(cur.ioa, nextIteration)
 
@@ -540,7 +544,7 @@ private[effect] final class IOFiber[A](
           finalizers.push(EvalOn(cur.fin, currentCtx))
           // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
-          pushCont(OnCancelK)
+          conts.push(OnCancelK)
           runLoop(cur.ioa, nextIteration)
 
         case 11 =>
@@ -552,13 +556,13 @@ private[effect] final class IOFiber[A](
             def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
           }
 
-          pushCont(UncancelableK)
+          conts.push(UncancelableK)
           runLoop(cur.body(poll), nextIteration)
 
         // Canceled
         case 12 =>
           canceled = true
-          if (!isUnmasked())
+          if (masks != initMask)
             runLoop(succeeded((), 0), nextIteration)
           else
 //              runLoop(
@@ -566,7 +570,7 @@ private[effect] final class IOFiber[A](
 //                nextIteration
 //              )
           // we can't trust the cancelation check at the start of the loop
-          if (hasFinalizers()) {
+          if (!finalizers.isEmpty()) {
             runFinalizers(null)
           } else {
             done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
@@ -576,7 +580,7 @@ private[effect] final class IOFiber[A](
           val cur = cur0.asInstanceOf[Start[Any]]
 
           val childName = s"start-${childCount.getAndIncrement()}"
-          val initMask2 = childMask
+          val initMask2 = ChildMask
 
           val fiber = new IOFiber(childName, scheduler, blockingEc, initMask2)
 
@@ -597,7 +601,7 @@ private[effect] final class IOFiber[A](
             IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
               cb =>
                 IO {
-                  val initMask2 = childMask
+                  val initMask2 = ChildMask
                   val fiberA = new IOFiber[Any](
                     s"racePair-left-${childCount.getAndIncrement()}",
                     scheduler,
@@ -656,7 +660,7 @@ private[effect] final class IOFiber[A](
 
           if (masks == cur.id) {
             masks -= 1
-            pushCont(UnmaskK)
+            conts.push(UnmaskK)
           }
 
           runLoop(cur.ioa, nextIteration)
@@ -664,40 +668,9 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
-  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-  private[this] def childMask: Int =
-    initMask + 255
-
   // we use these forwarders because direct field access (private[this]) is faster
-  private[this] def isCanceled(): Boolean =
-    canceled
-
-  private[this] def hasFinalizers(): Boolean =
-    !finalizers.isEmpty()
-
-  private[this] def pushFinalizer(f: IO[Unit]): Unit =
-    finalizers.push(f)
-
-  private[this] def popFinalizer(): IO[Unit] =
-    finalizers.pop()
-
-  private[this] def pushCont(cont: Byte): Unit =
-    conts.push(cont)
-
-  private[this] def popObjectState(): AnyRef =
-    objectState.pop()
-
-  private[this] def isUnmasked(): Boolean =
-    masks == initMask
-
-  private[this] def pushMask(): Unit =
-    masks += 1
-
-  private[this] def popMask(): Unit =
-    masks -= 1
-
-  private[this] def resume(): Boolean = suspended.compareAndSet(true, false)
+  private[this] def resume(): Boolean =
+    suspended.compareAndSet(true, false)
 
   private[this] def suspend(): Unit =
     suspended.set(true)
@@ -705,11 +678,11 @@ private[effect] final class IOFiber[A](
   private[this] def checkCancellationOrSuspend(): Unit = {
     // full memory barrier
     suspended.compareAndSet(false, true)
-    if (isCanceled() && isUnmasked()) {
+    if (canceled && masks == initMask) {
       // if we can acquire the run-loop, we can run the finalizers
       // otherwise somebody else picked it up and will run finalizers
       if (resume()) {
-        if (hasFinalizers()) {
+        if (!finalizers.isEmpty()) {
           runFinalizers(null)
         } else {
           done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
@@ -740,7 +713,7 @@ private[effect] final class IOFiber[A](
       // HandleErrorWithK
       case 6 =>
         // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
-        popObjectState()
+        objectState.pop()
         succeeded(result, depth)
 
       case 7 => onCancelK(true, result, depth)
@@ -814,7 +787,7 @@ private[effect] final class IOFiber[A](
 
   // 0
   private[this] def mapK(result: Any, depth: Int): IO[Any] = {
-    val f = popObjectState().asInstanceOf[Any => Any]
+    val f = objectState.pop().asInstanceOf[Any => Any]
 
     var success = false
 
@@ -842,7 +815,7 @@ private[effect] final class IOFiber[A](
 
   // 1
   private[this] def flatMapK(result: Any, depth: Int): IO[Any] = {
-    val f = popObjectState().asInstanceOf[Any => IO[Any]]
+    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
 
     try {
       f(result)
@@ -853,12 +826,12 @@ private[effect] final class IOFiber[A](
 
   // 2
   private[this] def cancelationLoopK(): IO[Any] = {
-    if (hasFinalizers()) {
-      pushCont(CancelationLoopK)
-      runLoop(popFinalizer(), 0)
+    if (!finalizers.isEmpty()) {
+      conts.push(CancelationLoopK)
+      runLoop(finalizers.pop(), 0)
     } else {
       // resume external canceller
-      val cb = popObjectState()
+      val cb = objectState.pop()
       if (cb != null) {
         cb.asInstanceOf[Either[Throwable, Unit] => Unit](Right(()))
       }
@@ -872,7 +845,7 @@ private[effect] final class IOFiber[A](
   // 3
   private[this] def runTerminusK(success: Boolean, result: Any): IO[Any] = {
     val outcome: OutcomeIO[A] =
-      if (isCanceled()) // this can happen if we don't check the canceled flag before completion
+      if (canceled) // this can happen if we don't check the canceled flag before completion
         OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
       else if (success)
         Outcome.Completed(IO.pure(result.asInstanceOf[A]))
@@ -886,8 +859,8 @@ private[effect] final class IOFiber[A](
 
   // 4
   private[this] def asyncK(success: Boolean, result: Any, depth: Int): IO[Any] = {
-    val state = popObjectState().asInstanceOf[AtomicReference[AsyncState]]
-    val done = popObjectState().asInstanceOf[AtomicBoolean]
+    val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
+    val done = objectState.pop().asInstanceOf[AtomicBoolean]
 
     if (!success) {
       if (!done.getAndSet(true)) {
@@ -903,15 +876,15 @@ private[effect] final class IOFiber[A](
         null
       }
     } else {
-      if (isUnmasked()) {
+      if (masks == initMask) {
         result.asInstanceOf[Option[IO[Unit]]] match {
           case Some(cancelToken) =>
-            pushFinalizer(cancelToken)
+            finalizers.push(cancelToken)
 
             // indicate the presence of the cancel token by pushing Right instead of Left
             if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
               // the callback was invoked before registration
-              popFinalizer()
+              finalizers.pop()
               asyncContinue(state, state.get().result)
             } else {
               checkCancellationOrSuspend()
@@ -953,7 +926,7 @@ private[effect] final class IOFiber[A](
 
   // 6
   private[this] def handleErrorWithK(result: Any, depth: Int): IO[Any] = {
-    val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
+    val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
 
     try {
       f(result.asInstanceOf[Throwable])
@@ -964,7 +937,7 @@ private[effect] final class IOFiber[A](
 
   // 7
   private[this] def onCancelK(success: Boolean, result: Any, depth: Int): IO[Any] = {
-    popFinalizer()
+    finalizers.pop()
     if (success)
       succeeded(result, depth + 1)
     else
@@ -973,7 +946,7 @@ private[effect] final class IOFiber[A](
 
   // 8
   private[this] def uncancelableK(success: Boolean, result: Any, depth: Int): IO[Any] = {
-    popMask()
+    masks -= 1
     if (success)
       succeeded(result, depth + 1)
     else
@@ -982,7 +955,7 @@ private[effect] final class IOFiber[A](
 
   // 9
   private[this] def unmaskK(success: Boolean, result: Any, depth: Int): IO[Any] = {
-    pushMask()
+    masks += 1
     if (success)
       succeeded(result, depth + 1)
     else
