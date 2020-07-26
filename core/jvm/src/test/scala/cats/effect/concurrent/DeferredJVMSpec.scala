@@ -31,7 +31,7 @@ class DeferredJVMParallelism2Tests extends BaseDeferredJVMTests(2)
 class DeferredJVMParallelism4Tests extends BaseDeferredJVMTests(4)
 
 abstract class BaseDeferredJVMTests(parallelism: Int)
-  extends Specification
+    extends Specification
     with BeforeAfterEach {
   var service: ExecutorService = _
 
@@ -199,7 +199,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
   }
 
   def unsafeRunRealistic[A](ioa: IO[A])(
-    errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
+      errors: Throwable => Unit = _.printStackTrace()): Option[A] = {
     // TODO this code is now in 4 places; should be in 1
     val executor = Executors.newFixedThreadPool(
       Runtime.getRuntime().availableProcessors(),

@@ -599,6 +599,22 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       success must beTrue
     }
 
+    "never terminate when racing infinite cancels" in ticked { implicit ticker =>
+      var started = false
+
+      val markStarted = IO { started = true }
+      lazy val cedeUntilStarted: IO[Unit] =
+        IO(started).ifM(IO.unit, IO.cede >> cedeUntilStarted)
+
+      val test = for {
+        f <- (markStarted *> IO.never).onCancel(IO.never).start
+        _ <- cedeUntilStarted
+        _ <- IO.race(f.cancel, f.cancel)
+      } yield ()
+
+      test should nonTerminate
+    }
+
     "temporal" should {
       "timeout" should {
         "succeed" in real {
