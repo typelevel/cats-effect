@@ -18,6 +18,8 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
+import scala.reflect.NameTransformer
+
 final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
   import IOTrace._
@@ -40,9 +42,9 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
           case (st, index) =>
             val tag = getOpAndCallSite(st.stackTrace)
               .map {
-                case (methodSite, _) => methodSite.getMethodName
+                case (methodSite, _) => NameTransformer.decode(methodSite.getMethodName)
               }
-              .getOrElse("???")
+              .getOrElse("(...)")
             val op = if (index == 0) s"$InverseTurnRight $tag\n" else s"$Junction $tag\n"
             val relevantLines = st.stackTrace
               .drop(options.ignoreStackTraceLines)
@@ -73,8 +75,8 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
                   .map {
                     case (methodSite, callSite) =>
                       val loc = renderStackTraceElement(callSite)
-                      val tag = methodSite.getMethodName
-                      s"$tag at $loc"
+                      val op = NameTransformer.decode(methodSite.getMethodName)
+                      s"$op at $loc"
                   }
                   .getOrElse("(...)")
               }
