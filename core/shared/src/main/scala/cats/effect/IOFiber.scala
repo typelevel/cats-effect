@@ -249,7 +249,7 @@ private[effect] final class IOFiber[A](
 
     val ec = currentCtx
 
-    if (!isCanceled() || !isUnmasked()) { // hard cancelation check, basically
+    if (!shouldFinalize()) {
       execute(ec) { () =>
         val next = e match {
           case Left(t) => failed(t, 0)
@@ -297,7 +297,7 @@ private[effect] final class IOFiber[A](
       iteration + 1
     }
 
-    if (isCanceled() && isUnmasked()) {
+    if (shouldFinalize()) {
       asyncCancel(null)
     } else {
       // println(s"<$name> looping on $cur0")
@@ -401,7 +401,7 @@ private[effect] final class IOFiber[A](
                     }
 
                     asyncContinue(state, e)
-                  } else if (!isCanceled() || !isUnmasked()) {
+                  } else if (!shouldFinalize()) {
                     loop()
                   }
 
@@ -591,6 +591,13 @@ private[effect] final class IOFiber[A](
   private def childMask: Int =
     initMask + 255
 
+  // We should attempt finalization if all of the following are true:
+  // 1) We own the runloop
+  // 2) We have been cancelled
+  // 3) We are unmasked
+  private def shouldFinalize(): Boolean =
+    isCanceled() && isUnmasked()
+
   // we use these forwarders because direct field access (private[this]) is faster
   private def isCanceled(): Boolean =
     canceled
@@ -624,11 +631,11 @@ private[effect] final class IOFiber[A](
   private def suspend(): Unit =
     suspended.set(true)
 
-  private def suspendAndCheckCancellation(): Unit = {
+  private def suspendWithFinalizationCheck(): Unit = {
     // full memory barrier
     suspended.compareAndSet(false, true)
     // race condition check: we may have been cancelled before we suspended
-    if (isCanceled() && isUnmasked()) {
+    if (shouldFinalize()) {
       // if we can acquire the run-loop, we can run the finalizers
       // otherwise somebody else picked it up and will run finalizers
       if (resume()) {
@@ -813,7 +820,7 @@ private object IOFiber {
                 popFinalizer()
                 asyncContinue(state, state.get().result)
               } else {
-                suspendAndCheckCancellation()
+                suspendWithFinalizationCheck()
               }
 
             case None =>
@@ -821,7 +828,7 @@ private object IOFiber {
                 // the callback was invoked before registration
                 asyncContinue(state, state.get().result)
               } else {
-                suspendAndCheckCancellation()
+                suspendWithFinalizationCheck()
               }
           }
         } else {
@@ -830,7 +837,7 @@ private object IOFiber {
             // the callback was invoked before registration
             asyncContinue(state, state.get().result)
           } else {
-            suspendAndCheckCancellation()
+            suspendWithFinalizationCheck()
           }
         }
 
@@ -846,7 +853,7 @@ private object IOFiber {
       val ec = popContext()
 
       // special cancelation check to ensure we don't unnecessarily fork the runloop here
-      if (!isCanceled() || !isUnmasked()) {
+      if (!shouldFinalize()) {
         execute(ec) { () =>
           if (success)
             runLoop(succeeded(result, 0), 0)
