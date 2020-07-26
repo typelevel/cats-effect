@@ -277,7 +277,7 @@ private[effect] final class IOFiber[A](
       runLoop(finalizers.pop(), 0)
     } else {
       if (cb != null)
-        cb(Right())
+        cb(Right(()))
 
       done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     }
