@@ -375,6 +375,7 @@ private[effect] final class IOFiber[A](
                         nextCb(Right(cur.thunk()))
                       } catch {
                         case _: InterruptedException =>
+                          println("caught interrupt")
                           if (many) {
                             done.set(true)
                           } else {
@@ -396,18 +397,28 @@ private[effect] final class IOFiber[A](
                     None
                   } else {
                     Some {
-                      IO defer {
-                        target.interrupt()
+                      IO async { finCb =>
+                        val trigger = IO {
+                          if (!many) {
+                            cb.set(() => finCb(Right(())))
+                          }
 
-                        if (many) {
+                          target.interrupt()
+                        }
+
+                        val repeat = if (many) {
                           IO blocking {
                             while (!done.get()) {
                               target.interrupt() // it's hammer time!
                             }
+
+                            finCb(Right(()))
                           }
                         } else {
-                          IO.async_[Unit] { finCb => cb.set(() => finCb(Right(()))) }
+                          IO.unit
                         }
+
+                        (trigger *> repeat).as(None)
                       }
                     }
                   }
