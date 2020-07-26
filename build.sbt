@@ -249,7 +249,7 @@ lazy val sharedSourcesSettings = Seq(
 lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
-  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, tracingTests)
+  .aggregate(coreJVM, coreJS, lawsJVM, lawsJS, runtimeTests)
   .settings(skipOnPublishSettings)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -310,8 +310,8 @@ lazy val lawsJS = laws.js
 
 lazy val FullTracingTest = config("fulltracing").extend(Test)
 
-lazy val tracingTests = project
-  .in(file("tracing-tests"))
+lazy val runtimeTests = project
+  .in(file("runtime-tests"))
   .dependsOn(coreJVM)
   .settings(commonSettings ++ skipOnPublishSettings)
   .settings(
