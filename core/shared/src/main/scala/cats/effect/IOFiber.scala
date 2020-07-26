@@ -401,13 +401,8 @@ private[effect] final class IOFiber[A](
                     }
 
                     asyncContinue(state, e)
-                  } else {
-                    // race condition check: if we observe cancellation
-                    if (isCanceled() && isUnmasked()) {
-                      if (resume()) {}
-                    } else {
-                      loop()
-                    }
+                  } else if (!isCanceled() || !isUnmasked()) {
+                    loop()
                   }
 
                   // If we reach this point, it means that somebody else owns the run-loop
