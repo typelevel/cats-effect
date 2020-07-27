@@ -18,6 +18,9 @@ package cats.effect
 package laws
 
 import cats.{Eq, Show}
+import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.{eq, MiniInt}; import eq._
 import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}, freeEval._
 import cats.implicits._
 
@@ -29,7 +32,7 @@ import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
+class FreeSyncSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
@@ -43,4 +46,21 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
     run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
 
   checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
+  checkAll("OptionT[FreeEitherSync]", SyncTests[OptionT[FreeEitherSync, *]].sync[Int, Int, Int])
+  checkAll(
+    "EitherT[FreeEitherSync]",
+    SyncTests[EitherT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
+  checkAll(
+    "StateT[FreeEitherSync]",
+    SyncTests[StateT[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
+  checkAll(
+    "WriterT[FreeEitherSync]",
+    SyncTests[WriterT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
+  checkAll("IorT[FreeEitherSync]", SyncTests[IorT[FreeEitherSync, Int, *]].sync[Int, Int, Int])
+  checkAll(
+    "Kleisli[FreeEitherSync]",
+    SyncTests[Kleisli[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
+  checkAll(
+    "ReaderWriterStateT[FreeEitherSync]",
+    SyncTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]].sync[Int, Int, Int])
 }
