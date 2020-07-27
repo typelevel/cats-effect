@@ -235,7 +235,7 @@ private[effect] final class IOFiber[A](
     finalizers.invalidate()
   }
 
-  private[this] val asyncContinueClosure = new Runnable {
+  private[this] object asyncContinueClosure extends Runnable {
     var either: Either[Throwable, Any] = _
 
     def run(): Unit = {
@@ -290,7 +290,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] val blockingClosure = new Runnable {
+  private[this] object blockingClosure extends Runnable {
     var cur: Blocking[Any] = _
     var nextIteration: Int = -1
 
@@ -312,7 +312,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] val afterBlockingClosure = new Runnable {
+  private[this] object afterBlockingClosure extends Runnable {
     var result: Any = _
     var success: Boolean = false
     var nextIteration: Int = -1
@@ -323,7 +323,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] val evalOnClosure = new Runnable {
+  private[this] object evalOnClosure extends Runnable {
     var ioa: IO[Any] = _
     var nextIteration: Int = -1
 
@@ -331,7 +331,7 @@ private[effect] final class IOFiber[A](
       runLoop(ioa, nextIteration)
   }
 
-  private[this] val cedeClosure = new Runnable {
+  private[this] object cedeClosure extends Runnable {
     var nextIteration: Int = -1
 
     def run(): Unit =
