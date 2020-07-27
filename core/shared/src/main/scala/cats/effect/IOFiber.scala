@@ -235,6 +235,19 @@ private[effect] final class IOFiber[A](
     finalizers.invalidate()
   }
 
+  private[this] val asyncContinueClosure = new Runnable {
+    var either: Either[Throwable, Any] = _
+
+    def run(): Unit = {
+      val next = either match {
+        case Left(t) => failed(t, 0)
+        case Right(a) => succeeded(a, 0)
+      }
+
+      runLoop(next, 0)
+    }
+  }
+
   /*
   4 possible cases for callback and cancellation:
   1. Callback completes before cancelation and takes over the runloop
@@ -250,14 +263,8 @@ private[effect] final class IOFiber[A](
     val ec = currentCtx
 
     if (!shouldFinalize()) {
-      execute(ec) { () =>
-        val next = e match {
-          case Left(t) => failed(t, 0)
-          case Right(a) => succeeded(a, 0)
-        }
-
-        runLoop(next, 0) // we've definitely hit suspended as part of evaluating async
-      }
+      asyncContinueClosure.either = e
+      execute(ec)(asyncContinueClosure)
     } else {
       asyncCancel(null)
     }
@@ -281,6 +288,54 @@ private[effect] final class IOFiber[A](
 
       done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
     }
+  }
+
+  private[this] val blockingClosure = new Runnable {
+    var cur: Blocking[Any] = _
+    var nextIteration: Int = -1
+
+    def run(): Unit = {
+      var success = false
+      val r =
+        try {
+          val r = cur.thunk()
+          success = true
+          r
+        } catch {
+          case NonFatal(t) => t
+        }
+
+      afterBlockingClosure.result = r
+      afterBlockingClosure.success = success
+      afterBlockingClosure.nextIteration = nextIteration
+      currentCtx.execute(afterBlockingClosure)
+    }
+  }
+
+  private[this] val afterBlockingClosure = new Runnable {
+    var result: Any = _
+    var success: Boolean = false
+    var nextIteration: Int = -1
+
+    def run(): Unit = {
+      val next = if (success) succeeded(result, 0) else failed(result, 0)
+      runLoop(next, nextIteration)
+    }
+  }
+
+  private[this] val evalOnClosure = new Runnable {
+    var ioa: IO[Any] = _
+    var nextIteration: Int = -1
+
+    def run(): Unit =
+      runLoop(ioa, nextIteration)
+  }
+
+  private[this] val cedeClosure = new Runnable {
+    var nextIteration: Int = -1
+
+    def run(): Unit =
+      runLoop(succeeded((), 0), nextIteration)
   }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
@@ -330,29 +385,9 @@ private[effect] final class IOFiber[A](
 
           case 2 =>
             val cur = cur0.asInstanceOf[Blocking[Any]]
-
-            blockingEc execute { () =>
-              var success0 = false
-              val r =
-                try {
-                  val r = cur.thunk()
-                  success0 = true
-                  r
-                } catch {
-                  case NonFatal(t) => t
-                }
-              val success = success0
-
-              currentCtx execute { () =>
-                val next =
-                  if (success)
-                    succeeded(r, 0)
-                  else
-                    failed(r, 0)
-
-                runLoop(next, nextIteration)
-              }
-            }
+            blockingClosure.cur = cur
+            blockingClosure.nextIteration = nextIteration
+            blockingEc.execute(blockingClosure)
 
           case 3 =>
             val cur = cur0.asInstanceOf[Error]
@@ -435,7 +470,9 @@ private[effect] final class IOFiber[A](
               ctxs.push(ec)
               pushCont(EvalOnK)
 
-              execute(ec) { () => runLoop(cur.ioa, nextIteration) }
+              evalOnClosure.ioa = cur.ioa
+              evalOnClosure.nextIteration = nextIteration
+              execute(ec)(evalOnClosure)
             }
 
           case 7 =>
@@ -566,11 +603,8 @@ private[effect] final class IOFiber[A](
 
           // Cede
           case 18 =>
-            currentCtx execute { () =>
-              // println("continuing from cede ")
-
-              runLoop(succeeded((), 0), nextIteration)
-            }
+            cedeClosure.nextIteration = nextIteration
+            currentCtx.execute(cedeClosure)
 
           case 19 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
