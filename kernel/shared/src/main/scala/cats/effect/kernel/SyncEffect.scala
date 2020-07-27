@@ -16,7 +16,9 @@
 
 package cats.effect.kernel
 
-import cats.~>
+import cats.implicits._
+import cats.{~>, Monoid}
+import cats.data.{EitherT, WriterT}
 
 trait SyncEffect[F[_]] extends Sync[F] {
 
@@ -33,4 +35,44 @@ trait SyncEffect[F[_]] extends Sync[F] {
 
 object SyncEffect {
   def apply[F[_]](implicit F: SyncEffect[F]): F.type = F
+
+  implicit def syncEffectForEitherT[F[_]](
+      implicit F0: SyncEffect[F]): SyncEffect[EitherT[F, Throwable, *]] =
+    new EitherTSyncEffect[F] {
+      implicit override def F: SyncEffect[F] = F0
+    }
+
+  implicit def syncEffectForWriterT[F[_], S](
+      implicit F0: SyncEffect[F],
+      S0: Monoid[S]): SyncEffect[WriterT[F, S, *]] =
+    new WriterTSyncEffect[F, S] {
+      implicit override def F: SyncEffect[F] = F0
+
+      implicit override def S: Monoid[S] = S0
+    }
+
+  trait EitherTSyncEffect[F[_]]
+      extends SyncEffect[EitherT[F, Throwable, *]]
+      with Sync.EitherTSync[F, Throwable] {
+    implicit protected def F: SyncEffect[F]
+
+    def toK[G[_]: SyncEffect]: EitherT[F, Throwable, *] ~> G =
+      new ~>[EitherT[F, Throwable, *], G] {
+        def apply[A](a: EitherT[F, Throwable, A]): G[A] = F.to[G](a.value).rethrow
+      }
+
+  }
+
+  trait WriterTSyncEffect[F[_], S]
+      extends SyncEffect[WriterT[F, S, *]]
+      with Sync.WriterTSync[F, S] {
+
+    implicit protected def F: SyncEffect[F]
+
+    def toK[G[_]: SyncEffect]: WriterT[F, S, *] ~> G =
+      new ~>[WriterT[F, S, *], G] {
+        def apply[A](a: WriterT[F, S, A]): G[A] = F.to[G](F.map(a.run)(_._2))
+      }
+
+  }
 }
