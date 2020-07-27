@@ -46,7 +46,7 @@ indicates that the feature has been merged into master.</p>
   <li><strong>Asynchronous stack tracing</strong>. This is essentially what is described above,
 where stack frames are collected across asynchronous boundaries for a given
 fiber.</li>
-  <li>Combinator inference. Stack traces can be walked to determine what
+  <li><strong>Combinator inference</strong>. Stack traces can be walked to determine what
 combinator was actually called by user code. For example, <code class="highlighter-rouge">void</code> and <code class="highlighter-rouge">as</code> are 
 combinators that are derived from <code class="highlighter-rouge">map</code>, and should appear in the fiber trace
 rather than <code class="highlighter-rouge">map</code>.</li>
