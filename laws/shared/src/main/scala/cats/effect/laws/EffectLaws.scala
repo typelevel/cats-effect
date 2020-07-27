@@ -22,6 +22,9 @@ import cats.effect.kernel.Effect
 trait EffectLaws[F[_]] extends AsyncLaws[F] {
   implicit val F: Effect[F]
 
+  def forceRIsProductRAttempt[A, B](fa: F[A], fb: F[B]) =
+    F.forceR(fa)(fb) <-> F.productR(F.attempt(fa))(fb)
+
   def roundTrip[A](fa: F[A]) =
     F.to[F](fa) <-> fa
 }

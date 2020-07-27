@@ -35,7 +35,7 @@ object freeEval {
       implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
     new Sync[FreeT[Eval, F, *]] {
       private[this] val M: MonadError[FreeT[Eval, F, *], Throwable] =
-        cats.effect.testkit.pure.catsFreeMonadErrorForFreeT2
+        FreeT.catsFreeMonadErrorForFreeT2
 
       def pure[A](x: A): FreeT[Eval, F, A] =
         M.pure(x)

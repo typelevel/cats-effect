@@ -79,7 +79,9 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       val bases = Nil
       val parents = Seq(async[A, B, C](tolerance))
 
-      val props = Seq("round trip" -> forAll(laws.roundTrip[A] _))
+      val props = Seq(
+        "forceR is productR . attempt" -> forAll(laws.forceRIsProductRAttempt[A, B] _),
+        "round trip" -> forAll(laws.roundTrip[A] _))
     }
   }
 }
