@@ -474,3 +474,5 @@ git.formattedShaVersion := {
 
 git.gitUncommittedChanges := Try("git status -s".!!.trim.length > 0).getOrElse(true)
 git.gitHeadCommit := Try("git rev-parse HEAD".!!.trim).toOption
+
+git.gitCurrentTags := Try("git tag --contains HEAD".!!.trim.split("\\s+").toList).toOption.toList.flatten
