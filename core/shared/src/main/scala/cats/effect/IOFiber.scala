@@ -236,7 +236,10 @@ private[effect] final class IOFiber[A](
   }
 
   private[this] object asyncContinueClosure extends Runnable {
-    var either: Either[Throwable, Any] = _
+    private[this] var either: Either[Throwable, Any] = _
+
+    def prepare(e: Either[Throwable, Any]): Unit =
+      either = e
 
     def run(): Unit = {
       val next = either match {
@@ -263,7 +266,7 @@ private[effect] final class IOFiber[A](
     val ec = currentCtx
 
     if (!shouldFinalize()) {
-      asyncContinueClosure.either = e
+      asyncContinueClosure.prepare(e)
       execute(ec)(asyncContinueClosure)
     } else {
       asyncCancel(null)
@@ -291,8 +294,13 @@ private[effect] final class IOFiber[A](
   }
 
   private[this] object blockingClosure extends Runnable {
-    var cur: Blocking[Any] = _
-    var nextIteration: Int = -1
+    private[this] var cur: Blocking[Any] = _
+    private[this] var nextIteration: Int = -1
+
+    def prepare(c: Blocking[Any], ni: Int): Unit = {
+      cur = c
+      nextIteration = ni
+    }
 
     def run(): Unit = {
       var success = false
@@ -305,17 +313,21 @@ private[effect] final class IOFiber[A](
           case NonFatal(t) => t
         }
 
-      afterBlockingClosure.result = r
-      afterBlockingClosure.success = success
-      afterBlockingClosure.nextIteration = nextIteration
+      afterBlockingClosure.prepare(r, success, nextIteration)
       currentCtx.execute(afterBlockingClosure)
     }
   }
 
   private[this] object afterBlockingClosure extends Runnable {
-    var result: Any = _
-    var success: Boolean = false
-    var nextIteration: Int = -1
+    private[this] var result: Any = _
+    private[this] var success: Boolean = false
+    private[this] var nextIteration: Int = -1
+
+    def prepare(r: Any, s: Boolean, ni: Int): Unit = {
+      result = r
+      success = s
+      nextIteration = ni
+    }
 
     def run(): Unit = {
       val next = if (success) succeeded(result, 0) else failed(result, 0)
@@ -324,15 +336,23 @@ private[effect] final class IOFiber[A](
   }
 
   private[this] object evalOnClosure extends Runnable {
-    var ioa: IO[Any] = _
-    var nextIteration: Int = -1
+    private[this] var ioa: IO[Any] = _
+    private[this] var nextIteration: Int = -1
+
+    def prepare(io: IO[Any], ni: Int): Unit = {
+      ioa = io
+      nextIteration = ni
+    }
 
     def run(): Unit =
       runLoop(ioa, nextIteration)
   }
 
   private[this] object cedeClosure extends Runnable {
-    var nextIteration: Int = -1
+    private[this] var nextIteration: Int = -1
+
+    def prepare(ni: Int): Unit =
+      nextIteration = ni
 
     def run(): Unit =
       runLoop(succeeded((), 0), nextIteration)
@@ -385,8 +405,7 @@ private[effect] final class IOFiber[A](
 
           case 2 =>
             val cur = cur0.asInstanceOf[Blocking[Any]]
-            blockingClosure.cur = cur
-            blockingClosure.nextIteration = nextIteration
+            blockingClosure.prepare(cur, nextIteration)
             blockingEc.execute(blockingClosure)
 
           case 3 =>
@@ -470,8 +489,7 @@ private[effect] final class IOFiber[A](
               ctxs.push(ec)
               pushCont(EvalOnK)
 
-              evalOnClosure.ioa = cur.ioa
-              evalOnClosure.nextIteration = nextIteration
+              evalOnClosure.prepare(cur.ioa, nextIteration)
               execute(ec)(evalOnClosure)
             }
 
@@ -603,7 +621,7 @@ private[effect] final class IOFiber[A](
 
           // Cede
           case 18 =>
-            cedeClosure.nextIteration = nextIteration
+            cedeClosure.prepare(nextIteration)
             currentCtx.execute(cedeClosure)
 
           case 19 =>
