@@ -234,14 +234,14 @@ private[effect] final class IOFiber[A](
 
     finalizers.invalidate()
 
-    asyncContinueClosure.prepare(null)
-    blockingClosure.prepare(null, 0)
-    afterBlockingClosure.prepare(null, false, 0)
-    evalOnClosure.prepare(null, 0)
-    cedeClosure.prepare(0)
+    asyncContinueClosure = null
+    blockingClosure = null
+    afterBlockingClosure = null
+    evalOnClosure = null
+    cedeClosure = null
   }
 
-  private[this] object asyncContinueClosure extends Runnable {
+  private[this] final class AsyncContinueClosure extends Runnable {
     private[this] var either: Either[Throwable, Any] = _
 
     def prepare(e: Either[Throwable, Any]): Unit =
@@ -256,6 +256,8 @@ private[effect] final class IOFiber[A](
       runLoop(next, 0)
     }
   }
+
+  private[this] var asyncContinueClosure = new AsyncContinueClosure()
 
   /*
   4 possible cases for callback and cancellation:
@@ -299,7 +301,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] object blockingClosure extends Runnable {
+  private[this] final class BlockingClosure extends Runnable {
     private[this] var cur: Blocking[Any] = _
     private[this] var nextIteration: Int = 0
 
@@ -324,7 +326,9 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] object afterBlockingClosure extends Runnable {
+  private[this] var blockingClosure = new BlockingClosure()
+
+  private[this] final class AfterBlockingClosure extends Runnable {
     private[this] var result: Any = _
     private[this] var success: Boolean = false
     private[this] var nextIteration: Int = 0
@@ -341,7 +345,9 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] object evalOnClosure extends Runnable {
+  private[this] var afterBlockingClosure = new AfterBlockingClosure()
+
+  private[this] final class EvalOnClosure extends Runnable {
     private[this] var ioa: IO[Any] = _
     private[this] var nextIteration: Int = 0
 
@@ -354,7 +360,9 @@ private[effect] final class IOFiber[A](
       runLoop(ioa, nextIteration)
   }
 
-  private[this] object cedeClosure extends Runnable {
+  private[this] var evalOnClosure = new EvalOnClosure()
+
+  private[this] final class CedeClosure extends Runnable {
     private[this] var nextIteration: Int = 0
 
     def prepare(ni: Int): Unit =
@@ -363,6 +371,8 @@ private[effect] final class IOFiber[A](
     def run(): Unit =
       runLoop(succeeded((), 0), nextIteration)
   }
+
+  private[this] var cedeClosure = new CedeClosure()
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   private def runLoop(cur0: IO[Any], iteration: Int): Unit = {
