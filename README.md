@@ -16,7 +16,7 @@ In this way, `IO` is more similar to common `Task` implementations than it is to
 Versions of Cats Effect:
 
 - Stable: `2.1.4`
-- Release Candidate: `2.2.0-RC1`
+- Release Candidate: `2.2.0-RC3`
 
 See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
 
