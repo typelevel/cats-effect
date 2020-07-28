@@ -94,6 +94,15 @@ private[effect] final class IOFiber[A](
 
   private[this] val childCount = IOFiber.childCount
 
+  // Preallocated closures for resuming the run loop on a new thread. For a given `IOFiber` instance,
+  // only a single instance of these closures is used at a time, because the run loop is suspended.
+  // Therefore, they can be preallocated and their parameters mutated before each use.
+  private[this] var asyncContinueClosure = new AsyncContinueClosure()
+  private[this] var blockingClosure = new BlockingClosure()
+  private[this] var afterBlockingClosure = new AfterBlockingClosure()
+  private[this] var evalOnClosure = new EvalOnClosure()
+  private[this] var cedeClosure = new CedeClosure()
+
   // pre-fetching of all continuations (to avoid memory barriers)
   private[this] val CancelationLoopK = IOFiber.CancelationLoopK
   private[this] val RunTerminusK = IOFiber.RunTerminusK
@@ -236,6 +245,12 @@ private[effect] final class IOFiber[A](
     objectState.invalidate()
 
     finalizers.invalidate()
+
+    asyncContinueClosure = null
+    blockingClosure = null
+    afterBlockingClosure = null
+    evalOnClosure = null
+    cedeClosure = null
   }
 
   /*
@@ -253,14 +268,8 @@ private[effect] final class IOFiber[A](
     val ec = currentCtx
 
     if (!shouldFinalize()) {
-      execute(ec) { () =>
-        val next = e match {
-          case Left(t) => failed(t, 0)
-          case Right(a) => succeeded(a, 0)
-        }
-
-        runLoop(next, 0) // we've definitely hit suspended as part of evaluating async
-      }
+      asyncContinueClosure.prepare(e)
+      execute(ec)(asyncContinueClosure)
     } else {
       asyncCancel(null)
     }
@@ -336,28 +345,8 @@ private[effect] final class IOFiber[A](
             // we know we're on the JVM here
 
             if (cur.hint eq TypeBlocking) {
-              blockingEc execute { () =>
-                var success0 = false
-                val r =
-                  try {
-                    val r = cur.thunk()
-                    success0 = true
-                    r
-                  } catch {
-                    case NonFatal(t) => t
-                  }
-                val success = success0
-
-                currentCtx execute { () =>
-                  val next =
-                    if (success)
-                      succeeded(r, 0)
-                    else
-                      failed(r, 0)
-
-                  runLoop(next, nextIteration)
-                }
-              }
+              blockingClosure.prepare(cur, nextIteration)
+              blockingEc.execute(blockingClosure)
             } else {
               // InterruptibleMany | InterruptibleOnce
 
@@ -508,7 +497,8 @@ private[effect] final class IOFiber[A](
               ctxs.push(ec)
               pushCont(EvalOnK)
 
-              execute(ec) { () => runLoop(cur.ioa, nextIteration) }
+              evalOnClosure.prepare(cur.ioa, nextIteration)
+              execute(ec)(evalOnClosure)
             }
 
           case 7 =>
@@ -639,11 +629,8 @@ private[effect] final class IOFiber[A](
 
           // Cede
           case 18 =>
-            currentCtx execute { () =>
-              // println("continuing from cede ")
-
-              runLoop(succeeded((), 0), nextIteration)
-            }
+            cedeClosure.prepare(nextIteration)
+            currentCtx.execute(cedeClosure)
 
           case 19 =>
             val cur = cur0.asInstanceOf[Unmask[Any]]
@@ -798,6 +785,91 @@ private[effect] final class IOFiber[A](
     println(s"masks = $masks (out of initMask = $initMask)")
     println(s"suspended = ${suspended.get()}")
     println(s"outcome = ${outcome.get()}")
+  }
+
+  ///////////////////////////////////////////////
+  // Implementations of preallocated closures. //
+  ///////////////////////////////////////////////
+
+  private[this] final class AsyncContinueClosure extends Runnable {
+    private[this] var either: Either[Throwable, Any] = _
+
+    def prepare(e: Either[Throwable, Any]): Unit =
+      either = e
+
+    def run(): Unit = {
+      val next = either match {
+        case Left(t) => failed(t, 0)
+        case Right(a) => succeeded(a, 0)
+      }
+
+      runLoop(next, 0)
+    }
+  }
+
+  private[this] final class BlockingClosure extends Runnable {
+    private[this] var cur: Blocking[Any] = _
+    private[this] var nextIteration: Int = 0
+
+    def prepare(c: Blocking[Any], ni: Int): Unit = {
+      cur = c
+      nextIteration = ni
+    }
+
+    def run(): Unit = {
+      var success = false
+      val r =
+        try {
+          val r = cur.thunk()
+          success = true
+          r
+        } catch {
+          case NonFatal(t) => t
+        }
+
+      afterBlockingClosure.prepare(r, success, nextIteration)
+      currentCtx.execute(afterBlockingClosure)
+    }
+  }
+
+  private[this] final class AfterBlockingClosure extends Runnable {
+    private[this] var result: Any = _
+    private[this] var success: Boolean = false
+    private[this] var nextIteration: Int = 0
+
+    def prepare(r: Any, s: Boolean, ni: Int): Unit = {
+      result = r
+      success = s
+      nextIteration = ni
+    }
+
+    def run(): Unit = {
+      val next = if (success) succeeded(result, 0) else failed(result, 0)
+      runLoop(next, nextIteration)
+    }
+  }
+
+  private[this] final class EvalOnClosure extends Runnable {
+    private[this] var ioa: IO[Any] = _
+    private[this] var nextIteration: Int = 0
+
+    def prepare(io: IO[Any], ni: Int): Unit = {
+      ioa = io
+      nextIteration = ni
+    }
+
+    def run(): Unit =
+      runLoop(ioa, nextIteration)
+  }
+
+  private[this] final class CedeClosure extends Runnable {
+    private[this] var nextIteration: Int = 0
+
+    def prepare(ni: Int): Unit =
+      nextIteration = ni
+
+    def run(): Unit =
+      runLoop(succeeded((), 0), nextIteration)
   }
 }
 
