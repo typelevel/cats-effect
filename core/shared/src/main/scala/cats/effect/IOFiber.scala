@@ -196,7 +196,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
+  private[effect] def exec(cur: IO[Any], ec: ExecutionContext): Unit = {
     conts = new ByteStack(16)
     pushCont(RunTerminusK)
 
@@ -493,7 +493,7 @@ private[effect] final class IOFiber[A](
             // println(s"<$name> spawning <$childName>")
 
             val ec = currentCtx
-            execute(ec)(() => fiber.run(cur.ioa, ec))
+            execute(ec)(() => fiber.exec(cur.ioa, ec))
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -524,8 +524,8 @@ private[effect] final class IOFiber[A](
 
                     val ec = currentCtx
 
-                    execute(ec)(() => fiberA.run(cur.ioa, ec))
-                    execute(ec)(() => fiberB.run(cur.iob, ec))
+                    execute(ec)(() => fiberA.exec(cur.ioa, ec))
+                    execute(ec)(() => fiberB.exec(cur.iob, ec))
 
                     Some(fiberA.cancel.both(fiberB.cancel).void)
                   }

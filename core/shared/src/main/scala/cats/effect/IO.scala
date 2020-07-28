@@ -290,9 +290,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       0)
 
     if (shift)
-      runtime.compute.execute(() => fiber.run(this, runtime.compute))
+      runtime.compute.execute(() => fiber.exec(this, runtime.compute))
     else
-      fiber.run(this, runtime.compute)
+      fiber.exec(this, runtime.compute)
 
     fiber
   }
