@@ -214,7 +214,7 @@ object Semaphore {
           state
             .modify { old =>
               val (newState, result) = old match {
-                case Right(m) if m >= n => (Right(m - n), m != n)
+                case Right(m) if m >= n => (Right(m - n), true)
                 case _                  => (old, false)
               }
               (newState, result)
