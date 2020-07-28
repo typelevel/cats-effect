@@ -163,18 +163,21 @@ object Concurrent {
   implicit def concurrentForOptionT[F[_], E](
       implicit F0: Concurrent[F, E]): Concurrent[OptionT[F, *], E] =
     new OptionTConcurrent[F, E] {
+
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
   implicit def concurrentForEitherT[F[_], E0, E](
       implicit F0: Concurrent[F, E]): Concurrent[EitherT[F, E0, *], E] =
     new EitherTConcurrent[F, E0, E] {
+
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
   implicit def concurrentForKleisli[F[_], R, E](
       implicit F0: Concurrent[F, E]): Concurrent[Kleisli[F, R, *], E] =
     new KleisliConcurrent[F, R, E] {
+
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
@@ -182,6 +185,7 @@ object Concurrent {
       implicit F0: Concurrent[F, E],
       L0: Semigroup[L]): Concurrent[IorT[F, L, *], E] =
     new IorTConcurrent[F, L, E] {
+
       override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
@@ -191,6 +195,7 @@ object Concurrent {
       implicit F0: Concurrent[F, E],
       L0: Monoid[L]): Concurrent[WriterT[F, L, *], E] =
     new WriterTConcurrent[F, L, E] {
+
       override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
@@ -235,6 +240,9 @@ object Concurrent {
         case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
       })
     }
+
+    def forceR[A, B](fa: OptionT[F, A])(fb: OptionT[F, B]): OptionT[F, B] =
+      fa.attempt >> fb
 
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
@@ -307,6 +315,9 @@ object Concurrent {
       })
     }
 
+    def forceR[A, B](fa: EitherT[F, E0, A])(fb: EitherT[F, E0, B]): EitherT[F, E0, B] =
+      fa.attempt >> fb
+
     def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
 
     def raiseError[A](e: E): EitherT[F, E0, A] = delegate.raiseError(e)
@@ -378,6 +389,9 @@ object Concurrent {
         case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
       })
     }
+
+    def forceR[A, B](fa: IorT[F, L, A])(fb: IorT[F, L, B]): IorT[F, L, B] =
+      fa.attempt >> fb
 
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
@@ -452,6 +466,9 @@ object Concurrent {
       }
     }
 
+    def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
+      fa.attempt >> fb
+
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
     def raiseError[A](e: E): Kleisli[F, R, A] = delegate.raiseError(e)
@@ -523,6 +540,9 @@ object Concurrent {
         case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
       })
     }
+
+    def forceR[A, B](fa: WriterT[F, L, A])(fb: WriterT[F, L, B]): WriterT[F, L, B] =
+      fa.attempt >> fb
 
     def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
 
