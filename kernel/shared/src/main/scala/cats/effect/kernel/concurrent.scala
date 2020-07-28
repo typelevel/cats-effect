@@ -215,7 +215,7 @@ object Concurrent {
       OptionT(
         F.uncancelable { nat =>
           val natT: OptionT[F, *] ~> OptionT[F, *] = new ~>[OptionT[F, *], OptionT[F, *]] {
-            def apply[A](optfa: OptionT[F, A]): OptionT[F, A] = OptionT(nat(optfa.value))
+            def apply[B](optfa: OptionT[F, B]): OptionT[F, B] = OptionT(nat(optfa.value))
           }
           body(natT).value
         }
@@ -289,7 +289,7 @@ object Concurrent {
         F.uncancelable { nat =>
           val natT: EitherT[F, E0, *] ~> EitherT[F, E0, *] =
             new ~>[EitherT[F, E0, *], EitherT[F, E0, *]] {
-              def apply[A](optfa: EitherT[F, E0, A]): EitherT[F, E0, A] =
+              def apply[B](optfa: EitherT[F, E0, B]): EitherT[F, E0, B] =
                 EitherT(nat(optfa.value))
             }
           body(natT).value
@@ -367,7 +367,7 @@ object Concurrent {
       IorT(
         F.uncancelable { nat =>
           val natT: IorT[F, L, *] ~> IorT[F, L, *] = new ~>[IorT[F, L, *], IorT[F, L, *]] {
-            def apply[A](optfa: IorT[F, L, A]): IorT[F, L, A] = IorT(nat(optfa.value))
+            def apply[B](optfa: IorT[F, L, B]): IorT[F, L, B] = IorT(nat(optfa.value))
           }
           body(natT).value
         }
@@ -442,7 +442,7 @@ object Concurrent {
         F.uncancelable { nat =>
           val natT: Kleisli[F, R, *] ~> Kleisli[F, R, *] =
             new ~>[Kleisli[F, R, *], Kleisli[F, R, *]] {
-              def apply[A](stfa: Kleisli[F, R, A]): Kleisli[F, R, A] =
+              def apply[B](stfa: Kleisli[F, R, B]): Kleisli[F, R, B] =
                 Kleisli { r => nat(stfa.run(r)) }
             }
           body(natT).run(r)
@@ -519,7 +519,7 @@ object Concurrent {
         F.uncancelable { nat =>
           val natT: WriterT[F, L, *] ~> WriterT[F, L, *] =
             new ~>[WriterT[F, L, *], WriterT[F, L, *]] {
-              def apply[A](optfa: WriterT[F, L, A]): WriterT[F, L, A] = WriterT(nat(optfa.run))
+              def apply[B](optfa: WriterT[F, L, B]): WriterT[F, L, B] = WriterT(nat(optfa.run))
             }
           body(natT).run
         }
