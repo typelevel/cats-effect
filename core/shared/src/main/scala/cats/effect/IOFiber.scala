@@ -24,9 +24,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 
-import java.util.{concurrent => juc}
-import juc.RejectedExecutionException
-import juc.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 /*
  * Rationale on memory barrier exploitation in this class...
@@ -63,7 +62,8 @@ private[effect] final class IOFiber[A](
     scheduler: unsafe.Scheduler,
     blockingEc: ExecutionContext,
     initMask: Int)
-    extends FiberIO[A] {
+    extends IOFiberPlatform[A]
+    with FiberIO[A] {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -125,7 +125,6 @@ private[effect] final class IOFiber[A](
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
   private[this] val TypeBlocking = Sync.Type.Blocking
-  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
   def this(
       scheduler: unsafe.Scheduler,
@@ -349,111 +348,7 @@ private[effect] final class IOFiber[A](
               blockingClosure.prepare(cur, nextIteration)
               blockingEc.execute(blockingClosure)
             } else {
-              // InterruptibleMany | InterruptibleOnce
-
-              /*
-               * Coordination cases:
-               *
-               * 1. Action running, but finalizer not yet registered
-               * 2. Action running, finalizer registered
-               * 3. Action running, finalizer firing
-               * 4. Action completed, finalizer registered
-               * 5. Action completed, finalizer firing
-               * 6. Action completed, finalizer unregistered
-               */
-
-              val many = cur.hint eq TypeInterruptibleMany
-              val next = IO.async[Any] { nextCb =>
-                for {
-                  done <- IO(new AtomicBoolean(false))
-                  cb <- IO(new AtomicReference[() => Unit](null))
-
-                  canInterrupt <- IO(new juc.Semaphore(1))
-
-                  target <- IO.async_[Thread] { initCb =>
-                    blockingEc execute { () =>
-                      initCb(Right(Thread.currentThread()))
-
-                      try {
-                        canInterrupt.release(1)
-                        nextCb(Right(cur.thunk()))
-
-                        // this is why it has to be a semaphore rather than an atomic boolean
-                        // this needs to hard-block if we're in the process of being interrupted
-                        canInterrupt.acquire()
-                      } catch {
-                        case _: InterruptedException =>
-                          if (!many) {
-                            val cb0 = cb.get()
-                            if (cb0 != null) {
-                              cb0()
-                            }
-                          }
-
-                        case NonFatal(t) =>
-                          nextCb(Left(t))
-                      } finally {
-                        canInterrupt.tryAcquire()
-                        done.set(true)
-                      }
-                    }
-                  }
-
-                  isSelf <- IO(target eq Thread.currentThread())
-                } yield {
-                  if (isSelf) {
-                    None
-                  } else {
-                    Some {
-                      IO async { finCb =>
-                        val trigger = IO {
-                          if (!many) {
-                            cb.set(() => finCb(Right(())))
-                          }
-
-                          // if done is false, and we can't get the semaphore, it means
-                          // that the action hasn't *yet* started, so we busy-wait for it
-                          var break = false
-                          while (break && !done.get()) {
-                            if (canInterrupt.tryAcquire()) {
-                              try {
-                                target.interrupt()
-                                break = true
-                              } finally {
-                                canInterrupt.release()
-                              }
-                            }
-                          }
-                        }
-
-                        val repeat = if (many) {
-                          IO blocking {
-                            while (!done.get()) {
-                              if (canInterrupt.tryAcquire()) {
-                                try {
-                                  while (!done.get()) {
-                                    target.interrupt() // it's hammer time!
-                                  }
-                                } finally {
-                                  canInterrupt.release()
-                                }
-                              }
-                            }
-
-                            finCb(Right(()))
-                          }
-                        } else {
-                          IO.unit
-                        }
-
-                        (trigger *> repeat).as(None)
-                      }
-                    }
-                  }
-                }
-              }
-
-              runLoop(next, nextIteration)
+              runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
             }
 
           case 3 =>
