@@ -97,7 +97,7 @@ object Clock {
   trait OptionTClock[F[_]] extends Clock[OptionT[F, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
-    val delegate = OptionT.catsDataMonadForOptionT[F]
+    protected def delegate: Applicative[OptionT[F, *]] = OptionT.catsDataMonadForOptionT[F]
 
     override def ap[A, B](
         ff: OptionT[F, A => B]
@@ -114,7 +114,8 @@ object Clock {
   trait EitherTClock[F[_], E] extends Clock[EitherT[F, E, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
-    val delegate = EitherT.catsDataMonadErrorForEitherT[F, E]
+    protected def delegate: Applicative[EitherT[F, E, *]] =
+      EitherT.catsDataMonadErrorForEitherT[F, E]
 
     override def ap[A, B](
         ff: EitherT[F, E, A => B]
@@ -131,7 +132,8 @@ object Clock {
   trait StateTClock[F[_], S] extends Clock[StateT[F, S, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
-    val delegate = IndexedStateT.catsDataMonadForIndexedStateT[F, S]
+    protected def delegate: Applicative[StateT[F, S, *]] =
+      IndexedStateT.catsDataMonadForIndexedStateT[F, S]
 
     override def ap[A, B](
         ff: IndexedStateT[F, S, S, A => B]
@@ -150,7 +152,8 @@ object Clock {
     implicit protected def F: Clock[F] with Monad[F]
     implicit protected def S: Monoid[S]
 
-    val delegate = WriterT.catsDataMonadForWriterT[F, S]
+    protected def delegate: Applicative[WriterT[F, S, *]] =
+      WriterT.catsDataMonadForWriterT[F, S]
 
     override def ap[A, B](
         ff: WriterT[F, S, A => B]
@@ -168,7 +171,7 @@ object Clock {
     implicit protected def F: Clock[F] with Monad[F]
     implicit protected def L: Semigroup[L]
 
-    val delegate = IorT.catsDataMonadErrorForIorT[F, L]
+    protected def delegate: Applicative[IorT[F, L, *]] = IorT.catsDataMonadErrorForIorT[F, L]
 
     override def ap[A, B](
         ff: IorT[F, L, A => B]
@@ -185,7 +188,8 @@ object Clock {
   trait KleisliClock[F[_], R] extends Clock[Kleisli[F, R, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
-    val delegate = Kleisli.catsDataMonadForKleisli[F, R]
+    protected def delegate: Applicative[Kleisli[F, R, *]] =
+      Kleisli.catsDataMonadForKleisli[F, R]
 
     override def ap[A, B](
         ff: Kleisli[F, R, A => B]
@@ -203,7 +207,7 @@ object Clock {
   trait ContTClock[F[_], R] extends Clock[ContT[F, R, *]] {
     implicit protected def F: Clock[F] with Monad[F] with Defer[F]
 
-    val delegate = ContT.catsDataContTMonad[F, R]
+    protected def delegate: Applicative[ContT[F, R, *]] = ContT.catsDataContTMonad[F, R]
 
     override def ap[A, B](
         ff: ContT[F, R, A => B]
@@ -224,7 +228,8 @@ object Clock {
 
     implicit protected def L: Monoid[L]
 
-    val delegate = IndexedReaderWriterStateT.catsDataMonadForRWST[F, R, L, S]
+    protected def delegate: Applicative[ReaderWriterStateT[F, R, L, S, *]] =
+      IndexedReaderWriterStateT.catsDataMonadForRWST[F, R, L, S]
 
     override def ap[A, B](
         ff: ReaderWriterStateT[F, R, L, S, A => B]
