@@ -166,6 +166,21 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
     }
 
+    s"$label - tryAcquireN all available permits" in real {
+      val n = 20
+      val op = sc(20).flatMap { s =>
+        for {
+          t <- s.tryAcquireN(n.toLong)
+        } yield t
+      }
+
+      op.flatMap { res =>
+        IO {
+          res must beTrue
+        }
+      }
+    }
+
     //TODO requires NonEmptyParallel for IO
     // test(s"$label - offsetting acquires/releases - acquires parallel with releases") {
     //   testOffsettingReleasesAcquires((s, permits) => permits.traverse(s.acquireN).void,

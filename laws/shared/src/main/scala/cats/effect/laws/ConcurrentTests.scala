@@ -105,7 +105,11 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
           laws.canceledAssociatesLeftOverFlatMap[A] _),
         "canceled sequences onCancel in order" -> forAll(
           laws.canceledSequencesOnCancelInOrder _),
-        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _)
+        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _),
+        "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
+        "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
+        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
+        "forceR never is never" -> forAll(laws.forceRNeverIsNever[A] _)
       )
     }
   }

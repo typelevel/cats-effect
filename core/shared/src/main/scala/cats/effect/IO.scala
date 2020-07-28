@@ -291,10 +291,11 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       0)
 
-    if (shift)
-      runtime.compute.execute(() => fiber.run(this, runtime.compute))
-    else
-      fiber.run(this, runtime.compute)
+    if (shift) {
+      fiber.prepare(this, runtime.compute)
+      runtime.compute.execute(fiber)
+    } else
+      fiber.exec(this, runtime.compute)
 
     fiber
   }
