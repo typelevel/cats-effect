@@ -242,7 +242,9 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: OptionT[F, A])(fb: OptionT[F, B]): OptionT[F, B] =
-      fa.attempt >> fb
+      OptionT(
+        fa.value.attempt >> fb.value
+      )
 
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
 
@@ -316,7 +318,9 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: EitherT[F, E0, A])(fb: EitherT[F, E0, B]): EitherT[F, E0, B] =
-      fa.attempt >> fb
+      EitherT(
+        fa.value.attempt >> fb.value
+      )
 
     def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
 
@@ -391,7 +395,9 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: IorT[F, L, A])(fb: IorT[F, L, B]): IorT[F, L, B] =
-      fa.attempt >> fb
+      IorT(
+        fa.value.attempt >> fb.value
+      )
 
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
 
@@ -467,7 +473,7 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
-      fa.attempt >> fb
+      Kleisli(r => fa.run(r).attempt >> fb.run(r))
 
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
@@ -542,7 +548,9 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: WriterT[F, L, A])(fb: WriterT[F, L, B]): WriterT[F, L, B] =
-      fa.attempt >> fb
+      WriterT(
+        fa.run.attempt >> fb.run
+      )
 
     def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
 
