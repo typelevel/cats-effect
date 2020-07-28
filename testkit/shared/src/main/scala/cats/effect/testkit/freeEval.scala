@@ -23,13 +23,10 @@ import cats.implicits._
 
 import scala.concurrent.duration._
 
-object freeEval {
+object freeEval extends FreeSyncEq {
 
   type FreeSync[F[_], A] = FreeT[Eval, F, A]
   type FreeEitherSync[A] = FreeSync[Either[Throwable, *], A]
-
-  def run[F[_]: Monad, A](ft: FreeT[Eval, F, A]): F[A] =
-    ft.runM(_.value.pure[F])
 
   implicit def syncForFreeT[F[_]](
       implicit F: MonadError[F, Throwable]): Sync[FreeT[Eval, F, *]] =
@@ -72,6 +69,14 @@ object freeEval {
         }
     }
 
+}
+
+trait FreeSyncEq {
+
+  def run[F[_]: Monad, A](ft: FreeT[Eval, F, A]): F[A] =
+    ft.runM(_.value.pure[F])
+
   implicit def eqFreeSync[F[_]: Monad, A](implicit F: Eq[F[A]]): Eq[FreeT[Eval, F, A]] =
     Eq.by(run(_))
+
 }

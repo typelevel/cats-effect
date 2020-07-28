@@ -17,11 +17,14 @@
 package cats.effect
 package laws
 
-import cats.{Eq, Show}
+import cats.{Eq, Eval, Show}
+import cats.free.FreeT
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.{eq, MiniInt}; import eq._
-import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}, freeEval._
+import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
+import cats.effect.testkit.FreeSyncEq
+import freeEval.{FreeEitherSync, syncForFreeT}
 import cats.implicits._
 
 import org.scalacheck.Prop
@@ -32,7 +35,7 @@ import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class FreeSyncSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+class FreeSyncSpec extends Specification with Discipline with ScalaCheck with BaseSpec with LowPriorityImplicits {
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
@@ -44,6 +47,12 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck with Ba
 
   implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
     run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
+
+  implicit val scala_2_12_is_buggy: Eq[FreeT[Eval, Either[Throwable, *],Either[Int,Either[Throwable,Int]]]] =
+    eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
+
+  implicit val like_really_buggy: Eq[EitherT[FreeT[Eval,Either[Throwable,*],*],Int,Either[Throwable,Int]]] =
+    EitherT.catsDataEqForEitherT[FreeT[Eval, Either[Throwable, *], *], Int, Either[Throwable, Int]]
 
   checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
   checkAll("OptionT[FreeEitherSync]", SyncTests[OptionT[FreeEitherSync, *]].sync[Int, Int, Int])
@@ -63,4 +72,9 @@ class FreeSyncSpec extends Specification with Discipline with ScalaCheck with Ba
   checkAll(
     "ReaderWriterStateT[FreeEitherSync]",
     SyncTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]].sync[Int, Int, Int])
+}
+
+//See the explicitly summoned implicits above - scala 2.12 has weird divergent implicit expansion problems
+trait LowPriorityImplicits extends FreeSyncEq {
+
 }
