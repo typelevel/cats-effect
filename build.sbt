@@ -26,7 +26,6 @@ ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
 
-val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.1.1"
 val DisciplineScalatestVersion = "1.0.1"
@@ -69,9 +68,6 @@ val commonSettings = Seq(
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
-  // credit: https://github.com/typelevel/cats/pull/1638
-  ivyConfigurations += CompileTime,
-  unmanagedClasspath in Compile ++= update.value.select(configurationFilter("CompileTime")),
   logBuffered in Test := false,
   isSnapshot := version.value.endsWith("SNAPSHOT"), // so… sonatype doesn't like git hash snapshots
   publishTo := Some(
@@ -259,13 +255,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % CatsVersion,
-      "org.typelevel" %%% "simulacrum" % SimulacrumVersion % CompileTime,
+      "org.typelevel" %%% "simulacrum" % SimulacrumVersion % "provided",
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
     ),
     libraryDependencies ++= Seq(
       compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik" % "silencer-lib" % SilencerVersion % CompileTime).cross(CrossVersion.full),
+      ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
       ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
     ),
     libraryDependencies ++= {
