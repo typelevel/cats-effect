@@ -32,6 +32,9 @@ trait Fiber[F[_], E, A] {
 
 trait Concurrent[F[_], E] extends MonadError[F, E] {
 
+  // analogous to productR, except discarding short-circuiting (and optionally some effect contexts) except for cancelation
+  def forceR[A, B](fa: F[A])(fb: F[B]): F[B]
+
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   def uncancelable[A](body: (F ~> F) => F[A]): F[A]

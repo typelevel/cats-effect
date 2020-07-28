@@ -28,6 +28,12 @@ trait ConcurrentSyntax {
 
 final class ConcurrentOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
+  def forceR[B](fb: F[B])(implicit F: Concurrent[F, E]): F[B] =
+    F.forceR(wrapped)(fb)
+
+  def !>[B](fb: F[B])(implicit F: Concurrent[F, E]): F[B] =
+    forceR(fb)
+
   def start(implicit F: Concurrent[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 
   def uncancelable(implicit F: Concurrent[F, E]): F[A] =

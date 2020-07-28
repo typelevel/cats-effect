@@ -128,6 +128,9 @@ object TimeT {
         }
       }
 
+    def forceR[A, B](fa: TimeT[F, A])(fb: TimeT[F, B]): TimeT[F, B] =
+      Kleisli(time => F.forceR(fa.run(time))(fb.run(time)))
+
     def flatMap[A, B](fa: TimeT[F, A])(f: A => TimeT[F, B]): TimeT[F, B] =
       fa.flatMap(f)
 

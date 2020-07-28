@@ -20,6 +20,10 @@ import cats.~>
 
 trait Effect[F[_]] extends Async[F] {
 
+  // this is implied by parametricity
+  def forceR[A, B](fa: F[A])(fb: F[B]): F[B] =
+    productR(attempt(fa))(fb)
+
   def to[G[_]]: PartiallyApplied[G] =
     new PartiallyApplied[G]
 

@@ -160,20 +160,31 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
 
-  // the attempt here enforces the cancelation-dominates-over-errors semantic
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
-    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <-> (F.uncancelable(_ =>
-      f(a).attempt) >> F.canceled)
+    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <->
+      F.forceR(F.uncancelable(_ => f(a)))(F.canceled)
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
     F.canceled >> fa.void <-> F.canceled
 
   def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
-    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <-> (F.uncancelable(_ =>
-      fin1.attempt >> fin2.attempt) >> F.canceled)
+    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
+      F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
   def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
+
+  def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
+    F.forceR(F.pure(a))(fa) <-> fa
+
+  def forceRDiscardsError[A](e: E, fa: F[A]) =
+    F.forceR(F.raiseError(e))(fa) <-> fa
+
+  def forceRCanceledShortCircuits[A](fa: F[A]) =
+    F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
+
+  def forceRNeverIsNever[A](fa: F[A]) =
+    F.forceR(F.never)(fa) <-> F.never
 }
 
 object ConcurrentLaws {
