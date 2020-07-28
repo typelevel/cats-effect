@@ -375,7 +375,6 @@ private[effect] final class IOFiber[A](
                         nextCb(Right(cur.thunk()))
                       } catch {
                         case _: InterruptedException =>
-                          println("caught interrupt")
                           if (many) {
                             done.set(true)
                           } else {
