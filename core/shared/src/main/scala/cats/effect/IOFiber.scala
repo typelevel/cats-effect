@@ -62,7 +62,8 @@ private[effect] final class IOFiber[A](
     scheduler: unsafe.Scheduler,
     blockingEc: ExecutionContext,
     initMask: Int)
-    extends FiberIO[A] {
+    extends FiberIO[A]
+    with Runnable {
   import IO._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
@@ -177,6 +178,24 @@ private[effect] final class IOFiber[A](
       }
     }
 
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  // Mutable state useful only when starting a fiber as a `java.lang.Runnable`. Should not //
+  // be directly referenced anywhere in the code.                                          //
+  ///////////////////////////////////////////////////////////////////////////////////////////
+  private[this] var startIO: IO[Any] = _
+  private[this] var startEC: ExecutionContext = _
+
+  private[effect] def prepare(io: IO[Any], ec: ExecutionContext): Unit = {
+    startIO = io
+    startEC = ec
+  }
+
+  /**
+   * @note This method should not be used outside of the IO run loop under any circumstance.
+   */
+  def run(): Unit =
+    exec(startIO, startEC)
+
   // can return null, meaning that no CallbackStack needs to be later invalidated
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
     if (outcome.get() == null) {
@@ -196,7 +215,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[effect] def run(cur: IO[Any], ec: ExecutionContext): Unit = {
+  private[effect] def exec(cur: IO[Any], ec: ExecutionContext): Unit = {
     conts = new ByteStack(16)
     pushCont(RunTerminusK)
 
@@ -242,6 +261,9 @@ private[effect] final class IOFiber[A](
     objectState.invalidate()
 
     finalizers.invalidate()
+
+    startIO = null
+    startEC = null
 
     asyncContinueClosure = null
     blockingClosure = null
@@ -488,12 +510,13 @@ private[effect] final class IOFiber[A](
             val childName = s"start-${childCount.getAndIncrement()}"
             val initMask2 = childMask
 
-            val fiber = new IOFiber(childName, scheduler, blockingEc, initMask2)
+            val fiber = new IOFiber[Any](childName, scheduler, blockingEc, initMask2)
 
             // println(s"<$name> spawning <$childName>")
 
             val ec = currentCtx
-            execute(ec)(() => fiber.run(cur.ioa, ec))
+            fiber.prepare(cur.ioa, ec)
+            execute(ec)(fiber)
 
             runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -523,9 +546,10 @@ private[effect] final class IOFiber[A](
                     fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
                     val ec = currentCtx
-
-                    execute(ec)(() => fiberA.run(cur.ioa, ec))
-                    execute(ec)(() => fiberB.run(cur.iob, ec))
+                    fiberA.prepare(cur.ioa, ec)
+                    fiberB.prepare(cur.iob, ec)
+                    execute(ec)(fiberA)
+                    execute(ec)(fiberB)
 
                     Some(fiberA.cancel.both(fiberB.cancel).void)
                   }
