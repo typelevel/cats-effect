@@ -172,47 +172,6 @@ object pure {
     }
   }
 
-  // the one in Free is broken: typelevel/cats#3240
-  implicit def catsFreeMonadErrorForFreeT2[S[_], M[_], E](
-      implicit E: MonadError[M, E],
-      S: Functor[S]): MonadError[FreeT[S, M, *], E] =
-    new MonadError[FreeT[S, M, *], E] {
-      private val F = FreeT.catsFreeMonadErrorForFreeT2[S, M, E]
-
-      def pure[A](x: A): FreeT[S, M, A] =
-        F.pure(x)
-
-      def flatMap[A, B](fa: FreeT[S, M, A])(f: A => FreeT[S, M, B]): FreeT[S, M, B] =
-        F.flatMap(fa)(f)
-
-      def tailRecM[A, B](a: A)(f: A => FreeT[S, M, Either[A, B]]): FreeT[S, M, B] =
-        F.tailRecM(a)(f)
-
-      // this is the thing we need to override
-      def handleErrorWith[A](fa: FreeT[S, M, A])(f: E => FreeT[S, M, A]) = {
-        val ft = FreeT.liftT[S, M, FreeT[S, M, A]] {
-          val resultsM = fa.resume.map {
-            case Left(se) =>
-              pure(()).flatMap(_ => FreeT.roll(se.map(handleErrorWith(_)(f))))
-
-            case Right(a) =>
-              pure(a)
-          }
-
-          resultsM.handleErrorWith { e =>
-            f(e).resume.map { eth =>
-              FreeT.defer(eth.swap.pure[M]) // why on earth is defer inconsistent with resume??
-            }
-          }
-        }
-
-        ft.flatMap(identity)
-      }
-
-      def raiseError[A](e: E) =
-        F.raiseError(e)
-    }
-
   implicit def concurrentForPureConc[E]: Concurrent[PureConc[E, *], E] =
     new Concurrent[PureConc[E, *], E] {
       private[this] val M: MonadError[PureConc[E, *], E] =
@@ -370,6 +329,9 @@ object pure {
               .ifM(canceled, unit) // double-check cancelation whenever we exit a block
         }
       }
+
+      def forceR[A, B](fa: PureConc[E, A])(fb: PureConc[E, B]): PureConc[E, B] =
+        productR(attempt(fa))(fb)
 
       def flatMap[A, B](fa: PureConc[E, A])(f: A => PureConc[E, B]): PureConc[E, B] =
         M.flatMap(fa)(f)

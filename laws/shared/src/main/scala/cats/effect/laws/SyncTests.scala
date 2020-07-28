@@ -37,6 +37,7 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
       CogenA: Cogen[A],
       CogenB: Cogen[B],
       CogenC: Cogen[C],
@@ -59,10 +60,10 @@ trait SyncTests[F[_]] extends MonadErrorTests[F, Throwable] with ClockTests[F] {
       val parents = Seq(monadError[A, B, C], clock[A, B, C])
 
       val props = Seq(
-        "delay value is pure" -> forAll(laws.delayValueIsPure[A] _),
-        "delay throw is raiseError" -> forAll(laws.delayThrowIsRaiseError[A] _),
-        "unsequenced delay is no-op" -> forAll(laws.unsequencedDelayIsNoop[A] _),
-        "repeated delay is not memoized" -> forAll(laws.repeatedDelayNotMemoized[A] _)
+        "suspend value is pure" -> forAll(laws.suspendValueIsPure[A] _),
+        "suspend throw is raiseError" -> forAll(laws.suspendThrowIsRaiseError[A] _),
+        "unsequenced suspend is no-op" -> forAll(laws.unsequencedSuspendIsNoop[A] _),
+        "repeated suspend is not memoized" -> forAll(laws.repeatedSuspendNotMemoized[A] _)
       )
     }
   }

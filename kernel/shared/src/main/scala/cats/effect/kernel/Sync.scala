@@ -22,10 +22,25 @@ import cats.data.OptionT
 import scala.concurrent.duration.FiniteDuration
 
 trait Sync[F[_]] extends MonadError[F, Throwable] with Clock[F] with Defer[F] {
-  def delay[A](thunk: => A): F[A]
+
+  private[this] val Delay = Sync.Type.Delay
+  private[this] val Blocking = Sync.Type.Blocking
+  private[this] val InterruptibleOnce = Sync.Type.InterruptibleOnce
+  private[this] val InterruptibleMany = Sync.Type.InterruptibleMany
+
+  def delay[A](thunk: => A): F[A] =
+    suspend(Delay)(thunk)
 
   def defer[A](thunk: => F[A]): F[A] =
     flatMap(delay(thunk))(x => x)
+
+  def blocking[A](thunk: => A): F[A] =
+    suspend(Blocking)(thunk)
+
+  def interruptible[A](many: Boolean)(thunk: => A): F[A] =
+    suspend(if (many) InterruptibleOnce else InterruptibleMany)(thunk)
+
+  def suspend[A](hint: Sync.Type)(thunk: => A): F[A]
 }
 
 object Sync {
@@ -57,7 +72,16 @@ object Sync {
       def tailRecM[A, B](a: A)(f: A => OptionT[F, Either[A, B]]): OptionT[F, B] =
         delegate.tailRecM(a)(f)
 
-      def delay[A](thunk: => A): OptionT[F, A] =
-        OptionT.liftF(F.delay(thunk))
+      def suspend[A](hint: Type)(thunk: => A): OptionT[F, A] =
+        OptionT.liftF(F.suspend(hint)(thunk))
     }
+
+  sealed trait Type extends Product with Serializable
+
+  object Type {
+    case object Delay extends Type
+    case object Blocking extends Type
+    case object InterruptibleOnce extends Type
+    case object InterruptibleMany extends Type
+  }
 }

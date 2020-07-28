@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Show}
-import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
+import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}, freeEval._
 import cats.implicits._
 
 import org.scalacheck.Prop
@@ -31,6 +31,7 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 class FreeSyncSpec extends Specification with Discipline with ScalaCheck {
   import FreeSyncGenerators._
+  import SyncTypeGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)

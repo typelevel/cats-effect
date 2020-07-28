@@ -203,6 +203,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       this match {
         case IO.Pure(a) => F.pure(a)
         case IO.Delay(thunk) => F.delay(thunk())
+        case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
         case IO.Error(t) => F.raiseError(t)
         case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
 
@@ -283,14 +284,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
     val fiber = new IOFiber(
       runtime.scheduler,
+      runtime.blocking,
       (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       0)
 
-    if (shift)
-      runtime.compute.execute(() => fiber.run(this, runtime.compute))
-    else
-      fiber.run(this, runtime.compute)
+    if (shift) {
+      fiber.prepare(this, runtime.compute)
+      runtime.compute.execute(fiber)
+    } else
+      fiber.exec(this, runtime.compute)
 
     fiber
   }
@@ -312,13 +315,30 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
+  private[this] val TypeDelay = Sync.Type.Delay
+  private[this] val TypeBlocking = Sync.Type.Blocking
+  private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
+  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
+
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
   def delay[A](thunk: => A): IO[A] = apply(thunk)
 
-  def suspend[A](thunk: => IO[A]): IO[A] =
+  def blocking[A](thunk: => A): IO[A] =
+    Blocking(TypeBlocking, () => thunk)
+
+  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
+    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
+
+  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+    if (hint eq TypeDelay)
+      apply(thunk)
+    else
+      Blocking(hint, () => thunk)
+
+  def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
@@ -497,7 +517,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def flatMap[A, B](fa: IO[A])(f: A => IO[B]): IO[B] =
       fa.flatMap(f)
 
-    def delay[A](thunk: => A): IO[A] = IO(thunk)
+    override def delay[A](thunk: => A): IO[A] = IO(thunk)
+
+    def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+      IO.suspend(hint)(thunk)
 
     override def void[A](ioa: IO[A]): IO[Unit] = ioa.void
   }
@@ -516,65 +539,71 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
+  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
   private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
-  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 2 }
+
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+    def tag = 2
+  }
+
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
 
   private[effect] final case class Async[+A](
       k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]])
       extends IO[A] {
 
-    def tag = 3
+    def tag = 4
   }
 
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 4 }
+  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 5 }
 
   private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 5
-  }
-
-  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
     def tag = 6
   }
 
-  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+  private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
     def tag = 7
+  }
+
+  private[effect] final case class FlatMap[E, +A](ioe: IO[E], f: E => IO[A]) extends IO[A] {
+    def tag = 8
   }
 
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
       extends IO[A] {
-    def tag = 8
-  }
-
-  private[effect] final case class OnCancel[A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 9
   }
 
-  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
+  private[effect] final case class OnCancel[A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 10
   }
 
-  private[effect] case object Canceled extends IO[Unit] { def tag = 11 }
+  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
+    def tag = 11
+  }
+
+  private[effect] case object Canceled extends IO[Unit] { def tag = 12 }
 
   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
-    def tag = 12
+    def tag = 13
   }
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
       extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
 
-    def tag = 13
-  }
-
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 14
   }
 
-  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 15 }
-  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 16 }
+  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+    def tag = 15
+  }
 
-  private[effect] case object Cede extends IO[Unit] { def tag = 17 }
+  private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
+  private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
+
+  private[effect] case object Cede extends IO[Unit] { def tag = 18 }
 
   // INTERNAL
   private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] {
-    def tag = 18
+    def tag = 19
   }
 }

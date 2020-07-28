@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
-import cats.effect.kernel.{Effect, Outcome}
+import cats.effect.kernel.{Effect, Outcome, Sync}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -39,6 +39,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
       ArbFiniteDuration: Arbitrary[FiniteDuration],
       ArbExecutionContext: Arbitrary[ExecutionContext],
       CogenA: Cogen[A],
@@ -51,6 +52,7 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       EqFU: Eq[F[Unit]],
       EqE: Eq[Throwable],
       EqFEC: Eq[F[ExecutionContext]],
+      EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
@@ -77,7 +79,9 @@ trait EffectTests[F[_]] extends AsyncTests[F] {
       val bases = Nil
       val parents = Seq(async[A, B, C](tolerance))
 
-      val props = Seq("round trip" -> forAll(laws.roundTrip[A] _))
+      val props = Seq(
+        "forceR is productR . attempt" -> forAll(laws.forceRIsProductRAttempt[A, B] _),
+        "round trip" -> forAll(laws.roundTrip[A] _))
     }
   }
 }

@@ -25,6 +25,69 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   implicit val F: Concurrent[F, E]
 
+  // we need to phrase this in terms of never because we can't *evaluate* laws which rely on nondetermnistic substitutability
+  def raceDerivesFromRacePairLeft[A, B](fa: F[A]) = {
+    val results: F[Either[A, B]] = F uncancelable { poll =>
+      F.flatMap(F.racePair(fa, F.never[B])) {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Completed(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
+            case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
+            case Outcome.Canceled() =>
+              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fb) => F.map(fb)(Right(_))
+                case Outcome.Errored(eb) => F.raiseError(eb)
+                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+              }
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Completed(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
+            case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
+            case Outcome.Canceled() =>
+              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fa) => F.map(fa)(Left(_))
+                case Outcome.Errored(ea) => F.raiseError(ea)
+                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+              }
+          }
+      }
+    }
+
+    F.race(fa, F.never[B]) <-> results
+  }
+
+  def raceDerivesFromRacePairRight[A, B](fb: F[B]) = {
+    val results: F[Either[A, B]] = F uncancelable { poll =>
+      F.flatMap(F.racePair(F.never[A], fb)) {
+        case Left((oc, f)) =>
+          oc match {
+            case Outcome.Completed(fa) => F.productR(f.cancel)(F.map(fa)(Left(_)))
+            case Outcome.Errored(ea) => F.productR(f.cancel)(F.raiseError(ea))
+            case Outcome.Canceled() =>
+              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fb) => F.map(fb)(Right(_))
+                case Outcome.Errored(eb) => F.raiseError(eb)
+                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+              }
+          }
+        case Right((f, oc)) =>
+          oc match {
+            case Outcome.Completed(fb) => F.productR(f.cancel)(F.map(fb)(Right(_)))
+            case Outcome.Errored(eb) => F.productR(f.cancel)(F.raiseError(eb))
+            case Outcome.Canceled() =>
+              F.flatMap(F.onCancel(poll(f.join), f.cancel)) {
+                case Outcome.Completed(fa) => F.map(fa)(Left(_))
+                case Outcome.Errored(ea) => F.raiseError(ea)
+                case Outcome.Canceled() => F.productR(F.canceled)(F.never)
+              }
+          }
+      }
+    }
+
+    F.race(F.never[A], fb) <-> results
+  }
+
   def raceCanceledIdentityLeft[A](fa: F[A]) =
     F.race(F.canceled, fa) <-> fa.map(_.asRight[Unit])
 
@@ -97,20 +160,31 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
 
   // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
 
-  // the attempt here enforces the cancelation-dominates-over-errors semantic
   def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
-    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <-> (F.uncancelable(_ =>
-      f(a).attempt) >> F.canceled)
+    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <->
+      F.forceR(F.uncancelable(_ => f(a)))(F.canceled)
 
   def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
     F.canceled >> fa.void <-> F.canceled
 
   def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
-    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <-> (F.uncancelable(_ =>
-      fin1.attempt >> fin2.attempt) >> F.canceled)
+    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
+      F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
 
   def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
     F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
+
+  def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
+    F.forceR(F.pure(a))(fa) <-> fa
+
+  def forceRDiscardsError[A](e: E, fa: F[A]) =
+    F.forceR(F.raiseError(e))(fa) <-> fa
+
+  def forceRCanceledShortCircuits[A](fa: F[A]) =
+    F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
+
+  def forceRNeverIsNever[A](fa: F[A]) =
+    F.forceR(F.never)(fa) <-> F.never
 }
 
 object ConcurrentLaws {

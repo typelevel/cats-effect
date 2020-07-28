@@ -13,7 +13,15 @@ output=$(mktemp)
 expected=$(mktemp)
 
 cd example/js/target/scala-${1:0:4}/
-node cats-effect-example-fastopt.js > $output
+
+set +e
+node cats-effect-example-fastopt.js left right > $output
+result=$?
+set -e
+
+if [[ $result -ne 2 ]]; then
+  exit 1
+fi
 
 echo $'left
 left

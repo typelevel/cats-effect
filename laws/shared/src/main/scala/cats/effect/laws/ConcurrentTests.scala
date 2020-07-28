@@ -46,6 +46,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       EqFC: Eq[F[C]],
       EqFU: Eq[F[Unit]],
       EqE: Eq[E],
+      EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[E, Unit]]],
       EqFEitherEA: Eq[F[Either[E, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
@@ -70,6 +71,9 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
       val parents = Seq(monadError[A, B, C])
 
       val props = Seq(
+        "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
+        "race derives from racePair (right)" -> forAll(
+          laws.raceDerivesFromRacePairRight[A, B] _),
         "race canceled identity (left)" -> forAll(laws.raceCanceledIdentityLeft[A] _),
         "race canceled identity (right)" -> forAll(laws.raceCanceledIdentityRight[A] _),
         "race never identity attempt (left)" -> forAll(laws.raceNeverIdentityLeft[A] _),
@@ -101,7 +105,11 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
           laws.canceledAssociatesLeftOverFlatMap[A] _),
         "canceled sequences onCancel in order" -> forAll(
           laws.canceledSequencesOnCancelInOrder _),
-        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _)
+        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _),
+        "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
+        "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
+        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
+        "forceR never is never" -> forAll(laws.forceRNeverIsNever[A] _)
       )
     }
   }

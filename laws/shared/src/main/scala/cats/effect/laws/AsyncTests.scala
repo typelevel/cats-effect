@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
-import cats.effect.kernel.{Async, Outcome}
+import cats.effect.kernel.{Async, Outcome, Sync}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -39,6 +39,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       ArbFAtoB: Arbitrary[F[A => B]],
       ArbFBtoC: Arbitrary[F[B => C]],
       ArbE: Arbitrary[Throwable],
+      ArbST: Arbitrary[Sync.Type],
       ArbFiniteDuration: Arbitrary[FiniteDuration],
       ArbExecutionContext: Arbitrary[ExecutionContext],
       CogenA: Cogen[A],
@@ -51,6 +52,7 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       EqFU: Eq[F[Unit]],
       EqE: Eq[Throwable],
       EqFEC: Eq[F[ExecutionContext]],
+      EqFAB: Eq[F[Either[A, B]]],
       EqFEitherEU: Eq[F[Either[Throwable, Unit]]],
       EqFEitherEA: Eq[F[Either[Throwable, A]]],
       EqFEitherUA: Eq[F[Either[Unit, A]]],
@@ -78,14 +80,14 @@ trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
       val parents = Seq(temporal[A, B, C](tolerance), sync[A, B, C])
 
       val props = Seq(
-        "async right is pure" -> forAll(laws.asyncRightIsPure[A] _),
-        "async left is raiseError" -> forAll(laws.asyncLeftIsRaiseError[A] _),
+        "async right is sequenced pure" -> forAll(laws.asyncRightIsSequencedPure[A] _),
+        "async left is sequenced raiseError" -> forAll(
+          laws.asyncLeftIsSequencedRaiseError[A] _),
         "async repeated callback is ignored" -> forAll(laws.asyncRepeatedCallbackIgnored[A] _),
         "async cancel token is unsequenced on complete" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnCompletion[A] _),
         "async cancel token is unsequenced on error" -> forAll(
           laws.asyncCancelTokenIsUnsequencedOnError[A] _),
-        // "async cancel token is sequenced on cancel" -> forAll(laws.asyncCancelTokenIsSequencedOnCancel _),
         "never is derived from async" -> laws.neverIsDerivedFromAsync[A],
         "executionContext commutativity" -> forAll(laws.executionContextCommutativity[A] _),
         "evalOn local pure" -> forAll(laws.evalOnLocalPure _),
