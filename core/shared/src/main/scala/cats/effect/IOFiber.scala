@@ -129,8 +129,6 @@ private[effect] final class IOFiber[A](
 
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
-  private[this] val OutcomeErrored = IOFiber.OutcomeErrored
-  private[this] val OutcomeCompleted = IOFiber.OutcomeCompleted
 
   def this(
       scheduler: unsafe.Scheduler,
@@ -618,7 +616,7 @@ private[effect] final class IOFiber[A](
     // full memory barrier
     suspended.compareAndSet(false, true)
     // race condition check: we may have been cancelled before we suspended
-    if (canceled && masks == initMask) {
+    if (shouldFinalize()) {
       // if we can acquire the run-loop, we can run the finalizers
       // otherwise somebody else picked it up and will run finalizers
       if (resume()) {
@@ -832,7 +830,7 @@ private[effect] final class IOFiber[A](
       if (canceled) // this can happen if we don't check the canceled flag before completion
         OutcomeCanceled
       else
-        OutcomeCompleted(IO.pure(result.asInstanceOf[A]))
+        Outcome.Completed(IO.pure(result.asInstanceOf[A]))
 
     done(outcome)
     null
@@ -843,7 +841,7 @@ private[effect] final class IOFiber[A](
       if (canceled) // this can happen if we don't check the canceled flag before completion
         OutcomeCanceled
       else
-        OutcomeErrored(t)
+        Outcome.Errored(t)
 
     done(outcome)
     null
@@ -1012,6 +1010,4 @@ private object IOFiber {
 
   // prefetch
   final private val OutcomeCanceled = Outcome.Canceled()
-  final private val OutcomeErrored = Outcome.Errored
-  final private val OutcomeCompleted = Outcome.Completed
 }
