@@ -116,12 +116,12 @@ private[effect] final class IOFiber[A](
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
   // continuation ids (should all be inlined)
-  private[this] val CancelationLoopK: Byte = 0
-  private[this] val RunTerminusK: Byte = 1
-  private[this] val AsyncK: Byte = 2
-  private[this] val EvalOnK: Byte = 3
-  private[this] val MapK: Byte = 4
-  private[this] val FlatMapK: Byte = 5
+  private[this] val MapK: Byte = 0
+  private[this] val FlatMapK: Byte = 1
+  private[this] val CancelationLoopK: Byte = 2
+  private[this] val RunTerminusK: Byte = 3
+  private[this] val AsyncK: Byte = 4
+  private[this] val EvalOnK: Byte = 5
   private[this] val HandleErrorWithK: Byte = 6
   private[this] val OnCancelK: Byte = 7
   private[this] val UncancelableK: Byte = 8
@@ -636,12 +636,12 @@ private[effect] final class IOFiber[A](
   @tailrec
   private[this] def succeeded(result: Any, depth: Int): IO[Any] =
     (conts.pop(): @switch) match {
-      case 0 => cancelationLoopK()
-      case 1 => runTerminusSuccessK(result)
-      case 2 => asyncSuccessK(result)
-      case 3 => evalOnSuccessK(result)
-      case 4 => mapK(result, depth)
-      case 5 => flatMapK(result, depth)
+      case 0 => mapK(result, depth)
+      case 1 => flatMapK(result, depth)
+      case 2 => cancelationLoopK()
+      case 3 => runTerminusSuccessK(result)
+      case 4 => asyncSuccessK(result)
+      case 5 => evalOnSuccessK(result)
       case 6 =>
         // handleErrorWithK
         // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
@@ -672,12 +672,12 @@ private[effect] final class IOFiber[A](
 
     // has to be duplicated from succeeded to ensure call-site monomorphism
     (k: @switch) match {
-      case 0 => cancelationLoopK()
-      case 1 => runTerminusFailureK(error)
-      case 2 => asyncFailureK(error, depth)
-      case 3 => evalOnFailureK(error)
-      // (case 4) will never continue to mapK
-      // (case 5) will never continue to flatMapK
+      // (case 0) will never continue to mapK
+      // (case 1) will never continue to flatMapK
+      case 2 => cancelationLoopK()
+      case 3 => runTerminusFailureK(error)
+      case 4 => asyncFailureK(error, depth)
+      case 5 => evalOnFailureK(error)
       case 6 => handleErrorWithK(error, depth)
       case 7 => onCancelFailureK(error, depth)
       case 8 => uncancelableFailureK(error, depth)
@@ -808,6 +808,42 @@ private[effect] final class IOFiber[A](
   // Implementations of continuations //
   //////////////////////////////////////
 
+  private[this] def mapK(result: Any, depth: Int): IO[Any] = {
+    val f = objectState.pop().asInstanceOf[Any => Any]
+
+    var success = false
+
+    val transformed =
+      try {
+        val back = f(result)
+        success = true
+        back
+      } catch {
+        case NonFatal(t) => t
+      }
+
+    if (depth > MaxStackDepth) {
+      if (success)
+        IO.Pure(transformed)
+      else
+        IO.Error(transformed.asInstanceOf[Throwable])
+    } else {
+      if (success)
+        succeeded(transformed, depth + 1)
+      else
+        failed(transformed.asInstanceOf[Throwable], depth + 1)
+    }
+  }
+
+  private[this] def flatMapK(result: Any, depth: Int): IO[Any] = {
+    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
+
+    try f(result)
+    catch {
+      case NonFatal(t) => failed(t, depth + 1)
+    }
+  }
+
   private[this] def cancelationLoopK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       conts.push(CancelationLoopK)
@@ -927,42 +963,6 @@ private[effect] final class IOFiber[A](
     }
 
     null
-  }
-
-  private[this] def mapK(result: Any, depth: Int): IO[Any] = {
-    val f = objectState.pop().asInstanceOf[Any => Any]
-
-    var success = false
-
-    val transformed =
-      try {
-        val back = f(result)
-        success = true
-        back
-      } catch {
-        case NonFatal(t) => t
-      }
-
-    if (depth > MaxStackDepth) {
-      if (success)
-        IO.Pure(transformed)
-      else
-        IO.Error(transformed.asInstanceOf[Throwable])
-    } else {
-      if (success)
-        succeeded(transformed, depth + 1)
-      else
-        failed(transformed.asInstanceOf[Throwable], depth + 1)
-    }
-  }
-
-  private[this] def flatMapK(result: Any, depth: Int): IO[Any] = {
-    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
-
-    try f(result)
-    catch {
-      case NonFatal(t) => failed(t, depth + 1)
-    }
   }
 
   private[this] def handleErrorWithK(t: Throwable, depth: Int): IO[Any] = {
