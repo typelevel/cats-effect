@@ -216,15 +216,16 @@ private[effect] final class IOFiber[A](
   }
 
   private[effect] def exec(cur: IO[Any], ec: ExecutionContext): Unit = {
-    conts = new ByteStack(16)
-    pushCont(RunTerminusK)
-
-    ctxs = new ArrayStack[ExecutionContext](2)
-    currentCtx = ec
-    ctxs.push(ec)
-
     if (resume()) {
-//      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
+      //      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
+
+      conts = new ByteStack(16)
+      pushCont(RunTerminusK)
+
+      ctxs = new ArrayStack[ExecutionContext](2)
+      currentCtx = ec
+      ctxs.push(ec)
+
       runLoop(cur, 0)
     }
   }
