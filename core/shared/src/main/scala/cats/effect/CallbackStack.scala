@@ -40,8 +40,9 @@ private[effect] final class CallbackStack[A](private[this] var callback: Outcome
    */
   @tailrec
   def apply(oc: OutcomeIO[A]): Unit = {
-    if (callback != null) {
-      callback(oc)
+    val cb = callback
+    if (cb != null) {
+      cb(oc)
     }
 
     val next = get()
