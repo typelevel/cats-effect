@@ -225,17 +225,6 @@ object pure {
           }
       }
 
-      /**
-       * Whereas `start` ignores the cancelability of the parent fiber
-       * when forking off the child, `racePair` inherits cancelability.
-       * Thus, `uncancelable(_ => race(fa, fb)) <-> race(uncancelable(_ => fa), uncancelable(_ => fb))`,
-       * while `uncancelable(_ => start(fa)) <-> start(fa)`.
-       *
-       * race(cede >> raiseError(e1), raiseError(e2)) <-> raiseError(e1)
-       * race(raiseError(e1), cede >> raiseError(e2)) <-> raiseError(e2)
-       * race(canceled, raiseError(e)) <-> raiseError(e)
-       * race(raiseError(e), canceled) <-> raiseError(e)
-       */
       def racePair[A, B](fa: PureConc[E, A], fb: PureConc[E, B]): PureConc[
         E,
         Either[

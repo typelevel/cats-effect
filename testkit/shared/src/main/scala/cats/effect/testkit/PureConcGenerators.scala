@@ -38,6 +38,13 @@ object PureConcGenerators {
 
       def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[E, *], E, A]] =
         OutcomeGenerators.cogenOutcome[PureConc[E, *], E, A]
+
+      override def recursiveGen[B: Arbitrary: Cogen](deeper: GenK[PureConc[E, *]]) =
+        super
+          .recursiveGen[B](deeper)
+          .filterNot(
+            _._1 == "racePair"
+          ) // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
     }
 
   implicit def arbitraryPureConc[E: Arbitrary: Cogen, A: Arbitrary: Cogen]
