@@ -26,9 +26,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
-  protected final def interruptibleImpl(
-      cur: IO.Blocking[Any],
-      blockingEc: ExecutionContext): IO[Any] = {
+  protected final def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
     // InterruptibleMany | InterruptibleOnce
 
     /*
@@ -49,86 +47,89 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
         done <- IO(new AtomicBoolean(false))
         cb <- IO(new AtomicReference[() => Unit](null))
 
-        canInterrupt <- IO(new juc.Semaphore(1))
+        canInterrupt <- IO(new juc.Semaphore(0))
 
-        target <- IO.async_[Thread] { initCb =>
-          blockingEc execute { () =>
-            initCb(Right(Thread.currentThread()))
+        target <- IO uncancelable { _ =>
+          IO.async_[Thread] { initCb =>
+            blockingEc execute { () =>
+              initCb(Right(Thread.currentThread()))
 
-            try {
-              canInterrupt.release(1)
-              nextCb(Right(cur.thunk()))
+              val result = try {
+                canInterrupt.release()
+                val back = Right(cur.thunk())
 
-              // this is why it has to be a semaphore rather than an atomic boolean
-              // this needs to hard-block if we're in the process of being interrupted
-              canInterrupt.acquire()
-            } catch {
-              case _: InterruptedException =>
-                if (!many) {
-                  val cb0 = cb.get()
-                  if (cb0 != null) {
-                    cb0()
+                // this is why it has to be a semaphore rather than an atomic boolean
+                // this needs to hard-block if we're in the process of being interrupted
+                canInterrupt.acquire()
+                back
+              } catch {
+                case _: InterruptedException =>
+                  if (!many) {
+                    val cb0 = cb.get()
+                    if (cb0 != null) {
+                      cb0()
+                    }
                   }
-                }
 
-              case NonFatal(t) =>
-                nextCb(Left(t))
-            } finally {
-              canInterrupt.tryAcquire()
-              done.set(true)
+                  null
+
+                case NonFatal(t) =>
+                  Left(t)
+              } finally {
+                canInterrupt.tryAcquire()
+                done.set(true)
+              }
+
+              if (result != null) {
+                nextCb(result)
+              }
             }
           }
         }
-
-        isSelf <- IO(target eq Thread.currentThread())
       } yield {
-        if (isSelf) {
-          None
-        } else {
-          Some {
-            IO async { finCb =>
-              val trigger = IO {
-                if (!many) {
-                  cb.set(() => finCb(Right(())))
-                }
+        Some {
+          IO async { finCb =>
+            val trigger = IO {
+              if (!many) {
+                cb.set(() => finCb(Right(())))
+              }
 
-                // if done is false, and we can't get the semaphore, it means
-                // that the action hasn't *yet* started, so we busy-wait for it
-                var break = false
-                while (break && !done.get()) {
+              // if done is false, and we can't get the semaphore, it means
+              // that the action hasn't *yet* started, so we busy-wait for it
+              var break = true
+              while (break && !done.get()) {
+                if (canInterrupt.tryAcquire()) {
+                  try {
+                    target.interrupt()
+                    break = false
+                  } finally {
+                    canInterrupt.release()
+                  }
+                }
+              }
+            }
+
+            val repeat = if (many) {
+              IO blocking {
+                while (!done.get()) {
                   if (canInterrupt.tryAcquire()) {
                     try {
-                      target.interrupt()
-                      break = true
+                      while (!done.get()) {
+                        target.interrupt() // it's hammer time!
+                      }
                     } finally {
                       canInterrupt.release()
                     }
                   }
                 }
+
+                finCb(Right(()))
               }
-
-              val repeat = if (many) {
-                IO blocking {
-                  while (!done.get()) {
-                    if (canInterrupt.tryAcquire()) {
-                      try {
-                        while (!done.get()) {
-                          target.interrupt() // it's hammer time!
-                        }
-                      } finally {
-                        canInterrupt.release()
-                      }
-                    }
-                  }
-
-                  finCb(Right(()))
-                }
-              } else {
-                IO.unit
-              }
-
-              (trigger *> repeat).as(None)
+            } else {
+              IO.unit
             }
+
+            (trigger *> repeat).as(None)
           }
         }
       }
