@@ -30,7 +30,7 @@ val CompileTime = config("CompileTime").hide
 val SimulacrumVersion = "1.0.0"
 val CatsVersion = "2.1.1"
 val DisciplineScalatestVersion = "1.0.1"
-val SilencerVersion = "1.7.0"
+val SilencerVersion = "1.7.1"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
 
 addCommandAlias("ci", ";scalafmtSbtCheck ;scalafmtCheckAll ;test ;mimaReportBinaryIssues; doc")
