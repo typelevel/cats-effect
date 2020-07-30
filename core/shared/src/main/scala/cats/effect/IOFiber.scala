@@ -81,10 +81,8 @@ private[effect] final class IOFiber[A](
   private[this] val childMask: Int = initMask + 255
 
   private[this] var masks: Int = initMask
-  private[this] val finalizers =
-    new ArrayStack[IO[Unit]](
-      16
-    ) // TODO reason about whether or not the final finalizers are visible here
+  // TODO reason about whether or not the final finalizers are visible here
+  private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](null)
 
@@ -932,6 +930,7 @@ private[effect] final class IOFiber[A](
       // we got the error *after* the callback, but we have queueing semantics
       // therefore, side-channel the callback results
       // println(state.get())
+      currentCtx.reportFailure(new Throwable(""))
 
       asyncContinue(state, Left(t))
 
