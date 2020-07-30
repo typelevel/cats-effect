@@ -1,6 +1,6 @@
 # Cats Effect
 
-[![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=master)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
+[![Build Status](https://travis-ci.org/typelevel/cats-effect.svg?branch=series/2.x)](https://travis-ci.org/typelevel/cats-effect) [![Gitter](https://img.shields.io/gitter/room/typelevel/cats-effect.svg)](https://gitter.im/typelevel/cats-effect) [![Latest version](https://index.scala-lang.org/typelevel/cats-effect/cats-effect/latest.svg?color=orange)](https://index.scala-lang.org/typelevel/cats-effect/cats-effect)
 
 > For when purity just isn't impure enough.
 
@@ -18,7 +18,7 @@ Versions of Cats Effect:
 - Stable: `2.1.4`
 - Release Candidate: `2.2.0-RC3`
 
-See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/master/versioning.md) for more information on our compatibility and semantic versioning policies.
+See [compatibility and versioning](https://github.com/typelevel/cats-effect/blob/series/2.x/versioning.md) for more information on our compatibility and semantic versioning policies.
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.4"
@@ -32,11 +32,11 @@ Cross-builds are available for Scala 2.12.x and 2.13.x, with Scala.js builds tar
 
 The most current snapshot (or major release) can be found in the maven badge at the top of this readme. If you are a very brave sort, you are free to depend on snapshots; they are stable versions, as they are derived from the git hash rather than an unstable `-SNAPSHOT` suffix, but they do not come with any particular confidence or compatibility guarantees.
 
-Please see [this document](https://github.com/typelevel/cats-effect/blob/master/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases. You should *absolutely* be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.
+Please see [this document](https://github.com/typelevel/cats-effect/blob/series/2.x/verifying-releases.md) for information on how to cryptographically verify the integrity of cats-effect releases. You should *absolutely* be doing this! It takes five minutes and eliminates the need to trust a third-party with your classpath.
 
 ### Laws
 
-The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/master/laws/shared/src/main/scala/cats/effect/laws) for more.
+The **cats-effect-laws** artifact provides [Discipline-style](https://github.com/typelevel/discipline) laws for the `Sync`, `Async`, `Concurrent`, `Effect` and `ConcurrentEffect` typeclasses (`LiftIO` is lawless, but highly parametric). It is relatively easy to use these laws to test your own implementations of these typeclasses. Take a look [here](https://github.com/typelevel/cats-effect/tree/series/2.x/laws/shared/src/main/scala/cats/effect/laws) for more.
 
 ```sbt
 libraryDependencies += "org.typelevel" %% "cats-effect-laws" % "2.1.4" % "test"
@@ -92,7 +92,7 @@ These are some of the projects that provide high-level functions on top of `cats
 
 ## Development
 
-We use the standard pull request driven github workflow. Pull requests are always welcome, even if it's for something as minor as a whitespace tweak! If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to master. Ideally, someone other than yourself will merge and push your PR to master. However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don't abuse this policy.
+We use the standard pull request driven github workflow. Pull requests are always welcome, even if it's for something as minor as a whitespace tweak! If you're a maintainer, you are expected to do your work in pull requests, rather than pushing directly to the main branch. Ideally, someone other than yourself will merge your PR. However, if you've received at least one explicit 👍 from another maintainer (or significant volume of 👍 from the general Cats community), you may merge your own PR in the interest of moving forward with important efforts. Please don't abuse this policy.
 
 Do *not* rebase commits that have been PR'd! That history doesn't belong to you anymore, and it is not yours to rewrite. This goes for maintainers and contributors alike. Rebasing locally is completely fine (and encouraged), since linear history is pretty and checkpoint commits are not. Just don't rebase something that's already out there unless you've *explicitly* marked it as a work in progress (e.g. `[WIP]`) in some clear and unambiguous way.
 
@@ -140,4 +140,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ```
 
-[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/master/CODE_OF_CONDUCT.md
+[Code of Conduct]: https://github.com/typelevel/cats-effect/blob/series/2.x/CODE_OF_CONDUCT.md
