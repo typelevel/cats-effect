@@ -279,8 +279,9 @@ object Semaphore {
       F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
   }
 
-  final private class AsyncSemaphore[F[_]: Concurrent[*[_], Throwable]: Deferred.Mk](
-      state: Ref[F, State[F]])
+  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
+      implicit F: Concurrent[F, Throwable],
+      mkDeferred: Deferred.Mk[F])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
