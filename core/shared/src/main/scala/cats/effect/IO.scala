@@ -119,19 +119,26 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
-  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] =
+  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] = {
+    def doOutcome(outcome: OutcomeIO[A]): IO[Unit] =
+      pf.lift(outcome)
+        .fold(IO.unit)(_.attempt.flatMap {
+          case Right(_) => IO.unit
+          case Left(e) => IO.executionContext.flatMap(ec => IO(ec.reportFailure(e)))
+        })
+
     IO uncancelable { poll =>
       val base = poll(this)
       val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
 
       finalized.attempt flatMap {
         case Left(e) =>
-          pf.lift(Outcome.Errored(e)).map(_.attempt).getOrElse(IO.unit) *> IO.raiseError(e)
-
+          doOutcome(Outcome.Errored(e)) *> IO.raiseError(e)
         case Right(a) =>
-          pf.lift(Outcome.Completed(IO.pure(a))).map(_.attempt).getOrElse(IO.unit).as(a)
+          doOutcome(Outcome.Completed(IO.pure(a))).as(a)
       }
     }
+  }
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.uncancelable { poll =>
