@@ -45,6 +45,6 @@ class SyntaxSpec extends Specification {
     MVar.of[F, String]("bar")
   }
 
-  def semaphoreIsDeriveable[F[_]: Ref.Mk: Deferred.Mk](implicit F: Concurrent[F[_], Throwable]) =
+  def semaphoreIsDeriveable[F[_]: Ref.Mk: Deferred.Mk](implicit F: Concurrent[F, Throwable]) =
     Semaphore[F](11)
 }
