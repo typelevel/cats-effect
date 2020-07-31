@@ -85,9 +85,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
     def doRelease(a: A, outcome: OutcomeIO[B]): IO[Unit] =
-      release(a, outcome).attempt.flatMap {
-        case Right(_) => IO.unit
-        case Left(e) => IO.executionContext.flatMap(ec => IO(ec.reportFailure(e)))
+      release(a, outcome).handleErrorWith { t =>
+        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
       }
 
     IO uncancelable { poll =>
@@ -122,9 +121,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] = {
     def doOutcome(outcome: OutcomeIO[A]): IO[Unit] =
       pf.lift(outcome)
-        .fold(IO.unit)(_.attempt.flatMap {
-          case Right(_) => IO.unit
-          case Left(e) => IO.executionContext.flatMap(ec => IO(ec.reportFailure(e)))
+        .fold(IO.unit)(_.handleErrorWith { t =>
+          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
         })
 
     IO uncancelable { poll =>

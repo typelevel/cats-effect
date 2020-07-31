@@ -934,10 +934,7 @@ private[effect] final class IOFiber[A](
       failed(t, depth + 1)
     } else {
       // we got the error *after* the callback, but we have queueing semantics
-      // therefore, side-channel the callback results
-      // println(state.get())
-      // currentCtx.reportFailure(new AsyncRegistrationException(state.get()))
-
+      // so drop the results
       asyncContinue(state, Left(t))
 
       null
