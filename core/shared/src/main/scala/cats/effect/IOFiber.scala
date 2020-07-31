@@ -127,6 +127,9 @@ private[effect] final class IOFiber[A](
   private[this] val UncancelableK: Byte = 8
   private[this] val UnmaskK: Byte = 9
 
+  // prefetch for Right(())
+  private[this] val rightUnit = IOFiber.RightUnit
+
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
 
@@ -316,7 +319,7 @@ private[effect] final class IOFiber[A](
       runLoop(finalizers.pop(), 0)
     } else {
       if (cb != null)
-        cb(Right(()))
+        cb(rightUnit)
 
       done(OutcomeCanceled)
     }
@@ -562,7 +565,7 @@ private[effect] final class IOFiber[A](
 
             val next = IO.async[Unit] { cb =>
               IO {
-                val cancel = scheduler.sleep(cur.delay, () => cb(Right(())))
+                val cancel = scheduler.sleep(cur.delay, () => cb(rightUnit))
                 Some(IO(cancel.run()))
               }
             }
@@ -811,27 +814,20 @@ private[effect] final class IOFiber[A](
   private[this] def mapK(result: Any, depth: Int): IO[Any] = {
     val f = objectState.pop().asInstanceOf[Any => Any]
 
-    var success = false
+    var error: Throwable = null
 
     val transformed =
-      try {
-        val back = f(result)
-        success = true
-        back
-      } catch {
-        case NonFatal(t) => t
+      try f(result)
+      catch {
+        case NonFatal(t) => error = t
       }
 
     if (depth > MaxStackDepth) {
-      if (success)
-        IO.Pure(transformed)
-      else
-        IO.Error(transformed.asInstanceOf[Throwable])
+      if (error == null) IO.Pure(transformed)
+      else IO.Error(error)
     } else {
-      if (success)
-        succeeded(transformed, depth + 1)
-      else
-        failed(transformed.asInstanceOf[Throwable], depth + 1)
+      if (error == null) succeeded(transformed, depth + 1)
+      else failed(error, depth + 1)
     }
   }
 
@@ -852,7 +848,7 @@ private[effect] final class IOFiber[A](
       // resume external canceller
       val cb = objectState.pop()
       if (cb != null) {
-        cb.asInstanceOf[Either[Throwable, Unit] => Unit](Right(()))
+        cb.asInstanceOf[Either[Throwable, Unit] => Unit](rightUnit)
       }
       // resume joiners
       done(OutcomeCanceled)
@@ -1010,4 +1006,5 @@ private object IOFiber {
 
   // prefetch
   final private val OutcomeCanceled = Outcome.Canceled()
+  final private val RightUnit = Right(())
 }
