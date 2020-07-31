@@ -140,7 +140,6 @@ private[effect] final class IOFiber[A](
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
-      cancel = IO.unit
 
 //      println(s"${name}: attempting cancellation")
 
@@ -239,6 +238,7 @@ private[effect] final class IOFiber[A](
   private[this] def done(oc: OutcomeIO[A]): Unit = {
 //     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
+    cancel = IO.unit
 
     outcome.set(oc)
 
@@ -636,7 +636,7 @@ private[effect] final class IOFiber[A](
     (conts.pop(): @switch) match {
       case 0 => mapK(result, depth)
       case 1 => flatMapK(result, depth)
-      case 2 => cancelationLoopK()
+      case 2 => cancelationLoopSuccessK()
       case 3 => runTerminusSuccessK(result)
       case 4 => asyncSuccessK(result)
       case 5 => evalOnSuccessK(result)
@@ -672,7 +672,7 @@ private[effect] final class IOFiber[A](
     (k: @switch) match {
       // (case 0) will never continue to mapK
       // (case 1) will never continue to flatMapK
-      case 2 => cancelationLoopK()
+      case 2 => cancelationLoopFailureK(error)
       case 3 => runTerminusFailureK(error)
       case 4 => asyncFailureK(error, depth)
       case 5 => evalOnFailureK(error)
@@ -842,7 +842,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  private[this] def cancelationLoopK(): IO[Any] = {
+  private[this] def cancelationLoopSuccessK(): IO[Any] = {
     if (!finalizers.isEmpty()) {
       conts.push(CancelationLoopK)
       runLoop(finalizers.pop(), 0)
@@ -857,6 +857,12 @@ private[effect] final class IOFiber[A](
     }
 
     null
+  }
+
+  private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
+    currentCtx.reportFailure(t)
+
+    cancelationLoopSuccessK()
   }
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
@@ -930,7 +936,7 @@ private[effect] final class IOFiber[A](
       // we got the error *after* the callback, but we have queueing semantics
       // therefore, side-channel the callback results
       // println(state.get())
-      currentCtx.reportFailure(new Throwable(""))
+      // currentCtx.reportFailure(new AsyncRegistrationException(state.get()))
 
       asyncContinue(state, Left(t))
 
