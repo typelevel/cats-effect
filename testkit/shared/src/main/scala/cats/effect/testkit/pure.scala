@@ -183,27 +183,29 @@ object pure {
         M.pure(x)
 
       def handleErrorWith[A](fa: PureConc[E, A])(f: E => PureConc[E, A]): PureConc[E, A] =
-        M.handleErrorWith(fa)(f)
+        Thread.annotate("handleErrorWith", true)(M.handleErrorWith(fa)(f))
 
       def raiseError[A](e: E): PureConc[E, A] =
-        M.raiseError(e)
+        Thread.annotate("raiseError")(M.raiseError(e))
 
       def onCancel[A](fa: PureConc[E, A], fin: PureConc[E, Unit]): PureConc[E, A] =
-        withCtx(_.self.pushFinalizer(fin.attempt.void) *> fa)
+        Thread.annotate("onCancel", true)(withCtx(_.self.pushFinalizer(fin.attempt.void) *> fa))
 
       def canceled: PureConc[E, Unit] =
-        withCtx { ctx =>
-          if (ctx.masks.isEmpty)
-            ctx.self.cancel >> ctx.self.runFinalizers >> Thread.done
-          else
-            ctx.self.cancel
+        Thread.annotate("canceled") {
+          withCtx { ctx =>
+            if (ctx.masks.isEmpty)
+              ctx.self.cancel >> ctx.self.runFinalizers >> Thread.done
+            else
+              ctx.self.cancel
+          }
         }
 
       def cede: PureConc[E, Unit] =
         Thread.cede
 
       def never[A]: PureConc[E, A] =
-        Thread.done[A]
+        Thread.annotate("never")(Thread.done[A])
 
       private def startOne[Result](
           foldResult: Result => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =
@@ -268,58 +270,61 @@ object pure {
       }
 
       def start[A](fa: PureConc[E, A]): PureConc[E, Fiber[PureConc[E, *], E, A]] =
-        MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>
-          MVar[PureConc[E, *], List[Finalizer[E]]](Nil).flatMap { finalizers =>
-            val fiber = new PureFiber[E, A](state, finalizers)
-            val identified = localCtx(FiberCtx(fiber), fa) // note we drop masks here
+        Thread.annotate("start", true) {
+          MVar.empty[PureConc[E, *], Outcome[PureConc[E, *], E, A]].flatMap { state =>
+            MVar[PureConc[E, *], List[Finalizer[E]]](Nil).flatMap { finalizers =>
+              val fiber = new PureFiber[E, A](state, finalizers)
+              val identified = localCtx(FiberCtx(fiber), fa) // note we drop masks here
 
-            // the tryPut(s) here are interesting: they encode first-wins semantics on cancelation/completion
-            val body = identified.flatMap(a =>
-              state.tryPut[PureConc[E, *]](
-                Outcome.Completed(a.pure[PureConc[E, *]]))) handleErrorWith { e =>
-              state.tryPut[PureConc[E, *]](Outcome.Errored(e))
+              // the tryPut(s) here are interesting: they encode first-wins semantics on cancelation/completion
+              val body = identified.flatMap(a =>
+                state.tryPut[PureConc[E, *]](
+                  Outcome.Completed(a.pure[PureConc[E, *]]))) handleErrorWith { e =>
+                state.tryPut[PureConc[E, *]](Outcome.Errored(e))
+              }
+
+              Thread.start(body).as(fiber)
             }
-
-            Thread.start(body).as(fiber)
           }
         }
 
       def uncancelable[A](
-          body: PureConc[E, *] ~> PureConc[E, *] => PureConc[E, A]): PureConc[E, A] = {
-        val mask = new MaskId
+          body: PureConc[E, *] ~> PureConc[E, *] => PureConc[E, A]): PureConc[E, A] =
+        Thread.annotate("uncancelable", true) {
+          val mask = new MaskId
 
-        val poll = new (PureConc[E, *] ~> PureConc[E, *]) {
-          def apply[a](fa: PureConc[E, a]) =
-            withCtx { ctx =>
-              val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
+          val poll = new (PureConc[E, *] ~> PureConc[E, *]) {
+            def apply[a](fa: PureConc[E, a]) =
+              withCtx { ctx =>
+                val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
 
-              // we need to explicitly catch and suppress errors here to allow cancelation to dominate
-              val handled = fa handleErrorWith { e =>
-                ctx
-                  .self
-                  .canceled
-                  .ifM(
-                    never, // if we're canceled, convert errors into non-termination (we're canceling anyway)
-                    raiseError(e))
+                // we need to explicitly catch and suppress errors here to allow cancelation to dominate
+                val handled = fa handleErrorWith { e =>
+                  ctx
+                    .self
+                    .canceled
+                    .ifM(
+                      never, // if we're canceled, convert errors into non-termination (we're canceling anyway)
+                      raiseError(e))
+                }
+
+                localCtx(ctx2, handled)
               }
+          }
 
-              localCtx(ctx2, handled)
-            }
+          withCtx { ctx =>
+            val ctx2 = ctx.copy(masks = mask :: ctx.masks)
+
+            localCtx(ctx2, body(poll)) <*
+              ctx
+                .self
+                .canceled
+                .ifM(canceled, unit) // double-check cancelation whenever we exit a block
+          }
         }
-
-        withCtx { ctx =>
-          val ctx2 = ctx.copy(masks = mask :: ctx.masks)
-
-          localCtx(ctx2, body(poll)) <*
-            ctx
-              .self
-              .canceled
-              .ifM(canceled, unit) // double-check cancelation whenever we exit a block
-        }
-      }
 
       def forceR[A, B](fa: PureConc[E, A])(fb: PureConc[E, B]): PureConc[E, B] =
-        productR(attempt(fa))(fb)
+        Thread.annotate("forceR")(productR(attempt(fa))(fb))
 
       def flatMap[A, B](fa: PureConc[E, A])(f: A => PureConc[E, B]): PureConc[E, B] =
         M.flatMap(fa)(f)
@@ -333,8 +338,8 @@ object pure {
   implicit def showPureConc[E: Show, A: Show]: Show[PureConc[E, A]] =
     Show show { pc =>
       val trace = ThreadT
-        .prettyPrint(resolveMain(pc), limit = 1024)
-        .fold("Canceled", e => s"Errored(${e.show})", str => str.replace('╭', '├'))
+        .prettyPrint(resolveMain(pc), limit = 4096)
+        .fold("Canceled", e => s"Errored(${e.show})", str => str.replaceAll("╭ ", "├ "))
 
       run(pc).show + "\n│\n" + trace
     }
