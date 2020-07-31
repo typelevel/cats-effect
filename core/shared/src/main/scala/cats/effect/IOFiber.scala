@@ -353,12 +353,16 @@ private[effect] final class IOFiber[A](
           case 1 =>
             val cur = cur0.asInstanceOf[Delay[Any]]
 
-            val next: IO[Any] =
-              try succeeded(cur.thunk(), 0)
+            var error: Throwable = null
+            val r =
+              try cur.thunk()
               catch {
-                case NonFatal(t) =>
-                  failed(t, 0)
+                case NonFatal(t) => error = t
               }
+
+            val next =
+              if (error == null) succeeded(r, 0)
+              else failed(error, 0)
 
             runLoop(next, nextIteration)
 
@@ -746,14 +750,19 @@ private[effect] final class IOFiber[A](
     }
 
     def run(): Unit = {
-      try {
-        val r = cur.thunk()
+      var error: Throwable = null
+      val r =
+        try cur.thunk()
+        catch {
+          case NonFatal(t) => error = t
+        }
+
+      if (error == null) {
         afterBlockingSuccessfulClosure.prepare(r, nextIteration)
         currentCtx.execute(afterBlockingSuccessfulClosure)
-      } catch {
-        case NonFatal(t) =>
-          afterBlockingFailedClosure.prepare(t, nextIteration)
-          currentCtx.execute(afterBlockingFailedClosure)
+      } else {
+        afterBlockingFailedClosure.prepare(error, nextIteration)
+        currentCtx.execute(afterBlockingFailedClosure)
       }
     }
   }
