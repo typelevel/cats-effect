@@ -142,7 +142,6 @@ private[effect] final class IOFiber[A](
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
-      cancel = IO.unit
 
 //      println(s"${name}: attempting cancellation")
 
@@ -241,6 +240,7 @@ private[effect] final class IOFiber[A](
   private[this] def done(oc: OutcomeIO[A]): Unit = {
 //     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
+    cancel = IO.unit
 
     outcome.set(oc)
 
