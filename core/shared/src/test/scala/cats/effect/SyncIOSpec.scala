@@ -29,9 +29,6 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
 
   import SyncTypeGenerators._
 
-  // we just need this because of the laws testing, since the prop runs can interfere with each other
-  sequential
-
   "sync io monad" should {
     "produce a pure value when run" in {
       SyncIO.pure(42) must completeAsSync(42)
@@ -73,62 +70,6 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     "errors can be handled" in {
       case object TestException extends RuntimeException
       SyncIO.raiseError[Unit](TestException).attempt must completeAsSync(Left(TestException))
-    }
-
-    "run an identity finalizer" in {
-      var affected = false
-
-      SyncIO.unit.guarantee {
-        SyncIO { affected = true }
-      } must completeAsSync(())
-
-      affected must beTrue
-    }
-
-    "run an identity finalizer and continue" in {
-      var affected = false
-
-      val seed = SyncIO.unit.guarantee {
-        SyncIO { affected = true }
-      }
-
-      seed.as(42) must completeAsSync(42)
-
-      affected must beTrue
-    }
-
-    "run multiple nested finalizers" in {
-      var inner = false
-      var outer = false
-
-      SyncIO
-        .unit
-        .guarantee(SyncIO { inner = true })
-        .guarantee(SyncIO { outer = true }) must completeAsSync(())
-
-      inner must beTrue
-      outer must beTrue
-    }
-
-    "run multiple nested finalizers on completion exactly once" in {
-      var inner = 0
-      var outer = 0
-
-      SyncIO
-        .unit
-        .guarantee(SyncIO(inner += 1))
-        .guarantee(SyncIO(outer += 1)) must completeAsSync(())
-
-      inner mustEqual 1
-      outer mustEqual 1
-    }
-
-    "hold onto errors through multiple finalizers" in {
-      case object TestException extends RuntimeException
-      SyncIO
-        .raiseError(TestException)
-        .guarantee(SyncIO.unit)
-        .guarantee(SyncIO.unit) must failAsSync(TestException)
     }
 
     "evaluate 10,000 consecutive map continuations" in {
