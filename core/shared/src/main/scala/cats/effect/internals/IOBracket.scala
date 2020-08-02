@@ -50,6 +50,7 @@ private[effect] object IOBracket {
           deferredRelease.complete(IO.unit)
         }
       },
+      trampolineAfter = true,
       traceKey = use
     )
 
