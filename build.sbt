@@ -27,7 +27,7 @@ ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
 
 val SimulacrumVersion = "1.0.0"
-val CatsVersion = "2.1.1"
+val CatsVersion = "2.2.0-RC1"
 val DisciplineScalatestVersion = "2.0.0"
 val SilencerVersion = "1.7.1"
 val customScalaJSVersion = Option(System.getenv("SCALAJS_VERSION"))
