@@ -276,14 +276,9 @@ object pure {
               val fiber = new PureFiber[E, A](state, finalizers)
               val identified = localCtx(FiberCtx(fiber), fa) // note we drop masks here
 
-              // the tryPut(s) here are interesting: they encode first-wins semantics on cancelation/completion
-              val body = identified.flatMap(a =>
-                state.tryPut[PureConc[E, *]](
-                  Outcome.Completed(a.pure[PureConc[E, *]]))) handleErrorWith { e =>
-                state.tryPut[PureConc[E, *]](Outcome.Errored(e))
-              }
-
-              Thread.start(body).as(fiber)
+              // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
+              val body = guaranteeCase(identified)(oc => state.tryPut[PureConc[E, *]](oc).void)
+              Thread.start(body.attempt.void).as(fiber)
             }
           }
         }
