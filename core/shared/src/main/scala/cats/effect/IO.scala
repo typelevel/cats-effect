@@ -83,16 +83,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
+  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
+    def doRelease(a: A, outcome: OutcomeIO[B]): IO[Unit] =
+      release(a, outcome).handleErrorWith { t =>
+        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+      }
+
     IO uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
         val handled = finalized onError {
-          case e => release(a, Outcome.Errored(e)).attempt.void
+          case e => doRelease(a, Outcome.Errored(e))
         }
-        handled.flatMap(b => release(a, Outcome.Completed(IO.pure(b))).attempt.as(b))
+        handled.flatMap(b => doRelease(a, Outcome.Completed(IO.pure(b))).as(b))
       }
     }
+  }
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
@@ -112,19 +118,25 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
-  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] =
+  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] = {
+    def doOutcome(outcome: OutcomeIO[A]): IO[Unit] =
+      pf.lift(outcome)
+        .fold(IO.unit)(_.handleErrorWith { t =>
+          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+        })
+
     IO uncancelable { poll =>
       val base = poll(this)
       val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
 
       finalized.attempt flatMap {
         case Left(e) =>
-          pf.lift(Outcome.Errored(e)).map(_.attempt).getOrElse(IO.unit) *> IO.raiseError(e)
-
+          doOutcome(Outcome.Errored(e)) *> IO.raiseError(e)
         case Right(a) =>
-          pf.lift(Outcome.Completed(IO.pure(a))).map(_.attempt).getOrElse(IO.unit).as(a)
+          doOutcome(Outcome.Completed(IO.pure(a))).as(a)
       }
     }
+  }
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.uncancelable { poll =>
