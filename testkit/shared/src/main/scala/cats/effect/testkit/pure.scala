@@ -297,18 +297,7 @@ object pure {
             def apply[a](fa: PureConc[E, a]) =
               withCtx { ctx =>
                 val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
-
-                // we need to explicitly catch and suppress errors here to allow cancelation to dominate
-                val handled = fa handleErrorWith { e =>
-                  ctx
-                    .self
-                    .canceled
-                    .ifM(
-                      never, // if we're canceled, convert errors into non-termination (we're canceling anyway)
-                      raiseError(e))
-                }
-
-                localCtx(ctx2, handled)
+                localCtx(ctx2, fa)
               }
           }
 
