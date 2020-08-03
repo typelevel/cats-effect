@@ -34,21 +34,18 @@ class MVarSpec extends BaseSpec {
       gate2 <- Deferred[IO, Unit]
       gate3 <- Deferred[IO, Unit]
       _ <- (mVar.put(1) *> gate1.complete(()) *> gate3.get *> mVar.put(3)).start
-      p2 <- (gate1.get *> gate2.complete(()) *> mVar.put(2)).start
+      p2 <-
+        IO.uncancelable(poll =>
+          gate1.get *> gate2.complete(()) *> poll(mVar.put(2)).onCancel(gate3.complete(())))
+          .start
       _ <- mVar.take // Take the initial 0
       _ <- gate2.get
-      _ <- IO.sleep(10.millis) // Give more chance for `p2` put to register
       _ <- p2.cancel
-      _ <- gate3.complete(())
       r1 <- mVar.take
       r3 <- mVar.take
     } yield Set(r1, r3)
 
-    op.flatMap { res =>
-      IO {
-        res mustEqual Set(1, 3)
-      }
-    }
+    op.flatMap { res => IO(res mustEqual Set(1, 3)) }
   }
 
   "take is cancelable" in real {
@@ -57,13 +54,12 @@ class MVarSpec extends BaseSpec {
       gate1 <- Deferred[IO, Unit]
       gate2 <- Deferred[IO, Unit]
       t1 <- (mVar.take <* gate1.complete(())).start
-      t2 <- (gate1.get *> mVar.take).start
+      t2 <-
+        IO.uncancelable(poll => gate1.get *> poll(mVar.take).onCancel(gate2.complete(()))).start
       t3 <- (gate2.get *> mVar.take).start
       _ <- mVar.put(1)
       _ <- gate1.get
-      _ <- IO.sleep(10.millis) // Give more chance for `t2` take to register
       _ <- t2.cancel
-      _ <- gate2.complete(())
       _ <- mVar.put(3)
       r1 <- t1.join
       r3 <- t3.join
@@ -450,8 +446,17 @@ class MVarSpec extends BaseSpec {
     val task = for {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred[IO, Int]
-      fiber <- mVar.swap(20).flatMap(finished.complete).start
+      gate1 <- Deferred[IO, Unit]
+      gate2 <- Deferred[IO, Unit]
+      fiber <-
+        IO.uncancelable(poll =>
+          gate1.complete(()) *> poll(mVar.swap(20))
+            .onCancel(gate2.complete(()))
+            .flatMap(finished.complete))
+          .start
+      _ <- gate1.get
       _ <- fiber.cancel
+      _ <- gate2.get
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
@@ -467,8 +472,17 @@ class MVarSpec extends BaseSpec {
     val task = for {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred[IO, String]
-      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+      gate1 <- Deferred[IO, Unit]
+      gate2 <- Deferred[IO, Unit]
+      fiber <-
+        IO.uncancelable(poll =>
+          gate1.complete(()) *> poll(mVar.modify(n => IO.pure((n * 2, n.show))))
+            .onCancel(gate2.complete(()))
+            .flatMap(finished.complete))
+          .start
+      _ <- gate1.get
       _ <- fiber.cancel
+      _ <- gate2.get
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
@@ -484,11 +498,18 @@ class MVarSpec extends BaseSpec {
     val task = for {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred[IO, String]
+      gate1 <- Deferred[IO, Unit]
+      gate2 <- Deferred[IO, Unit]
       fiber <-
-        mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+        mVar
+          .modify(n => gate1.complete(()) *> IO.never *> IO.pure((n * 2, n.show)))
+          .onCancel(gate2.complete(()))
+          .flatMap(finished.complete)
+          .start
       _ <- mVar.put(10)
-      _ <- IO.sleep(10.millis)
+      _ <- gate1.get
       _ <- fiber.cancel
+      _ <- gate2.get
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
     } yield v
