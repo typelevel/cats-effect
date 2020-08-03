@@ -566,6 +566,27 @@ abstract private[effect] class ResourceInstances0 {
       final override def combineK[A](a: Resource[F, A], b: Resource[F, A]): Resource[F, A] =
         MonadError[Resource[F, *], E].handleErrorWith(a)(_ => b)
     }
+
+  // For binary compatibility.
+  @deprecated("Use the new implementaion that behaves like orElse", since = "2.2.0")
+  def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F],
+                                               K0: SemigroupK[F]): ResourceSemigroupK[F] =
+    new ResourceSemigroupK[F] {
+      def F = F0
+      def K = K0
+    }
+}
+
+@deprecated("Use the new implementaion that behaves like orElse", since = "2.2.0")
+abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
+  implicit protected def F: Monad[F]
+  implicit protected def K: SemigroupK[F]
+  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
+    } yield xy
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
