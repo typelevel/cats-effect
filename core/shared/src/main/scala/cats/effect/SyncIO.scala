@@ -300,12 +300,10 @@ sealed abstract class SyncIO[+A] private () {
       conts.unsafeSet(i)
       objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
 
-      (k: @switch) match {
-        // (case 0) will never continue to mapK
-        // (case 1) will never continue to flatMapK
-        case 2 => handleErrorWithK(error, depth)
-        case 3 => SyncIO.Failure(error)
-      }
+      if (k == 2)
+        handleErrorWithK(error, depth)
+      else    // 3
+        SyncIO.Failure(error)
     }
 
     def mapK(result: Any, depth: Int): SyncIO[Any] = {
