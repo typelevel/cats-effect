@@ -492,7 +492,7 @@ object Concurrent {
     def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
       val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
-        def apply[A](fa: F[A]) = Kleisli.liftF(fa)
+        def apply[B](fa: F[B]) = Kleisli.liftF(fa)
       }
 
       oc.mapK(nat)
