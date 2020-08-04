@@ -568,7 +568,7 @@ abstract private[effect] class ResourceInstances0 {
     }
 
   // For binary compatibility.
-  @deprecated("Use the new implementaion that behaves like orElse", since = "2.2.0")
+  @deprecated("Use the new implementaion, catsEffectSemigroupKForResource2, which behaves more like orElse", "2.2.0")
   def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F], K0: SemigroupK[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
@@ -576,7 +576,7 @@ abstract private[effect] class ResourceInstances0 {
     }
 }
 
-@deprecated("Use the new implementaion that behaves like orElse", since = "2.2.0")
+@deprecated("Use the new implementaion, catsEffectSemigroupKForResource2, which behaves more like orElse", "2.2.0")
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
   implicit protected def F: Monad[F]
   implicit protected def K: SemigroupK[F]
