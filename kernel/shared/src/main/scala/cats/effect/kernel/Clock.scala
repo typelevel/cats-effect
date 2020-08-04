@@ -94,7 +94,7 @@ object Clock {
       implicit override def L: Monoid[L] = L0
     }
 
-  trait OptionTClock[F[_]] extends Clock[OptionT[F, *]] {
+  private[kernel] trait OptionTClock[F[_]] extends Clock[OptionT[F, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
     val delegate = OptionT.catsDataMonadForOptionT[F]
@@ -111,7 +111,7 @@ object Clock {
     override def realTime: OptionT[F, FiniteDuration] = OptionT.liftF(F.realTime)
   }
 
-  trait EitherTClock[F[_], E] extends Clock[EitherT[F, E, *]] {
+  private[kernel] trait EitherTClock[F[_], E] extends Clock[EitherT[F, E, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
     val delegate = EitherT.catsDataMonadErrorForEitherT[F, E]
@@ -128,7 +128,7 @@ object Clock {
     override def realTime: EitherT[F, E, FiniteDuration] = EitherT.liftF(F.realTime)
   }
 
-  trait StateTClock[F[_], S] extends Clock[StateT[F, S, *]] {
+  private[kernel] trait StateTClock[F[_], S] extends Clock[StateT[F, S, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
     val delegate = IndexedStateT.catsDataMonadForIndexedStateT[F, S]
@@ -146,7 +146,7 @@ object Clock {
       StateT.liftF(F.realTime)
   }
 
-  trait WriterTClock[F[_], S] extends Clock[WriterT[F, S, *]] {
+  private[kernel] trait WriterTClock[F[_], S] extends Clock[WriterT[F, S, *]] {
     implicit protected def F: Clock[F] with Monad[F]
     implicit protected def S: Monoid[S]
 
@@ -164,7 +164,7 @@ object Clock {
     override def realTime: WriterT[F, S, FiniteDuration] = WriterT.liftF(F.realTime)
   }
 
-  trait IorTClock[F[_], L] extends Clock[IorT[F, L, *]] {
+  private[kernel] trait IorTClock[F[_], L] extends Clock[IorT[F, L, *]] {
     implicit protected def F: Clock[F] with Monad[F]
     implicit protected def L: Semigroup[L]
 
@@ -182,7 +182,7 @@ object Clock {
 
   }
 
-  trait KleisliClock[F[_], R] extends Clock[Kleisli[F, R, *]] {
+  private[kernel] trait KleisliClock[F[_], R] extends Clock[Kleisli[F, R, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 
     val delegate = Kleisli.catsDataMonadForKleisli[F, R]
@@ -200,7 +200,7 @@ object Clock {
 
   }
 
-  trait ContTClock[F[_], R] extends Clock[ContT[F, R, *]] {
+  private[kernel] trait ContTClock[F[_], R] extends Clock[ContT[F, R, *]] {
     implicit protected def F: Clock[F] with Monad[F] with Defer[F]
 
     val delegate = ContT.catsDataContTMonad[F, R]
@@ -218,7 +218,7 @@ object Clock {
 
   }
 
-  trait ReaderWriterStateTClock[F[_], R, L, S]
+  private[kernel] trait ReaderWriterStateTClock[F[_], R, L, S]
       extends Clock[ReaderWriterStateT[F, R, L, S, *]] {
     implicit protected def F: Clock[F] with Monad[F]
 

@@ -201,7 +201,7 @@ object Concurrent {
       override implicit protected def L: Monoid[L] = L0
     }
 
-  trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
+  private[kernel] trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -274,7 +274,8 @@ object Concurrent {
       }
   }
 
-  trait EitherTConcurrent[F[_], E0, E] extends Concurrent[EitherT[F, E0, *], E] {
+  private[kernel] trait EitherTConcurrent[F[_], E0, E]
+      extends Concurrent[EitherT[F, E0, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -351,7 +352,7 @@ object Concurrent {
       }
   }
 
-  trait IorTConcurrent[F[_], L, E] extends Concurrent[IorT[F, L, *], E] {
+  private[kernel] trait IorTConcurrent[F[_], L, E] extends Concurrent[IorT[F, L, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -427,7 +428,7 @@ object Concurrent {
       }
   }
 
-  trait KleisliConcurrent[F[_], R, E] extends Concurrent[Kleisli[F, R, *], E] {
+  private[kernel] trait KleisliConcurrent[F[_], R, E] extends Concurrent[Kleisli[F, R, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -488,10 +489,13 @@ object Concurrent {
     def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
       delegate.tailRecM(a)(f)
 
-    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = oc.mapK(nat)
+    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
-    val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
-      def apply[A](fa: F[A]) = Kleisli.liftF(fa)
+      val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
+        def apply[A](fa: F[A]) = Kleisli.liftF(fa)
+      }
+
+      oc.mapK(nat)
     }
 
     def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
@@ -502,7 +506,7 @@ object Concurrent {
       }
   }
 
-  trait WriterTConcurrent[F[_], L, E] extends Concurrent[WriterT[F, L, *], E] {
+  private[kernel] trait WriterTConcurrent[F[_], L, E] extends Concurrent[WriterT[F, L, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
