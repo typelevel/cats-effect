@@ -17,7 +17,13 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.effect.testkit.{AsyncGenerators, GenK, OutcomeGenerators, TestContext}
+import cats.effect.testkit.{
+  AsyncGenerators,
+  GenK,
+  OutcomeGenerators,
+  SyncGenerators,
+  TestContext
+}
 import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
@@ -30,6 +36,7 @@ import org.specs2.specification.core.Execution
 import scala.annotation.implicitNotFound
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
 import scala.concurrent.duration._
+import scala.util.Try
 
 import java.util.concurrent.TimeUnit
 
@@ -73,6 +80,24 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
               _._1 == "racePair"
             ) // remove the racePair generator since it reifies nondeterminism, which cannot be law-tested
       }
+
+    Arbitrary(generators.generators[A])
+  }
+
+  implicit def arbitrarySyncIO[A: Arbitrary: Cogen]: Arbitrary[SyncIO[A]] = {
+    val generators = new SyncGenerators[SyncIO] {
+      val arbitraryE: Arbitrary[Throwable] =
+        arbitraryThrowable
+
+      val cogenE: Cogen[Throwable] =
+        Cogen[Throwable]
+
+      protected val arbitraryFD: Arbitrary[FiniteDuration] =
+        outer.arbitraryFD
+
+      val F: Sync[SyncIO] =
+        SyncIO.syncEffectForSyncIO
+    }
 
     Arbitrary(generators.generators[A])
   }
@@ -122,15 +147,45 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
     Eq.by(unsafeRun(_))
 
+  def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
+    Try(io.unsafeRunSync()).toEither
+
+  implicit def eqSyncIOA[A: Eq]: Eq[SyncIO[A]] =
+    Eq.instance { (left, right) =>
+      unsafeRunSyncIOEither(left) === unsafeRunSyncIOEither(right)
+    }
+
   // feel the rhythm, feel the rhyme...
   implicit def boolRunnings(iob: IO[Boolean])(implicit ticker: Ticker): Prop =
     Prop(unsafeRun(iob).fold(false, _ => false, _.getOrElse(false)))
 
+  implicit def boolRunningsSync(iob: SyncIO[Boolean]): Prop =
+    Prop {
+      try iob.unsafeRunSync()
+      catch {
+        case _: Throwable => false
+      }
+    }
+
   def completeAs[A: Eq: Show](expected: A)(implicit ticker: Ticker): Matcher[IO[A]] =
     tickTo(Outcome.Completed(Some(expected)))
 
+  def completeAsSync[A: Eq: Show](expected: A): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
+    val a = ioa.unsafeRunSync()
+    (a eqv expected, s"${a.show} !== ${expected.show}")
+  }
+
   def failAs(expected: Throwable)(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Errored(expected))
+
+  def failAsSync[A](expected: Throwable): Matcher[SyncIO[A]] = { (ioa: SyncIO[A]) =>
+    val t =
+      (try ioa.unsafeRunSync()
+      catch {
+        case t: Throwable => t
+      }).asInstanceOf[Throwable]
+    (t eqv expected, s"${t.show} !== ${expected.show}")
+  }
 
   def nonTerminate(implicit ticker: Ticker): Matcher[IO[Unit]] =
     tickTo[Unit](Outcome.Completed(None))
