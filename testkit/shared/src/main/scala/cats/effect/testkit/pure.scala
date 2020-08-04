@@ -278,7 +278,7 @@ object pure {
             val fiber = new PureFiber[E, A](state)
 
             // the tryPut here is interesting: it encodes first-wins semantics on cancelation/completion
-            val body = withCtx[E, A](ctx => guaranteeCase(fa)(state.tryPut(_).void))
+            val body = guaranteeCase(fa)(state.tryPut[PureConc[E, *]](_).void)
             val identified = localCtx(FiberCtx(fiber), body)
             Thread.start(identified.attempt.void).as(fiber)
           }
