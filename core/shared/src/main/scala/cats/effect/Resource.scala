@@ -561,7 +561,7 @@ abstract private[effect] class ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectSemigroupKForResource[F[_], E](implicit F0: MonadError[F, E]): SemigroupK[Resource[F, *]] =
+  implicit def catsEffectSemigroupKForResource2[F[_], E](implicit F0: MonadError[F, E]): SemigroupK[Resource[F, *]] =
     new SemigroupK[Resource[F, *]] {
       final override def combineK[A](a: Resource[F, A], b: Resource[F, A]): Resource[F, A] =
         MonadError[Resource[F, *], E].handleErrorWith(a)(_ => b)

@@ -334,6 +334,15 @@ class ResourceTests extends BaseTestsSuite {
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
   }
 
+  test("combineK - should behave like orElse") {
+    check { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+      val lhs = (r1 orElse r2).use(IO.pure).attempt.unsafeRunSync()
+      val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
+
+      lhs <-> rhs
+    }
+  }
+
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
     implicit val ctx = ec.contextShift[IO]
 
