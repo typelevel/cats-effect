@@ -106,7 +106,7 @@ object Temporal {
       override implicit protected def L: Monoid[L] = L0
     }
 
-  trait OptionTTemporal[F[_], E]
+  private[kernel] trait OptionTTemporal[F[_], E]
       extends Temporal[OptionT[F, *], E]
       with Concurrent.OptionTConcurrent[F, E]
       with Clock.OptionTClock[F] {
@@ -120,7 +120,7 @@ object Temporal {
 
   }
 
-  trait EitherTTemporal[F[_], E0, E]
+  private[kernel] trait EitherTTemporal[F[_], E0, E]
       extends Temporal[EitherT[F, E0, *], E]
       with Concurrent.EitherTConcurrent[F, E0, E]
       with Clock.EitherTClock[F, E0] {
@@ -133,7 +133,7 @@ object Temporal {
     def sleep(time: FiniteDuration): EitherT[F, E0, Unit] = EitherT.liftF(F.sleep(time))
   }
 
-  trait IorTTemporal[F[_], L, E]
+  private[kernel] trait IorTTemporal[F[_], L, E]
       extends Temporal[IorT[F, L, *], E]
       with Concurrent.IorTConcurrent[F, L, E]
       with Clock.IorTClock[F, L] {
@@ -146,7 +146,7 @@ object Temporal {
     def sleep(time: FiniteDuration): IorT[F, L, Unit] = IorT.liftF(F.sleep(time))
   }
 
-  trait WriterTTemporal[F[_], L, E]
+  private[kernel] trait WriterTTemporal[F[_], L, E]
       extends Temporal[WriterT[F, L, *], E]
       with Concurrent.WriterTConcurrent[F, L, E]
       with Clock.WriterTClock[F, L] {
@@ -161,7 +161,7 @@ object Temporal {
     def sleep(time: FiniteDuration): WriterT[F, L, Unit] = WriterT.liftF(F.sleep(time))
   }
 
-  trait KleisliTemporal[F[_], R, E]
+  private[kernel] trait KleisliTemporal[F[_], R, E]
       extends Temporal[Kleisli[F, R, *], E]
       with Concurrent.KleisliConcurrent[F, R, E]
       with Clock.KleisliClock[F, R] {
