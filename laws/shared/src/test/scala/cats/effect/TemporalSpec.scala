@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.implicits._
-import cats.effect.kernel.{Outcome, TemporalThrow}, Outcome._
+import cats.effect.kernel.{/*Outcome,*/ TemporalThrow} // , Outcome._
 import cats.effect.testkit.pure._
 import cats.effect.testkit.TimeT
 
@@ -28,7 +28,6 @@ import org.specs2.mutable.Specification
 import scala.concurrent.duration._
 // import scala.concurrent.TimeoutException
 
-//TODO uncomment these tests once the Temporal instance for PureConc supports them
 class TemporalSpec extends Specification { outer =>
 
   type F[A] = PureConc[Throwable, A]
@@ -39,36 +38,36 @@ class TemporalSpec extends Specification { outer =>
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
   //TODO enable these tests once Temporal for TimeT is fixed
-  "temporal" should {
+  /*"temporal" should {
     "timeout" should {
       "succeed" in {
-        val op = F.timeout(F.pure(true), 100.millis)
+        val op = F.timeout(F.pure(true), 10.seconds)
 
         run(TimeT.run(op)) mustEqual Completed(Some(true))
-      }
+      }.pendingUntilFixed
 
-      // "cancel a loop" in {
-      //   val op: TimeT[F, Either[Throwable, Unit]] = Temporal.timeout(loop, 5.millis).attempt
+      "cancel a loop" in {
+        val op: TimeT[F, Either[Throwable, Unit]] = F.timeout(loop, 5.millis).attempt
 
-      //   run(TimeT.run(op)) must beLike {
-      //     case Completed(Some(Left(e))) => e must haveClass[TimeoutException]
-      //   }
-      // }
+        run(TimeT.run(op)) must beLike {
+          case Completed(Some(Left(e))) => e must haveClass[TimeoutException]
+        }
+      }.pendingUntilFixed
     }
 
-    // "timeoutTo" should {
-    //   "succeed" in {
-    //     val op: TimeT[F, Boolean] = Temporal.timeoutTo(F.pure(true), 5.millis, F.raiseError(new RuntimeException))
+    "timeoutTo" should {
+      "succeed" in {
+        val op: TimeT[F, Boolean] = F.timeoutTo(F.pure(true), 5.millis, F.raiseError(new RuntimeException))
 
-    //     run(TimeT.run(op)) mustEqual Completed(Some(true))
-    //   }
+        run(TimeT.run(op)) mustEqual Completed(Some(true))
+      }.pendingUntilFixed
 
-    //   "use fallback" in {
-    //     val op: TimeT[F, Boolean] = Temporal.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
+      "use fallback" in {
+        val op: TimeT[F, Boolean] = F.timeoutTo(loop >> F.pure(false), 5.millis, F.pure(true))
 
-    //     run(TimeT.run(op)) mustEqual Completed(Some(true))
-    //   }
-    // }
-  }
+        run(TimeT.run(op)) mustEqual Completed(Some(true))
+      }.pendingUntilFixed
+    }
+  }*/
 
 }

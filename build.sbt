@@ -149,7 +149,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
       "org.scalacheck" %%% "scalacheck" % "1.14.3"))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.6.2")
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.7.0")
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
