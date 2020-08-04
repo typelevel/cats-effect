@@ -292,18 +292,13 @@ object pure {
             def apply[a](fa: PureConc[E, a]) =
               withCtx { ctx =>
                 val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
-                localCtx(ctx2, fa)
+                localCtx(ctx2, fa.attempt <* ctx.self.realizeCancelation).rethrow
               }
           }
 
           withCtx { ctx =>
             val ctx2 = ctx.copy(masks = mask :: ctx.masks)
-
-            localCtx(ctx2, body(poll)) <*
-              ctx
-                .self
-                .canceled
-                .ifM(canceled, unit) // double-check cancelation whenever we exit a block
+            localCtx(ctx2, body(poll))
           }
         }
 
