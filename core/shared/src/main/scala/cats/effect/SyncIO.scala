@@ -159,25 +159,16 @@ sealed abstract class SyncIO[+A] private () {
     if (F eq SyncIO.syncEffectForSyncIO) {
       this.asInstanceOf[F[A]]
     } else {
-      (tag: @switch) match {
-        case 0 =>
-          val cur = asInstanceOf[SyncIO.Pure[A]]
-          F.pure(cur.value)
-        case 1 =>
-          val cur = asInstanceOf[SyncIO.Delay[A]]
-          F.delay(cur.thunk())
-        case 2 =>
-          val cur = asInstanceOf[SyncIO.Error]
-          F.raiseError(cur.t)
-        case 3 =>
-          val cur = asInstanceOf[SyncIO.Map[Any, A]]
-          F.map(cur.ioe.to[F])(cur.f)
-        case 4 =>
-          val cur = asInstanceOf[SyncIO.FlatMap[Any, A]]
-          F.defer(F.flatMap(cur.ioe.to[F])(cur.f.andThen(_.to[F])))
-        case 5 =>
-          val cur = asInstanceOf[SyncIO.HandleErrorWith[A]]
-          F.handleErrorWith(cur.ioa.to[F])(cur.f.andThen(_.to[F]))
+      this match {
+        case SyncIO.Pure(a) => F.pure(a)
+        case SyncIO.Delay(thunk) => F.delay(thunk())
+        case SyncIO.Error(t) => F.raiseError(t)
+        case SyncIO.Map(ioe, f) => F.map(ioe.to[F])(f)
+        case SyncIO.FlatMap(ioe, f) => F.defer(F.flatMap(ioe.to[F])(f.andThen(_.to[F])))
+        case SyncIO.HandleErrorWith(ioa, f) => F.handleErrorWith(ioa.to[F])(f.andThen(_.to[F]))
+        // For ensuring exhaustiveness
+        case SyncIO.Success(a) => F.pure(a)
+        case SyncIO.Failure(t) => F.raiseError(t)
       }
     }
 
