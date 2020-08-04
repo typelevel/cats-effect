@@ -86,10 +86,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
     val result = Resource
       .fromAutoCloseable(IO(autoCloseable))
-      .use(_ => IO.pure("Hello world"))
-      .attempt.void must completeAs(())
+      .use(_ => IO.pure("Hello world")) must completeAs("Hello world")
 
-    result mustEqual "Hello world"
     closed must beTrue
   }
 
