@@ -26,7 +26,9 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
 
   private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
 
-  protected final def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
+  protected final def interruptibleImpl(
+      cur: IO.Blocking[Any],
+      blockingEc: ExecutionContext): IO[Any] = {
     // InterruptibleMany | InterruptibleOnce
 
     /*
@@ -54,31 +56,32 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
             blockingEc execute { () =>
               initCb(Right(Thread.currentThread()))
 
-              val result = try {
-                canInterrupt.release()
-                val back = Right(cur.thunk())
+              val result =
+                try {
+                  canInterrupt.release()
+                  val back = Right(cur.thunk())
 
-                // this is why it has to be a semaphore rather than an atomic boolean
-                // this needs to hard-block if we're in the process of being interrupted
-                canInterrupt.acquire()
-                back
-              } catch {
-                case _: InterruptedException =>
-                  if (!many) {
-                    val cb0 = cb.get()
-                    if (cb0 != null) {
-                      cb0()
+                  // this is why it has to be a semaphore rather than an atomic boolean
+                  // this needs to hard-block if we're in the process of being interrupted
+                  canInterrupt.acquire()
+                  back
+                } catch {
+                  case _: InterruptedException =>
+                    if (!many) {
+                      val cb0 = cb.get()
+                      if (cb0 != null) {
+                        cb0()
+                      }
                     }
-                  }
 
-                  null
+                    null
 
-                case NonFatal(t) =>
-                  Left(t)
-              } finally {
-                canInterrupt.tryAcquire()
-                done.set(true)
-              }
+                  case NonFatal(t) =>
+                    Left(t)
+                } finally {
+                  canInterrupt.tryAcquire()
+                  done.set(true)
+                }
 
               if (result != null) {
                 nextCb(result)

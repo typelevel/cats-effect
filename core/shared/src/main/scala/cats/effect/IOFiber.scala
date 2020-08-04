@@ -115,7 +115,7 @@ private[effect] final class IOFiber[A](
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
   private[this] val TypeBlocking = Sync.Type.Blocking
-  
+
   // continuation ids (should all be inlined)
   private[this] val MapK: Byte = 0
   private[this] val FlatMapK: Byte = 1
