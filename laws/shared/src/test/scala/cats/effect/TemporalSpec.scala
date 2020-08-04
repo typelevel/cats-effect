@@ -19,14 +19,14 @@ package effect
 package concurrent
 
 import cats.implicits._
-import cats.effect.kernel.{Outcome, TemporalThrow}, Outcome._
+import cats.effect.kernel.{/*Outcome,*/ TemporalThrow} // , Outcome._
 import cats.effect.testkit.pure._
 import cats.effect.testkit.TimeT
 
 import org.specs2.mutable.Specification
 
 import scala.concurrent.duration._
-import scala.concurrent.TimeoutException
+// import scala.concurrent.TimeoutException
 
 class TemporalSpec extends Specification { outer =>
 
