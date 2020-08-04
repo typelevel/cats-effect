@@ -233,7 +233,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           F.uncancelable { poll =>
             val poll2 = new (IO ~> IO) {
               def apply[B](ioa: IO[B]): IO[B] =
-                F.to[IO](poll(ioa.to[F]))
+                IO.UnmaskTo(ioa, poll)
             }
 
             body(poll2).to[F]
@@ -257,7 +257,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
-        case IO.Unmask(ioa, _) => ioa.to[F] // polling should be handled by F
+        case IO.UnmaskRunLoop(_, _) =>
+          // Will never be executed. Case demanded for exhaustiveness.
+          // ioa.to[F] // polling should be handled by F
+          sys.error("impossible")
+
+        case self: IO.UnmaskTo[_, _] =>
+          // casts are safe because we only ever construct UnmaskF instances in this method
+          val ioa = self.ioa.asInstanceOf[IO[A]]
+          val poll = self.poll.asInstanceOf[F ~> F]
+          poll(ioa.to[F])
       }
     }
 
@@ -615,7 +624,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] case object Cede extends IO[Unit] { def tag = 18 }
 
   // INTERNAL
-  private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] {
+  private[effect] final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
     def tag = 19
+  }
+
+  // Not part of the run loop. Only used in the implementation of IO#to.
+  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: F ~> F) extends IO[A] {
+    def tag = -1
   }
 }

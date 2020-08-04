@@ -493,7 +493,7 @@ private[effect] final class IOFiber[A](
             masks += 1
             val id = masks
             val poll = new (IO ~> IO) {
-              def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
+              def apply[B](ioa: IO[B]) = IO.UnmaskRunLoop(ioa, id)
             }
 
             conts.push(UncancelableK)
@@ -588,7 +588,7 @@ private[effect] final class IOFiber[A](
             currentCtx.execute(cedeClosure)
 
           case 19 =>
-            val cur = cur0.asInstanceOf[Unmask[Any]]
+            val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
 
             if (masks == cur.id) {
               masks -= 1
