@@ -336,7 +336,7 @@ class ResourceTests extends BaseTestsSuite {
 
   test("combineK - should behave like orElse") {
     check { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-      val lhs = (r1 orElse r2).use(IO.pure).attempt.unsafeRunSync()
+      val lhs = r1.orElse(r2).use(IO.pure).attempt.unsafeRunSync()
       val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
 
       lhs <-> rhs
