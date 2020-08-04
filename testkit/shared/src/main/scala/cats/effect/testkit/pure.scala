@@ -40,7 +40,10 @@ object pure {
     implicit val eq: Eq[MaskId] = Eq.fromUniversalEquals[MaskId]
   }
 
-  final case class FiberCtx[E](self: PureFiber[E, _], masks: List[MaskId] = Nil, finalizers: List[PureConc[E, Unit]] = Nil)
+  final case class FiberCtx[E](
+      self: PureFiber[E, _],
+      masks: List[MaskId] = Nil,
+      finalizers: List[PureConc[E, Unit]] = Nil)
 
   type ResolvedPC[E, A] = ThreadT[IdOC[E, *], A]
 
@@ -110,9 +113,7 @@ object pure {
 
         val body = identified flatMap { a =>
           state.tryPut(Completed(a.pure[PureConc[E, *]]))
-        } handleErrorWith { e =>
-          state.tryPut(Errored(e))
-        }
+        } handleErrorWith { e => state.tryPut(Errored(e)) }
 
         val results = state.read.flatMap {
           case Canceled() => (Outcome.Canceled(): IdOC[E, A]).pure[Main]
@@ -133,9 +134,7 @@ object pure {
             }
         }
 
-        Kleisli.ask[ResolvedPC[E, *], MVar.Universe].map { u =>
-          body.run(u) >> results.run(u)
-        }
+        Kleisli.ask[ResolvedPC[E, *], MVar.Universe].map { u => body.run(u) >> results.run(u) }
       }
     }
 
@@ -351,8 +350,7 @@ object pure {
       ft.mapK(fk)
     }
 
-  final class PureFiber[E, A](
-      val state0: MVar[Outcome[PureConc[E, *], E, A]])
+  final class PureFiber[E, A](val state0: MVar[Outcome[PureConc[E, *], E, A]])
       extends Fiber[PureConc[E, *], E, A] {
 
     private[this] val state = state0[PureConc[E, *]]
