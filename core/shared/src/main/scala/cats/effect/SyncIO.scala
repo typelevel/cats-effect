@@ -302,7 +302,7 @@ sealed abstract class SyncIO[+A] private () {
 
       if (k == 2)
         handleErrorWithK(error, depth)
-      else    // 3
+      else // 3
         SyncIO.Failure(error)
     }
 
