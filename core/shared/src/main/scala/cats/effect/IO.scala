@@ -304,17 +304,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber(
+      "main",
       runtime.scheduler,
       runtime.blocking,
+      0,
       (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
-      0)
+      this,
+      runtime.compute
+    )
 
-    if (shift) {
-      fiber.prepare(this, runtime.compute)
+    if (shift)
       runtime.compute.execute(fiber)
-    } else
-      fiber.exec(this, runtime.compute)
+    else
+      fiber.run()
 
     fiber
   }
