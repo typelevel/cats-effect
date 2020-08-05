@@ -24,6 +24,8 @@ trait IOApp {
 
   protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
 
+  protected implicit val unsafeRunForIO: unsafe.UnsafeRun[IO] = runtime.unsafeRunForIO
+
   final def main(args: Array[String]): Unit = {
     val rt = Runtime.getRuntime()
 
