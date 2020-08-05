@@ -28,51 +28,45 @@ class MVarSpec extends BaseSpec {
     MVar[IO].of(a)
 
   "put is cancelable" in real {
-    val op = for {
-      mVar <- init(0)
-      gate1 <- Deferred[IO, Unit]
-      gate2 <- Deferred[IO, Unit]
-      gate3 <- Deferred[IO, Unit]
-      _ <- (mVar.put(1) *> gate1.complete(()) *> gate3.get *> mVar.put(3)).start
-      p2 <-
-        IO.uncancelable(poll =>
-          gate1.get *> gate2.complete(()) *> poll(mVar.put(2)).onCancel(gate3.complete(())))
-          .start
-      _ <- mVar.take // Take the initial 0
-      _ <- gate2.get
-      _ <- p2.cancel
-      r1 <- mVar.take
-      r3 <- mVar.take
-    } yield Set(r1, r3)
+    for {
+      v <- init(42)
 
-    op.flatMap { res => IO(res mustEqual Set(1, 3)) }
+      _ <- v.put(0).start
+      fb <- v.put(1).start
+
+      _ <- IO.sleep(500.millis)
+      _ <- fb.cancel
+
+      first <- v.take
+      second <- v.take
+
+      _ <- IO {
+        first mustEqual 42
+        second mustEqual 0
+      }
+    } yield ok
   }
 
   "take is cancelable" in real {
-    val op = for {
-      mVar <- MVar[IO].empty[Int]
-      gate1 <- Deferred[IO, Unit]
-      gate2 <- Deferred[IO, Unit]
-      t1 <- (mVar.take <* gate1.complete(())).start
-      t2 <-
-        IO.uncancelable(poll => gate1.get *> poll(mVar.take).onCancel(gate2.complete(()))).start
-      t3 <- (gate2.get *> mVar.take).start
-      _ <- mVar.put(1)
-      _ <- gate1.get
-      _ <- t2.cancel
-      _ <- mVar.put(3)
-      r1 <- t1.join
-      r3 <- t3.join
-    } yield (r1, r3)
+    for {
+      v <- init(42)
+      _ <- v.take
 
-    op.flatMap {
-      case (Completed(res1), Completed(res2)) =>
-        for {
-          x <- res1
-          y <- res2
-        } yield Set(x, y) mustEqual Set(1, 3)
-      case x => fail(x)
-    }
+      fa <- v.take.start
+      fb <- v.take.start
+
+      _ <- IO.sleep(500.millis)
+      _ <- fb.cancel
+
+      _ <- v.put(0)
+      ar <- fa.joinAndEmbedNever
+      br <- fb.join
+
+      _ <- IO {
+        ar mustEqual 0
+        br mustEqual Outcome.Canceled()
+      }
+    } yield ok
   }
 
   "read is cancelable" in real {
