@@ -177,13 +177,13 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "evalMap with error <-> IO.raiseError" in ticked { implicit ticker =>
+    "evalMap with error must fail during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
-      forAll { (g: Int => IO[Int]) =>
-        val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
-        Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) eqv IO.raiseError(Foo)
-      }
+      Resource
+        .liftF(IO(0))
+        .evalMap(_ => IO.raiseError(Foo))
+        .use(IO.pure) must failAs(Foo)
     }
 
     "evalTap" in ticked { implicit ticker =>
