@@ -67,7 +67,9 @@ private final class IOFiber[A](
     startEC: ExecutionContext)
     extends FiberIO[A]
     with Runnable {
+
   import IO._
+  import IOFiberConstants._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
   private[this] var conts: ByteStack = _
@@ -76,7 +78,6 @@ private final class IOFiber[A](
   private[this] var currentCtx: ExecutionContext = _
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
-  // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
   // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
@@ -98,34 +99,12 @@ private final class IOFiber[A](
 
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
-  private[this] val MaxStackDepth = 512
   private[this] val childCount = IOFiber.childCount
 
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
-
-  // continuation ids (should all be inlined)
-  private[this] val MapK: Byte = 0
-  private[this] val FlatMapK: Byte = 1
-  private[this] val CancelationLoopK: Byte = 2
-  private[this] val RunTerminusK: Byte = 3
-  private[this] val AsyncK: Byte = 4
-  private[this] val EvalOnK: Byte = 5
-  private[this] val HandleErrorWithK: Byte = 6
-  private[this] val OnCancelK: Byte = 7
-  private[this] val UncancelableK: Byte = 8
-  private[this] val UnmaskK: Byte = 9
-
-  // resume ids
-  private[this] val ExecR: Byte = 0
-  private[this] val AsyncContinueR: Byte = 1
-  private[this] val BlockingR: Byte = 2
-  private[this] val AfterBlockingSuccessfulR: Byte = 3
-  private[this] val AfterBlockingFailedR: Byte = 4
-  private[this] val EvalOnR: Byte = 5
-  private[this] val CedeR: Byte = 6
 
   // prefetch for Right(())
   private[this] val RightUnit = IOFiber.RightUnit
