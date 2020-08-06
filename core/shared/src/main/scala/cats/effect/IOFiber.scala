@@ -93,9 +93,8 @@ private final class IOFiber[A](
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
 
-  // TODO we may be able to weaken this to just a @volatile
-  private[this] val outcome: AtomicReference[OutcomeIO[A]] =
-    new AtomicReference()
+  @volatile
+  private[this] var outcome: OutcomeIO[A] = _
 
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
@@ -143,7 +142,7 @@ private final class IOFiber[A](
     }
   }
 
-  // this is swapped for an IO.pure(outcome.get()) when we complete
+  // this is swapped for an IO.pure(outcome) when we complete
   var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
       IO {
@@ -158,19 +157,19 @@ private final class IOFiber[A](
 
   // can return null, meaning that no CallbackStack needs to be later invalidated
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome.get() == null) {
+    if (outcome == null) {
       val back = callbacks.push(listener)
 
       // double-check
-      if (outcome.get() != null) {
+      if (outcome != null) {
         back.clearCurrent()
-        listener(outcome.get()) // the implementation of async saves us from double-calls
+        listener(outcome) // the implementation of async saves us from double-calls
         null
       } else {
         back
       }
     } else {
-      listener(outcome.get())
+      listener(outcome)
       null
     }
   }
@@ -182,7 +181,7 @@ private final class IOFiber[A](
     join = IO.pure(oc)
     cancel = IO.unit
 
-    outcome.set(oc)
+    outcome = oc
 
     try {
       callbacks(oc)
@@ -657,7 +656,7 @@ private final class IOFiber[A](
     println(s"canceled = $canceled")
     println(s"masks = $masks (out of initMask = $initMask)")
     println(s"suspended = ${suspended.get()}")
-    println(s"outcome = ${outcome.get()}")
+    println(s"outcome = ${outcome}")
   }
 
   ///////////////////////////////////////////////////////////////////////////////
