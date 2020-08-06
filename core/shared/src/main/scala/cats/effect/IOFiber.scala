@@ -73,6 +73,7 @@ private final class IOFiber[A](
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
   private[this] var conts: ByteStack = _
+  private[this] val objectState = new ArrayStack[AnyRef](16)
 
   // fast-path to head
   private[this] var currentCtx: ExecutionContext = _
@@ -85,7 +86,7 @@ private final class IOFiber[A](
   private[this] val childMask: Int = initMask + 255
 
   private[this] var masks: Int = initMask
-  // TODO reason about whether or not the final finalizers are visible here
+
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
@@ -95,8 +96,6 @@ private final class IOFiber[A](
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
-
-  private[this] val objectState = new ArrayStack[AnyRef](16)
 
   private[this] val childCount = IOFiber.childCount
 
