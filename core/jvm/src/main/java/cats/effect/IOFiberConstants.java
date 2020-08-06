@@ -19,26 +19,26 @@ package cats.effect;
 // defined in Java since Scala doesn't let us define static fields
 final class IOFiberConstants {
 
-  public static int MaxStackDepth = 512;
+  public static final int MaxStackDepth = 512;
 
   // continuation ids (should all be inlined)
-  public static byte MapK = 0;
-  public static byte FlatMapK = 1;
-  public static byte CancelationLoopK = 2;
-  public static byte RunTerminusK = 3;
-  public static byte AsyncK = 4;
-  public static byte EvalOnK = 5;
-  public static byte HandleErrorWithK = 6;
-  public static byte OnCancelK = 7;
-  public static byte UncancelableK = 8;
-  public static byte UnmaskK = 9;
+  public static final byte MapK = 0;
+  public static final byte FlatMapK = 1;
+  public static final byte CancelationLoopK = 2;
+  public static final byte RunTerminusK = 3;
+  public static final byte AsyncK = 4;
+  public static final byte EvalOnK = 5;
+  public static final byte HandleErrorWithK = 6;
+  public static final byte OnCancelK = 7;
+  public static final byte UncancelableK = 8;
+  public static final byte UnmaskK = 9;
 
   // resume ids
-  public static byte ExecR = 0;
-  public static byte AsyncContinueR = 1;
-  public static byte BlockingR = 2;
-  public static byte AfterBlockingSuccessfulR = 3;
-  public static byte AfterBlockingFailedR = 4;
-  public static byte EvalOnR = 5;
-  public static byte CedeR = 6;
+  public static final byte ExecR = 0;
+  public static final byte AsyncContinueR = 1;
+  public static final byte BlockingR = 2;
+  public static final byte AfterBlockingSuccessfulR = 3;
+  public static final byte AfterBlockingFailedR = 4;
+  public static final byte EvalOnR = 5;
+  public static final byte CedeR = 6;
 }
