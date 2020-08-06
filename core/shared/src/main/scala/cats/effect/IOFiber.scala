@@ -67,16 +67,18 @@ private final class IOFiber[A](
     startEC: ExecutionContext)
     extends FiberIO[A]
     with Runnable {
+
   import IO._
+  import IOFiberConstants._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
   private[this] var conts: ByteStack = _
+  private[this] val objectState = new ArrayStack[AnyRef](16)
 
   // fast-path to head
   private[this] var currentCtx: ExecutionContext = _
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
-  // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
 
   // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
@@ -84,7 +86,7 @@ private final class IOFiber[A](
   private[this] val childMask: Int = initMask + 255
 
   private[this] var masks: Int = initMask
-  // TODO reason about whether or not the final finalizers are visible here
+
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
   private[this] val callbacks = new CallbackStack[A](cb)
@@ -92,40 +94,15 @@ private final class IOFiber[A](
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
 
-  // TODO we may be able to weaken this to just a @volatile
-  private[this] val outcome: AtomicReference[OutcomeIO[A]] =
-    new AtomicReference()
+  @volatile
+  private[this] var outcome: OutcomeIO[A] = _
 
-  private[this] val objectState = new ArrayStack[AnyRef](16)
-
-  private[this] val MaxStackDepth = 512
   private[this] val childCount = IOFiber.childCount
 
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
-
-  // continuation ids (should all be inlined)
-  private[this] val MapK: Byte = 0
-  private[this] val FlatMapK: Byte = 1
-  private[this] val CancelationLoopK: Byte = 2
-  private[this] val RunTerminusK: Byte = 3
-  private[this] val AsyncK: Byte = 4
-  private[this] val EvalOnK: Byte = 5
-  private[this] val HandleErrorWithK: Byte = 6
-  private[this] val OnCancelK: Byte = 7
-  private[this] val UncancelableK: Byte = 8
-  private[this] val UnmaskK: Byte = 9
-
-  // resume ids
-  private[this] val ExecR: Byte = 0
-  private[this] val AsyncContinueR: Byte = 1
-  private[this] val BlockingR: Byte = 2
-  private[this] val AfterBlockingSuccessfulR: Byte = 3
-  private[this] val AfterBlockingFailedR: Byte = 4
-  private[this] val EvalOnR: Byte = 5
-  private[this] val CedeR: Byte = 6
 
   // mutable state for resuming the fiber in different states
   private[this] var resumeTag: Byte = ExecR
@@ -173,7 +150,7 @@ private final class IOFiber[A](
     }
   }
 
-  // this is swapped for an IO.pure(outcome.get()) when we complete
+  // this is swapped for an IO.pure(outcome) when we complete
   var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
       IO {
@@ -188,19 +165,19 @@ private final class IOFiber[A](
 
   // can return null, meaning that no CallbackStack needs to be later invalidated
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome.get() == null) {
+    if (outcome == null) {
       val back = callbacks.push(listener)
 
       // double-check
-      if (outcome.get() != null) {
+      if (outcome != null) {
         back.clearCurrent()
-        listener(outcome.get()) // the implementation of async saves us from double-calls
+        listener(outcome) // the implementation of async saves us from double-calls
         null
       } else {
         back
       }
     } else {
-      listener(outcome.get())
+      listener(outcome)
       null
     }
   }
@@ -212,7 +189,7 @@ private final class IOFiber[A](
     join = IO.pure(oc)
     cancel = IO.unit
 
-    outcome.set(oc)
+    outcome = oc
 
     try {
       callbacks(oc)
@@ -687,7 +664,7 @@ private final class IOFiber[A](
     println(s"canceled = $canceled")
     println(s"masks = $masks (out of initMask = $initMask)")
     println(s"suspended = ${suspended.get()}")
-    println(s"outcome = ${outcome.get()}")
+    println(s"outcome = ${outcome}")
   }
 
   ///////////////////////////////////////
