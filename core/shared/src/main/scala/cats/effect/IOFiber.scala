@@ -104,6 +104,15 @@ private final class IOFiber[A](
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
+  // mutable state for resuming the fiber in different states
+  private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeNextIteration: Int = 0
+  private[this] var asyncContinueEither: Either[Throwable, Any] = _
+  private[this] var blockingCur: Blocking[Any] = _
+  private[this] var afterBlockingSuccessfulResult: Any = _
+  private[this] var afterBlockingFailedError: Throwable = _
+  private[this] var evalOnIOA: IO[Any] = _
+
   // prefetch for Right(())
   private[this] val RightUnit = IOFiber.RightUnit
 
@@ -658,10 +667,9 @@ private final class IOFiber[A](
     println(s"outcome = ${outcome}")
   }
 
-  ///////////////////////////////////////////////////////////////////////////////
-  // Mutable state useful only when starting a fiber as a `java.lang.Runnable` //                                         //
-  ///////////////////////////////////////////////////////////////////////////////
-  private[this] var resumeTag: Byte = ExecR
+  ///////////////////////////////////////
+  // Implementations of resume methods //
+  ///////////////////////////////////////
 
   /**
    * @note This method should not be used outside of the IO run loop under any circumstance.
@@ -676,10 +684,6 @@ private final class IOFiber[A](
       case 5 => evalOnR()
       case 6 => cedeR()
     }
-
-  ///////////////////////////////////////
-  // Implementations of resume methods //
-  ///////////////////////////////////////
 
   private[this] def execR(): Unit = {
     if (resume()) {
@@ -696,10 +700,6 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] var resumeNextIteration: Int = 0
-
-  private[this] var asyncContinueEither: Either[Throwable, Any] = _
-
   private[this] def asyncContinueR(): Unit = {
     val e = asyncContinueEither
     asyncContinueEither = null
@@ -710,8 +710,6 @@ private final class IOFiber[A](
 
     runLoop(next, 0)
   }
-
-  private[this] var blockingCur: Blocking[Any] = _
 
   private[this] def blockingR(): Unit = {
     var error: Throwable = null
@@ -734,23 +732,17 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] var afterBlockingSuccessfulResult: Any = _
-
   private[this] def afterBlockingSuccessfulR(): Unit = {
     val result = afterBlockingSuccessfulResult
     afterBlockingSuccessfulResult = null
     runLoop(succeeded(result, 0), resumeNextIteration)
   }
 
-  private[this] var afterBlockingFailedError: Throwable = _
-
   private[this] def afterBlockingFailedR(): Unit = {
     val error = afterBlockingFailedError
     afterBlockingFailedError = null
     runLoop(failed(error, 0), resumeNextIteration)
   }
-
-  private[this] var evalOnIOA: IO[Any] = _
 
   private[this] def evalOnR(): Unit = {
     val ioa = evalOnIOA
