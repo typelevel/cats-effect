@@ -46,9 +46,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
 //  import ParallelFGenerators._
 
-  implicit def eqTimeT[F[_], A](implicit FA: Eq[F[A]]): Eq[TimeT[F, A]] =
-    Eq.by(TimeT.run(_))
-
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
