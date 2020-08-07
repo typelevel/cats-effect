@@ -57,86 +57,71 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
  * by the Executor read/write barriers, but their writes are
  * merely a fast-path and are not necessary for correctness.
  */
-private[effect] final class IOFiber[A](
+private final class IOFiber[A](
     name: String,
     scheduler: unsafe.Scheduler,
     blockingEc: ExecutionContext,
-    initMask: Int)
+    initMask: Int,
+    cb: OutcomeIO[A] => Unit,
+    startIO: IO[A],
+    startEC: ExecutionContext)
     extends FiberIO[A]
     with Runnable {
+
   import IO._
+  import IOFiberConstants._
 
   // I would rather have these on the stack, but we can't because we sometimes need to relocate our runloop to another fiber
   private[this] var conts: ByteStack = _
+  private[this] val objectState = new ArrayStack[AnyRef](16)
 
   // fast-path to head
   private[this] var currentCtx: ExecutionContext = _
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
-  // TODO a non-volatile cancel bit is very unlikely to be observed, in practice, until we hit an async boundary
   private[this] var canceled: Boolean = false
-
   private[this] var masks: Int = initMask
-  private[this] val finalizers =
-    new ArrayStack[IO[Unit]](
-      16
-    ) // TODO reason about whether or not the final finalizers are visible here
+  private[this] var finalizing: Boolean = false
 
-  private[this] val callbacks = new CallbackStack[A](null)
+  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
+  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+  private[this] val childMask: Int = initMask + 255
+
+  private[this] val finalizers = new ArrayStack[IO[Unit]](16)
+
+  private[this] val callbacks = new CallbackStack[A](cb)
 
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
 
-  // TODO we may be able to weaken this to just a @volatile
-  private[this] val outcome: AtomicReference[OutcomeIO[A]] =
-    new AtomicReference()
-
-  private[this] val objectState = new ArrayStack[AnyRef](16)
+  @volatile
+  private[this] var outcome: OutcomeIO[A] = _
 
   private[this] val childCount = IOFiber.childCount
 
-  // Preallocated closures for resuming the run loop on a new thread. For a given `IOFiber` instance,
-  // only a single instance of these closures is used at a time, because the run loop is suspended.
-  // Therefore, they can be preallocated and their parameters mutated before each use.
-  private[this] var asyncContinueClosure = new AsyncContinueClosure()
-  private[this] var blockingClosure = new BlockingClosure()
-  private[this] var afterBlockingClosure = new AfterBlockingClosure()
-  private[this] var evalOnClosure = new EvalOnClosure()
-  private[this] var cedeClosure = new CedeClosure()
-
-  // pre-fetching of all continuations (to avoid memory barriers)
-  private[this] val CancelationLoopK = IOFiber.CancelationLoopK
-  private[this] val RunTerminusK = IOFiber.RunTerminusK
-  private[this] val AsyncK = IOFiber.AsyncK
-  private[this] val EvalOnK = IOFiber.EvalOnK
-  private[this] val MapK = IOFiber.MapK
-  private[this] val FlatMapK = IOFiber.FlatMapK
-  private[this] val HandleErrorWithK = IOFiber.HandleErrorWithK
-  private[this] val OnCancelK = IOFiber.OnCancelK
-  private[this] val UncancelableK = IOFiber.UncancelableK
-  private[this] val UnmaskK = IOFiber.UnmaskK
-
-  // similar prefetch for Outcome
-  private[this] val _OutcomeCanceled = IOFiber.OutcomeCanceled
-
   // similar prefetch for AsyncState
   private[this] val AsyncStateInitial = AsyncState.Initial
-  // private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
+  private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
 
-  def this(
-      scheduler: unsafe.Scheduler,
-      blockingEc: ExecutionContext,
-      cb: OutcomeIO[A] => Unit,
-      initMask: Int) = {
-    this("main", scheduler, blockingEc, initMask)
-    callbacks.push(cb)
-  }
+  // mutable state for resuming the fiber in different states
+  private[this] var resumeTag: Byte = ExecR
+  private[this] var resumeNextIteration: Int = 0
+  private[this] var asyncContinueEither: Either[Throwable, Any] = _
+  private[this] var blockingCur: Blocking[Any] = _
+  private[this] var afterBlockingSuccessfulResult: Any = _
+  private[this] var afterBlockingFailedError: Throwable = _
+  private[this] var evalOnIOA: IO[Any] = _
+
+  // prefetch for Right(())
+  private[this] val RightUnit = IOFiber.RightUnit
+
+  // similar prefetch for Outcome
+  private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
 
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
-      cancel = IO.unit
 
 //      println(s"${name}: attempting cancellation")
 
@@ -165,7 +150,7 @@ private[effect] final class IOFiber[A](
     }
   }
 
-  // this is swapped for an IO.pure(outcome.get()) when we complete
+  // this is swapped for an IO.pure(outcome) when we complete
   var join: IO[OutcomeIO[A]] =
     IO.async { cb =>
       IO {
@@ -178,64 +163,33 @@ private[effect] final class IOFiber[A](
       }
     }
 
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  // Mutable state useful only when starting a fiber as a `java.lang.Runnable`. Should not //
-  // be directly referenced anywhere in the code.                                          //
-  ///////////////////////////////////////////////////////////////////////////////////////////
-  private[this] var startIO: IO[Any] = _
-  private[this] var startEC: ExecutionContext = _
-
-  private[effect] def prepare(io: IO[Any], ec: ExecutionContext): Unit = {
-    startIO = io
-    startEC = ec
-  }
-
-  /**
-   * @note This method should not be used outside of the IO run loop under any circumstance.
-   */
-  def run(): Unit =
-    exec(startIO, startEC)
-
   // can return null, meaning that no CallbackStack needs to be later invalidated
   private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome.get() == null) {
+    if (outcome == null) {
       val back = callbacks.push(listener)
 
       // double-check
-      if (outcome.get() != null) {
+      if (outcome != null) {
         back.clearCurrent()
-        listener(outcome.get()) // the implementation of async saves us from double-calls
+        listener(outcome) // the implementation of async saves us from double-calls
         null
       } else {
         back
       }
     } else {
-      listener(outcome.get())
+      listener(outcome)
       null
-    }
-  }
-
-  private[effect] def exec(cur: IO[Any], ec: ExecutionContext): Unit = {
-    conts = new ByteStack(16)
-    pushCont(RunTerminusK)
-
-    ctxs = new ArrayStack[ExecutionContext](2)
-    currentCtx = ec
-    ctxs.push(ec)
-
-    if (resume()) {
-//      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
-      runLoop(cur, 0)
     }
   }
 
   // Only the owner of the run-loop can invoke this.
   // Should be invoked at most once per fiber before termination.
-  private def done(oc: OutcomeIO[A]): Unit = {
+  private[this] def done(oc: OutcomeIO[A]): Unit = {
 //     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
     join = IO.pure(oc)
+    cancel = IO.unit
 
-    outcome.set(oc)
+    outcome = oc
 
     try {
       callbacks(oc)
@@ -262,14 +216,11 @@ private[effect] final class IOFiber[A](
 
     finalizers.invalidate()
 
-    startIO = null
-    startEC = null
-
-    asyncContinueClosure = null
-    blockingClosure = null
-    afterBlockingClosure = null
-    evalOnClosure = null
-    cedeClosure = null
+    asyncContinueEither = null
+    blockingCur = null
+    afterBlockingSuccessfulResult = null
+    afterBlockingFailedError = null
+    evalOnIOA = null
   }
 
   /*
@@ -279,28 +230,30 @@ private[effect] final class IOFiber[A](
   3. Callback completes after cancelation and can't take over the runloop
   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
    */
-  private def asyncContinue(
+  private[this] def asyncContinue(
       state: AtomicReference[AsyncState],
       e: Either[Throwable, Any]): Unit = {
     state.lazySet(AsyncStateInitial) // avoid leaks
 
-    val ec = currentCtx
-
     if (!shouldFinalize()) {
-      asyncContinueClosure.prepare(e)
-      execute(ec)(asyncContinueClosure)
+      val ec = currentCtx
+      resumeTag = AsyncContinueR
+      asyncContinueEither = e
+      execute(ec)(this)
     } else {
       asyncCancel(null)
     }
   }
 
-  private def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
+  private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
     //       println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
-    if (hasFinalizers()) {
+    finalizing = true
+
+    if (!finalizers.isEmpty()) {
       objectState.push(cb)
 
       conts = new ByteStack(16)
-      pushCont(CancelationLoopK)
+      conts.push(CancelationLoopK)
 
       // suppress all subsequent cancelation on this fiber
       masks += 1
@@ -308,14 +261,15 @@ private[effect] final class IOFiber[A](
       runLoop(finalizers.pop(), 0)
     } else {
       if (cb != null)
-        cb(Right(()))
+        cb(RightUnit)
 
-      done(_OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+      done(OutcomeCanceled)
     }
   }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
-  private def runLoop(cur0: IO[Any], iteration: Int): Unit = {
+  @tailrec
+  private[this] def runLoop(cur0: IO[Any], iteration: Int): Unit = {
     // cur0 will be null when we're semantically blocked
     if (cur0 == null) {
       return
@@ -332,78 +286,82 @@ private[effect] final class IOFiber[A](
       asyncCancel(null)
     } else {
       // println(s"<$name> looping on $cur0")
-      if (!conts.isEmpty()) {
-        (cur0.tag: @switch) match {
-          case 0 =>
-            val cur = cur0.asInstanceOf[Pure[Any]]
-            runLoop(succeeded(cur.value, 0), nextIteration)
+      (cur0.tag: @switch) match {
+        case 0 =>
+          val cur = cur0.asInstanceOf[Pure[Any]]
+          runLoop(succeeded(cur.value, 0), nextIteration)
 
-          case 1 =>
-            val cur = cur0.asInstanceOf[Delay[Any]]
+        case 1 =>
+          val cur = cur0.asInstanceOf[Delay[Any]]
 
-            var success = false
-            val r =
-              try {
-                val r = cur.thunk()
-                success = true
-                r
-              } catch {
-                case NonFatal(t) => t
-              }
+          var error: Throwable = null
+          val r =
+            try cur.thunk()
+            catch {
+              case NonFatal(t) => error = t
+            }
 
-            val next =
-              if (success)
-                succeeded(r, 0)
-              else
-                failed(r, 0)
+          val next =
+            if (error == null) succeeded(r, 0)
+            else failed(error, 0)
 
-            runLoop(next, nextIteration)
+          runLoop(next, nextIteration)
 
-          case 2 =>
-            val cur = cur0.asInstanceOf[Blocking[Any]]
-            blockingClosure.prepare(cur, nextIteration)
-            blockingEc.execute(blockingClosure)
+        case 2 =>
+          val cur = cur0.asInstanceOf[Blocking[Any]]
+          resumeTag = BlockingR
+          blockingCur = cur
+          resumeNextIteration = nextIteration
+          blockingEc.execute(this)
 
-          case 3 =>
-            val cur = cur0.asInstanceOf[Error]
-            runLoop(failed(cur.t, 0), nextIteration)
+        case 3 =>
+          val cur = cur0.asInstanceOf[Error]
+          runLoop(failed(cur.t, 0), nextIteration)
 
-          case 4 =>
-            val cur = cur0.asInstanceOf[Async[Any]]
+        case 4 =>
+          val cur = cur0.asInstanceOf[Async[Any]]
 
-            val done = new AtomicBoolean()
+          val done = new AtomicBoolean()
 
-            /*
-             * The purpose of this buffer is to ensure that registration takes
-             * primacy over callbacks in the event that registration produces
-             * errors in sequence. This implements a "queueing" semantic to
-             * the callbacks, implying that the callback is sequenced after
-             * registration has fully completed, giving us deterministic
-             * serialization.
-             */
-            val state = new AtomicReference[AsyncState](AsyncStateInitial)
+          /*
+           * The purpose of this buffer is to ensure that registration takes
+           * primacy over callbacks in the event that registration produces
+           * errors in sequence. This implements a "queueing" semantic to
+           * the callbacks, implying that the callback is sequenced after
+           * registration has fully completed, giving us deterministic
+           * serialization.
+           */
+          val state = new AtomicReference[AsyncState](AsyncStateInitial)
 
-            objectState.push(done)
-            objectState.push(state)
+          // Async callbacks may only resume if the finalization state
+          // remains the same after we re-acquire the runloop
+          val wasFinalizing = finalizing
 
-            val next = cur.k { e =>
-              // println(s"<$name> callback run with $e")
-              if (!done.getAndSet(true)) {
-                val old = state.getAndSet(AsyncState.Complete(e))
+          objectState.push(done)
+          objectState.push(state)
 
-                /*
-                 * We *need* to own the runloop when we return, so we CAS loop
-                 * on suspended to break the race condition in AsyncK where
-                 * `state` is set but suspend() has not yet run. If `state` is
-                 * set then `suspend()` should be right behind it *unless* we
-                 * have been canceled. If we were canceled, then some other
-                 * fiber is taking care of our finalizers and will have
-                 * marked suspended as false, meaning that `canceled` will be set
-                 * to true. Either way, we won't own the runloop.
-                 */
-                @tailrec
-                def loop(): Unit = {
-                  if (resume()) {
+          val next = cur.k { e =>
+            // println(s"<$name> callback run with $e")
+            if (!done.getAndSet(true)) {
+              val old = state.getAndSet(AsyncState.Complete(e))
+
+              /*
+               * We *need* to own the runloop when we return, so we CAS loop
+               * on suspended to break the race condition in AsyncK where
+               * `state` is set but suspend() has not yet run. If `state` is
+               * set then `suspend()` should be right behind it *unless* we
+               * have been canceled. If we were canceled, then some other
+               * fiber is taking care of our finalizers and will have
+               * marked suspended as false, meaning that `canceled` will be set
+               * to true. Either way, we won't own the runloop.
+               */
+              @tailrec
+              def loop(): Unit = {
+                if (resume()) {
+                  // Race condition check:
+                  // If finalization occurs and an async finalizer suspends the runloop,
+                  // a window is created where a normal async resumes the runloop.
+                  if (finalizing == wasFinalizing) {
                     if (old == AsyncStateRegisteredWithFinalizer) {
                       // we completed and were not canceled, so we pop the finalizer
                       // note that we're safe to do so since we own the runloop
@@ -411,243 +369,223 @@ private[effect] final class IOFiber[A](
                     }
 
                     asyncContinue(state, e)
-                  } else if (!shouldFinalize()) {
-                    loop()
+                  } else {
+                    suspend()
                   }
-
-                  // If we reach this point, it means that somebody else owns the run-loop
-                  // and will handle cancellation.
-                }
-
-                if (old != AsyncStateInitial) {
-                  // registration already completed, we're good to go
+                } else if (!shouldFinalize()) {
                   loop()
                 }
-              }
-            }
 
-            pushCont(AsyncK)
-            runLoop(next, nextIteration)
-
-          // ReadEC
-          case 5 =>
-            runLoop(succeeded(currentCtx, 0), nextIteration)
-
-          case 6 =>
-            val cur = cur0.asInstanceOf[EvalOn[Any]]
-
-            // fast-path when it's an identity transformation
-            if (cur.ec eq currentCtx) {
-              runLoop(cur.ioa, nextIteration)
-            } else {
-              val ec = cur.ec
-              currentCtx = ec
-              ctxs.push(ec)
-              pushCont(EvalOnK)
-
-              evalOnClosure.prepare(cur.ioa, nextIteration)
-              execute(ec)(evalOnClosure)
-            }
-
-          case 7 =>
-            val cur = cur0.asInstanceOf[Map[Any, Any]]
-
-            objectState.push(cur.f)
-            pushCont(MapK)
-
-            runLoop(cur.ioe, nextIteration)
-
-          case 8 =>
-            val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
-
-            objectState.push(cur.f)
-            pushCont(FlatMapK)
-
-            runLoop(cur.ioe, nextIteration)
-
-          case 9 =>
-            val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
-
-            objectState.push(cur.f)
-            pushCont(HandleErrorWithK)
-
-            runLoop(cur.ioa, nextIteration)
-
-          case 10 =>
-            val cur = cur0.asInstanceOf[OnCancel[Any]]
-
-            finalizers.push(EvalOn(cur.fin, currentCtx))
-            // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
-
-            pushCont(OnCancelK)
-            runLoop(cur.ioa, nextIteration)
-
-          case 11 =>
-            val cur = cur0.asInstanceOf[Uncancelable[Any]]
-
-            masks += 1
-            val id = masks
-            val poll = new (IO ~> IO) {
-              def apply[B](ioa: IO[B]) = IO.Unmask(ioa, id)
-            }
-
-            pushCont(UncancelableK)
-            runLoop(cur.body(poll), nextIteration)
-
-          // Canceled
-          case 12 =>
-            canceled = true
-            if (!isUnmasked()) {
-              runLoop(succeeded((), 0), nextIteration)
-            } else {
-              // run finalizers immediately
-              asyncCancel(null)
-            }
-
-          case 13 =>
-            val cur = cur0.asInstanceOf[Start[Any]]
-
-            val childName = s"start-${childCount.getAndIncrement()}"
-            val initMask2 = childMask
-
-            val fiber = new IOFiber[Any](childName, scheduler, blockingEc, initMask2)
-
-            // println(s"<$name> spawning <$childName>")
-
-            val ec = currentCtx
-            fiber.prepare(cur.ioa, ec)
-            execute(ec)(fiber)
-
-            runLoop(succeeded(fiber, 0), nextIteration)
-
-          case 14 =>
-            // TODO self-cancelation within a nested poll could result in deadlocks in `both`
-            // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
-            // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
-            val cur = cur0.asInstanceOf[RacePair[Any, Any]]
-
-            val next =
-              IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
-                cb =>
-                  IO {
-                    val initMask2 = childMask
-                    val fiberA = new IOFiber[Any](
-                      s"racePair-left-${childCount.getAndIncrement()}",
-                      scheduler,
-                      blockingEc,
-                      initMask2)
-                    val fiberB = new IOFiber[Any](
-                      s"racePair-right-${childCount.getAndIncrement()}",
-                      scheduler,
-                      blockingEc,
-                      initMask2)
-
-                    fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                    fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
-
-                    val ec = currentCtx
-                    fiberA.prepare(cur.ioa, ec)
-                    fiberB.prepare(cur.iob, ec)
-                    execute(ec)(fiberA)
-                    execute(ec)(fiberB)
-
-                    Some(fiberA.cancel.both(fiberB.cancel).void)
-                  }
+                // If we reach this point, it means that somebody else owns the run-loop
+                // and will handle cancellation.
               }
 
-            runLoop(next, nextIteration)
-
-          case 15 =>
-            val cur = cur0.asInstanceOf[Sleep]
-
-            val next = IO.async[Unit] { cb =>
-              IO {
-                val cancel = scheduler.sleep(cur.delay, () => cb(Right(())))
-                Some(IO(cancel.run()))
+              if (old != AsyncStateInitial) {
+                // registration already completed, we're good to go
+                loop()
               }
             }
+          }
 
-            runLoop(next, nextIteration)
+          conts.push(AsyncK)
+          runLoop(next, nextIteration)
 
-          // RealTime
-          case 16 =>
-            runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
+        // ReadEC
+        case 5 =>
+          runLoop(succeeded(currentCtx, 0), nextIteration)
 
-          // Monotonic
-          case 17 =>
-            runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
+        case 6 =>
+          val cur = cur0.asInstanceOf[EvalOn[Any]]
 
-          // Cede
-          case 18 =>
-            cedeClosure.prepare(nextIteration)
-            currentCtx.execute(cedeClosure)
+          // fast-path when it's an identity transformation
+          if (cur.ec eq currentCtx) {
+            runLoop(cur.ioa, nextIteration)
+          } else {
+            val ec = cur.ec
+            currentCtx = ec
+            ctxs.push(ec)
+            conts.push(EvalOnK)
 
-          case 19 =>
-            val cur = cur0.asInstanceOf[Unmask[Any]]
+            resumeTag = EvalOnR
+            evalOnIOA = cur.ioa
+            resumeNextIteration = nextIteration
+            execute(ec)(this)
+          }
 
-            if (masks == cur.id) {
-              masks -= 1
-              pushCont(UnmaskK)
+        case 7 =>
+          val cur = cur0.asInstanceOf[Map[Any, Any]]
+
+          objectState.push(cur.f)
+          conts.push(MapK)
+
+          runLoop(cur.ioe, nextIteration)
+
+        case 8 =>
+          val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
+
+          objectState.push(cur.f)
+          conts.push(FlatMapK)
+
+          runLoop(cur.ioe, nextIteration)
+
+        case 9 =>
+          val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
+
+          objectState.push(cur.f)
+          conts.push(HandleErrorWithK)
+
+          runLoop(cur.ioa, nextIteration)
+
+        case 10 =>
+          val cur = cur0.asInstanceOf[OnCancel[Any]]
+
+          finalizers.push(EvalOn(cur.fin, currentCtx))
+          // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
+
+          conts.push(OnCancelK)
+          runLoop(cur.ioa, nextIteration)
+
+        case 11 =>
+          val cur = cur0.asInstanceOf[Uncancelable[Any]]
+
+          masks += 1
+          val id = masks
+          val poll = new (IO ~> IO) {
+            def apply[B](ioa: IO[B]) = IO.UnmaskRunLoop(ioa, id)
+          }
+
+          conts.push(UncancelableK)
+          runLoop(cur.body(poll), nextIteration)
+
+        // Canceled
+        case 12 =>
+          canceled = true
+          if (!isUnmasked()) {
+            runLoop(succeeded((), 0), nextIteration)
+          } else {
+            // run finalizers immediately
+            asyncCancel(null)
+          }
+
+        case 13 =>
+          val cur = cur0.asInstanceOf[Start[Any]]
+
+          val childName = s"start-${childCount.getAndIncrement()}"
+          val initMask2 = childMask
+
+          val ec = currentCtx
+          val fiber =
+            new IOFiber[Any](childName, scheduler, blockingEc, initMask2, null, cur.ioa, ec)
+
+          // println(s"<$name> spawning <$childName>")
+
+          execute(ec)(fiber)
+
+          runLoop(succeeded(fiber, 0), nextIteration)
+
+        case 14 =>
+          // TODO self-cancelation within a nested poll could result in deadlocks in `both`
+          // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
+          // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
+          val cur = cur0.asInstanceOf[RacePair[Any, Any]]
+
+          val next =
+            IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
+              cb =>
+                IO {
+                  val initMask2 = childMask
+                  val ec = currentCtx
+                  val fiberA = new IOFiber[Any](
+                    s"racePair-left-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2,
+                    null,
+                    cur.ioa,
+                    ec)
+                  val fiberB = new IOFiber[Any](
+                    s"racePair-right-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2,
+                    null,
+                    cur.iob,
+                    ec)
+
+                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+
+                  execute(ec)(fiberA)
+                  execute(ec)(fiberB)
+
+                  Some(fiberA.cancel.both(fiberB.cancel).void)
+                }
             }
 
-            runLoop(cur.ioa, nextIteration)
-        }
+          runLoop(next, nextIteration)
+
+        case 15 =>
+          val cur = cur0.asInstanceOf[Sleep]
+
+          val next = IO.async[Unit] { cb =>
+            IO {
+              val cancel = scheduler.sleep(cur.delay, () => cb(RightUnit))
+              Some(IO(cancel.run()))
+            }
+          }
+
+          runLoop(next, nextIteration)
+
+        // RealTime
+        case 16 =>
+          runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
+
+        // Monotonic
+        case 17 =>
+          runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
+
+        // Cede
+        case 18 =>
+          resumeTag = CedeR
+          resumeNextIteration = nextIteration
+          currentCtx.execute(this)
+
+        case 19 =>
+          val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
+
+          if (masks == cur.id) {
+            masks -= 1
+            conts.push(UnmaskK)
+          }
+
+          runLoop(cur.ioa, nextIteration)
       }
     }
   }
-
-  // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
-  // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-  private def childMask: Int =
-    initMask + 255
 
   // We should attempt finalization if all of the following are true:
   // 1) We own the runloop
   // 2) We have been cancelled
   // 3) We are unmasked
-  private def shouldFinalize(): Boolean =
-    isCanceled() && isUnmasked()
+  private[this] def shouldFinalize(): Boolean =
+    canceled && isUnmasked()
 
-  // we use these forwarders because direct field access (private[this]) is faster
-  private def isCanceled(): Boolean =
-    canceled
-
-  private def hasFinalizers(): Boolean =
-    !finalizers.isEmpty()
-
-  private def pushFinalizer(f: IO[Unit]): Unit =
-    finalizers.push(f)
-
-  private def popFinalizer(): IO[Unit] =
-    finalizers.pop()
-
-  private def pushCont(cont: IOCont): Unit =
-    conts.push(cont.tag)
-
-  private def popObjectState(): AnyRef =
-    objectState.pop()
-
-  private def isUnmasked(): Boolean =
+  private[this] def isUnmasked(): Boolean =
     masks == initMask
 
-  private def pushMask(): Unit =
-    masks += 1
+  private[this] def resume(): Boolean =
+    suspended.compareAndSet(true, false)
 
-  private def popMask(): Unit =
-    masks -= 1
-
-  private[this] def resume(): Boolean = suspended.compareAndSet(true, false)
-
-  private def suspend(): Unit =
+  private[this] def suspend(): Unit =
     suspended.set(true)
 
-  private def suspendWithFinalizationCheck(): Unit = {
+  private[this] def suspendWithFinalizationCheck(): Unit = {
     // full memory barrier
     suspended.compareAndSet(false, true)
     // race condition check: we may have been cancelled before we suspended
     if (shouldFinalize()) {
-      // if we can acquire the run-loop, we can run the finalizers
-      // otherwise somebody else picked it up and will run finalizers
+      // if we can re-acquire the run-loop, we can finalize
+      // otherwise somebody else acquired it and will eventually finalize
       if (resume()) {
         asyncCancel(null)
       }
@@ -655,28 +593,33 @@ private[effect] final class IOFiber[A](
   }
 
   // returns the *new* context, not the old
-  private def popContext(): ExecutionContext = {
+  private[this] def popContext(): ExecutionContext = {
     ctxs.pop()
     val ec = ctxs.peek()
     currentCtx = ec
     ec
   }
 
-  private def succeeded(result: Any, depth: Int): IO[Any] =
+  @tailrec
+  private[this] def succeeded(result: Any, depth: Int): IO[Any] =
     (conts.pop(): @switch) match {
-      case 0 => CancelationLoopK(this, true, result, depth)
-      case 1 => RunTerminusK(this, true, result, depth)
-      case 2 => AsyncK(this, true, result, depth)
-      case 3 => EvalOnK(this, true, result, depth)
-      case 4 => MapK(this, true, result, depth)
-      case 5 => FlatMapK(this, true, result, depth)
-      case 6 => HandleErrorWithK(this, true, result, depth)
-      case 7 => OnCancelK(this, true, result, depth)
-      case 8 => UncancelableK(this, true, result, depth)
-      case 9 => UnmaskK(this, true, result, depth)
+      case 0 => mapK(result, depth)
+      case 1 => flatMapK(result, depth)
+      case 2 => cancelationLoopSuccessK()
+      case 3 => runTerminusSuccessK(result)
+      case 4 => asyncSuccessK(result)
+      case 5 => evalOnSuccessK(result)
+      case 6 =>
+        // handleErrorWithK
+        // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
+        objectState.pop()
+        succeeded(result, depth)
+      case 7 => onCancelSuccessK(result, depth)
+      case 8 => uncancelableSuccessK(result, depth)
+      case 9 => unmaskSuccessK(result, depth)
     }
 
-  private def failed(error: Any, depth: Int): IO[Any] = {
+  private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
     // println(s"<$name> failed() with $error")
     val buffer = conts.unsafeBuffer()
 
@@ -685,7 +628,7 @@ private[effect] final class IOFiber[A](
     var k: Byte = -1
 
     while (i >= 0 && k < 0) {
-      if (buffer(i) == FlatMapK.tag || buffer(i) == MapK.tag)
+      if (buffer(i) == FlatMapK || buffer(i) == MapK)
         i -= 1
       else
         k = buffer(i)
@@ -696,20 +639,20 @@ private[effect] final class IOFiber[A](
 
     // has to be duplicated from succeeded to ensure call-site monomorphism
     (k: @switch) match {
-      case 0 => CancelationLoopK(this, false, error, depth)
-      case 1 => RunTerminusK(this, false, error, depth)
-      case 2 => AsyncK(this, false, error, depth)
-      case 3 => EvalOnK(this, false, error, depth)
-      case 4 => MapK(this, false, error, depth)
-      case 5 => FlatMapK(this, false, error, depth)
-      case 6 => HandleErrorWithK(this, false, error, depth)
-      case 7 => OnCancelK(this, false, error, depth)
-      case 8 => UncancelableK(this, false, error, depth)
-      case 9 => UnmaskK(this, false, error, depth)
+      // (case 0) will never continue to mapK
+      // (case 1) will never continue to flatMapK
+      case 2 => cancelationLoopFailureK(error)
+      case 3 => runTerminusFailureK(error)
+      case 4 => asyncFailureK(error, depth)
+      case 5 => evalOnFailureK(error)
+      case 6 => handleErrorWithK(error, depth)
+      case 7 => onCancelFailureK(error, depth)
+      case 8 => uncancelableFailureK(error, depth)
+      case 9 => unmaskFailureK(error, depth)
     }
   }
 
-  private def execute(ec: ExecutionContext)(action: Runnable): Unit = {
+  private[this] def execute(ec: ExecutionContext)(action: Runnable): Unit = {
     readBarrier()
 
     try {
@@ -721,7 +664,7 @@ private[effect] final class IOFiber[A](
   }
 
   // TODO figure out if the JVM ever optimizes this away
-  private def readBarrier(): Unit = {
+  private[this] def readBarrier(): Unit = {
     suspended.get()
     ()
   }
@@ -734,337 +677,302 @@ private[effect] final class IOFiber[A](
     println(s"canceled = $canceled")
     println(s"masks = $masks (out of initMask = $initMask)")
     println(s"suspended = ${suspended.get()}")
-    println(s"outcome = ${outcome.get()}")
+    println(s"outcome = ${outcome}")
   }
 
-  ///////////////////////////////////////////////
-  // Implementations of preallocated closures. //
-  ///////////////////////////////////////////////
+  ///////////////////////////////////////
+  // Implementations of resume methods //
+  ///////////////////////////////////////
 
-  private[this] final class AsyncContinueClosure extends Runnable {
-    private[this] var either: Either[Throwable, Any] = _
+  /**
+   * @note This method should not be used outside of the IO run loop under any circumstance.
+   */
+  def run(): Unit =
+    (resumeTag: @switch) match {
+      case 0 => execR()
+      case 1 => asyncContinueR()
+      case 2 => blockingR()
+      case 3 => afterBlockingSuccessfulR()
+      case 4 => afterBlockingFailedR()
+      case 5 => evalOnR()
+      case 6 => cedeR()
+    }
 
-    def prepare(e: Either[Throwable, Any]): Unit =
-      either = e
+  private[this] def execR(): Unit = {
+    if (resume()) {
+      //      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
-    def run(): Unit = {
-      val next = either match {
-        case Left(t) => failed(t, 0)
-        case Right(a) => succeeded(a, 0)
+      conts = new ByteStack(16)
+      conts.push(RunTerminusK)
+
+      ctxs = new ArrayStack[ExecutionContext](2)
+      currentCtx = startEC
+      ctxs.push(startEC)
+
+      runLoop(startIO, 0)
+    }
+  }
+
+  private[this] def asyncContinueR(): Unit = {
+    val e = asyncContinueEither
+    asyncContinueEither = null
+    val next = e match {
+      case Left(t) => failed(t, 0)
+      case Right(a) => succeeded(a, 0)
+    }
+
+    runLoop(next, 0)
+  }
+
+  private[this] def blockingR(): Unit = {
+    var error: Throwable = null
+    val cur = blockingCur
+    blockingCur = null
+    val r =
+      try cur.thunk()
+      catch {
+        case NonFatal(t) => error = t
       }
 
-      runLoop(next, 0)
+    if (error == null) {
+      resumeTag = AfterBlockingSuccessfulR
+      afterBlockingSuccessfulResult = r
+      currentCtx.execute(this)
+    } else {
+      resumeTag = AfterBlockingFailedR
+      afterBlockingFailedError = error
+      currentCtx.execute(this)
     }
   }
 
-  private[this] final class BlockingClosure extends Runnable {
-    private[this] var cur: Blocking[Any] = _
-    private[this] var nextIteration: Int = 0
-
-    def prepare(c: Blocking[Any], ni: Int): Unit = {
-      cur = c
-      nextIteration = ni
-    }
-
-    def run(): Unit = {
-      var success = false
-      val r =
-        try {
-          val r = cur.thunk()
-          success = true
-          r
-        } catch {
-          case NonFatal(t) => t
-        }
-
-      afterBlockingClosure.prepare(r, success, nextIteration)
-      currentCtx.execute(afterBlockingClosure)
-    }
+  private[this] def afterBlockingSuccessfulR(): Unit = {
+    val result = afterBlockingSuccessfulResult
+    afterBlockingSuccessfulResult = null
+    runLoop(succeeded(result, 0), resumeNextIteration)
   }
 
-  private[this] final class AfterBlockingClosure extends Runnable {
-    private[this] var result: Any = _
-    private[this] var success: Boolean = false
-    private[this] var nextIteration: Int = 0
-
-    def prepare(r: Any, s: Boolean, ni: Int): Unit = {
-      result = r
-      success = s
-      nextIteration = ni
-    }
-
-    def run(): Unit = {
-      val next = if (success) succeeded(result, 0) else failed(result, 0)
-      runLoop(next, nextIteration)
-    }
+  private[this] def afterBlockingFailedR(): Unit = {
+    val error = afterBlockingFailedError
+    afterBlockingFailedError = null
+    runLoop(failed(error, 0), resumeNextIteration)
   }
 
-  private[this] final class EvalOnClosure extends Runnable {
-    private[this] var ioa: IO[Any] = _
-    private[this] var nextIteration: Int = 0
-
-    def prepare(io: IO[Any], ni: Int): Unit = {
-      ioa = io
-      nextIteration = ni
-    }
-
-    def run(): Unit =
-      runLoop(ioa, nextIteration)
+  private[this] def evalOnR(): Unit = {
+    val ioa = evalOnIOA
+    evalOnIOA = null
+    runLoop(ioa, resumeNextIteration)
   }
 
-  private[this] final class CedeClosure extends Runnable {
-    private[this] var nextIteration: Int = 0
-
-    def prepare(ni: Int): Unit =
-      nextIteration = ni
-
-    def run(): Unit =
-      runLoop(succeeded((), 0), nextIteration)
+  private[this] def cedeR(): Unit = {
+    runLoop(succeeded((), 0), resumeNextIteration)
   }
-}
 
-private object IOFiber {
+  //////////////////////////////////////
+  // Implementations of continuations //
+  //////////////////////////////////////
 
-  private val MaxStackDepth = 512
+  private[this] def mapK(result: Any, depth: Int): IO[Any] = {
+    val f = objectState.pop().asInstanceOf[Any => Any]
 
-  private val childCount = new AtomicInteger(0)
+    var error: Throwable = null
 
-  // prefetch
-  final private val OutcomeCanceled = Outcome.Canceled()
-  final private val OutcomeErrored = Outcome.Errored
-  final private val OutcomeCompleted = Outcome.Completed
-
-  // similar prefetch for AsyncState
-  private[this] val AsyncStateInitial = AsyncState.Initial
-  private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
-  private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
-
-  ////////////////////////////////////////////////
-  // preallocation of all necessary continuations
-  ////////////////////////////////////////////////
-
-  private object CancelationLoopK extends IOCont(0) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-//      println(s"${named}: cancel loop in ${Thread.currentThread().getName}")
-
-      if (hasFinalizers()) {
-        pushCont(this)
-        runLoop(popFinalizer(), 0)
-      } else {
-        // resume external canceller
-        val cb = popObjectState()
-        if (cb != null) {
-          cb.asInstanceOf[Either[Throwable, Unit] => Unit](Right(()))
-        }
-        // resume joiners
-        done(OutcomeCanceled.asInstanceOf[OutcomeIO[A]])
+    val transformed =
+      try f(result)
+      catch {
+        case NonFatal(t) => error = t
       }
 
-      null
+    if (depth > MaxStackDepth) {
+      if (error == null) IO.Pure(transformed)
+      else IO.Error(error)
+    } else {
+      if (error == null) succeeded(transformed, depth + 1)
+      else failed(error, depth + 1)
     }
   }
 
-  private object RunTerminusK extends IOCont(1) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self.{done, isCanceled}
+  private[this] def flatMapK(result: Any, depth: Int): IO[Any] = {
+    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
 
-      val outcome: OutcomeIO[A] =
-        if (isCanceled()) // this can happen if we don't check the canceled flag before completion
-          OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
-        else if (success)
-          OutcomeCompleted(IO.pure(result.asInstanceOf[A]))
-        else
-          OutcomeErrored(result.asInstanceOf[Throwable])
-
-      done(outcome)
-
-      null
+    try f(result)
+    catch {
+      case NonFatal(t) => failed(t, depth + 1)
     }
   }
 
-  private object AsyncK extends IOCont(2) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
+  private[this] def cancelationLoopSuccessK(): IO[Any] = {
+    if (!finalizers.isEmpty()) {
+      conts.push(CancelationLoopK)
+      runLoop(finalizers.pop(), 0)
+    } else {
+      // resume external canceller
+      val cb = objectState.pop()
+      if (cb != null) {
+        cb.asInstanceOf[Either[Throwable, Unit] => Unit](RightUnit)
+      }
+      // resume joiners
+      done(OutcomeCanceled)
+    }
 
-      val state = popObjectState().asInstanceOf[AtomicReference[AsyncState]]
-      val done = popObjectState().asInstanceOf[AtomicBoolean]
+    null
+  }
 
-      if (!success) {
-        if (!done.getAndSet(true)) {
-          // if we get an error before the callback, then propagate
-          failed(result, depth + 1)
-        } else {
-          // we got the error *after* the callback, but we have queueing semantics
-          // therefore, side-channel the callback results
-          // println(state.get())
+  private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
+    currentCtx.reportFailure(t)
 
-          asyncContinue(state, Left(result.asInstanceOf[Throwable]))
+    cancelationLoopSuccessK()
+  }
 
-          null
-        }
-      } else {
-        if (isUnmasked()) {
-          result.asInstanceOf[Option[IO[Unit]]] match {
-            case Some(cancelToken) =>
-              pushFinalizer(cancelToken)
+  private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
+    val outcome: OutcomeIO[A] =
+      if (canceled) // this can happen if we don't check the canceled flag before completion
+        OutcomeCanceled
+      else
+        Outcome.Completed(IO.pure(result.asInstanceOf[A]))
 
-              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
-                // the callback was invoked before registration
-                popFinalizer()
-                asyncContinue(state, state.get().result)
-              } else {
-                suspendWithFinalizationCheck()
-              }
+    done(outcome)
+    null
+  }
 
-            case None =>
-              if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
-                // the callback was invoked before registration
-                asyncContinue(state, state.get().result)
-              } else {
-                suspendWithFinalizationCheck()
-              }
+  private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
+    val outcome: OutcomeIO[A] =
+      if (canceled) // this can happen if we don't check the canceled flag before completion
+        OutcomeCanceled
+      else
+        Outcome.Errored(t)
+
+    done(outcome)
+    null
+  }
+
+  private[this] def asyncSuccessK(result: Any): IO[Any] = {
+    val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
+    objectState.pop()
+
+    if (isUnmasked()) {
+      result.asInstanceOf[Option[IO[Unit]]] match {
+        case Some(cancelToken) =>
+          finalizers.push(cancelToken)
+
+          if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
+            // the callback was invoked before registration
+            finalizers.pop()
+            asyncContinue(state, state.get().result)
+          } else {
+            suspendWithFinalizationCheck()
           }
-        } else {
-          // if we're masked, then don't even bother registering the cancel token
+
+        case None =>
           if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
             // the callback was invoked before registration
             asyncContinue(state, state.get().result)
           } else {
             suspendWithFinalizationCheck()
           }
-        }
-
-        null
+      }
+    } else {
+      // if we're masked, then don't even bother registering the cancel token
+      if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
+        // the callback was invoked before registration
+        asyncContinue(state, state.get().result)
+      } else {
+        suspendWithFinalizationCheck()
       }
     }
+
+    null
   }
 
-  private object EvalOnK extends IOCont(3) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
+  private[this] def asyncFailureK(t: Throwable, depth: Int): IO[Any] = {
+    val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
+    val done = objectState.pop().asInstanceOf[AtomicBoolean]
 
-      val ec = popContext()
-
-      // special cancelation check to ensure we don't unnecessarily fork the runloop here
-      if (!shouldFinalize()) {
-        execute(ec) { () =>
-          if (success)
-            runLoop(succeeded(result, 0), 0)
-          else
-            runLoop(failed(result, 0), 0)
-        }
-      } else {
-        asyncCancel(null)
-      }
+    if (!done.getAndSet(true)) {
+      // if we get an error before the callback, then propagate
+      failed(t, depth + 1)
+    } else {
+      // we got the error *after* the callback, but we have queueing semantics
+      // so drop the results
+      asyncContinue(state, Left(t))
 
       null
     }
   }
 
-  // NB: this means repeated map is stack-unsafe
-  private object MapK extends IOCont(4) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
+  private[this] def evalOnSuccessK(result: Any): IO[Any] = {
+    val ec = popContext()
 
-      val f = popObjectState().asInstanceOf[Any => Any]
+    if (!shouldFinalize()) {
+      resumeTag = AfterBlockingSuccessfulR
+      afterBlockingSuccessfulResult = result
+      resumeNextIteration = 0
+      execute(ec)(this)
+    } else {
+      asyncCancel(null)
+    }
 
-      var success = false
+    null
+  }
 
-      val transformed =
-        try {
-          val back = f(result)
-          success = true
-          back
-        } catch {
-          case NonFatal(t) => t
-        }
+  private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
+    val ec = popContext()
 
-      if (depth > MaxStackDepth) {
-        if (success)
-          IO.Pure(transformed)
-        else
-          IO.Error(transformed.asInstanceOf[Throwable])
-      } else {
-        if (success)
-          succeeded(transformed, depth + 1)
-        else
-          failed(transformed, depth + 1)
-      }
+    if (!shouldFinalize()) {
+      resumeTag = AfterBlockingFailedR
+      afterBlockingFailedError = t
+      resumeNextIteration = 0
+      execute(ec)(this)
+    } else {
+      asyncCancel(null)
+    }
+
+    null
+  }
+
+  private[this] def handleErrorWithK(t: Throwable, depth: Int): IO[Any] = {
+    val f = objectState.pop().asInstanceOf[Throwable => IO[Any]]
+
+    try f(t)
+    catch {
+      case NonFatal(t) => failed(t, depth + 1)
     }
   }
 
-  private object FlatMapK extends IOCont(5) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-      val f = popObjectState().asInstanceOf[Any => IO[Any]]
-
-      try {
-        f(result)
-      } catch {
-        case NonFatal(t) => failed(t, depth + 1)
-      }
-    }
+  private[this] def onCancelSuccessK(result: Any, depth: Int): IO[Any] = {
+    finalizers.pop()
+    succeeded(result, depth + 1)
   }
 
-  private object HandleErrorWithK extends IOCont(6) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-      val f = popObjectState().asInstanceOf[Throwable => IO[Any]]
-
-      if (success) {
-        // if it's *not* an error, just pass it along
-        if (depth > MaxStackDepth)
-          IO.Pure(result)
-        else
-          succeeded(result, depth + 1)
-      } else {
-        try {
-          f(result.asInstanceOf[Throwable])
-        } catch {
-          case NonFatal(t) => failed(t, depth + 1)
-        }
-      }
-    }
+  private[this] def onCancelFailureK(t: Throwable, depth: Int): IO[Any] = {
+    finalizers.pop()
+    failed(t, depth + 1)
   }
 
-  private object OnCancelK extends IOCont(7) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-      popFinalizer()
-
-      if (success)
-        succeeded(result, depth + 1)
-      else
-        failed(result, depth + 1)
-    }
+  private[this] def uncancelableSuccessK(result: Any, depth: Int): IO[Any] = {
+    masks -= 1
+    succeeded(result, depth + 1)
   }
 
-  private object UncancelableK extends IOCont(8) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-      popMask()
-      if (success)
-        succeeded(result, depth + 1)
-      else
-        failed(result, depth + 1)
-    }
+  private[this] def uncancelableFailureK(t: Throwable, depth: Int): IO[Any] = {
+    masks -= 1
+    failed(t, depth + 1)
   }
 
-  private object UnmaskK extends IOCont(9) {
-    def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any] = {
-      import self._
-
-      pushMask()
-      if (success)
-        succeeded(result, depth + 1)
-      else
-        failed(result, depth + 1)
-    }
+  private[this] def unmaskSuccessK(result: Any, depth: Int): IO[Any] = {
+    masks += 1
+    succeeded(result, depth + 1)
   }
+
+  private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
+    masks += 1
+    failed(t, depth + 1)
+  }
+}
+
+private object IOFiber {
+  private val childCount = new AtomicInteger(0)
+
+  // prefetch
+  final private val OutcomeCanceled = Outcome.Canceled()
+  final private val RightUnit = Right(())
 }

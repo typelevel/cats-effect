@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.unsafe
 
-// specialized version of (IOFiber, Boolean, Any) => Unit
-abstract private[effect] class IOCont(val tag: Byte) {
-  def apply[A](self: IOFiber[A], success: Boolean, result: Any, depth: Int): IO[Any]
+import scala.concurrent.Future
+
+trait UnsafeRun[F[_]] {
+  def unsafeRunFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 }

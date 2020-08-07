@@ -23,6 +23,10 @@ trait IOApp {
 
   def run(args: List[String]): IO[Int]
 
+  protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
+
+  protected implicit val unsafeRunForIO: unsafe.UnsafeRun[IO] = runtime.unsafeRunForIO
+
   final def main(args: Array[String]): Unit = {
     // An infinite heartbeat to keep main alive.  This is similar to
     // `IO.never`, except `IO.never` doesn't schedule any tasks and is

@@ -201,7 +201,7 @@ object Concurrent {
       override implicit protected def L: Monoid[L] = L0
     }
 
-  trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
+  private[kernel] trait OptionTConcurrent[F[_], E] extends Concurrent[OptionT[F, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -244,7 +244,7 @@ object Concurrent {
 
     def forceR[A, B](fa: OptionT[F, A])(fb: OptionT[F, B]): OptionT[F, B] =
       OptionT(
-        fa.value.attempt >> fb.value
+        F.forceR(fa.value)(fb.value)
       )
 
     def pure[A](a: A): OptionT[F, A] = delegate.pure(a)
@@ -275,7 +275,8 @@ object Concurrent {
       }
   }
 
-  trait EitherTConcurrent[F[_], E0, E] extends Concurrent[EitherT[F, E0, *], E] {
+  private[kernel] trait EitherTConcurrent[F[_], E0, E]
+      extends Concurrent[EitherT[F, E0, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -321,7 +322,7 @@ object Concurrent {
 
     def forceR[A, B](fa: EitherT[F, E0, A])(fb: EitherT[F, E0, B]): EitherT[F, E0, B] =
       EitherT(
-        fa.value.attempt >> fb.value
+        F.forceR(fa.value)(fb.value)
       )
 
     def pure[A](a: A): EitherT[F, E0, A] = delegate.pure(a)
@@ -353,7 +354,7 @@ object Concurrent {
       }
   }
 
-  trait IorTConcurrent[F[_], L, E] extends Concurrent[IorT[F, L, *], E] {
+  private[kernel] trait IorTConcurrent[F[_], L, E] extends Concurrent[IorT[F, L, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -399,7 +400,7 @@ object Concurrent {
 
     def forceR[A, B](fa: IorT[F, L, A])(fb: IorT[F, L, B]): IorT[F, L, B] =
       IorT(
-        fa.value.attempt >> fb.value
+        F.forceR(fa.value)(fb.value)
       )
 
     def pure[A](a: A): IorT[F, L, A] = delegate.pure(a)
@@ -430,7 +431,7 @@ object Concurrent {
       }
   }
 
-  trait KleisliConcurrent[F[_], R, E] extends Concurrent[Kleisli[F, R, *], E] {
+  private[kernel] trait KleisliConcurrent[F[_], R, E] extends Concurrent[Kleisli[F, R, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -477,7 +478,7 @@ object Concurrent {
     }
 
     def forceR[A, B](fa: Kleisli[F, R, A])(fb: Kleisli[F, R, B]): Kleisli[F, R, B] =
-      Kleisli(r => fa.run(r).attempt >> fb.run(r))
+      Kleisli(r => F.forceR(fa.run(r))(fb.run(r)))
 
     def pure[A](a: A): Kleisli[F, R, A] = delegate.pure(a)
 
@@ -492,10 +493,13 @@ object Concurrent {
     def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
       delegate.tailRecM(a)(f)
 
-    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = oc.mapK(nat)
+    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
-    val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
-      def apply[A](fa: F[A]) = Kleisli.liftF(fa)
+      val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
+        def apply[B](fa: F[B]) = Kleisli.liftF(fa)
+      }
+
+      oc.mapK(nat)
     }
 
     def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
@@ -506,7 +510,7 @@ object Concurrent {
       }
   }
 
-  trait WriterTConcurrent[F[_], L, E] extends Concurrent[WriterT[F, L, *], E] {
+  private[kernel] trait WriterTConcurrent[F[_], L, E] extends Concurrent[WriterT[F, L, *], E] {
 
     implicit protected def F: Concurrent[F, E]
 
@@ -554,7 +558,7 @@ object Concurrent {
 
     def forceR[A, B](fa: WriterT[F, L, A])(fb: WriterT[F, L, B]): WriterT[F, L, B] =
       WriterT(
-        fa.run.attempt >> fb.run
+        F.forceR(fa.run)(fb.run)
       )
 
     def pure[A](a: A): WriterT[F, L, A] = delegate.pure(a)
