@@ -80,12 +80,12 @@ private final class IOFiber[A](
   private[this] var ctxs: ArrayStack[ExecutionContext] = _
 
   private[this] var canceled: Boolean = false
+  private[this] var masks: Int = initMask
+  private[this] var finalizing: Boolean = false
 
   // allow for 255 masks before conflicting; 255 chosen because it is a familiar bound, and because it's evenly divides UnsignedInt.MaxValue
   // this scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
   private[this] val childMask: Int = initMask + 255
-
-  private[this] var masks: Int = initMask
 
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
 
@@ -247,6 +247,8 @@ private final class IOFiber[A](
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
     //       println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    finalizing = true
+
     if (!finalizers.isEmpty()) {
       objectState.push(cb)
 
@@ -331,6 +333,10 @@ private final class IOFiber[A](
            */
           val state = new AtomicReference[AsyncState](AsyncStateInitial)
 
+          // Async callbacks may only resume if the finalization state
+          // remains the same after we re-acquire the runloop
+          val wasFinalizing = finalizing
+
           objectState.push(done)
           objectState.push(state)
 
@@ -352,13 +358,20 @@ private final class IOFiber[A](
               @tailrec
               def loop(): Unit = {
                 if (resume()) {
-                  if (old == AsyncStateRegisteredWithFinalizer) {
-                    // we completed and were not canceled, so we pop the finalizer
-                    // note that we're safe to do so since we own the runloop
-                    finalizers.pop()
-                  }
+                  // Race condition check:
+                  // If finalization occurs and an async finalizer suspends the runloop,
+                  // a window is created where a normal async resumes the runloop.
+                  if (finalizing == wasFinalizing) {
+                    if (old == AsyncStateRegisteredWithFinalizer) {
+                      // we completed and were not canceled, so we pop the finalizer
+                      // note that we're safe to do so since we own the runloop
+                      finalizers.pop()
+                    }
 
-                  asyncContinue(state, e)
+                    asyncContinue(state, e)
+                  } else {
+                    suspend()
+                  }
                 } else if (!shouldFinalize()) {
                   loop()
                 }
@@ -571,8 +584,8 @@ private final class IOFiber[A](
     suspended.compareAndSet(false, true)
     // race condition check: we may have been cancelled before we suspended
     if (shouldFinalize()) {
-      // if we can acquire the run-loop, we can run the finalizers
-      // otherwise somebody else picked it up and will run finalizers
+      // if we can re-acquire the run-loop, we can finalize
+      // otherwise somebody else acquired it and will eventually finalize
       if (resume()) {
         asyncCancel(null)
       }
