@@ -83,16 +83,22 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def bracket[B](use: A => IO[B])(release: A => IO[Unit]): IO[B] =
     bracketCase(use)((a, _) => release(a))
 
-  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] =
+  def bracketCase[B](use: A => IO[B])(release: (A, OutcomeIO[B]) => IO[Unit]): IO[B] = {
+    def doRelease(a: A, outcome: OutcomeIO[B]): IO[Unit] =
+      release(a, outcome).handleErrorWith { t =>
+        IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+      }
+
     IO uncancelable { poll =>
       flatMap { a =>
         val finalized = poll(use(a)).onCancel(release(a, Outcome.Canceled()))
         val handled = finalized onError {
-          case e => release(a, Outcome.Errored(e)).attempt.void
+          case e => doRelease(a, Outcome.Errored(e))
         }
-        handled.flatMap(b => release(a, Outcome.Completed(IO.pure(b))).attempt.as(b))
+        handled.flatMap(b => doRelease(a, Outcome.Completed(IO.pure(b))).as(b))
       }
     }
+  }
 
   def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
 
@@ -112,19 +118,25 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def onCancel(fin: IO[Unit]): IO[A] =
     IO.OnCancel(this, fin)
 
-  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] =
+  def onCase(pf: PartialFunction[OutcomeIO[A @uncheckedVariance], IO[Unit]]): IO[A] = {
+    def doOutcome(outcome: OutcomeIO[A]): IO[Unit] =
+      pf.lift(outcome)
+        .fold(IO.unit)(_.handleErrorWith { t =>
+          IO.executionContext.flatMap(ec => IO(ec.reportFailure(t)))
+        })
+
     IO uncancelable { poll =>
       val base = poll(this)
       val finalized = pf.lift(Outcome.Canceled()).map(base.onCancel(_)).getOrElse(base)
 
       finalized.attempt flatMap {
         case Left(e) =>
-          pf.lift(Outcome.Errored(e)).map(_.attempt).getOrElse(IO.unit) *> IO.raiseError(e)
-
+          doOutcome(Outcome.Errored(e)) *> IO.raiseError(e)
         case Right(a) =>
-          pf.lift(Outcome.Completed(IO.pure(a))).map(_.attempt).getOrElse(IO.unit).as(a)
+          doOutcome(Outcome.Completed(IO.pure(a))).as(a)
       }
     }
+  }
 
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.uncancelable { poll =>
@@ -221,7 +233,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           F.uncancelable { poll =>
             val poll2 = new (IO ~> IO) {
               def apply[B](ioa: IO[B]): IO[B] =
-                F.to[IO](poll(ioa.to[F]))
+                IO.UnmaskTo(ioa, poll)
             }
 
             body(poll2).to[F]
@@ -245,7 +257,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
-        case IO.Unmask(ioa, _) => ioa.to[F] // polling should be handled by F
+        case IO.UnmaskRunLoop(_, _) =>
+          // Will never be executed. Case demanded for exhaustiveness.
+          // ioa.to[F] // polling should be handled by F
+          sys.error("impossible")
+
+        case self: IO.UnmaskTo[_, _] =>
+          // casts are safe because we only ever construct UnmaskF instances in this method
+          val ioa = self.ioa.asInstanceOf[IO[A]]
+          val poll = self.poll.asInstanceOf[F ~> F]
+          poll(ioa.to[F])
       }
     }
 
@@ -283,17 +304,20 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       implicit runtime: unsafe.IORuntime): IOFiber[A @uncheckedVariance] = {
 
     val fiber = new IOFiber(
+      "main",
       runtime.scheduler,
       runtime.blocking,
+      0,
       (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
-      0)
+      this,
+      runtime.compute
+    )
 
-    if (shift) {
-      fiber.prepare(this, runtime.compute)
+    if (shift)
       runtime.compute.execute(fiber)
-    } else
-      fiber.exec(this, runtime.compute)
+    else
+      fiber.run()
 
     fiber
   }
@@ -603,7 +627,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] case object Cede extends IO[Unit] { def tag = 18 }
 
   // INTERNAL
-  private[effect] final case class Unmask[+A](ioa: IO[A], id: Int) extends IO[A] {
+  private[effect] final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
     def tag = 19
+  }
+
+  // Not part of the run loop. Only used in the implementation of IO#to.
+  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: F ~> F) extends IO[A] {
+    def tag = -1
   }
 }
