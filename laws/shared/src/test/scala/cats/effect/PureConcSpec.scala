@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{Eq, Order, Show}
-import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT, Ior}
+import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.MiniInt
@@ -88,32 +88,37 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
         )
     )
 
-  implicit def orderIor[A, B](implicit A: Order[A], B: Order[B], AB: Order[(A, B)]): Order[Ior[A, B]] = new Order[Ior[A, B]] {
+  implicit def orderIor[A, B](
+      implicit A: Order[A],
+      B: Order[B],
+      AB: Order[(A, B)]): Order[Ior[A, B]] =
+    new Order[Ior[A, B]] {
 
-    override def compare(x: Ior[A,B], y: Ior[A,B]): Int = (x,y) match {
-      case (Ior.Left(a1), Ior.Left(a2)) => A.compare(a1, a2)
-      case (Ior.Left(_), _) => -1
-      case (Ior.Both(a1, b1), Ior.Both(a2, b2)) => AB.compare((a1, b1), (a2, b2))
-      case (Ior.Both(_, _), Ior.Left(_)) => 1
-      case (Ior.Both(_, _), Ior.Right(_)) => -1
-      case (Ior.Right(b1), Ior.Right(b2)) => B.compare(b1, b2)
-      case (Ior.Right(_), _) => 1
+      override def compare(x: Ior[A, B], y: Ior[A, B]): Int =
+        (x, y) match {
+          case (Ior.Left(a1), Ior.Left(a2)) => A.compare(a1, a2)
+          case (Ior.Left(_), _) => -1
+          case (Ior.Both(a1, b1), Ior.Both(a2, b2)) => AB.compare((a1, b1), (a2, b2))
+          case (Ior.Both(_, _), Ior.Left(_)) => 1
+          case (Ior.Both(_, _), Ior.Right(_)) => -1
+          case (Ior.Right(b1), Ior.Right(b2)) => B.compare(b1, b2)
+          case (Ior.Right(_), _) => 1
+        }
+
     }
-
-
-  }
 
   implicit def orderIorT[F[_], A, B](implicit Ord: Order[F[Ior[A, B]]]): Order[IorT[F, A, B]] =
     Order.by(_.value)
 
   implicit def execIorT[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
     Prop(
-    pure.run(TimeT.run(sbool.value)).fold(
-      false,
-      _ => false,
-      iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
+      pure
+        .run(TimeT.run(sbool.value))
+        .fold(
+          false,
+          _ => false,
+          iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
     )
-
 
   //This is highly dubious
   implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
@@ -122,11 +127,9 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
   //This is highly dubious
   implicit def execKleisli(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
     Prop(
-    pure.run(TimeT.run(sbool.run(MiniInt.unsafeFromInt(0))))
-      .fold(
-        false,
-        _ => false,
-        bO => bO.fold(false)(b => b))
+      pure
+        .run(TimeT.run(sbool.run(MiniInt.unsafeFromInt(0))))
+        .fold(false, _ => false, bO => bO.fold(false)(b => b))
     )
 
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
