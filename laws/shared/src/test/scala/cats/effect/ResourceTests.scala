@@ -93,6 +93,21 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  test("releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
+    implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
+      override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
+    }
+    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+      var acquired: Set[Int] = Set.empty
+      var released: Set[Int] = Set.empty
+      def observe(r: Resource[IO, Int]) = r.flatMap { a =>
+        Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
+      }
+      observe(rx).combineK(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+      released <-> acquired
+    }
+  }
+
   test("resource from AutoCloseable is auto closed") {
     var closed = false
     val autoCloseable = new AutoCloseable {

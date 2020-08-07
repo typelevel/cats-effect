@@ -561,11 +561,19 @@ abstract private[effect] class ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectSemigroupKForResource2[F[_]](implicit F0: Bracket[F, Throwable],
+  implicit def catsEffectSemigroupKForResource2[F[_]](implicit F0: Sync[F],
                                                       K: SemigroupK[F]): SemigroupK[Resource[F, *]] =
     new SemigroupK[Resource[F, *]] {
-      final override def combineK[A](a: Resource[F, A], b: Resource[F, A]): Resource[F, A] =
-        Resource(K.combineK(a.allocated, b.allocated))
+
+      final override def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
+        Resource
+          .make(Ref[F].of(Sync[F].unit))(_.get.flatten)
+          .evalMap { finalizers =>
+            def allocate(r: Resource[F, A]): F[A] =
+              r.allocated.flatMap { case (a, release) => finalizers.update(_.guarantee(release)).as(a) }
+
+            K.combineK(allocate(ra), allocate(rb))
+          }
     }
 
   // For binary compatibility.
