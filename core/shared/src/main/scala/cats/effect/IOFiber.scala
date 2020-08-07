@@ -359,8 +359,8 @@ private final class IOFiber[A](
               def loop(): Unit = {
                 if (resume()) {
                   // Race condition check:
-                  // An Async node's callback may resume after finalization begins
-                  // and an async finalizer runs, which suspends the runloop again.
+                  // If finalization occurs and an async finalizer suspends the runloop,
+                  // a window is created where a normal async resumes the runloop.
                   if (finalizing == wasFinalizing) {
                     if (old == AsyncStateRegisteredWithFinalizer) {
                       // we completed and were not canceled, so we pop the finalizer
