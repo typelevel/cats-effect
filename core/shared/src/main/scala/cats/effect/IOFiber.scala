@@ -230,19 +230,11 @@ private final class IOFiber[A](
   3. Callback completes after cancelation and can't take over the runloop
   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
    */
-  private[this] def asyncContinue(
-      state: AtomicReference[AsyncState],
-      e: Either[Throwable, Any]): Unit = {
-    state.lazySet(AsyncStateInitial) // avoid leaks
-
-    if (!shouldFinalize()) {
-      val ec = currentCtx
-      resumeTag = AsyncContinueR
-      asyncContinueEither = e
-      execute(ec)(this)
-    } else {
-      asyncCancel(null)
-    }
+  private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
+    val ec = currentCtx
+    resumeTag = AsyncContinueR
+    asyncContinueEither = e
+    execute(ec)(this)
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
@@ -358,17 +350,23 @@ private final class IOFiber[A](
               @tailrec
               def loop(): Unit = {
                 if (resume()) {
+                  state.lazySet(AsyncStateInitial) // avoid leaks
+
                   // Race condition check:
                   // If finalization occurs and an async finalizer suspends the runloop,
                   // a window is created where a normal async resumes the runloop.
                   if (finalizing == wasFinalizing) {
-                    if (old == AsyncStateRegisteredWithFinalizer) {
-                      // we completed and were not canceled, so we pop the finalizer
-                      // note that we're safe to do so since we own the runloop
-                      finalizers.pop()
-                    }
+                    if (!shouldFinalize()) {
+                      if (old == AsyncStateRegisteredWithFinalizer) {
+                        // we completed and were not canceled, so we pop the finalizer
+                        // note that we're safe to do so since we own the runloop
+                        finalizers.pop()
+                      }
 
-                    asyncContinue(state, e)
+                      asyncContinue(e)
+                    } else {
+                      asyncCancel(null)
+                    }
                   } else {
                     suspend()
                   }
@@ -856,8 +854,16 @@ private final class IOFiber[A](
 
           if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
             // the callback was invoked before registration
-            finalizers.pop()
-            asyncContinue(state, state.get().result)
+
+            val result = state.get().result
+            state.lazySet(AsyncStateInitial) // avoid leaks
+
+            if (!shouldFinalize()) {
+              finalizers.pop()
+              asyncContinue(result)
+            } else {
+              asyncCancel(null)
+            }
           } else {
             suspendWithFinalizationCheck()
           }
@@ -865,7 +871,14 @@ private final class IOFiber[A](
         case None =>
           if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
             // the callback was invoked before registration
-            asyncContinue(state, state.get().result)
+
+            val result = state.get().result
+            state.lazySet(AsyncStateInitial) // avoid leaks
+
+            if (!shouldFinalize())
+              asyncContinue(result)
+            else
+              asyncCancel(null)
           } else {
             suspendWithFinalizationCheck()
           }
@@ -874,7 +887,14 @@ private final class IOFiber[A](
       // if we're masked, then don't even bother registering the cancel token
       if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
         // the callback was invoked before registration
-        asyncContinue(state, state.get().result)
+
+        val result = state.get().result
+        state.lazySet(AsyncStateInitial) // avoid leaks
+
+        if (!shouldFinalize())
+          asyncContinue(result)
+        else
+          asyncCancel(null)
       } else {
         suspendWithFinalizationCheck()
       }
@@ -893,7 +913,13 @@ private final class IOFiber[A](
     } else {
       // we got the error *after* the callback, but we have queueing semantics
       // so drop the results
-      asyncContinue(state, Left(t))
+
+      state.lazySet(AsyncStateInitial) // avoid leaks
+
+      if (!shouldFinalize())
+        asyncContinue(Left(t))
+      else
+        asyncCancel(null)
 
       null
     }
