@@ -96,6 +96,34 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
         Left(ThrownException))
     }
 
+    "redeemWith correctly recovers from errors" in {
+      case object TestException extends RuntimeException
+      SyncIO
+        .raiseError[Unit](TestException)
+        .redeemWith(_ => SyncIO.pure(42), _ => SyncIO.pure(43)) must completeAsSync(42)
+    }
+
+    "redeemWith binds successful results" in {
+      SyncIO.unit.redeemWith(_ => SyncIO.pure(41), _ => SyncIO.pure(42)) must completeAsSync(42)
+    }
+
+    "redeemWith catches exceptions throw in recovery function" in {
+      case object TestException extends RuntimeException
+      case object ThrownException extends RuntimeException
+      SyncIO
+        .raiseError[Unit](TestException)
+        .redeemWith(_ => throw ThrownException, _ => SyncIO.pure(42))
+        .attempt must completeAsSync(Left(ThrownException))
+    }
+
+    "redeemWith catches exceptions thrown in bind function" in {
+      case object ThrownException extends RuntimeException
+      SyncIO
+        .unit
+        .redeem(_ => SyncIO.pure(41), _ => throw ThrownException)
+        .attempt must completeAsSync(Left(ThrownException))
+    }
+
     "evaluate 10,000 consecutive map continuations" in {
       def loop(i: Int): SyncIO[Unit] =
         if (i < 10000)

@@ -154,6 +154,9 @@ sealed abstract class SyncIO[+A] private () {
   def redeem[B](recover: Throwable => B, map: A => B): SyncIO[B] =
     SyncIO.Redeem(this, recover, map)
 
+  def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+    SyncIO.RedeemWith(this, recover, bind)
+
   /**
    * Converts the source `SyncIO` into any `F` type that implements
    * the [[Sync]] type class.
@@ -173,6 +176,8 @@ sealed abstract class SyncIO[+A] private () {
         case SyncIO.Failure(t) => F.raiseError(t)
         case self: SyncIO.Attempt[_] => F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
         case SyncIO.Redeem(ioa, recover, map) => F.redeem(ioa.to[F])(recover, map)
+        case SyncIO.RedeemWith(ioa, recover, bind) =>
+          F.redeemWith(ioa.to[F])(recover.andThen(_.to[F]), bind.andThen(_.to[F]))
       }
     }
 
@@ -210,6 +215,7 @@ sealed abstract class SyncIO[+A] private () {
     val RunTerminusK: Byte = 3
     val AttemptK: Byte = 4
     val RedeemK: Byte = 5
+    val RedeemWithK: Byte = 6
 
     val conts = new ByteStack(16)
     val objectState = new ArrayStack[AnyRef](16)
@@ -288,6 +294,14 @@ sealed abstract class SyncIO[+A] private () {
           conts.push(RedeemK)
 
           runLoop(cur.ioa)
+
+        case 10 =>
+          val cur = cur0.asInstanceOf[SyncIO.RedeemWith[Any, Any]]
+
+          objectState.push(cur)
+          conts.push(RedeemWithK)
+
+          runLoop(cur.ioa)
       }
 
     @tailrec
@@ -303,6 +317,7 @@ sealed abstract class SyncIO[+A] private () {
         case 3 => SyncIO.Success(result)
         case 4 => succeeded(Right(result), depth + 1)
         case 5 => redeemSuccessK(result, depth)
+        case 6 => redeemWithSuccessK(result, depth)
       }
 
     def failed(error: Throwable, depth: Int): SyncIO[Any] = {
@@ -327,6 +342,7 @@ sealed abstract class SyncIO[+A] private () {
         case 3 => SyncIO.Failure(error)
         case 4 => succeeded(Left(error), depth + 1)
         case 5 => redeemFailureK(error, depth)
+        case 6 => redeemWithFailureK(error, depth)
       }
     }
 
@@ -404,6 +420,24 @@ sealed abstract class SyncIO[+A] private () {
       } else {
         if (error == null) succeeded(transformed, depth + 1)
         else failed(error, depth + 1)
+      }
+    }
+
+    def redeemWithSuccessK(result: Any, depth: Int): SyncIO[Any] = {
+      val wrapper = objectState.pop().asInstanceOf[SyncIO.RedeemWith[Any, Any]]
+
+      try wrapper.bind(result)
+      catch {
+        case NonFatal(t) => failed(t, depth + 1)
+      }
+    }
+
+    def redeemWithFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
+      val wrapper = objectState.pop().asInstanceOf[SyncIO.RedeemWith[Any, Any]]
+
+      try wrapper.recover(t)
+      catch {
+        case NonFatal(t) => failed(t, depth + 1)
       }
     }
 
@@ -615,6 +649,10 @@ object SyncIO extends SyncIOLowPriorityImplicits {
 
     override def redeem[A, B](fa: SyncIO[A])(recover: Throwable => B, f: A => B): SyncIO[B] =
       fa.redeem(recover, f)
+
+    override def redeemWith[A, B](
+        fa: SyncIO[A])(recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
+      fa.redeemWith(recover, bind)
   }
 
   implicit def syncEffectForSyncIO: SyncEffect[SyncIO] = _syncEffectForSyncIO
@@ -669,5 +707,13 @@ object SyncIO extends SyncIOLowPriorityImplicits {
       map: A => B)
       extends SyncIO[B] {
     def tag = 9
+  }
+
+  private[effect] final case class RedeemWith[A, +B](
+      ioa: SyncIO[A],
+      recover: Throwable => SyncIO[B],
+      bind: A => SyncIO[B])
+      extends SyncIO[B] {
+    def tag = 10
   }
 }
