@@ -135,7 +135,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
               IO {
                 if (done.get() && cb.get() != null) {
                   // this indicates that the blocking action completed *before* we registered the callback
-                  finCb(RightUnit)    // ...so we just complete cancelation ourselves
+                  finCb(RightUnit) // ...so we just complete cancelation ourselves
                 }
               }
             }

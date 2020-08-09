@@ -104,7 +104,7 @@ private final class IOFiber[A](
   private[this] val AsyncStateInitial = AsyncState.Initial
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
-  
+
   private[this] val TypeBlocking = Sync.Type.Blocking
 
   // mutable state for resuming the fiber in different states
@@ -982,6 +982,6 @@ private object IOFiber {
   private val childCount = new AtomicInteger(0)
 
   // prefetch
-  final private val OutcomeCanceled = Outcome.Canceled()
-  final private val RightUnit = Right(())
+  private val OutcomeCanceled = Outcome.Canceled()
+  private[effect] val RightUnit = Right(())
 }
