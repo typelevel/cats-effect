@@ -104,8 +104,8 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                 if (canInterrupt.tryAcquire()) {
                   try {
                     target.interrupt()
-                    break = false
                   } finally {
+                    break = false
                     canInterrupt.release()
                   }
                 }
