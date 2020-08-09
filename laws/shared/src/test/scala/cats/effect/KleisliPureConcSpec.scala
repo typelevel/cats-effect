@@ -16,8 +16,11 @@
 
 package cats.effect
 
-import cats.Show
+import cats.{Eq, Show}
+import cats.data.Kleisli
 //import cats.laws.discipline.{AlignTests, ParallelTests}
+import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.{eq, MiniInt}; import eq._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.ConcurrentTests
@@ -27,26 +30,25 @@ import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-// import org.specs2.scalacheck.Parameters
+import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class PureConcSpec extends Specification with Discipline with ScalaCheck {
+class KleisliPureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
 //  import ParallelFGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
+  implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
+    Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
+
   checkAll(
-    "PureConc",
-    ConcurrentTests[PureConc[Int, *], Int].concurrent[Int, Int, Int]
-  ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
-
-//  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
-
-//  checkAll(
-//    "ParallelF[PureConc]",
-//    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
+    "Kleisli[PureConc]",
+    ConcurrentTests[Kleisli[PureConc[Int, *], MiniInt, *], Int].concurrent[Int, Int, Int]
+    // we need to bound this a little tighter because these tests take FOREVER
+  )(Parameters(minTestsOk =
+    25 /*, seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)*/ ))
 }

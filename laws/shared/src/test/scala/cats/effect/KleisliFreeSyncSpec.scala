@@ -15,23 +15,33 @@
  */
 
 package cats.effect
+package laws
 
-import cats.data.ContT
-import cats.{Eq, Show}
-import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
-import cats.implicits._
+import cats.{Eq, Eval, Show}
+import cats.free.FreeT
+import cats.data.Kleisli
 import cats.laws.discipline.arbitrary._
-import cats.effect.laws.ClockTests
+import cats.laws.discipline.{eq, MiniInt}; import eq._
+import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
+import freeEval.{syncForFreeT, FreeEitherSync}
+import cats.implicits._
 
+import org.scalacheck.Prop
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
+import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
+class KleisliFreeSyncSpec
+    extends Specification
+    with Discipline
+    with ScalaCheck
+    with BaseSpec
+    with LowPriorityImplicits {
   import FreeSyncGenerators._
+  import SyncTypeGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
@@ -39,9 +49,14 @@ class ClockSpec extends Specification with Discipline with ScalaCheck with BaseS
   implicit val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals
 
-  // we only need to test the ones that *aren't* also Sync
+  implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
+    run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
+
+  implicit val scala_2_12_is_buggy
+      : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
+    eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
   checkAll(
-    "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+    "Kleisli[FreeEitherSync]",
+    SyncTests[Kleisli[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
 }
