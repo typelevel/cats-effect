@@ -68,7 +68,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                 } catch {
                   case _: InterruptedException =>
                     if (!many) {
-                      val cb0 = cb.get()
+                      val cb0 = cb.getAndSet(null)
                       if (cb0 != null) {
                         cb0()
                       }
@@ -129,7 +129,12 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                 finCb(Right(()))
               }
             } else {
-              IO.unit
+              IO {
+                if (done.get() && cb.get() != null) {
+                  // this indicates that the blocking action completed *before* we registered the callback
+                  finCb(Right(()))    // ...so we just complete cancelation ourselves
+                }
+              }
             }
 
             (trigger *> repeat).as(None)
