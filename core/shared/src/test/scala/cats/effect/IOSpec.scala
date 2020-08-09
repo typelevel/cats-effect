@@ -129,6 +129,28 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
     }
     // format: on
 
+    "repeated async callback" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+
+      var cb: Either[Throwable, Int] => Unit = null
+
+      val async = IO.async_[Int] { cb0 => cb = cb0 }
+
+      val test = for {
+        fiber <- async.start
+        _ <- IO(ticker.ctx.tickAll())
+        _ <- IO(cb(Right(42)))
+        _ <- IO(ticker.ctx.tickAll())
+        _ <- IO(cb(Right(43)))
+        _ <- IO(ticker.ctx.tickAll())
+        _ <- IO(cb(Left(TestException)))
+        _ <- IO(ticker.ctx.tickAll())
+        value <- fiber.joinAndEmbedNever
+      } yield value
+
+      test must completeAs(42)
+    }
+
     "cancel an infinite chain of right-binds" in ticked { implicit ticker =>
       lazy val infinite: IO[Unit] = IO.unit.flatMap(_ => infinite)
       infinite.start.flatMap(f => f.cancel >> f.join) must completeAs(
