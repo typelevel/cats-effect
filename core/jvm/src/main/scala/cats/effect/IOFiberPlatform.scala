@@ -44,10 +44,13 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
 
     val many = cur.hint eq TypeInterruptibleMany
 
+    // we grab this here rather than in the instance to avoid bloating IOFiber's object header
+    val RightUnit = IOFiber.RightUnit
+
     IO.async[Any] { nextCb =>
       for {
         done <- IO(new AtomicBoolean(false))
-        cb <- IO(new AtomicReference[() => Unit](null))
+        cb <- IO(new AtomicReference[Either[Throwable, Unit] => Unit](null))
 
         canInterrupt <- IO(new juc.Semaphore(0))
 
@@ -70,7 +73,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                     if (!many) {
                       val cb0 = cb.getAndSet(null)
                       if (cb0 != null) {
-                        cb0()
+                        cb0(RightUnit)
                       }
                     }
 
@@ -94,7 +97,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
           IO async { finCb =>
             val trigger = IO {
               if (!many) {
-                cb.set(() => finCb(Right(())))
+                cb.set(finCb)
               }
 
               // if done is false, and we can't get the semaphore, it means
@@ -126,13 +129,13 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                   }
                 }
 
-                finCb(Right(()))
+                finCb(RightUnit)
               }
             } else {
               IO {
                 if (done.get() && cb.get() != null) {
                   // this indicates that the blocking action completed *before* we registered the callback
-                  finCb(Right(()))    // ...so we just complete cancelation ourselves
+                  finCb(RightUnit)    // ...so we just complete cancelation ourselves
                 }
               }
             }
