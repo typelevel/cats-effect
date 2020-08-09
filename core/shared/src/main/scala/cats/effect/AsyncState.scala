@@ -26,19 +26,20 @@ private[effect] object AsyncState {
   case object Initial extends AsyncState {
     def tag = 0
   }
+
   case object RegisteredNoFinalizer extends AsyncState {
     def tag = 1
   }
+
   case object RegisteredWithFinalizer extends AsyncState {
     def tag = 2
   }
+
   final case class Complete(override val result: Either[Throwable, Any]) extends AsyncState {
     def tag = 3
   }
 
-  // sentinel object used to signal failure during an asynchronous effect
-  // exists to avoid allocation of a `Complete(null)` object
-  case object Failure extends AsyncState {
+  case object Done extends AsyncState {
     def tag = 4
   }
 }

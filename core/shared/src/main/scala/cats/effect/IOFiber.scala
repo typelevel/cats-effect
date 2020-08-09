@@ -103,7 +103,7 @@ private final class IOFiber[A](
   private[this] val AsyncStateInitial = AsyncState.Initial
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
-  private[this] val AsyncStateFailure = AsyncState.Failure
+  private[this] val AsyncStateDone = AsyncState.Done
 
   // mutable state for resuming the fiber in different states
   private[this] var resumeTag: Byte = ExecR
@@ -344,7 +344,7 @@ private final class IOFiber[A](
             @tailrec
             def loop(old: Byte): Unit = {
               if (resume()) {
-                state.lazySet(AsyncStateInitial) // avoid leaks
+                state.lazySet(AsyncStateDone) // avoid leaks
 
                 // Race condition check:
                 // If finalization occurs and an async finalizer suspends the runloop,
@@ -863,7 +863,7 @@ private final class IOFiber[A](
             // the callback was invoked before registration
 
             val result = state.get().result
-            state.lazySet(AsyncStateInitial) // avoid leaks
+            state.lazySet(AsyncStateDone) // avoid leaks
 
             if (!shouldFinalize()) {
               finalizers.pop()
@@ -880,7 +880,7 @@ private final class IOFiber[A](
             // the callback was invoked before registration
 
             val result = state.get().result
-            state.lazySet(AsyncStateInitial) // avoid leaks
+            state.lazySet(AsyncStateDone) // avoid leaks
 
             if (!shouldFinalize())
               asyncContinue(result)
@@ -896,7 +896,7 @@ private final class IOFiber[A](
         // the callback was invoked before registration
 
         val result = state.get().result
-        state.lazySet(AsyncStateInitial) // avoid leaks
+        state.lazySet(AsyncStateDone) // avoid leaks
 
         if (!shouldFinalize())
           asyncContinue(result)
@@ -913,7 +913,7 @@ private final class IOFiber[A](
   private[this] def asyncFailureK(t: Throwable, depth: Int): IO[Any] = {
     val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
 
-    val old = state.getAndSet(AsyncStateFailure)
+    val old = state.getAndSet(AsyncState.Done)
     if (!old.isInstanceOf[AsyncState.Complete]) {
       // if we get an error before the callback, then propagate
       failed(t, depth + 1)
@@ -921,7 +921,7 @@ private final class IOFiber[A](
       // we got the error *after* the callback, but we have queueing semantics
       // so drop the results
 
-      state.lazySet(AsyncStateInitial) // avoid leaks
+      state.lazySet(AsyncStateDone) // avoid leaks
 
       if (!shouldFinalize())
         asyncContinue(Left(t))
