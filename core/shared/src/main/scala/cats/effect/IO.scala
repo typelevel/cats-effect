@@ -42,7 +42,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     map(_ => b)
 
   def attempt: IO[Either[Throwable, A]] =
-    map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
+    IO.Attempt(this)
 
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
@@ -269,6 +269,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           val ioa = self.ioa.asInstanceOf[IO[A]]
           val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
+
+        case self: IO.Attempt[A] =>
+          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
       }
     }
 
@@ -587,7 +590,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 9
   }
 
-  private[effect] final case class OnCancel[A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
+  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 10
   }
 
@@ -620,8 +623,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 19
   }
 
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
+    def tag = 20
+  }
+
   // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
+  private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: F ~> F) extends IO[A] {
     def tag = -1
   }
 }
