@@ -89,6 +89,15 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
     }
 
+    "redeem correctly recovers from errors" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+      IO.raiseError[Int](TestException).redeem(_ => 42, _ => 43) must completeAs(42)
+    }
+
+    "redeem maps successful results" in ticked { implicit ticker =>
+      IO.unit.redeem(_ => 41, _ => 42) must completeAs(42)
+    }
+
     "start and join on a successful fiber" in ticked { implicit ticker =>
       IO.pure(42).map(_ + 1).start.flatMap(_.join) must completeAs(
         Outcome.completed[IO, Throwable, Int](IO.pure(43)))

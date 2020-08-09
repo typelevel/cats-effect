@@ -119,7 +119,8 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
   override protected def recursiveGen[A](
       deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
     List(
-      "handleErrorWith" -> genHandleErrorWith[A](deeper)(AA, AC)
+      "handleErrorWith" -> genHandleErrorWith[A](deeper)(AA, AC),
+      "redeem" -> genRedeem[Int, A](deeper)
     ) ++ super.recursiveGen(deeper)(AA, AC)
 
   private def genRaiseError[A]: Gen[F[A]] =
@@ -130,6 +131,13 @@ trait ApplicativeErrorGenerators[F[_], E] extends ApplicativeGenerators[F] {
       fa <- deeper[A]
       f <- Gen.function1[E, F[A]](deeper[A])
     } yield F.handleErrorWith(fa)(f)
+
+  private def genRedeem[A: Arbitrary: Cogen, B: Arbitrary](deeper: GenK[F]): Gen[F[B]] =
+    for {
+      fa <- deeper[A]
+      recover <- Gen.function1[E, B](arbitrary[B])
+      map <- Gen.function1[A, B](arbitrary[B])
+    } yield F.redeem(fa)(recover, map)
 }
 
 trait MonadErrorGenerators[F[_], E]

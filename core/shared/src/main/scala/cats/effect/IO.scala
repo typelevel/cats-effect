@@ -181,6 +181,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.RacePair(this, that)
 
+  def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
+    IO.Redeem(this, recover, map)
+
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
@@ -246,7 +249,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case self: IO.Start[_] =>
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
 
-        case self: IO.RacePair[a, b] =>
+        case self: IO.RacePair[_, _] =>
           val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
             e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
           }
@@ -264,14 +267,17 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           // ioa.to[F] // polling should be handled by F
           sys.error("impossible")
 
+        case self: IO.Attempt[_] =>
+          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
+
+        case IO.Redeem(ioa, recover, map) =>
+          F.redeem(ioa.to[F])(recover, map)
+
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
           val ioa = self.ioa.asInstanceOf[IO[A]]
           val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
-
-        case self: IO.Attempt[A] =>
-          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
       }
     }
 
@@ -539,6 +545,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       IO.suspend(hint)(thunk)
 
     override def void[A](ioa: IO[A]): IO[Unit] = ioa.void
+
+    override def redeem[A, B](fa: IO[A])(recover: Throwable => B, f: A => B): IO[B] =
+      fa.redeem(recover, f)
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO
@@ -625,6 +634,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 20
+  }
+
+  private[effect] final case class Redeem[A, +B](
+      ioa: IO[A],
+      recover: Throwable => B,
+      map: A => B)
+      extends IO[B] {
+    def tag = 21
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.

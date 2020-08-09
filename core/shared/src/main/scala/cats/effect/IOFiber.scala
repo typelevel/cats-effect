@@ -587,6 +587,14 @@ private final class IOFiber[A](
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
+
+        case 21 =>
+          val cur = cur0.asInstanceOf[Redeem[Any, Any]]
+
+          objectState.push(cur)
+          conts.push(RedeemK)
+
+          runLoop(cur.ioa, nextIteration)
       }
     }
   }
@@ -646,6 +654,9 @@ private final class IOFiber[A](
       case 8 => uncancelableSuccessK(result, depth)
       case 9 => unmaskSuccessK(result, depth)
       case 10 => succeeded(Right(result), depth + 1)
+      case 11 =>
+        val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+        succeeded(wrapper.map(result), depth + 1)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -679,6 +690,9 @@ private final class IOFiber[A](
       case 8 => uncancelableFailureK(error, depth)
       case 9 => unmaskFailureK(error, depth)
       case 10 => succeeded(Left(error), depth + 1)
+      case 11 =>
+        val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+        succeeded(wrapper.recover(error), depth + 1)
     }
   }
 
