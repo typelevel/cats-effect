@@ -583,7 +583,7 @@ private final class IOFiber[A](
           runLoop(cur.ioa, nextIteration)
 
         case 20 =>
-          val cur = cur0.asInstanceOf[Attempt[A]]
+          val cur = cur0.asInstanceOf[Attempt[Any]]
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)

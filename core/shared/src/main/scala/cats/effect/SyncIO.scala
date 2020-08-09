@@ -88,7 +88,7 @@ sealed abstract class SyncIO[+A] private () {
    * @see [[SyncIO.raiseError]]
    */
   def attempt: SyncIO[Either[Throwable, A]] =
-    map(Right(_)).handleErrorWith(t => SyncIO.pure(Left(t)))
+    SyncIO.Attempt(this)
 
   /**
    * Monadic bind on `SyncIO`, used for sequentially composing two `SyncIO`
@@ -166,9 +166,9 @@ sealed abstract class SyncIO[+A] private () {
         case SyncIO.Map(ioe, f) => F.map(ioe.to[F])(f)
         case SyncIO.FlatMap(ioe, f) => F.defer(F.flatMap(ioe.to[F])(f.andThen(_.to[F])))
         case SyncIO.HandleErrorWith(ioa, f) => F.handleErrorWith(ioa.to[F])(f.andThen(_.to[F]))
-        // For ensuring exhaustiveness
         case SyncIO.Success(a) => F.pure(a)
         case SyncIO.Failure(t) => F.raiseError(t)
+        case self: SyncIO.Attempt[_] => F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
       }
     }
 
@@ -204,6 +204,7 @@ sealed abstract class SyncIO[+A] private () {
     val FlatMapK: Byte = 1
     val HandleErrorWithK: Byte = 2
     val RunTerminusK: Byte = 3
+    val AttemptK: Byte = 4
 
     val conts = new ByteStack(16)
     val objectState = new ArrayStack[AnyRef](16)
@@ -268,6 +269,12 @@ sealed abstract class SyncIO[+A] private () {
         case 7 =>
           val cur = cur0.asInstanceOf[SyncIO.Failure]
           throw cur.t
+
+        case 8 =>
+          val cur = cur0.asInstanceOf[SyncIO.Attempt[Any]]
+
+          conts.push(AttemptK)
+          runLoop(cur.ioa)
       }
 
     @tailrec
@@ -281,6 +288,7 @@ sealed abstract class SyncIO[+A] private () {
           objectState.pop()
           succeeded(result, depth)
         case 3 => SyncIO.Success(result)
+        case 4 => succeeded(Right(result), depth + 1)
       }
 
     def failed(error: Throwable, depth: Int): SyncIO[Any] = {
@@ -300,10 +308,11 @@ sealed abstract class SyncIO[+A] private () {
       conts.unsafeSet(i)
       objectState.unsafeSet(objectState.unsafeIndex() - (orig - i))
 
-      if (k == 2)
-        handleErrorWithK(error, depth)
-      else // 3
-        SyncIO.Failure(error)
+      (k: @switch) match {
+        case 2 => handleErrorWithK(error, depth)
+        case 3 => SyncIO.Failure(error)
+        case 4 => succeeded(Left(error), depth + 1)
+      }
     }
 
     def mapK(result: Any, depth: Int): SyncIO[Any] = {
@@ -545,6 +554,9 @@ object SyncIO extends SyncIOLowPriorityImplicits {
 
     override def toK[G[_]: SyncEffect]: SyncIO ~> G =
       SyncIO.toK[G]
+
+    override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
+      fa.attempt
   }
 
   implicit def syncEffectForSyncIO: SyncEffect[SyncIO] = _syncEffectForSyncIO
@@ -586,5 +598,10 @@ object SyncIO extends SyncIOLowPriorityImplicits {
 
   private[effect] final case class Failure(t: Throwable) extends SyncIO[Nothing] {
     def tag = 7
+  }
+
+  private[effect] final case class Attempt[+A](ioa: SyncIO[A])
+      extends SyncIO[Either[Throwable, A]] {
+    def tag = 8
   }
 }
