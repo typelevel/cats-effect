@@ -207,15 +207,7 @@ sealed abstract class SyncIO[+A] private () {
    * @return the result of evaluating this `SyncIO`
    */
   def unsafeRunSync(): A = {
-    val MaxStackDepth = 512
-
-    val MapK: Byte = 0
-    val FlatMapK: Byte = 1
-    val HandleErrorWithK: Byte = 2
-    val RunTerminusK: Byte = 3
-    val AttemptK: Byte = 4
-    val RedeemK: Byte = 5
-    val RedeemWithK: Byte = 6
+    import SyncIOConstants._
 
     val conts = new ByteStack(16)
     val objectState = new ArrayStack[AnyRef](16)
