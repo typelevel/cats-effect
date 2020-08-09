@@ -21,7 +21,6 @@ import cats.{Eq, Show}
 import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
 import cats.implicits._
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.{eq, MiniInt}; import eq._
 import cats.effect.laws.ClockTests
 
 import org.scalacheck.util.Pretty
@@ -40,30 +39,13 @@ class ClockSpec extends Specification with Discipline with ScalaCheck with BaseS
   implicit val eqThrowable: Eq[Throwable] =
     Eq.fromUniversalEquals
 
-  checkAll(
-    "OptionT[FreeEitherSync, *]",
-    ClockTests[OptionT[FreeEitherSync, *]].clock[Int, Int, Int])
-  checkAll(
-    "EitherT[FreeEitherSync, Int, *]",
-    ClockTests[EitherT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
-  checkAll(
-    "StateT[FreeEitherSync, MiniInt, *]",
-    ClockTests[StateT[FreeEitherSync, MiniInt, *]].clock[Int, Int, Int])
-  checkAll(
-    "WriterT[FreeEitherSync, Int, *]",
-    ClockTests[WriterT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+  // we only need to test the ones that *aren't* also Sync
+
   checkAll(
     "IorT[FreeEitherSync, Int, *]",
     ClockTests[IorT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
-  checkAll(
-    "Kleisli[FreeEitherSync, MiniInt, *]",
-    ClockTests[Kleisli[FreeEitherSync, MiniInt, *]].clock[Int, Int, Int])
+
   checkAll(
     "ContT[FreeEitherSync, Int, *]",
     ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
-  checkAll(
-    "ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]",
-    ClockTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]]
-      .clock[Int, Int, Int]
-  )
 }
