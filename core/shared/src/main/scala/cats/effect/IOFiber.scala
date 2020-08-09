@@ -373,8 +373,24 @@ private final class IOFiber[A](
               // and will handle cancellation.
             }
             // println(s"<$name> callback run with $e")
-            val tag = state.getAndSet(AsyncState.Complete(e)).tag
-            if (tag == 1) loop(1) else if (tag == 2) loop(2)
+            val complete = AsyncState.Complete(e)
+
+            @tailrec
+            def stateLoop(): Unit = {
+              val old = state.get()
+              if (old.tag <= 2) {
+                if (state.compareAndSet(old, complete)) {
+                  val tag = old.tag
+                  if (tag == 1 || tag == 2) {
+                    loop(tag)
+                  }
+                } else {
+                  stateLoop()
+                }
+              }
+            }
+
+            stateLoop()
           }
 
           conts.push(AsyncK)
