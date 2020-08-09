@@ -34,6 +34,7 @@ private[effect] object IOFiberConstants {
   val UnmaskK: Byte = 9
   val AttemptK: Byte = 10
   val RedeemK: Byte = 11
+  val RedeemWithK: Byte = 12
 
   // resume ids
   val ExecR: Byte = 0

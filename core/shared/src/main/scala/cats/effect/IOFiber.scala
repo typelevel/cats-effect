@@ -595,6 +595,14 @@ private final class IOFiber[A](
           conts.push(RedeemK)
 
           runLoop(cur.ioa, nextIteration)
+
+        case 22 =>
+          val cur = cur0.asInstanceOf[RedeemWith[Any, Any]]
+
+          objectState.push(cur)
+          conts.push(RedeemWithK)
+
+          runLoop(cur.ioa, nextIteration)
       }
     }
   }
@@ -654,9 +662,8 @@ private final class IOFiber[A](
       case 8 => uncancelableSuccessK(result, depth)
       case 9 => unmaskSuccessK(result, depth)
       case 10 => succeeded(Right(result), depth + 1)
-      case 11 =>
-        val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
-        succeeded(wrapper.map(result), depth + 1)
+      case 11 => redeemSuccessK(result, depth)
+      case 12 => redeemWithSuccessK(result, depth)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -690,9 +697,8 @@ private final class IOFiber[A](
       case 8 => uncancelableFailureK(error, depth)
       case 9 => unmaskFailureK(error, depth)
       case 10 => succeeded(Left(error), depth + 1)
-      case 11 =>
-        val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
-        succeeded(wrapper.recover(error), depth + 1)
+      case 11 => redeemFailureK(error, depth)
+      case 12 => redeemWithFailureK(error, depth)
     }
   }
 
@@ -1015,6 +1021,64 @@ private final class IOFiber[A](
   private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks += 1
     failed(t, depth + 1)
+  }
+
+  private[this] def redeemSuccessK(result: Any, depth: Int): IO[Any] = {
+    val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+
+    var error: Throwable = null
+
+    val transformed =
+      try wrapper.map(result)
+      catch {
+        case NonFatal(t) => error = t
+      }
+
+    if (depth > MaxStackDepth) {
+      if (error == null) IO.Pure(transformed)
+      else IO.Error(error)
+    } else {
+      if (error == null) succeeded(transformed, depth + 1)
+      else failed(error, depth + 1)
+    }
+  }
+
+  private[this] def redeemFailureK(t: Throwable, depth: Int): IO[Any] = {
+    val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+
+    var error: Throwable = null
+
+    val transformed =
+      try wrapper.recover(t)
+      catch {
+        case NonFatal(t) => error = t
+      }
+
+    if (depth > MaxStackDepth) {
+      if (error == null) IO.Pure(transformed)
+      else IO.Error(error)
+    } else {
+      if (error == null) succeeded(transformed, depth + 1)
+      else failed(error, depth + 1)
+    }
+  }
+
+  private[this] def redeemWithSuccessK(result: Any, depth: Int): IO[Any] = {
+    val wrapper = objectState.pop().asInstanceOf[RedeemWith[Any, Any]]
+
+    try wrapper.bind(result)
+    catch {
+      case NonFatal(t) => failed(t, depth + 1)
+    }
+  }
+
+  private[this] def redeemWithFailureK(t: Throwable, depth: Int): IO[Any] = {
+    val wrapper = objectState.pop().asInstanceOf[RedeemWith[Any, Any]]
+
+    try wrapper.recover(t)
+    catch {
+      case NonFatal(t) => failed(t, depth + 1)
+    }
   }
 }
 

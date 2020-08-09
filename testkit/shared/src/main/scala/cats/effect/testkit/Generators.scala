@@ -144,6 +144,20 @@ trait MonadErrorGenerators[F[_], E]
     extends MonadGenerators[F]
     with ApplicativeErrorGenerators[F, E] {
   implicit val F: MonadError[F, E]
+
+  override protected def recursiveGen[A](
+      deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
+    List(
+      "redeemWith" -> genRedeemWith[Int, A](deeper)
+    ) ++ super.recursiveGen(deeper)(AA, AC)
+
+  private def genRedeemWith[A: Arbitrary: Cogen, B: Arbitrary: Cogen](
+      deeper: GenK[F]): Gen[F[B]] =
+    for {
+      fa <- deeper[A]
+      recover <- Gen.function1[E, F[B]](deeper[B])
+      bind <- Gen.function1[A, F[B]](deeper[B])
+    } yield F.redeemWith(fa)(recover, bind)
 }
 
 trait ClockGenerators[F[_]] extends ApplicativeGenerators[F] {

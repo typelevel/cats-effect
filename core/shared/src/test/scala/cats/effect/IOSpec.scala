@@ -91,11 +91,49 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "redeem correctly recovers from errors" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      IO.raiseError[Int](TestException).redeem(_ => 42, _ => 43) must completeAs(42)
+      IO.raiseError[Unit](TestException).redeem(_ => 42, _ => 43) must completeAs(42)
     }
 
     "redeem maps successful results" in ticked { implicit ticker =>
       IO.unit.redeem(_ => 41, _ => 42) must completeAs(42)
+    }
+
+    "redeem catches exceptions thrown in recovery function" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+      case object ThrownException extends RuntimeException
+      IO.raiseError[Unit](TestException)
+        .redeem(_ => throw ThrownException, _ => 42)
+        .attempt must completeAs(Left(ThrownException))
+    }
+
+    "redeem catches exceptions thrown in map function" in ticked { implicit ticker =>
+      case object ThrownException extends RuntimeException
+      IO.unit.redeem(_ => 41, _ => throw ThrownException).attempt must completeAs(
+        Left(ThrownException))
+    }
+
+    "redeemWith correctly recovers from errors" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+      IO.raiseError[Unit](TestException)
+        .redeemWith(_ => IO.pure(42), _ => IO.pure(43)) must completeAs(42)
+    }
+
+    "redeemWith binds successful results" in ticked { implicit ticker =>
+      IO.unit.redeemWith(_ => IO.pure(41), _ => IO.pure(42)) must completeAs(42)
+    }
+
+    "redeemWith catches exceptions throw in recovery function" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+      case object ThrownException extends RuntimeException
+      IO.raiseError[Unit](TestException)
+        .redeemWith(_ => throw ThrownException, _ => IO.pure(42))
+        .attempt must completeAs(Left(ThrownException))
+    }
+
+    "redeemWith catches exceptions thrown in bind function" in ticked { implicit ticker =>
+      case object ThrownException extends RuntimeException
+      IO.unit.redeem(_ => IO.pure(41), _ => throw ThrownException).attempt must completeAs(
+        Left(ThrownException))
     }
 
     "start and join on a successful fiber" in ticked { implicit ticker =>
@@ -105,7 +143,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     "start and join on a failed fiber" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
-      (IO.raiseError(TestException): IO[Unit]).start.flatMap(_.join) must completeAs(
+      IO.raiseError[Unit](TestException).start.flatMap(_.join) must completeAs(
         Outcome.errored[IO, Throwable, Unit](TestException))
     }
 

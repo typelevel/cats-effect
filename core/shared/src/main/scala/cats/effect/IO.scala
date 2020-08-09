@@ -273,6 +273,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.Redeem(ioa, recover, map) =>
           F.redeem(ioa.to[F])(recover, map)
 
+        case IO.RedeemWith(ioa, recover, bind) =>
+          F.redeemWith(ioa.to[F])(recover.andThen(_.to[F]), bind.andThen(_.to[F]))
+
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
           val ioa = self.ioa.asInstanceOf[IO[A]]
@@ -642,6 +645,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       map: A => B)
       extends IO[B] {
     def tag = 21
+  }
+
+  private[effect] final case class RedeemWith[A, +B](
+      ioa: IO[A],
+      recover: Throwable => IO[B],
+      bind: A => IO[B])
+      extends IO[B] {
+    def tag = 22
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.
