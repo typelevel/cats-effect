@@ -591,7 +591,8 @@ private final class IOFiber[A](
         case 21 =>
           val cur = cur0.asInstanceOf[Redeem[Any, Any]]
 
-          objectState.push(cur)
+          objectState.push(cur.map)
+          objectState.push(cur.recover)
           conts.push(RedeemK)
 
           runLoop(cur.ioa, nextIteration)
@@ -599,7 +600,8 @@ private final class IOFiber[A](
         case 22 =>
           val cur = cur0.asInstanceOf[RedeemWith[Any, Any]]
 
-          objectState.push(cur)
+          objectState.push(cur.bind)
+          objectState.push(cur.recover)
           conts.push(RedeemWithK)
 
           runLoop(cur.ioa, nextIteration)
@@ -1024,12 +1026,13 @@ private final class IOFiber[A](
   }
 
   private[this] def redeemSuccessK(result: Any, depth: Int): IO[Any] = {
-    val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+    objectState.pop()
+    val f = objectState.pop().asInstanceOf[Any => Any]
 
     var error: Throwable = null
 
     val transformed =
-      try wrapper.map(result)
+      try f(result)
       catch {
         case NonFatal(t) => error = t
       }
@@ -1044,12 +1047,13 @@ private final class IOFiber[A](
   }
 
   private[this] def redeemFailureK(t: Throwable, depth: Int): IO[Any] = {
-    val wrapper = objectState.pop().asInstanceOf[Redeem[Any, Any]]
+    val recover = objectState.pop().asInstanceOf[Throwable => Any]
+    objectState.pop()
 
     var error: Throwable = null
 
     val transformed =
-      try wrapper.recover(t)
+      try recover(t)
       catch {
         case NonFatal(t) => error = t
       }
@@ -1064,18 +1068,20 @@ private final class IOFiber[A](
   }
 
   private[this] def redeemWithSuccessK(result: Any, depth: Int): IO[Any] = {
-    val wrapper = objectState.pop().asInstanceOf[RedeemWith[Any, Any]]
+    objectState.pop()
+    val f = objectState.pop().asInstanceOf[Any => IO[Any]]
 
-    try wrapper.bind(result)
+    try f(result)
     catch {
       case NonFatal(t) => failed(t, depth + 1)
     }
   }
 
   private[this] def redeemWithFailureK(t: Throwable, depth: Int): IO[Any] = {
-    val wrapper = objectState.pop().asInstanceOf[RedeemWith[Any, Any]]
+    val recover = objectState.pop().asInstanceOf[Throwable => IO[Any]]
+    objectState.pop()
 
-    try wrapper.recover(t)
+    try recover(t)
     catch {
       case NonFatal(t) => failed(t, depth + 1)
     }
