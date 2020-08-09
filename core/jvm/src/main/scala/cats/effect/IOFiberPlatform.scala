@@ -113,7 +113,7 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
             }
 
             val repeat = if (many) {
-              IO blocking {
+              IO {
                 while (!done.get()) {
                   if (canInterrupt.tryAcquire()) {
                     try {
