@@ -378,9 +378,9 @@ private final class IOFiber[A](
             @tailrec
             def stateLoop(): Unit = {
               val old = state.get()
-              if (old.tag <= 2) {
+              val tag = old.tag
+              if (tag <= 2) {
                 if (state.compareAndSet(old, complete)) {
-                  val tag = old.tag
                   if (tag == 1 || tag == 2) {
                     loop(tag)
                   }
@@ -913,15 +913,13 @@ private final class IOFiber[A](
   private[this] def asyncFailureK(t: Throwable, depth: Int): IO[Any] = {
     val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
 
-    val old = state.getAndSet(AsyncState.Done)
+    val old = state.getAndSet(AsyncStateDone)
     if (!old.isInstanceOf[AsyncState.Complete]) {
       // if we get an error before the callback, then propagate
       failed(t, depth + 1)
     } else {
       // we got the error *after* the callback, but we have queueing semantics
       // so drop the results
-
-      state.lazySet(AsyncStateDone) // avoid leaks
 
       if (!shouldFinalize())
         asyncContinue(Left(t))
