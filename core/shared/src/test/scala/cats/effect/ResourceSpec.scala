@@ -117,20 +117,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    // TODO cancel boundary does not exist, use canceled? or sleep?
-    // "evalTap with cancellation <-> IO.never" in ticked { implicit ticker =>
-    //   forAll { (g: Int => IO[Int]) =>
-    //     val effect: Int => IO[Int] = a =>
-    //     for {
-    //       f <- (g(a) <* IO.cancelBoundary).start
-    //       _ <- f.cancel
-    //       r <- f.join
-    //     } yield r
-
-    //     Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) mustEqual IO.never
-    //   }
-    // }
-
     "evalTap with error fails during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
