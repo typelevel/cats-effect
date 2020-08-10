@@ -862,10 +862,10 @@ private final class IOFiber[A](
   private[this] def asyncSuccessK(result: Any): IO[Any] = {
     val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
 
-    val pushedFinalizer = result.asInstanceOf[Option[IO[Unit]]] match {
-      case Some(fin) =>
+    val hasFinalizer = result.asInstanceOf[Option[IO[Unit]]] match {
+      case Some(cancelToken) =>
         if (isUnmasked()) {
-          finalizers.push(fin)
+          finalizers.push(cancelToken)
           true
         } else {
           // if we are masked, don't bother pushing the finalizer
@@ -874,11 +874,8 @@ private final class IOFiber[A](
       case None => false
     }
 
-    val newState = if (pushedFinalizer) {
-      AsyncStateRegisteredWithFinalizer
-    } else {
-      AsyncStateRegisteredNoFinalizer
-    }
+    val newState =
+      if (hasFinalizer) AsyncStateRegisteredWithFinalizer else AsyncStateRegisteredNoFinalizer
 
     if (!state.compareAndSet(AsyncStateInitial, newState)) {
       // the callback was invoked before registration i.e. state is Result
@@ -886,7 +883,7 @@ private final class IOFiber[A](
       state.lazySet(AsyncStateDone) // avoid leaks
 
       if (!shouldFinalize()) {
-        if (pushedFinalizer) {
+        if (hasFinalizer) {
           finalizers.pop()
         }
         asyncContinue(result)
