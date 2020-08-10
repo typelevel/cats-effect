@@ -53,40 +53,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "releases both resources on combine" in ticked { implicit ticker =>
-      forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
-        var acquired: Set[Int] = Set.empty
-        var released: Set[Int] = Set.empty
-        def observe(r: Resource[IO, Int]) = r.flatMap { a =>
-          Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
-        }
-        try {
-          observe(rx).combine(observe(ry)).use(IO.pure).attempt.void must completeAs(())
-        } catch {
-          case e => ()
-        }
-        // println("--------")
-        // println(released)
-        // println(acquired)
-        released mustEqual acquired
-      }//.setSeed("PN-XSYB63wlo5QCc3w9ZkK08DFRpfa3kjWTFj8l0RbG=")
-       .setSeed("2LtffPo4UuoTBRB0XjRhOOV21cxgBpHMk1RCv7ttmsP=")
-       //.setSeed("l-ClL5Qo0-h5InwHCZHv1E0Hy3LoP9qYgWhK01dFiRA=")
-    }
-
-    // TODO does not compile, same as the laws (missing IO instance)
-  // "releases both resources on combineK" in ticked { implicit ticker =>
-  //   forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
-  //     var acquired: Set[Int] = Set.empty
-  //     var released: Set[Int] = Set.empty
-  //     def observe(r: Resource[IO, Int]) = r.flatMap { a =>
-  //       Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
-  //     }
-  //     observe(rx).combineK(observe(ry)).use(_ => IO.unit).attempt.void must completeAs(())
-  //     released mustEqual acquired
-  //   }
-  // }
-
  "releases resources that implement AutoCloseable" in ticked { implicit ticker =>
     var closed = false
     val autoCloseable = new AutoCloseable {
