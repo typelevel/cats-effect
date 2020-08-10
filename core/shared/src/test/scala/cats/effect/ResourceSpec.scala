@@ -72,23 +72,23 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    // "liftF - interruption" in ticked { implicit ticker =>
-    //   def p =
-    //     Deferred[IO, Outcome[IO, Throwable, Int]]
-    //       .flatMap { stop =>
-    //         val r = Resource
-    //           .liftF(IO.never: IO[Int])
-    //           .use(IO.pure)
-    //           .guaranteeCase(stop.complete)
+    "liftF - interruption" in ticked { implicit ticker =>
+      def resource(d: Deferred[IO, Int]) = for {
+        _ <- Resource.make(IO.unit)(_ => d.complete(1))
+        _ <- Resource.liftF(IO.never)
+      } yield ()
 
-    //         r.start.flatMap { fiber =>
-    //           IO.sleep(200.millis) >> fiber.cancel >> stop.get
-    //         }
-    //       }
-    //       .timeout(2.seconds)
+      def p = for {
+        d <- Deferred[IO, Int]
+        r = resource(d).use(IO.pure)
+        fiber <- r.start
+        _ <- IO.sleep(200.millis)
+        _ <- fiber.cancel
+        res <- d.get
+      } yield res
 
-    //   p must completeAs(Outcome.canceled) // TODO add a beCanceled matcher
-    // }
+      p must completeAs(1)
+    }
 
     "liftF(fa) <-> liftK.apply(fa)" in ticked { implicit ticker =>
       forAll { (fa: IO[String], f: String => IO[Int]) =>
