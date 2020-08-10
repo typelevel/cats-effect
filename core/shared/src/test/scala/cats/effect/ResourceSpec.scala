@@ -53,59 +53,18 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
- "releases resources that implement AutoCloseable" in ticked { implicit ticker =>
-    var closed = false
-    val autoCloseable = new AutoCloseable {
-      override def close(): Unit = closed = true
+    "releases resources that implement AutoCloseable" in ticked { implicit ticker =>
+      var closed = false
+      val autoCloseable = new AutoCloseable {
+        override def close(): Unit = closed = true
+      }
+
+      val result = Resource
+        .fromAutoCloseable(IO(autoCloseable))
+        .use(_ => IO.pure("Hello world")) must completeAs("Hello world")
+
+      closed must beTrue
     }
-
-    val result = Resource
-      .fromAutoCloseable(IO(autoCloseable))
-      .use(_ => IO.pure("Hello world")) must completeAs("Hello world")
-
-    closed must beTrue
-  }
-
-    // TODO obsolete, just delete this?
-    // or adapt the test?
-// "resource from AutoCloseableBlocking is auto closed and executes in the blocking context" in ticked { implicit ticker =>
-//     implicit val ctx: ContextShift[IO] = ec.ioContextShift
-
-//     val blockingEc = TestContext()
-//     val blocker = Blocker.liftExecutionContext(blockingEc)
-
-//     var closed = false
-//     val autoCloseable = new AutoCloseable {
-//       override def close(): Unit = closed = true
-//     }
-
-//     var acquired = false
-//     val acquire = IO {
-//       acquired = true
-//       autoCloseable
-//     }
-
-//     val result = Resource
-//       .fromAutoCloseableBlocking(blocker)(acquire)
-//       .use(_ => IO.pure("Hello world"))
-//       .unsafeToFuture()
-
-//     // Check that acquire ran inside the blocking context.
-//     ec.tick()
-//     acquired shouldBe false
-//     blockingEc.tick()
-//     acquired shouldBe true
-
-//     // Check that close was called and ran inside the blocking context.
-//     ec.tick()
-//     closed shouldBe false
-//     blockingEc.tick()
-//     closed shouldBe true
-
-//     // Check the final result.
-//     ec.tick()
-//     result.value shouldBe Some(Success("Hello world"))
-//   }
 
     "liftF" in ticked { implicit ticker =>
       forAll { (fa: IO[String]) =>

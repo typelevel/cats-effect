@@ -35,7 +35,7 @@ import Resource.ExitCase
 
   also need to write compilation & runtime test once SyncIO is here
 
- port blocking fromAutocloseable once blocker is here
+ Strategy for blocking for the Java closeable interfaces
  add useForever
  change bracket instances to follow same code org strategy as the others
  add implicit not found to bracket
