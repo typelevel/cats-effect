@@ -881,7 +881,7 @@ private final class IOFiber[A](
     }
 
     if (!state.compareAndSet(AsyncStateInitial, newState)) {
-      // the callback was invoked before registration i.e. state is Result,
+      // the callback was invoked before registration i.e. state is Result
       val result = state.get().result
       state.lazySet(AsyncStateDone) // avoid leaks
 
