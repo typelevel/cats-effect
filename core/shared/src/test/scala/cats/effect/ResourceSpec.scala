@@ -177,7 +177,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "evalMap with error must fail during use" in ticked { implicit ticker =>
+    "evalMap with error fails during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
       Resource
@@ -206,7 +206,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     //   }
     // }
 
-    "evalTap with error <-> IO.raiseError" in ticked { implicit ticker =>
+    "evalTap with error fails during use" in ticked { implicit ticker =>
       case object Foo extends Exception
 
       Resource
@@ -280,7 +280,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       (_, close) = res
       _ <- IO(released.get() must beFalse)
       _ <- close
-      _ <- IO(released.get() must beFalse)
+      _ <- IO(released.get() must beTrue)
     } yield ()
 
     prog must completeAs(())
@@ -308,7 +308,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       (_, close) = res
       _ <- IO(released.get() must beFalse)
       _ <- close
-      _ <- IO(released.get() must beFalse)
+      _ <- IO(released.get() must beTrue)
     } yield ()
 
     prog must completeAs(())
