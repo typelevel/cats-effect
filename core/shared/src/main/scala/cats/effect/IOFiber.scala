@@ -372,16 +372,24 @@ private final class IOFiber[A](
               // If we reach this point, it means that somebody else owns the run-loop
               // and will handle cancellation.
             }
-            // println(s"<$name> callback run with $e")
-            val complete = AsyncState.Complete(e)
 
+            val result = AsyncState.Result(e)
+
+            /*
+             * CAS loop to update the async state machine:
+             * If state is Initial, RegisteredNoFinalizer, or RegisteredWithFinalizer,
+             * update the state, and then if registration has completed, acquire runloop.
+             * If state is Result or Done, either the callback was already invoked,
+             * or async registration failed.
+             */
             @tailrec
             def stateLoop(): Unit = {
               val old = state.get()
               val tag = old.tag
               if (tag <= 2) {
-                if (state.compareAndSet(old, complete)) {
+                if (state.compareAndSet(old, result)) {
                   if (tag == 1 || tag == 2) {
+                    // registration has completed, so reacquire the runloop
                     loop(tag)
                   }
                 } else {
@@ -854,57 +862,37 @@ private final class IOFiber[A](
   private[this] def asyncSuccessK(result: Any): IO[Any] = {
     val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
 
-    if (isUnmasked()) {
-      result.asInstanceOf[Option[IO[Unit]]] match {
-        case Some(cancelToken) =>
+    val hasFinalizer = result.asInstanceOf[Option[IO[Unit]]] match {
+      case Some(cancelToken) =>
+        if (isUnmasked()) {
           finalizers.push(cancelToken)
+          true
+        } else {
+          // if we are masked, don't bother pushing the finalizer
+          false
+        }
+      case None => false
+    }
 
-          if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredWithFinalizer)) {
-            // the callback was invoked before registration
+    val newState =
+      if (hasFinalizer) AsyncStateRegisteredWithFinalizer else AsyncStateRegisteredNoFinalizer
 
-            val result = state.get().result
-            state.lazySet(AsyncStateDone) // avoid leaks
+    if (!state.compareAndSet(AsyncStateInitial, newState)) {
+      // the callback was invoked before registration i.e. state is Result
+      val result = state.get().result
+      state.lazySet(AsyncStateDone) // avoid leaks
 
-            if (!shouldFinalize()) {
-              finalizers.pop()
-              asyncContinue(result)
-            } else {
-              asyncCancel(null)
-            }
-          } else {
-            suspendWithFinalizationCheck()
-          }
-
-        case None =>
-          if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
-            // the callback was invoked before registration
-
-            val result = state.get().result
-            state.lazySet(AsyncStateDone) // avoid leaks
-
-            if (!shouldFinalize())
-              asyncContinue(result)
-            else
-              asyncCancel(null)
-          } else {
-            suspendWithFinalizationCheck()
-          }
+      if (!shouldFinalize()) {
+        if (hasFinalizer) {
+          finalizers.pop()
+        }
+        asyncContinue(result)
+      } else {
+        asyncCancel(null)
       }
     } else {
-      // if we're masked, then don't even bother registering the cancel token
-      if (!state.compareAndSet(AsyncStateInitial, AsyncStateRegisteredNoFinalizer)) {
-        // the callback was invoked before registration
-
-        val result = state.get().result
-        state.lazySet(AsyncStateDone) // avoid leaks
-
-        if (!shouldFinalize())
-          asyncContinue(result)
-        else
-          asyncCancel(null)
-      } else {
-        suspendWithFinalizationCheck()
-      }
+      // callback has not been invoked yet
+      suspendWithFinalizationCheck()
     }
 
     null
@@ -914,7 +902,7 @@ private final class IOFiber[A](
     val state = objectState.pop().asInstanceOf[AtomicReference[AsyncState]]
 
     val old = state.getAndSet(AsyncStateDone)
-    if (!old.isInstanceOf[AsyncState.Complete]) {
+    if (!old.isInstanceOf[AsyncState.Result]) {
       // if we get an error before the callback, then propagate
       failed(t, depth + 1)
     } else {

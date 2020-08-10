@@ -35,7 +35,7 @@ private[effect] object AsyncState {
     def tag = 2
   }
 
-  final case class Complete(override val result: Either[Throwable, Any]) extends AsyncState {
+  final case class Result(override val result: Either[Throwable, Any]) extends AsyncState {
     def tag = 3
   }
 
