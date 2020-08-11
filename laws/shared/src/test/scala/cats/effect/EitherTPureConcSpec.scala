@@ -16,32 +16,33 @@
 
 package cats.effect
 
-import cats.data.ContT
-import cats.{Eq, Show}
-import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
-import cats.implicits._
+import cats.Show
+import cats.data.EitherT
+//import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.effect.laws.ClockTests
+import cats.implicits._
+//import cats.effect.kernel.ParallelF
+import cats.effect.laws.ConcurrentTests
+import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
+// import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
-import org.specs2.mutable.Specification
+// import org.specs2.scalacheck.Parameters
+import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ClockSpec extends Specification with Discipline with ScalaCheck with BaseSpec {
-  import FreeSyncGenerators._
+class EitherTPureConcSpec extends Specification with Discipline with ScalaCheck {
+  import PureConcGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  implicit val eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals
-
-  // we only need to test the ones that *aren't* also Sync
-
   checkAll(
-    "ContT[FreeEitherSync, Int, *]",
-    ClockTests[ContT[FreeEitherSync, Int, *]].clock[Int, Int, Int])
+    "EitherT[PureConc]",
+    ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
+  )
 }

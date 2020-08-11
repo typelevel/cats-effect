@@ -94,14 +94,14 @@ object Deferred {
   /**
    * Creates an unset promise. *
    */
-  def apply[F[_], A](implicit F: Async[F]): F[Deferred[F, A]] =
-    F.delay(unsafe[F, A])
+  def apply[F[_], A](implicit mk: Mk[F]): F[Deferred[F, A]] =
+    mk.deferred[A]
 
   /**
    * Creates an unset tryable promise. *
    */
-  def tryable[F[_], A](implicit F: Async[F]): F[TryableDeferred[F, A]] =
-    F.delay(unsafeTryable[F, A])
+  def tryable[F[_], A](implicit mk: Mk[F]): F[TryableDeferred[F, A]] =
+    mk.tryableDeferred[A]
 
   /**
    * Like `apply` but returns the newly allocated promise directly
@@ -114,8 +114,25 @@ object Deferred {
   /**
    * Like [[apply]] but initializes state using another effect constructor
    */
-  def in[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
-    F.delay(unsafe[G, A])
+  def in[F[_], G[_], A](implicit mk: MkIn[F, G]): F[Deferred[G, A]] =
+    mk.deferred[A]
+
+  trait MkIn[F[_], G[_]] {
+    def deferred[A]: F[Deferred[G, A]]
+    def tryableDeferred[A]: F[TryableDeferred[G, A]]
+  }
+
+  object MkIn {
+    implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
+      new MkIn[F, G] {
+        override def deferred[A]: F[Deferred[G, A]] = F.widen(tryableDeferred[A])
+
+        override def tryableDeferred[A]: F[TryableDeferred[G, A]] =
+          F.delay(unsafeTryable[G, A])
+      }
+  }
+
+  type Mk[F[_]] = MkIn[F, F]
 
   private def unsafeTryable[F[_]: Async, A]: TryableDeferred[F, A] =
     new AsyncDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))

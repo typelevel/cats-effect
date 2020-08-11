@@ -19,9 +19,10 @@ package laws
 
 import cats.{Eq, Eval, Show}
 import cats.free.FreeT
+import cats.data.ReaderWriterStateT
 import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.MiniInt
 import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
-import cats.effect.testkit.FreeSyncEq
 import freeEval.{syncForFreeT, FreeEitherSync}
 import cats.implicits._
 
@@ -33,7 +34,7 @@ import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class FreeSyncSpec
+class ReaderWriterStateTFreeSyncSpec
     extends Specification
     with Discipline
     with ScalaCheck
@@ -55,8 +56,7 @@ class FreeSyncSpec
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
-  checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
+  checkAll(
+    "ReaderWriterStateT[FreeEitherSync]",
+    SyncTests[ReaderWriterStateT[FreeEitherSync, MiniInt, Int, MiniInt, *]].sync[Int, Int, Int])
 }
-
-//See the explicitly summoned implicits above - scala 2.12 has weird divergent implicit expansion problems
-trait LowPriorityImplicits extends FreeSyncEq {}
