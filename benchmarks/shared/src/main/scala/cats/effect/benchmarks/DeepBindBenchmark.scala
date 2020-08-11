@@ -40,16 +40,18 @@ import scala.concurrent.ExecutionContext.Implicits
 class DeepBindBenchmark {
   implicit val cs: ContextShift[IO] = IO.contextShift(Implicits.global)
 
-  @Param(Array("3000"))
+  @Param(Array("10000"))
   var size: Int = _
 
   @Benchmark
   def pure(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO.pure(i)
-        _ <- if (j > size) IO.pure(j) else loop(j + 1)
-      } yield j
+      IO.pure(i).flatMap { j =>
+        if (j > size)
+          IO.pure(j)
+        else
+          loop(j + 1)
+      }
 
     loop(0).unsafeRunSync()
   }
@@ -57,10 +59,12 @@ class DeepBindBenchmark {
   @Benchmark
   def delay(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO(i)
-        _ <- if (j > size) IO(j) else loop(j + 1)
-      } yield j
+      IO(i).flatMap { j =>
+        if (j > size)
+          IO.pure(j)
+        else
+          loop(j + 1)
+      }
 
     loop(0).unsafeRunSync()
   }
@@ -68,11 +72,14 @@ class DeepBindBenchmark {
   @Benchmark
   def async(): Int = {
     def loop(i: Int): IO[Int] =
-      for {
-        j <- IO(i)
-        _ <- IO.shift
-        _ <- if (j > size) IO(j) else loop(j + 1)
-      } yield j
+      IO(i).flatMap { j =>
+        IO.shift.flatMap { _ =>
+          if (j > size)
+            IO.pure(j)
+          else
+            loop(j + 1)
+        }
+      }
 
     loop(0).unsafeRunSync()
   }
