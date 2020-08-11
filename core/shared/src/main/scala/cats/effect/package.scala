@@ -27,6 +27,7 @@ package object effect {
   val Concurrent = cekernel.Concurrent
 
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
+  type Poll[F[_]] = cekernel.Poll[F]
 
   type Clock[F[_]] = cekernel.Clock[F]
   val Clock = cekernel.Clock

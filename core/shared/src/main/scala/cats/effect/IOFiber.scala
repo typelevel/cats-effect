@@ -16,7 +16,6 @@
 
 package cats.effect
 
-import cats.~>
 import cats.implicits._
 
 import scala.annotation.{switch, tailrec}
@@ -464,7 +463,7 @@ private final class IOFiber[A](
 
           masks += 1
           val id = masks
-          val poll = new (IO ~> IO) {
+          val poll = new Poll[IO] {
             def apply[B](ioa: IO[B]) = IO.UnmaskRunLoop(ioa, id)
           }
 
