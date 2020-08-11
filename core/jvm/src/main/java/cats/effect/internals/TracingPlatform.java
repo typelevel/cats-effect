@@ -58,6 +58,6 @@ public final class TracingPlatform {
                 return Optional.empty();
             }
         })
-        .orElse(128);
+        .orElse(16);
 
 }

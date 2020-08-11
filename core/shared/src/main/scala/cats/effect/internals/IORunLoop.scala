@@ -114,6 +114,35 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] = {
+            val stackTraceFilter = List(
+              "cats.effect.",
+              "cats.",
+              "sbt.",
+              "java.",
+              "sun.",
+              "scala."
+            )
+
+            frames
+              .sliding(2)
+              .collect {
+                case a :: b :: Nil => (a, b)
+              }
+              .find {
+                case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+              }
+          }
+
+          val prefix = ex.getStackTrace.takeWhile(ste => ste.getClassName != "cats.effect.internals.IORunLoop$" && ste.getClassName != "scala.runtime.java8.JFunction0$mcV$sp")
+          val asyncTrace = ctx.getStackTraces()
+            .flatMap(t => getOpAndCallSite(t.getStackTrace.toList))
+            .map {
+              case (methodSite, callSite) =>
+                new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName, callSite.getMethodName, callSite.getFileName, callSite.getLineNumber)
+            }
+          val suffix = asyncTrace
+          ex.setStackTrace(prefix ++ suffix.reverse)
           findErrorHandler(bFirst, bRest) match {
             case null =>
               cb(Left(ex))
