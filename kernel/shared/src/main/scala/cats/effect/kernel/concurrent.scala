@@ -21,19 +21,6 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
-trait Fiber[F[_], E, A] {
-  def cancel: F[Unit]
-  def join: F[Outcome[F, E, A]]
-
-  def joinAndEmbed(onCancel: F[A])(implicit F: Concurrent[F, E]): F[A] =
-    join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
-
-  def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
-    joinAndEmbed(F.canceled *> F.never)
-}
-
-trait Poll[F[_]] extends (F ~> F)
-
 trait Concurrent[F[_], E] extends MonadError[F, E] {
 
   // analogous to productR, except discarding short-circuiting (and optionally some effect contexts) except for cancelation
