@@ -19,7 +19,7 @@ package cats.effect
 import cats.{Eq, Order, Show}
 import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
-import cats.laws.discipline.arbitrary._
+import cats.laws.discipline.arbitrary
 import cats.laws.discipline.MiniInt
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
@@ -42,9 +42,14 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import java.util.concurrent.TimeUnit
 
-class PureConcSpec extends Specification with Discipline with ScalaCheck {
-  import PureConcGenerators._
+class PureConcSpec
+    extends Specification
+    with Discipline
+    with ScalaCheck
+    with LowPriorityInstances {
 //  import ParallelFGenerators._
+  import PureConcGenerators._
+  import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
@@ -156,6 +161,17 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
       implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
     cg.contramap(_.run)
 
+  implicit def help_scala_2_12_a_new_hope[A: Arbitrary: Cogen]: Arbitrary[PureConc[Int, A]] =
+    arbitraryPureConc[Int, A]
+
+  implicit def help_scala_2_12_diverging_implicits_strike_back[A: Arbitrary: Cogen]
+      : Arbitrary[TimeT[PureConc[Int, *], A]] =
+    catsLawsArbitraryForKleisli[PureConc[Int, *], Time, A]
+
+  implicit def help_scala_2_12_return_of_the_successful_compilation[A: Arbitrary: Cogen]
+      : Arbitrary[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
+    catsLawsArbitraryForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
+
   checkAll(
     "TimeT[PureConc]",
     TemporalTests[TimeT[PureConc[Int, *], *], Int].temporal[Int, Int, Int](10.millis)
@@ -196,4 +212,16 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 //  checkAll(
 //    "ParallelF[PureConc]",
 //    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
+}
+
+//Push the priority of Kleisli instances down so we can explicitly summon more
+//specific instances to help 2.12 out - I think Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *]
+//involves about 4 nested Kleisli's so the compiler just gives up
+trait LowPriorityInstances {
+
+  implicit def catsLawsArbitraryForKleisli[F[_], A, B](
+      implicit AA: Arbitrary[A],
+      CA: Cogen[A],
+      F: Arbitrary[F[B]]): Arbitrary[Kleisli[F, A, B]] =
+    arbitrary.catsLawsArbitraryForKleisli[F, A, B]
 }
