@@ -21,6 +21,8 @@ import cats.effect.laws.SyncEffectTests
 import cats.effect.testkit.SyncTypeGenerators
 import cats.implicits._
 
+import org.scalacheck.Prop, Prop.forAll
+
 import org.specs2.ScalaCheck
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -70,6 +72,36 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     "errors can be handled" in {
       case object TestException extends RuntimeException
       SyncIO.raiseError[Unit](TestException).attempt must completeAsSync(Left(TestException))
+    }
+
+    "attempt is redeem with Left(_) for recover and Right(_) for map" in {
+      forAll { (io: SyncIO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+    }
+
+    "attempt is flattened redeemWith" in {
+      forAll {
+        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+          io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem is flattened redeemWith" in {
+      forAll {
+        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+          io.redeem(recover, bind).flatMap(identity) eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem subsumes handleError" in {
+      forAll { (io: SyncIO[Int], recover: Throwable => Int) =>
+        io.redeem(recover, identity) eqv io.handleError(recover)
+      }
+    }
+
+    "redeemWith subsumes handleErrorWith" in {
+      forAll { (io: SyncIO[Int], recover: Throwable => SyncIO[Int]) =>
+        io.redeemWith(recover, SyncIO.pure) eqv io.handleErrorWith(recover)
+      }
     }
 
     "redeem correctly recovers from errors" in {

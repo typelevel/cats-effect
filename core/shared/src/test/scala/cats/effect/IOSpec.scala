@@ -89,6 +89,34 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       IO.raiseError[Unit](TestException).attempt must completeAs(Left(TestException))
     }
 
+    "attempt is redeem with Left(_) for recover and Right(_) for map" in ticked {
+      implicit ticker => forAll { (io: IO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+    }
+
+    "attempt is flattened redeemWith" in ticked { implicit ticker =>
+      forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
+        io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem is flattened redeemWith" in ticked { implicit ticker =>
+      forAll { (io: IO[Int], recover: Throwable => IO[String], bind: Int => IO[String]) =>
+        io.redeem(recover, bind).flatten eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem subsumes handleError" in ticked { implicit ticker =>
+      forAll { (io: IO[Int], recover: Throwable => Int) =>
+        io.redeem(recover, identity) eqv io.handleError(recover)
+      }
+    }
+
+    "redeemWith subsumes handleErrorWith" in ticked { implicit ticker =>
+      forAll { (io: IO[Int], recover: Throwable => IO[Int]) =>
+        io.redeemWith(recover, IO.pure) eqv io.handleErrorWith(recover)
+      }
+    }
+
     "redeem correctly recovers from errors" in ticked { implicit ticker =>
       case object TestException extends RuntimeException
       IO.raiseError[Unit](TestException).redeem(_ => 42, _ => 43) must completeAs(42)

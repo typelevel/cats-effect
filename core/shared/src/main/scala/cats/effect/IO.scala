@@ -184,6 +184,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
     IO.Redeem(this, recover, map)
 
+  def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+    IO.RedeemWith(this, recover, bind)
+
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
@@ -551,6 +554,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
     override def redeem[A, B](fa: IO[A])(recover: Throwable => B, f: A => B): IO[B] =
       fa.redeem(recover, f)
+
+    override def redeemWith[A, B](
+        fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+      fa.redeemWith(recover, bind)
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO
