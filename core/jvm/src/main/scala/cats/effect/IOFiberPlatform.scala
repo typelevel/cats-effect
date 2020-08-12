@@ -70,13 +70,6 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                   back
                 } catch {
                   case _: InterruptedException =>
-                    if (!many) {
-                      val cb0 = cb.getAndSet(null)
-                      if (cb0 != null) {
-                        cb0(RightUnit)
-                      }
-                    }
-
                     null
 
                   case NonFatal(t) =>
@@ -84,6 +77,13 @@ private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
                 } finally {
                   canInterrupt.tryAcquire()
                   done.set(true)
+
+                  if (!many) {
+                    val cb0 = cb.getAndSet(null)
+                    if (cb0 != null) {
+                      cb0(RightUnit)
+                    }
+                  }
                 }
 
               if (result != null) {
