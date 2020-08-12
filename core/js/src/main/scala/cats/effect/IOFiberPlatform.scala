@@ -16,23 +16,13 @@
 
 package cats.effect
 
-import scala.scalajs.js.Promise
+import scala.concurrent.ExecutionContext
 
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
+private[effect] abstract class IOFiberPlatform[A] { this: IOFiber[A] =>
 
-  def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val _ = many
-    apply(thunk)
+  // in theory this code should never be hit due to the override in IOCompanionPlatform
+  def interruptibleImpl(cur: IO.Blocking[Any], blockingEc: ExecutionContext): IO[Any] = {
+    val _ = blockingEc
+    IO(cur.thunk())
   }
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
-
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    effectForIO.fromPromise(iop)
 }

@@ -65,7 +65,8 @@ private final class IOFiber[A](
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext)
-    extends FiberIO[A]
+    extends IOFiberPlatform[A]
+    with FiberIO[A]
     with Runnable {
 
   import IO._
@@ -104,6 +105,8 @@ private final class IOFiber[A](
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
   private[this] val AsyncStateDone = AsyncState.Done
+
+  private[this] val TypeBlocking = Sync.Type.Blocking
 
   // mutable state for resuming the fiber in different states
   private[this] var resumeTag: Byte = ExecR
@@ -302,10 +305,16 @@ private final class IOFiber[A](
 
         case 2 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
-          resumeTag = BlockingR
-          blockingCur = cur
-          resumeNextIteration = nextIteration
-          blockingEc.execute(this)
+          // we know we're on the JVM here
+
+          if (cur.hint eq TypeBlocking) {
+            resumeTag = BlockingR
+            blockingCur = cur
+            resumeNextIteration = nextIteration
+            blockingEc.execute(this)
+          } else {
+            runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
+          }
 
         case 3 =>
           val cur = cur0.asInstanceOf[Error]
@@ -992,6 +1001,6 @@ private object IOFiber {
   private val childCount = new AtomicInteger(0)
 
   // prefetch
-  final private val OutcomeCanceled = Outcome.Canceled()
-  final private val RightUnit = Right(())
+  private val OutcomeCanceled = Outcome.Canceled()
+  private[effect] val RightUnit = Right(())
 }

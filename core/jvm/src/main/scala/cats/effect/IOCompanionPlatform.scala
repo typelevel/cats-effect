@@ -20,6 +20,23 @@ import java.util.concurrent.CompletableFuture
 
 private[effect] abstract class IOCompanionPlatform { this: IO.type =>
 
+  private[this] val TypeDelay = Sync.Type.Delay
+  private[this] val TypeBlocking = Sync.Type.Blocking
+  private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
+  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
+
+  def blocking[A](thunk: => A): IO[A] =
+    Blocking(TypeBlocking, () => thunk)
+
+  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
+    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
+
+  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
+    if (hint eq TypeDelay)
+      apply(thunk)
+    else
+      Blocking(hint, () => thunk)
+
   // TODO deduplicate with AsyncPlatform#fromCompletableFuture (requires Dotty 0.26 or higher)
   def fromCompletableFuture[A](fut: IO[CompletableFuture[A]]): IO[A] =
     fut flatMap { cf =>

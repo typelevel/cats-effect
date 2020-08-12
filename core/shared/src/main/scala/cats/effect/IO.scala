@@ -104,6 +104,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
+  def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
+
   def guarantee(finalizer: IO[Unit]): IO[A] =
     guaranteeCase(_ => finalizer)
 
@@ -339,28 +341,11 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
-  private[this] val TypeDelay = Sync.Type.Delay
-  private[this] val TypeBlocking = Sync.Type.Blocking
-  private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
-  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
-
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
   def delay[A](thunk: => A): IO[A] = apply(thunk)
-
-  def blocking[A](thunk: => A): IO[A] =
-    Blocking(TypeBlocking, () => thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
-    if (hint eq TypeDelay)
-      apply(thunk)
-    else
-      Blocking(hint, () => thunk)
 
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
@@ -542,6 +527,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       fa.flatMap(f)
 
     override def delay[A](thunk: => A): IO[A] = IO(thunk)
+
+    override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
+
+    override def interruptible[A](many: Boolean)(thunk: => A) = IO.interruptible(many)(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
       IO.suspend(hint)(thunk)
