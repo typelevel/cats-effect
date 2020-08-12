@@ -16,11 +16,9 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
-import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
+import cats.{Order, Show}
 //import cats.laws.discipline.{AlignTests, ParallelTests}
-import cats.laws.discipline.arbitrary
-import cats.laws.discipline.MiniInt
+import cats.laws.discipline.arbitrary._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.TemporalTests
@@ -42,97 +40,15 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import java.util.concurrent.TimeUnit
 
-class PureConcSpec
-    extends Specification
-    with Discipline
-    with ScalaCheck
-    with LowPriorityInstances {
+class PureConcSpec extends Specification with Discipline with ScalaCheck {
 //  import ParallelFGenerators._
   import PureConcGenerators._
-  import arbitrary.{catsLawsArbitraryForKleisli => _, _}
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
-    Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
-
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
-
-  implicit def execOptionT(sbool: OptionT[TimeT[PureConc[Int, *], *], Boolean]): Prop =
-    Prop(
-      pure
-        .run(TimeT.run(sbool.value))
-        .fold(
-          false,
-          _ => false,
-          bO => bO.flatten.fold(false)(_ => true)
-        ))
-
-  implicit def execEitherT[E](sbool: EitherT[TimeT[PureConc[Int, *], *], E, Boolean]): Prop =
-    Prop(
-      pure
-        .run(TimeT.run(sbool.value))
-        .fold(false, _ => false, bO => bO.fold(false)(e => e.fold(_ => false, b => b))))
-
-  implicit def orderWriterT[F[_], S, A](
-      implicit Ord: Order[F[(S, A)]]): Order[WriterT[F, S, A]] = Order.by(_.run)
-
-  implicit def execWriterT[S](sbool: WriterT[TimeT[PureConc[Int, *], *], S, Boolean]): Prop =
-    Prop(
-      pure
-        .run(TimeT.run(sbool.run))
-        .fold(
-          false,
-          _ => false,
-          pO => pO.fold(false)(p => p._2)
-        )
-    )
-
-  implicit def orderIor[A, B](
-      implicit A: Order[A],
-      B: Order[B],
-      AB: Order[(A, B)]): Order[Ior[A, B]] =
-    new Order[Ior[A, B]] {
-
-      override def compare(x: Ior[A, B], y: Ior[A, B]): Int =
-        (x, y) match {
-          case (Ior.Left(a1), Ior.Left(a2)) => A.compare(a1, a2)
-          case (Ior.Left(_), _) => -1
-          case (Ior.Both(a1, b1), Ior.Both(a2, b2)) => AB.compare((a1, b1), (a2, b2))
-          case (Ior.Both(_, _), Ior.Left(_)) => 1
-          case (Ior.Both(_, _), Ior.Right(_)) => -1
-          case (Ior.Right(b1), Ior.Right(b2)) => B.compare(b1, b2)
-          case (Ior.Right(_), _) => 1
-        }
-
-    }
-
-  implicit def orderIorT[F[_], A, B](implicit Ord: Order[F[Ior[A, B]]]): Order[IorT[F, A, B]] =
-    Order.by(_.value)
-
-  implicit def execIorT[L](sbool: IorT[TimeT[PureConc[Int, *], *], L, Boolean]): Prop =
-    Prop(
-      pure
-        .run(TimeT.run(sbool.value))
-        .fold(
-          false,
-          _ => false,
-          iO => iO.fold(false)(i => i.fold(_ => false, _ => true, (_, _) => false)))
-    )
-
-  //This is highly dubious
-  implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
-    Order.by(_.run(MiniInt.unsafeFromInt(0)))
-
-  //This is highly dubious
-  implicit def execKleisli(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
-    Prop(
-      pure
-        .run(TimeT.run(sbool.run(MiniInt.unsafeFromInt(0))))
-        .fold(false, _ => false, bO => bO.fold(false)(b => b))
-    )
 
   implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
     import TimeUnit._
@@ -157,71 +73,14 @@ class PureConcSpec
   implicit def arbTime: Arbitrary[Time] =
     Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
 
-  implicit def cogenKleisli[F[_], R, A](
-      implicit cg: Cogen[R => F[A]]): Cogen[Kleisli[F, R, A]] =
-    cg.contramap(_.run)
-
-  implicit def help_scala_2_12_a_new_hope[A: Arbitrary: Cogen]: Arbitrary[PureConc[Int, A]] =
-    arbitraryPureConc[Int, A]
-
-  implicit def help_scala_2_12_diverging_implicits_strike_back[A: Arbitrary: Cogen]
-      : Arbitrary[TimeT[PureConc[Int, *], A]] =
-    catsLawsArbitraryForKleisli[PureConc[Int, *], Time, A]
-
-  implicit def help_scala_2_12_return_of_the_successful_compilation[A: Arbitrary: Cogen]
-      : Arbitrary[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, A]] =
-    catsLawsArbitraryForKleisli[TimeT[PureConc[Int, *], *], MiniInt, A]
-
   checkAll(
     "TimeT[PureConc]",
     TemporalTests[TimeT[PureConc[Int, *], *], Int].temporal[Int, Int, Int](10.millis)
   ) /*(Parameters(seed = Some(Seed.fromBase64("OjD4TDlPxwCr-K-gZb-xyBOGeWMKx210V24VVhsJBLI=").get)))*/
-
-  checkAll(
-    "OptionT[TimeT[PureConc]]",
-    TemporalTests[OptionT[TimeT[PureConc[Int, *], *], *], Int]
-      .temporal[Int, Int, Int](10.millis)
-  )
-
-  checkAll(
-    "EitherT[TimeT[PureConc]]",
-    TemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
-      .temporal[Int, Int, Int](10.millis)
-  )
-
-  checkAll(
-    "IorT[PureConc]",
-    TemporalTests[IorT[TimeT[PureConc[Int, *], *], Int, *], Int]
-      .temporal[Int, Int, Int](10.millis)
-  )
-
-  checkAll(
-    "Kleisli[PureConc]",
-    TemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
-      .temporal[Int, Int, Int](10.millis)
-  )
-
-  checkAll(
-    "WriterT[PureConc]",
-    TemporalTests[WriterT[TimeT[PureConc[Int, *], *], Int, *], Int]
-      .temporal[Int, Int, Int](10.millis)
-  )
 
 //  checkAll("PureConc", ParallelTests[PureConc[Int, *]].parallel[Int, Int])
 
 //  checkAll(
 //    "ParallelF[PureConc]",
 //    AlignTests[ParallelF[PureConc[Int, *], *]].align[Int, Int, Int, Int])
-}
-
-//Push the priority of Kleisli instances down so we can explicitly summon more
-//specific instances to help 2.12 out - I think Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *]
-//involves about 4 nested Kleisli's so the compiler just gives up
-trait LowPriorityInstances {
-
-  implicit def catsLawsArbitraryForKleisli[F[_], A, B](
-      implicit AA: Arbitrary[A],
-      CA: Cogen[A],
-      F: Arbitrary[F[B]]): Arbitrary[Kleisli[F, A, B]] =
-    arbitrary.catsLawsArbitraryForKleisli[F, A, B]
 }
