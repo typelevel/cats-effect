@@ -233,7 +233,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.Uncancelable(body) =>
           F.uncancelable { poll =>
-            val poll2 = new (IO ~> IO) {
+            val poll2 = new Poll[IO] {
               def apply[B](ioa: IO[B]): IO[B] =
                 IO.UnmaskTo(ioa, poll)
             }
@@ -267,7 +267,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
           val ioa = self.ioa.asInstanceOf[IO[A]]
-          val poll = self.poll.asInstanceOf[F ~> F]
+          val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
       }
     }
@@ -375,7 +375,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
-  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+  def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body)
 
   private[this] val _unit: IO[Unit] = Pure(())
@@ -514,7 +514,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
-    def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+    def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
     def toK[G[_]](implicit G: Effect[G]): IO ~> G =
@@ -591,7 +591,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 10
   }
 
-  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
     def tag = 11
   }
 
@@ -621,7 +621,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: F ~> F) extends IO[A] {
+  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
     def tag = -1
   }
 }

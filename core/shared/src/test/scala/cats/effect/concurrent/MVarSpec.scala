@@ -467,7 +467,7 @@ class MVarSpec extends BaseSpec {
       v <- MVar[IO].empty[Int]
       fiberA <- v.modify(n => IO.pure((n * 2, n.show))).start
       fiberB <- v.take.start
-      _ <- IO.sleep(500.millis)   // :-(
+      _ <- IO.sleep(500.millis) // :-(
       _ <- fiberA.cancel
       _ <- v.put(10)
       result <- fiberB.joinAndEmbedNever

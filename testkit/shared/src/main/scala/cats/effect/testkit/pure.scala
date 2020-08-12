@@ -283,12 +283,11 @@ object pure {
           }
         }
 
-      def uncancelable[A](
-          body: PureConc[E, *] ~> PureConc[E, *] => PureConc[E, A]): PureConc[E, A] =
+      def uncancelable[A](body: Poll[PureConc[E, *]] => PureConc[E, A]): PureConc[E, A] =
         Thread.annotate("uncancelable", true) {
           val mask = new MaskId
 
-          val poll = new (PureConc[E, *] ~> PureConc[E, *]) {
+          val poll = new Poll[PureConc[E, *]] {
             def apply[a](fa: PureConc[E, a]) =
               withCtx { ctx =>
                 val ctx2 = ctx.copy(masks = ctx.masks.dropWhile(mask === _))
