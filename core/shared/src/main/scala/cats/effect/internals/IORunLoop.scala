@@ -369,18 +369,22 @@ private[effect] object IORunLoop {
    * to include the async stack trace.
    */
   private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
-    val prefix = IOTrace.dropRunLoopSuffix(ex.getStackTrace.toList)
-    val suffix = ctx
-      .getStackTraces()
-      .flatMap(t => IOTrace.getOpAndCallSite(t.getStackTrace.toList))
-      .map {
-        case (methodSite, callSite) =>
-          new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
-                                callSite.getMethodName,
-                                callSite.getFileName,
-                                callSite.getLineNumber)
-      }
-    ex.setStackTrace((prefix ++ suffix).toArray)
+    val stackTrace = ex.getStackTrace
+    if (!stackTrace.isEmpty) {
+      val prefix = IOTrace.dropRunLoopSuffix(stackTrace.toList)
+      val suffix = ctx
+        .getStackTraces()
+        // TODO: We should just store a List[StackTraceElement] in the cache
+        .flatMap(t => IOTrace.getOpAndCallSite(t.getStackTrace.toList))
+        .map {
+          case (methodSite, callSite) =>
+            new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+                                  callSite.getMethodName,
+                                  callSite.getFileName,
+                                  callSite.getLineNumber)
+        }
+      ex.setStackTrace((prefix ++ suffix).toArray)
+    }
   }
 
   /**
