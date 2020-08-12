@@ -33,7 +33,7 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
     val Junction = "├"
     val Line = "│"
 
-    val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
+    val acc0 = s"IOTrace: $captured frames captured\n"
     if (options.showFullStackTraces) {
       val stackTraces = events.collect { case e: IOEvent.StackTrace => e }
 
@@ -62,12 +62,16 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
         }
         .mkString("\n")
 
-      acc0 + acc1
+      val acc2 = if (omitted > 0) {
+        "\n" + TurnRight + s" ... ($omitted frames omitted)\n"
+      } else "\n"
+
+      acc0 + acc1 + acc2
     } else {
       val acc1 = events.zipWithIndex
         .map {
           case (event, index) =>
-            val junc = if (index == events.length - 1) TurnRight else Junction
+            val junc = if (index == events.length - 1 && omitted == 0) TurnRight else Junction
             val message = event match {
               case ev: IOEvent.StackTrace => {
                 getOpAndCallSite(ev.stackTrace)
@@ -75,16 +79,20 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
                     case (methodSite, callSite) =>
                       val loc = renderStackTraceElement(callSite)
                       val op = NameTransformer.decode(methodSite.getMethodName)
-                      s"$op at $loc"
+                      s"$op @ $loc"
                   }
                   .getOrElse("(...)")
               }
             }
             s" $junc $message"
         }
-        .mkString(acc0, "\n", "\n")
+        .mkString(acc0, "\n", "")
 
-      acc1
+      val acc2 = if (omitted > 0) {
+        acc1 + "\n " + TurnRight + s" ... ($omitted frames omitted)"
+      } else acc1
+
+      acc2 + "\n"
     }
   }
 }

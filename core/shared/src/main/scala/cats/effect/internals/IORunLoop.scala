@@ -134,12 +134,18 @@ private[effect] object IORunLoop {
               }
           }
 
-          val prefix = ex.getStackTrace.takeWhile(ste => ste.getClassName != "cats.effect.internals.IORunLoop$" && ste.getClassName != "scala.runtime.java8.JFunction0$mcV$sp")
-          val asyncTrace = ctx.getStackTraces()
+          val prefix = ex.getStackTrace.takeWhile(ste =>
+            ste.getClassName != "cats.effect.internals.IORunLoop$" && ste.getClassName != "scala.runtime.java8.JFunction0$mcV$sp"
+          )
+          val asyncTrace = ctx
+            .getStackTraces()
             .flatMap(t => getOpAndCallSite(t.getStackTrace.toList))
             .map {
               case (methodSite, callSite) =>
-                new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName, callSite.getMethodName, callSite.getFileName, callSite.getLineNumber)
+                new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+                                      callSite.getMethodName,
+                                      callSite.getFileName,
+                                      callSite.getLineNumber)
             }
           val suffix = asyncTrace
           ex.setStackTrace(prefix ++ suffix.reverse)

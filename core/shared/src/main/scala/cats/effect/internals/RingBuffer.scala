@@ -46,10 +46,11 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
   def capacity: Int =
     length
 
+  // returns a list in reverse order of insertion
   def toList: List[A] = {
-    val end = index
-    val start = Math.max(end - length, 0)
-    (start until end).toList
+    val start = index - 1
+    val end = Math.max(start - length, 0)
+    (start to end by -1).toList
       .map(i => array(i & mask).asInstanceOf[A])
   }
 
