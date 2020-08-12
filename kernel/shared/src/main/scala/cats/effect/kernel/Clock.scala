@@ -54,13 +54,13 @@ object Clock {
       implicit override def F: Clock[F] with Monad[F] = F0
     }
 
-  implicit def clockForWriterT[F[_], S](
+  implicit def clockForWriterT[F[_], L](
       implicit F0: Clock[F] with Monad[F],
-      S0: Monoid[S]): Clock[WriterT[F, S, *]] =
-    new WriterTClock[F, S] {
+      L0: Monoid[L]): Clock[WriterT[F, L, *]] =
+    new WriterTClock[F, L] {
       implicit override def F: Clock[F] with Monad[F] = F0
 
-      implicit override def S: Monoid[S] = S0
+      implicit override def L: Monoid[L] = L0
 
     }
 
@@ -148,23 +148,24 @@ object Clock {
       StateT.liftF(F.realTime)
   }
 
-  private[kernel] trait WriterTClock[F[_], S] extends Clock[WriterT[F, S, *]] {
+  private[kernel] trait WriterTClock[F[_], L] extends Clock[WriterT[F, L, *]] {
     implicit protected def F: Clock[F] with Monad[F]
-    implicit protected def S: Monoid[S]
 
-    protected def delegate: Applicative[WriterT[F, S, *]] =
-      WriterT.catsDataMonadForWriterT[F, S]
+    implicit protected def L: Monoid[L]
+
+    protected def delegate: Applicative[WriterT[F, L, *]] =
+      WriterT.catsDataMonadForWriterT[F, L]
 
     override def ap[A, B](
-        ff: WriterT[F, S, A => B]
-    )(fa: WriterT[F, S, A]): WriterT[F, S, B] = delegate.ap(ff)(fa)
+        ff: WriterT[F, L, A => B]
+    )(fa: WriterT[F, L, A]): WriterT[F, L, B] = delegate.ap(ff)(fa)
 
-    override def pure[A](x: A): WriterT[F, S, A] = delegate.pure(x)
+    override def pure[A](x: A): WriterT[F, L, A] = delegate.pure(x)
 
-    override def monotonic: WriterT[F, S, FiniteDuration] =
+    override def monotonic: WriterT[F, L, FiniteDuration] =
       WriterT.liftF(F.monotonic)
 
-    override def realTime: WriterT[F, S, FiniteDuration] = WriterT.liftF(F.realTime)
+    override def realTime: WriterT[F, L, FiniteDuration] = WriterT.liftF(F.realTime)
   }
 
   private[kernel] trait IorTClock[F[_], L] extends Clock[IorT[F, L, *]] {

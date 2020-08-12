@@ -70,13 +70,13 @@ object Sync {
       implicit def F: Sync[F] = F0
     }
 
-  implicit def syncForWriterT[F[_], S](
+  implicit def syncForWriterT[F[_], L](
       implicit F0: Sync[F],
-      S0: Monoid[S]): Sync[WriterT[F, S, *]] =
-    new WriterTSync[F, S] {
+      L0: Monoid[L]): Sync[WriterT[F, L, *]] =
+    new WriterTSync[F, L] {
       implicit def F: Sync[F] = F0
 
-      implicit def S: Monoid[S] = S0
+      implicit def L: Monoid[L] = L0
     }
 
   implicit def syncForIorT[F[_], L](

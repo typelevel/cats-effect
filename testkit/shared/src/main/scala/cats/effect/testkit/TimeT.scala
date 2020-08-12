@@ -17,12 +17,16 @@
 package cats.effect
 package testkit
 
-import cats.{~>, Group, Monad, Monoid}
+import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
 import cats.effect.kernel.{Concurrent, Fiber, Outcome, Poll, Temporal}
 import cats.syntax.all._
 
+import org.scalacheck.{Arbitrary, Cogen, Gen}
+
 import scala.concurrent.duration._
+
+import java.util.concurrent.TimeUnit
 
 /*
  * NB: Even though we expect this to be usable on implementations which
@@ -33,6 +37,16 @@ import scala.concurrent.duration._
 final class Time private[effect] (@volatile private[effect] var now: FiniteDuration) {
   private[effect] def fork(): Time =
     new Time(now)
+}
+
+object Time {
+
+  implicit def cogenTime: Cogen[Time] =
+    Cogen[FiniteDuration].contramap(_.now)
+
+  implicit def arbTime: Arbitrary[Time] =
+    Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
+
 }
 
 object TimeT {
@@ -48,6 +62,18 @@ object TimeT {
   def run[F[_], A](tfa: TimeT[F, A]): F[A] =
     tfa.run(new Time(0.millis))
 
+  //THis possibly shouldn't be here but all the tests using TimeT import TimeT._ anyway
+  implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
+    import TimeUnit._
+
+    val genTU =
+      Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
+
+    Arbitrary {
+      genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
+    }
+  }
+
   implicit def groupTimeT[F[_]: Monad, A](implicit A: Group[A]): Group[TimeT[F, A]] =
     new Group[TimeT[F, A]] {
 
@@ -59,6 +85,9 @@ object TimeT {
       def inverse(a: TimeT[F, A]) =
         a.map(_.inverse())
     }
+
+  implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
+    Order.by(TimeT.run(_))
 
   implicit def temporalForTimeT[F[_], E](
       implicit F: Concurrent[F, E]): Temporal[TimeT[F, *], E] =

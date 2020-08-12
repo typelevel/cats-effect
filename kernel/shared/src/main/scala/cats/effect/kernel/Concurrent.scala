@@ -194,7 +194,8 @@ object Concurrent {
 
     implicit protected def F: Concurrent[F, E]
 
-    val delegate = OptionT.catsDataMonadErrorForOptionT[F, E]
+    protected def delegate: MonadError[OptionT[F, *], E] =
+      OptionT.catsDataMonadErrorForOptionT[F, E]
 
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
@@ -267,7 +268,8 @@ object Concurrent {
 
     implicit protected def F: Concurrent[F, E]
 
-    val delegate = EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
+    protected def delegate: MonadError[EitherT[F, E0, *], E] =
+      EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
 
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
@@ -344,7 +346,8 @@ object Concurrent {
 
     implicit protected def L: Semigroup[L]
 
-    val delegate = IorT.catsDataMonadErrorFForIorT[F, L, E]
+    protected def delegate: MonadError[IorT[F, L, *], E] =
+      IorT.catsDataMonadErrorFForIorT[F, L, E]
 
     def start[A](fa: IorT[F, L, A]): IorT[F, L, Fiber[IorT[F, L, *], E, A]] =
       IorT.liftF(F.start(fa.value).map(liftFiber))
@@ -417,7 +420,8 @@ object Concurrent {
 
     implicit protected def F: Concurrent[F, E]
 
-    val delegate = Kleisli.catsDataMonadErrorForKleisli[F, R, E]
+    protected def delegate: MonadError[Kleisli[F, R, *], E] =
+      Kleisli.catsDataMonadErrorForKleisli[F, R, E]
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
@@ -495,7 +499,8 @@ object Concurrent {
 
     implicit protected def L: Monoid[L]
 
-    val delegate = WriterT.catsDataMonadErrorForWriterT[F, L, E]
+    protected def delegate: MonadError[WriterT[F, L, *], E] =
+      WriterT.catsDataMonadErrorForWriterT[F, L, E]
 
     def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
       WriterT.liftF(F.start(fa.run).map(liftFiber))
