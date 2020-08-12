@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Order, Show}
+import cats.Show
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
@@ -28,7 +28,7 @@ import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
 // import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.Prop
 
 import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
@@ -37,8 +37,6 @@ import org.specs2.mutable._
 import scala.concurrent.duration._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
-
-import java.util.concurrent.TimeUnit
 
 class PureConcSpec extends Specification with Discipline with ScalaCheck {
 //  import ParallelFGenerators._
@@ -49,29 +47,6 @@ class PureConcSpec extends Specification with Discipline with ScalaCheck {
 
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))
-
-  implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
-    import TimeUnit._
-
-    val genTU =
-      Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
-
-    Arbitrary {
-      genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
-    }
-  }
-
-  implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
-    Order.by(TimeT.run(_))
-
-  implicit def pureConcOrder[E: Order, A: Order]: Order[PureConc[E, A]] =
-    Order.by(pure.run(_))
-
-  implicit def cogenTime: Cogen[Time] =
-    Cogen[FiniteDuration].contramap(_.now)
-
-  implicit def arbTime: Arbitrary[Time] =
-    Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
 
   checkAll(
     "TimeT[PureConc]",

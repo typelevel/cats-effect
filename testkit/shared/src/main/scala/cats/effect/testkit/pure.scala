@@ -16,7 +16,7 @@
 
 package cats.effect.testkit
 
-import cats.{~>, Eq, Functor, Id, Monad, MonadError, Show}
+import cats.{~>, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
@@ -168,6 +168,9 @@ object pure {
       case _ => Outcome.Completed(None)
     }
   }
+
+  implicit def orderForPureConc[E: Order, A: Order]: Order[PureConc[E, A]] =
+    Order.by(pure.run(_))
 
   implicit def concurrentForPureConc[E]: Concurrent[PureConc[E, *], E] =
     new Concurrent[PureConc[E, *], E] {

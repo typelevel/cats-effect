@@ -20,7 +20,7 @@ import cats.{Eq, Order, Show}
 import cats.data.Kleisli
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.{eq, MiniInt}; import eq._
+import cats.laws.discipline.MiniInt
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.TemporalTests
@@ -30,7 +30,7 @@ import cats.effect.testkit.TimeT._
 
 // import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.Prop
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
@@ -40,37 +40,12 @@ import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
 
-import java.util.concurrent.TimeUnit
-
 class KleisliPureConcSpec extends Specification with Discipline with ScalaCheck {
   import PureConcGenerators._
 //  import ParallelFGenerators._
 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
-
-  implicit def arbPositiveFiniteDuration: Arbitrary[FiniteDuration] = {
-    import TimeUnit._
-
-    val genTU =
-      Gen.oneOf(NANOSECONDS, MICROSECONDS, MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS)
-
-    Arbitrary {
-      genTU flatMap { u => Gen.posNum[Long].map(FiniteDuration(_, u)) }
-    }
-  }
-
-  implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
-    Order.by(TimeT.run(_))
-
-  implicit def pureConcOrder[E: Order, A: Order]: Order[PureConc[E, A]] =
-    Order.by(pure.run(_))
-
-  implicit def cogenTime: Cogen[Time] =
-    Cogen[FiniteDuration].contramap(_.now)
-
-  implicit def arbTime: Arbitrary[Time] =
-    Arbitrary(Arbitrary.arbitrary[FiniteDuration].map(new Time(_)))
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
