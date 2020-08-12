@@ -64,7 +64,7 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
       val acc2 = if (omitted > 0) {
         "\n" + TurnRight + s" ... ($omitted frames omitted)\n"
-      } else "\n"
+      } else "\n" + TurnRight + "\n"
 
       acc0 + acc1 + acc2
     } else {
@@ -99,8 +99,29 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
 private[effect] object IOTrace {
 
-  // Number of lines to drop from the top of the stack trace
-  def stackTraceIgnoreLines = 3
+  def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
+    frames
+      .sliding(2)
+      .collect {
+        case a :: b :: Nil => (a, b)
+      }
+      .find {
+        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+      }
+
+  def dropRunLoopSuffix(frames: List[StackTraceElement]): List[StackTraceElement] =
+    frames.takeWhile(ste => !contextualFilter.exists(ste.getClassName.startsWith(_)))
+
+  private def renderStackTraceElement(ste: StackTraceElement): String = {
+    val methodName = demangleMethod(ste.getMethodName)
+    s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
+  }
+
+  private def demangleMethod(methodName: String): String =
+    anonfunRegex.findFirstMatchIn(methodName) match {
+      case Some(mat) => mat.group(1)
+      case None      => methodName
+    }
 
   private[this] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 
@@ -113,24 +134,8 @@ private[effect] object IOTrace {
     "scala."
   )
 
-  private def renderStackTraceElement(ste: StackTraceElement): String = {
-    val methodName = demangleMethod(ste.getMethodName)
-    s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
-  }
-
-  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
-    frames
-      .sliding(2)
-      .collect {
-        case a :: b :: Nil => (a, b)
-      }
-      .find {
-        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
-      }
-
-  private def demangleMethod(methodName: String): String =
-    anonfunRegex.findFirstMatchIn(methodName) match {
-      case Some(mat) => mat.group(1)
-      case None      => methodName
-    }
+  private[this] val contextualFilter = List(
+    "cats.effect.",
+    "scala."
+  )
 }

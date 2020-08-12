@@ -36,7 +36,7 @@ public final class TracingPlatform {
      */
     private static final String stackTracingMode = Optional.ofNullable(System.getProperty("cats.effect.stackTracingMode"))
             .filter(x -> !x.isEmpty())
-            .orElse("cached");
+            .orElse("full");
 
     public static final boolean isCachedStackTracing = stackTracingMode.equalsIgnoreCase("cached");
 
@@ -59,5 +59,15 @@ public final class TracingPlatform {
             }
         })
         .orElse(16);
+
+    /**
+     * Sets the contextual exceptions flag, which controls whether or not the
+     * stack traces of IO exceptions are augmented to include async stack trace information.
+     * Stack tracing must be enabled in order to use this feature.
+     * This flag is enabled by default.
+     */
+    public static final boolean contextualExceptions = Optional.ofNullable(System.getProperty("cats.effect.contextualExceptions"))
+            .map(x -> Boolean.valueOf(x))
+            .orElse(true);
 
 }

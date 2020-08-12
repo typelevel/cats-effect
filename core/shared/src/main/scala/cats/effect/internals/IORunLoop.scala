@@ -18,8 +18,8 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.IOEvent
-import cats.effect.internals.TracingPlatform.isStackTracing
+import cats.effect.tracing.{IOEvent, IOTrace}
+import cats.effect.internals.TracingPlatform.{contextualExceptions, isStackTracing}
 
 import scala.util.control.NonFatal
 
@@ -114,41 +114,9 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
-          def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] = {
-            val stackTraceFilter = List(
-              "cats.effect.",
-              "cats.",
-              "sbt.",
-              "java.",
-              "sun.",
-              "scala."
-            )
-
-            frames
-              .sliding(2)
-              .collect {
-                case a :: b :: Nil => (a, b)
-              }
-              .find {
-                case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
-              }
+          if (isStackTracing && contextualExceptions) {
+            augmentException(ex, ctx)
           }
-
-          val prefix = ex.getStackTrace.takeWhile(ste =>
-            ste.getClassName != "cats.effect.internals.IORunLoop$" && ste.getClassName != "scala.runtime.java8.JFunction0$mcV$sp"
-          )
-          val asyncTrace = ctx
-            .getStackTraces()
-            .flatMap(t => getOpAndCallSite(t.getStackTrace.toList))
-            .map {
-              case (methodSite, callSite) =>
-                new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
-                                      callSite.getMethodName,
-                                      callSite.getFileName,
-                                      callSite.getLineNumber)
-            }
-          val suffix = asyncTrace
-          ex.setStackTrace(prefix ++ suffix.reverse)
           findErrorHandler(bFirst, bRest) match {
             case null =>
               cb(Left(ex))
@@ -279,6 +247,9 @@ private[effect] object IORunLoop {
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          if (isStackTracing && contextualExceptions) {
+            augmentException(ex, ctx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
@@ -391,6 +362,26 @@ private[effect] object IORunLoop {
           // $COVERAGE-ON$
         }
     }
+
+  /**
+   * If stack tracing and contextual exceptions are enabled, this
+   * function will rewrite the stack trace of a captured exception
+   * to include the async stack trace.
+   */
+  private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
+    val prefix = IOTrace.dropRunLoopSuffix(ex.getStackTrace.toList)
+    val suffix = ctx
+      .getStackTraces()
+      .flatMap(t => IOTrace.getOpAndCallSite(t.getStackTrace.toList))
+      .map {
+        case (methodSite, callSite) =>
+          new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+                                callSite.getMethodName,
+                                callSite.getFileName,
+                                callSite.getLineNumber)
+      }
+    ex.setStackTrace((prefix ++ suffix).toArray)
+  }
 
   /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]
