@@ -26,7 +26,7 @@ import org.specs2.mutable.Specification
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-import java.util.concurrent.Executors
+import java.util.concurrent.{CountDownLatch, Executors}
 
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
@@ -112,6 +112,58 @@ abstract class IOPlatformSpecification extends Specification with ScalaCheck wit
 
     "reliably cancel infinite IO.unit(s)" in real {
       IO.unit.foreverM.start.flatMap(f => IO.sleep(50.millis) >> f.cancel).as(ok)
+    }
+
+    "interrupt well-behaved blocking synchronous effect" in real {
+      var interrupted = true
+      val latch = new CountDownLatch(1)
+
+      val await = IO.interruptible(false) {
+        latch.countDown()
+        Thread.sleep(15000)
+        interrupted = false
+      }
+
+      for {
+        f <- await.start
+        _ <- IO.blocking(latch.await())
+        _ <- f.cancel
+        _ <- IO(interrupted must beTrue)
+      } yield ok
+    }
+
+    "interrupt ill-behaved blocking synchronous effect" in real {
+      var interrupted = true
+      val latch = new CountDownLatch(1)
+
+      val await = IO.interruptible(true) {
+        latch.countDown()
+
+        try {
+          Thread.sleep(15000)
+        } catch {
+          case _: InterruptedException => ()
+        }
+
+        // psych!
+        try {
+          Thread.sleep(15000)
+        } catch {
+          case _: InterruptedException => ()
+        }
+
+        // I AM INVINCIBLE
+        Thread.sleep(15000)
+
+        interrupted = false
+      }
+
+      for {
+        f <- await.start
+        _ <- IO.blocking(latch.await())
+        _ <- f.cancel
+        _ <- IO(interrupted must beTrue)
+      } yield ok
     }
   }
 }

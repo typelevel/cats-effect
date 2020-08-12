@@ -104,6 +104,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
+  def flatten[B](implicit ev: A <:< IO[B]): IO[B] = flatMap(ev)
+
   def guarantee(finalizer: IO[Unit]): IO[A] =
     guaranteeCase(_ => finalizer)
 
@@ -231,7 +233,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case IO.Uncancelable(body) =>
           F.uncancelable { poll =>
-            val poll2 = new (IO ~> IO) {
+            val poll2 = new Poll[IO] {
               def apply[B](ioa: IO[B]): IO[B] =
                 IO.UnmaskTo(ioa, poll)
             }
@@ -265,7 +267,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
           val ioa = self.ioa.asInstanceOf[IO[A]]
-          val poll = self.poll.asInstanceOf[F ~> F]
+          val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
       }
     }
@@ -339,28 +341,11 @@ private[effect] trait IOLowPriorityImplicits {
 
 object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
-  private[this] val TypeDelay = Sync.Type.Delay
-  private[this] val TypeBlocking = Sync.Type.Blocking
-  private[this] val TypeInterruptibleOnce = Sync.Type.InterruptibleOnce
-  private[this] val TypeInterruptibleMany = Sync.Type.InterruptibleMany
-
   // constructors
 
   def apply[A](thunk: => A): IO[A] = Delay(() => thunk)
 
   def delay[A](thunk: => A): IO[A] = apply(thunk)
-
-  def blocking[A](thunk: => A): IO[A] =
-    Blocking(TypeBlocking, () => thunk)
-
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] =
-    Blocking(if (many) TypeInterruptibleMany else TypeInterruptibleOnce, () => thunk)
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
-    if (hint eq TypeDelay)
-      apply(thunk)
-    else
-      Blocking(hint, () => thunk)
 
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
@@ -390,7 +375,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def sleep(delay: FiniteDuration): IO[Unit] =
     Sleep(delay)
 
-  def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+  def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
     Uncancelable(body)
 
   private[this] val _unit: IO[Unit] = Pure(())
@@ -529,7 +514,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def start[A](fa: IO[A]): IO[FiberIO[A]] =
       fa.start
 
-    def uncancelable[A](body: IO ~> IO => IO[A]): IO[A] =
+    def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
     def toK[G[_]](implicit G: Effect[G]): IO ~> G =
@@ -542,6 +527,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       fa.flatMap(f)
 
     override def delay[A](thunk: => A): IO[A] = IO(thunk)
+
+    override def blocking[A](thunk: => A): IO[A] = IO.blocking(thunk)
+
+    override def interruptible[A](many: Boolean)(thunk: => A) = IO.interruptible(many)(thunk)
 
     def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] =
       IO.suspend(hint)(thunk)
@@ -602,7 +591,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 10
   }
 
-  private[effect] final case class Uncancelable[+A](body: IO ~> IO => IO[A]) extends IO[A] {
+  private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
     def tag = 11
   }
 
@@ -632,7 +621,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: F ~> F) extends IO[A] {
+  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
     def tag = -1
   }
 }

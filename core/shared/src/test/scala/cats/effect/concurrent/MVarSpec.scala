@@ -463,29 +463,16 @@ class MVarSpec extends BaseSpec {
   }
 
   "modify is cancelable on take" in real {
-    val task = for {
-      mVar <- MVar[IO].empty[Int]
-      finished <- Deferred[IO, String]
-      gate1 <- Deferred[IO, Unit]
-      gate2 <- Deferred[IO, Unit]
-      fiber <-
-        IO.uncancelable(poll =>
-          gate1.complete(()) *> poll(mVar.modify(n => IO.pure((n * 2, n.show))))
-            .onCancel(gate2.complete(()))
-            .flatMap(finished.complete))
-          .start
-      _ <- gate1.get
-      _ <- fiber.cancel
-      _ <- gate2.get
-      _ <- mVar.put(10)
-      fallback = IO.sleep(100.millis) *> mVar.take
-      v <- IO.race(finished.get, fallback)
-    } yield v
-
-    task.flatMap {
-      case Right(v) => IO(v mustEqual 10)
-      case x => fail(x)
-    }
+    for {
+      v <- MVar[IO].empty[Int]
+      fiberA <- v.modify(n => IO.pure((n * 2, n.show))).start
+      fiberB <- v.take.start
+      _ <- IO.sleep(500.millis) // :-(
+      _ <- fiberA.cancel
+      _ <- v.put(10)
+      result <- fiberB.joinAndEmbedNever
+      _ <- IO(result mustEqual 10)
+    } yield ok
   }
 
   "modify is cancelable on f" in real {

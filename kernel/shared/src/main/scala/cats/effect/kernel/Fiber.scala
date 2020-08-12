@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import scala.scalajs.js.Promise
+import cats.syntax.all._
 
-private[effect] abstract class IOCompanionPlatform { this: IO.type =>
+trait Fiber[F[_], E, A] {
+  def cancel: F[Unit]
+  def join: F[Outcome[F, E, A]]
 
-  def blocking[A](thunk: => A): IO[A] =
-    apply(thunk)
+  def joinAndEmbed(onCancel: F[A])(implicit F: Concurrent[F, E]): F[A] =
+    join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
 
-  def interruptible[A](many: Boolean)(thunk: => A): IO[A] = {
-    val _ = many
-    apply(thunk)
-  }
-
-  def suspend[A](hint: Sync.Type)(thunk: => A): IO[A] = {
-    val _ = hint
-    apply(thunk)
-  }
-
-  def fromPromise[A](iop: IO[Promise[A]]): IO[A] =
-    effectForIO.fromPromise(iop)
+  def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
+    joinAndEmbed(F.canceled *> F.never)
 }

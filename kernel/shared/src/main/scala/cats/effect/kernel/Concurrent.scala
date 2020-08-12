@@ -21,17 +21,6 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
-trait Fiber[F[_], E, A] {
-  def cancel: F[Unit]
-  def join: F[Outcome[F, E, A]]
-
-  def joinAndEmbed(onCancel: F[A])(implicit F: Concurrent[F, E]): F[A] =
-    join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
-
-  def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
-    joinAndEmbed(F.canceled *> F.never)
-}
-
 trait Concurrent[F[_], E] extends MonadError[F, E] {
 
   // analogous to productR, except discarding short-circuiting (and optionally some effect contexts) except for cancelation
@@ -39,7 +28,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
-  def uncancelable[A](body: (F ~> F) => F[A]): F[A]
+  def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
   // produces an effect which is already canceled (and doesn't introduce an async boundary)
   // this is effectively a way for a fiber to commit suicide and yield back to its parent
@@ -62,7 +51,7 @@ trait Concurrent[F[_], E] extends MonadError[F, E] {
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     bracketFull(_ => acquire)(use)(release)
 
-  def bracketFull[A, B](acquire: (F ~> F) => F[A])(use: A => F[B])(
+  def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
       flatMap(acquire(poll)) { a =>
@@ -211,11 +200,10 @@ object Concurrent {
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
 
-    def uncancelable[A](
-        body: (OptionT[F, *] ~> OptionT[F, *]) => OptionT[F, A]): OptionT[F, A] =
+    def uncancelable[A](body: Poll[OptionT[F, *]] => OptionT[F, A]): OptionT[F, A] =
       OptionT(
         F.uncancelable { nat =>
-          val natT: OptionT[F, *] ~> OptionT[F, *] = new ~>[OptionT[F, *], OptionT[F, *]] {
+          val natT = new Poll[OptionT[F, *]] {
             def apply[B](optfa: OptionT[F, B]): OptionT[F, B] = OptionT(nat(optfa.value))
           }
           body(natT).value
@@ -286,15 +274,13 @@ object Concurrent {
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
 
-    def uncancelable[A](body: (EitherT[F, E0, *] ~> EitherT[F, E0, *]) => EitherT[F, E0, A])
-        : EitherT[F, E0, A] =
+    def uncancelable[A](body: Poll[EitherT[F, E0, *]] => EitherT[F, E0, A]): EitherT[F, E0, A] =
       EitherT(
         F.uncancelable { nat =>
-          val natT: EitherT[F, E0, *] ~> EitherT[F, E0, *] =
-            new ~>[EitherT[F, E0, *], EitherT[F, E0, *]] {
-              def apply[B](optfa: EitherT[F, E0, B]): EitherT[F, E0, B] =
-                EitherT(nat(optfa.value))
-            }
+          val natT = new Poll[EitherT[F, E0, *]] {
+            def apply[B](optfa: EitherT[F, E0, B]): EitherT[F, E0, B] =
+              EitherT(nat(optfa.value))
+          }
           body(natT).value
         }
       )
@@ -366,11 +352,10 @@ object Concurrent {
     def start[A](fa: IorT[F, L, A]): IorT[F, L, Fiber[IorT[F, L, *], E, A]] =
       IorT.liftF(F.start(fa.value).map(liftFiber))
 
-    def uncancelable[A](
-        body: (IorT[F, L, *] ~> IorT[F, L, *]) => IorT[F, L, A]): IorT[F, L, A] =
+    def uncancelable[A](body: Poll[IorT[F, L, *]] => IorT[F, L, A]): IorT[F, L, A] =
       IorT(
         F.uncancelable { nat =>
-          val natT: IorT[F, L, *] ~> IorT[F, L, *] = new ~>[IorT[F, L, *], IorT[F, L, *]] {
+          val natT = new Poll[IorT[F, L, *]] {
             def apply[B](optfa: IorT[F, L, B]): IorT[F, L, B] = IorT(nat(optfa.value))
           }
           body(natT).value
@@ -441,15 +426,13 @@ object Concurrent {
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
 
-    def uncancelable[A](
-        body: (Kleisli[F, R, *] ~> Kleisli[F, R, *]) => Kleisli[F, R, A]): Kleisli[F, R, A] =
+    def uncancelable[A](body: Poll[Kleisli[F, R, *]] => Kleisli[F, R, A]): Kleisli[F, R, A] =
       Kleisli { r =>
         F.uncancelable { nat =>
-          val natT: Kleisli[F, R, *] ~> Kleisli[F, R, *] =
-            new ~>[Kleisli[F, R, *], Kleisli[F, R, *]] {
-              def apply[B](stfa: Kleisli[F, R, B]): Kleisli[F, R, B] =
-                Kleisli { r => nat(stfa.run(r)) }
-            }
+          val natT = new Poll[Kleisli[F, R, *]] {
+            def apply[B](stfa: Kleisli[F, R, B]): Kleisli[F, R, B] =
+              Kleisli { r => nat(stfa.run(r)) }
+          }
           body(natT).run(r)
         }
       }
@@ -522,14 +505,12 @@ object Concurrent {
     def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
       WriterT.liftF(F.start(fa.run).map(liftFiber))
 
-    def uncancelable[A](
-        body: (WriterT[F, L, *] ~> WriterT[F, L, *]) => WriterT[F, L, A]): WriterT[F, L, A] =
+    def uncancelable[A](body: Poll[WriterT[F, L, *]] => WriterT[F, L, A]): WriterT[F, L, A] =
       WriterT(
         F.uncancelable { nat =>
-          val natT: WriterT[F, L, *] ~> WriterT[F, L, *] =
-            new ~>[WriterT[F, L, *], WriterT[F, L, *]] {
-              def apply[B](optfa: WriterT[F, L, B]): WriterT[F, L, B] = WriterT(nat(optfa.run))
-            }
+          val natT = new Poll[WriterT[F, L, *]] {
+            def apply[B](optfa: WriterT[F, L, B]): WriterT[F, L, B] = WriterT(nat(optfa.run))
+          }
           body(natT).run
         }
       )
