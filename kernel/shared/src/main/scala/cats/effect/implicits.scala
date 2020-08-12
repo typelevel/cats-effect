@@ -16,4 +16,4 @@
 
 package cats.effect
 
-object implicits extends syntax.AllSyntax with instances.AllInstances
+object implicits extends kernel.syntax.AllSyntax with instances.AllInstances
