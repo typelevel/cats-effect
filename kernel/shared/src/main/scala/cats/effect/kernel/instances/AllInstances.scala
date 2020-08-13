@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect.instances
+package cats.effect.kernel.instances
 
 trait AllInstances extends ConcurrentInstances
