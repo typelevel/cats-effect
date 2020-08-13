@@ -29,10 +29,6 @@ import Resource.ExitCase
 /**
  TODO
  initial scaladoc
- port tests (ResourceSyntax, ResourceTests, ResourceJVMTests)
-  look at IOSpec, it's mostly going to be that (plus a mixin for the jvm stuff)
-  otoh I need to port the generators
-
   also need to write compilation & runtime test once SyncIO is here
 
  Strategy for blocking for the Java closeable interfaces
@@ -524,6 +520,7 @@ object ExitCase {
   case object Canceled extends ExitCase
 }
 
+  @annotation.implicitNotFound("Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of Concurrent[F, Throwable]")
   trait Bracket[F[_]] extends MonadError[F, Throwable] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase) => F[Unit]): F[B]
