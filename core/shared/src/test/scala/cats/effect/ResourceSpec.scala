@@ -23,7 +23,6 @@ import cats.effect.concurrent.Deferred
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.duration._
-import scala.util.Success
 
 import cats.laws._
 import cats.laws.discipline._
@@ -59,7 +58,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         override def close(): Unit = closed = true
       }
 
-      val result = Resource
+      Resource
         .fromAutoCloseable(IO(autoCloseable))
         .use(_ => IO.pure("Hello world")) must completeAs("Hello world")
 
@@ -75,7 +74,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "liftF - interruption" in ticked { implicit ticker =>
       def resource(d: Deferred[IO, Int]) = for {
         _ <- Resource.make(IO.unit)(_ => d.complete(1))
-        _ <- Resource.liftF(IO.never)
+        _ <- Resource.liftF(IO.never: IO[Unit])
       } yield ()
 
       def p = for {
@@ -106,8 +105,8 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       case object Foo extends Exception
 
       Resource
-        .liftF(IO(0))
-        .evalMap(_ => IO.raiseError(Foo))
+        .liftF(IO.unit)
+        .evalMap(_ => IO.raiseError[Unit](Foo))
         .use(IO.pure) must failAs(Foo)
     }
 
@@ -415,7 +414,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   }
  }
 
-
   {
     implicit val ticker = Ticker(TestContext())
 
@@ -434,10 +432,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
-  // TODO We're missing a semigroupK instance for IO
+  //  TODO We're missing a semigroupK instance for IO
   // {
   //   implicit val ticker = Ticker(TestContext())
-
+  //
   //   checkAll(
   //     "Resource[IO, *]",
   //     SemigroupKTests[Resource[IO, *]].semigroupK[Int]
