@@ -136,41 +136,49 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-  // TODO does not compile, missing instance for Kleisli ?
-  // "mapK should preserve ExitCode-specific behaviour" in ticked { implicit ticker =>
-  //   val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
-  //     override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
-  //   }
+  "mapK should preserve ExitCode-specific behaviour" in ticked { implicit ticker =>
+    val takeAnInteger = new ~>[IO, Kleisli[IO, Int, *]] {
+      override def apply[A](fa: IO[A]): Kleisli[IO, Int, A] = Kleisli.liftF(fa)
+    }
 
-  //   def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
-  //     val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
-  //     val res = Resource.makeCase(IO.unit) {
-  //       case (_, Resource.ExitCase.Completed) =>
-  //         IO {
-  //           cleanExit.set(true)
-  //         }
-  //       case _ => IO.unit
-  //     }
-  //     (cleanExit, res)
-  //   }
+    def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
+      val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
+      val res = Resource.makeCase(IO.unit) {
+        case (_, Resource.ExitCase.Completed) =>
+          IO {
+            cleanExit.set(true)
+          }
+        case _ => IO.unit
+      }
+      (cleanExit, res)
+    }
 
-  //   val (clean, res) = sideEffectyResource
-  //   res.use(_ => IO.unit).attempt.void must completeAs(())
-  //   clean.get() must beFalse
+    val (clean, res) = sideEffectyResource
+    res.use(_ => IO.unit).attempt.void must completeAs(())
+    clean.get() must beTrue
 
-  //   val (clean1, res1) = sideEffectyResource
-  //   res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.void must completeAs(())
-  //   clean1.get() must beFalse
+    val (clean1, res1) = sideEffectyResource
+    res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.void must completeAs(())
+    clean1.get() must beFalse
 
-  //   val (clean2, res2) = sideEffectyResource
-  //   res2
-  //     .mapK(takeAnInteger)
-  //     .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
-  //     .run(0)
-  //     .attempt
-  //     .void must completeAs(())
-  //   clean2.get() must beFalse
-  // }
+    val (clean2, res2) = sideEffectyResource
+    res2
+      .mapK(takeAnInteger)
+      .use(_ => ().pure[Kleisli[IO, Int, *]])
+      .run(0)
+      .attempt
+      .void must completeAs(())
+    clean2.get() must beTrue
+
+    val (clean3, res3) = sideEffectyResource
+    res3
+      .mapK(takeAnInteger)
+      .use(_ => Kleisli.liftF(IO.raiseError[Unit](new Throwable("oh no"))))
+      .run(0)
+      .attempt
+      .void must completeAs(())
+    clean3.get() must beFalse
+  }
 
   "allocated produces the same value as the resource" in ticked { implicit ticker =>
     forAll { (resource: Resource[IO, Int]) =>
@@ -408,23 +416,23 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
  }
 
 
-  // {
-  //   implicit val ticker = Ticker(TestContext())
+  {
+    implicit val ticker = Ticker(TestContext())
 
-  //   checkAll(
-  //     "Resource[IO, *]",
-  //     MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int]
-  //   )
-  // }
+    checkAll(
+      "Resource[IO, *]",
+      MonadErrorTests[Resource[IO, *], Throwable].monadError[Int, Int, Int]
+    )
+  }
 
-  // {
-  //   implicit val ticker = Ticker(TestContext())
+  {
+    implicit val ticker = Ticker(TestContext())
 
-  //   checkAll(
-  //     "Resource[IO, Int]",
-  //     MonoidTests[Resource[IO, Int]].monoid
-  //   )
-  // }
+    checkAll(
+      "Resource[IO, Int]",
+      MonoidTests[Resource[IO, Int]].monoid
+    )
+  }
 
   // TODO We're missing a semigroupK instance for IO
   // {
@@ -437,6 +445,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // }
 
 
+  // TODO fails some laws
   // {
   //   implicit val ticker = Ticker(TestContext())
 
@@ -446,16 +455,16 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   //   )
   // }
 
-  // {
-  //   implicit val ticker = Ticker(TestContext())
+  {
+    implicit val ticker = Ticker(TestContext())
 
-  //   // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-  //   val module: ParallelTests.Aux[Resource[IO, *], Resource.Par[IO, *]] =
-  //     ParallelTests[Resource[IO, *]]
+    // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
+    val module: ParallelTests.Aux[Resource[IO, *], Resource.Par[IO, *]] =
+      ParallelTests[Resource[IO, *]]
 
-  //   checkAll(
-  //     "Resource[IO, *]",
-  //     module.parallel[Int, Int]
-  //   )
-  // }
+    checkAll(
+      "Resource[IO, *]",
+      module.parallel[Int, Int]
+    )
+  }
 }
