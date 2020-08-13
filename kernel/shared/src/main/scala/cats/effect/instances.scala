@@ -16,4 +16,11 @@
 
 package cats.effect
 
-object instances extends kernel.instances.AllInstances
+import cats.effect.kernel.instances.{AllInstances, ConcurrentInstances}
+
+object instances {
+
+  object all extends AllInstances
+
+  object concurrent extends ConcurrentInstances
+}
