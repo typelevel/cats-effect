@@ -24,12 +24,10 @@ import cats.effect.concurrent.Deferred
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.duration._
 
-import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
 import cats.kernel.laws.discipline.MonoidTests
 
-//import cats.effect.laws.discipline.arbitrary._
 import cats.effect.testkit.TestContext
 import org.scalacheck.Prop, Prop.forAll
 import org.specs2.ScalaCheck
@@ -432,7 +430,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     )
   }
 
-  //  TODO We're missing a semigroupK instance for IO
+  // TODO We're missing a semigroupK instance for IO
   // {
   //   implicit val ticker = Ticker(TestContext())
   //

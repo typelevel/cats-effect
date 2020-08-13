@@ -27,18 +27,6 @@ import scala.annotation.tailrec
 import Resource.ExitCase
 
 /**
- TODO
- initial scaladoc
-  also need to write compilation & runtime test once SyncIO is here
-
- Strategy for blocking for the Java closeable interfaces
- add useForever
- change bracket instances to follow same code org strategy as the others
- add implicit not found to bracket
- check that the comment on ExitCase.Completed is still valid
-*/
-
-/**
  * The `Resource` is a data structure that captures the effectful
  * allocation of a resource, along with its finalizer.
  *
@@ -152,6 +140,16 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def use[G[x] >: F[x], B](f: A => G[B])(implicit G: Resource.Bracket[G[*]]): G[B] =
     fold[G, B](f, identity)
+
+
+  /**
+   * Allocates a resource with a non-terminating use action.
+   * Useful to run programs that are expressed entirely in `Resource`.
+   *
+   * The finalisers run when the resulting program fails or gets interrupted.
+   */
+  def useForever[G[x] >: F[x]](implicit G: Concurrent[G[*], Throwable]): G[Nothing] =
+    use[G, Nothing](_ => G.never)
 
   /**
    * Allocates two resources concurrently, and combines their results in a tuple.
@@ -498,7 +496,7 @@ object ExitCase {
    * When combining such a type with `EitherT` or `OptionT` for
    * example, this exit condition might not signal a successful
    * outcome for the user, but it does for the purposes of the
-   * `bracket` operation. 
+   * `bracket` operation. <-- TODO still true?
    */
   case object Completed extends ExitCase
 
