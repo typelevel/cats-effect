@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats.implicits._
-import cats.data.{OptionT}
+import cats.data.{EitherT, OptionT}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -48,6 +48,11 @@ object Async {
 
   implicit def asyncForOptionT[F[_]](implicit F0: Async[F]): Async[OptionT[F, *]] =
     new OptionTAsync[F] {
+      override implicit protected def F: Async[F] = F0
+    }
+
+  implicit def asyncForEitherT[F[_], E](implicit F0: Async[F]): Async[EitherT[F, E, *]] =
+    new EitherTAsync[F, E] {
       override implicit protected def F: Async[F] = F0
     }
 
@@ -88,6 +93,50 @@ object Async {
 
     override def handleErrorWith[A](fa: OptionT[F, A])(
         f: Throwable => OptionT[F, A]): OptionT[F, A] =
+      delegate.handleErrorWith(fa)(f)
+
+  }
+
+  private[effect] trait EitherTAsync[F[_], E]
+      extends Async[EitherT[F, E, *]]
+      with Sync.EitherTSync[F, E]
+      with Temporal.EitherTTemporal[F, E, Throwable] {
+
+    implicit protected def F: Async[F]
+
+    def async[A](
+        k: (Either[Throwable, A] => Unit) => EitherT[F, E, Option[EitherT[F, E, Unit]]])
+        : EitherT[F, E, A] =
+      EitherT.liftF(
+        F.async(k.andThen(_.value.map(_.fold(_ => None, identity).map(_.value.void)))))
+
+    def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
+      EitherT(F.evalOn(fa.value, ec))
+
+    def executionContext: EitherT[F, E, ExecutionContext] = EitherT.liftF(F.executionContext)
+
+    override def never[A]: EitherT[F, E, A] = EitherT.liftF(F.never)
+
+    // protected def delegate: Applicative[EitherT[F, *]] = OptionT.catsDataMonadForOptionT[F]
+
+    override def ap[A, B](
+        ff: EitherT[F, E, A => B]
+    )(fa: EitherT[F, E, A]): EitherT[F, E, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): EitherT[F, E, A] = delegate.pure(x)
+
+    override def flatMap[A, B](fa: EitherT[F, E, A])(
+        f: A => EitherT[F, E, B]): EitherT[F, E, B] =
+      delegate.flatMap(fa)(f)
+
+    override def tailRecM[A, B](a: A)(f: A => EitherT[F, E, Either[A, B]]): EitherT[F, E, B] =
+      delegate.tailRecM(a)(f)
+
+    override def raiseError[A](e: Throwable): EitherT[F, E, A] =
+      delegate.raiseError(e)
+
+    override def handleErrorWith[A](fa: EitherT[F, E, A])(
+        f: Throwable => EitherT[F, E, A]): EitherT[F, E, A] =
       delegate.handleErrorWith(fa)(f)
 
   }
