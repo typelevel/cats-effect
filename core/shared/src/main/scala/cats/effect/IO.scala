@@ -182,10 +182,10 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     IO.RacePair(this, that)
 
   def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
-    IO.Redeem(this, recover, map)
+    attempt.map(_.fold(recover, map))
 
   def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
-    IO.RedeemWith(this, recover, bind)
+    attempt.flatMap(_.fold(recover, bind))
 
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
@@ -272,12 +272,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case self: IO.Attempt[_] =>
           F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-
-        case IO.Redeem(ioa, recover, map) =>
-          F.redeem(ioa.to[F])(recover, map)
-
-        case IO.RedeemWith(ioa, recover, bind) =>
-          F.redeemWith(ioa.to[F])(recover.andThen(_.to[F]), bind.andThen(_.to[F]))
 
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
@@ -644,22 +638,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 20
-  }
-
-  private[effect] final case class Redeem[A, +B](
-      ioa: IO[A],
-      recover: Throwable => B,
-      map: A => B)
-      extends IO[B] {
-    def tag = 21
-  }
-
-  private[effect] final case class RedeemWith[A, +B](
-      ioa: IO[A],
-      recover: Throwable => IO[B],
-      bind: A => IO[B])
-      extends IO[B] {
-    def tag = 22
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.

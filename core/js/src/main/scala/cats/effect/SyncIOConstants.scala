@@ -24,6 +24,4 @@ private object SyncIOConstants {
   val HandleErrorWithK: Byte = 2
   val RunTerminusK: Byte = 3
   val AttemptK: Byte = 4
-  val RedeemK: Byte = 5
-  val RedeemWithK: Byte = 6
 }

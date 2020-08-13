@@ -25,6 +25,4 @@ final class SyncIOConstants {
   public static final byte HandleErrorWithK = 2;
   public static final byte RunTerminusK = 3;
   public static final byte AttemptK = 4;
-  public static final byte RedeemK = 5;
-  public static final byte RedeemWithK = 6;
 }

@@ -152,10 +152,10 @@ sealed abstract class SyncIO[+A] private () {
     flatMap(_ => that)
 
   def redeem[B](recover: Throwable => B, map: A => B): SyncIO[B] =
-    SyncIO.Redeem(this, recover, map)
+    attempt.map(_.fold(recover, map))
 
   def redeemWith[B](recover: Throwable => SyncIO[B], bind: A => SyncIO[B]): SyncIO[B] =
-    SyncIO.RedeemWith(this, recover, bind)
+    attempt.flatMap(_.fold(recover, bind))
 
   /**
    * Converts the source `SyncIO` into any `F` type that implements
@@ -175,9 +175,6 @@ sealed abstract class SyncIO[+A] private () {
         case SyncIO.Success(a) => F.pure(a)
         case SyncIO.Failure(t) => F.raiseError(t)
         case self: SyncIO.Attempt[_] => F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-        case SyncIO.Redeem(ioa, recover, map) => F.redeem(ioa.to[F])(recover, map)
-        case SyncIO.RedeemWith(ioa, recover, bind) =>
-          F.redeemWith(ioa.to[F])(recover.andThen(_.to[F]), bind.andThen(_.to[F]))
       }
     }
 
@@ -278,24 +275,6 @@ sealed abstract class SyncIO[+A] private () {
 
           conts.push(AttemptK)
           runLoop(cur.ioa)
-
-        case 9 =>
-          val cur = cur0.asInstanceOf[SyncIO.Redeem[Any, Any]]
-
-          objectState.push(cur.map)
-          objectState.push(cur.recover)
-          conts.push(RedeemK)
-
-          runLoop(cur.ioa)
-
-        case 10 =>
-          val cur = cur0.asInstanceOf[SyncIO.RedeemWith[Any, Any]]
-
-          objectState.push(cur.bind)
-          objectState.push(cur.recover)
-          conts.push(RedeemWithK)
-
-          runLoop(cur.ioa)
       }
 
     @tailrec
@@ -310,8 +289,6 @@ sealed abstract class SyncIO[+A] private () {
           succeeded(result, depth)
         case 3 => SyncIO.Success(result)
         case 4 => succeeded(Right(result), depth + 1)
-        case 5 => redeemSuccessK(result, depth)
-        case 6 => redeemWithSuccessK(result, depth)
       }
 
     def failed(error: Throwable, depth: Int): SyncIO[Any] = {
@@ -335,8 +312,6 @@ sealed abstract class SyncIO[+A] private () {
         case 2 => handleErrorWithK(error, depth)
         case 3 => SyncIO.Failure(error)
         case 4 => succeeded(Left(error), depth + 1)
-        case 5 => redeemFailureK(error, depth)
-        case 6 => redeemWithFailureK(error, depth)
       }
     }
 
@@ -372,68 +347,6 @@ sealed abstract class SyncIO[+A] private () {
       val f = objectState.pop().asInstanceOf[Throwable => SyncIO[Any]]
 
       try f(t)
-      catch {
-        case NonFatal(t) => failed(t, depth + 1)
-      }
-    }
-
-    def redeemSuccessK(result: Any, depth: Int): SyncIO[Any] = {
-      objectState.pop()
-      val f = objectState.pop().asInstanceOf[Any => Any]
-
-      var error: Throwable = null
-
-      val transformed =
-        try f(result)
-        catch {
-          case NonFatal(t) => error = t
-        }
-
-      if (depth > MaxStackDepth) {
-        if (error == null) SyncIO.Pure(transformed)
-        else SyncIO.Error(error)
-      } else {
-        if (error == null) succeeded(transformed, depth + 1)
-        else failed(error, depth + 1)
-      }
-    }
-
-    def redeemFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
-      val recover = objectState.pop().asInstanceOf[Throwable => Any]
-      objectState.pop()
-
-      var error: Throwable = null
-
-      val transformed =
-        try recover(t)
-        catch {
-          case NonFatal(t) => error = t
-        }
-
-      if (depth > MaxStackDepth) {
-        if (error == null) SyncIO.Pure(transformed)
-        else SyncIO.Error(error)
-      } else {
-        if (error == null) succeeded(transformed, depth + 1)
-        else failed(error, depth + 1)
-      }
-    }
-
-    def redeemWithSuccessK(result: Any, depth: Int): SyncIO[Any] = {
-      objectState.pop()
-      val f = objectState.pop().asInstanceOf[Any => SyncIO[Any]]
-
-      try f(result)
-      catch {
-        case NonFatal(t) => failed(t, depth + 1)
-      }
-    }
-
-    def redeemWithFailureK(t: Throwable, depth: Int): SyncIO[Any] = {
-      val recover = objectState.pop().asInstanceOf[Throwable => SyncIO[Any]]
-      objectState.pop()
-
-      try recover(t)
       catch {
         case NonFatal(t) => failed(t, depth + 1)
       }
@@ -618,28 +531,28 @@ object SyncIO extends SyncIOLowPriorityImplicits {
 
   private[this] val _syncEffectForSyncIO: SyncEffect[SyncIO] = new SyncEffect[SyncIO]
     with StackSafeMonad[SyncIO] {
-    override def pure[A](x: A): SyncIO[A] =
+    def pure[A](x: A): SyncIO[A] =
       SyncIO.pure(x)
 
-    override def raiseError[A](e: Throwable): SyncIO[A] =
+    def raiseError[A](e: Throwable): SyncIO[A] =
       SyncIO.raiseError(e)
 
-    override def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
+    def handleErrorWith[A](fa: SyncIO[A])(f: Throwable => SyncIO[A]): SyncIO[A] =
       fa.handleErrorWith(f)
 
-    override def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
+    def flatMap[A, B](fa: SyncIO[A])(f: A => SyncIO[B]): SyncIO[B] =
       fa.flatMap(f)
 
-    override def monotonic: SyncIO[FiniteDuration] =
+    def monotonic: SyncIO[FiniteDuration] =
       SyncIO.monotonic
 
-    override def realTime: SyncIO[FiniteDuration] =
+    def realTime: SyncIO[FiniteDuration] =
       SyncIO.realTime
 
-    override def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
+    def suspend[A](hint: Sync.Type)(thunk: => A): SyncIO[A] =
       SyncIO(thunk)
 
-    override def toK[G[_]: SyncEffect]: SyncIO ~> G =
+    def toK[G[_]: SyncEffect]: SyncIO ~> G =
       SyncIO.toK[G]
 
     override def attempt[A](fa: SyncIO[A]): SyncIO[Either[Throwable, A]] =
@@ -697,21 +610,5 @@ object SyncIO extends SyncIOLowPriorityImplicits {
   private[effect] final case class Attempt[+A](ioa: SyncIO[A])
       extends SyncIO[Either[Throwable, A]] {
     def tag = 8
-  }
-
-  private[effect] final case class Redeem[A, +B](
-      ioa: SyncIO[A],
-      recover: Throwable => B,
-      map: A => B)
-      extends SyncIO[B] {
-    def tag = 9
-  }
-
-  private[effect] final case class RedeemWith[A, +B](
-      ioa: SyncIO[A],
-      recover: Throwable => SyncIO[B],
-      bind: A => SyncIO[B])
-      extends SyncIO[B] {
-    def tag = 10
   }
 }
