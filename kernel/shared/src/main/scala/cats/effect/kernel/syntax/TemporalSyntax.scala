@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats.effect.kernel.syntax
 
 import cats.effect.kernel.Temporal
 

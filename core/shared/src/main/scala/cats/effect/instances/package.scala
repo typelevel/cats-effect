@@ -16,4 +16,9 @@
 
 package cats.effect
 
-object implicits extends syntax.AllSyntax with instances.AllInstances
+package object instances {
+
+  object all extends AllInstances
+
+  object concurrent extends kernel.instances.ConcurrentInstances
+}

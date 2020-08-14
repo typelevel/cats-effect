@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
-package cats.effect.instances
+package cats.effect.kernel
 
-trait AllInstances extends ConcurrentInstances
+package object instances {
+
+  object all extends AllInstances
+
+  object concurrent extends ConcurrentInstances
+}

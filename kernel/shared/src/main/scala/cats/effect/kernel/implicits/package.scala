@@ -14,18 +14,6 @@
  * limitations under the License.
  */
 
-package cats.effect.kernel.syntax
+package cats.effect.kernel
 
-import cats.effect.kernel.Async
-
-import scala.concurrent.ExecutionContext
-
-trait AsyncSyntax {
-  implicit def asyncOps[F[_], A](wrapped: F[A]): AsyncOps[F, A] =
-    new AsyncOps(wrapped)
-}
-
-final class AsyncOps[F[_], A](val wrapped: F[A]) extends AnyVal {
-  def evalOn(ec: ExecutionContext)(implicit F: Async[F]): F[A] =
-    Async[F].evalOn(wrapped, ec)
-}
+package object implicits extends syntax.AllSyntax with instances.AllInstances

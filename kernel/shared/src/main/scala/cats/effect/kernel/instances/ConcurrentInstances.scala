@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect.instances
+package cats.effect.kernel.instances
 
 import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
 import cats.data.Ior
