@@ -114,7 +114,7 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
-          if (isStackTracing && enhancedExceptions) {
+          if (isStackTracing && enhancedExceptions && ctx != null) {
             augmentException(ex, ctx)
           }
           findErrorHandler(bFirst, bRest) match {
@@ -247,7 +247,7 @@ private[effect] object IORunLoop {
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
-          if (isStackTracing && enhancedExceptions) {
+          if (isStackTracing && enhancedExceptions && ctx != null) {
             augmentException(ex, ctx)
           }
           findErrorHandler(bFirst, bRest) match {
