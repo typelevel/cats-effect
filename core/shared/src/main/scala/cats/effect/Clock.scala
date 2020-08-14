@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import java.time.Instant
-
 import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
@@ -126,7 +124,7 @@ trait Clock[F[_]] {
   def monotonic(unit: TimeUnit): F[Long]
 }
 
-object Clock extends LowPriorityImplicits {
+object Clock extends LowPriorityImplicits with ClockPlatform {
   def apply[F[_]](implicit ev: Clock[F]) = ev
 
   /**
@@ -150,13 +148,6 @@ object Clock extends LowPriorityImplicits {
       def realTime(unit: TimeUnit): G[Long] = f(self.realTime(unit))
       def monotonic(unit: TimeUnit): G[Long] = f(self.monotonic(unit))
     }
-
-    /**
-     * Creates a `java.time.Instant` derived from the clock's `realTime` in milliseconds
-     * for any `F` that has `Functor` defined.
-     */
-    def instantNow(implicit F: Functor[F]): F[Instant] =
-      F.map(self.realTime(MILLISECONDS))(Instant.ofEpochMilli)
   }
 }
 
