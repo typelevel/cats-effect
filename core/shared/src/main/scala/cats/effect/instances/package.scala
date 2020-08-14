@@ -19,4 +19,6 @@ package cats.effect
 package object instances {
 
   object all extends AllInstances
+
+  object concurrent extends ConcurrentInstances
 }

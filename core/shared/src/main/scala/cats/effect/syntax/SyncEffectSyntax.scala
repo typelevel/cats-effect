@@ -15,6 +15,6 @@
  */
 
 package cats.effect
-package instances
+package syntax
 
-trait AllInstances extends ConcurrentInstances
+trait SyncEffectSyntax extends kernel.syntax.SyncEffectSyntax

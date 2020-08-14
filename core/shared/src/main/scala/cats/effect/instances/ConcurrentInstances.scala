@@ -17,4 +17,4 @@
 package cats.effect
 package instances
 
-trait AllInstances extends ConcurrentInstances
+trait ConcurrentInstances extends kernel.instances.ConcurrentInstances
