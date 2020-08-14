@@ -28,8 +28,8 @@ class IOContextTests extends AnyFunSuite with Matchers {
   test("push traces") {
     val ctx = new IOContext()
 
-    val t1 = IOEvent.StackTrace(0, throwable)
-    val t2 = IOEvent.StackTrace(1, throwable)
+    val t1 = IOEvent.StackTrace(throwable)
+    val t2 = IOEvent.StackTrace(throwable)
 
     ctx.pushEvent(t1)
     ctx.pushEvent(t2)
@@ -44,7 +44,7 @@ class IOContextTests extends AnyFunSuite with Matchers {
     val ctx = new IOContext()
 
     for (_ <- 0 until (traceBufferSize + 10)) {
-      ctx.pushEvent(IOEvent.StackTrace(0, throwable))
+      ctx.pushEvent(IOEvent.StackTrace(throwable))
     }
 
     val trace = ctx.trace()

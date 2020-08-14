@@ -124,6 +124,7 @@ abstract class MVar[F[_], A] extends MVarDocumentation {
   /**
    * Modify the context `F` using transformation `f`.
    */
+  @deprecated("`mapK` is deprecated in favor of `imapK` which supports the new invariant `MVar2` interface", "2.2.0")
   def mapK[G[_]](f: F ~> G): MVar[G, A] =
     new TransformedMVar(this, f)
 }
@@ -139,26 +140,64 @@ abstract class MVar2[F[_], A] extends MVar[F, A] {
 
   /**
    * Replaces a value in MVar and returns the old value.
-
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
    * @param newValue is a new value
    * @return the value taken
    */
   def swap(newValue: A): F[A]
 
   /**
-   * Returns the value without waiting or modifying.
-   *
-   * This operation is atomic.
+   * A non-blocking version of [[read]].
    *
    * @return an Option holding the current value, None means it was empty
    */
   def tryRead: F[Option[A]]
 
   /**
-   * Modify the context `F` using transformation `f`.
+   * Applies the effectful function `f` on the contents of this `MVar`. In case of failure, it sets the contents of the
+   * `MVar` to the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return the value produced by applying `f` to the contents of this `MVar`
    */
-  override def mapK[G[_]](f: F ~> G): MVar2[G, A] =
-    new TransformedMVar2(this, f)
+  def use[B](f: A => F[B]): F[B]
+
+  /**
+   * Modifies the contents of the `MVar` using the effectful function `f`, but also allows for returning a value derived
+   * from the original contents of the `MVar`. Like [[use]], in case of failure, it sets the contents of the `MVar` to
+   * the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return the second value produced by applying `f` to the contents of this `MVar`
+   */
+  def modify[B](f: A => F[(A, B)]): F[B]
+
+  /**
+   * Modifies the contents of the `MVar` using the effectful function `f`. Like [[use]], in case of failure, it sets the
+   * contents of the `MVar` to the original value.
+   *
+   * @note This operation is only safe from deadlocks if there are no other producers for this `MVar`.
+   *
+   * @param f effectful function that operates on the contents of this `MVar`
+   * @return no useful value. Executed only for the effects.
+   */
+  def modify_(f: A => F[A]): F[Unit]
+
+  /**
+   * Modify the context `F` using natural isomorphism `f` with `g`.
+   *
+   * @param f functor transformation from `F` to `G`
+   * @param g functor transformation from `G` to `F`
+   * @return `MVar2` with a modified context `G` derived using a natural isomorphism from `F`
+   */
+  def imapK[G[_]](f: F ~> G, g: G ~> F): MVar2[G, A] =
+    new TransformedMVar2(this, f, g)
 }
 
 /** Builders for [[MVar]]. */
@@ -304,7 +343,9 @@ object MVar {
     override def read: G[A] = trans(underlying.read)
   }
 
-  final private[concurrent] class TransformedMVar2[F[_], G[_], A](underlying: MVar2[F, A], trans: F ~> G)
+  final private[concurrent] class TransformedMVar2[F[_], G[_], A](underlying: MVar2[F, A],
+                                                                  trans: F ~> G,
+                                                                  inverse: G ~> F)
       extends MVar2[G, A] {
     override def isEmpty: G[Boolean] = trans(underlying.isEmpty)
     override def put(a: A): G[Unit] = trans(underlying.put(a))
@@ -314,5 +355,8 @@ object MVar {
     override def read: G[A] = trans(underlying.read)
     override def tryRead: G[Option[A]] = trans(underlying.tryRead)
     override def swap(newValue: A): G[A] = trans(underlying.swap(newValue))
+    override def use[B](f: A => G[B]): G[B] = trans(underlying.use(a => inverse(f(a))))
+    override def modify[B](f: A => G[(A, B)]): G[B] = trans(underlying.modify(a => inverse(f(a))))
+    override def modify_(f: A => G[A]): G[Unit] = trans(underlying.modify_(a => inverse(f(a))))
   }
 }

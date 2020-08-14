@@ -561,12 +561,31 @@ abstract private[effect] class ResourceInstances0 {
       def F = F0
     }
 
-  implicit def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F],
-                                                        K0: SemigroupK[F]): ResourceSemigroupK[F] =
+  implicit def catsEffectSemigroupKForResource2[F[_], E](implicit F0: MonadError[F, E]): SemigroupK[Resource[F, *]] =
+    new SemigroupK[Resource[F, *]] {
+      final override def combineK[A](a: Resource[F, A], b: Resource[F, A]): Resource[F, A] =
+        MonadError[Resource[F, *], E].handleErrorWith(a)(_ => b)
+    }
+
+  // For binary compatibility.
+  @deprecated("Use the new implementation, catsEffectSemigroupKForResource2, which behaves more like orElse", "2.2.0")
+  def catsEffectSemigroupKForResource[F[_], A](implicit F0: Monad[F], K0: SemigroupK[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
     }
+}
+
+@deprecated("Use the new implementation, catsEffectSemigroupKForResource2, which behaves more like orElse", "2.2.0")
+abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
+  implicit protected def F: Monad[F]
+  implicit protected def K: SemigroupK[F]
+  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
+    for {
+      x <- rx
+      y <- ry
+      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
+    } yield xy
 }
 
 abstract private[effect] class ResourceMonadError[F[_], E] extends ResourceMonad[F] with MonadError[Resource[F, *], E] {
@@ -638,18 +657,6 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
       x <- rx
       y <- ry
     } yield A.combine(x, y)
-}
-
-abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
-  implicit protected def F: Monad[F]
-  implicit protected def K: SemigroupK[F]
-
-  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    for {
-      x <- rx
-      y <- ry
-      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
-    } yield xy
 }
 
 abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {

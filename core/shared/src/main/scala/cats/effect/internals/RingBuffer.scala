@@ -55,7 +55,7 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
 
 }
 
-object RingBuffer {
+private[internals] object RingBuffer {
 
   // N.B. this can overflow
   private def nextPowerOfTwo(i: Int): Int = {

@@ -18,6 +18,8 @@ package cats.effect.tracing
 
 import cats.effect.IO
 
+import scala.reflect.NameTransformer
+
 final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
 
   import IOTrace._
@@ -38,8 +40,12 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
       val body = stackTraces.zipWithIndex
         .map {
           case (st, index) =>
-            val nameTag = tagToName(st.tag)
-            val op = if (index == 0) s"$InverseTurnRight $nameTag\n" else s"$Junction $nameTag\n"
+            val tag = getOpAndCallSite(st.stackTrace)
+              .map {
+                case (methodSite, _) => NameTransformer.decode(methodSite.getMethodName)
+              }
+              .getOrElse("(...)")
+            val op = if (index == 0) s"$InverseTurnRight $tag\n" else s"$Junction $tag\n"
             val relevantLines = st.stackTrace
               .drop(options.ignoreStackTraceLines)
               .take(options.maxStackTraceLines)
@@ -65,10 +71,14 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
             val junc = if (index == events.length - 1) TurnRight else Junction
             val message = event match {
               case ev: IOEvent.StackTrace => {
-                val first = bestTraceElement(ev.stackTrace)
-                val nameTag = tagToName(ev.tag)
-                val codeLine = first.map(renderStackTraceElement).getOrElse("(...)")
-                s"$nameTag at $codeLine"
+                getOpAndCallSite(ev.stackTrace)
+                  .map {
+                    case (methodSite, callSite) =>
+                      val loc = renderStackTraceElement(callSite)
+                      val op = NameTransformer.decode(methodSite.getMethodName)
+                      s"$op at $loc"
+                  }
+                  .getOrElse("(...)")
               }
             }
             s" $junc $message"
@@ -101,26 +111,19 @@ private[effect] object IOTrace {
     s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
   }
 
-  private def bestTraceElement(frames: List[StackTraceElement]): Option[StackTraceElement] =
-    frames.dropWhile(l => stackTraceFilter.exists(b => l.getClassName.startsWith(b))).headOption
+  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
+    frames
+      .sliding(2)
+      .collect {
+        case a :: b :: Nil => (a, b)
+      }
+      .find {
+        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+      }
 
   private def demangleMethod(methodName: String): String =
     anonfunRegex.findFirstMatchIn(methodName) match {
       case Some(mat) => mat.group(1)
       case None      => methodName
-    }
-
-  private def tagToName(tag: Int): String =
-    tag match {
-      case 0 => "pure"
-      case 1 => "delay"
-      case 2 => "suspend"
-      case 3 => "flatMap"
-      case 4 => "map"
-      case 5 => "async"
-      case 6 => "asyncF"
-      case 7 => "cancelable"
-      case 8 => "raiseError"
-      case _ => "???"
     }
 }

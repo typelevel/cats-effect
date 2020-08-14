@@ -47,7 +47,7 @@ class ResourceTests extends BaseTestsSuite {
       implicit val cs = ec.contextShift[IO]
 
       // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
-      val module = ParallelTests[IO]
+      val module = ParallelTests[Resource[IO, *]]
       module.parallel[Int, Int]
     }
   )
@@ -332,6 +332,15 @@ class ResourceTests extends BaseTestsSuite {
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
+  }
+
+  test("combineK - should behave like orElse") {
+    check { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+      val lhs = r1.orElse(r2).use(IO.pure).attempt.unsafeRunSync()
+      val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
+
+      lhs <-> rhs
+    }
   }
 
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
