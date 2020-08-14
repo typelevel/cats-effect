@@ -16,15 +16,7 @@
 
 package cats.effect
 
-import cats.effect.kernel.syntax._
-
-object syntax {
+package object syntax {
 
   object all extends AllSyntax
-
-  object concurrent extends ConcurrentSyntax
-  object temporal extends TemporalSyntax
-  object async extends AsyncSyntax
-  object syncEffect extends SyncEffectSyntax
-  object effect extends EffectSyntax
 }

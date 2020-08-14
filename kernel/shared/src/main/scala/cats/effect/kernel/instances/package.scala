@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
-import cats.effect.kernel.instances.{AllInstances, ConcurrentInstances}
-
-object instances {
+package object instances {
 
   object all extends AllInstances
 
