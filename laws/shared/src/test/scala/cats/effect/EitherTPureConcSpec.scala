@@ -22,15 +22,20 @@ import cats.data.EitherT
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
-import cats.effect.laws.ConcurrentTests
+import cats.effect.laws.TemporalTests
+import cats.effect.testkit._
+import cats.effect.testkit.TimeT._
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 
 // import org.scalacheck.rng.Seed
 import org.scalacheck.util.Pretty
+import org.scalacheck.Prop
 
 import org.specs2.ScalaCheck
 // import org.specs2.scalacheck.Parameters
 import org.specs2.mutable._
+
+import scala.concurrent.duration._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
@@ -40,9 +45,16 @@ class EitherTPureConcSpec extends Specification with Discipline with ScalaCheck 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
+  implicit def execEitherT[E](sbool: EitherT[TimeT[PureConc[Int, *], *], E, Boolean]): Prop =
+    Prop(
+      pure
+        .run(TimeT.run(sbool.value))
+        .fold(false, _ => false, bO => bO.fold(false)(e => e.fold(_ => false, b => b))))
+
   checkAll(
-    "EitherT[PureConc]",
-    ConcurrentTests[EitherT[PureConc[Int, *], Int, *], Int].concurrent[Int, Int, Int]
+    "EitherT[TimeT[PureConc]]",
+    TemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
+      .temporal[Int, Int, Int](10.millis)
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )
 }
