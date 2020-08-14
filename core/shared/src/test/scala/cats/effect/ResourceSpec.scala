@@ -16,21 +16,22 @@
 
 package cats.effect
 
-import cats._, implicits._
+import cats.~>
 import cats.data.Kleisli
 import cats.effect.concurrent.Deferred
-
-import java.util.concurrent.atomic.AtomicBoolean
-import scala.concurrent.duration._
-
+import cats.effect.testkit.TestContext
+import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
-import cats.kernel.laws.discipline.MonoidTests
+import cats.syntax.all._
 
-import cats.effect.testkit.TestContext
 import org.scalacheck.Prop, Prop.forAll
 import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
+
+import scala.concurrent.duration._
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   // We need this for testing laws: prop runs can interfere with each other
@@ -67,10 +68,10 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "liftF - interruption" in ticked { implicit ticker =>
-      def resource(d: Deferred[IO, Int]) =
+      def resource(d: Deferred[IO, Int]): Resource[IO, Unit] =
         for {
           _ <- Resource.make(IO.unit)(_ => d.complete(1))
-          _ <- Resource.liftF(IO.never: IO[Unit])
+          _ <- Resource.liftF(IO.never[Unit])
         } yield ()
 
       def p =
@@ -182,8 +183,11 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
       val resource = Resource.liftF(IO.unit)
 
+      // do not inline: it confuses Dotty
+      val ioa = (release *> resource).allocated
+
       val prog = for {
-        res <- (release *> resource).allocated
+        res <- ioa
         (_, close) = res
         _ <- IO(released.get() must beFalse)
         _ <- close
@@ -209,10 +213,13 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
         val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
         val resource = Resource.liftF(IO.unit)
 
+        // do not inline: it confuses Dotty
+        val ioa = ((release *> resource).mapK(takeAnInteger) *> plusOneResource)
+          .mapK(runWithTwo)
+          .allocated
+
         val prog = for {
-          res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource)
-            .mapK(runWithTwo)
-            .allocated
+          res <- ioa
           (_, close) = res
           _ <- IO(released.get() must beFalse)
           _ <- close

@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats._, implicits._
+import cats.{Applicative, Eq, Order, Show}
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -24,6 +24,7 @@ import cats.effect.testkit.{
   SyncGenerators,
   TestContext
 }
+import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
 
