@@ -17,8 +17,8 @@
 package cats.effect.kernel
 
 import cats.implicits._
-import cats.data.{EitherT, IorT, Kleisli, OptionT}
-import cats.Semigroup
+import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.{Monoid, Semigroup}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -66,6 +66,15 @@ object Async {
       override implicit protected def L: Semigroup[L] = L0
     }
 
+  implicit def asyncForWriterT[F[_], L](
+      implicit F0: Async[F],
+      L0: Monoid[L]): Async[WriterT[F, L, *]] =
+    new WriterTAsync[F, L] {
+      override implicit protected def F: Async[F] = F0
+
+      override implicit protected def L: Monoid[L] = L0
+    }
+
   implicit def asyncForKleisli[F[_], R](implicit F0: Async[F]): Async[Kleisli[F, R, *]] =
     new KleisliAsync[F, R] {
       override implicit protected def F: Async[F] = F0
@@ -88,8 +97,6 @@ object Async {
     def executionContext: OptionT[F, ExecutionContext] = OptionT.liftF(F.executionContext)
 
     override def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
-
-    // protected def delegate: Applicative[OptionT[F, *]] = OptionT.catsDataMonadForOptionT[F]
 
     override def ap[A, B](
         ff: OptionT[F, A => B]
@@ -190,6 +197,47 @@ object Async {
 
     override def handleErrorWith[A](fa: IorT[F, L, A])(
         f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
+      delegate.handleErrorWith(fa)(f)
+
+  }
+
+  private[effect] trait WriterTAsync[F[_], L]
+      extends Async[WriterT[F, L, *]]
+      with Sync.WriterTSync[F, L]
+      with Temporal.WriterTTemporal[F, L, Throwable] {
+
+    implicit protected def F: Async[F]
+
+    def async[A](
+        k: (Either[Throwable, A] => Unit) => WriterT[F, L, Option[WriterT[F, L, Unit]]])
+        : WriterT[F, L, A] =
+      WriterT.liftF(F.async(k.andThen(_.run.map(_._2.map(_.run.void)))))
+
+    def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
+      WriterT(F.evalOn(fa.run, ec))
+
+    def executionContext: WriterT[F, L, ExecutionContext] = WriterT.liftF(F.executionContext)
+
+    override def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
+
+    override def ap[A, B](
+        ff: WriterT[F, L, A => B]
+    )(fa: WriterT[F, L, A]): WriterT[F, L, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): WriterT[F, L, A] = delegate.pure(x)
+
+    override def flatMap[A, B](fa: WriterT[F, L, A])(
+        f: A => WriterT[F, L, B]): WriterT[F, L, B] =
+      delegate.flatMap(fa)(f)
+
+    override def tailRecM[A, B](a: A)(f: A => WriterT[F, L, Either[A, B]]): WriterT[F, L, B] =
+      delegate.tailRecM(a)(f)
+
+    override def raiseError[A](e: Throwable): WriterT[F, L, A] =
+      delegate.raiseError(e)
+
+    override def handleErrorWith[A](fa: WriterT[F, L, A])(
+        f: Throwable => WriterT[F, L, A]): WriterT[F, L, A] =
       delegate.handleErrorWith(fa)(f)
 
   }
