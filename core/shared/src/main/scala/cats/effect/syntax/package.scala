@@ -20,9 +20,9 @@ package object syntax {
 
   object all extends AllSyntax
 
-  object concurrent extends ConcurrentSyntax
-  object temporal extends TemporalSyntax
-  object async extends AsyncSyntax
-  object syncEffect extends SyncEffectSyntax
-  object effect extends EffectSyntax
+  object concurrent extends kernel.syntax.ConcurrentSyntax
+  object temporal extends kernel.syntax.TemporalSyntax
+  object async extends kernel.syntax.AsyncSyntax
+  object syncEffect extends kernel.syntax.SyncEffectSyntax
+  object effect extends kernel.syntax.EffectSyntax
 }

@@ -26,7 +26,7 @@ class SyntaxSpec extends Specification {
   "kernel syntax" >> ok
 
   def concurrentSyntax[F[_], A, E](target: F[A])(implicit F: Concurrent[F, E]) = {
-    import cats.effect.kernel.syntax.concurrent._
+    import syntax.concurrent._
 
     Concurrent[F]: F.type
     Concurrent[F, E]: F.type
@@ -61,7 +61,7 @@ class SyntaxSpec extends Specification {
   }
 
   def temporalSyntax[F[_], A, E](target: F[A])(implicit F: Temporal[F, E]) = {
-    import cats.effect.kernel.syntax.temporal._
+    import syntax.temporal._
 
     Temporal[F]: F.type
     Temporal[F, E]: F.type
@@ -75,7 +75,7 @@ class SyntaxSpec extends Specification {
   }
 
   def temporalThrowSyntax[F[_], A](target: F[A])(implicit F: Temporal[F, Throwable]) = {
-    import cats.effect.kernel.syntax.temporal._
+    import syntax.temporal._
 
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
@@ -86,7 +86,7 @@ class SyntaxSpec extends Specification {
 
   def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(
       implicit F: Temporal[F, TimeoutException]) = {
-    import cats.effect.kernel.syntax.temporal._
+    import syntax.temporal._
 
     {
       val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
@@ -96,7 +96,7 @@ class SyntaxSpec extends Specification {
   }
 
   def asyncSyntax[F[_], A](target: F[A])(implicit F: Async[F]) = {
-    import cats.effect.kernel.syntax.async._
+    import syntax.async._
 
     Async[F]: F.type
 
@@ -109,7 +109,7 @@ class SyntaxSpec extends Specification {
 
   def syncEffectSyntax[F[_], G[_], A](
       target: F[A])(implicit F: SyncEffect[F], G: SyncEffect[G]) = {
-    import cats.effect.kernel.syntax.syncEffect._
+    import syntax.syncEffect._
 
     SyncEffect[F]: F.type
 
@@ -120,7 +120,7 @@ class SyntaxSpec extends Specification {
   }
 
   def effectSyntax[F[_], G[_], A](target: F[A])(implicit F: Effect[F], G: Effect[G]) = {
-    import cats.effect.kernel.syntax.effect._
+    import syntax.effect._
 
     Effect[F]: F.type
 
@@ -131,7 +131,7 @@ class SyntaxSpec extends Specification {
   }
 
   def allSyntax[F[_], G[_], A](target: F[A])(implicit F: Effect[F], G: Effect[G]) = {
-    import cats.effect.kernel.syntax.all._
+    import syntax.all._
 
     {
       val result = target.to[G]
