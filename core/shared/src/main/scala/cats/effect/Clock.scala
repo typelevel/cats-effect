@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.internals.ClockPlatform
+
 import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
