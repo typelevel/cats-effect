@@ -59,7 +59,7 @@ fiber.
 combinator was actually called by user code. For example, `void` and `as` are 
 combinators that are derived from `map`, and should appear in the fiber trace
 rather than `map`.
-3. **Contextual exceptions**. Exceptions captured by the `IO` runtime can be
+3. **Enhanced exceptions**. Exceptions captured by the `IO` runtime can be
 augmented with async stack traces to produce more relevant stack traces.
 4. Intermediate values. The intermediate values that an `IO` program encounters
 can be converted to a string to render. This can aid in understanding the
@@ -170,7 +170,7 @@ def program: IO[Unit] =
 Keep in mind that the scope and amount of information that traces hold will
 change over time as additional fiber tracing features are merged into master.
 
-## Contextual exceptions
+## Enhanced exceptions
 The stack trace of an exception caught by the IO runloop looks similar to the
 following output:
 ```
@@ -216,7 +216,7 @@ is preserved, but all IO-related stack frames are replaced with async
 stack trace frames.
 
 This feature is controlled by the system property 
-`cats.effect.contextualExceptions`. It is enabled by default.
+`cats.effect.enhancedExceptions`. It is enabled by default.
 
 ```
 -Dcats.effect.stackTracingMode=false

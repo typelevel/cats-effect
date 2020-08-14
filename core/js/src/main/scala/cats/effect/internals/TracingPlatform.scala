@@ -25,5 +25,5 @@ object TracingPlatform {
 
   final val traceBufferSize: Int = 32
 
-  final val contextualExceptions: Boolean = false
+  final val enhancedExceptions: Boolean = false
 }

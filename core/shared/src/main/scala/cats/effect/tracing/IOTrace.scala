@@ -109,9 +109,6 @@ private[effect] object IOTrace {
         case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
       }
 
-  def dropRunLoopSuffix(frames: List[StackTraceElement]): List[StackTraceElement] =
-    frames.takeWhile(ste => !contextualFilter.exists(ste.getClassName.startsWith(_)))
-
   private def renderStackTraceElement(ste: StackTraceElement): String = {
     val methodName = demangleMethod(ste.getMethodName)
     s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
@@ -131,11 +128,6 @@ private[effect] object IOTrace {
     "sbt.",
     "java.",
     "sun.",
-    "scala."
-  )
-
-  private[this] val contextualFilter = List(
-    "cats.effect.",
     "scala."
   )
 }

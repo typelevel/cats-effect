@@ -43,12 +43,12 @@ class RingBufferTests extends AnyFunSuite with Matchers with TestUtils {
   test("writing elements") {
     val buffer = new RingBuffer[Integer](4)
     for (i <- 0 to 3) buffer.push(i)
-    buffer.toList shouldBe List(0, 1, 2, 3)
+    buffer.toList shouldBe List(3, 2, 1, 0)
   }
 
   test("overwriting elements") {
     val buffer = new RingBuffer[Integer](4)
     for (i <- 0 to 100) buffer.push(i)
-    buffer.toList shouldBe List(97, 98, 99, 100)
+    buffer.toList shouldBe List(100, 99, 98, 97)
   }
 }

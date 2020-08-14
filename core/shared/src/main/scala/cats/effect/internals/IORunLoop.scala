@@ -19,7 +19,7 @@ package cats.effect.internals
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
 import cats.effect.tracing.{IOEvent, IOTrace}
-import cats.effect.internals.TracingPlatform.{contextualExceptions, isStackTracing}
+import cats.effect.internals.TracingPlatform.{enhancedExceptions, isStackTracing}
 
 import scala.util.control.NonFatal
 
@@ -114,7 +114,7 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
-          if (isStackTracing && contextualExceptions) {
+          if (isStackTracing && enhancedExceptions) {
             augmentException(ex, ctx)
           }
           findErrorHandler(bFirst, bRest) match {
@@ -247,7 +247,7 @@ private[effect] object IORunLoop {
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
-          if (isStackTracing && contextualExceptions) {
+          if (isStackTracing && enhancedExceptions) {
             augmentException(ex, ctx)
           }
           findErrorHandler(bFirst, bRest) match {
@@ -371,21 +371,34 @@ private[effect] object IORunLoop {
   private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (!stackTrace.isEmpty) {
-      val prefix = IOTrace.dropRunLoopSuffix(stackTrace.toList)
-      val suffix = ctx
-        .getStackTraces()
-        // TODO: We should just store a List[StackTraceElement] in the cache
-        .flatMap(t => IOTrace.getOpAndCallSite(t.getStackTrace.toList))
-        .map {
-          case (methodSite, callSite) =>
-            new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
-                                  callSite.getMethodName,
-                                  callSite.getFileName,
-                                  callSite.getLineNumber)
-        }
-      ex.setStackTrace((prefix ++ suffix).toArray)
+      val augmented = stackTrace(stackTrace.length - 1) eq augmentationMarker
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = ctx
+          .getStackTraces()
+          .flatMap(t => IOTrace.getOpAndCallSite(t.stackTrace))
+          .map {
+            case (methodSite, callSite) =>
+              new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+                                    callSite.getMethodName,
+                                    callSite.getFileName,
+                                    callSite.getLineNumber)
+          }
+          .toArray
+        ex.setStackTrace(prefix ++ suffix ++ Array(augmentationMarker))
+      }
     }
   }
+
+  private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
+    frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
+
+  private[this] val runLoopFilter = List(
+    "cats.effect.",
+    "scala."
+  )
+
+  private[this] val augmentationMarker = new StackTraceElement("", "", "", 0)
 
   /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]

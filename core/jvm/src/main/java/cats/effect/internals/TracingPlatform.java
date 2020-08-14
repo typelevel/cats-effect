@@ -61,12 +61,12 @@ public final class TracingPlatform {
         .orElse(16);
 
     /**
-     * Sets the contextual exceptions flag, which controls whether or not the
+     * Sets the enhanced exceptions flag, which controls whether or not the
      * stack traces of IO exceptions are augmented to include async stack trace information.
      * Stack tracing must be enabled in order to use this feature.
      * This flag is enabled by default.
      */
-    public static final boolean contextualExceptions = Optional.ofNullable(System.getProperty("cats.effect.contextualExceptions"))
+    public static final boolean enhancedExceptions = Optional.ofNullable(System.getProperty("cats.effect.enhancedExceptions"))
             .map(x -> Boolean.valueOf(x))
             .orElse(true);
 

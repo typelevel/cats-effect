@@ -38,7 +38,7 @@ final private[effect] class IOContext() {
   def trace(): IOTrace =
     IOTrace(events.toList, captured, omitted)
 
-  def getStackTraces(): List[Throwable] =
-    events.toList.collect { case IOEvent.StackTrace(throwable) => throwable }
+  def getStackTraces(): List[IOEvent.StackTrace] =
+    events.toList.collect { case ev: IOEvent.StackTrace => ev }
 
 }
