@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats.implicits._
-import cats.data.{EitherT, OptionT}
+import cats.data.{EitherT, Kleisli, OptionT}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -53,6 +53,11 @@ object Async {
 
   implicit def asyncForEitherT[F[_], E](implicit F0: Async[F]): Async[EitherT[F, E, *]] =
     new EitherTAsync[F, E] {
+      override implicit protected def F: Async[F] = F0
+    }
+
+  implicit def asyncForKleisli[F[_], R](implicit F0: Async[F]): Async[Kleisli[F, R, *]] =
+    new KleisliAsync[F, R] {
       override implicit protected def F: Async[F] = F0
     }
 
@@ -137,6 +142,51 @@ object Async {
 
     override def handleErrorWith[A](fa: EitherT[F, E, A])(
         f: Throwable => EitherT[F, E, A]): EitherT[F, E, A] =
+      delegate.handleErrorWith(fa)(f)
+
+  }
+
+  private[effect] trait KleisliAsync[F[_], R]
+      extends Async[Kleisli[F, R, *]]
+      with Sync.KleisliSync[F, R]
+      with Temporal.KleisliTemporal[F, R, Throwable] {
+
+    implicit protected def F: Async[F]
+
+    def async[A](
+        k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Option[Kleisli[F, R, Unit]]])
+        : Kleisli[F, R, A] =
+      Kleisli { r =>
+        F.async(k.andThen(_.run(r).map(_.map(_.run(r)))))
+      }
+
+    def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
+      Kleisli(r => F.evalOn(fa.run(r), ec))
+
+    def executionContext: Kleisli[F, R, ExecutionContext] = Kleisli.liftF(F.executionContext)
+
+    override def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
+
+    // protected def delegate: Applicative[Kleisli[F, *]] = OptionT.catsDataMonadForOptionT[F]
+
+    override def ap[A, B](
+        ff: Kleisli[F, R, A => B]
+    )(fa: Kleisli[F, R, A]): Kleisli[F, R, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): Kleisli[F, R, A] = delegate.pure(x)
+
+    override def flatMap[A, B](fa: Kleisli[F, R, A])(
+        f: A => Kleisli[F, R, B]): Kleisli[F, R, B] =
+      delegate.flatMap(fa)(f)
+
+    override def tailRecM[A, B](a: A)(f: A => Kleisli[F, R, Either[A, B]]): Kleisli[F, R, B] =
+      delegate.tailRecM(a)(f)
+
+    override def raiseError[A](e: Throwable): Kleisli[F, R, A] =
+      delegate.raiseError(e)
+
+    override def handleErrorWith[A](fa: Kleisli[F, R, A])(
+        f: Throwable => Kleisli[F, R, A]): Kleisli[F, R, A] =
       delegate.handleErrorWith(fa)(f)
 
   }

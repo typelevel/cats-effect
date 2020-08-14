@@ -205,7 +205,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
         case Right(a) => results = Outcome.Completed(Some(a))
       }(unsafe.IORuntime(ticker.ctx, ticker.ctx, scheduler, () => ()))
 
-      ticker.ctx.tickAll(3.days)
+      ticker.ctx.tickAll(1.days)
 
       /*println("====================================")
       println(s"completed ioa with $results")
