@@ -51,9 +51,12 @@ class KleisliIOSpec
 
   implicit def ordKleisliIOFD(
       implicit ticker: Ticker): Order[Kleisli[IO, MiniInt, FiniteDuration]] =
-    Order by { ioaO => unsafeRun(ioaO.run(MiniInt.unsafeFromInt(0))).fold(None, _ => None, fa => fa) }
+    Order by { ioaO =>
+      unsafeRun(ioaO.run(MiniInt.unsafeFromInt(0))).fold(None, _ => None, fa => fa)
+    }
 
-  implicit def execKleisli(sbool: Kleisli[IO, MiniInt, Boolean])(implicit ticker: Ticker): Prop =
+  implicit def execKleisli(sbool: Kleisli[IO, MiniInt, Boolean])(
+      implicit ticker: Ticker): Prop =
     Prop(
       unsafeRun(sbool.run(MiniInt.unsafeFromInt(0))).fold(
         false,
@@ -67,8 +70,7 @@ class KleisliIOSpec
     checkAll(
       "Kleisli[IO]",
       AsyncTests[Kleisli[IO, MiniInt, *]].async[Int, Int, Int](10.millis)
-    ) (Parameters(minTestsOk =
-    25))
+    )(Parameters(minTestsOk = 25))
   }
 
 }

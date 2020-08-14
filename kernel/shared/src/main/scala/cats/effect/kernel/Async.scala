@@ -17,7 +17,8 @@
 package cats.effect.kernel
 
 import cats.implicits._
-import cats.data.{EitherT, Kleisli, OptionT}
+import cats.data.{EitherT, IorT, Kleisli, OptionT}
+import cats.Semigroup
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -54,6 +55,15 @@ object Async {
   implicit def asyncForEitherT[F[_], E](implicit F0: Async[F]): Async[EitherT[F, E, *]] =
     new EitherTAsync[F, E] {
       override implicit protected def F: Async[F] = F0
+    }
+
+  implicit def asyncForIorT[F[_], L](
+      implicit F0: Async[F],
+      L0: Semigroup[L]): Async[IorT[F, L, *]] =
+    new IorTAsync[F, L] {
+      override implicit protected def F: Async[F] = F0
+
+      override implicit protected def L: Semigroup[L] = L0
     }
 
   implicit def asyncForKleisli[F[_], R](implicit F0: Async[F]): Async[Kleisli[F, R, *]] =
@@ -122,8 +132,6 @@ object Async {
 
     override def never[A]: EitherT[F, E, A] = EitherT.liftF(F.never)
 
-    // protected def delegate: Applicative[EitherT[F, *]] = OptionT.catsDataMonadForOptionT[F]
-
     override def ap[A, B](
         ff: EitherT[F, E, A => B]
     )(fa: EitherT[F, E, A]): EitherT[F, E, B] = delegate.ap(ff)(fa)
@@ -146,6 +154,46 @@ object Async {
 
   }
 
+  private[effect] trait IorTAsync[F[_], L]
+      extends Async[IorT[F, L, *]]
+      with Sync.IorTSync[F, L]
+      with Temporal.IorTTemporal[F, L, Throwable] {
+
+    implicit protected def F: Async[F]
+
+    def async[A](k: (Either[Throwable, A] => Unit) => IorT[F, L, Option[IorT[F, L, Unit]]])
+        : IorT[F, L, A] =
+      IorT.liftF(F.async(
+        k.andThen(_.value.map(_.fold(_ => None, identity, (_, _) => None).map(_.value.void)))))
+
+    def evalOn[A](fa: IorT[F, L, A], ec: ExecutionContext): IorT[F, L, A] =
+      IorT(F.evalOn(fa.value, ec))
+
+    def executionContext: IorT[F, L, ExecutionContext] = IorT.liftF(F.executionContext)
+
+    override def never[A]: IorT[F, L, A] = IorT.liftF(F.never)
+
+    override def ap[A, B](
+        ff: IorT[F, L, A => B]
+    )(fa: IorT[F, L, A]): IorT[F, L, B] = delegate.ap(ff)(fa)
+
+    override def pure[A](x: A): IorT[F, L, A] = delegate.pure(x)
+
+    override def flatMap[A, B](fa: IorT[F, L, A])(f: A => IorT[F, L, B]): IorT[F, L, B] =
+      delegate.flatMap(fa)(f)
+
+    override def tailRecM[A, B](a: A)(f: A => IorT[F, L, Either[A, B]]): IorT[F, L, B] =
+      delegate.tailRecM(a)(f)
+
+    override def raiseError[A](e: Throwable): IorT[F, L, A] =
+      delegate.raiseError(e)
+
+    override def handleErrorWith[A](fa: IorT[F, L, A])(
+        f: Throwable => IorT[F, L, A]): IorT[F, L, A] =
+      delegate.handleErrorWith(fa)(f)
+
+  }
+
   private[effect] trait KleisliAsync[F[_], R]
       extends Async[Kleisli[F, R, *]]
       with Sync.KleisliSync[F, R]
@@ -156,9 +204,7 @@ object Async {
     def async[A](
         k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Option[Kleisli[F, R, Unit]]])
         : Kleisli[F, R, A] =
-      Kleisli { r =>
-        F.async(k.andThen(_.run(r).map(_.map(_.run(r)))))
-      }
+      Kleisli { r => F.async(k.andThen(_.run(r).map(_.map(_.run(r))))) }
 
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
