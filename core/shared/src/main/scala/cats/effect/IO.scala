@@ -42,7 +42,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     map(_ => b)
 
   def attempt: IO[Either[Throwable, A]] =
-    map(Right(_)).handleErrorWith(t => IO.pure(Left(t)))
+    IO.Attempt(this)
 
   def bothOutcome[B](that: IO[B]): IO[(OutcomeIO[A @uncheckedVariance], OutcomeIO[B])] =
     IO.uncancelable { poll =>
@@ -181,6 +181,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     (FiberIO[A @uncheckedVariance], OutcomeIO[B])]] =
     IO.RacePair(this, that)
 
+  def redeem[B](recover: Throwable => B, map: A => B): IO[B] =
+    attempt.map(_.fold(recover, map))
+
+  def redeemWith[B](recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+    attempt.flatMap(_.fold(recover, bind))
+
   def delayBy(duration: FiniteDuration): IO[A] =
     IO.sleep(duration) *> this
 
@@ -246,7 +252,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case self: IO.Start[_] =>
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
 
-        case self: IO.RacePair[a, b] =>
+        case self: IO.RacePair[_, _] =>
           val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
             e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
           }
@@ -263,6 +269,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           // Will never be executed. Case demanded for exhaustiveness.
           // ioa.to[F] // polling should be handled by F
           sys.error("impossible")
+
+        case self: IO.Attempt[_] =>
+          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
 
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
@@ -536,6 +545,13 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       IO.suspend(hint)(thunk)
 
     override def void[A](ioa: IO[A]): IO[Unit] = ioa.void
+
+    override def redeem[A, B](fa: IO[A])(recover: Throwable => B, f: A => B): IO[B] =
+      fa.redeem(recover, f)
+
+    override def redeemWith[A, B](
+        fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
+      fa.redeemWith(recover, bind)
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO
@@ -587,7 +603,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 9
   }
 
-  private[effect] final case class OnCancel[A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
+  private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 10
   }
 
@@ -620,8 +636,12 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 19
   }
 
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
+    def tag = 20
+  }
+
   // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
+  private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: F ~> F) extends IO[A] {
     def tag = -1
   }
 }

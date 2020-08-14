@@ -21,6 +21,8 @@ import cats.effect.laws.SyncEffectTests
 import cats.effect.testkit.SyncTypeGenerators
 import cats.implicits._
 
+import org.scalacheck.Prop, Prop.forAll
+
 import org.specs2.ScalaCheck
 
 import org.typelevel.discipline.specs2.mutable.Discipline
@@ -70,6 +72,88 @@ class SyncIOSpec extends IOPlatformSpecification with Discipline with ScalaCheck
     "errors can be handled" in {
       case object TestException extends RuntimeException
       SyncIO.raiseError[Unit](TestException).attempt must completeAsSync(Left(TestException))
+    }
+
+    "attempt is redeem with Left(_) for recover and Right(_) for map" in {
+      forAll { (io: SyncIO[Int]) => io.attempt eqv io.redeem(Left(_), Right(_)) }
+    }
+
+    "attempt is flattened redeemWith" in {
+      forAll {
+        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+          io.attempt.flatMap(_.fold(recover, bind)) eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem is flattened redeemWith" in {
+      forAll {
+        (io: SyncIO[Int], recover: Throwable => SyncIO[String], bind: Int => SyncIO[String]) =>
+          io.redeem(recover, bind).flatMap(identity) eqv io.redeemWith(recover, bind)
+      }
+    }
+
+    "redeem subsumes handleError" in {
+      forAll { (io: SyncIO[Int], recover: Throwable => Int) =>
+        io.redeem(recover, identity) eqv io.handleError(recover)
+      }
+    }
+
+    "redeemWith subsumes handleErrorWith" in {
+      forAll { (io: SyncIO[Int], recover: Throwable => SyncIO[Int]) =>
+        io.redeemWith(recover, SyncIO.pure) eqv io.handleErrorWith(recover)
+      }
+    }
+
+    "redeem correctly recovers from errors" in {
+      case object TestException extends RuntimeException
+      SyncIO.raiseError[Unit](TestException).redeem(_ => 42, _ => 43) must completeAsSync(42)
+    }
+
+    "redeem maps successful results" in {
+      SyncIO.unit.redeem(_ => 41, _ => 42) must completeAsSync(42)
+    }
+
+    "redeem catches exceptions thrown in recovery function" in {
+      case object TestException extends RuntimeException
+      case object ThrownException extends RuntimeException
+      SyncIO
+        .raiseError[Unit](TestException)
+        .redeem(_ => throw ThrownException, _ => 42)
+        .attempt must completeAsSync(Left(ThrownException))
+    }
+
+    "redeem catches exceptions thrown in map function" in {
+      case object ThrownException extends RuntimeException
+      SyncIO.unit.redeem(_ => 41, _ => throw ThrownException).attempt must completeAsSync(
+        Left(ThrownException))
+    }
+
+    "redeemWith correctly recovers from errors" in {
+      case object TestException extends RuntimeException
+      SyncIO
+        .raiseError[Unit](TestException)
+        .redeemWith(_ => SyncIO.pure(42), _ => SyncIO.pure(43)) must completeAsSync(42)
+    }
+
+    "redeemWith binds successful results" in {
+      SyncIO.unit.redeemWith(_ => SyncIO.pure(41), _ => SyncIO.pure(42)) must completeAsSync(42)
+    }
+
+    "redeemWith catches exceptions throw in recovery function" in {
+      case object TestException extends RuntimeException
+      case object ThrownException extends RuntimeException
+      SyncIO
+        .raiseError[Unit](TestException)
+        .redeemWith(_ => throw ThrownException, _ => SyncIO.pure(42))
+        .attempt must completeAsSync(Left(ThrownException))
+    }
+
+    "redeemWith catches exceptions thrown in bind function" in {
+      case object ThrownException extends RuntimeException
+      SyncIO
+        .unit
+        .redeem(_ => SyncIO.pure(41), _ => throw ThrownException)
+        .attempt must completeAsSync(Left(ThrownException))
     }
 
     "evaluate 10,000 consecutive map continuations" in {
