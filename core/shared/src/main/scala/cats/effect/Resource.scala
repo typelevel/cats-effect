@@ -191,7 +191,7 @@ sealed abstract class Resource[+F[_], +A] {
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
-      val rightStore: Update = f => store.update(_.map(f))
+      val rightStore: Update = f => store.update(t => (t._1, f(t._2)))    // _.map(f) doesn't work on 0.25.0 for some reason
 
       (allocate(this, leftStore), allocate(that, rightStore)).parTupled
     }
@@ -691,7 +691,7 @@ abstract private[effect] class ResourceMonadError[F[_], E]
               })
         })
       case Suspend(resource) =>
-        Suspend(resource.attempt.map {
+        Suspend(F.attempt(resource) map {
           case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
           case Right(fa: Resource[F, A]) => attempt(fa)
         })
