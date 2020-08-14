@@ -101,20 +101,22 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Arbitrary(generators.generators[A])
   }
 
-  implicit def arbitraryResource[F[_], A](implicit F: Applicative[F],
-                                                           AFA: Arbitrary[F[A]],
-                                                           AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+  implicit def arbitraryResource[F[_], A](
+      implicit F: Applicative[F],
+      AFA: Arbitrary[F[A]],
+      AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
     Arbitrary(Gen.delay(genResource[F, A]))
 
   implicit def arbitraryResourceParallel[F[_], A](
-    implicit A: Arbitrary[Resource[F, A]]
+      implicit A: Arbitrary[Resource[F, A]]
   ): Arbitrary[Resource.Par[F, A]] =
     Arbitrary(A.arbitrary.map(Resource.Par.apply))
 
   // Consider improving this a strategy similar to Generators.
-  def genResource[F[_], A](implicit F: Applicative[F],
-    AFA: Arbitrary[F[A]],
-    AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+  def genResource[F[_], A](
+      implicit F: Applicative[F],
+      AFA: Arbitrary[F[A]],
+      AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
     def genAllocate: Gen[Resource[F, A]] =
       for {
         alloc <- arbitrary[F[A]]
@@ -164,7 +166,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
     Eq.by(unsafeRun(_))
-    /*Eq instance { (left: IO[A], right: IO[A]) =>
+  /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
 
@@ -178,12 +180,14 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       back
     }*/
 
-   /**
+  /**
    * Defines equality for a `Resource`.  Two resources are deemed
    * equivalent if they allocate an equivalent resource.  Cleanup,
    * which is run purely for effect, is not considered.
    */
-  implicit def eqResource[F[_], A](implicit E: Eq[F[A]], F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+  implicit def eqResource[F[_], A](
+      implicit E: Eq[F[A]],
+      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
     new Eq[Resource[F, A]] {
       def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
         E.eqv(x.use(F.pure), y.use(F.pure))

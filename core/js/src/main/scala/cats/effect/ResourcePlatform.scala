@@ -16,5 +16,7 @@
 
 package cats.effect
 
-/** JS-specific Resource methods */
+/**
+ * JS-specific Resource methods
+ */
 private[effect] trait ResourcePlatform

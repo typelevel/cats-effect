@@ -16,10 +16,11 @@
 
 package cats.effect
 
-
 import javax.security.auth.Destroyable
 
-/** JVM-specific Resource methods */
+/**
+ * JVM-specific Resource methods
+ */
 private[effect] trait ResourcePlatform {
 
   /**
@@ -43,6 +44,7 @@ private[effect] trait ResourcePlatform {
    * @tparam A the type of the destroyable resource
    * @return a Resource that will automatically destroy after use
    */
-  def fromDestroyable[F[_], A <: Destroyable](acquire: F[A])(implicit F: Sync[F]): Resource[F, A] =
+  def fromDestroyable[F[_], A <: Destroyable](acquire: F[A])(
+      implicit F: Sync[F]): Resource[F, A] =
     Resource.make(acquire)(destroyable => F.delay(destroyable.destroy()))
 }
