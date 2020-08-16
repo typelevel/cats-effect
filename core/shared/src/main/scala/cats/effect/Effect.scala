@@ -17,7 +17,6 @@
 package cats
 package effect
 
-import simulacrum._
 import cats.data.{EitherT, WriterT}
 import scala.annotation.implicitNotFound
 import scala.util.Either
@@ -35,11 +34,7 @@ import scala.util.Either
  * Note this is the safe and generic version of [[IO.unsafeRunAsync]]
  * (aka Haskell's `unsafePerformIO`).
  */
-@typeclass
-@implicitNotFound("""Cannot find implicit value for Effect[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler, a ContextShift[${F}]
-or some equivalent type.""")
+@implicitNotFound("Could not find an instance of Effect for ${F}")
 trait Effect[F[_]] extends Async[F] {
 
   /**
@@ -114,4 +109,43 @@ object Effect {
     override def toIO[A](fa: WriterT[F, L, A]): IO[A] =
       F.toIO(fa.value(F))
   }
+
+  /**
+   * Summon an instance of [[Effect]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Effect[F]): Effect[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Effect[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+    def runAsync(cb: Either[Throwable, A] => IO[Unit]): SyncIO[Unit] = typeClassInstance.runAsync[A](self)(cb)
+    def toIO: IO[A] = typeClassInstance.toIO[A](self)
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] with Async.AllOps[F, A] {
+    type TypeClassType <: Effect[F]
+  }
+  trait ToEffectOps {
+    implicit def toEffectOps[F[_], A](target: F[A])(implicit tc: Effect[F]): Ops[F, A] {
+      type TypeClassType = Effect[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Effect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToEffectOps
+
+  // indirection required to avoid spurious static forwarders that conflict on case-insensitive filesystems (scala-js/scala-js#4148)
+  class ops$ {
+    implicit def toAllEffectOps[F[_], A](target: F[A])(implicit tc: Effect[F]): AllOps[F, A] {
+      type TypeClassType = Effect[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Effect[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  // TODO this lacks a MODULE$ field; is that okay???
+  val ops = new ops$
 }
