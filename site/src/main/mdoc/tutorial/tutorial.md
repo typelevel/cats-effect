@@ -47,11 +47,11 @@ same dependencies and compilation options:
 ```scala
 name := "cats-effect-tutorial"
 
-version := "1.0"
+version := "2.1.4"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.0" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.4" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -313,7 +313,7 @@ cancellation happens _while_ the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
 being closed by another thread. For more info about this problem see [Gotcha:
 Cancellation is a concurrent
-action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
+action](../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action) in
 cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
@@ -392,7 +392,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
+tasks](../datatypes/io.html#building-cancelable-io-tasks) of `IO` documentation
 explains how to create such cancelable `IO` instances (besides calling
 `Resource.use`, as we have done for our code).
 
