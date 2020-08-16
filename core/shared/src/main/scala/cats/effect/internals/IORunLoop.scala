@@ -371,7 +371,7 @@ private[effect] object IORunLoop {
   private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
     val stackTrace = ex.getStackTrace
     if (!stackTrace.isEmpty) {
-      val augmented = stackTrace(stackTrace.length - 1) eq augmentationMarker
+      val augmented = stackTrace(stackTrace.length - 1).getClassName.indexOf('@') != -1
       if (!augmented) {
         val prefix = dropRunLoopFrames(stackTrace)
         val suffix = ctx
@@ -385,7 +385,7 @@ private[effect] object IORunLoop {
                                     callSite.getLineNumber)
           }
           .toArray
-        ex.setStackTrace(prefix ++ suffix ++ Array(augmentationMarker))
+        ex.setStackTrace(prefix ++ suffix)
       }
     }
   }
@@ -397,8 +397,6 @@ private[effect] object IORunLoop {
     "cats.effect.",
     "scala."
   )
-
-  private[this] val augmentationMarker = new StackTraceElement("", "", "", 0)
 
   /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]

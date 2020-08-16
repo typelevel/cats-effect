@@ -22,6 +22,7 @@ import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
+import scala.util.control.NoStackTrace
 
 class TracingTests extends AsyncFunSuite with Matchers {
   implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
@@ -43,7 +44,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
     }
   }
 
-  test("contextual exceptions are not augmented more than once") {
+  test("enhanced exceptions are not augmented more than once") {
     val task = for {
       _ <- IO.pure(1)
       _ <- IO.pure(2)
@@ -61,4 +62,16 @@ class TracingTests extends AsyncFunSuite with Matchers {
       e1.swap.toOption.get.getStackTrace.length shouldBe e2.swap.toOption.get.getStackTrace.length
     }
   }
+
+  test("enhanced exceptions is not applied when stack trace is empty") {
+    val task = for {
+      e1 <- IO.raiseError(new EmptyException).attempt
+    } yield e1
+
+    for (r <- task.unsafeToFuture()) yield {
+      r.swap.toOption.get.getStackTrace.length shouldBe 0
+    }
+  }
+
+  class EmptyException extends NoStackTrace
 }
