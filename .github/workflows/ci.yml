@@ -9,9 +9,9 @@ name: Continuous Integration
 
 on:
   pull_request:
-    branches: ['*']
+    branches: [series/2.x]
   push:
-    branches: ['*']
+    branches: [series/2.x]
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +73,18 @@ jobs:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-cache-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
+      - uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.7.1
+
+      - run: gem install bundler
+
+      - run: bundle install --gemfile=site/Gemfile
+
       - name: Check that workflows are up to date
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - run: sbt ++${{ matrix.scala }} ci
+
+      - if: ${{ matrix.scala }} == '2.12.11'
+        run: sbt ++${{ matrix.scala }} microsite/makeMicrosite

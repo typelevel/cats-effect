@@ -21,8 +21,20 @@ import scala.sys.process._
 
 ThisBuild / baseVersion := "2.2"
 
-ThisBuild / crossScalaVersions := Seq("2.12.11", "2.13.3")
+val OldScala = "2.12.11"
+ThisBuild / crossScalaVersions := Seq(OldScala, "2.13.3")
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
+
+ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
+
+ThisBuild / githubWorkflowBuildPreamble ++= Seq(
+  WorkflowStep.Use("actions", "setup-ruby", "v1", params = Map("ruby-version" -> "2.7.1")),
+  WorkflowStep.Run(List("gem install bundler")),
+  WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
+)
+
+ThisBuild / githubWorkflowBuild +=
+  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"$${{ matrix.scala }} == '$OldScala'"))
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
