@@ -17,17 +17,12 @@
 package cats
 package effect
 
-import simulacrum._
-
 import cats.data.{EitherT, IorT, Kleisli, OptionT, ReaderWriterStateT, StateT, WriterT}
 
 import scala.annotation.implicitNotFound
 
-@typeclass
-@implicitNotFound("""Cannot find implicit value for LiftIO[${F}].
-Building this implicit value might depend on having an implicit
-s.c.ExecutionContext in scope, a Scheduler or some equivalent type.""")
-trait LiftIO[F[_]] {
+@implicitNotFound("Could not find an instance of LiftIO for ${F}")
+trait LiftIO[F[_]] extends Serializable {
   def liftIO[A](ioa: IO[A]): F[A]
 }
 
@@ -144,4 +139,43 @@ object LiftIO {
     override def liftIO[A](ioa: IO[A]): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT.liftF(F.liftIO(ioa))(FA, L)
   }
+
+  /****************************************************************************/
+  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
+  /****************************************************************************/
+  /**
+   * Summon an instance of [[LiftIO]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: LiftIO[F]): LiftIO[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: LiftIO[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+  }
+  trait AllOps[F[_], A] extends Ops[F, A]
+  trait ToLiftIOOps {
+    implicit def toLiftIOOps[F[_], A](target: F[A])(implicit tc: LiftIO[F]): Ops[F, A] {
+      type TypeClassType = LiftIO[F]
+    } = new Ops[F, A] {
+      type TypeClassType = LiftIO[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToLiftIOOps
+  object ops {
+    implicit def toAllLiftIOOps[F[_], A](target: F[A])(implicit tc: LiftIO[F]): AllOps[F, A] {
+      type TypeClassType = LiftIO[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = LiftIO[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+
+  /****************************************************************************/
+  /* END OF SIMULACRUM-MANAGED CODE                                           */
+  /****************************************************************************/
+
 }

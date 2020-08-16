@@ -17,17 +17,17 @@
 package cats
 package effect
 
-import simulacrum._
 import cats.data._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
 import cats.instances.tuple._
+import scala.annotation.implicitNotFound
 
 /**
  * A monad that can suspend the execution of side effects
  * in the `F[_]` context.
  */
-@typeclass(excludeParents = List("Defer"))
+@implicitNotFound("Could not find an instance of Sync for ${F}")
 trait Sync[F[_]] extends Bracket[F, Throwable] with Defer[F] {
 
   /**
@@ -425,4 +425,49 @@ object Sync {
     override def uncancelable[A](fa: ReaderWriterStateT[F, E, L, S, A]): ReaderWriterStateT[F, E, L, S, A] =
       ReaderWriterStateT((e, s) => F.uncancelable(fa.run(e, s)))
   }
+
+  /****************************************************************************/
+  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
+  /****************************************************************************/
+  /**
+   * Summon an instance of [[Sync]] for `F`.
+   */
+  @inline def apply[F[_]](implicit instance: Sync[F]): Sync[F] = instance
+
+  trait Ops[F[_], A] {
+    type TypeClassType <: Sync[F]
+    def self: F[A]
+    val typeClassInstance: TypeClassType
+  }
+  trait AllOps[F[_], A] extends Ops[F, A] {
+    type TypeClassType <: Sync[F]
+  }
+  trait ToSyncOps {
+    implicit def toSyncOps[F[_], A](target: F[A])(implicit tc: Sync[F]): Ops[F, A] {
+      type TypeClassType = Sync[F]
+    } = new Ops[F, A] {
+      type TypeClassType = Sync[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  object nonInheritedOps extends ToSyncOps
+
+  // indirection required to avoid spurious static forwarders that conflict on case-insensitive filesystems (scala-js/scala-js#4148)
+  class ops$ {
+    implicit def toAllSyncOps[F[_], A](target: F[A])(implicit tc: Sync[F]): AllOps[F, A] {
+      type TypeClassType = Sync[F]
+    } = new AllOps[F, A] {
+      type TypeClassType = Sync[F]
+      val self: F[A] = target
+      val typeClassInstance: TypeClassType = tc
+    }
+  }
+  // TODO this lacks a MODULE$ field; is that okay???
+  val ops = new ops$
+
+  /****************************************************************************/
+  /* END OF SIMULACRUM-MANAGED CODE                                           */
+  /****************************************************************************/
+
 }
