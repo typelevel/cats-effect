@@ -106,9 +106,6 @@ object ConcurrentEffect {
       F.runCancelable(fa.run)(cb.compose(_.map(_._2))).map(WriterT.liftF(_)(L, F))
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[ConcurrentEffect]] for `F`.
    */
@@ -147,9 +144,4 @@ object ConcurrentEffect {
   }
   // TODO this lacks a MODULE$ field; is that okay???
   val ops = new ops$
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

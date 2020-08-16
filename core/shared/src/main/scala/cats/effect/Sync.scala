@@ -426,9 +426,6 @@ object Sync {
       ReaderWriterStateT((e, s) => F.uncancelable(fa.run(e, s)))
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[Sync]] for `F`.
    */
@@ -465,9 +462,4 @@ object Sync {
   }
   // TODO this lacks a MODULE$ field; is that okay???
   val ops = new ops$
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

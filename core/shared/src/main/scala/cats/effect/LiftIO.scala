@@ -140,9 +140,6 @@ object LiftIO {
       ReaderWriterStateT.liftF(F.liftIO(ioa))(FA, L)
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[LiftIO]] for `F`.
    */
@@ -173,9 +170,4 @@ object LiftIO {
       val typeClassInstance: TypeClassType = tc
     }
   }
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

@@ -110,9 +110,6 @@ object Effect {
       F.toIO(fa.value(F))
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[Effect]] for `F`.
    */
@@ -151,9 +148,4 @@ object Effect {
   }
   // TODO this lacks a MODULE$ field; is that okay???
   val ops = new ops$
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

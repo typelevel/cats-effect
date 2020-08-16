@@ -868,9 +868,6 @@ object Concurrent {
       }
     }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[Concurrent]] for `F`.
    */
@@ -913,9 +910,4 @@ object Concurrent {
   }
   // TODO this lacks a MODULE$ field; is that okay???
   val ops = new ops$
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

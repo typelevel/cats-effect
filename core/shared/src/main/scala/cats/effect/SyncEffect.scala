@@ -73,9 +73,6 @@ object SyncEffect {
       F.runSync(F.map(fa.run)(_._2))
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[SyncEffect]] for `F`.
    */
@@ -109,9 +106,4 @@ object SyncEffect {
       val typeClassInstance: TypeClassType = tc
     }
   }
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }

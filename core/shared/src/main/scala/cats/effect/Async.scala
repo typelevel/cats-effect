@@ -507,9 +507,6 @@ object Async {
       ReaderWriterStateT.liftF(F.async(k))
   }
 
-  /****************************************************************************/
-  /* THE FOLLOWING CODE IS MANAGED BY SIMULACRUM; PLEASE DO NOT EDIT!!!!      */
-  /****************************************************************************/
   /**
    * Summon an instance of [[Async]] for `F`.
    */
@@ -546,9 +543,4 @@ object Async {
   }
   // TODO this lacks a MODULE$ field; is that okay???
   val ops = new ops$
-
-  /****************************************************************************/
-  /* END OF SIMULACRUM-MANAGED CODE                                           */
-  /****************************************************************************/
-
 }
