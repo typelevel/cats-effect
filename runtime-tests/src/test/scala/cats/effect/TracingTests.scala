@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.implicits._
 import cats.effect.tracing.IOTrace
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
@@ -39,6 +40,25 @@ class TracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- traced(task).unsafeToFuture()) yield {
       r.captured shouldBe 4
+    }
+  }
+
+  test("contextual exceptions are not augmented more than once") {
+    val task = for {
+      _ <- IO.pure(1)
+      _ <- IO.pure(2)
+      _ <- IO.pure(3)
+      _ <- IO.shift(executionContext)
+      _ <- IO.pure(1)
+      _ <- IO.pure(2)
+      _ <- IO.pure(3)
+      e1 <- IO.raiseError(new Throwable("Encountered an error")).attempt
+      e2 <- IO.pure(e1).rethrow.attempt
+    } yield (e1, e2)
+
+    for (r <- task.unsafeToFuture()) yield {
+      val (e1, e2) = r
+      e1.swap.toOption.get.getStackTrace.length shouldBe e2.swap.toOption.get.getStackTrace.length
     }
   }
 }

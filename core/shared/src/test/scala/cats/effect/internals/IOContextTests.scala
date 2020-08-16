@@ -23,13 +23,13 @@ import org.scalatest.funsuite.AnyFunSuite
 class IOContextTests extends AnyFunSuite with Matchers {
 
   val traceBufferSize: Int = cats.effect.internals.TracingPlatform.traceBufferSize
-  val throwable = new Throwable()
+  val stackTrace = new Throwable().getStackTrace.toList
 
   test("push traces") {
     val ctx = new IOContext()
 
-    val t1 = IOEvent.StackTrace(throwable)
-    val t2 = IOEvent.StackTrace(throwable)
+    val t1 = IOEvent.StackTrace(stackTrace)
+    val t2 = IOEvent.StackTrace(stackTrace)
 
     ctx.pushEvent(t1)
     ctx.pushEvent(t2)
@@ -44,7 +44,7 @@ class IOContextTests extends AnyFunSuite with Matchers {
     val ctx = new IOContext()
 
     for (_ <- 0 until (traceBufferSize + 10)) {
-      ctx.pushEvent(IOEvent.StackTrace(throwable))
+      ctx.pushEvent(IOEvent.StackTrace(stackTrace))
     }
 
     val trace = ctx.trace()

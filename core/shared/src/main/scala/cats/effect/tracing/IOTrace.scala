@@ -33,11 +33,11 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
     val Junction = "├"
     val Line = "│"
 
+    val acc0 = s"IOTrace: $captured frames captured\n"
     if (options.showFullStackTraces) {
       val stackTraces = events.collect { case e: IOEvent.StackTrace => e }
 
-      val header = s"IOTrace: $captured frames captured, $omitted omitted\n"
-      val body = stackTraces.zipWithIndex
+      val acc1 = stackTraces.zipWithIndex
         .map {
           case (st, index) =>
             val tag = getOpAndCallSite(st.stackTrace)
@@ -62,13 +62,16 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
         }
         .mkString("\n")
 
-      header + body
+      val acc2 = if (omitted > 0) {
+        "\n" + TurnRight + s" ... ($omitted frames omitted)\n"
+      } else "\n" + TurnRight + "\n"
+
+      acc0 + acc1 + acc2
     } else {
-      val acc0 = s"IOTrace: $captured frames captured, $omitted omitted\n"
       val acc1 = events.zipWithIndex
         .map {
           case (event, index) =>
-            val junc = if (index == events.length - 1) TurnRight else Junction
+            val junc = if (index == events.length - 1 && omitted == 0) TurnRight else Junction
             val message = event match {
               case ev: IOEvent.StackTrace => {
                 getOpAndCallSite(ev.stackTrace)
@@ -76,24 +79,46 @@ final case class IOTrace(events: List[IOEvent], captured: Int, omitted: Int) {
                     case (methodSite, callSite) =>
                       val loc = renderStackTraceElement(callSite)
                       val op = NameTransformer.decode(methodSite.getMethodName)
-                      s"$op at $loc"
+                      s"$op @ $loc"
                   }
                   .getOrElse("(...)")
               }
             }
             s" $junc $message"
         }
-        .mkString(acc0, "\n", "\n")
+        .mkString(acc0, "\n", "")
 
-      acc1
+      val acc2 = if (omitted > 0) {
+        acc1 + "\n " + TurnRight + s" ... ($omitted frames omitted)"
+      } else acc1
+
+      acc2 + "\n"
     }
   }
 }
 
 private[effect] object IOTrace {
 
-  // Number of lines to drop from the top of the stack trace
-  def stackTraceIgnoreLines = 3
+  def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
+    frames
+      .sliding(2)
+      .collect {
+        case a :: b :: Nil => (a, b)
+      }
+      .find {
+        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
+      }
+
+  private def renderStackTraceElement(ste: StackTraceElement): String = {
+    val methodName = demangleMethod(ste.getMethodName)
+    s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
+  }
+
+  private def demangleMethod(methodName: String): String =
+    anonfunRegex.findFirstMatchIn(methodName) match {
+      case Some(mat) => mat.group(1)
+      case None      => methodName
+    }
 
   private[this] val anonfunRegex = "^\\$+anonfun\\$+(.+)\\$+\\d+$".r
 
@@ -105,25 +130,4 @@ private[effect] object IOTrace {
     "sun.",
     "scala."
   )
-
-  private def renderStackTraceElement(ste: StackTraceElement): String = {
-    val methodName = demangleMethod(ste.getMethodName)
-    s"${ste.getClassName}.$methodName (${ste.getFileName}:${ste.getLineNumber})"
-  }
-
-  private def getOpAndCallSite(frames: List[StackTraceElement]): Option[(StackTraceElement, StackTraceElement)] =
-    frames
-      .sliding(2)
-      .collect {
-        case a :: b :: Nil => (a, b)
-      }
-      .find {
-        case (_, callSite) => !stackTraceFilter.exists(callSite.getClassName.startsWith(_))
-      }
-
-  private def demangleMethod(methodName: String): String =
-    anonfunRegex.findFirstMatchIn(methodName) match {
-      case Some(mat) => mat.group(1)
-      case None      => methodName
-    }
 }

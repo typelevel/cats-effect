@@ -58,6 +58,16 @@ public final class TracingPlatform {
                 return Optional.empty();
             }
         })
-        .orElse(128);
+        .orElse(16);
+
+    /**
+     * Sets the enhanced exceptions flag, which controls whether or not the
+     * stack traces of IO exceptions are augmented to include async stack trace information.
+     * Stack tracing must be enabled in order to use this feature.
+     * This flag is enabled by default.
+     */
+    public static final boolean enhancedExceptions = Optional.ofNullable(System.getProperty("cats.effect.enhancedExceptions"))
+            .map(x -> Boolean.valueOf(x))
+            .orElse(true);
 
 }

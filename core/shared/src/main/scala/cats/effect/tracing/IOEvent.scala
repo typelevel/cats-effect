@@ -20,9 +20,6 @@ sealed abstract class IOEvent
 
 object IOEvent {
 
-  final case class StackTrace(throwable: Throwable) extends IOEvent {
-    def stackTrace: List[StackTraceElement] =
-      throwable.getStackTrace().toList
-  }
+  final case class StackTrace(stackTrace: List[StackTraceElement]) extends IOEvent
 
 }

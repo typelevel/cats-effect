@@ -45,7 +45,7 @@ private[effect] object IOTracing {
   }
 
   private def buildFrame(): IOEvent =
-    IOEvent.StackTrace(new Throwable())
+    IOEvent.StackTrace(new Throwable().getStackTrace.toList)
 
   /**
    * Global cache for trace frames. Keys are references to lambda classes.

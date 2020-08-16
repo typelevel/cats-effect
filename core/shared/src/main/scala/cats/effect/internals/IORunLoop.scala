@@ -18,8 +18,8 @@ package cats.effect.internals
 
 import cats.effect.IO
 import cats.effect.IO.{Async, Bind, ContextSwitch, Delay, Map, Pure, RaiseError, Suspend, Trace}
-import cats.effect.tracing.IOEvent
-import cats.effect.internals.TracingPlatform.isStackTracing
+import cats.effect.tracing.{IOEvent, IOTrace}
+import cats.effect.internals.TracingPlatform.{enhancedExceptions, isStackTracing}
 
 import scala.util.control.NonFatal
 
@@ -114,6 +114,9 @@ private[effect] object IORunLoop {
             catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          if (isStackTracing && enhancedExceptions && ctx != null) {
+            augmentException(ex, ctx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null =>
               cb(Left(ex))
@@ -244,6 +247,9 @@ private[effect] object IORunLoop {
             } catch { case NonFatal(ex) => RaiseError(ex) }
 
         case RaiseError(ex) =>
+          if (isStackTracing && enhancedExceptions && ctx != null) {
+            augmentException(ex, ctx)
+          }
           findErrorHandler(bFirst, bRest) match {
             case null =>
               return currentIO.asInstanceOf[IO[A]]
@@ -356,6 +362,43 @@ private[effect] object IORunLoop {
           // $COVERAGE-ON$
         }
     }
+
+  /**
+   * If stack tracing and contextual exceptions are enabled, this
+   * function will rewrite the stack trace of a captured exception
+   * to include the async stack trace.
+   */
+  private def augmentException(ex: Throwable, ctx: IOContext): Unit = {
+    val stackTrace = ex.getStackTrace
+    if (!stackTrace.isEmpty) {
+      val augmented = stackTrace(stackTrace.length - 1) eq augmentationMarker
+      if (!augmented) {
+        val prefix = dropRunLoopFrames(stackTrace)
+        val suffix = ctx
+          .getStackTraces()
+          .flatMap(t => IOTrace.getOpAndCallSite(t.stackTrace))
+          .map {
+            case (methodSite, callSite) =>
+              new StackTraceElement(methodSite.getMethodName + " @ " + callSite.getClassName,
+                                    callSite.getMethodName,
+                                    callSite.getFileName,
+                                    callSite.getLineNumber)
+          }
+          .toArray
+        ex.setStackTrace(prefix ++ suffix ++ Array(augmentationMarker))
+      }
+    }
+  }
+
+  private def dropRunLoopFrames(frames: Array[StackTraceElement]): Array[StackTraceElement] =
+    frames.takeWhile(ste => !runLoopFilter.exists(ste.getClassName.startsWith(_)))
+
+  private[this] val runLoopFilter = List(
+    "cats.effect.",
+    "scala."
+  )
+
+  private[this] val augmentationMarker = new StackTraceElement("", "", "", 0)
 
   /**
    * A `RestartCallback` gets created only once, per [[startCancelable]]
