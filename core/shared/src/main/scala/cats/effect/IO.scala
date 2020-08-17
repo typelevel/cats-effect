@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{~>, Eval, Monoid, Now, Parallel, Semigroup, Show, StackSafeMonad}
+import cats.{~>, Eval, Monoid, Now, Parallel, Semigroup, SemigroupK, Show, StackSafeMonad}
 import cats.implicits._
 import cats.effect.implicits._
 
@@ -453,6 +453,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       extends IOSemigroup[A]
       with Monoid[IO[A]] {
     def empty = IO.pure(A.empty)
+  }
+
+  implicit val semigroupKForIO: SemigroupK[IO] =
+    new IOSemigroupK
+
+  protected class IOSemigroupK extends SemigroupK[IO] {
+    final override def combineK[A](a: IO[A], b: IO[A]): IO[A] =
+      a.handleErrorWith(_ => b)
   }
 
   private[this] val _effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
