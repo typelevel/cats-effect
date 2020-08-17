@@ -176,7 +176,7 @@ sealed abstract class Resource[+F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: Async, B](
+  def parZip[G[x] >: F[x]: ConcurrentThrow: Ref.Mk, B](
       that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -187,7 +187,7 @@ sealed abstract class Resource[+F[_], +A] {
         release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
       )
 
-    val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
+    val bothFinalizers = Ref[G].of(().pure[G] -> ().pure[G])
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
