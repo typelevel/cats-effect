@@ -410,13 +410,17 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Creates a [[Resource]] by wrapping a Java
    * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
    *
+   * In most real world cases, implementors of AutoCloseable are
+   * blocking as well, so the close action runs in the blocking
+   * context.
+   *
    * Example:
    * {{{
    *   import cats.effect._
    *   import scala.io.Source
    *
    *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
-   *     Resource.fromAutoCloseable(F.delay {
+   *     Resource.fromAutoCloseable(F.blocking {
    *       Source.fromString(data)
    *     })
    * }}}
@@ -428,33 +432,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
       implicit F: Sync[F]): Resource[F, A] =
-    Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
-
-  // /**
-  //  * Creates a [[Resource]] by wrapping a Java
-  //  * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]]
-  //  * which is blocking in its adquire and close operations.
-  //  *
-  //  * Example:
-  //  * {{{
-  //  *   import java.io._
-  //  *   import cats.effect._
-  //  *
-  //  *   def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
-  //  *     Resource.fromAutoCloseableBlocking(blocker)(F.delay {
-  //  *       new BufferedReader(new FileReader(file))
-  //  *     })
-  //  * }}}
-  //  * @param acquire The effect with the resource to acquire
-  //  * @param blocker The blocking context that will be used to compute acquire and close
-  //  * @tparam F the type of the effect
-  //  * @tparam A the type of the autocloseable resource
-  //  * @return a Resource that will automatically close after use
-  //  */
-  // def fromAutoCloseableBlocking[F[_]: Sync: ContextShift, A <: AutoCloseable](
-  //   blocker: Blocker
-  // )(acquire: F[A]): Resource[F, A] =
-  //   Resource.make(blocker.blockOn(acquire))(autoCloseable => blocker.delay(autoCloseable.close()))
+    Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
