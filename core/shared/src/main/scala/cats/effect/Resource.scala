@@ -65,6 +65,8 @@ import Resource.ExitCase
  *
  *   val r = for {
  *     outer <- mkResource("outer")
+
+
  *     inner <- mkResource("inner")
  *   } yield (outer, inner)
  *
@@ -99,7 +101,7 @@ import Resource.ExitCase
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
-  private def fold[G[x] >: F[x], B](
+  private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
       onRelease: G[Unit] => G[Unit]
   )(implicit G: Resource.Bracket[G]): G[B] = {
@@ -638,11 +640,13 @@ abstract private[effect] class ResourceInstances0 {
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
-      implicit F0: Monad[F],
-      K0: SemigroupK[F]): ResourceSemigroupK[F] =
+      implicit F0: Resource.Bracket[F],
+    K0: SemigroupK[F],
+    G0: Ref.Mk[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
+      def G = G0
     }
 }
 
@@ -741,15 +745,20 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
-  implicit protected def F: Monad[F]
+  implicit protected def F: Resource.Bracket[F]
   implicit protected def K: SemigroupK[F]
+  implicit protected def G: Ref.Mk[F]
 
-  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    for {
-      x <- rx
-      y <- ry
-      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
-    } yield xy
+
+  def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
+    Resource
+      .make(Ref[F].of(F.unit))(_.get.flatten)
+      .evalMap { finalizers =>
+        def allocate(r: Resource[F, A]): F[A] =
+          r.fold(_.pure[F], (release: F[Unit]) => finalizers.update(Resource.Bracket[F].guarantee(_)(release)))
+
+        K.combineK(allocate(ra), allocate(rb))
+      }
 }
 
 abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
