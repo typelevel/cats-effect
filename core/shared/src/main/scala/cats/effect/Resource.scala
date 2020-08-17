@@ -602,11 +602,11 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F = F0
     }
 
-  // implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
-  //   new ResourceLiftIO[F] {
-  //     def F0 = F00
-  //     def F1 = F10
-  //   }
+  implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
+    new ResourceLiftIO[F] {
+      def F0 = F00
+      def F1 = F10
+    }
 
   implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
       implicit F: Async[F]
@@ -752,13 +752,13 @@ abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resou
     } yield xy
 }
 
-// abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
-//   implicit protected def F0: LiftIO[F]
-//   implicit protected def F1: Applicative[F]
+abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
+  implicit protected def F0: LiftIO[F]
+  implicit protected def F1: Applicative[F]
 
-//   def liftIO[A](ioa: IO[A]): Resource[F, A] =
-//     Resource.liftF(F0.liftIO(ioa))
-// }
+  def liftIO[A](ioa: IO[A]): Resource[F, A] =
+    Resource.liftF(F0.liftIO(ioa))
+}
 
 abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
     extends CommutativeApplicative[Resource.Par[F, *]] {
