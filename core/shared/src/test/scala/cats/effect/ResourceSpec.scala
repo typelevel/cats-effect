@@ -433,16 +433,6 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
   //   )
   // }
 
-  // TODO fails some laws
-  // {
-  //   implicit val ticker = Ticker(TestContext())
-
-  //   checkAll(
-  //     "Resource.Par[IO, *]",
-  //     CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
-  //   )
-  // }
-
   {
     implicit val ticker = Ticker(TestContext())
 
