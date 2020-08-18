@@ -16,7 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative, ApplicativeError, Eq, Monad, MonadError, Order, Show, Traverse}
+import cats.{~>, Applicative, ApplicativeError, Bifunctor}
+import cats.{Eq, Monad, MonadError, Order, Show, Traverse}
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -129,14 +130,12 @@ object Outcome extends LowPriorityImplicits {
   implicit def monadError[F[_], E](
       implicit F: Monad[F],
       FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
+    new OutcomeApplicativeError[F, E]()(F)
+      with MonadError[Outcome[F, E, *], E]
+      with Bifunctor[λ[(α, β) => Outcome[F, α, β]]] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
-        fa match {
-          case Completed(fa) => Completed(F.map(fa)(f))
-          case Errored(e) => Errored(e)
-          case Canceled() => Canceled()
-        }
+        bimap(fa)(identity, f)
 
       def flatMap[A, B](fa: Outcome[F, E, A])(f: A => Outcome[F, E, B]): Outcome[F, E, B] =
         fa match {
@@ -161,6 +160,13 @@ object Outcome extends LowPriorityImplicits {
             }
 
           case Errored(e) => Errored(e)
+          case Canceled() => Canceled()
+        }
+
+      def bimap[A, B, C, D](fab: Outcome[F, A, B])(f: A => C, g: B => D): Outcome[F, C, D] =
+        fab match {
+          case Completed(fa) => Completed(F.map(fa)(g))
+          case Errored(e) => Errored(f(e))
           case Canceled() => Canceled()
         }
     }
