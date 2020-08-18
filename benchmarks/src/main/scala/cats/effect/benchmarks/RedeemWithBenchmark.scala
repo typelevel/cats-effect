@@ -18,7 +18,6 @@ package cats.effect.benchmarks
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits._
 
 import org.openjdk.jmh.annotations._
 
