@@ -93,6 +93,21 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
+  test("releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
+    implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
+      override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
+    }
+    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+      var acquired: Set[Int] = Set.empty
+      var released: Set[Int] = Set.empty
+      def observe(r: Resource[IO, Int]) = r.flatMap { a =>
+        Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a)).as(())
+      }
+      observe(rx).combineK(observe(ry)).use(_ => IO.unit).attempt.unsafeRunSync()
+      released <-> acquired
+    }
+  }
+
   test("resource from AutoCloseable is auto closed") {
     var closed = false
     val autoCloseable = new AutoCloseable {
@@ -334,10 +349,20 @@ class ResourceTests extends BaseTestsSuite {
     suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
   }
 
-  test("combineK - should behave like orElse") {
+  test("combineK - should behave like orElse when underlying effect does") {
     check { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
       val lhs = r1.orElse(r2).use(IO.pure).attempt.unsafeRunSync()
       val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
+
+      lhs <-> rhs
+    }
+  }
+
+  test("combineK - should behave like underlying effect") {
+    import cats.data.OptionT
+    check { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
+      val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
+      val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
 
       lhs <-> rhs
     }
