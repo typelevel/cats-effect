@@ -299,6 +299,20 @@ sealed abstract class Resource[+F[_], +A] {
    */
   def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G[?]]): Resource[G[?], A] =
     this.evalMap(a => f(a).as(a))
+
+  /**
+   * Combines two `Resource` instances by lifting the behaviour of a
+   * `SemigroupK` instance into the resource context
+   */
+  def combineK[G[x] >: F[x], B >: A](that: Resource[G, B])(implicit F: Sync[G], K: SemigroupK[G]): Resource[G, B] =
+    Resource
+      .make(Ref[G].of(F.unit))(_.get.flatten)
+      .evalMap { finalizers =>
+        def allocate(r: Resource[G, B]): G[B] =
+          r.fold[G, B](_.pure[G], (release: G[Unit]) => finalizers.update(_.guarantee(release)))
+
+        K.combineK(allocate(this), allocate(that))
+      }
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
@@ -566,14 +580,7 @@ abstract private[effect] class ResourceInstances0 {
     new SemigroupK[Resource[F, *]] {
 
       final override def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
-        Resource
-          .make(Ref[F].of(Sync[F].unit))(_.get.flatten)
-          .evalMap { finalizers =>
-            def allocate(r: Resource[F, A]): F[A] =
-              r.allocated.flatMap { case (a, release) => finalizers.update(_.guarantee(release)).as(a) }
-
-            K.combineK(allocate(ra), allocate(rb))
-          }
+        ra.combineK(rb)
     }
 
   // For binary compatibility.
