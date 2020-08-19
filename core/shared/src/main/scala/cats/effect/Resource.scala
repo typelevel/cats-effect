@@ -274,7 +274,7 @@ sealed abstract class Resource[+F[_], +A] {
         stack: List[Any => Resource[G, Any]],
         release: G[Unit]): G[(Any, G[Unit])] =
       current match {
-        case a@Allocate(_) => {
+        case a @ Allocate(_) => {
           val cur = a.asInstanceOf[Allocate[G, Any]]
           G.bracketCase(cur.resource) {
             case (a, rel) =>
@@ -290,11 +290,11 @@ sealed abstract class Resource[+F[_], +A] {
               release(ec)
           }
         }
-        case b@Bind(_, _) => {
+        case b @ Bind(_, _) => {
           val cur = b.asInstanceOf[Bind[G, Any, Any]]
           loop(cur.source, cur.fs.asInstanceOf[Any => Resource[G, Any]] :: stack, release)
         }
-        case s@Suspend(_) => {
+        case s @ Suspend(_) => {
           val cur = s.asInstanceOf[Suspend[G, Any]]
           cur.resource.flatMap(continue(_, stack, release))
         }
@@ -738,7 +738,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
   def tailRecM[A, B](a: A)(f: A => Resource[F, Either[A, B]]): Resource[F, B] = {
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r match {
-        case a@Allocate(_) => {
+        case a @ Allocate(_) => {
           val cur = a.asInstanceOf[Allocate[F, Either[A, B]]]
           Suspend(cur.resource.flatMap[Resource[F, B]] {
             case (Left(a), release) =>
@@ -747,11 +747,11 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
               F.pure(Allocate[F, B](F.pure((b, release))))
           })
         }
-        case s@Suspend(_) => {
+        case s @ Suspend(_) => {
           val cur = s.asInstanceOf[Suspend[F, Either[A, B]]]
           Suspend(cur.resource.map(continue))
         }
-        case b@Bind(_, _) => {
+        case b @ Bind(_, _) => {
           val cur = b.asInstanceOf[Bind[F, Any, Either[A, B]]]
           Bind(cur.source, AndThen(cur.fs).andThen(continue))
         }
