@@ -17,6 +17,7 @@
 package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
+import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.EffectTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.implicits._
@@ -811,6 +812,16 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       MonoidTests[IO[Int]].monoid
     ) /*(Parameters(seed = Some(Seed.fromBase64("_1deH2u9O-z6PmkYMBgZT-3ofsMEAMStR9x0jKlFgyO=").get)))*/
   }
+
+  {
+    implicit val ticker = Ticker(TestContext())
+
+    checkAll(
+      "IO[Int]",
+      SemigroupKTests[IO].semigroupK[Int]
+    )
+  }
+
 
 }
 

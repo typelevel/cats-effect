@@ -65,6 +65,7 @@ import Resource.ExitCase
  *
  *   val r = for {
  *     outer <- mkResource("outer")
+ *
  *     inner <- mkResource("inner")
  *   } yield (outer, inner)
  *
@@ -99,7 +100,7 @@ import Resource.ExitCase
 sealed abstract class Resource[+F[_], +A] {
   import Resource.{Allocate, Bind, Suspend}
 
-  private def fold[G[x] >: F[x], B](
+  private[effect] def fold[G[x] >: F[x], B](
       onOutput: A => G[B],
       onRelease: G[Unit] => G[Unit]
   )(implicit G: Resource.Bracket[G]): G[B] = {
@@ -176,7 +177,7 @@ sealed abstract class Resource[+F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: Async, B](
+  def parZip[G[x] >: F[x]: ConcurrentThrow: Ref.Mk, B](
       that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -187,7 +188,7 @@ sealed abstract class Resource[+F[_], +A] {
         release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
       )
 
-    val bothFinalizers = Ref[G].of(Sync[G].unit -> Sync[G].unit)
+    val bothFinalizers = Ref[G].of(().pure[G] -> ().pure[G])
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
@@ -410,13 +411,17 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Creates a [[Resource]] by wrapping a Java
    * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]].
    *
+   * In most real world cases, implementors of AutoCloseable are
+   * blocking as well, so the close action runs in the blocking
+   * context.
+   *
    * Example:
    * {{{
    *   import cats.effect._
    *   import scala.io.Source
    *
    *   def reader[F[_]](data: String)(implicit F: Sync[F]): Resource[F, Source] =
-   *     Resource.fromAutoCloseable(F.delay {
+   *     Resource.fromAutoCloseable(F.blocking {
    *       Source.fromString(data)
    *     })
    * }}}
@@ -428,33 +433,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    */
   def fromAutoCloseable[F[_], A <: AutoCloseable](acquire: F[A])(
       implicit F: Sync[F]): Resource[F, A] =
-    Resource.make(acquire)(autoCloseable => F.delay(autoCloseable.close()))
-
-  // /**
-  //  * Creates a [[Resource]] by wrapping a Java
-  //  * [[https://docs.oracle.com/javase/8/docs/api/java/lang/AutoCloseable.html AutoCloseable]]
-  //  * which is blocking in its adquire and close operations.
-  //  *
-  //  * Example:
-  //  * {{{
-  //  *   import java.io._
-  //  *   import cats.effect._
-  //  *
-  //  *   def reader[F[_]](file: File, blocker: Blocker)(implicit F: Sync[F], cs: ContextShift[F]): Resource[F, BufferedReader] =
-  //  *     Resource.fromAutoCloseableBlocking(blocker)(F.delay {
-  //  *       new BufferedReader(new FileReader(file))
-  //  *     })
-  //  * }}}
-  //  * @param acquire The effect with the resource to acquire
-  //  * @param blocker The blocking context that will be used to compute acquire and close
-  //  * @tparam F the type of the effect
-  //  * @tparam A the type of the autocloseable resource
-  //  * @return a Resource that will automatically close after use
-  //  */
-  // def fromAutoCloseableBlocking[F[_]: Sync: ContextShift, A <: AutoCloseable](
-  //   blocker: Blocker
-  // )(acquire: F[A]): Resource[F, A] =
-  //   Resource.make(blocker.blockOn(acquire))(autoCloseable => blocker.delay(autoCloseable.close()))
+    Resource.make(acquire)(autoCloseable => F.blocking(autoCloseable.close()))
 
   /**
    * `Resource` data constructor that wraps an effect allocating a resource,
@@ -624,11 +603,13 @@ abstract private[effect] class ResourceInstances extends ResourceInstances0 {
       def F = F0
     }
 
-  // implicit def catsEffectLiftIOForResource[F[_]](implicit F00: LiftIO[F], F10: Applicative[F]): LiftIO[Resource[F, *]] =
-  //   new ResourceLiftIO[F] {
-  //     def F0 = F00
-  //     def F1 = F10
-  //   }
+  implicit def catsEffectLiftIOForResource[F[_]](
+      implicit F00: LiftIO[F],
+      F10: Applicative[F]): LiftIO[Resource[F, *]] =
+    new ResourceLiftIO[F] {
+      def F0 = F00
+      def F1 = F10
+    }
 
   implicit def catsEffectCommutativeApplicativeForResourcePar[F[_]](
       implicit F: Async[F]
@@ -660,11 +641,13 @@ abstract private[effect] class ResourceInstances0 {
     }
 
   implicit def catsEffectSemigroupKForResource[F[_], A](
-      implicit F0: Monad[F],
-      K0: SemigroupK[F]): ResourceSemigroupK[F] =
+      implicit F0: Resource.Bracket[F],
+      K0: SemigroupK[F],
+      G0: Ref.Mk[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
+      def G = G0
     }
 }
 
@@ -763,24 +746,28 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
 }
 
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
-  implicit protected def F: Monad[F]
+  implicit protected def F: Resource.Bracket[F]
   implicit protected def K: SemigroupK[F]
+  implicit protected def G: Ref.Mk[F]
 
-  def combineK[A](rx: Resource[F, A], ry: Resource[F, A]): Resource[F, A] =
-    for {
-      x <- rx
-      y <- ry
-      xy <- Resource.liftF(K.combineK(x.pure[F], y.pure[F]))
-    } yield xy
+  def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
+    Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>
+      def allocate(r: Resource[F, A]): F[A] =
+        r.fold(
+          _.pure[F],
+          (release: F[Unit]) => finalizers.update(Resource.Bracket[F].guarantee(_)(release)))
+
+      K.combineK(allocate(ra), allocate(rb))
+    }
 }
 
-// abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
-//   implicit protected def F0: LiftIO[F]
-//   implicit protected def F1: Applicative[F]
+abstract private[effect] class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
+  implicit protected def F0: LiftIO[F]
+  implicit protected def F1: Applicative[F]
 
-//   def liftIO[A](ioa: IO[A]): Resource[F, A] =
-//     Resource.liftF(F0.liftIO(ioa))
-// }
+  def liftIO[A](ioa: IO[A]): Resource[F, A] =
+    Resource.liftF(F0.liftIO(ioa))
+}
 
 abstract private[effect] class ResourceParCommutativeApplicative[F[_]]
     extends CommutativeApplicative[Resource.Par[F, *]] {
