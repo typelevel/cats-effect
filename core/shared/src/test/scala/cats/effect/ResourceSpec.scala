@@ -436,14 +436,14 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       }
     }
 
-    "combineK - should behave like underlying effect" in ticked { implicit ticker =>
-      forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
-        val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
-        val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value
+    // "combinek - should behave like underlying effect" in ticked { implicit ticker =>
+    //   forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
+    //     val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value
+    //     val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value
 
-        lhs eqv rhs
-      }
-    }
+    //     lhs eqv rhs
+    //   }
+    // }
 
   }
 
