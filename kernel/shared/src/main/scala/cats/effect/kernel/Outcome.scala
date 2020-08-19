@@ -16,7 +16,8 @@
 
 package cats.effect.kernel
 
-import cats.{Applicative, ApplicativeError, Bifunctor, Eq, Functor, Monad, MonadError, Order, Show, Traverse, ~>}
+import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
+import cats.{~>, Monad, MonadError, Order, Show, Traverse}
 import cats.implicits._
 
 import scala.annotation.tailrec
@@ -61,17 +62,11 @@ private[kernel] trait LowPriorityImplicits {
 
   implicit def applicativeError[F[_], E](
       implicit F: Applicative[F]): ApplicativeError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E] with Bifunctor[Outcome[F, *, *]] {
-      def bimap[A, B, C, D](fab: Outcome[F, A, B])(f: A => C, g: B => D): Outcome[F, C, D] =
-        fab match {
-          case Completed(fa) => Completed(fa.map(g))
-          case Errored(e) => Errored(f(e))
-          case Canceled() => Canceled()
-        }
-    }
+    new OutcomeApplicativeError[F, E]
 
   protected class OutcomeApplicativeError[F[_]: Applicative, E]
-      extends ApplicativeError[Outcome[F, E, *], E] {
+      extends ApplicativeError[Outcome[F, E, *], E]
+      with Bifunctor[Outcome[F, *, *]] {
 
     def pure[A](x: A): Outcome[F, E, A] = Completed(x.pure[F])
 
@@ -96,6 +91,13 @@ private[kernel] trait LowPriorityImplicits {
 
         case (_, Canceled()) =>
           Canceled()
+      }
+
+    def bimap[A, B, C, D](fab: Outcome[F, A, B])(f: A => C, g: B => D): Outcome[F, C, D] =
+      fab match {
+        case Completed(fa) => Completed(fa.map(g))
+        case Errored(e) => Errored(f(e))
+        case Canceled() => Canceled()
       }
   }
 }
@@ -136,9 +138,7 @@ object Outcome extends LowPriorityImplicits {
   implicit def monadError[F[_], E](
       implicit F: Monad[F],
       FT: Traverse[F]): MonadError[Outcome[F, E, *], E] =
-    new OutcomeApplicativeError[F, E]()(F)
-      with MonadError[Outcome[F, E, *], E]
-      with Bifunctor[Outcome[F, *, *]] {
+    new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
         bimap(fa)(identity, f)
@@ -166,13 +166,6 @@ object Outcome extends LowPriorityImplicits {
             }
 
           case Errored(e) => Errored(e)
-          case Canceled() => Canceled()
-        }
-
-      def bimap[A, B, C, D](fab: Outcome[F, A, B])(f: A => C, g: B => D): Outcome[F, C, D] =
-        fab match {
-          case Completed(fa) => Completed(F.map(fa)(g))
-          case Errored(e) => Errored(f(e))
           case Canceled() => Canceled()
         }
     }
