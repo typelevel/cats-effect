@@ -22,8 +22,6 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
 
-import scala.annotation.tailrec
-
 import Resource.ExitCase
 
 /**
@@ -109,7 +107,8 @@ sealed abstract class Resource[+F[_], +A] {
 
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+    //@tailrec scala 2.13  thinks this isn't tail recursive ¯\_(ツ)_/
+    def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
       current match {
         case a @ Allocate(_) => {
           val cur = a.asInstanceOf[Allocate[G, Any]]
@@ -269,7 +268,8 @@ sealed abstract class Resource[+F[_], +A] {
 
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(
+    //@tailrec scala 2.13  thinks this isn't tail recursive ¯\_(ツ)_/
+    def loop(
         current: Resource[G, Any],
         stack: List[Any => Resource[G, Any]],
         release: G[Unit]): G[(Any, G[Unit])] =
