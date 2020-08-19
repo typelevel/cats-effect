@@ -19,7 +19,6 @@ package cats.effect.internals
 import cats.effect.IO
 import cats.effect.IO.Trace
 import cats.effect.tracing.IOEvent
-import cats.effect.internals.UnsafeConvergentCache
 
 private[effect] object IOTracing {
 

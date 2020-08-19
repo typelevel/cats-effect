@@ -17,7 +17,7 @@
 package cats.effect.internals;
 
 @SuppressWarnings("unchecked")
-public final class UnsafeConvergentCache<K, V> {
+final class UnsafeConvergentCache<K, V> {
 
     // We need final-field semantics when:
     // 1) Growing an array and replacing the reference
