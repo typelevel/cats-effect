@@ -51,6 +51,6 @@ private[effect] object IOTracing {
    * Global cache for trace frames. Keys are references to lambda classes.
    * Should converge to the working set of traces very quickly for hot code paths.
    */
-  private[this] val frameCache: ConcurrentHashMap[Class[_], IOEvent] = new ConcurrentHashMap()
+  private[this] val frameCache: UnsafeConvergentCache[Class[_], IOEvent] = new UnsafeConvergentCache()
 
 }
