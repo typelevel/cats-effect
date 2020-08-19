@@ -14,45 +14,73 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
-
-private[internals] final class UnsafeConvergentCache[K, V <: AnyRef] {
-
-  private[this] val buffer: Buffer = new Buffer(10)
-
-  def put(k: K, v: V): Unit =
-    buffer.put(k, v)
-
-  def get(k: K): V =
-    buffer.get(k)
-
-  private[this] final class Buffer(logSize: Int) {
-    private[this] val size = 1 << logSize
-    private[this] val mask = size - 1
-    private[this] val array = new Array[AnyRef](size)
-
-    def put(k: K, v: V): Unit = {
-      val hash = k.hashCode() & mask
-      array(hash) = v
-//      if (array(hash) ne null) {
+//
+//package cats.effect.internals
+//
+//import scala.annotation.tailrec
+//
+//private[internals] final class UnsafeConvergentCache[K, V <: AnyRef] {
+//
+//  private[this] var buffer: Buffer = new Buffer(10)
+//
+//  // We need final-field semantics when:
+//  // 1) Growing an array and replacing the reference
+//  // 2) Inserting a new cache entry
+//  def put(k: K, v: V): Unit = {
+//    if (buffer.put(k, v) ne null) {
+//      buffer = buffer.grow(k, v)
+//    }
+//    ()
+//  }
+//
+//  def get(k: K): V =
+//    buffer.get(k)
+//
+//  private[this] final class Buffer(val logSize: Int) {
+//    private[this] val size = 1 << logSize
+//    private[this] val mask = size - 1
+//    private[this] val array = new Array[AnyRef](size)
+//
+//    def put(k: K, v: V): V = {
+//      val hash = k.hashCode() & mask
+//      val old = array(hash)
+//      if (old ne null) {
 //        array(hash) = v
-//      } else {
+//      }
+//      old.asInstanceOf[V]
+//    }
+//
+//    def grow(k: K, v: V): Buffer = {
+//      @tailrec
+//      def go(logSize: Int): Buffer = {
 //        // grow and reset buffer
-//        val newBuffer = new Buffer(logSize + 1)
-//        for (i <- 0 until size) {
+//        val newBuffer = new Buffer(logSize)
+//        newBuffer.put(k, v)
+//
+//        var collision = false
+//        var i = 0
+//
+//        while (!collision && i < size) {
 //          val elem = array(i)
 //          if (elem ne null) {
 //
+//          } else {
+//            collision = true
 //          }
+//
+//          i += 1
 //        }
-//        buffer = newBuffer
+//
+//        if (logSize)
 //      }
-    }
-
-    def get(k: K): V = {
-      val hash = k.hashCode() & mask
-      array(hash).asInstanceOf[V]
-    }
-  }
-
-}
+//
+//      go(logSize + 1)
+//    }
+//
+//    def get(k: K): V = {
+//      val hash = k.hashCode() & mask
+//      array(hash).asInstanceOf[V]
+//    }
+//  }
+//
+//}
