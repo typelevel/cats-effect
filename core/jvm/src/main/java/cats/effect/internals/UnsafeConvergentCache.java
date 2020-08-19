@@ -120,8 +120,9 @@ public final class UnsafeConvergentCache<K, V> {
                 }
             }
 
-            // This is crucial, array needs to be fully initialized and primed
-            // *before* Buffer is safely initialized.
+            // This is crucial, newArray needs to be fully initialized and primed
+            // *before* Buffer is safely initialized, otherwise the final field
+            // semantics won't be extended to newArray inside Buffer.
             return new Buffer(currentLogSize, newArray);
         }
     }
