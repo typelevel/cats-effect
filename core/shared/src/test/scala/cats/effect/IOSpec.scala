@@ -190,6 +190,29 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       } must completeAs(42)
     }
 
+    "joinAndEmbedNever on a cancelled fiber" in ticked { implicit ticker =>
+      (for {
+        fib <- IO.sleep(2.seconds).start
+        _ <- fib.cancel
+        _ <- fib.joinAndEmbedNever
+      } yield ()) must nonTerminate
+    }
+
+    "joinAndEmbedNever on a successful fiber" in ticked { implicit ticker =>
+      (for {
+        fib <- IO.pure(1).start
+        res <- fib.joinAndEmbedNever
+      } yield res) must completeAs(1)
+    }
+
+    "joinAndEmbedNever on a failed fiber" in ticked { implicit ticker =>
+      case object TestException extends RuntimeException
+      (for {
+        fib <- IO.raiseError[Unit](TestException).start
+        res <- fib.joinAndEmbedNever
+      } yield res) must failAs(TestException)
+    }
+
     "continue from the results of an async produced prior to registration" in ticked {
       implicit ticker =>
         IO.async[Int](cb => IO(cb(Right(42))).as(None)).map(_ + 2) must completeAs(44)
@@ -821,7 +844,6 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       SemigroupKTests[IO].semigroupK[Int]
     )
   }
-
 
 }
 
