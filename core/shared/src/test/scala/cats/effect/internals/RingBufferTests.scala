@@ -31,23 +31,14 @@ class RingBufferTests extends AnyFunSuite with Matchers with TestUtils {
     buffer.isEmpty shouldBe false
   }
 
-  test("size is a power of two") {
-    new RingBuffer[Integer](0).capacity shouldBe 1
-    new RingBuffer[Integer](1).capacity shouldBe 1
-    new RingBuffer[Integer](2).capacity shouldBe 2
-    new RingBuffer[Integer](3).capacity shouldBe 4
-    new RingBuffer[Integer](127).capacity shouldBe 128
-    new RingBuffer[Integer](13000).capacity shouldBe 16384
-  }
-
   test("writing elements") {
-    val buffer = new RingBuffer[Integer](4)
+    val buffer = new RingBuffer[Integer](2)
     for (i <- 0 to 3) buffer.push(i)
     buffer.toList shouldBe List(3, 2, 1, 0)
   }
 
   test("overwriting elements") {
-    val buffer = new RingBuffer[Integer](4)
+    val buffer = new RingBuffer[Integer](2)
     for (i <- 0 to 100) buffer.push(i)
     buffer.toList shouldBe List(100, 99, 98, 97)
   }

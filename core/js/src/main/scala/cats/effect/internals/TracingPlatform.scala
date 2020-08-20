@@ -23,7 +23,7 @@ object TracingPlatform {
 
   final val isStackTracing: Boolean = isFullStackTracing || isCachedStackTracing
 
-  final val traceBufferSize: Int = 32
+  final val traceBufferLogSize: Int = 4
 
   final val enhancedExceptions: Boolean = false
 }
