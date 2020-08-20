@@ -1624,6 +1624,48 @@ object IO extends IOInstances {
       cb(Right(ctx.trace()))
     }
 
+  /**
+   * Returns the given argument if `cond` is true, otherwise `IO.Unit`
+   *
+   * @see [[IO.unlessA]] for the inverse
+   * @see [[IO.raiseWhen]] for conditionally raising an error
+   */
+  def whenA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
+    Applicative[IO].whenA(cond)(action)
+
+  /**
+   * Returns the given argument if `cond` is false, otherwise `IO.Unit`
+   *
+   * @see [[IO.whenA]] for the inverse
+   * @see [[IO.raiseWhen]] for conditionally raising an error
+   */
+  def unlessA(cond: Boolean)(action: => IO[Unit]): IO[Unit] =
+    Applicative[IO].unlessA(cond)(action)
+
+  /**
+   * Returns `raiseError` when the `cond` is true, otherwise `IO.unit`
+   *
+   * @example {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseWhen(x >= tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
+   */
+  def raiseWhen(cond: Boolean)(e: => Throwable): IO[Unit] =
+    IO.whenA(cond)(IO.raiseError(e))
+
+  /**
+   * Returns `raiseError` when `cond` is false, otherwise IO.unit
+   *
+   * @example {{{
+   * val tooMany = 5
+   * val x: Int = ???
+   * IO.raiseUnless(x < tooMany)(new IllegalArgumentException("Too many"))
+   * }}}
+   */
+  def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
+    IO.unlessA(cond)(IO.raiseError(e))
+
   /* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
   /* IO's internal encoding: */
   // In the Bind, Map, and Async constructors, you will notice that traces
