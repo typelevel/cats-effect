@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.{~>, SemigroupK}
-import cats.data.{Kleisli}//, OptionT}
+import cats.data.{Kleisli} //, OptionT}
 import cats.effect.concurrent.Deferred
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
@@ -405,35 +405,37 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     }
 
     "releases both resources on combineK" in ticked { implicit ticker =>
-        var acquired: Set[Int] = Set.empty
-        var released: Set[Int] = Set.empty
-        def observe(a: Int) =
-          Resource.make(IO(acquired += a).as(a))(a => IO(released += a))
-
-        observe(1).combineK(observe(2)).use(_ => IO.unit).attempt.void must completeAs(())
-        released mustEqual acquired
-    }
-
-    "releases both resources on combineK when using a SemigroupK instance that discards allocated values" in ticked { implicit ticker =>
-      implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
-        override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
-      }
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
-      def observe(a: Int) = 
-        Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a))
+      def observe(a: Int) =
+        Resource.make(IO(acquired += a).as(a))(a => IO(released += a))
 
       observe(1).combineK(observe(2)).use(_ => IO.unit).attempt.void must completeAs(())
       released mustEqual acquired
     }
 
-    "combineK - should behave like orElse when underlying effect does" in ticked { implicit ticker =>
-      forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
-        val lhs = r1.orElse(r2).use(IO.pure)
-        val rhs = (r1 <+> r2).use(IO.pure)
+    "releases both resources on combineK when using a SemigroupK instance that discards allocated values" in ticked {
+      implicit ticker =>
+        implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
+          override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
+        }
+        var acquired: Set[Int] = Set.empty
+        var released: Set[Int] = Set.empty
+        def observe(a: Int) =
+          Resource.make(IO(acquired += a) *> IO.pure(a))(a => IO(released += a))
 
-        lhs eqv rhs
-      }
+        observe(1).combineK(observe(2)).use(_ => IO.unit).attempt.void must completeAs(())
+        released mustEqual acquired
+    }
+
+    "combineK - should behave like orElse when underlying effect does" in ticked {
+      implicit ticker =>
+        forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+          val lhs = r1.orElse(r2).use(IO.pure)
+          val rhs = (r1 <+> r2).use(IO.pure)
+
+          lhs eqv rhs
+        }
     }
 
     // "combinek - should behave like underlying effect" in ticked { implicit ticker =>
@@ -467,7 +469,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
 
   {
     implicit val ticker = Ticker(TestContext())
-  
+
     checkAll(
       "Resource[IO, *]",
       SemigroupKTests[Resource[IO, *]].semigroupK[Int]
