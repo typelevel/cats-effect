@@ -32,8 +32,8 @@ This may be useful if you have a pre-existing fixed thread pool and/or scheduler
 wish to use to execute IO programs. Please be sure to review thread pool best practices to
 avoid unintentionally degrading your application performance.
 """)
-final class IORuntime private (
-    val compute: ExecutionContext,
+final class IORuntime private[effect] (
+    val compute: IOExecutionContext,
     val blocking: ExecutionContext,
     val scheduler: Scheduler,
     val shutdown: () => Unit) {
@@ -44,7 +44,7 @@ final class IORuntime private (
     new UnsafeRun[IO] {
       def unsafeRunFutureCancelable[A](fa: IO[A]): (Future[A], () => Future[Unit]) = {
         val p = Promise[A]()
-        val fiber = fa.unsafeRunFiber(false) {
+        val fiber = fa.unsafeRunFiber(true) {
           case Left(t) => p.failure(t)
           case Right(a) => p.success(a)
         }
@@ -61,5 +61,5 @@ object IORuntime extends IORuntimeCompanionPlatform {
       blocking: ExecutionContext,
       scheduler: Scheduler,
       shutdown: () => Unit): IORuntime =
-    new IORuntime(compute, blocking, scheduler, shutdown)
+    new IORuntime(IOExecutionContext.wrap(compute), blocking, scheduler, shutdown)
 }

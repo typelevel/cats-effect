@@ -17,8 +17,8 @@
 package cats.effect
 
 import cats.{~>, Eval, Monoid, Now, Parallel, Semigroup, SemigroupK, Show, StackSafeMonad}
-import cats.implicits._
 import cats.effect.implicits._
+import cats.implicits._
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -100,7 +100,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     }
   }
 
-  def evalOn(ec: ExecutionContext): IO[A] = IO.EvalOn(this, ec)
+  def evalOn(ec: ExecutionContext): IO[A] =
+    IO.EvalOn(this, ec)
 
   def flatMap[B](f: A => IO[B]): IO[B] = IO.FlatMap(this, f)
 
@@ -326,7 +327,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     )
 
     if (shift)
-      runtime.compute.execute(fiber)
+      runtime.compute.executeFiber(fiber)
     else
       fiber.run()
 

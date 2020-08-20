@@ -53,7 +53,7 @@ class HandleErrorBenchmark {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSync()
+    loop(0).unsafeRunSyncBenchmark()
   }
 
   @Benchmark
@@ -69,6 +69,6 @@ class HandleErrorBenchmark {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSync()
+    loop(0).unsafeRunSyncBenchmark()
   }
 }

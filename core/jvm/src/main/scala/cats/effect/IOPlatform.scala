@@ -27,12 +27,19 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     unsafeRunTimed(Long.MaxValue.nanos).get
 
   final def unsafeRunTimed(limit: FiniteDuration)(
+      implicit runtime: unsafe.IORuntime): Option[A] =
+    unsafeRunTimedInternal(limit, true)
+
+  private[effect] final def unsafeRunSyncBenchmark()(implicit runtime: unsafe.IORuntime): A =
+    unsafeRunTimedInternal(Long.MaxValue.nanos, false).get
+
+  private final def unsafeRunTimedInternal(limit: FiniteDuration, shift: Boolean)(
       implicit runtime: unsafe.IORuntime): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
 
-    unsafeRunFiber(false) { e =>
+    unsafeRunFiber(shift) { e =>
       results = e
       latch.countDown()
     }

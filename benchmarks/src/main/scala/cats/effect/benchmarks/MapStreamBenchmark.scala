@@ -62,7 +62,7 @@ object MapStreamBenchmark {
       stream = mapStream(addOne)(stream)
       i += 1
     }
-    sum(0)(stream).unsafeRunSync()
+    sum(0)(stream).unsafeRunSyncBenchmark()
   }
 
   final case class Stream(value: Int, next: IO[Option[Stream]])

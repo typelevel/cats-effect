@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.unsafe.{IOExecutionContext, WorkQueue}
 import cats.implicits._
 
 import scala.annotation.{switch, tailrec}
@@ -63,7 +64,7 @@ private final class IOFiber[A](
     initMask: Int,
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
-    startEC: ExecutionContext)
+    startEC: IOExecutionContext)
     extends IOFiberPlatform[A]
     with FiberIO[A]
     with Runnable {
@@ -76,8 +77,13 @@ private final class IOFiber[A](
   private[this] val objectState = new ArrayStack[AnyRef](16)
 
   // fast-path to head
-  private[this] var currentCtx: ExecutionContext = _
-  private[this] var ctxs: ArrayStack[ExecutionContext] = _
+  private[this] var currentCtx: IOExecutionContext = _
+  private[this] var ctxs: ArrayStack[IOExecutionContext] = _
+
+  // Direct reference to the work queue of the worker thread that executes this fiber. Used for local rescheduling of
+  // the fiber on the same worker thread, which avoids contention with other fibers when going through a shared queue,
+  // which is typical for non work stealing executors.
+  private[effect] var queue: WorkQueue = _
 
   private[this] var canceled: Boolean = false
   private[this] var masks: Int = initMask
@@ -414,16 +420,18 @@ private final class IOFiber[A](
 
         // ReadEC
         case 5 =>
-          runLoop(succeeded(currentCtx, 0), nextIteration)
+          // supply the underlying Scala `ExecutionContext` which is needed for the public API of `IO.executionContext`
+          runLoop(succeeded(currentCtx.underlying, 0), nextIteration)
 
         case 6 =>
           val cur = cur0.asInstanceOf[EvalOn[Any]]
 
-          // fast-path when it's an identity transformation
-          if (cur.ec eq currentCtx) {
+          // fast-path when it's an identity transformation, but make sure to compare the Scala `ExecutionContext`s
+          // that are wrapped by the internal `IOExecutionContext`
+          if (cur.ec eq currentCtx.underlying) {
             runLoop(cur.ioa, nextIteration)
           } else {
-            val ec = cur.ec
+            val ec = IOExecutionContext.wrap(cur.ec)
             currentCtx = ec
             ctxs.push(ec)
             conts.push(EvalOnK)
@@ -461,7 +469,7 @@ private final class IOFiber[A](
         case 10 =>
           val cur = cur0.asInstanceOf[OnCancel[Any]]
 
-          finalizers.push(EvalOn(cur.fin, currentCtx))
+          finalizers.push(EvalOn(cur.fin, currentCtx.underlying))
           // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
           conts.push(OnCancelK)
@@ -570,7 +578,8 @@ private final class IOFiber[A](
         case 18 =>
           resumeTag = CedeR
           resumeNextIteration = nextIteration
-          currentCtx.execute(this)
+          // put this fiber at the back of the work queue of the current worker thread
+          currentCtx.reschedule(this, queue)
 
         case 19 =>
           val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
@@ -621,7 +630,7 @@ private final class IOFiber[A](
   }
 
   // returns the *new* context, not the old
-  private[this] def popContext(): ExecutionContext = {
+  private[this] def popContext(): IOExecutionContext = {
     ctxs.pop()
     val ec = ctxs.peek()
     currentCtx = ec
@@ -682,11 +691,15 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def execute(ec: ExecutionContext)(action: Runnable): Unit = {
+  private[this] def execute(ec: IOExecutionContext)(fiber: IOFiber[_]): Unit = {
     readBarrier()
 
     try {
-      ec.execute(action)
+      // Schedule the current fiber for continued execution on a possibly different worker thread. This does not locally
+      // reschedule the current fiber on the same worker thread and is used when such rescheduling is unsafe (when
+      // executed from a different worker or external thread, e.g. when switching to the blocking `ExecutionContext`
+      // or an `ExecutionContext` provided in `evalOn`).
+      ec.executeFiber(fiber)
     } catch {
       case _: RejectedExecutionException =>
         () // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
@@ -735,13 +748,19 @@ private final class IOFiber[A](
       conts = new ByteStack(16)
       conts.push(RunTerminusK)
 
-      ctxs = new ArrayStack[ExecutionContext](2)
+      ctxs = new ArrayStack[IOExecutionContext](2)
       currentCtx = startEC
       ctxs.push(startEC)
 
       runLoop(startIO, 0)
     }
   }
+
+  /**
+   * Needed for deciding whether manual execution of this fiber on the work stealing thread pool is needed.
+   */
+  private[effect] def isCeding: Boolean =
+    resumeTag == CedeR
 
   private[this] def asyncContinueR(): Unit = {
     val e = asyncContinueEither
@@ -767,12 +786,11 @@ private final class IOFiber[A](
     if (error == null) {
       resumeTag = AfterBlockingSuccessfulR
       afterBlockingSuccessfulResult = r
-      currentCtx.execute(this)
     } else {
       resumeTag = AfterBlockingFailedR
       afterBlockingFailedError = error
-      currentCtx.execute(this)
     }
+    currentCtx.executeFiber(this)
   }
 
   private[this] def afterBlockingSuccessfulR(): Unit = {
@@ -848,7 +866,7 @@ private final class IOFiber[A](
   }
 
   private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
-    currentCtx.reportFailure(t)
+    currentCtx.underlying.reportFailure(t)
 
     cancelationLoopSuccessK()
   }

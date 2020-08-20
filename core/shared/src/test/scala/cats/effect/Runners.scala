@@ -296,7 +296,7 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   private def timeout[A](f: Future[A], duration: FiniteDuration): Future[A] = {
     val p = Promise[A]()
     val r = runtime()
-    implicit val ec = r.compute
+    implicit val ec = r.compute.underlying
 
     val cancel = r.scheduler.sleep(duration, { () => p.tryFailure(new TimeoutException); () })
 
