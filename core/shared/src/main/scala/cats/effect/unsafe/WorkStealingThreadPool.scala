@@ -38,7 +38,7 @@ private[effect] final class WorkStealingThreadPool(
   private[this] val workerThreads: Array[WorkerThread] = new Array[WorkerThread](threadCount)
   private[this] val externalQueue: ConcurrentLinkedQueue[IOFiber[_]] =
     new ConcurrentLinkedQueue[IOFiber[_]]()
-  private[this] val parkedThreads: ConcurrentLinkedQueue[WorkerThread] =
+  private[unsafe] val parkedThreads: ConcurrentLinkedQueue[WorkerThread] =
     new ConcurrentLinkedQueue[WorkerThread]()
 
   {
@@ -74,10 +74,8 @@ private[effect] final class WorkStealingThreadPool(
     externalQueue.poll()
 
   private[unsafe] def park(thread: WorkerThread): Unit = {
-    if (!done) {
-      parkedThreads.offer(thread)
-      LockSupport.park(this)
-    }
+    parkedThreads.offer(thread)
+    LockSupport.park(this)
   }
 
   override protected[effect] def underlying: ExecutionContext = this

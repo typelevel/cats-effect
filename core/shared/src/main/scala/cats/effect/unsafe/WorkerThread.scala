@@ -17,6 +17,8 @@
 package cats.effect
 package unsafe
 
+import java.util.concurrent.locks.LockSupport
+
 /**
  * Worker thread implementation used in WorkStealingThreadPool. Each worker thread has its own `WorkQueue` where
  * `IOFiber`s are scheduled for execution. This is the main difference to a fixed thread executor, in which all threads
@@ -26,14 +28,17 @@ private final class WorkerThread(
     private[unsafe] val index: Int,
     private[this] val pool: WorkStealingThreadPool)
     extends Thread {
-  private[effect] val queue: WorkQueue = new WorkQueue()
+  private[unsafe] val queue: WorkQueue = new WorkQueue()
+  private[this] var waitSpinCount: Int = 0
 
   private[this] def stealFromLocalWorkQueue(): IOFiber[_] =
     queue.steal()
 
   override def run(): Unit = {
+    var task: IOFiber[_] = null
+
     while (!pool.done) {
-      var task: IOFiber[_] = stealFromLocalWorkQueue()
+      task = stealFromLocalWorkQueue()
       if (task == null) {
         task = pool.stealFromExternalQueue()
       }
@@ -41,10 +46,20 @@ private final class WorkerThread(
         task = pool.stealFromOtherWorkQueue(index)
       }
       if (task == null) {
-        pool.park(this)
+        if (!pool.done) {
+          if (waitSpinCount < 5) {
+            waitSpinCount += 1
+            LockSupport.parkNanos(pool, 30000)
+          } else {
+            waitSpinCount = 0
+            pool.park(this)
+          }
+        }
       } else {
-        task.queue = queue
-        task.run()
+        val fiber = task
+        task = null
+        fiber.queue = queue
+        fiber.run()
       }
     }
   }
