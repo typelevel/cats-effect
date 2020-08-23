@@ -505,8 +505,11 @@ def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer:
   } yield count // Returns the actual amount of bytes transmitted
 ```
 
-We can do the same transformation to most of the code we have created so far,
-but not all. In `copy` you will find out that we do need a full instance of
+We leave as an exercise to code the polymorphic versions of `inputStream`,
+`outputStream`, `inputOutputStreams` and `transfer` functions. You will
+find that transformation similar to the one shown for `transfer` in the snippet
+above. Function `copy` is different however. If you try to implement that
+function as well you will realize that we need a full instance of
 `Concurrent[F]` in scope, this is because it is required by the `Semaphore`
 instantiation:
 
@@ -517,7 +520,10 @@ import cats.effect.syntax.all._
 import cats.implicits._
 import java.io._
 
+def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
 def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream): F[Long] = ???
+def inputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileInputStream] = ???
+def outputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileOutputStream] = ???
 def inputOutputStreams[F[_]: Sync](in: File, out: File, guard: Semaphore[F]): Resource[F, (InputStream, OutputStream)] = ???
 
 def copy[F[_]: Concurrent](origin: File, destination: File): F[Long] = 
