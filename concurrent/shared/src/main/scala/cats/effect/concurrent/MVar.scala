@@ -642,8 +642,7 @@ private[effect] object MVarAsync {
       reads: LongMap[Listener[A]],
       takes: LongMap[Listener[A]],
       nextId: Long
-  )
-      extends State[A]
+  ) extends State[A]
 
   /**
    * `MVarAsync` state signaling it has one or more values enqueued,
@@ -659,6 +658,5 @@ private[effect] object MVarAsync {
       value: A,
       listeners: LongMap[(A, Listener[Unit])],
       nextId: Long
-  )
-      extends State[A]
+  ) extends State[A]
 }
