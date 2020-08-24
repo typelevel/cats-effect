@@ -68,7 +68,7 @@ These are some well known libraries that depend on `cats-effect`:
 | [Fs2](https://functional-streams-for-scala.github.io/fs2/) | Functional Streams for Scala (Streaming I/O library) |
 | [Finch](https://finagle.github.io/finch/) | Scala combinator API for building Finagle HTTP services |
 | [Http4s](http://http4s.org/) | Typeful, functional, streaming HTTP for Scala |
-| [Monix](https://monix.io/) | Asynchronous, Reactive Programming for Scala and Scala.js |
+| [Monix](https://monix.io/) / [Monix BIO](https://bio.monix.io/) | Asynchronous, Reactive Programming for Scala and Scala.js |
 | [Pure Config](https://pureconfig.github.io/) | A boilerplate-free library for loading configuration files |
 | [Scala Cache](https://cb372.github.io/scalacache/) | A facade for the most popular cache implementations for Scala |
 | [Sttp](http://sttp.readthedocs.io/en/latest/) | The Scala HTTP client you always wanted |
