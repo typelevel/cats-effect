@@ -105,7 +105,7 @@ object Deferred {
    * allocates mutable state.
    * In general, you should prefer `apply` and use `flatMap` to get state sharing.
    */
-  def unsafe[F[_]: Async, A]: Deferred[F, A] = AsyncDeferred.unsafeCreate[F, A]
+  def unsafe[F[_]: Async, A]: Deferred[F, A] = new AsyncDeferred[F, A]
 
   /**
    * Like [[apply]] but initializes state using another effect constructor.
@@ -122,33 +122,30 @@ object Deferred {
     implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
       new MkIn[F, G] {
         override def deferred[A]: F[Deferred[G, A]] =
-          F.delay {
-            AsyncDeferred.unsafeCreate[G, A]
-          }
+          F.delay(unsafe[G, A])
       }
   }
 
   private object AsyncDeferred {
-    def unsafeCreate[F[_]: Async, A]: Deferred[F, A] =
-      new AsyncDeferred[F, A](new AtomicReference(State.initial))
-
     sealed abstract class State[A]
     object State {
       final case class Set[A](a: A) extends State[A]
       final case class Unset[A](readers: LongMap[A => Unit], nextId: Long) extends State[A]
 
-      def initial[A]: State[A] = State.Unset(LongMap.empty, initialId)
-
       val initialId = 1L
       val dummyId = 0L
     }
+
   }
 
-  final private class AsyncDeferred[F[_], A](ref: AtomicReference[AsyncDeferred.State[A]])(
-      implicit F: Async[F])
-      extends Deferred[F, A] {
+  final private class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
 
     import AsyncDeferred.State
+
+    // shared mutable state
+    private[this] val ref = new AtomicReference[State[A]](
+      State.Unset(LongMap.empty, State.initialId)
+    )
 
     def get: F[A] = {
       // side-effectful
