@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats._
-import cats.data.AndThen
+import cats.data.{AndThen, Const}
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
@@ -455,17 +455,16 @@ object Resource extends ResourceInstances with ResourcePlatform {
   final case class Suspend[F[_], A](resource: F[Resource[F, A]]) extends Resource[F, A]
 
   /**
-   * Type for signaling the exit condition of an effectful
-   * computation, that may either succeed, fail with an error or
-   * get canceled.
+   * Type of [[Outcome]] for signaling the exit condition of an effectful computation,
+   * that may either succeed, fail with an error or get canceled.
    *
    * The types of exit signals are:
    *
-   *  - [[ExitCase$.Completed Completed]]: for successful completion
-   *  - [[ExitCase$.Error Error]]: for termination in failure
-   *  - [[ExitCase$.Canceled Canceled]]: for abortion
+   *  - [[ExitCase.Completed Completed]]: for successful completion
+   *  - [[ExitCase.Errored Errored]]: for termination in failure
+   *  - [[ExitCase.Canceled Canceled]]: for abortion
    */
-  sealed trait ExitCase extends Product with Serializable
+  type ExitCase = Outcome[Const[Unit, *], Throwable, Nothing]
   object ExitCase {
 
     /**
@@ -478,12 +477,14 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * outcome for the user, but it does for the purposes of the
      * `bracket` operation. <-- TODO still true?
      */
-    case object Completed extends ExitCase
+    type Canceled = Outcome.Canceled[Const[Unit, *], Throwable, Nothing]
+    val Canceled: Canceled = Outcome.Canceled()
 
     /**
      * An [[ExitCase]] signaling completion in failure.
      */
-    final case class Errored(e: Throwable) extends ExitCase
+    type Errored = Outcome.Errored[Const[Unit, *], Throwable, Nothing]
+    val Errored: Outcome.Errored.type = Outcome.Errored
 
     /**
      * An [[ExitCase]] signaling that the action was aborted.
@@ -495,7 +496,8 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * Thus [[Bracket]] allows you to observe interruption conditions
      * and act on them.
      */
-    case object Canceled extends ExitCase
+    type Completed = Outcome.Completed[Const[Unit, *], Throwable, Nothing]
+    val Completed: Completed = Outcome.Completed[Const[Unit, *], Throwable, Nothing](Const(()))
   }
 
   @annotation.implicitNotFound(
