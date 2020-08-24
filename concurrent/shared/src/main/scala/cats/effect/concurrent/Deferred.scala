@@ -136,9 +136,6 @@ object Deferred {
   }
 
   final private class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
-
-    import AsyncDeferred.State
-
     // shared mutable state
     private[this] val ref = new AtomicReference[State[A]](
       State.Unset(LongMap.empty, State.initialId)
