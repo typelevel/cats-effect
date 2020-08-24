@@ -25,8 +25,11 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   def createDefaultComputeExecutionContext(
       threadPrefix: String = "io-compute"): (ExecutionContext, () => Unit) = {
     val threadCount = new AtomicInteger(0)
+    // lower-bound of 2 to prevent pathological deadlocks on virtual machines
+    val bound = math.max(2, Runtime.getRuntime().availableProcessors())
+
     val executor = Executors.newFixedThreadPool(
-      Runtime.getRuntime().availableProcessors(),
+      bound,
       { (r: Runnable) =>
         val t = new Thread(r)
         t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
