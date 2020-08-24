@@ -47,11 +47,11 @@ same dependencies and compilation options:
 ```scala
 name := "cats-effect-tutorial"
 
-version := "1.0"
+version := "2.1.4"
 
 scalaVersion := "2.12.8"
 
-libraryDependencies += "org.typelevel" %% "cats-effect" % "1.3.0" withSources() withJavadoc()
+libraryDependencies += "org.typelevel" %% "cats-effect" % "2.1.4" withSources() withJavadoc()
 
 scalacOptions ++= Seq(
   "-feature",
@@ -313,7 +313,7 @@ cancellation happens _while_ the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
 being closed by another thread. For more info about this problem see [Gotcha:
 Cancellation is a concurrent
-action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
+action](../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action) in
 cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
@@ -392,7 +392,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
+tasks](../datatypes/io.html#building-cancelable-io-tasks) of `IO` documentation
 explains how to create such cancelable `IO` instances (besides calling
 `Resource.use`, as we have done for our code).
 
@@ -505,8 +505,11 @@ def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer:
   } yield count // Returns the actual amount of bytes transmitted
 ```
 
-We can do the same transformation to most of the code we have created so far,
-but not all. In `copy` you will find out that we do need a full instance of
+We leave as an exercise to code the polymorphic versions of `inputStream`,
+`outputStream`, `inputOutputStreams` and `transfer` functions. You will
+find that transformation similar to the one shown for `transfer` in the snippet
+above. Function `copy` is different however. If you try to implement that
+function as well you will realize that we need a full instance of
 `Concurrent[F]` in scope, this is because it is required by the `Semaphore`
 instantiation:
 
@@ -517,7 +520,10 @@ import cats.effect.syntax.all._
 import cats.implicits._
 import java.io._
 
+def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
 def transfer[F[_]: Sync](origin: InputStream, destination: OutputStream): F[Long] = ???
+def inputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileInputStream] = ???
+def outputStream[F[_]: Sync](f: File, guard: Semaphore[F]): Resource[F, FileOutputStream] = ???
 def inputOutputStreams[F[_]: Sync](in: File, out: File, guard: Semaphore[F]): Resource[F, (InputStream, OutputStream)] = ???
 
 def copy[F[_]: Concurrent](origin: File, destination: File): F[Long] = 
