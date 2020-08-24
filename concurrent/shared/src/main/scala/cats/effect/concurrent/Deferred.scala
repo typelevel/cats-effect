@@ -161,7 +161,7 @@ object Deferred {
               State.dummyId // never used
             case s @ State.Unset(readers, nextId) =>
               val updated = State.Unset(
-                readers + (nextId, awakeReader),
+                readers + (nextId -> awakeReader),
                 nextId + 1
               )
 
