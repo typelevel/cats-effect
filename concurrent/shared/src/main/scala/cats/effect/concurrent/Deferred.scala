@@ -126,16 +126,13 @@ object Deferred {
       }
   }
 
-  private object AsyncDeferred {
-    sealed abstract class State[A]
-    object State {
-      final case class Set[A](a: A) extends State[A]
-      final case class Unset[A](readers: LongMap[A => Unit], nextId: Long) extends State[A]
+  sealed abstract private class State[A]
+  private object State {
+    final case class Set[A](a: A) extends State[A]
+    final case class Unset[A](readers: LongMap[A => Unit], nextId: Long) extends State[A]
 
-      val initialId = 1L
-      val dummyId = 0L
-    }
-
+    val initialId = 1L
+    val dummyId = 0L
   }
 
   final private class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
