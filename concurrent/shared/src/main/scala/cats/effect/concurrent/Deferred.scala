@@ -75,18 +75,15 @@ abstract class Deferred[F[_], A] {
   def complete(a: A): F[Unit]
 
   /**
+   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
+   */
+  def tryGet: F[Option[A]]
+
+  /**
    * Modify the context `F` using transformation `f`.
    */
   def mapK[G[_]](f: F ~> G): Deferred[G, A] =
     new TransformedDeferred(this, f)
-}
-
-abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
-
-  /**
-   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
-   */
-  def tryGet: F[Option[A]]
 }
 
 object Deferred {
@@ -101,12 +98,6 @@ object Deferred {
     mk.deferred[A]
 
   /**
-   * Creates an unset tryable promise. *
-   */
-  def tryable[F[_], A](implicit mk: Mk[F]): F[TryableDeferred[F, A]] =
-    mk.tryableDeferred[A]
-
-  /**
    * Like `apply` but returns the newly allocated Deferred directly
    * instead of wrapping it in `F.delay`.  This method is considered
    * unsafe because it is not referentially transparent -- it
@@ -116,29 +107,24 @@ object Deferred {
   def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeCreate[F, A]
 
   /**
-   * Like [[apply]] but initializes state using another effect constructor
+   * Like [[apply]] but initializes state using another effect constructor.
    */
   def in[F[_], G[_], A](implicit mk: MkIn[F, G]): F[Deferred[G, A]] =
     mk.deferred[A]
 
   trait MkIn[F[_], G[_]] {
     def deferred[A]: F[Deferred[G, A]]
-    def tryableDeferred[A]: F[TryableDeferred[G, A]]
   }
-
   object MkIn {
     implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
       new MkIn[F, G] {
-        override def deferred[A]: F[Deferred[G, A]] = F.widen(tryableDeferred[A])
-
-        override def tryableDeferred[A]: F[TryableDeferred[G, A]] =
-          F.delay(unsafeCreate[G, A])
+        override def deferred[A]: F[Deferred[G, A]] = F.delay(unsafeCreate[G, A])
       }
   }
 
   type Mk[F[_]] = MkIn[F, F]
 
-  private def unsafeCreate[F[_]: Async, A]: TryableDeferred[F, A] =
+  private def unsafeCreate[F[_]: Async, A]: Deferred[F, A] =
     new AsyncDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
 
   final private class Id
@@ -151,7 +137,7 @@ object Deferred {
 
   final private class AsyncDeferred[F[_], A](ref: AtomicReference[State[A]])(
       implicit F: Async[F])
-      extends TryableDeferred[F, A] {
+      extends Deferred[F, A] {
     def get: F[A] =
       F.defer {
         ref.get match {
@@ -240,6 +226,7 @@ object Deferred {
       trans: F ~> G)
       extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
+    override def tryGet: G[Option[A]] = trans(underlying.tryGet)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
 
