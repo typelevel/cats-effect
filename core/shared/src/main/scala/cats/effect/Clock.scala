@@ -16,6 +16,8 @@
 
 package cats.effect
 
+import cats.effect.internals.ClockPlatform
+
 import cats.{~>, Applicative, Functor, Monoid}
 import cats.data._
 
@@ -124,7 +126,7 @@ trait Clock[F[_]] {
   def monotonic(unit: TimeUnit): F[Long]
 }
 
-object Clock extends LowPriorityImplicits {
+object Clock extends LowPriorityImplicits with ClockPlatform {
   def apply[F[_]](implicit ev: Clock[F]) = ev
 
   /**
