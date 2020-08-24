@@ -19,13 +19,14 @@ package effect
 package concurrent
 
 import cats.implicits._
-import cats.effect.internals.{Callback, LinkedLongMap, TrampolineEC}
+import cats.effect.internals.{Callback, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Promise}
+import scala.collection.immutable.LongMap
 import scala.util.{Failure, Success}
 
 /**
@@ -149,7 +150,7 @@ object Deferred {
   def unsafeUncancelable[F[_]: Async, A]: Deferred[F, A] = unsafeTryableUncancelable[F, A]
 
   private def unsafeTryable[F[_]: Concurrent, A]: TryableDeferred[F, A] =
-    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedLongMap.empty, 1)))
+    new ConcurrentDeferred[F, A](new AtomicReference(Deferred.State.Unset(LongMap.empty, 1)))
 
   private def unsafeTryableUncancelable[F[_]: Async, A]: TryableDeferred[F, A] =
     new UncancelableDeferred[F, A](Promise[A]())
@@ -157,7 +158,7 @@ object Deferred {
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
-    final case class Unset[A](waiting: LinkedLongMap[A => Unit], nextId: Long) extends State[A]
+    final case class Unset[A](waiting: LongMap[A => Unit], nextId: Long) extends State[A]
   }
 
   final private class ConcurrentDeferred[F[_], A](ref: AtomicReference[State[A]])(implicit F: Concurrent[F])
@@ -223,9 +224,9 @@ object Deferred {
 
         case s @ State.Unset(_, _) =>
           if (ref.compareAndSet(s, State.Set(a))) {
-            val list = s.waiting.values
-            if (list.nonEmpty)
-              notifyReadersLoop(a, list)
+            val readers = s.waiting
+            if (readers.nonEmpty)
+              notifyReadersLoop(a, readers)
             else
               F.unit
           } else {
@@ -233,9 +234,9 @@ object Deferred {
           }
       }
 
-    private def notifyReadersLoop(a: A, r: Iterable[A => Unit]): F[Unit] = {
+    private def notifyReadersLoop(a: A, r: LongMap[A => Unit]): F[Unit] = {
       var acc = F.unit
-      val cursor = r.iterator
+      val cursor = r.valuesIterator
       while (cursor.hasNext) {
         val next = cursor.next()
         val task = F.map(F.start(F.delay(next(a))))(mapUnit)
