@@ -348,9 +348,7 @@ private[effect] object MVarConcurrent {
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  final private case class WaitForPut[A](reads: LongMap[Listener[A]],
-                                         takes: LongMap[Listener[A]],
-                                         nextId: Long)
+  final private case class WaitForPut[A](reads: LongMap[Listener[A]], takes: LongMap[Listener[A]], nextId: Long)
       extends State[A]
 
   /**
