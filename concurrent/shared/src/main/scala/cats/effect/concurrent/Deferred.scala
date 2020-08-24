@@ -92,7 +92,10 @@ abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
 object Deferred {
 
   /**
-   * Creates an unset promise. *
+   * Creates an unset Deferred.
+   * Every time you bind the resulting `F`, a new Deferred is created.
+   * If you want to share one, pass it as an argument and `flatMap`
+   * once.
    */
   def apply[F[_], A](implicit mk: Mk[F]): F[Deferred[F, A]] =
     mk.deferred[A]
@@ -104,12 +107,13 @@ object Deferred {
     mk.tryableDeferred[A]
 
   /**
-   * Like `apply` but returns the newly allocated promise directly
+   * Like `apply` but returns the newly allocated Deferred directly
    * instead of wrapping it in `F.delay`.  This method is considered
    * unsafe because it is not referentially transparent -- it
    * allocates mutable state.
+   * In general, you should prefer `apply` and use `flatMap` to get state sharing.
    */
-  def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeTryable[F, A]
+  def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeCreate[F, A]
 
   /**
    * Like [[apply]] but initializes state using another effect constructor
@@ -128,13 +132,13 @@ object Deferred {
         override def deferred[A]: F[Deferred[G, A]] = F.widen(tryableDeferred[A])
 
         override def tryableDeferred[A]: F[TryableDeferred[G, A]] =
-          F.delay(unsafeTryable[G, A])
+          F.delay(unsafeCreate[G, A])
       }
   }
 
   type Mk[F[_]] = MkIn[F, F]
 
-  private def unsafeTryable[F[_]: Async, A]: TryableDeferred[F, A] =
+  private def unsafeCreate[F[_]: Async, A]: TryableDeferred[F, A] =
     new AsyncDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
 
   final private class Id
