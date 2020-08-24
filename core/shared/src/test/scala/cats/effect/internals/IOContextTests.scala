@@ -22,7 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class IOContextTests extends AnyFunSuite with Matchers {
 
-  val traceBufferSize: Int = cats.effect.internals.TracingPlatform.traceBufferSize
+  val traceBufferSize: Int = 1 << cats.effect.internals.TracingPlatform.traceBufferLogSize
   val stackTrace = new Throwable().getStackTrace.toList
 
   test("push traces") {

@@ -102,14 +102,14 @@ The stack tracing mode of an application is configured by the system property
 To prevent unbounded memory usage, stack traces for a fiber are accumulated 
 in an internal buffer as execution proceeds. If more traces are collected than
 the buffer can retain, then the older traces will be overwritten. The default
-size for the buffer is 32, but can be changed via the system property 
-`cats.effect.traceBufferSize`. Keep in mind that the buffer size will always
-be rounded up to a power of 2.
+size for the buffer is 16, but can be changed via the system property 
+`cats.effect.traceBufferLogSize`. Note that this property is expressed
+as a logarithm of a power of two!
 
-For example, to enable full stack tracing and a trace buffer size of 1024,
+For example, to enable full stack tracing and a trace buffer size of 32,
 specify the following system properties:
 ```
--Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferSize=1024
+-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=5
 ```
 
 #### DISABLED

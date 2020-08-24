@@ -21,12 +21,10 @@ package cats.effect.internals
  *
  * INTERNAL API.
  */
-final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
-
-  import RingBuffer._
+final private[internals] class RingBuffer[A <: AnyRef](logSize: Int) {
 
   // These two probably don't need to be allocated every single time, maybe in Java?
-  private[this] val length = nextPowerOfTwo(size)
+  private[this] val length = 1 << logSize
   private[this] val mask = length - 1
 
   private[this] val array: Array[AnyRef] = new Array(length)
@@ -52,19 +50,6 @@ final private[internals] class RingBuffer[A <: AnyRef](size: Int) {
     val end = Math.max(index - length, 0)
     (start to end by -1).toList
       .map(i => array(i & mask).asInstanceOf[A])
-  }
-
-}
-
-private[internals] object RingBuffer {
-
-  // N.B. this can overflow
-  private def nextPowerOfTwo(i: Int): Int = {
-    var n = 1
-    while (n < i) {
-      n *= 2
-    }
-    n
   }
 
 }

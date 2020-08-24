@@ -49,7 +49,7 @@ public final class TracingPlatform {
      * lines are produced, then the oldest trace lines will be discarded.
      * Automatically rounded up to the nearest power of 2.
      */
-    public static final int traceBufferSize = Optional.ofNullable(System.getProperty("cats.effect.traceBufferSize"))
+    public static final int traceBufferLogSize = Optional.ofNullable(System.getProperty("cats.effect.traceBufferLogSize"))
         .filter(x -> !x.isEmpty())
         .flatMap(x -> {
             try {
@@ -58,7 +58,7 @@ public final class TracingPlatform {
                 return Optional.empty();
             }
         })
-        .orElse(16);
+        .orElse(4);
 
     /**
      * Sets the enhanced exceptions flag, which controls whether or not the

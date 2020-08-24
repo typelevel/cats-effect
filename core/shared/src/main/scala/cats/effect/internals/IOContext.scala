@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.tracing.{IOEvent, IOTrace}
-import cats.effect.internals.TracingPlatform.traceBufferSize
+import cats.effect.internals.TracingPlatform.traceBufferLogSize
 
 /**
  * INTERNAL API — Holds state related to the execution of
@@ -26,7 +26,7 @@ import cats.effect.internals.TracingPlatform.traceBufferSize
  */
 final private[effect] class IOContext() {
 
-  private[this] val events: RingBuffer[IOEvent] = new RingBuffer(traceBufferSize)
+  private[this] val events: RingBuffer[IOEvent] = new RingBuffer(traceBufferLogSize)
   private[this] var captured: Int = 0
   private[this] var omitted: Int = 0
 
