@@ -39,7 +39,9 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     "complete is only successful once" in real {
-      val op = Deferred[IO, Int].flatMap { p => (p.complete(0) *> p.complete(1).attempt).product(p.get) }
+      val op = Deferred[IO, Int].flatMap { p =>
+        (p.complete(0) *> p.complete(1).attempt).product(p.get)
+      }
 
       op.flatMap { res =>
         IO {
@@ -76,12 +78,12 @@ class DeferredSpec extends BaseSpec { outer =>
           fiber <- p.get.start
           _ <- fiber.cancel
           _ <- (fiber
-            .join
-            .flatMap {
-              case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
-              case _ => IO.raiseError(new RuntimeException)
-            })
-          .start
+              .join
+              .flatMap {
+                case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
+                case _ => IO.raiseError(new RuntimeException)
+              })
+            .start
           _ <- IO.sleep(100.millis)
           _ <- p.complete(42)
           _ <- IO.sleep(100.millis)

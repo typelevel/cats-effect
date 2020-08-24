@@ -121,9 +121,10 @@ object Deferred {
   object MkIn {
     implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
       new MkIn[F, G] {
-        override def deferred[A]: F[Deferred[G, A]] = F.delay {
-          AsyncDeferred.unsafeCreate[G, A]
-        }
+        override def deferred[A]: F[Deferred[G, A]] =
+          F.delay {
+            AsyncDeferred.unsafeCreate[G, A]
+          }
       }
   }
 
@@ -202,7 +203,6 @@ object Deferred {
       }
     }
 
-
     def tryGet: F[Option[A]] =
       F.delay {
         ref.get match {
@@ -210,7 +210,6 @@ object Deferred {
           case State.Unset(_, _) => None
         }
       }
-
 
     def complete(a: A): F[Unit] = {
       def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
@@ -231,19 +230,19 @@ object Deferred {
 
       // side-effectful (even though it returns F[Unit])
       @tailrec
-      def loop(): F[Unit] = ref.get match {
-        case State.Set(_) =>
-          throw new IllegalStateException(
-            "Attempting to complete a Deferred that has already been completed")
-        case s @ State.Unset(readers, _) =>
-          val updated = State.Set(a)
-          if (!ref.compareAndSet(s, updated)) loop()
-          else {
-            if (readers.isEmpty) F.unit
-            else notifyReaders(readers)
-          }
-      }
-
+      def loop(): F[Unit] =
+        ref.get match {
+          case State.Set(_) =>
+            throw new IllegalStateException(
+              "Attempting to complete a Deferred that has already been completed")
+          case s @ State.Unset(readers, _) =>
+            val updated = State.Set(a)
+            if (!ref.compareAndSet(s, updated)) loop()
+            else {
+              if (readers.isEmpty) F.unit
+              else notifyReaders(readers)
+            }
+        }
 
       F.defer(loop())
     }
