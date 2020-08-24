@@ -195,6 +195,15 @@ lazy val scalaJSSettings = Seq(
   scalacOptions in (Compile, doc) -= "-Xfatal-warnings"
 )
 
+lazy val sharedSourcesSettings = Seq(
+  unmanagedSourceDirectories in Compile += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "main" / "scala"
+  },
+  unmanagedSourceDirectories in Test += {
+    baseDirectory.value.getParentFile / "shared" / "src" / "test" / "scala"
+  }
+)
+
 lazy val root = project
   .in(file("."))
   .disablePlugins(MimaPlugin)
@@ -272,7 +281,7 @@ lazy val runtimeTests = project
 
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
-  .settings(commonSettings ++ noPublishSettings)
+  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
   .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
@@ -280,7 +289,7 @@ lazy val benchmarksPrev = project
 lazy val benchmarksNext = project
   .in(file("benchmarks/vNext"))
   .dependsOn(coreJVM)
-  .settings(commonSettings ++ noPublishSettings)
+  .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
