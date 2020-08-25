@@ -233,8 +233,6 @@ object Deferred {
 
       F.defer(loop())
     }
-
-    private[this] val mapUnit = (_: Any) => ()
   }
 
   final private class TransformedDeferred[F[_], G[_], A](
