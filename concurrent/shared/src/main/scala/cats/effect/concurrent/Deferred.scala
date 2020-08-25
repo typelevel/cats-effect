@@ -20,6 +20,7 @@ package concurrent
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
 import cats.effect.kernel.{Async, Sync}
+import cats.syntax.all._
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -58,10 +59,6 @@ abstract class Deferred[F[_], A] {
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies
    * any and all readers currently blocked on a `get`.
-   *
-   * Note that the returned action may complete after the reference
-   * has been successfully set: use `F.start(r.complete)` if you want
-   * asynchronous behaviour.
    *
    * If this `Deferred` has already been completed, the returned
    * action immediately fails with an `IllegalStateException`. In the
@@ -188,7 +185,7 @@ object Deferred {
               val id = addReader(awakeReader = resume)
               val onCancel = F.delay(deleteReader(id))
 
-              F.pure(Some(onCancel))
+              onCancel.some.pure[F]
             }
         }
       }
@@ -212,8 +209,8 @@ object Deferred {
 
         while (cursor.hasNext) {
           val next = cursor.next()
-          val task = F.map(F.start(F.delay(next(a))))(mapUnit)
-          acc = F.flatMap(acc)(_ => task)
+          val task = F.delay(next(a))
+          acc = acc >> task
         }
 
         acc
@@ -237,8 +234,6 @@ object Deferred {
 
       F.defer(loop())
     }
-
-    private[this] val mapUnit = (_: Any) => ()
   }
 
   final private class TransformedDeferred[F[_], G[_], A](
@@ -249,6 +244,4 @@ object Deferred {
     override def tryGet: G[Option[A]] = trans(underlying.tryGet)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
-
-  val rightUnit = Right(())
 }
