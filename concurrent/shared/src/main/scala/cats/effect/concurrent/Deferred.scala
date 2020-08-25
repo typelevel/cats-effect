@@ -208,7 +208,7 @@ object Deferred {
 
         while (cursor.hasNext) {
           val next = cursor.next()
-          val task = F.map(F.start(F.delay(next(a))))(mapUnit)
+          val task = F.delay(next(a))
           acc = F.flatMap(acc)(_ => task)
         }
 
