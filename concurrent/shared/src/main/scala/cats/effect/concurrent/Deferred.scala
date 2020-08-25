@@ -20,6 +20,7 @@ package concurrent
 
 import cats.effect.concurrent.Deferred.TransformedDeferred
 import cats.effect.kernel.{Async, Sync}
+import cats.syntax.all._
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -184,7 +185,7 @@ object Deferred {
               val id = addReader(awakeReader = resume)
               val onCancel = F.delay(deleteReader(id))
 
-              F.pure(Some(onCancel))
+              onCancel.some.pure[F]
             }
         }
       }
@@ -209,7 +210,7 @@ object Deferred {
         while (cursor.hasNext) {
           val next = cursor.next()
           val task = F.delay(next(a))
-          acc = F.flatMap(acc)(_ => task)
+          acc = acc >> task
         }
 
         acc
