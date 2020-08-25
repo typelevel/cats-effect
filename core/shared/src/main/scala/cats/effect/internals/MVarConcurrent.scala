@@ -23,6 +23,7 @@ import cats.effect.concurrent.{MVar2, Ref}
 import cats.effect.internals.Callback.rightUnit
 
 import scala.annotation.tailrec
+import scala.collection.immutable.LongMap
 
 /**
  * [[MVar]] implementation for [[Concurrent]] data types.
@@ -115,10 +116,10 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
         val update: State[A] =
           if (takes.isEmpty) State(a)
           else {
-            val (x, rest) = takes.dequeue
+            val (x, rest) = (takes.head._2, takes.tail)
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedLongMap.empty, rest, nextId)
+            else WaitForPut(LongMap.empty, rest, nextId)
           }
 
         if (!stateRef.compareAndSet(current, update)) {
@@ -147,10 +148,10 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
         val update: State[A] =
           if (takes.isEmpty) State(a)
           else {
-            val (x, rest) = takes.dequeue
+            val (x, rest) = (takes.head._2, takes.tail)
             first = x
             if (rest.isEmpty) State.empty[A]
-            else WaitForPut(LinkedLongMap.empty, rest, nextId)
+            else WaitForPut(LongMap.empty, rest, nextId)
           }
 
         if (stateRef.compareAndSet(current, update)) {
@@ -192,7 +193,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             unsafeTryTake() // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, notify), xs) = (queue.head._2, queue.tail)
           val update = WaitForTake(ax, xs, nextId)
           if (stateRef.compareAndSet(current, update)) {
             // Complete the `put` request waiting on a notification
@@ -219,7 +220,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
             unsafeTake(onTake) // retry
           }
         } else {
-          val ((ax, notify), xs) = queue.dequeue
+          val ((ax, notify), xs) = (queue.head._2, queue.tail)
           if (stateRef.compareAndSet(current, WaitForTake(ax, xs, nextId))) {
             F.map(F.start(F.delay(notify(rightUnit)))) { _ =>
               onTake(Right(value))
@@ -281,7 +282,7 @@ final private[effect] class MVarConcurrent[F[_], A] private (initial: MVarConcur
       case _ => ()
     }
 
-  private def streamPutAndReads(a: A, put: Listener[A], reads: LinkedLongMap[Listener[A]]): F[Boolean] = {
+  private def streamPutAndReads(a: A, put: Listener[A], reads: LongMap[Listener[A]]): F[Boolean] = {
     val value = Right(a)
     // Satisfies all current `read` requests found
     val task = streamAll(value, reads.values)
@@ -335,8 +336,8 @@ private[effect] object MVarConcurrent {
 
   /** Private [[State]] builders.*/
   private object State {
-    private[this] val ref = WaitForPut[Any](LinkedLongMap.empty, LinkedLongMap.empty, 0)
-    def apply[A](a: A): State[A] = WaitForTake(a, LinkedLongMap.empty, 0)
+    private[this] val ref = WaitForPut[Any](LongMap.empty, LongMap.empty, 0)
+    def apply[A](a: A): State[A] = WaitForTake(a, LongMap.empty, 0)
 
     /** `Empty` state, reusing the same instance. */
     def empty[A]: State[A] = ref.asInstanceOf[State[A]]
@@ -347,9 +348,7 @@ private[effect] object MVarConcurrent {
    * registered and we are waiting for one or multiple
    * `put` operations.
    */
-  final private case class WaitForPut[A](reads: LinkedLongMap[Listener[A]],
-                                         takes: LinkedLongMap[Listener[A]],
-                                         nextId: Long)
+  final private case class WaitForPut[A](reads: LongMap[Listener[A]], takes: LongMap[Listener[A]], nextId: Long)
       extends State[A]
 
   /**
@@ -362,6 +361,6 @@ private[effect] object MVarConcurrent {
    *        value is first in line (i.e. when the corresponding `put`
    *        is unblocked from the user's point of view)
    */
-  final private case class WaitForTake[A](value: A, listeners: LinkedLongMap[(A, Listener[Unit])], nextId: Long)
+  final private case class WaitForTake[A](value: A, listeners: LongMap[(A, Listener[Unit])], nextId: Long)
       extends State[A]
 }
