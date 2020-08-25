@@ -53,20 +53,22 @@ object Main extends IOApp {
 
 Here's a relatively non-exhaustive list of what is ready for use:
 
-- The typeclass hierarchy (including inductive instances for `Concurrent`)
+- The typeclass hierarchy (including inductive instances for `Concurrent`, `Temporal`, and `Sync`)
 - The laws governing each class
 - Lawful, high-performance `IO` and `SyncIO` implementations
 - `IOApp` for both the JVM and ScalaJS
   + (including the polyfills necessary to make fibers fast on JavaScript)
   + (also including the weirdness required to make things work in `sbt run`)
+- `Resource`
 - `Ref`, `Deferred`, and friends
 
 ### What's Missing
 
-- `Resource`
-- `UnsafeRun`
-  + You can sort of get this behavior with `Effect`, but it's harder now (by design)
-- More inductive instances
+- Further improvements to the typeclass hierarchy
+  + `MonadCancel` (replaces CE2's `Bracket`, conceptually)
+  + `Allocate` (generalizes evaluation dataflow and eliminates `Ref.Mk` and friends)
+  + `Async#promise` (generalizes `async` and improves composability considerably)
+- Inductive instances for `Async`
 - Working examples of time mocking on `IO`
 - Tracing
 - A lot of documentation
