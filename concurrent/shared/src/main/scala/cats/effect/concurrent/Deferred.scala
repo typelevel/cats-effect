@@ -24,6 +24,7 @@ import cats.effect.kernel.{Async, Sync}
 import java.util.concurrent.atomic.AtomicReference
 
 import scala.annotation.tailrec
+import scala.collection.immutable.LongMap
 
 /**
  * A purely functional synchronization primitive which represents a single value
@@ -75,157 +76,166 @@ abstract class Deferred[F[_], A] {
   def complete(a: A): F[Unit]
 
   /**
+   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
+   */
+  def tryGet: F[Option[A]]
+
+  /**
    * Modify the context `F` using transformation `f`.
    */
   def mapK[G[_]](f: F ~> G): Deferred[G, A] =
     new TransformedDeferred(this, f)
 }
 
-abstract class TryableDeferred[F[_], A] extends Deferred[F, A] {
-
-  /**
-   * Obtains the current value of the `Deferred`, or None if it hasn't completed.
-   */
-  def tryGet: F[Option[A]]
-}
-
 object Deferred {
 
   /**
-   * Creates an unset promise. *
+   * Creates an unset Deferred.
+   * Every time you bind the resulting `F`, a new Deferred is created.
+   * If you want to share one, pass it as an argument and `flatMap`
+   * once.
    */
   def apply[F[_], A](implicit mk: Mk[F]): F[Deferred[F, A]] =
     mk.deferred[A]
 
   /**
-   * Creates an unset tryable promise. *
-   */
-  def tryable[F[_], A](implicit mk: Mk[F]): F[TryableDeferred[F, A]] =
-    mk.tryableDeferred[A]
-
-  /**
-   * Like `apply` but returns the newly allocated promise directly
+   * Like `apply` but returns the newly allocated Deferred directly
    * instead of wrapping it in `F.delay`.  This method is considered
    * unsafe because it is not referentially transparent -- it
    * allocates mutable state.
+   * In general, you should prefer `apply` and use `flatMap` to get state sharing.
    */
-  def unsafe[F[_]: Async, A]: Deferred[F, A] = unsafeTryable[F, A]
+  def unsafe[F[_]: Async, A]: Deferred[F, A] = new AsyncDeferred[F, A]
 
   /**
-   * Like [[apply]] but initializes state using another effect constructor
+   * Like [[apply]] but initializes state using another effect constructor.
    */
   def in[F[_], G[_], A](implicit mk: MkIn[F, G]): F[Deferred[G, A]] =
     mk.deferred[A]
 
+  type Mk[F[_]] = MkIn[F, F]
+
   trait MkIn[F[_], G[_]] {
     def deferred[A]: F[Deferred[G, A]]
-    def tryableDeferred[A]: F[TryableDeferred[G, A]]
   }
-
   object MkIn {
     implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
       new MkIn[F, G] {
-        override def deferred[A]: F[Deferred[G, A]] = F.widen(tryableDeferred[A])
-
-        override def tryableDeferred[A]: F[TryableDeferred[G, A]] =
-          F.delay(unsafeTryable[G, A])
+        override def deferred[A]: F[Deferred[G, A]] =
+          F.delay(unsafe[G, A])
       }
   }
-
-  type Mk[F[_]] = MkIn[F, F]
-
-  private def unsafeTryable[F[_]: Async, A]: TryableDeferred[F, A] =
-    new AsyncDeferred[F, A](new AtomicReference(Deferred.State.Unset(LinkedMap.empty)))
-
-  final private class Id
 
   sealed abstract private class State[A]
   private object State {
     final case class Set[A](a: A) extends State[A]
-    final case class Unset[A](waiting: LinkedMap[Id, A => Unit]) extends State[A]
+    final case class Unset[A](readers: LongMap[A => Unit], nextId: Long) extends State[A]
+
+    val initialId = 1L
+    val dummyId = 0L
   }
 
-  final private class AsyncDeferred[F[_], A](ref: AtomicReference[State[A]])(
-      implicit F: Async[F])
-      extends TryableDeferred[F, A] {
-    def get: F[A] =
+  final private class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
+    // shared mutable state
+    private[this] val ref = new AtomicReference[State[A]](
+      State.Unset(LongMap.empty, State.initialId)
+    )
+
+    def get: F[A] = {
+      // side-effectful
+      def addReader(awakeReader: A => Unit): Long = {
+        @tailrec
+        def loop(): Long =
+          ref.get match {
+            case State.Set(a) =>
+              awakeReader(a)
+              State.dummyId // never used
+            case s @ State.Unset(readers, nextId) =>
+              val updated = State.Unset(
+                readers + (nextId -> awakeReader),
+                nextId + 1
+              )
+
+              if (!ref.compareAndSet(s, updated)) loop()
+              else nextId
+          }
+
+        loop()
+      }
+
+      // side-effectful
+      def deleteReader(id: Long): Unit = {
+        @tailrec
+        def loop(): Unit =
+          ref.get match {
+            case State.Set(_) => ()
+            case s @ State.Unset(readers, _) =>
+              val updated = s.copy(readers = readers - id)
+              if (!ref.compareAndSet(s, updated)) loop()
+              else ()
+          }
+
+        loop()
+      }
+
       F.defer {
         ref.get match {
           case State.Set(a) =>
             F.pure(a)
-          case State.Unset(_) =>
+          case State.Unset(_, _) =>
             F.async[A] { cb =>
-              val id = unsafeRegister(cb)
-              @tailrec
-              def unregister(): Unit =
-                ref.get match {
-                  case State.Set(_) => ()
-                  case s @ State.Unset(waiting) =>
-                    val updated = State.Unset(waiting - id)
-                    if (ref.compareAndSet(s, updated)) ()
-                    else unregister()
-                }
-              F.pure(Some(F.delay(unregister())))
+              val resume = (a: A) => cb(Right(a))
+              val id = addReader(awakeReader = resume)
+              val onCancel = F.delay(deleteReader(id))
+
+              F.pure(Some(onCancel))
             }
         }
       }
+    }
 
     def tryGet: F[Option[A]] =
       F.delay {
         ref.get match {
           case State.Set(a) => Some(a)
-          case State.Unset(_) => None
+          case State.Unset(_, _) => None
         }
       }
 
-    private[this] def unsafeRegister(cb: Either[Throwable, A] => Unit): Id = {
-      val id = new Id
+    def complete(a: A): F[Unit] = {
+      def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
+        // LongMap iterators return values in unsigned key order,
+        // which corresponds to the arrival order of readers since
+        // insertion is governed by a monotonically increasing id
+        val cursor = readers.valuesIterator
+        var acc = F.unit
 
+        while (cursor.hasNext) {
+          val next = cursor.next()
+          val task = F.map(F.start(F.delay(next(a))))(mapUnit)
+          acc = F.flatMap(acc)(_ => task)
+        }
+
+        acc
+      }
+
+      // side-effectful (even though it returns F[Unit])
       @tailrec
-      def register(): Option[A] =
+      def loop(): F[Unit] =
         ref.get match {
-          case State.Set(a) => Some(a)
-          case s @ State.Unset(waiting) =>
-            val updated = State.Unset(waiting.updated(id, (a: A) => cb(Right(a))))
-            if (ref.compareAndSet(s, updated)) None
-            else register()
+          case State.Set(_) =>
+            throw new IllegalStateException(
+              "Attempting to complete a Deferred that has already been completed")
+          case s @ State.Unset(readers, _) =>
+            val updated = State.Set(a)
+            if (!ref.compareAndSet(s, updated)) loop()
+            else {
+              if (readers.isEmpty) F.unit
+              else notifyReaders(readers)
+            }
         }
 
-      register().foreach(a => cb(Right(a)))
-      id
-    }
-
-    def complete(a: A): F[Unit] =
-      F.defer(unsafeComplete(a))
-
-    @tailrec
-    private def unsafeComplete(a: A): F[Unit] =
-      ref.get match {
-        case State.Set(_) =>
-          throw new IllegalStateException(
-            "Attempting to complete a Deferred that has already been completed")
-
-        case s @ State.Unset(_) =>
-          if (ref.compareAndSet(s, State.Set(a))) {
-            val list = s.waiting.values
-            if (list.nonEmpty)
-              notifyReadersLoop(a, list)
-            else
-              F.unit
-          } else {
-            unsafeComplete(a)
-          }
-      }
-
-    private def notifyReadersLoop(a: A, r: Iterable[A => Unit]): F[Unit] = {
-      var acc = F.unit
-      val cursor = r.iterator
-      while (cursor.hasNext) {
-        val next = cursor.next()
-        val task = F.map(F.start(F.delay(next(a))))(mapUnit)
-        acc = F.flatMap(acc)(_ => task)
-      }
-      acc
+      F.defer(loop())
     }
 
     private[this] val mapUnit = (_: Any) => ()
@@ -236,6 +246,7 @@ object Deferred {
       trans: F ~> G)
       extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
+    override def tryGet: G[Option[A]] = trans(underlying.tryGet)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
 
