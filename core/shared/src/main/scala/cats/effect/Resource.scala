@@ -215,7 +215,8 @@ sealed abstract class Resource[+F[_], +A] {
    * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
    * run even if resource acquisition fails or is canceled.
    */
-  def onFinalize[G[x] >: F[x]](finalizer: G[Unit])(implicit F: Applicative[G]): Resource[G, A] = onFinalizeCase(_ => finalizer)
+  def onFinalize[G[x] >: F[x]](finalizer: G[Unit])(implicit F: Applicative[G]): Resource[G, A] =
+    onFinalizeCase(_ => finalizer)
 
   /**
    * Like `onFinalize`, but the action performed depends on the exit case.

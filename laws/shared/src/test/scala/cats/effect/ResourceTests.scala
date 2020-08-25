@@ -582,19 +582,26 @@ class ResourceTests extends BaseTestsSuite {
       var acquired: List[Int] = Nil
       var released: List[Int] = Nil
 
-      def observe(r: Resource[IO, Int]) = {
+      def observe(r: Resource[IO, Int]) =
         r.flatMap { a =>
-          Resource.make(IO {
-            acquired = a :: acquired
-          } *> IO.pure(a))(a => IO {
-            released = a :: released
-          }).as(())
+          Resource
+            .make(IO {
+              acquired = a :: acquired
+            } *> IO.pure(a))(a =>
+              IO {
+                released = a :: released
+              }
+            )
+            .as(())
         }
-      }
 
-      observe(rx).onFinalize(IO {
-        released = y :: released
-      }).use(_ => IO.unit).attempt.unsafeRunSync()
+      observe(rx)
+        .onFinalize(IO {
+          released = y :: released
+        })
+        .use(_ => IO.unit)
+        .attempt
+        .unsafeRunSync()
       released <-> y :: acquired
     }
   }
