@@ -249,6 +249,4 @@ object Deferred {
     override def tryGet: G[Option[A]] = trans(underlying.tryGet)
     override def complete(a: A): G[Unit] = trans(underlying.complete(a))
   }
-
-  val rightUnit = Right(())
 }
