@@ -1,6 +1,6 @@
 #!/bin/bash
 
-yarn install
+(cd website && yarn install)
 
 # Generate scaladoc and mdoc from each submodule
 (cd versions/2.x && sbt "; doc; docs/mdoc")
