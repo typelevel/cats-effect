@@ -1,0 +1,15 @@
+target/
+
+# vim
+*.sw?
+
+# Ignore [ce]tags files
+tags
+.idea
+benchmarks/results
+.java-version
+.DS_Store
+.metals
+.bloop
+.bundle
+project/metals.sbt

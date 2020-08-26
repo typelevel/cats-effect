@@ -1,0 +1,39 @@
+{
+  "version-2.x-docs": {
+    "Getting Started": [
+      "version-2.x-installation"
+    ],
+    "Guides": [
+      "version-2.x-guides/tutorial",
+      "version-2.x-guides/tracing"
+    ],
+    "Data Types": [
+      "version-2.x-datatypes/io",
+      "version-2.x-datatypes/syncio",
+      "version-2.x-datatypes/fiber",
+      "version-2.x-datatypes/resource",
+      "version-2.x-datatypes/clock",
+      "version-2.x-datatypes/contextshift",
+      "version-2.x-datatypes/timer",
+      "version-2.x-datatypes/ioapp"
+    ],
+    "Concurrency": [
+      "version-2.x-concurrency/overview",
+      "version-2.x-concurrency/basics",
+      "version-2.x-concurrency/deferred",
+      "version-2.x-concurrency/mvar",
+      "version-2.x-concurrency/ref",
+      "version-2.x-concurrency/semaphore"
+    ],
+    "Type Classes": [
+      "version-2.x-typeclasses/overview",
+      "version-2.x-typeclasses/bracket",
+      "version-2.x-typeclasses/sync",
+      "version-2.x-typeclasses/liftio",
+      "version-2.x-typeclasses/async",
+      "version-2.x-typeclasses/concurrent",
+      "version-2.x-typeclasses/effect",
+      "version-2.x-typeclasses/concurrenteffect"
+    ]
+  }
+}
