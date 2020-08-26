@@ -1,3 +1,7 @@
 node_modules
 build
 yarn.lock
+sidebars.json
+versions.json
+versioned_docs
+versioned_sidebars

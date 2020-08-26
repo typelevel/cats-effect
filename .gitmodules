@@ -1,0 +1,4 @@
+[submodule "versions/2.x"]
+	path = versions/2.x
+	url = git@github.com:typelevel/cats-effect.git
+	branch = 2.x-docs

@@ -81,7 +81,6 @@ const siteConfig = {
 
   // Show documentation's last update time.
   // enableUpdateTime: true,
-  customDocsPath: "site-docs/target/mdoc",
   docsSideNavCollapsible: true,
 };
 
