@@ -7,6 +7,8 @@
 
 # Create Docusaurus directories
 mkdir -p docs
+mkdir -p versioned_sidebars
+mkdir -p versioned_docs
 
 cp -R ./versions/2.x/site-docs/target/mdoc/ ./docs
 cp ./versions/2.x/site-docs/sidebars.json ./website/sidebars.json
