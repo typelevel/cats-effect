@@ -19,6 +19,7 @@ function Versions(props) {
   const {config: siteConfig} = props;
   const latestVersion = versions[0];
   const repoUrl = `https://github.com/${siteConfig.organizationName}/${siteConfig.projectName}`;
+  const baseUrl = siteConfig.baseUrl + siteConfig.docsUrl + '/' + (props.language ? props.language + '/' : '');
   return (
     <div className="docMainWrapper wrapper">
       <Container className="mainContainer versionsContainer">
@@ -26,87 +27,53 @@ function Versions(props) {
           <header className="postHeader">
             <h1>{siteConfig.title} Versions</h1>
           </header>
-          <p>New versions of this project are released every so often.</p>
-          <h3 id="latest">Current version (Stable)</h3>
+
+          <p>
+            Cats Effect maintains two independent release series for the 2.x series and the 3.x series.
+            Documentation and scaladocs for the stable and pre-release version on each series are provided.
+            The 2.x series will be considered current until 3.x reaches stable.
+          </p>
+
+          <h3 id="latest">Stable versions</h3>
           <table className="versions">
             <tbody>
               <tr>
                 <th>{latestVersion}</th>
                 <td>
-                  {/* You are supposed to change this href where appropriate
-                        Example: href="<baseUrl>/docs(/:language)/:id" */}
-                  <a
-                    href={`${siteConfig.baseUrl}${siteConfig.docsUrl}/${
-                      props.language ? props.language + '/' : ''
-                    }installation`}>
-                    Documentation
-                  </a>
+                  <a href={baseUrl + 'installation'}>Documentation</a>
                 </td>
                 <td>
-                  <a href="">Release Notes</a>
+                  <a href={'/cats-effect/api/'}>Scaladoc</a>
                 </td>
               </tr>
             </tbody>
           </table>
-          <p>
-            This is the version that is configured automatically when you first
-            install this project.
-          </p>
+
           <h3 id="rc">Pre-release versions</h3>
           <table className="versions">
             <tbody>
               <tr>
-                <th>master</th>
+                <th>2.x-pre</th>
                 <td>
-                  {/* You are supposed to change this href where appropriate
-                        Example: href="<baseUrl>/docs(/:language)/next/:id" */}
-                  <a
-                    href={`${siteConfig.baseUrl}${siteConfig.docsUrl}/${
-                      props.language ? props.language + '/' : ''
-                    }next/installation`}>
-                    Documentation
-                  </a>
+                  <a href={baseUrl + 'next/installation'}>Documentation</a>
                 </td>
                 <td>
-                  <a href={repoUrl}>Source Code</a>
+                  <a href={'/cats-effect/api/'}>Scaladoc</a>
+                </td>
+              </tr>
+
+              <tr>
+                <th>3.x-pre</th>
+                <td>
+                  <a href={baseUrl + 'next/installation'}>Documentation</a>
+                </td>
+                <td>
+                  <a href={'/cats-effect/api/'}>Scaladoc</a>
                 </td>
               </tr>
             </tbody>
           </table>
-          <p>Other text describing this section.</p>
-          <h3 id="archive">Past Versions</h3>
-          <p>Here you can find previous versions of the documentation.</p>
-          <table className="versions">
-            <tbody>
-              {versions.map(
-                (version) =>
-                  version !== latestVersion && (
-                    <tr key={version}>
-                      <th>{version}</th>
-                      <td>
-                        {/* You are supposed to change this href where appropriate
-                        Example: href="<baseUrl>/docs(/:language)/:version/:id" */}
-                        <a
-                          href={`${siteConfig.baseUrl}${siteConfig.docsUrl}/${
-                            props.language ? props.language + '/' : ''
-                          }${version}/installation`}>
-                          Documentation
-                        </a>
-                      </td>
-                      <td>
-                        <a href={`${repoUrl}/releases/tag/v${version}`}>
-                          Release Notes
-                        </a>
-                      </td>
-                    </tr>
-                  ),
-              )}
-            </tbody>
-          </table>
-          <p>
-            You can find past versions of this project on{' '}
-            <a href={repoUrl}>GitHub</a>.
-          </p>
+
         </div>
       </Container>
     </div>

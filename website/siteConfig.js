@@ -13,6 +13,7 @@ const siteConfig = {
   tagline: 'The purely functional runtime system for Scala',
   url: 'https://typelevel.org', // Your website URL
   baseUrl: '/cats-effect/',
+  repoUrl: 'https://github.com/typelevel/cats-effect',
   projectName: 'cats-effect',
   githubHost: 'github.com',
   organizationName: 'typelevel',
@@ -53,7 +54,7 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright (c) 2017-2020 The Typelevel Cats-effect Project Developers`,
+  copyright: `Copyright (c) 2017-2020 The Typelevel Project Developers`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
@@ -71,6 +72,8 @@ const siteConfig = {
   // Open Graph and Twitter card images.
   ogImage: 'img/undraw_online.svg',
   twitterImage: 'img/undraw_tweetstorm.svg',
+
+  twitterUsername: 'typelevel',
 
   // For sites with a sizable amount of content, set collapsible to true.
   // Expand/collapse the links and subcategories under categories.
