@@ -11,9 +11,6 @@
       "concurrency/deferred": {
         "title": "Deferred"
       },
-      "concurrency/index": {
-        "title": "Concurrency"
-      },
       "concurrency/mvar": {
         "title": "MVar"
       },
@@ -62,12 +59,6 @@
       "installation": {
         "title": "Installation"
       },
-      "tracing/index": {
-        "title": "Tracing"
-      },
-      "tutorial/tutorial": {
-        "title": "Tutorial"
-      },
       "typeclasses/async": {
         "title": "Async"
       },
@@ -82,9 +73,6 @@
       },
       "typeclasses/effect": {
         "title": "Effect"
-      },
-      "typeclasses/index": {
-        "title": "Type Classes"
       },
       "typeclasses/liftio": {
         "title": "LiftIO"

@@ -12,7 +12,7 @@ const siteConfig = {
   title: 'Cats Effect', // Title for your website.
   tagline: 'The purely functional runtime system for Scala',
   url: 'https://typelevel.org', // Your website URL
-  baseUrl: '/cats-effect/latest/',
+  baseUrl: '/cats-effect/',
   projectName: 'cats-effect',
   githubHost: 'github.com',
   organizationName: 'typelevel',
@@ -53,7 +53,7 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers`,
+  copyright: `Copyright (c) 2017-2020 The Typelevel Cats-effect Project Developers`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
