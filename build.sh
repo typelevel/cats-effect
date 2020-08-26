@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Run mdoc from each submodule
+yarn install
+
+# Generate scaladoc and mdoc from each submodule
 (cd versions/2.x && sbt "; doc; docs/mdoc")
 
 # Create Docusaurus directories
