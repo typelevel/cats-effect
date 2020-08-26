@@ -82,6 +82,84 @@
       },
       "typeclasses/sync": {
         "title": "Sync"
+      },
+      "version-2.x/concurrency/version-2.x-basics": {
+        "title": "Basics"
+      },
+      "version-2.x/concurrency/version-2.x-deferred": {
+        "title": "Deferred"
+      },
+      "version-2.x/concurrency/version-2.x-mvar": {
+        "title": "MVar"
+      },
+      "version-2.x/concurrency/version-2.x-overview": {
+        "title": "Overview"
+      },
+      "version-2.x/concurrency/version-2.x-ref": {
+        "title": "Ref"
+      },
+      "version-2.x/concurrency/version-2.x-semaphore": {
+        "title": "Semaphore"
+      },
+      "version-2.x/datatypes/version-2.x-clock": {
+        "title": "Clock"
+      },
+      "version-2.x/datatypes/version-2.x-contextshift": {
+        "title": "ContextShift"
+      },
+      "version-2.x/datatypes/version-2.x-fiber": {
+        "title": "Fiber"
+      },
+      "version-2.x/datatypes/version-2.x-index": {
+        "title": "Data Types"
+      },
+      "version-2.x/datatypes/version-2.x-io": {
+        "title": "IO"
+      },
+      "version-2.x/datatypes/version-2.x-ioapp": {
+        "title": "IOApp"
+      },
+      "version-2.x/datatypes/version-2.x-resource": {
+        "title": "Resource"
+      },
+      "version-2.x/datatypes/version-2.x-syncio": {
+        "title": "SyncIO"
+      },
+      "version-2.x/datatypes/version-2.x-timer": {
+        "title": "Timer"
+      },
+      "version-2.x/guides/version-2.x-tracing": {
+        "title": "Tracing"
+      },
+      "version-2.x/guides/version-2.x-tutorial": {
+        "title": "Tutorial"
+      },
+      "version-2.x/version-2.x-installation": {
+        "title": "Installation"
+      },
+      "version-2.x/typeclasses/version-2.x-async": {
+        "title": "Async"
+      },
+      "version-2.x/typeclasses/version-2.x-bracket": {
+        "title": "Bracket"
+      },
+      "version-2.x/typeclasses/version-2.x-concurrenteffect": {
+        "title": "ConcurrentEffect"
+      },
+      "version-2.x/typeclasses/version-2.x-concurrent": {
+        "title": "Concurrent"
+      },
+      "version-2.x/typeclasses/version-2.x-effect": {
+        "title": "Effect"
+      },
+      "version-2.x/typeclasses/version-2.x-liftio": {
+        "title": "LiftIO"
+      },
+      "version-2.x/typeclasses/version-2.x-overview": {
+        "title": "Overview"
+      },
+      "version-2.x/typeclasses/version-2.x-sync": {
+        "title": "Sync"
       }
     },
     "links": {
