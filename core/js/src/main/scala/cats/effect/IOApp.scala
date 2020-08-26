@@ -19,9 +19,17 @@ package cats.effect
 import scala.concurrent.duration._
 import scala.scalajs.js
 
-trait IOApp {
+trait IOApp extends IOFullApp {
+  def run: IO[Unit]
+  def runFull = run.as(0)
+}
 
-  def run(args: List[String]): IO[Int]
+trait IOFullApp {
+
+  private var margs : List[String] = List.empty
+  lazy val args = margs
+
+  def runFull: IO[Int]
 
   protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
 
@@ -44,7 +52,9 @@ trait IOApp {
       else
         args.toList
 
-    IO.race(run(argList), keepAlive)
+    margs = argList
+
+    IO.race(runFull, keepAlive)
       .unsafeRunAsync({
         case Left(t) => throw t
         case Right(Left(code)) => reportExitCode(code)

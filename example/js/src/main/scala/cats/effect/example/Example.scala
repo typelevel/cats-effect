@@ -19,9 +19,9 @@ package example
 
 import cats.implicits._
 
-object Example extends IOApp {
+object Example extends IOFullApp {
 
-  def run(args: List[String]): IO[Int] =
+  def runFull: IO[Int] =
     for {
       leftF <- (printFive(args(0)) >> IO.cede >> printFive(args(0))).start
       rightF <- (printFive(args(1)) >> IO.cede >> printFive(args(1))).start
