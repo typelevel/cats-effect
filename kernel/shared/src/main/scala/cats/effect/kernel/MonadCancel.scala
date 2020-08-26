@@ -17,7 +17,17 @@
 package cats.effect.kernel
 
 import cats.{MonadError, Monoid, Semigroup}
-import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.data.{
+  EitherT,
+  IndexedReaderWriterStateT,
+  IndexedStateT,
+  IorT,
+  Kleisli,
+  OptionT,
+  ReaderWriterStateT,
+  StateT,
+  WriterT
+}
 import cats.syntax.all._
 
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
@@ -105,6 +115,20 @@ object MonadCancel {
       override implicit protected def F: MonadCancel[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
+    }
+
+  implicit def monadCancelForStateT[F[_], S, E](
+      implicit F0: MonadCancel[F, E]): MonadCancel[StateT[F, S, *], E] =
+    new StateTMonadCancel[F, S, E] {
+      override implicit protected def F = F0
+    }
+
+  implicit def monadCancelForReaderWriterStateT[F[_], E0, L, S, E](
+      implicit F0: MonadCancel[F, E],
+      L0: Monoid[L]): MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] =
+    new ReaderWriterStateTMonadCancel[F, E0, L, S, E] {
+      override implicit protected def F = F0
+      override implicit protected def L = L0
     }
 
   private[kernel] trait OptionTMonadCancel[F[_], E] extends MonadCancel[OptionT[F, *], E] {
@@ -321,5 +345,108 @@ object MonadCancel {
 
     def tailRecM[A, B](a: A)(f: A => WriterT[F, L, Either[A, B]]): WriterT[F, L, B] =
       delegate.tailRecM(a)(f)
+  }
+
+  private[kernel] trait StateTMonadCancel[F[_], S, E] extends MonadCancel[StateT[F, S, *], E] {
+
+    implicit protected def F: MonadCancel[F, E]
+
+    protected def delegate: MonadError[StateT[F, S, *], E] =
+      IndexedStateT.catsDataMonadErrorForIndexedStateT[F, S, E]
+
+    def pure[A](x: A): StateT[F, S, A] =
+      delegate.pure(x)
+
+    def handleErrorWith[A](fa: StateT[F, S, A])(f: E => StateT[F, S, A]): StateT[F, S, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def raiseError[A](e: E): StateT[F, S, A] =
+      delegate.raiseError(e)
+
+    def flatMap[A, B](fa: StateT[F, S, A])(f: A => StateT[F, S, B]): StateT[F, S, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => StateT[F, S, Either[A, B]]): StateT[F, S, B] =
+      delegate.tailRecM(a)(f)
+
+    def canceled: StateT[F, S, Unit] =
+      StateT.liftF(F.canceled)
+
+    // discards state changes in fa
+    def forceR[A, B](fa: StateT[F, S, A])(fb: StateT[F, S, B]): StateT[F, S, B] =
+      StateT[F, S, B](s => F.forceR(fa.runA(s))(fb.run(s)))
+
+    // discards state changes in fin, also fin cannot observe state changes in fa
+    def onCancel[A](fa: StateT[F, S, A], fin: StateT[F, S, Unit]): StateT[F, S, A] =
+      StateT[F, S, A](s => F.onCancel(fa.run(s), fin.runA(s)))
+
+    def uncancelable[A](body: Poll[StateT[F, S, *]] => StateT[F, S, A]): StateT[F, S, A] =
+      StateT[F, S, A] { s =>
+        F uncancelable { poll =>
+          val poll2 = new Poll[StateT[F, S, *]] {
+            def apply[B](fb: StateT[F, S, B]) =
+              StateT[F, S, B](s => poll(fb.run(s)))
+          }
+
+          body(poll2).run(s)
+        }
+      }
+  }
+
+  private[kernel] trait ReaderWriterStateTMonadCancel[F[_], E0, L, S, E]
+      extends MonadCancel[ReaderWriterStateT[F, E0, L, S, *], E] {
+
+    implicit protected def F: MonadCancel[F, E]
+
+    implicit protected def L: Monoid[L]
+
+    protected def delegate: MonadError[ReaderWriterStateT[F, E0, L, S, *], E] =
+      IndexedReaderWriterStateT.catsDataMonadErrorForIRWST[F, E0, L, S, E]
+
+    def pure[A](x: A): ReaderWriterStateT[F, E0, L, S, A] =
+      delegate.pure(x)
+
+    def handleErrorWith[A](fa: ReaderWriterStateT[F, E0, L, S, A])(
+        f: E => ReaderWriterStateT[F, E0, L, S, A]): ReaderWriterStateT[F, E0, L, S, A] =
+      delegate.handleErrorWith(fa)(f)
+
+    def raiseError[A](e: E): ReaderWriterStateT[F, E0, L, S, A] =
+      delegate.raiseError(e)
+
+    def flatMap[A, B](fa: ReaderWriterStateT[F, E0, L, S, A])(
+        f: A => ReaderWriterStateT[F, E0, L, S, B]): ReaderWriterStateT[F, E0, L, S, B] =
+      fa.flatMap(f)
+
+    def tailRecM[A, B](a: A)(f: A => ReaderWriterStateT[F, E0, L, S, Either[A, B]])
+        : ReaderWriterStateT[F, E0, L, S, B] =
+      delegate.tailRecM(a)(f)
+
+    def canceled: ReaderWriterStateT[F, E0, L, S, Unit] =
+      ReaderWriterStateT.liftF(F.canceled)
+
+    // discards state changes in fa
+    def forceR[A, B](fa: ReaderWriterStateT[F, E0, L, S, A])(
+        fb: ReaderWriterStateT[F, E0, L, S, B]): ReaderWriterStateT[F, E0, L, S, B] =
+      ReaderWriterStateT[F, E0, L, S, B]((e, s) => F.forceR(fa.runA(e, s))(fb.run(e, s)))
+
+    // discards state changes in fin, also fin cannot observe state changes in fa
+    def onCancel[A](
+        fa: ReaderWriterStateT[F, E0, L, S, A],
+        fin: ReaderWriterStateT[F, E0, L, S, Unit]): ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT[F, E0, L, S, A]((e, s) => F.onCancel(fa.run(e, s), fin.runA(e, s)))
+
+    def uncancelable[A](
+        body: Poll[ReaderWriterStateT[F, E0, L, S, *]] => ReaderWriterStateT[F, E0, L, S, A])
+        : ReaderWriterStateT[F, E0, L, S, A] =
+      ReaderWriterStateT[F, E0, L, S, A] { (e, s) =>
+        F uncancelable { poll =>
+          val poll2 = new Poll[ReaderWriterStateT[F, E0, L, S, *]] {
+            def apply[B](fb: ReaderWriterStateT[F, E0, L, S, B]) =
+              ReaderWriterStateT[F, E0, L, S, B]((e, s) => poll(fb.run(e, s)))
+          }
+
+          body(poll2).run(e, s)
+        }
+      }
   }
 }
