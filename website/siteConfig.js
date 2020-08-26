@@ -22,7 +22,7 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    {doc: 'concurrency/overview', label: 'Docs'},
+    {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
     {href: `https://typelevel.org/cats-effect/api/index.html`, label: 'API'}
   ],
