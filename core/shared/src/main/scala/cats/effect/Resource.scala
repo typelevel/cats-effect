@@ -225,7 +225,7 @@ sealed abstract class Resource[+F[_], +A] {
     Resource.makeCase(F.unit) { case (_, exitCase) => f(exitCase) }.flatMap[G, A](_ => this)
 
   /**
-   * Given a natural transformation from `F` to `G`, transforms this)
+   * Given a natural transformation from `F` to `G`, transforms this
    * Resource from effect `F` to effect `G`.
    */
   def mapK[G[x] >: F[x], H[_]](
