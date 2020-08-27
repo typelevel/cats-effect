@@ -25,7 +25,7 @@ const siteConfig = {
   headerLinks: [
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
-    {href: `https://typelevel.org/cats-effect/api/index.html`, label: 'API'}
+    {href: `/cats-effect/api/index.html`, label: 'API'}
   ],
 
   /* path to images for header/footer */
