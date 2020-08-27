@@ -329,30 +329,31 @@ lazy val siteSettings = Seq(
   ),
   micrositeCompilingDocsTool := WithMdoc,
   mdocIn := (sourceDirectory in Compile).value / "mdoc",
-  fork in mdoc := true,
-  Compile / scalacOptions ~= (_.filterNot(
-    Set(
-      "-Xfatal-warnings",
-      "-Werror",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-unused:imports",
-      "-Ywarn-unused:locals",
-      "-Ywarn-unused:patvars",
-      "-Ywarn-unused:privates",
-      "-Ywarn-numeric-widen",
-      "-Ywarn-dead-code",
-      "-Xlint:-missing-interpolator,_"
-    ).contains
-  )),
   docsMappingsAPIDir := "api",
   addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
 )
 
-lazy val microsite = project
-  .in(file("site"))
-  .enablePlugins(MicrositesPlugin, SiteScaladocPlugin, MdocPlugin)
+lazy val docs = project
+  .in(file("site-docs"))
+  .enablePlugins(MdocPlugin)
   .settings(commonSettings ++ noPublishSettings)
-  .settings(siteSettings)
+  .settings(
+    fork in mdoc := true,
+    Compile / scalacOptions ~= (_.filterNot(
+      Set(
+        "-Xfatal-warnings",
+        "-Werror",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-unused:imports",
+        "-Ywarn-unused:locals",
+        "-Ywarn-unused:patvars",
+        "-Ywarn-unused:privates",
+        "-Ywarn-numeric-widen",
+        "-Ywarn-dead-code",
+        "-Xlint:-missing-interpolator,_"
+      ).contains
+    ))
+  )
   .dependsOn(coreJVM, lawsJVM)
 
 git.gitHeadCommit := Try("git rev-parse HEAD".!!.trim).toOption
