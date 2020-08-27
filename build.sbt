@@ -25,12 +25,6 @@ ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
 
-ThisBuild / githubWorkflowBuildPreamble ++= Seq(
-  WorkflowStep.Use("actions", "setup-ruby", "v1", params = Map("ruby-version" -> "2.7.1")),
-  WorkflowStep.Run(List("gem install bundler")),
-  WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
-)
-
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
 ThisBuild / startYear := Some(2017)
