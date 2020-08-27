@@ -42,31 +42,6 @@ function Versions(props) {
             </tbody>
           </table>
 
-          <h3 id="rc">Pre-release versions</h3>
-          <table className="versions">
-            <tbody>
-              <tr>
-                <th>2.x-pre</th>
-                <td>
-                  <a href={baseUrl + 'next/installation'}>Documentation</a>
-                </td>
-                <td>
-                  <a href={'/cats-effect/api/'}>Scaladoc</a>
-                </td>
-              </tr>
-
-              <tr>
-                <th>3.x-pre</th>
-                <td>
-                  <a href={baseUrl + 'next/installation'}>Documentation</a>
-                </td>
-                <td>
-                  <a href={'/cats-effect/api/'}>Scaladoc</a>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
         </div>
       </Container>
     </div>
