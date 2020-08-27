@@ -26,7 +26,7 @@ trait IOApp extends IOFullApp {
 
 trait IOFullApp {
 
-  private var margs : List[String] = List.empty
+  private var margs: List[String] = List.empty
   lazy val args = margs
 
   def runFull: IO[Int]
