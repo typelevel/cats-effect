@@ -23,6 +23,9 @@ package object effect {
   type Outcome[F[_], E, A] = cekernel.Outcome[F, E, A]
   val Outcome = cekernel.Outcome
 
+  type MonadCancel[F[_], E] = cekernel.MonadCancel[F, E]
+  val MonadCancel = cekernel.MonadCancel
+
   type Concurrent[F[_], E] = cekernel.Concurrent[F, E]
   val Concurrent = cekernel.Concurrent
 
@@ -47,6 +50,7 @@ package object effect {
   type Effect[F[_]] = cekernel.Effect[F]
   val Effect = cekernel.Effect
 
+  type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
   type ConcurrentThrow[F[_]] = cekernel.ConcurrentThrow[F]
   type TemporalThrow[F[_]] = cekernel.TemporalThrow[F]
 

@@ -18,10 +18,9 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.{Concurrent, Outcome}
-import cats.implicits._
-import cats.laws.MonadErrorLaws
+import cats.syntax.all._
 
-trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
+trait ConcurrentLaws[F[_], E] extends MonadCancelLaws[F, E] {
 
   implicit val F: Concurrent[F, E]
 
@@ -128,17 +127,6 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def neverDominatesOverFlatMap[A](fa: F[A]) =
     F.never >> fa <-> F.never[A]
 
-  // note that this implies the nested case as well
-  def uncancelablePollIsIdentity[A](fa: F[A]) =
-    F.uncancelable(_(fa)) <-> fa
-
-  def uncancelableIgnoredPollEliminatesNesting[A](fa: F[A]) =
-    F.uncancelable(_ => F.uncancelable(_ => fa)) <-> F.uncancelable(_ => fa)
-
-  // this law shows that inverted polls do not apply
-  def uncancelablePollInverseNestIsUncancelable[A](fa: F[A]) =
-    F.uncancelable(op => F.uncancelable(ip => op(ip(fa)))) <-> F.uncancelable(_ => fa)
-
   def uncancelableRaceDisplacesCanceled =
     F.uncancelable(_ => F.race(F.never[Unit], F.canceled)).void <-> F.canceled
 
@@ -157,31 +145,6 @@ trait ConcurrentLaws[F[_], E] extends MonadErrorLaws[F, E] {
   def uncancelableStartIsCancelable =
     F.uncancelable(_ => F.start(F.never[Unit]).flatMap(f => f.cancel >> f.join)) <-> F.pure(
       Outcome.Canceled())
-
-  // TODO F.uncancelable(p => F.canceled >> p(fa) >> fb) <-> F.uncancelable(p => p(F.canceled >> fa) >> fb)
-
-  def uncancelableCanceledAssociatesRightOverFlatMap[A](a: A, f: A => F[Unit]) =
-    F.uncancelable(_ => F.canceled.as(a).flatMap(f)) <->
-      F.forceR(F.uncancelable(_ => f(a)))(F.canceled)
-
-  def canceledAssociatesLeftOverFlatMap[A](fa: F[A]) =
-    F.canceled >> fa.void <-> F.canceled
-
-  def canceledSequencesOnCancelInOrder(fin1: F[Unit], fin2: F[Unit]) =
-    F.onCancel(F.onCancel(F.canceled, fin1), fin2) <->
-      F.forceR(F.uncancelable(_ => F.forceR(fin1)(fin2)))(F.canceled)
-
-  def uncancelableEliminatesOnCancel[A](fa: F[A], fin: F[Unit]) =
-    F.uncancelable(_ => F.onCancel(fa, fin)) <-> F.uncancelable(_ => fa)
-
-  def forceRDiscardsPure[A, B](a: A, fa: F[B]) =
-    F.forceR(F.pure(a))(fa) <-> fa
-
-  def forceRDiscardsError[A](e: E, fa: F[A]) =
-    F.forceR(F.raiseError(e))(fa) <-> fa
-
-  def forceRCanceledShortCircuits[A](fa: F[A]) =
-    F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
 
   def forceRNeverIsNever[A](fa: F[A]) =
     F.forceR(F.never)(fa) <-> F.never

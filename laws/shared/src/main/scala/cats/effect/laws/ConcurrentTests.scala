@@ -19,13 +19,12 @@ package laws
 
 import cats.Eq
 import cats.effect.kernel.{Concurrent, Outcome}
-import cats.laws.discipline._
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
+trait ConcurrentTests[F[_], E] extends MonadCancelTests[F, E] {
 
   val laws: ConcurrentLaws[F, E]
 
@@ -68,7 +67,7 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
     new RuleSet {
       val name = "concurrent"
       val bases = Nil
-      val parents = Seq(monadError[A, B, C])
+      val parents = Seq(monadCancel[A, B, C])
 
       val props = Seq(
         "race derives from racePair (left)" -> forAll(laws.raceDerivesFromRacePairLeft[A, B] _),
@@ -87,11 +86,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
         "fiber never is never" -> laws.fiberNeverIsNever,
         "fiber start of never is unit" -> laws.fiberStartOfNeverIsUnit,
         "never dominates over flatMap" -> forAll(laws.neverDominatesOverFlatMap[A] _),
-        "uncancelable poll is identity" -> forAll(laws.uncancelablePollIsIdentity[A] _),
-        "uncancelable ignored poll eliminates nesting" -> forAll(
-          laws.uncancelableIgnoredPollEliminatesNesting[A] _),
-        "uncancelable poll inverse nest is uncancelable" -> forAll(
-          laws.uncancelablePollInverseNestIsUncancelable[A] _),
         "uncancelable race displaces canceled" -> laws.uncancelableRaceDisplacesCanceled,
         "uncancelable race poll canceled identity (left)" -> forAll(
           laws.uncancelableRacePollCanceledIdentityLeft[A] _),
@@ -99,16 +93,6 @@ trait ConcurrentTests[F[_], E] extends MonadErrorTests[F, E] {
           laws.uncancelableRacePollCanceledIdentityRight[A] _),
         "uncancelable canceled is canceled" -> laws.uncancelableCancelCancels,
         "uncancelable start is cancelable" -> laws.uncancelableStartIsCancelable,
-        "uncancelable canceled associates right over flatMap" -> forAll(
-          laws.uncancelableCanceledAssociatesRightOverFlatMap[A] _),
-        "canceled associates left over flatMap" -> forAll(
-          laws.canceledAssociatesLeftOverFlatMap[A] _),
-        "canceled sequences onCancel in order" -> forAll(
-          laws.canceledSequencesOnCancelInOrder _),
-        "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _),
-        "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
-        "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
-        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
         "forceR never is never" -> forAll(laws.forceRNeverIsNever[A] _)
       )
     }
