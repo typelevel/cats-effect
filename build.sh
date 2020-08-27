@@ -16,7 +16,7 @@ mkdir -p ./website/versioned_sidebars
 mkdir -p ./website/versioned_docs
 
 mv ./versions/2.x/site-docs/target/mdoc ./docs
-mv ./versions/2.x/site-docs/sidebars.json ./website/sidebars.json
+cp ./versions/2.x/site-docs/sidebars.json ./website/sidebars.json
 (cd website && yarn run version 2.x)
 
 (cd website && yarn build)
