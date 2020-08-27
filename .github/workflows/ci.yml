@@ -30,3 +30,8 @@ jobs:
           node-version: '12'
 
       - run: ./build.sh
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: site
+          path: website/build/
