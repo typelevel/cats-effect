@@ -85,6 +85,3 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - run: sbt ++${{ matrix.scala }} ci
-
-      - if: ${{ matrix.scala }} == '2.12.11'
-        run: sbt ++${{ matrix.scala }} microsite/makeMicrosite

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import microsites.{ConfigYml, ExtraMdFileConfig}
-
 import scala.util.Try
 import scala.sys.process._
 
@@ -32,9 +30,6 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
   WorkflowStep.Run(List("gem install bundler")),
   WorkflowStep.Run(List("bundle install --gemfile=site/Gemfile"))
 )
-
-ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"$${{ matrix.scala }} == '$OldScala'"))
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -58,12 +53,12 @@ val SilencerVersion = "1.7.1"
 
 replaceCommandAlias(
   "ci",
-  "; project /; headerCheck ;scalafmtSbtCheck ;scalafmtCheckAll; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant; doc"
+  "; project /; headerCheck ;scalafmtSbtCheck ;scalafmtCheckAll; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant; doc; docs/mdoc"
 )
 
 replaceCommandAlias(
   "release",
-  "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease; microsite/publishMicrosite"
+  "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease"
 )
 
 val commonSettings = Seq(
