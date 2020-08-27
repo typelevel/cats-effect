@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 rm -rf ./website/versions.json
 rm -rf ./website/versioned_sidebars
 rm -rf ./website/versioned_docs
