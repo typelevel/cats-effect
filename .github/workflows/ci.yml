@@ -53,12 +53,6 @@ jobs:
       - name: Build
         run: ./build.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: site
-          path: website/build/
-
       - name: Publish
         uses: peaceiris/actions-gh-pages@v3
         with:
