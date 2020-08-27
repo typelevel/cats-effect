@@ -18,30 +18,27 @@ package cats.effect
 
 import java.util.concurrent.CountDownLatch
 
-trait IOApp extends IOFullApp {
+trait IOMinApp extends IOApp {
   def run: IO[Unit]
-  def runFull = run.as(0)
+  final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
 }
 
-trait IOFullApp {
+trait IOApp {
 
-  private var margs: List[String] = List.empty
-  lazy val args = margs
-
-  def runFull: IO[Int]
+  def run(args: List[String]): IO[ExitCode]
 
   protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
 
   protected implicit val unsafeRunForIO: unsafe.UnsafeRun[IO] = runtime.unsafeRunForIO
 
   final def main(args: Array[String]): Unit = {
-    margs = args.toList
+
     val rt = Runtime.getRuntime()
 
     val latch = new CountDownLatch(1)
-    @volatile var results: Either[Throwable, Int] = null
+    @volatile var results: Either[Throwable, ExitCode] = null
 
-    val ioa = runFull
+    val ioa = run(args.toList)
 
     val fiber = ioa.unsafeRunFiber(true) { e =>
       results = e
@@ -66,7 +63,7 @@ trait IOFullApp {
     try {
       latch.await()
 
-      results.fold(throw _, System.exit(_))
+      results.fold(throw _, ec => System.exit(ec.code))
     } catch {
       // this handles sbt when fork := false
       case _: InterruptedException =>

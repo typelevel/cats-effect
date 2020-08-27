@@ -15,20 +15,24 @@
  */
 
 package cats.effect
-package example
 
-import cats.implicits._
+/**
+ * Represents the exit code of an application.
+ *
+ * `code` is constrained to a range from 0 to 255, inclusive.
+ */
+sealed abstract case class ExitCode private (code: Int)
 
-object Example extends IOApp {
+object ExitCode {
 
-  def run(args: List[String]): IO[ExitCode] =
-    for {
-      leftF <- (printFive(args(0)) >> IO.cede >> printFive(args(0))).start
-      rightF <- (printFive(args(1)) >> IO.cede >> printFive(args(1))).start
-      _ <- leftF.join
-      _ <- rightF.join
-    } yield ExitCode(2)
+  /**
+   * Creates an `ExitCode`.
+   *
+   * @param i the value whose 8 least significant bits are used to
+   * construct an exit code within the valid range.
+   */
+  def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
 
-  def printFive(text: String): IO[Unit] =
-    IO(println(text)).replicateA(5).void
+  val Success: ExitCode = ExitCode(0)
+  val Error: ExitCode = ExitCode(1)
 }
