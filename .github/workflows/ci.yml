@@ -7,9 +7,6 @@ on:
   push:
     branches: [docs]
 
-#env:
-#  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
   build:
     name: Generate docs
@@ -29,9 +26,18 @@ jobs:
         with:
           node-version: '12'
 
-      - run: ./build.sh
+      - name: Build
+        run: ./build.sh
 
-      - uses: actions/upload-artifact@v2
+      - name: Artifact
+        uses: actions/upload-artifact@v2
         with:
           name: site
           path: website/build/
+
+      - name: Publish
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/build/cats-effect
+          publish_branch: test-gh-pages
