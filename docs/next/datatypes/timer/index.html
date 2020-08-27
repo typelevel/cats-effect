@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Timer · Cats Effect</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="It is a scheduler of tasks. You can think of it as the purely functional equivalent of:"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Timer · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="It is a scheduler of tasks. You can think of it as the purely functional equivalent of:"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/darcula.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/favicon.png" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/next/installation" target="_self">Docs</a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li><li class=""><a href="/cats-effect/api/index.html" target="_self">API</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Data Types</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Getting Started<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/installation">Installation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Guides<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/guides/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/guides/tracing">Tracing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Data Types<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/io">IO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/syncio">SyncIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/fiber">Fiber</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/contextshift">ContextShift</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/next/datatypes/timer">Timer</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/datatypes/ioapp">IOApp</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Concurrency<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/basics">Basics</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/mvar">MVar</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/concurrency/semaphore">Semaphore</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Type Classes<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/bracket">Bracket</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/liftio">LiftIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/async">Async</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/effect">Effect</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/next/typeclasses/concurrenteffect">ConcurrentEffect</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Timer</h1></header><article><div><span><p>It is a scheduler of tasks. You can think of it as the purely functional equivalent of:</p>
+<ul>
+<li>Java's <a href="https://docs.oracle.com/javase/9/docs/api/java/util/concurrent/ScheduledExecutorService.html">ScheduledExecutorService</a>.</li>
+<li>JavaScript's [setTimeout](<a href="https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout">https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/setTimeout</a> setTimeout).</li>
+</ul>
+<p>It provides:</p>
+<ul>
+<li>The ability to get the current time.</li>
+<li>Ability to delay the execution of a task with a specified time duration.</li>
+</ul>
+<p>It does all of that in an <code>F[_]</code> monadic context that can suspend side effects and is capable of asynchronous execution (e.g. <code>IO</code>).</p>
+<p>This is NOT a typeclass, as it does not have the coherence requirement.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.<span class="hljs-type">Clock</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration.<span class="hljs-type">FiniteDuration</span>
+
+<span class="hljs-class"><span class="hljs-keyword">trait</span> <span class="hljs-title">Timer</span>[<span class="hljs-type">F</span>[_]] </span>{
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">clock</span></span>: <span class="hljs-type">Clock</span>[<span class="hljs-type">F</span>]
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sleep</span></span>(duration: <span class="hljs-type">FiniteDuration</span>): <span class="hljs-type">F</span>[<span class="hljs-type">Unit</span>]
+}
+</code></pre>
+<p>As mentioned in the <code>IO</code> documentation, there's a default instance of <code>Timer[IO]</code> available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.util.concurrent.<span class="hljs-type">ScheduledExecutorService</span>
+
+<span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">IO</span>, <span class="hljs-type">Timer</span>, <span class="hljs-type">Clock</span>}
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+<span class="hljs-keyword">import</span> scala.concurrent.duration._
+
+<span class="hljs-keyword">final</span> <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyTimer</span>(<span class="hljs-params">ec: <span class="hljs-type">ExecutionContext</span>, sc: <span class="hljs-type">ScheduledExecutorService</span></span>) <span class="hljs-keyword">extends</span> <span class="hljs-title">Timer</span>[<span class="hljs-type">IO</span>] </span>{
+  <span class="hljs-keyword">override</span> <span class="hljs-keyword">val</span> clock: <span class="hljs-type">Clock</span>[<span class="hljs-type">IO</span>] =
+    <span class="hljs-keyword">new</span> <span class="hljs-type">Clock</span>[<span class="hljs-type">IO</span>] {
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">realTime</span></span>(unit: <span class="hljs-type">TimeUnit</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
+        <span class="hljs-type">IO</span>(unit.convert(<span class="hljs-type">System</span>.currentTimeMillis(), <span class="hljs-type">MILLISECONDS</span>))
+
+      <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">monotonic</span></span>(unit: <span class="hljs-type">TimeUnit</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Long</span>] =
+        <span class="hljs-type">IO</span>(unit.convert(<span class="hljs-type">System</span>.nanoTime(), <span class="hljs-type">NANOSECONDS</span>))
+    }
+
+  <span class="hljs-keyword">override</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">sleep</span></span>(timespan: <span class="hljs-type">FiniteDuration</span>): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] =
+    <span class="hljs-type">IO</span>.cancelable { cb =&gt;
+      <span class="hljs-keyword">val</span> tick = <span class="hljs-keyword">new</span> <span class="hljs-type">Runnable</span> {
+        <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>() = ec.execute(<span class="hljs-keyword">new</span> <span class="hljs-type">Runnable</span> {
+          <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">run</span></span>() = cb(<span class="hljs-type">Right</span>(()))
+        })
+      }
+      <span class="hljs-keyword">val</span> f = sc.schedule(tick, timespan.length, timespan.unit)
+      <span class="hljs-type">IO</span>(f.cancel(<span class="hljs-literal">false</span>)).void
+    }
+}
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="configuring-the-global-scheduler"></a><a href="#configuring-the-global-scheduler" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring the global Scheduler</h2>
+<p>The one-argument overload of <code>IO.timer</code> lazily instantiates a global <code>ScheduledExecutorService</code>, which is never shut down.  This is fine for most applications, but leaks threads when the class is repeatedly loaded in the same JVM, as is common in testing. The global scheduler can be configured with the following system properties:</p>
+<ul>
+<li><code>cats.effect.global_scheduler.threads.core_pool_size</code>: sets the core pool size of the global scheduler. Defaults to <code>2</code>.</li>
+<li><code>cats.effect.global_scheduler.keep_alive_time_ms</code>: allows the global scheduler's core threads to timeout and terminate when idle. <code>0</code> keeps the threads from timing out. Defaults to <code>0</code>. Value is in milliseconds.</li>
+</ul>
+<p>These properties only apply on the JVM.</p>
+<p>Also see these related data types:</p>
+<ul>
+<li><a href="/cats-effect/docs/next/datatypes/clock">Clock</a>: for time measurements and getting the current clock</li>
+<li><a href="/cats-effect/docs/next/datatypes/contextshift">ContextShift</a>: the pure equivalent of an <code>ExecutionContext</code></li>
+</ul>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/next/datatypes/contextshift"><span class="arrow-prev">← </span><span class="function-name-prevnext">ContextShift</span></a><a class="docs-next button" href="/cats-effect/docs/next/datatypes/ioapp"><span>IOApp</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuring-the-global-scheduler">Configuring the global Scheduler</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/favicon.png" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 The Typelevel Project Developers</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>

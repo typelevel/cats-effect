@@ -1,0 +1,281 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Basics · Cats Effect</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="## Introduction"/><meta name="docsearch:version" content="2.x"/><meta name="docsearch:language" content="en"/><meta property="og:title" content="Basics · Cats Effect"/><meta property="og:type" content="website"/><meta property="og:url" content="https://typelevel.org/cats-effect/"/><meta property="og:description" content="## Introduction"/><meta property="og:image" content="https://typelevel.org/cats-effect/img/undraw_online.svg"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://typelevel.org/cats-effect/img/undraw_tweetstorm.svg"/><link rel="shortcut icon" href="/cats-effect/img/favicon.png"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/darcula.min.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script src="/cats-effect/js/scrollSpy.js"></script><link rel="stylesheet" href="/cats-effect/css/main.css"/><script src="/cats-effect/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/cats-effect/"><img class="logo" src="/cats-effect/img/favicon.png" alt="Cats Effect"/><h2 class="headerTitleWithLogo">Cats Effect</h2></a><a href="/cats-effect/versions"><h3>2.x</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/cats-effect/docs/installation" target="_self">Docs</a></li><li class=""><a href="https://github.com/typelevel/cats-effect" target="_blank">GitHub</a></li><li class=""><a href="/cats-effect/api/index.html" target="_self">API</a></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Concurrency</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Getting Started<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/installation">Installation</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Guides<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/guides/tutorial">Tutorial</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/guides/tracing">Tracing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Data Types<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/io">IO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/syncio">SyncIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/fiber">Fiber</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/resource">Resource</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/clock">Clock</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/contextshift">ContextShift</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/timer">Timer</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/datatypes/ioapp">IOApp</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Concurrency<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concurrency/overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/cats-effect/docs/concurrency/basics">Basics</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concurrency/deferred">Deferred</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concurrency/mvar">MVar</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concurrency/ref">Ref</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/concurrency/semaphore">Semaphore</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle collapsible">Type Classes<span class="arrow"><svg width="24" height="24" viewBox="0 0 24 24"><path fill="#565656" d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg></span></h3><ul class="hide"><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/bracket">Bracket</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/sync">Sync</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/liftio">LiftIO</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/async">Async</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/concurrent">Concurrent</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/effect">Effect</a></li><li class="navListItem"><a class="navItem" href="/cats-effect/docs/typeclasses/concurrenteffect">ConcurrentEffect</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">Basics</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="introduction"></a><a href="#introduction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Introduction</h2>
+<p>Concurrency is not an easy topic. There are a lot of concepts involved and the vocabulary might be hard to search.
+This post intends to gather and explain some of the most important ideas and serve as a reference point for
+understanding the basics of concurrency.
+It is focused on using Scala with libraries in Cats-Effect ecosystem.</p>
+<h2><a class="anchor" aria-hidden="true" id="dictionary"></a><a href="#dictionary" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Dictionary</h2>
+<p>{:.responsive-pic}
+<img src="../assets/concurrency-vs-parallelism.png" alt="concurrency vs parallelism"></p>
+<h3><a class="anchor" aria-hidden="true" id="parallelism"></a><a href="#parallelism" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Parallelism</h3>
+<p>Using multiple computational resources (like more processor cores) to perform a computation faster,
+usually executing at the same time.</p>
+<p>Example: summing a list of Integers by dividing it in half and calculating both halves in parallel.</p>
+<p>Main concern: efficiency.</p>
+<h3><a class="anchor" aria-hidden="true" id="concurrency"></a><a href="#concurrency" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Concurrency</h3>
+<p>Multiple tasks interleaved. Concurrency doesn't have to be multithreaded. We can
+write concurrent applications on single processor using methods such as event loops.</p>
+<p>Example: Communicating with external services through HTTP.</p>
+<p>Main concern: interaction with multiple, independent and external agents.</p>
+<h3><a class="anchor" aria-hidden="true" id="cpu-bound-task"></a><a href="#cpu-bound-task" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CPU-bound task</h3>
+<p>Operation that mostly requires processor resources to finish its computation.</p>
+<h3><a class="anchor" aria-hidden="true" id="io-bound-task"></a><a href="#io-bound-task" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>IO-bound task</h3>
+<p>Operation that mostly does I/O and it doesn't depend on your computation resources,
+e.g. waiting for disk operation to finish or external service to answer your request.</p>
+<h3><a class="anchor" aria-hidden="true" id="non-terminating-task"></a><a href="#non-terminating-task" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Non-terminating task</h3>
+<p>Task that will never signal its result. A task can be non-terminating without blocking threads or consuming CPU.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-type">IO</span>.never *&gt; <span class="hljs-type">IO</span>(println(<span class="hljs-string">"done"</span>))
+</code></pre>
+<p>The above will never print &quot;done&quot;, block a thread (unless <code>.unsafeRunSync</code> is run on it), or consume CPU after its creation.</p>
+<h2><a class="anchor" aria-hidden="true" id="threads"></a><a href="#threads" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Threads</h2>
+<h3><a class="anchor" aria-hidden="true" id="threading-on-jvm"></a><a href="#threading-on-jvm" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Threading (on JVM)</h3>
+<p>Threads in JVM map 1:1 to the operating system's native threads. Calling <code>new Thread()</code> also creates an operating system thread.
+We can create many of them (as long as we can fit them in the memory) but we can only execute 1 per core at the given time.
+Others have to wait for their turn.</p>
+<p>If we try to run too many threads at once we will suffer because of many <strong>context switches</strong>.
+Before any thread can start doing real work, the OS needs to store state of earlier task and restore the state
+for the current one. This cleanup has nontrivial cost. The most efficient situation for CPU-bound tasks
+is when we execute as many threads as the number of available cores because we can avoid this overhead.</p>
+<p>For the above reasons, synchronous execution can have better throughput than parallel execution. If you parallelize it
+too much, it won't make your code magically faster.  The overhead of creating or switching threads is often greater than the speedup, so make sure to benchmark.</p>
+<p>Remember that threads are scarce resource on JVM. If you exploit them at every opportunity
+it may turn out that your most performance critical parts of the application suffer because the other part is
+doing a lot of work in parallel, taking precious native threads.</p>
+<h3><a class="anchor" aria-hidden="true" id="thread-pools"></a><a href="#thread-pools" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Thread Pools</h3>
+<p>Creating a <strong>Thread</strong> has a price to it. The overhead depends on the specific JVM and OS, but it involves
+making too many threads for short-lived tasks is very inefficient .
+It may turn out that process of creating thread and possible context switches has higher costs than the task itself.
+Furthermore, having too many threads means that we can eventually run out of memory and that they are
+competing for CPU, slowing down the entire application.</p>
+<p>It is advised to use <strong>thread pools</strong> created from <code>java.util.concurrent.Executor</code>.
+A thread pool consists of work queue and a pool of running threads. Every task (<code>Runnable</code>) to execute is
+placed in the work queue and the threads that are governed by the pool take it from there to do their work.
+In Scala, we avoid explicitly working with <code>Runnable</code> and use abstractions that do that under the hood
+(<code>Future</code> and <code>IO</code> implementations). Thread pools can reuse and cache threads to prevent some of the problems
+mentioned earlier.</p>
+<h3><a class="anchor" aria-hidden="true" id="choosing-thread-pool"></a><a href="#choosing-thread-pool" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Choosing Thread Pool</h3>
+<p>{:.responsive-pic}
+<img src="../assets/concurrency-thread-pools.png" alt="thread pools"></p>
+<p>We can configure thread pools in multiple ways:</p>
+<h4><a class="anchor" aria-hidden="true" id="bounded"></a><a href="#bounded" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Bounded</h4>
+<p>Limiting number of available threads to certain amount. Example could be <code>newSingleThreadExecutor</code> to execute
+only one task at the time or limiting number of threads to number of processor cores for CPU-bound tasks.</p>
+<h4><a class="anchor" aria-hidden="true" id="unbounded"></a><a href="#unbounded" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Unbounded</h4>
+<p>No maximum limit of available threads. Note that this is dangerous because we could run out of memory by creating
+too many threads, so it’s important to use cached pool (allowing to reuse existing threads) with <code>keepalive</code> time
+(to remove useless threads) and control number of tasks to execute by other means (backpressure, rate limiters).</p>
+<p>Despite those dangers it is still very useful for blocking tasks. In limited thread pool if we block
+too many threads which are waiting for callback from other (blocked) thread for a long time we risk
+getting deadlock that prevents any new tasks from starting their work.</p>
+<p>For more, read <a href="https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c">Daniel Spiewak's gist.</a></p>
+<h3><a class="anchor" aria-hidden="true" id="blocking-threads"></a><a href="#blocking-threads" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Blocking Threads</h3>
+<p>As a rule we should never block threads, but sometimes we have to work with interface that does it.
+Blocking a thread means that it is being wasted and nothing else can be scheduled to run on it.
+As mentioned, this can be very dangerous and it's best to use dedicated thread
+pool for blocking operations. This way they won't interfere with CPU-bound part of application.</p>
+<p><a href="https://typelevel.org/cats-effect/api/cats/effect/Blocker.html"><code>Blocker[IO]</code></a> can be used to safely handle blocking operations
+in an explicit way.</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">Blocker</span>, <span class="hljs-type">ContextShift</span>, <span class="hljs-type">IO</span>}
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-keyword">implicit</span> <span class="hljs-keyword">val</span> contextShift: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>] = <span class="hljs-type">IO</span>.contextShift(<span class="hljs-type">ExecutionContext</span>.global)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">blockingOp</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>(<span class="hljs-comment">/* blocking op*/</span> ())
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">doSth</span></span>(): <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>(<span class="hljs-comment">/* do something */</span> ())
+
+<span class="hljs-keyword">val</span> prog = <span class="hljs-type">Blocker</span>[<span class="hljs-type">IO</span>].use { blocker =&gt;
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- blocker.blockOn(blockingOp) <span class="hljs-comment">// executes on blocker, backed by cached thread pool</span>
+    _ &lt;- doSth()                     <span class="hljs-comment">// executes on contextShift</span>
+  } <span class="hljs-keyword">yield</span> ()
+}
+</code></pre>
+<p>In most circumstances use a shared <code>Blocker</code> when carrying out blocking operations.</p>
+<p>Other resource with good practices regarding working with blocked threads
+<a href="https://monix.io/docs/3x/best-practices/blocking.html">is this section of Monix documentation.</a></p>
+<h3><a class="anchor" aria-hidden="true" id="green-threads"></a><a href="#green-threads" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Green Threads</h3>
+<p>There are more types of threads and they depend on the platform. One of them is
+<a href="https://en.wikipedia.org/wiki/Green_threads"><em>green thread</em></a>. The main difference
+between model represented by JVM Threads and Green Threads is that the latter aren't scheduled on OS level. They are
+much more lightweight, which allows starting a lot of them without many issues.</p>
+<p>They are often characterized by <a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>
+which means the thread decides when it's giving up control instead of being forcefully preempted, as happens on the JVM.
+This term is important for Cats Effect, whose <code>Fiber</code> and <code>shift</code> design have a lot of similarities
+with this model.</p>
+<h2><a class="anchor" aria-hidden="true" id="thread-scheduling"></a><a href="#thread-scheduling" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Thread Scheduling</h2>
+<p>Working with <code>cats.effect.IO</code> you should notice a lot of calls to <code>IO.shift</code>, described
+in <a href="/cats-effect/docs/datatypes/io#thread-shifting">Thread Shifting section in <code>IO</code> documentation</a></p>
+<p>This function allows to shift computation to different thread pool or simply send it to current <code>ExecutionContext</code>
+to schedule it again. This is often called introducing <strong>asynchronous boundary</strong>.</p>
+<p>While the first use case is probably easy to imagine, the second one might be more confusing.
+It is helpful to actually understand what is happening behind the scenes during <code>shift</code>.</p>
+<p>The Essential term is <strong>thread scheduling</strong>. Since we can’t run all our threads in parallel all the time, they
+each get their own slice of time to execute, interleaving with the rest of them so every thread has a chance to run.
+When it is time to change threads, the currently running thread is <strong>preempted</strong>. It saves its state and the context switch happens.</p>
+<p>This is a bit different when using thread pools (<code>ExecutionContext</code>s), because they are in charge of
+scheduling threads from their own pool. If there is one thread running, it won’t change until it terminates or
+higher priority thread is ready to start doing work. Note that <code>IO</code> without any shifts is considered one task,
+so if it’s infinite <code>IO</code>, it could hog the thread forever and if we use single threaded pool, nothing else
+will ever run on it!</p>
+<p>In other words, <code>IO</code> is executing synchronously until we call <code>IO.shift</code> or use function like <code>parSequence</code>.
+In terms of individual thread pools, we can actually treat <code>IO</code> like <strong>green thread</strong> with
+<a href="https://en.wikipedia.org/wiki/Cooperative_multitasking">cooperative multitasking</a>.  Instead of
+<a href="https://en.wikipedia.org/wiki/Preemption_(computing)#PREEMPTIVE">preemption</a>,
+we can decide when we yield to other threads from the same pool by calling <code>shift</code>.</p>
+<p>Calling <code>IO.shift</code> schedules the work again, so if there are other <code>IO</code>s waiting to execute, they can have their chance.
+Allowing different threads to advance their work is called <strong>fairness</strong>. Let's illustrate this:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.util.concurrent.<span class="hljs-type">Executors</span>
+<span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">ContextShift</span>, <span class="hljs-type">Fiber</span>, <span class="hljs-type">IO</span>}
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-keyword">val</span> ecOne = <span class="hljs-type">ExecutionContext</span>.fromExecutor(<span class="hljs-type">Executors</span>.newSingleThreadExecutor())
+<span class="hljs-keyword">val</span> ecTwo = <span class="hljs-type">ExecutionContext</span>.fromExecutor(<span class="hljs-type">Executors</span>.newSingleThreadExecutor())
+
+<span class="hljs-keyword">val</span> csOne: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>] = <span class="hljs-type">IO</span>.contextShift(ecOne)
+<span class="hljs-keyword">val</span> csTwo: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>] = <span class="hljs-type">IO</span>.contextShift(ecTwo)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">infiniteIO</span></span>(id: <span class="hljs-type">Int</span>)(cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Fiber</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Unit</span>]] = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">repeat</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>(println(id)).flatMap(_ =&gt; repeat)
+
+  repeat.start(cs)
+}
+</code></pre>
+<p>We have two single threaded <code>ExecutionContexts</code> (wrapped in <a href="/cats-effect/docs/datatypes/contextshift">ContextShift</a>)
+and a function that will run <code>IO</code>, forever printing its identifier.
+Note <code>repeat.start</code> and return type of <code>IO[Fiber[IO, Unit]]</code> which means that we run this computation in the background.
+It will run on thread pool provided by <code>cs</code>, which we will pass explicitly:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> prog =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- infiniteIO(<span class="hljs-number">1</span>)(csOne)
+    _ &lt;- infiniteIO(<span class="hljs-number">11</span>)(csOne)
+  } <span class="hljs-keyword">yield</span> ()
+
+prog.unsafeRunSync()
+</code></pre>
+<p>It will never print <code>11</code> despite using <code>.start</code>!
+Why? The <code>ecOne</code> execution context executes its <code>IO</code> on the only thread it has, but needs to wait for its
+completion before it can schedule the other one.</p>
+<p>How about two thread pools?</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">val</span> program =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- infiniteIO(<span class="hljs-number">1</span>)(csOne)
+    _ &lt;- infiniteIO(<span class="hljs-number">11</span>)(csOne)
+    _ &lt;- infiniteIO(<span class="hljs-number">2</span>)(csTwo)
+    _ &lt;- infiniteIO(<span class="hljs-number">22</span>)(csTwo)
+  } <span class="hljs-keyword">yield</span> ()
+
+program.unsafeRunSync()
+</code></pre>
+<p>Now it will keep printing both <code>1</code> and <code>2</code> but neither <code>11</code> nor <code>22</code>. What changed?
+Those thread pools are independent and interleave because of thread scheduling done by the operating system.
+Basically, the thread pool decides which task gets a thread to run but the OS decides what is actually evaluating on the CPU.</p>
+<p>Let's introduce asynchronous boundaries:</p>
+<pre><code class="hljs css language-scala"><span class="hljs-keyword">import</span> java.util.concurrent.<span class="hljs-type">Executors</span>
+<span class="hljs-keyword">import</span> cats.effect.{<span class="hljs-type">ContextShift</span>, <span class="hljs-type">Fiber</span>, <span class="hljs-type">IO</span>}
+<span class="hljs-keyword">import</span> scala.concurrent.<span class="hljs-type">ExecutionContext</span>
+
+<span class="hljs-keyword">val</span> ecOne = <span class="hljs-type">ExecutionContext</span>.fromExecutor(<span class="hljs-type">Executors</span>.newSingleThreadExecutor())
+<span class="hljs-keyword">val</span> ecTwo = <span class="hljs-type">ExecutionContext</span>.fromExecutor(<span class="hljs-type">Executors</span>.newSingleThreadExecutor())
+
+<span class="hljs-keyword">val</span> csOne: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>] = <span class="hljs-type">IO</span>.contextShift(ecOne)
+<span class="hljs-keyword">val</span> csTwo: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>] = <span class="hljs-type">IO</span>.contextShift(ecTwo)
+
+<span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">infiniteIO</span></span>(id: <span class="hljs-type">Int</span>)(<span class="hljs-keyword">implicit</span> cs: <span class="hljs-type">ContextShift</span>[<span class="hljs-type">IO</span>]): <span class="hljs-type">IO</span>[<span class="hljs-type">Fiber</span>[<span class="hljs-type">IO</span>, <span class="hljs-type">Unit</span>]] = {
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">repeat</span></span>: <span class="hljs-type">IO</span>[<span class="hljs-type">Unit</span>] = <span class="hljs-type">IO</span>(println(id)).flatMap(_ =&gt; <span class="hljs-type">IO</span>.shift *&gt; repeat)
+
+  repeat.start
+}
+
+<span class="hljs-keyword">val</span> prog =
+  <span class="hljs-keyword">for</span> {
+    _ &lt;- infiniteIO(<span class="hljs-number">1</span>)(csOne)
+    _ &lt;- infiniteIO(<span class="hljs-number">11</span>)(csOne)
+    _ &lt;- infiniteIO(<span class="hljs-number">2</span>)(csTwo)
+    _ &lt;- infiniteIO(<span class="hljs-number">22</span>)(csTwo)
+  } <span class="hljs-keyword">yield</span> ()
+
+prog.unsafeRunSync()
+</code></pre>
+<p>Notice the <code>IO.shift *&gt; repeat</code> call. <code>*&gt;</code> means that we execute first operation, ignore its result and then call <code>repeat</code>.
+Now everything is fair, as we can see each of those numbers printed on the screen.
+Calling <code>IO.shift</code> fixed the problem because when the currently running <code>IO</code> was rescheduled, it gave an opportunity
+to execute the other one.</p>
+<p>It probably sounds quite complex and cumbersome to keep track of it yourself but once you understand fundamentals
+this explicity can be a great virtue of <code>cats.effect.IO</code>. Knowing what exactly happens in concurrent scenarios
+in your application just by reading the piece of code can really speedup debugging process or even allow to
+get it right the first time.</p>
+<p>Fortunately <code>cats.effect.IO</code> doesn't always require to do it manually. Operations like <code>race</code>, <code>parMapN</code>
+or <code>parTraverse</code> introduce asynchronous boundary at the beginning, but if you have limited thread pool and long
+running tasks, keep fairness in mind.</p>
+<p>Scala's <code>Future</code> is optimized for fairness, doing <code>shift</code> equivalent after each <code>map</code> or <code>flatMap</code>.
+We wouldn't have the problem described above but doing it too much results in putting a lot of pressure on
+scheduler causing low throughput. In typical purely functional programs we have many <code>flatMaps</code> because our
+entire application is just one big <code>IO</code> composed of many smaller ones. Constant shifting is not feasible
+but there's always the option to do it if our application has strict latency requirements.</p>
+<p>If you are looking for less manual work - <code>monix.eval.Task</code> is great middleground which by default shifts tasks
+automatically in batches preserving both great throughput and decent latency off the shelf and exposes
+very rich configuration options if you have more advanced use case.</p>
+<h2><a class="anchor" aria-hidden="true" id="asynchronous--semantic-blocking"></a><a href="#asynchronous--semantic-blocking" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Asynchronous / Semantic blocking</h2>
+<p>Sometimes we use term <strong>semantic blocking</strong> or <strong>asynchronous blocking</strong> which is different than blocking thread.
+It means that we suspend our IO/Task waiting for some action to happen (e.g. <code>Deferred.get</code> waits until the
+result is available) without blocking a threads.  Other <code>IO</code>s are free to execute on the thread in the meantime.
+This is further explained in <a href="https://github.com/typelevel/cats-effect/issues/243#issuecomment-392002124">Fabio Labella's comment.</a></p>
+<p>It is important to recognize that not all I/O operations are blocking and need to execute on dedicated thread pool.
+For instance we can have HTTP requests using non-blocking client such as http4s with Blaze, which
+uses non-blocking network I/O and is free to execute on a &quot;normal&quot; pool.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/cats-effect/docs/concurrency/overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/cats-effect/docs/concurrency/deferred"><span>Deferred</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#introduction">Introduction</a></li><li><a href="#dictionary">Dictionary</a><ul class="toc-headings"><li><a href="#parallelism">Parallelism</a></li><li><a href="#concurrency">Concurrency</a></li><li><a href="#cpu-bound-task">CPU-bound task</a></li><li><a href="#io-bound-task">IO-bound task</a></li><li><a href="#non-terminating-task">Non-terminating task</a></li></ul></li><li><a href="#threads">Threads</a><ul class="toc-headings"><li><a href="#threading-on-jvm">Threading (on JVM)</a></li><li><a href="#thread-pools">Thread Pools</a></li><li><a href="#choosing-thread-pool">Choosing Thread Pool</a></li><li><a href="#blocking-threads">Blocking Threads</a></li><li><a href="#green-threads">Green Threads</a></li></ul></li><li><a href="#thread-scheduling">Thread Scheduling</a></li><li><a href="#asynchronous--semantic-blocking">Asynchronous / Semantic blocking</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="sitemap"><a href="/cats-effect/" class="nav-home"><img src="/cats-effect/img/favicon.png" alt="Cats Effect" width="66" height="58"/></a><div><h5>Docs</h5><a href="/cats-effect/docs/en/installation">Getting Started</a></div><div><h5>Community</h5><a href="https://typelevel.org/blog/">Blog</a><a href="https://gitter.im/typelevel/cats-effect">Gitter</a></div><div><h5>More</h5><a class="github-button" href="https://github.com/typelevel/cats-effect" data-icon="octicon-star" data-count-href="/typelevel/cats-effect/stargazers" data-show-count="true" data-count-aria-label="# stargazers on GitHub" aria-label="Star this project on GitHub">Star</a><div class="social"><a href="https://twitter.com/typelevel" class="twitter-follow-button">Follow @typelevel</a></div></div></section><section class="copyright">Copyright (c) 2017-2020 The Typelevel Project Developers</section></footer></div><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script></body></html>
