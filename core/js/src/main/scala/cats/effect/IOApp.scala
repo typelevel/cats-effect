@@ -19,11 +19,6 @@ package cats.effect
 import scala.concurrent.duration._
 import scala.scalajs.js
 
-trait IOMinApp extends IOApp {
-  def run: IO[Unit]
-  final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
-}
-
 trait IOApp {
 
   def run(args: List[String]): IO[ExitCode]
@@ -61,4 +56,13 @@ trait IOApp {
     if (js.typeOf(js.Dynamic.global.process) != "undefined") {
       js.Dynamic.global.process.exitCode = code.code
     }
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
 }

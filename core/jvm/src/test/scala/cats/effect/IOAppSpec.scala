@@ -107,7 +107,7 @@ class IOAppSpec extends Specification {
 
 package examples {
 
-  object HelloWorld extends IOMinApp {
+  object HelloWorld extends IOApp.Simple {
     def run: IO[Unit] =
       IO(println("Hello, World!"))
   }

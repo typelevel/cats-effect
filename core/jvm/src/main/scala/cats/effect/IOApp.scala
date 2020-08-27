@@ -18,11 +18,6 @@ package cats.effect
 
 import java.util.concurrent.CountDownLatch
 
-trait IOMinApp extends IOApp {
-  def run: IO[Unit]
-  final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
-}
-
 trait IOApp {
 
   def run(args: List[String]): IO[ExitCode]
@@ -72,4 +67,13 @@ trait IOApp {
         Thread.currentThread().interrupt()
     }
   }
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
 }

@@ -17,7 +17,7 @@
 package cats.effect
 package example
 
-object Example extends IOMinApp {
+object Example extends IOApp.Simple {
 
   def run: IO[Unit] =
     (IO(println("started")) >> IO.never).onCancel(IO(println("canceled")))
