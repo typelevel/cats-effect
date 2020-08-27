@@ -293,46 +293,6 @@ lazy val benchmarksNext = project
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
-lazy val docsMappingsAPIDir =
-  settingKey[String]("Name of subdirectory in site target directory for api docs")
-
-lazy val siteSettings = Seq(
-  micrositeName := "Cats Effect",
-  micrositeDescription := "The IO Monad for Scala",
-  micrositeAuthor := "Cats Effect contributors",
-  micrositeGithubOwner := "typelevel",
-  micrositeGithubRepo := "cats-effect",
-  micrositeBaseUrl := "/cats-effect",
-  micrositeTwitterCreator := "@typelevel",
-  micrositeDocumentationUrl := "https://typelevel.org/cats-effect/api/",
-  micrositeFooterText := None,
-  micrositeHighlightTheme := "atom-one-light",
-  micrositePalette := Map(
-    "brand-primary" -> "#3e5b95",
-    "brand-secondary" -> "#294066",
-    "brand-tertiary" -> "#2d5799",
-    "gray-dark" -> "#49494B",
-    "gray" -> "#7B7B7E",
-    "gray-light" -> "#E5E5E6",
-    "gray-lighter" -> "#F4F3F4",
-    "white-color" -> "#FFFFFF"
-  ),
-  micrositeExtraMdFiles := Map(
-    file("README.md") -> ExtraMdFileConfig(
-      "index.md",
-      "home",
-      Map("permalink" -> "/", "title" -> "Home", "section" -> "home", "position" -> "0")
-    )
-  ),
-  micrositeConfigYaml := ConfigYml(
-    yamlPath = Some((resourceDirectory in Compile).value / "microsite" / "_config.yml")
-  ),
-  micrositeCompilingDocsTool := WithMdoc,
-  mdocIn := (sourceDirectory in Compile).value / "mdoc",
-  docsMappingsAPIDir := "api",
-  addMappingsToSiteDir(mappings in packageDoc in Compile in coreJVM, docsMappingsAPIDir)
-)
-
 lazy val docs = project
   .in(file("site-docs"))
   .enablePlugins(MdocPlugin)
