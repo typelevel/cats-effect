@@ -107,14 +107,14 @@ class IOAppSpec extends Specification {
 
 package examples {
 
-  object HelloWorld extends IOApp {
-    def run(args: List[String]): IO[Int] =
-      IO(println("Hello, World!")).as(0)
+  object HelloWorld extends IOApp.Simple {
+    def run: IO[Unit] =
+      IO(println("Hello, World!"))
   }
 
   object Arguments extends IOApp {
-    def run(args: List[String]): IO[Int] =
-      args.traverse(s => IO(println(s))).as(0)
+    def run(args: List[String]): IO[ExitCode] =
+      args.traverse_(s => IO(println(s))).as(ExitCode.Success)
   }
 
   object Finalizers extends IOApp {
@@ -124,9 +124,9 @@ package examples {
       IO(new FileWriter(file)).bracket { writer => IO(writer.write(string)) }(writer =>
         IO(writer.close()))
 
-    def run(args: List[String]): IO[Int] =
+    def run(args: List[String]): IO[ExitCode] =
       (IO(println("Started")) >> IO.never)
         .onCancel(writeToFile("canceled", new File(args.head)))
-        .as(0)
+        .as(ExitCode.Success)
   }
 }

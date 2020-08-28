@@ -21,7 +21,7 @@ import scala.scalajs.js
 
 trait IOApp {
 
-  def run(args: List[String]): IO[Int]
+  def run(args: List[String]): IO[ExitCode]
 
   protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
 
@@ -52,8 +52,17 @@ trait IOApp {
       })(unsafe.IORuntime.global)
   }
 
-  private[this] def reportExitCode(code: Int): Unit =
+  private[this] def reportExitCode(code: ExitCode): Unit =
     if (js.typeOf(js.Dynamic.global.process) != "undefined") {
-      js.Dynamic.global.process.exitCode = code
+      js.Dynamic.global.process.exitCode = code.code
     }
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
 }

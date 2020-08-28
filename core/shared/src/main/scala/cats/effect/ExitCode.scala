@@ -15,10 +15,24 @@
  */
 
 package cats.effect
-package example
 
-object Example extends IOApp.Simple {
+/**
+ * Represents the exit code of an application.
+ *
+ * `code` is constrained to a range from 0 to 255, inclusive.
+ */
+sealed abstract case class ExitCode private (code: Int)
 
-  def run: IO[Unit] =
-    (IO(println("started")) >> IO.never).onCancel(IO(println("canceled")))
+object ExitCode {
+
+  /**
+   * Creates an `ExitCode`.
+   *
+   * @param i the value whose 8 least significant bits are used to
+   * construct an exit code within the valid range.
+   */
+  def apply(i: Int): ExitCode = new ExitCode(i & 0xff) {}
+
+  val Success: ExitCode = ExitCode(0)
+  val Error: ExitCode = ExitCode(1)
 }
