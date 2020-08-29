@@ -31,7 +31,7 @@ val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
 
-ThisBuild / crossScalaVersions := Seq("0.25.0", "0.26.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", "2.12.12", "2.13.3")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -149,7 +149,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
       "org.scalacheck" %%% "scalacheck" % "1.14.3"))
   .settings(dottyLibrarySettings)
   .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.7.0")
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.7.1")
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
