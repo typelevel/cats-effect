@@ -91,6 +91,7 @@ object Deferred {
    * If you want to share one, pass it as an argument and `flatMap`
    * once.
    */
+  // TODO: What should this signature change to?
   def apply[F[_], A](implicit mk: Mk[F]): F[Deferred[F, A]] =
     mk.deferred[A]
 
