@@ -17,7 +17,7 @@
 package cats.effect
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
-import concurrent.Deferred
+import cats.effect.kernel.Deferred
 import cats.implicits._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import org.specs2.mutable.Specification
@@ -89,7 +89,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
         } yield ()
 
       val task = for {
-        df <- cats.effect.concurrent.Deferred[IO, Unit]
+        df <- Deferred[IO, Unit]
         fb <- get(df).start
         _ <- IO(Thread.currentThread().getName mustEqual name)
         _ <- df.complete(())
@@ -112,7 +112,7 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
 
       try {
         val task = for {
-          df <- cats.effect.concurrent.Deferred[IO, Unit]
+          df <- Deferred[IO, Unit]
           latch <- Deferred[IO, Unit]
           fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
           _ <- latch.get

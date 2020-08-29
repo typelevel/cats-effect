@@ -30,6 +30,7 @@ import cats.{
 }
 import cats.implicits._
 import cats.effect.implicits._
+import cats.effect.kernel.{Deferred, Ref}
 
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{ExecutionContext, Future, Promise, TimeoutException}
@@ -613,6 +614,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def redeemWith[A, B](
         fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
       fa.redeemWith(recover, bind)
+
+    override def ref[A](a: A): IO[Ref[IO, A]] = Ref.of(a)
+
+    override def deferred[A]: IO[Deferred[IO, A]] = Deferred[IO, A]
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO

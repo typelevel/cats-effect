@@ -23,7 +23,7 @@ trait Allocate[F[_], E] extends Concurrent[F, E] {
 
   def ref[A](a: A): F[Ref[F, A]]
 
-  def deferred[A](a: A): F[Deferred[F, A]]
+  def deferred[A]: F[Deferred[F, A]]
 
 }
 
@@ -72,9 +72,11 @@ object Allocate {
       with Concurrent.OptionTConcurrent[F, E] {
     implicit protected def F: Allocate[F, E]
 
-    override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] = ???
+    override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
+      OptionT.liftF(F.map(F.ref(a))(_.mapK(OptionT.liftK)))
 
-    override def deferred[A](a: A): OptionT[F, Deferred[OptionT[F, *], A]] = ???
+    override def deferred[A]: OptionT[F, Deferred[OptionT[F, *], A]] =
+      OptionT.liftF(F.map(F.deferred[A])(_.mapK(OptionT.liftK)))
   }
 
   private[kernel] trait EitherTAllocate[F[_], E0, E]
@@ -82,9 +84,11 @@ object Allocate {
       with Concurrent.EitherTConcurrent[F, E0, E] {
     implicit protected def F: Allocate[F, E]
 
-    override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] = ???
+    override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
+      EitherT.liftF(F.map(F.ref(a))(_.mapK(EitherT.liftK)))
 
-    override def deferred[A](a: A): EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] = ???
+    override def deferred[A]: EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] =
+      EitherT.liftF(F.map(F.deferred[A])(_.mapK(EitherT.liftK)))
   }
 
   private[kernel] trait KleisliAllocate[F[_], R, E]
@@ -92,9 +96,11 @@ object Allocate {
       with Concurrent.KleisliConcurrent[F, R, E] {
     implicit protected def F: Allocate[F, E]
 
-    override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] = ???
+    override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
+      Kleisli.liftF(F.map(F.ref(a))(_.mapK(Kleisli.liftK)))
 
-    override def deferred[A](a: A): Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] = ???
+    override def deferred[A]: Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] =
+      Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
   }
 
   private[kernel] trait IorTAllocate[F[_], L, E]
@@ -104,22 +110,26 @@ object Allocate {
 
     implicit protected def L: Semigroup[L]
 
-    override def ref[A](a: A): IorT[F, L, Ref[IorT[F, L, *], A]] = ???
+    override def ref[A](a: A): IorT[F, L, Ref[IorT[F, L, *], A]] =
+      IorT.liftF(F.map(F.ref(a))(_.mapK(IorT.liftK)))
 
-    override def deferred[A](a: A): IorT[F, L, Deferred[IorT[F, L, *], A]] = ???
+    override def deferred[A]: IorT[F, L, Deferred[IorT[F, L, *], A]] =
+      IorT.liftF(F.map(F.deferred[A])(_.mapK(IorT.liftK)))
   }
 
   private[kernel] trait WriterTAllocate[F[_], L, E]
       extends Allocate[WriterT[F, L, *], E]
       with Concurrent.WriterTConcurrent[F, L, E] {
 
-    protected def F: Allocate[F, E]
+    implicit protected def F: Allocate[F, E]
 
-    protected def L: Monoid[L]
+    implicit protected def L: Monoid[L]
 
-    override def ref[A](a: A): WriterT[F, L, Ref[WriterT[F, L, *], A]] = ???
+    override def ref[A](a: A): WriterT[F, L, Ref[WriterT[F, L, *], A]] =
+      WriterT.liftF(F.map(F.ref(a))(_.mapK(WriterT.liftK)))
 
-    override def deferred[A](a: A): WriterT[F, L, Deferred[WriterT[F, L, *], A]] = ???
+    override def deferred[A]: WriterT[F, L, Deferred[WriterT[F, L, *], A]] =
+      WriterT.liftF(F.map(F.deferred[A])(_.mapK(WriterT.liftK)))
   }
 
 }
