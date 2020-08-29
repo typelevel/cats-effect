@@ -5,7 +5,7 @@ const siteConfig = {
   title: 'Cats Effect', // Title for your website.
   tagline: 'The purely functional runtime system for Scala',
   url: 'https://typelevel.org', // Your website URL
-  baseUrl: '/',
+  baseUrl: '/cats-effect/',
   repoUrl: 'https://github.com/typelevel/cats-effect',
   projectName: 'cats-effect',
   githubHost: 'github.com',
@@ -18,7 +18,7 @@ const siteConfig = {
   headerLinks: [
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
-    {href: `/api/index.html`, label: 'API'}
+    {href: `/cats-effect/api/index.html`, label: 'API'}
   ],
 
   /* path to images for header/footer */
