@@ -16,13 +16,12 @@
 
 package cats
 package effect
-package concurrent
-
-import cats.effect.concurrent.Deferred.TransformedDeferred
-import cats.effect.kernel.{Async, Sync}
-import cats.syntax.all._
+package kernel
 
 import java.util.concurrent.atomic.AtomicReference
+
+import cats.effect.kernel.Deferred.TransformedDeferred
+import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.collection.immutable.LongMap
@@ -236,7 +235,7 @@ object Deferred {
     }
   }
 
-  final private class TransformedDeferred[F[_], G[_], A](
+  final private[kernel] class TransformedDeferred[F[_], G[_], A](
       underlying: Deferred[F, A],
       trans: F ~> G)
       extends Deferred[G, A] {

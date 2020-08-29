@@ -18,13 +18,12 @@ package cats.effect
 
 import cats._
 import cats.data.AndThen
-import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.effect.implicits._
 
 import scala.annotation.tailrec
-
 import Resource.ExitCase
+import cats.effect.kernel.Ref
 
 /**
  * The `Resource` is a data structure that captures the effectful
