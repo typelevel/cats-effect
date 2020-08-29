@@ -5,7 +5,7 @@ const siteConfig = {
   title: 'Cats Effect', // Title for your website.
   tagline: 'The purely functional runtime system for Scala',
   url: 'https://typelevel.org', // Your website URL
-  baseUrl: '/cats-effect/',
+  baseUrl: '/',
   repoUrl: 'https://github.com/typelevel/cats-effect',
   projectName: 'cats-effect',
   githubHost: 'github.com',
@@ -18,7 +18,7 @@ const siteConfig = {
   headerLinks: [
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
-    {href: `/cats-effect/api/index.html`, label: 'API'}
+    {href: `/api/index.html`, label: 'API'}
   ],
 
   /* path to images for header/footer */
@@ -47,11 +47,11 @@ const siteConfig = {
   */
 
   // This copyright info is used in /core/Footer.js and blog RSS/Atom feeds.
-  copyright: `Copyright (c) 2017-2020 The Typelevel Project Developers`,
+  copyright: `Copyright (c) 2017-2020 Typelevel`,
 
   highlight: {
     // Highlight.js theme to use for syntax highlighting in code blocks.
-    theme: 'darcula',
+    theme: 'github gist',
   },
 
   // Add custom scripts here that would be placed in <script> tags.
