@@ -110,8 +110,9 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit mk: Mk[F]): F[Semaphore[F]] =
-    mk.semaphore(n)
+  def apply[F[_]](n: Long)(implicit F: Allocate[F, Throwable]): F[Semaphore[F]] =
+    assertNonNegative[F](n) *>
+      F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
 
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
@@ -127,6 +128,7 @@ object Semaphore {
   object MkIn {
     implicit def instance[F[_], G[_]](
         implicit mkRef: Ref.MkIn[F, G],
+        mkDeferred: Deferred.Mk[G],
         F: ApplicativeError[F, Throwable],
         G: Allocate[G, Throwable]): MkIn[F, G] =
       new MkIn[F, G] {
