@@ -54,6 +54,7 @@ jobs:
         run: ./build.sh
 
       - name: Publish
+        if: github.event_name != 'pull_request'
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
