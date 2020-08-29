@@ -1,4 +1,11 @@
+# TODO these will ultimately use commit references rather than branches for reproducibility
+
 [submodule "versions/2.x"]
 	path = versions/2.x
 	url = git@github.com:typelevel/cats-effect.git
 	branch = 2.x-docs
+
+[submodule "versions/3.x"]
+	path = versions/3.x
+	url = git@github.com:typelevel/cats-effect.git
+	branch = series/3.x

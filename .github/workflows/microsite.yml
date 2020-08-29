@@ -1,5 +1,4 @@
-
-name: Continuous Integration
+name: Microsite
 
 on:
 #  pull_request:
@@ -9,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Generate docs
+    name: Generate Microsite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout current branch (fast)
@@ -17,12 +16,13 @@ jobs:
         with:
           submodules: true
 
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
+      - name: Install Java and Scala
+        uses: olafurpg/setup-scala@v5
         with:
-          java-version: 1.8
+          java-version: adopt@1.8
 
-      - uses: actions/setup-node@v1
+      - name: Install NodeJS 12
+        uses: actions/setup-node@v1
         with:
           node-version: '12'
 

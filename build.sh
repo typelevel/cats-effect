@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euxo pipefail
 
@@ -11,7 +11,8 @@ rm -rf ./docs
 (cd website && yarn install)
 
 # Generate scaladoc and mdoc from each submodule
-(cd versions/2.x && sbt "; clean; doc; docs/clean; docs/mdoc")
+(cd versions/2.x && sbt clean doc docs/mdoc)
+# (cd versions/3.x && sbt clean doc docs/mdoc)
 
 # Create Docusaurus directories
 mkdir -p ./website/versioned_sidebars
