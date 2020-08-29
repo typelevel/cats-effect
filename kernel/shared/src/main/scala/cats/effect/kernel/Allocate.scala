@@ -32,26 +32,26 @@ object Allocate {
   def apply[F[_]](implicit F: Allocate[F, _], d: DummyImplicit): F.type = F
 
   implicit def allocateForOptionT[F[_], E](
-                                            implicit F0: Allocate[F, E]): Allocate[OptionT[F, *], E] =
+      implicit F0: Allocate[F, E]): Allocate[OptionT[F, *], E] =
     new OptionTAllocate[F, E] {
       override implicit protected def F: Allocate[F, E] = F0
     }
 
   implicit def allocateForEitherT[F[_], E0, E](
-                                                implicit F0: Allocate[F, E]): Allocate[EitherT[F, E0, *], E] =
+      implicit F0: Allocate[F, E]): Allocate[EitherT[F, E0, *], E] =
     new EitherTAllocate[F, E0, E] {
       override implicit protected def F: Allocate[F, E] = F0
     }
 
   implicit def allocateForKleisli[F[_], R, E](
-                                               implicit F0: Allocate[F, E]): Allocate[Kleisli[F, R, *], E] =
+      implicit F0: Allocate[F, E]): Allocate[Kleisli[F, R, *], E] =
     new KleisliAllocate[F, R, E] {
       override implicit protected def F: Allocate[F, E] = F0
     }
 
   implicit def allocateForIorT[F[_], L, E](
-                                            implicit F0: Allocate[F, E],
-                                            L0: Semigroup[L]): Allocate[IorT[F, L, *], E] =
+      implicit F0: Allocate[F, E],
+      L0: Semigroup[L]): Allocate[IorT[F, L, *], E] =
     new IorTAllocate[F, L, E] {
       override implicit protected def F: Allocate[F, E] = F0
 
@@ -59,15 +59,17 @@ object Allocate {
     }
 
   implicit def allocateForWriterT[F[_], L, E](
-                                               implicit F0: Allocate[F, E],
-                                               L0: Monoid[L]): Allocate[WriterT[F, L, *], E] =
+      implicit F0: Allocate[F, E],
+      L0: Monoid[L]): Allocate[WriterT[F, L, *], E] =
     new WriterTAllocate[F, L, E] {
       override implicit protected def F: Allocate[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
-    
-  private[kernel] trait OptionTAllocate[F[_], E] extends Allocate[OptionT[F, *], E] with Concurrent.OptionTConcurrent[F, E] {
+
+  private[kernel] trait OptionTAllocate[F[_], E]
+      extends Allocate[OptionT[F, *], E]
+      with Concurrent.OptionTConcurrent[F, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] = ???
@@ -75,7 +77,9 @@ object Allocate {
     override def deferred[A](a: A): OptionT[F, Deferred[OptionT[F, *], A]] = ???
   }
 
-  private[kernel] trait EitherTAllocate[F[_], E0, E] extends Allocate[EitherT[F, E0, *], E] with Concurrent.EitherTConcurrent[F, E0, E] {
+  private[kernel] trait EitherTAllocate[F[_], E0, E]
+      extends Allocate[EitherT[F, E0, *], E]
+      with Concurrent.EitherTConcurrent[F, E0, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] = ???
@@ -83,7 +87,9 @@ object Allocate {
     override def deferred[A](a: A): EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] = ???
   }
 
-  private[kernel] trait KleisliAllocate[F[_], R, E] extends Allocate[Kleisli[F, R, *], E] with Concurrent.KleisliConcurrent[F, R, E] {
+  private[kernel] trait KleisliAllocate[F[_], R, E]
+      extends Allocate[Kleisli[F, R, *], E]
+      with Concurrent.KleisliConcurrent[F, R, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] = ???
@@ -91,7 +97,9 @@ object Allocate {
     override def deferred[A](a: A): Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] = ???
   }
 
-  private[kernel] trait IorTAllocate[F[_], L, E] extends Allocate[IorT[F, L, *], E] with Concurrent.IorTConcurrent[F, L, E] {
+  private[kernel] trait IorTAllocate[F[_], L, E]
+      extends Allocate[IorT[F, L, *], E]
+      with Concurrent.IorTConcurrent[F, L, E] {
     implicit protected def F: Allocate[F, E]
 
     implicit protected def L: Semigroup[L]
@@ -101,7 +109,9 @@ object Allocate {
     override def deferred[A](a: A): IorT[F, L, Deferred[IorT[F, L, *], A]] = ???
   }
 
-  private[kernel] trait WriterTAllocate[F[_], L, E] extends Allocate[WriterT[F, L, *], E] with Concurrent.WriterTConcurrent[F, L, E] {
+  private[kernel] trait WriterTAllocate[F[_], L, E]
+      extends Allocate[WriterT[F, L, *], E]
+      with Concurrent.WriterTConcurrent[F, L, E] {
 
     protected def F: Allocate[F, E]
 
