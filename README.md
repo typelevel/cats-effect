@@ -43,9 +43,22 @@ At the present time, ce3 is cross-built for Scala 2.12 and 2.13, and Dotty 0.25.
 ```scala
 import cats.effect._
 
+object Main extends IOApp.Simple {
+  val run = IO(println("Hello, World!"))
+}
+```
+
+Or, if you need the ability to take arguments and return exit codes:
+
+```scala
+import cats.effect._
+
 object Main extends IOApp {
-  def run(args: List[String]): IO[Int] =
-    IO(println("Hello, World!")).as(0)
+  def run(args: List[String]): IO[ExitCode] =
+    if (args.headOption.map(_ == "--do-it").getOrElse(false))
+      IO(println("I did it!")).as(ExitCode.Success)
+    else
+      IO(println("Didn't do it")).as(ExitCode(-1))
 }
 ```
 
