@@ -36,7 +36,7 @@ libraryDependencies += "org.typelevel" %%% "cats-effect-testkit" % "3.0-d2cb13e"
 
 Please note that there are no particular guarantees about binary compatibility until we get to a final release, or at the *very least* a release candidate. **Please do not put this into production yet.**
 
-At the present time, ce3 is cross-built for Scala 2.12 and 2.13, and Dotty 0.25.0 and 0.26.0-RC1. ScalaJS cross-builds are available for Scala 2.12 and 2.13.
+At the present time, ce3 is cross-built for Scala 2.12 and 2.13, and Dotty 0.26.0 and 0.27.0-RC1. ScalaJS cross-builds are available for Scala 2.12 and 2.13.
 
 ### Hello, World
 
