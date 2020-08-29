@@ -615,9 +615,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         fa: IO[A])(recover: Throwable => IO[B], bind: A => IO[B]): IO[B] =
       fa.redeemWith(recover, bind)
 
-    override def ref[A](a: A): IO[Ref[IO, A]] = Ref.of(a)
+    override def ref[A](a: A): IO[Ref[IO, A]] = IO(Ref.unsafe(a))
 
-    override def deferred[A]: IO[Deferred[IO, A]] = Deferred[IO, A]
+    override def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO

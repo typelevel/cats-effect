@@ -91,9 +91,8 @@ object Deferred {
    * If you want to share one, pass it as an argument and `flatMap`
    * once.
    */
-  // TODO: What should this signature change to?
-  def apply[F[_], A](implicit mk: Mk[F]): F[Deferred[F, A]] =
-    mk.deferred[A]
+  def apply[F[_], A](implicit F: Allocate[F, _]): F[Deferred[F, A]] =
+    F.deferred[A]
 
   /**
    * Like `apply` but returns the newly allocated Deferred directly
@@ -132,7 +131,7 @@ object Deferred {
     val dummyId = 0L
   }
 
-  final private class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
+  final class AsyncDeferred[F[_], A](implicit F: Async[F]) extends Deferred[F, A] {
     // shared mutable state
     private[this] val ref = new AtomicReference[State[A]](
       State.Unset(LongMap.empty, State.initialId)

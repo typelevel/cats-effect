@@ -174,7 +174,7 @@ object Ref {
    *   } yield ten
    * }}}
    */
-  def of[F[_], A](a: A)(implicit mk: Mk[F]): F[Ref[F, A]] = mk.refOf(a)
+  def of[F[_], A](a: A)(implicit F: Allocate[F, _]): F[Ref[F, A]] = F.ref(a)
 
   /**
    *  Builds a `Ref` value for data types that are [[Sync]]
