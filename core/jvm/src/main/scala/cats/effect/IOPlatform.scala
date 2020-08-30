@@ -27,12 +27,25 @@ abstract private[effect] class IOPlatform[+A] { self: IO[A] =>
     unsafeRunTimed(Long.MaxValue.nanos).get
 
   final def unsafeRunTimed(limit: FiniteDuration)(
+      implicit runtime: unsafe.IORuntime): Option[A] =
+    unsafeRunTimedInternal(limit, true)
+
+  /**
+   * Only used in benchmarks for skipping the initial shift to the work stealing thread pool.
+   *
+   * The visibility of this method is unfortunate as it needs to be exposed to the benchmarks
+   * subproject. It should not be used anywhere else.
+   */
+  private[effect] final def unsafeRunSyncBenchmark()(implicit runtime: unsafe.IORuntime): A =
+    unsafeRunTimedInternal(Long.MaxValue.nanos, false).get
+
+  private final def unsafeRunTimedInternal(limit: FiniteDuration, shift: Boolean)(
       implicit runtime: unsafe.IORuntime): Option[A] = {
     @volatile
     var results: Either[Throwable, A] = null
     val latch = new CountDownLatch(1)
 
-    unsafeRunFiber(false) { e =>
+    unsafeRunFiber(shift) { e =>
       results = e
       latch.countDown()
     }
