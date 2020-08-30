@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+cmd="${1:-build}"
+
 rm -rf ./website/versions.json
 rm -rf ./website/versioned_sidebars
 rm -rf ./website/versioned_docs
@@ -22,7 +24,7 @@ mv ./versions/2.x/site-docs/target/mdoc ./docs
 cp ./versions/2.x/site-docs/sidebars.json ./website/sidebars.json
 (cd website && yarn run version 2.x)
 
-if [[ "${1+build}" == "host" ]]; then
+if [[ "$cmd" == "host" ]]; then
   (cd website && yarn start)
 else
   (cd website && yarn build)
