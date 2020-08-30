@@ -34,7 +34,7 @@ object PureConcGenerators {
 
       val cogenE: Cogen[E] = Cogen[E]
 
-      val F: Concurrent[PureConc[E, *], E] = concurrentForPureConc[E]
+      val F: Concurrent[PureConc[E, *], E] = allocateForPureConc[E]
 
       def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[E, *], E, A]] =
         OutcomeGenerators.cogenOutcome[PureConc[E, *], E, A]
