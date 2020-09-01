@@ -19,11 +19,13 @@ package cats.effect
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import cats.effect.kernel.Deferred
 import cats.implicits._
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.atomic.AtomicLong
+// import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import org.specs2.mutable.Specification
 import org.specs2.specification.BeforeAfterEach
 import scala.concurrent.duration._
-import scala.concurrent.{CancellationException, ExecutionContext}
+import scala.concurrent.ExecutionContext
+// import scala.concurrent.{CancellationException, ExecutionContext}
 import cats.effect.unsafe.IORuntime
 
 class DeferredJVMParallelism1Tests extends BaseDeferredJVMTests(1)
@@ -103,31 +105,31 @@ abstract class BaseDeferredJVMTests(parallelism: Int)
     success
   }
 
-  "Deferred — issue #380: with foreverM" in {
-    for (_ <- 0 until iterations) {
-      val cancelLoop = new AtomicBoolean(false)
-      val unit = IO {
-        if (cancelLoop.get()) throw new CancellationException
-      }
+  // "Deferred — issue #380: with foreverM" in {
+  //   for (_ <- 0 until iterations) {
+  //     val cancelLoop = new AtomicBoolean(false)
+  //     val unit = IO {
+  //       if (cancelLoop.get()) throw new CancellationException
+  //     }
 
-      try {
-        val task = for {
-          df <- Deferred[IO, Unit]
-          latch <- Deferred[IO, Unit]
-          fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
-          _ <- latch.get
-          _ <- cleanupOnError(df.complete(()).timeout(timeout), fb)
-          _ <- fb.cancel
-        } yield ()
+  //     try {
+  //       val task = for {
+  //         df <- Deferred[IO, Unit]
+  //         latch <- Deferred[IO, Unit]
+  //         fb <- (latch.complete(()) *> df.get *> unit.foreverM).start
+  //         _ <- latch.get
+  //         _ <- cleanupOnError(df.complete(()).timeout(timeout), fb)
+  //         _ <- fb.cancel
+  //       } yield ()
 
-        task.unsafeRunTimed(timeout).nonEmpty must beTrue
-      } finally {
-        cancelLoop.set(true)
-      }
-    }
+  //       task.unsafeRunTimed(timeout).nonEmpty must beTrue
+  //     } finally {
+  //       cancelLoop.set(true)
+  //     }
+  //   }
 
-    success
-  }
+  //   success
+  // }
 
   "Deferred — issue #380: with cooperative light async boundaries" in {
     def run = {

@@ -707,7 +707,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: F ~> F) extends IO[A] {
+  private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
     def tag = -1
   }
 }

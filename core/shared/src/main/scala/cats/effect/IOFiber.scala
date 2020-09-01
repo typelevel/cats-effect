@@ -16,6 +16,7 @@
 
 package cats.effect
 
+import cats.effect.unsafe.WorkStealingThreadPool
 import cats.implicits._
 
 import scala.annotation.{switch, tailrec}
@@ -501,7 +502,7 @@ private final class IOFiber[A](
 
           // println(s"<$name> spawning <$childName>")
 
-          execute(ec)(fiber)
+          reschedule(ec)(fiber)
 
           runLoop(succeeded(fiber, 0), nextIteration)
 
@@ -537,8 +538,8 @@ private final class IOFiber[A](
                   fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
                   fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
-                  execute(ec)(fiberA)
-                  execute(ec)(fiberB)
+                  reschedule(ec)(fiberA)
+                  reschedule(ec)(fiberB)
 
                   Some(fiberA.cancel.both(fiberB.cancel).void)
                 }
@@ -570,7 +571,7 @@ private final class IOFiber[A](
         case 18 =>
           resumeTag = CedeR
           resumeNextIteration = nextIteration
-          currentCtx.execute(this)
+          reschedule(currentCtx)(this)
 
         case 19 =>
           val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
@@ -682,14 +683,36 @@ private final class IOFiber[A](
     }
   }
 
-  private[this] def execute(ec: ExecutionContext)(action: Runnable): Unit = {
+  private[this] def execute(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
     readBarrier()
 
-    try {
-      ec.execute(action)
-    } catch {
-      case _: RejectedExecutionException =>
-        () // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
+    if (ec.isInstanceOf[WorkStealingThreadPool]) {
+      ec.asInstanceOf[WorkStealingThreadPool].executeFiber(fiber)
+    } else {
+      try {
+        ec.execute(fiber)
+      } catch {
+        case _: RejectedExecutionException =>
+        // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
+      }
+    }
+  }
+
+  private[this] def reschedule(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+    readBarrier()
+    rescheduleNoBarrier(ec)(fiber)
+  }
+
+  private[this] def rescheduleNoBarrier(ec: ExecutionContext)(fiber: IOFiber[_]): Unit = {
+    if (ec.isInstanceOf[WorkStealingThreadPool]) {
+      ec.asInstanceOf[WorkStealingThreadPool].rescheduleFiber(fiber)
+    } else {
+      try {
+        ec.execute(fiber)
+      } catch {
+        case _: RejectedExecutionException =>
+        // swallow this exception, since it means we're being externally murdered, so we should just... drop the runloop
+      }
     }
   }
 
@@ -767,12 +790,11 @@ private final class IOFiber[A](
     if (error == null) {
       resumeTag = AfterBlockingSuccessfulR
       afterBlockingSuccessfulResult = r
-      currentCtx.execute(this)
     } else {
       resumeTag = AfterBlockingFailedR
       afterBlockingFailedError = error
-      currentCtx.execute(this)
     }
+    currentCtx.execute(this)
   }
 
   private[this] def afterBlockingSuccessfulR(): Unit = {

@@ -664,11 +664,11 @@ abstract private[effect] class ResourceMonadError[F[_], E]
           case Left(error) => (Left(error), (_: ExitCase) => F.unit)
           case Right((a, release)) => (Right(a), release)
         })
-      case Bind(source: Resource[F, Any], fs: (Any => Resource[F, A])) =>
+      case Bind(source: Resource[F, s], fs) =>
         Suspend(F.pure(source).map[Resource[F, Either[E, A]]] { source =>
           Bind(
             attempt(source),
-            (r: Either[E, Any]) =>
+            (r: Either[E, s]) =>
               r match {
                 case Left(error) => Resource.pure[F, Either[E, A]](Left(error))
                 case Right(s) => attempt(fs(s))
