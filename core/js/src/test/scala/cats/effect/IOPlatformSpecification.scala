@@ -26,9 +26,13 @@ import org.specs2.mutable.Specification
 abstract class IOPlatformSpecification extends Specification with ScalaCheck with Runners {
 
   def platformSpecs =
-    "round trip through js.Promise" in ticked { implicit ticker =>
-      forAll { (ioa: IO[Int]) =>
-        ioa.eqv(IO.fromPromise(IO(ioa.unsafeToPromise())))
-      }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+    "platform" should {
+
+      "round trip through js.Promise" in ticked { implicit ticker =>
+        forAll { (ioa: IO[Int]) =>
+          ioa.eqv(IO.fromPromise(IO(ioa.unsafeToPromise())))
+        }.pendingUntilFixed // "callback scheduling gets in the way here since Promise doesn't use TestContext"
+      }
+
     }
 }
