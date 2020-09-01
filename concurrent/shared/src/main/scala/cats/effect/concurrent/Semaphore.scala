@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{Allocate, Concurrent, Deferred, Outcome, Ref}
+import cats.effect.kernel.{Allocate, Concurrent, Outcome}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
