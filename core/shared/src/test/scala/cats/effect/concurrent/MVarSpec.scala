@@ -17,7 +17,6 @@
 package cats.effect
 package concurrent
 
-import cats.effect.kernel.Deferred
 import cats.effect.kernel.Outcome._
 import cats.implicits._
 

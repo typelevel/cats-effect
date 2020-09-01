@@ -20,7 +20,6 @@ package concurrent
 
 import cats.{Eq, Show}
 import cats.data.State
-import cats.effect.kernel.Ref
 import cats.implicits._
 
 import scala.concurrent.duration._

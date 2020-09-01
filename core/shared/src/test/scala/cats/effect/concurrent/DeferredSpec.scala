@@ -19,7 +19,6 @@ package effect
 package concurrent
 
 import cats.implicits._
-import cats.effect.kernel.{Deferred, Ref}
 
 import scala.concurrent.duration._
 
