@@ -54,7 +54,7 @@ class RedeemWithBenchmark {
       if (i < size) IO.pure(i + 1).redeemWith(recover, loop)
       else IO.pure(i)
 
-    loop(0).unsafeRunSync()
+    loop(0).unsafeRunSyncBenchmark()
   }
 
   @Benchmark
@@ -69,6 +69,6 @@ class RedeemWithBenchmark {
       else
         IO.pure(i)
 
-    loop(0).unsafeRunSync()
+    loop(0).unsafeRunSyncBenchmark()
   }
 }

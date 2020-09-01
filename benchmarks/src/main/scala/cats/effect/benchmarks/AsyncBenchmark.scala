@@ -64,7 +64,7 @@ class AsyncBenchmark {
       if (i < size) evalAsync(i + 1).flatMap(loop)
       else evalAsync(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 
   @Benchmark
@@ -73,7 +73,7 @@ class AsyncBenchmark {
       if (i < size) evalCancelable(i + 1).flatMap(loop)
       else evalCancelable(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 
   // TODO
@@ -125,7 +125,7 @@ class AsyncBenchmark {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 
   @Benchmark
@@ -136,6 +136,6 @@ class AsyncBenchmark {
       else
         IO.pure(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 }
