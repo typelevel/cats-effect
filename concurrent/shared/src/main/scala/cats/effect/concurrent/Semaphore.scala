@@ -128,7 +128,6 @@ object Semaphore {
   object MkIn {
     implicit def instance[F[_], G[_]](
         implicit mkRef: Ref.MkIn[F, G],
-        mkDeferred: Deferred.Mk[G],
         F: ApplicativeError[F, Throwable],
         G: Allocate[G, Throwable]): MkIn[F, G] =
       new MkIn[F, G] {
