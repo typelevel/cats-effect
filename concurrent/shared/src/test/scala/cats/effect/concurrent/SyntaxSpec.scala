@@ -16,7 +16,7 @@
 
 package cats.effect.concurrent
 
-import cats.effect.kernel.{Async, Concurrent}
+import cats.effect.kernel.{Async, Allocate}
 import org.specs2.mutable.Specification
 
 class SyntaxSpec extends Specification {
@@ -33,7 +33,7 @@ class SyntaxSpec extends Specification {
     MVar.of[F, String]("bar")
   }
 
-  def preciseConstraints[F[_]: Ref.Mk: Deferred.Mk: Semaphore.Mk: MVar.Mk] = {
+  def preciseConstraints[F[_]: Ref.Mk: Semaphore.Mk: MVar.Mk](implicit F: Allocate[F, Throwable]) = {
     Ref.of[F, String]("foo")
     Ref[F].of(15)
     Deferred[F, Unit]
@@ -44,6 +44,6 @@ class SyntaxSpec extends Specification {
     MVar.of[F, String]("bar")
   }
 
-  def semaphoreIsDeriveable[F[_]: Ref.Mk: Deferred.Mk](implicit F: Concurrent[F, Throwable]) =
+  def semaphoreIsDeriveable[F[_]](implicit F: Allocate[F, Throwable]) =
     Semaphore[F](11)
 }
