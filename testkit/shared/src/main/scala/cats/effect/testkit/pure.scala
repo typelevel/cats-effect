@@ -274,9 +274,7 @@ object pure {
         new Deferred[PureConc[E, *], A] {
           override def get: PureConc[E, A] = mVar.read[PureConc[E, *]]
 
-          // TODO: correct semantics dictate that a second complete should fail.
-          // unfortunately we don't have an error to return because it's polymorphic
-          override def complete(a: A): PureConc[E, Unit] = mVar.tryPut[PureConc[E, *]](a).void
+          override def complete(a: A): PureConc[E, Boolean] = mVar.tryPut[PureConc[E, *]](a)
 
           override def tryGet: PureConc[E, Option[A]] = mVar.tryRead[PureConc[E, *]]
         }

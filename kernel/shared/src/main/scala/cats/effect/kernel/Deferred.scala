@@ -57,19 +57,14 @@ abstract class Deferred[F[_], A] {
 
   /**
    * If this `Deferred` is empty, sets the current value to `a`, and notifies
-   * any and all readers currently blocked on a `get`.
+   * any and all readers currently blocked on a `get`. Returns true.
    *
-   * If this `Deferred` has already been completed, the returned
-   * action immediately fails with an `IllegalStateException`. In the
-   * uncommon scenario where this behavior is problematic, you can
-   * handle failure explicitly using `attempt` or any other
-   * `ApplicativeError`/`MonadError` combinator on the returned
-   * action.
+   * If this `Deferred` has already been completed, returns false.
    *
    * Satisfies:
    *   `Deferred[F, A].flatMap(r => r.complete(a) *> r.get) == a.pure[F]`
    */
-  def complete(a: A): F[Unit]
+  def complete(a: A): F[Boolean]
 
   /**
    * Obtains the current value of the `Deferred`, or None if it hasn't completed.
@@ -198,7 +193,7 @@ object Deferred {
         }
       }
 
-    def complete(a: A): F[Unit] = {
+    def complete(a: A): F[Boolean] = {
       def notifyReaders(readers: LongMap[A => Unit]): F[Unit] = {
         // LongMap iterators return values in unsigned key order,
         // which corresponds to the arrival order of readers since
@@ -217,17 +212,16 @@ object Deferred {
 
       // side-effectful (even though it returns F[Unit])
       @tailrec
-      def loop(): F[Unit] =
+      def loop(): F[Boolean] =
         ref.get match {
           case State.Set(_) =>
-            throw new IllegalStateException(
-              "Attempting to complete a Deferred that has already been completed")
+            F.pure(false)
           case s @ State.Unset(readers, _) =>
             val updated = State.Set(a)
             if (!ref.compareAndSet(s, updated)) loop()
             else {
-              if (readers.isEmpty) F.unit
-              else notifyReaders(readers)
+              val notify = if (readers.isEmpty) F.unit else notifyReaders(readers)
+              notify.as(true)
             }
         }
 
@@ -241,6 +235,6 @@ object Deferred {
       extends Deferred[G, A] {
     override def get: G[A] = trans(underlying.get)
     override def tryGet: G[Option[A]] = trans(underlying.tryGet)
-    override def complete(a: A): G[Unit] = trans(underlying.complete(a))
+    override def complete(a: A): G[Boolean] = trans(underlying.complete(a))
   }
 }

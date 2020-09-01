@@ -153,7 +153,7 @@ object Semaphore {
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
-    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(())
+    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(()).void
 
     def count: F[Long] = state.get.map(count_)
 
