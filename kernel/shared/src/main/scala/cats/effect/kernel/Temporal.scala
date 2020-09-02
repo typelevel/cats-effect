@@ -22,7 +22,7 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
-trait Temporal[F[_], E] extends Allocate[F, E] with Clock[F] {
+trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] {
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
 
@@ -108,7 +108,7 @@ object Temporal {
 
   private[kernel] trait OptionTTemporal[F[_], E]
       extends Temporal[OptionT[F, *], E]
-      with Allocate.OptionTAllocate[F, E]
+      with Concurrent.OptionTConcurrent[F, E]
       with Clock.OptionTClock[F] {
 
     implicit protected def F: Temporal[F, E]
@@ -122,7 +122,7 @@ object Temporal {
 
   private[kernel] trait EitherTTemporal[F[_], E0, E]
       extends Temporal[EitherT[F, E0, *], E]
-      with Allocate.EitherTAllocate[F, E0, E]
+      with Concurrent.EitherTConcurrent[F, E0, E]
       with Clock.EitherTClock[F, E0] {
 
     implicit protected def F: Temporal[F, E]
@@ -135,7 +135,7 @@ object Temporal {
 
   private[kernel] trait IorTTemporal[F[_], L, E]
       extends Temporal[IorT[F, L, *], E]
-      with Allocate.IorTAllocate[F, L, E]
+      with Concurrent.IorTConcurrent[F, L, E]
       with Clock.IorTClock[F, L] {
 
     implicit protected def F: Temporal[F, E]
@@ -148,7 +148,7 @@ object Temporal {
 
   private[kernel] trait WriterTTemporal[F[_], L, E]
       extends Temporal[WriterT[F, L, *], E]
-      with Allocate.WriterTAllocate[F, L, E]
+      with Concurrent.WriterTConcurrent[F, L, E]
       with Clock.WriterTClock[F, L] {
 
     implicit protected def F: Temporal[F, E]
@@ -163,7 +163,7 @@ object Temporal {
 
   private[kernel] trait KleisliTemporal[F[_], R, E]
       extends Temporal[Kleisli[F, R, *], E]
-      with Allocate.KleisliAllocate[F, R, E]
+      with Concurrent.KleisliConcurrent[F, R, E]
       with Clock.KleisliClock[F, R] {
 
     implicit protected def F: Temporal[F, E]

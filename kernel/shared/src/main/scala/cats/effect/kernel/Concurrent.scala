@@ -19,7 +19,7 @@ package cats.effect.kernel
 import cats.{Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
-trait Allocate[F[_], E] extends Spawn[F, E] {
+trait Concurrent[F[_], E] extends Spawn[F, E] {
 
   def ref[A](a: A): F[Ref[F, A]]
 
@@ -27,50 +27,50 @@ trait Allocate[F[_], E] extends Spawn[F, E] {
 
 }
 
-object Allocate {
-  def apply[F[_], E](implicit F: Allocate[F, E]): F.type = F
-  def apply[F[_]](implicit F: Allocate[F, _], d: DummyImplicit): F.type = F
+object Concurrent {
+  def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
+  def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
 
-  implicit def allocateForOptionT[F[_], E](
-      implicit F0: Allocate[F, E]): Allocate[OptionT[F, *], E] =
-    new OptionTAllocate[F, E] {
-      override implicit protected def F: Allocate[F, E] = F0
+  implicit def concurrentForOptionT[F[_], E](
+      implicit F0: Concurrent[F, E]): Concurrent[OptionT[F, *], E] =
+    new OptionTConcurrent[F, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
     }
 
-  implicit def allocateForEitherT[F[_], E0, E](
-      implicit F0: Allocate[F, E]): Allocate[EitherT[F, E0, *], E] =
-    new EitherTAllocate[F, E0, E] {
-      override implicit protected def F: Allocate[F, E] = F0
+  implicit def concurrentForEitherT[F[_], E0, E](
+      implicit F0: Concurrent[F, E]): Concurrent[EitherT[F, E0, *], E] =
+    new EitherTConcurrent[F, E0, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
     }
 
-  implicit def allocateForKleisli[F[_], R, E](
-      implicit F0: Allocate[F, E]): Allocate[Kleisli[F, R, *], E] =
-    new KleisliAllocate[F, R, E] {
-      override implicit protected def F: Allocate[F, E] = F0
+  implicit def concurrentForKleisli[F[_], R, E](
+      implicit F0: Concurrent[F, E]): Concurrent[Kleisli[F, R, *], E] =
+    new KleisliConcurrent[F, R, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
     }
 
-  implicit def allocateForIorT[F[_], L, E](
-      implicit F0: Allocate[F, E],
-      L0: Semigroup[L]): Allocate[IorT[F, L, *], E] =
-    new IorTAllocate[F, L, E] {
-      override implicit protected def F: Allocate[F, E] = F0
+  implicit def concurrentForIorT[F[_], L, E](
+      implicit F0: Concurrent[F, E],
+      L0: Semigroup[L]): Concurrent[IorT[F, L, *], E] =
+    new IorTConcurrent[F, L, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
     }
 
-  implicit def allocateForWriterT[F[_], L, E](
-      implicit F0: Allocate[F, E],
-      L0: Monoid[L]): Allocate[WriterT[F, L, *], E] =
-    new WriterTAllocate[F, L, E] {
-      override implicit protected def F: Allocate[F, E] = F0
+  implicit def concurrentForWriterT[F[_], L, E](
+      implicit F0: Concurrent[F, E],
+      L0: Monoid[L]): Concurrent[WriterT[F, L, *], E] =
+    new WriterTConcurrent[F, L, E] {
+      override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
 
-  private[kernel] trait OptionTAllocate[F[_], E]
-      extends Allocate[OptionT[F, *], E]
+  private[kernel] trait OptionTConcurrent[F[_], E]
+      extends Concurrent[OptionT[F, *], E]
       with Spawn.OptionTSpawn[F, E] {
-    implicit protected def F: Allocate[F, E]
+    implicit protected def F: Concurrent[F, E]
 
     override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
       OptionT.liftF(F.map(F.ref(a))(_.mapK(OptionT.liftK)))
@@ -79,10 +79,10 @@ object Allocate {
       OptionT.liftF(F.map(F.deferred[A])(_.mapK(OptionT.liftK)))
   }
 
-  private[kernel] trait EitherTAllocate[F[_], E0, E]
-      extends Allocate[EitherT[F, E0, *], E]
+  private[kernel] trait EitherTConcurrent[F[_], E0, E]
+      extends Concurrent[EitherT[F, E0, *], E]
       with Spawn.EitherTSpawn[F, E0, E] {
-    implicit protected def F: Allocate[F, E]
+    implicit protected def F: Concurrent[F, E]
 
     override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
       EitherT.liftF(F.map(F.ref(a))(_.mapK(EitherT.liftK)))
@@ -91,10 +91,10 @@ object Allocate {
       EitherT.liftF(F.map(F.deferred[A])(_.mapK(EitherT.liftK)))
   }
 
-  private[kernel] trait KleisliAllocate[F[_], R, E]
-      extends Allocate[Kleisli[F, R, *], E]
+  private[kernel] trait KleisliConcurrent[F[_], R, E]
+      extends Concurrent[Kleisli[F, R, *], E]
       with Spawn.KleisliSpawn[F, R, E] {
-    implicit protected def F: Allocate[F, E]
+    implicit protected def F: Concurrent[F, E]
 
     override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
       Kleisli.liftF(F.map(F.ref(a))(_.mapK(Kleisli.liftK)))
@@ -103,10 +103,10 @@ object Allocate {
       Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
   }
 
-  private[kernel] trait IorTAllocate[F[_], L, E]
-      extends Allocate[IorT[F, L, *], E]
+  private[kernel] trait IorTConcurrent[F[_], L, E]
+      extends Concurrent[IorT[F, L, *], E]
       with Spawn.IorTSpawn[F, L, E] {
-    implicit protected def F: Allocate[F, E]
+    implicit protected def F: Concurrent[F, E]
 
     implicit protected def L: Semigroup[L]
 
@@ -117,11 +117,11 @@ object Allocate {
       IorT.liftF(F.map(F.deferred[A])(_.mapK(IorT.liftK)))
   }
 
-  private[kernel] trait WriterTAllocate[F[_], L, E]
-      extends Allocate[WriterT[F, L, *], E]
+  private[kernel] trait WriterTConcurrent[F[_], L, E]
+      extends Concurrent[WriterT[F, L, *], E]
       with Spawn.WriterTSpawn[F, L, E] {
 
-    implicit protected def F: Allocate[F, E]
+    implicit protected def F: Concurrent[F, E]
 
     implicit protected def L: Monoid[L]
 
