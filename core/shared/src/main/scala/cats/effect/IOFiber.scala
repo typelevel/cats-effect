@@ -688,7 +688,7 @@ private final class IOFiber[A](
       case 7 => onCancelFailureK(error, depth)
       case 8 => uncancelableFailureK(error, depth)
       case 9 => unmaskFailureK(error, depth)
-      case 10 => succeeded(Left(error), depth + 1)
+      case 10 => succeeded(Left(error), depth + 1) // attemptK
     }
   }
 
