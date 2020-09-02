@@ -487,6 +487,8 @@ private final class IOFiber[A](
             def apply[B](ioa: IO[B]) = IO.UnmaskRunLoop(ioa, id)
           }
 
+          // The uncancelableK marker is used by `succeeded` and `failed`
+          // to unmask once body completes.
           conts.push(UncancelableK)
           runLoop(cur.body(poll), nextIteration)
 
