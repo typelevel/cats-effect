@@ -746,9 +746,6 @@ private final class IOFiber[A](
   // Implementations of resume methods //
   ///////////////////////////////////////
 
-  /**
-   * @note This method should not be used outside of the IO run loop under any circumstance.
-   */
   def run(): Unit =
     (resumeTag: @switch) match {
       case 0 => execR()
