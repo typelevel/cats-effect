@@ -25,11 +25,11 @@ class SyntaxSpec extends Specification {
 
   "kernel syntax" >> ok
 
-  def concurrentSyntax[F[_], A, E](target: F[A])(implicit F: Concurrent[F, E]) = {
-    import syntax.concurrent._
+  def spawnSyntax[F[_], A, E](target: F[A])(implicit F: Spawn[F, E]) = {
+    import syntax.spawn._
 
-    Concurrent[F]: F.type
-    Concurrent[F, E]: F.type
+    Spawn[F]: F.type
+    Spawn[F, E]: F.type
 
     {
       val result = target.start

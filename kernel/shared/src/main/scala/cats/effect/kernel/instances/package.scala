@@ -20,5 +20,5 @@ package object instances {
 
   object all extends AllInstances
 
-  object concurrent extends ConcurrentInstances
+  object spawn extends SpawnInstances
 }

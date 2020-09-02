@@ -18,7 +18,7 @@ package cats.effect
 package syntax
 
 trait AllSyntax
-    extends kernel.syntax.ConcurrentSyntax
+    extends kernel.syntax.SpawnSyntax
     with kernel.syntax.TemporalSyntax
     with kernel.syntax.AsyncSyntax
     with kernel.syntax.SyncEffectSyntax

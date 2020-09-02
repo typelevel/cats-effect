@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{Allocate, Concurrent, Outcome}
+import cats.effect.kernel.{Allocate, Outcome, Spawn}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
@@ -149,7 +149,7 @@ object Semaphore {
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
   abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Concurrent[F, Throwable])
+      implicit F: Spawn[F, Throwable])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 

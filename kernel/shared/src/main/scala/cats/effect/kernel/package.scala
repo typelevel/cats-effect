@@ -19,7 +19,7 @@ package cats.effect
 package object kernel {
 
   type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
-  type ConcurrentThrow[F[_]] = Concurrent[F, Throwable]
+  type SpawnThrow[F[_]] = Spawn[F, Throwable]
   type TemporalThrow[F[_]] = Temporal[F, Throwable]
   type AllocateThrow[F[_]] = Allocate[F, Throwable]
 

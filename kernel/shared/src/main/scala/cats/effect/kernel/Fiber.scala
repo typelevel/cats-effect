@@ -22,9 +22,9 @@ trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
   def join: F[Outcome[F, E, A]]
 
-  def joinAndEmbed(onCancel: F[A])(implicit F: Concurrent[F, E]): F[A] =
+  def joinAndEmbed(onCancel: F[A])(implicit F: Spawn[F, E]): F[A] =
     join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
 
-  def joinAndEmbedNever(implicit F: Concurrent[F, E]): F[A] =
+  def joinAndEmbedNever(implicit F: Spawn[F, E]): F[A] =
     joinAndEmbed(F.never)
 }

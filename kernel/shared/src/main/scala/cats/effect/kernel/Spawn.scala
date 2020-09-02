@@ -21,7 +21,7 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
-trait Concurrent[F[_], E] extends MonadCancel[F, E] {
+trait Spawn[F[_], E] extends MonadCancel[F, E] {
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
@@ -107,7 +107,7 @@ trait Concurrent[F[_], E] extends MonadCancel[F, E] {
     }
 }
 
-object Concurrent {
+object Spawn {
   import MonadCancel.{
     EitherTMonadCancel,
     IorTMonadCancel,
@@ -116,55 +116,54 @@ object Concurrent {
     WriterTMonadCancel
   }
 
-  def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
-  def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_], E](implicit F: Spawn[F, E]): F.type = F
+  def apply[F[_]](implicit F: Spawn[F, _], d: DummyImplicit): F.type = F
 
-  implicit def concurrentForOptionT[F[_], E](
-      implicit F0: Concurrent[F, E]): Concurrent[OptionT[F, *], E] =
-    new OptionTConcurrent[F, E] {
+  implicit def spawnForOptionT[F[_], E](implicit F0: Spawn[F, E]): Spawn[OptionT[F, *], E] =
+    new OptionTSpawn[F, E] {
 
-      override implicit protected def F: Concurrent[F, E] = F0
+      override implicit protected def F: Spawn[F, E] = F0
     }
 
-  implicit def concurrentForEitherT[F[_], E0, E](
-      implicit F0: Concurrent[F, E]): Concurrent[EitherT[F, E0, *], E] =
-    new EitherTConcurrent[F, E0, E] {
+  implicit def spawnForEitherT[F[_], E0, E](
+      implicit F0: Spawn[F, E]): Spawn[EitherT[F, E0, *], E] =
+    new EitherTSpawn[F, E0, E] {
 
-      override implicit protected def F: Concurrent[F, E] = F0
+      override implicit protected def F: Spawn[F, E] = F0
     }
 
-  implicit def concurrentForKleisli[F[_], R, E](
-      implicit F0: Concurrent[F, E]): Concurrent[Kleisli[F, R, *], E] =
-    new KleisliConcurrent[F, R, E] {
+  implicit def spawnForKleisli[F[_], R, E](
+      implicit F0: Spawn[F, E]): Spawn[Kleisli[F, R, *], E] =
+    new KleisliSpawn[F, R, E] {
 
-      override implicit protected def F: Concurrent[F, E] = F0
+      override implicit protected def F: Spawn[F, E] = F0
     }
 
-  implicit def concurrentForIorT[F[_], L, E](
-      implicit F0: Concurrent[F, E],
-      L0: Semigroup[L]): Concurrent[IorT[F, L, *], E] =
-    new IorTConcurrent[F, L, E] {
+  implicit def spawnForIorT[F[_], L, E](
+      implicit F0: Spawn[F, E],
+      L0: Semigroup[L]): Spawn[IorT[F, L, *], E] =
+    new IorTSpawn[F, L, E] {
 
-      override implicit protected def F: Concurrent[F, E] = F0
+      override implicit protected def F: Spawn[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
     }
 
-  implicit def concurrentForWriterT[F[_], L, E](
-      implicit F0: Concurrent[F, E],
-      L0: Monoid[L]): Concurrent[WriterT[F, L, *], E] =
-    new WriterTConcurrent[F, L, E] {
+  implicit def spawnForWriterT[F[_], L, E](
+      implicit F0: Spawn[F, E],
+      L0: Monoid[L]): Spawn[WriterT[F, L, *], E] =
+    new WriterTSpawn[F, L, E] {
 
-      override implicit protected def F: Concurrent[F, E] = F0
+      override implicit protected def F: Spawn[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
 
-  private[kernel] trait OptionTConcurrent[F[_], E]
-      extends Concurrent[OptionT[F, *], E]
+  private[kernel] trait OptionTSpawn[F[_], E]
+      extends Spawn[OptionT[F, *], E]
       with OptionTMonadCancel[F, E] {
 
-    implicit protected def F: Concurrent[F, E]
+    implicit protected def F: Spawn[F, E]
 
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
@@ -199,11 +198,11 @@ object Concurrent {
       }
   }
 
-  private[kernel] trait EitherTConcurrent[F[_], E0, E]
-      extends Concurrent[EitherT[F, E0, *], E]
+  private[kernel] trait EitherTSpawn[F[_], E0, E]
+      extends Spawn[EitherT[F, E0, *], E]
       with EitherTMonadCancel[F, E0, E] {
 
-    implicit protected def F: Concurrent[F, E]
+    implicit protected def F: Spawn[F, E]
 
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
@@ -239,11 +238,11 @@ object Concurrent {
       }
   }
 
-  private[kernel] trait IorTConcurrent[F[_], L, E]
-      extends Concurrent[IorT[F, L, *], E]
+  private[kernel] trait IorTSpawn[F[_], L, E]
+      extends Spawn[IorT[F, L, *], E]
       with IorTMonadCancel[F, L, E] {
 
-    implicit protected def F: Concurrent[F, E]
+    implicit protected def F: Spawn[F, E]
 
     implicit protected def L: Semigroup[L]
 
@@ -281,11 +280,11 @@ object Concurrent {
       }
   }
 
-  private[kernel] trait KleisliConcurrent[F[_], R, E]
-      extends Concurrent[Kleisli[F, R, *], E]
+  private[kernel] trait KleisliSpawn[F[_], R, E]
+      extends Spawn[Kleisli[F, R, *], E]
       with KleisliMonadCancel[F, R, E] {
 
-    implicit protected def F: Concurrent[F, E]
+    implicit protected def F: Spawn[F, E]
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
@@ -325,11 +324,11 @@ object Concurrent {
       }
   }
 
-  private[kernel] trait WriterTConcurrent[F[_], L, E]
-      extends Concurrent[WriterT[F, L, *], E]
+  private[kernel] trait WriterTSpawn[F[_], L, E]
+      extends Spawn[WriterT[F, L, *], E]
       with WriterTMonadCancel[F, L, E] {
 
-    implicit protected def F: Concurrent[F, E]
+    implicit protected def F: Spawn[F, E]
 
     implicit protected def L: Monoid[L]
 

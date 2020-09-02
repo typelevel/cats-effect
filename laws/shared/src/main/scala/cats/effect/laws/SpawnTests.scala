@@ -18,17 +18,17 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.effect.kernel.{Concurrent, Outcome}
+import cats.effect.kernel.{Outcome, Spawn}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait ConcurrentTests[F[_], E] extends MonadCancelTests[F, E] {
+trait SpawnTests[F[_], E] extends MonadCancelTests[F, E] {
 
-  val laws: ConcurrentLaws[F, E]
+  val laws: SpawnLaws[F, E]
 
-  def concurrent[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
+  def spawn[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
       implicit ArbFA: Arbitrary[F[A]],
       ArbFB: Arbitrary[F[B]],
       ArbFC: Arbitrary[F[C]],
@@ -99,9 +99,9 @@ trait ConcurrentTests[F[_], E] extends MonadCancelTests[F, E] {
   }
 }
 
-object ConcurrentTests {
-  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentTests[F, E] =
-    new ConcurrentTests[F, E] {
-      val laws = ConcurrentLaws[F, E]
+object SpawnTests {
+  def apply[F[_], E](implicit F0: Spawn[F, E]): SpawnTests[F, E] =
+    new SpawnTests[F, E] {
+      val laws = SpawnLaws[F, E]
     }
 }

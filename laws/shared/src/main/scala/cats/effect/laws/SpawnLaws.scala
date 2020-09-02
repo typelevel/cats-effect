@@ -17,12 +17,12 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.{Concurrent, Outcome}
+import cats.effect.kernel.{Outcome, Spawn}
 import cats.syntax.all._
 
-trait ConcurrentLaws[F[_], E] extends MonadCancelLaws[F, E] {
+trait SpawnLaws[F[_], E] extends MonadCancelLaws[F, E] {
 
-  implicit val F: Concurrent[F, E]
+  implicit val F: Spawn[F, E]
 
   // we need to phrase this in terms of never because we can't *evaluate* laws which rely on nondetermnistic substitutability
   def raceDerivesFromRacePairLeft[A, B](fa: F[A]) = {
@@ -150,7 +150,7 @@ trait ConcurrentLaws[F[_], E] extends MonadCancelLaws[F, E] {
     F.forceR(F.never)(fa) <-> F.never
 }
 
-object ConcurrentLaws {
-  def apply[F[_], E](implicit F0: Concurrent[F, E]): ConcurrentLaws[F, E] =
-    new ConcurrentLaws[F, E] { val F = F0 }
+object SpawnLaws {
+  def apply[F[_], E](implicit F0: Spawn[F, E]): SpawnLaws[F, E] =
+    new SpawnLaws[F, E] { val F = F0 }
 }

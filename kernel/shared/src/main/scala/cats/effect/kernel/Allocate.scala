@@ -19,7 +19,7 @@ package cats.effect.kernel
 import cats.{Monoid, Semigroup}
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
-trait Allocate[F[_], E] extends Concurrent[F, E] {
+trait Allocate[F[_], E] extends Spawn[F, E] {
 
   def ref[A](a: A): F[Ref[F, A]]
 
@@ -69,7 +69,7 @@ object Allocate {
 
   private[kernel] trait OptionTAllocate[F[_], E]
       extends Allocate[OptionT[F, *], E]
-      with Concurrent.OptionTConcurrent[F, E] {
+      with Spawn.OptionTSpawn[F, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
@@ -81,7 +81,7 @@ object Allocate {
 
   private[kernel] trait EitherTAllocate[F[_], E0, E]
       extends Allocate[EitherT[F, E0, *], E]
-      with Concurrent.EitherTConcurrent[F, E0, E] {
+      with Spawn.EitherTSpawn[F, E0, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
@@ -93,7 +93,7 @@ object Allocate {
 
   private[kernel] trait KleisliAllocate[F[_], R, E]
       extends Allocate[Kleisli[F, R, *], E]
-      with Concurrent.KleisliConcurrent[F, R, E] {
+      with Spawn.KleisliSpawn[F, R, E] {
     implicit protected def F: Allocate[F, E]
 
     override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
@@ -105,7 +105,7 @@ object Allocate {
 
   private[kernel] trait IorTAllocate[F[_], L, E]
       extends Allocate[IorT[F, L, *], E]
-      with Concurrent.IorTConcurrent[F, L, E] {
+      with Spawn.IorTSpawn[F, L, E] {
     implicit protected def F: Allocate[F, E]
 
     implicit protected def L: Semigroup[L]
@@ -119,7 +119,7 @@ object Allocate {
 
   private[kernel] trait WriterTAllocate[F[_], L, E]
       extends Allocate[WriterT[F, L, *], E]
-      with Concurrent.WriterTConcurrent[F, L, E] {
+      with Spawn.WriterTSpawn[F, L, E] {
 
     implicit protected def F: Allocate[F, E]
 

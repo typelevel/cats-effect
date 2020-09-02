@@ -623,7 +623,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   implicit def effectForIO: Effect[IO] = _effectForIO
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
-    parallelForConcurrent[IO, Throwable]
+    parallelForSpawn[IO, Throwable]
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
 

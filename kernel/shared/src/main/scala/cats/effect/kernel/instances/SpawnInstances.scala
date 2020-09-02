@@ -19,12 +19,12 @@ package cats.effect.kernel.instances
 import cats.{~>, Align, Applicative, CommutativeApplicative, Functor, Monad, Parallel}
 import cats.data.Ior
 import cats.implicits._
-import cats.effect.kernel.{Concurrent, ParallelF}
+import cats.effect.kernel.{ParallelF, Spawn}
 
-trait ConcurrentInstances {
+trait SpawnInstances {
 
-  implicit def parallelForConcurrent[M[_], E](
-      implicit M: Concurrent[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
+  implicit def parallelForSpawn[M[_], E](
+      implicit M: Spawn[M, E]): Parallel.Aux[M, ParallelF[M, *]] =
     new Parallel[M] {
       type F[A] = ParallelF[M, A]
 
@@ -45,7 +45,7 @@ trait ConcurrentInstances {
     }
 
   implicit def commutativeApplicativeForParallelF[F[_], E](
-      implicit F: Concurrent[F, E]): CommutativeApplicative[ParallelF[F, *]] =
+      implicit F: Spawn[F, E]): CommutativeApplicative[ParallelF[F, *]] =
     new CommutativeApplicative[ParallelF[F, *]] {
 
       final override def pure[A](a: A): ParallelF[F, A] = ParallelF(F.pure(a))
@@ -74,8 +74,7 @@ trait ConcurrentInstances {
         ParallelF(F.unit)
     }
 
-  implicit def alignForParallelF[F[_], E](
-      implicit F: Concurrent[F, E]): Align[ParallelF[F, *]] =
+  implicit def alignForParallelF[F[_], E](implicit F: Spawn[F, E]): Align[ParallelF[F, *]] =
     new Align[ParallelF[F, *]] {
 
       override def functor: Functor[ParallelF[F, *]] = commutativeApplicativeForParallelF[F, E]
