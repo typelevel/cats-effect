@@ -587,8 +587,12 @@ private final class IOFiber[A](
         case 19 =>
           val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
 
+          // we keep track of nested uncancelable sections.
+          // The outer block wins.
           if (masks == cur.id) {
             masks -= 1
+            // The UnmaskK marker gets used by `succeeded` and `failed`
+            // to restore masking state after `cur.ioa` has finished
             conts.push(UnmaskK)
           }
 
