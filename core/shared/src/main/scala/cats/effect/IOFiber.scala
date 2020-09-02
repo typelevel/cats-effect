@@ -473,6 +473,8 @@ private final class IOFiber[A](
           finalizers.push(EvalOn(cur.fin, currentCtx))
           // println(s"pushed onto finalizers: length = ${finalizers.unsafeIndex()}")
 
+          // the OnCancelK marker is used by `succeeded` to remove the
+          // finalizer when `ioa` completes uninterrupted.
           conts.push(OnCancelK)
           runLoop(cur.ioa, nextIteration)
 
