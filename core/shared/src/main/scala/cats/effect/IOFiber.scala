@@ -491,11 +491,11 @@ private final class IOFiber[A](
         // Canceled
         case 12 =>
           canceled = true
-          if (!isUnmasked()) {
-            runLoop(succeeded((), 0), nextIteration)
-          } else {
+          if (isUnmasked()) {
             // run finalizers immediately
             asyncCancel(null)
+          } else {
+            runLoop(succeeded((), 0), nextIteration)
           }
 
         case 13 =>
