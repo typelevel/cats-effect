@@ -16,13 +16,10 @@
 
 package cats.effect
 
-package object kernel {
+package object concurrent {
+  type Ref[F[_], A] = cats.effect.kernel.Ref[F, A]
+  type Deferred[F[_], A] = cats.effect.kernel.Deferred[F, A]
 
-  type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
-  type ConcurrentThrow[F[_]] = Concurrent[F, Throwable]
-  type TemporalThrow[F[_]] = Temporal[F, Throwable]
-  type AllocateThrow[F[_]] = Allocate[F, Throwable]
-
-  type ParallelF[F[_], A] = Par.ParallelF[F, A]
-  val ParallelF = Par.ParallelF
+  val Ref = cats.effect.kernel.Ref
+  val Deferred = cats.effect.kernel.Deferred
 }

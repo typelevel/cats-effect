@@ -18,9 +18,10 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{Concurrent, Outcome}
+import cats.effect.kernel.{Allocate, Concurrent, Outcome}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
+
 import scala.collection.immutable.Queue
 
 /**
@@ -109,8 +110,9 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit mk: Mk[F]): F[Semaphore[F]] =
-    mk.semaphore(n)
+  def apply[F[_]](n: Long)(implicit F: Allocate[F, Throwable]): F[Semaphore[F]] =
+    assertNonNegative[F](n) *>
+      F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
 
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
@@ -126,9 +128,8 @@ object Semaphore {
   object MkIn {
     implicit def instance[F[_], G[_]](
         implicit mkRef: Ref.MkIn[F, G],
-        mkDeferred: Deferred.Mk[G],
         F: ApplicativeError[F, Throwable],
-        G: Concurrent[G, Throwable]): MkIn[F, G] =
+        G: Allocate[G, Throwable]): MkIn[F, G] =
       new MkIn[F, G] {
         override def semaphore(count: Long): F[Semaphore[G]] =
           assertNonNegative[F](count) *>
@@ -152,7 +153,7 @@ object Semaphore {
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
-    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(())
+    private def open(gate: Deferred[F, Unit]): F[Unit] = gate.complete(()).void
 
     def count: F[Long] = state.get.map(count_)
 
@@ -280,8 +281,7 @@ object Semaphore {
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Concurrent[F, Throwable],
-      mkDeferred: Deferred.Mk[F])
+      implicit F: Allocate[F, Throwable])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }

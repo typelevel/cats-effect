@@ -39,15 +39,11 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
     "complete is only successful once" in real {
-      val op = Deferred[IO, Int].flatMap { p =>
-        (p.complete(0) *> p.complete(1).attempt).product(p.get)
-      }
+      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
 
       op.flatMap { res =>
         IO {
-          res must beLike {
-            case (Left(e), 0) => e must haveClass[IllegalStateException]
-          }
+          res must beEqualTo((false, 0))
         }
       }
     }

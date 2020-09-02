@@ -16,17 +16,16 @@
 
 package cats
 package effect
-package concurrent
+package kernel
 
-import cats.data.State
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
-import cats.effect.concurrent.Ref.TransformedRef
-import cats.effect.kernel.Sync
-import cats.instances.tuple._
+import cats.data.State
+import cats.effect.kernel.Ref.TransformedRef
 import cats.instances.function._
-import cats.syntax.functor._
+import cats.instances.tuple._
 import cats.syntax.bifunctor._
+import cats.syntax.functor._
 
 import scala.annotation.tailrec
 
@@ -167,7 +166,7 @@ object Ref {
    *
    * {{{
    *   import cats.effect.IO
-   *   import cats.effect.concurrent.Ref
+   *   import cats.effect.kernel.Ref
    *
    *   for {
    *     intRef <- Ref.of[IO, Int](10)
@@ -175,7 +174,7 @@ object Ref {
    *   } yield ten
    * }}}
    */
-  def of[F[_], A](a: A)(implicit mk: Mk[F]): F[Ref[F, A]] = mk.refOf(a)
+  def of[F[_], A](a: A)(implicit F: Allocate[F, _]): F[Ref[F, A]] = F.ref(a)
 
   /**
    *  Builds a `Ref` value for data types that are [[Sync]]
@@ -208,7 +207,7 @@ object Ref {
    *
    * {{{
    *   import cats.effect.IO
-   *   import cats.effect.concurrent.Ref
+   *   import cats.effect.kernel.Ref
    *
    *   class Counter private () {
    *     private val count = Ref.unsafe[IO, Int](0)
@@ -320,7 +319,7 @@ object Ref {
     }
   }
 
-  final private[concurrent] class TransformedRef[F[_], G[_], A](
+  final private[kernel] class TransformedRef[F[_], G[_], A](
       underlying: Ref[F, A],
       trans: F ~> G)(
       implicit F: Functor[F]
@@ -340,7 +339,7 @@ object Ref {
       trans(F.compose[(A, *)].compose[A => *].map(underlying.access)(trans(_)))
   }
 
-  final private[concurrent] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
+  final private[kernel] class LensRef[F[_], A, B <: AnyRef](underlying: Ref[F, A])(
       lensGet: A => B,
       lensSet: A => B => A
   )(implicit F: Sync[F])

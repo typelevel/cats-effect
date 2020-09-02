@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.{~>, SemigroupK}
 import cats.data.{Kleisli} //, OptionT}
-import cats.effect.concurrent.Deferred
+import cats.effect.kernel.Deferred
 import cats.effect.testkit.TestContext
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline._
@@ -70,7 +70,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
     "liftF - interruption" in ticked { implicit ticker =>
       def resource(d: Deferred[IO, Int]): Resource[IO, Unit] =
         for {
-          _ <- Resource.make(IO.unit)(_ => d.complete(1))
+          _ <- Resource.make(IO.unit)(_ => d.complete(1).void)
           _ <- Resource.liftF(IO.never[Unit])
         } yield ()
 
