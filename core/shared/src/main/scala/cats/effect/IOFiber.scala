@@ -664,6 +664,8 @@ private final class IOFiber[A](
     val orig = i
     var k: Byte = -1
 
+    // short circuit on error by dropping map and flatMap continuations
+    // until we hit a continuation that needs to deal with errors.
     while (i >= 0 && k < 0) {
       if (buffer(i) == FlatMapK || buffer(i) == MapK)
         i -= 1
