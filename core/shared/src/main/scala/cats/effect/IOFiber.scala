@@ -330,6 +330,33 @@ private final class IOFiber[A](
           runLoop(failed(cur.t, 0), nextIteration)
 
         case 4 =>
+          // there is a race over the runloop.
+          // If the callback finishes after registration, it owns the
+          // runloops (via async continue), and registration just
+          // terminates in suspendWithFinalizationCheck.
+          // if registration wins, it gets the result from the atomic ref
+          // and it continues, andThen the callback just terminates (stateLoop, when tag == 3)
+          // The rest of the code deals with publication details through
+          // `suspended`, and all the corner cases with finalisation
+          // which we aim to remove with the `promise` construction.
+          // Need to think about naming since resume is already used
+          // all over the place in the runloop.
+
+          // plan for promise:
+          // the outer F is just `succeeded` with Promise
+          // F[A] and `cb` race over the runloop:
+          // if F[A] is sequenced before cb is called, it just suspends and terminates
+          // (semantic blocking) and cb will take over the runloop and resume
+          // if cb is called before F[A] is sequenced, it sets the
+          // result, suspends and terminates, F[A] will pick it up
+          // AsyncState still uses `Done` to avoid double calls on `cb`.
+          // AsyncState keeps the Registered state, but not the finaliser.
+
+          // cancelation: most of it is taken care about outside of `promise`
+          // The semantics of `async` written in terms of `promise` make the registration
+          // function uncancelable, and the only case for cancelation is canceling the `F[A]`.
+
+
           val cur = cur0.asInstanceOf[Async[Any]]
 
           /*
