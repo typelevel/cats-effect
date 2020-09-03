@@ -105,6 +105,8 @@ private final class IOFiber[A](
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
   private[this] val AsyncStateDone = AsyncState.Done
+  // TODO prefetch ContState
+
 
   private[this] val TypeBlocking = Sync.Type.Blocking
 
@@ -630,6 +632,9 @@ private final class IOFiber[A](
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
+        case 21 =>
+          val cur = cur0.asInstanceOf[Cont[Any]]
+          // TODO finish here
       }
     }
   }

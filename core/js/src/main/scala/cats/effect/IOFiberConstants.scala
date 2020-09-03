@@ -33,6 +33,7 @@ private[effect] object IOFiberConstants {
   val UncancelableK: Byte = 8
   val UnmaskK: Byte = 9
   val AttemptK: Byte = 10
+  val ContK: Byte = 11 // TODO rename
 
   // resume ids
   val ExecR: Byte = 0
