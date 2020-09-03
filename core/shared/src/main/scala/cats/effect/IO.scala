@@ -295,6 +295,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           val ioa = self.ioa.asInstanceOf[IO[A]]
           val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
+
+        case _ : IO.Cont[_] => ??? // TODO rename, translate to operation on Async once it's there
       }
     }
 
@@ -384,6 +386,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def canceled: IO[Unit] = Canceled
 
   def cede: IO[Unit] = Cede
+
+  // TODO rename
+  def cont[A]: IO[(IO[A], (Either[Throwable, A] => Unit))] = Cont()
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -713,6 +718,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 20
   }
+  // TODO rename, move
+  private[effect] final case class Cont[A]() extends IO[(IO[A], (Either[Throwable, A] => Unit))] {
+    def tag = 21
+  }
+
 
   // Not part of the run loop. Only used in the implementation of IO#to.
   private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
