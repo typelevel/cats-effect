@@ -515,48 +515,61 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   trait Bracket0 {
     implicit def catsEffectResourceBracketForSyncEffect[F[_]](
-        implicit F: SyncEffect[F]): Bracket[F] =
-      new Bracket[F] {
-        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, ExitCase) => F[Unit]): F[B] =
-          flatMap(acquire) { a =>
-            val handled = onError(use(a)) {
-              case e => void(attempt(release(a, ExitCase.Errored(e))))
-            }
-            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
-          }
-
-        def pure[A](x: A): F[A] = F.pure(x)
-        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+        implicit F0: SyncEffect[F]): Bracket[F] =
+      new SyncBracket[F] {
+        implicit protected def F: Sync[F] = F0
       }
+
+    trait SyncBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: Sync[F]
+
+      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+          release: (A, ExitCase) => F[Unit]): F[B] =
+        flatMap(acquire) { a =>
+          val handled = onError(use(a)) {
+            case e => void(attempt(release(a, ExitCase.Errored(e))))
+          }
+          flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+        }
+
+      def pure[A](x: A): F[A] = F.pure(x)
+      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    }
   }
 
   object Bracket extends Bracket0 {
     def apply[F[_]](implicit F: Bracket[F]): F.type = F
 
-    implicit def catsEffectResourceBracketForSpawn[F[_]](
-        implicit F: Spawn[F, Throwable]): Bracket[F] =
-      new Bracket[F] {
-        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, ExitCase) => F[Unit]): F[B] =
-          F.uncancelable { poll =>
-            flatMap(acquire) { a =>
-              val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
-              val handled = onError(finalized) {
-                case e => void(attempt(release(a, ExitCase.Errored(e))))
-              }
-              flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
-            }
-          }
-        def pure[A](x: A): F[A] = F.pure(x)
-        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    implicit def bracketSpawn[F[_]](
+        implicit F0: Spawn[F, Throwable]
+    ): Bracket[F] =
+      new SpawnBracket[F] {
+        implicit protected def F: Spawn[F, Throwable] = F0
       }
+
+    trait SpawnBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: Spawn[F, Throwable]
+
+      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+          release: (A, ExitCase) => F[Unit]): F[B] =
+        F.uncancelable { poll =>
+          flatMap(acquire) { a =>
+            val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
+            val handled = onError(finalized) {
+              case e => void(attempt(release(a, ExitCase.Errored(e))))
+            }
+            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+          }
+        }
+      def pure[A](x: A): F[A] = F.pure(x)
+      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    }
   }
 
   /**
