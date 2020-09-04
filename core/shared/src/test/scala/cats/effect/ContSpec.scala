@@ -18,7 +18,17 @@ package cats
 package effect
 
 class ContSpec extends BaseSpec { outer =>
-  sequential
+
+  def localAsync[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    IO.uncancelable { poll =>
+      IO.cont[A] flatMap { case (get, resume) =>
+        k(resume) flatMap {
+          case Some(fin) => poll(get).onCancel(fin)
+          case None => poll(get)
+        }
+      }
+    }
+
 
   // TODO move this to IOSpec. Generally review our use of `ticked` in IOSpec
   "async" in real {
@@ -26,7 +36,7 @@ class ContSpec extends BaseSpec { outer =>
       def foreverAsync(i: Int): IO[Unit] =
         if (i == times) IO.unit
         else {
-          IO.async[Unit] { cb =>
+          localAsync[Unit] { cb =>
             cb(Right(()))
             IO.pure(None)
           } >> foreverAsync(i + 1)
