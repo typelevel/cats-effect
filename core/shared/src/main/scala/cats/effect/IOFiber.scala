@@ -134,7 +134,7 @@ private final class IOFiber[A](
 //      println(s"${name}: attempting cancellation")
 
       // check to see if the target fiber is suspended
-      if (resume()) {
+      if (resume("Fiber.cancel")) {
         // ...it was! was it masked?
         if (isUnmasked()) {
           // ...nope! take over the target fiber's runloop and run the finalizers
@@ -239,7 +239,9 @@ private final class IOFiber[A](
   3. Callback completes after cancelation and can't take over the runloop
   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
    */
-  private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
+  private[this] def asyncContinue(e: Either[Throwable, Any], s: String = ""): Unit = {
+    if (s.nonEmpty) println(s"continuing from $s")
+
     val ec = currentCtx
     resumeTag = AsyncContinueR
     asyncContinueEither = e
@@ -390,7 +392,7 @@ private final class IOFiber[A](
              */
             @tailrec
             def loop(old: Byte): Unit = {
-              if (resume()) {
+              if (resume("async callback loop")) {
                 state.lazySet(AsyncStateDone) // avoid leaks
 
                 // Race condition check:
@@ -640,14 +642,18 @@ private final class IOFiber[A](
           val cb: Either[Throwable, A] => Unit = { e =>
             // should I do any checks on the old finalisation state like in async?
             @tailrec
-            def loop(): Unit =
-              if (resume()) { // is this necessary to publish writes?
+            def loop(): Unit = {
+              println(s"cb loop sees suspended ${suspended.get} on fiber $name")
+              if (resume("callback")) { // is this necessary to publish writes?
                 if (!shouldFinalize()) {
-                  asyncContinue(e)
+                  println(s"callback taking over on fiber $name")
+                  asyncContinue(e, "callback")
                 }
               } else if (!shouldFinalize()) {
+                println(s"callback recurring on fiber $name")
                 loop()
-              }
+              } else println("something wrong")
+            }
 
             val resultState = ContState.Result(e)
 
@@ -667,8 +673,9 @@ private final class IOFiber[A](
                 else {
                   if (tag == 1) {
                     // `get` has been sequenced and is waiting, reacquire runloop to continue
+                    println(s"callback about to take over on fiber $name")
                     loop()
-                  }
+                  } else println(s"callback arrived at state $old on fiber $name")
                 }
               }
             }
@@ -686,11 +693,14 @@ private final class IOFiber[A](
               val result = state.get().result
               // we leave the Result state unmodified so that `get` is idempotent
               if (!shouldFinalize()) {
-                asyncContinue(result)
+                println("get taking over")
+                asyncContinue(result, "get")
               }
             } else {
               // callback has not been invoked yet
-              suspend() // async has a conditional suspend, why?
+              println(s"get suspending on fiber $name")
+              suspend("get") // async has a conditional suspend, why?
+              println(s"get sets suspended to ${suspended.get} on fiber $name")
             }
 
             null
@@ -713,11 +723,19 @@ private final class IOFiber[A](
   private[this] def isUnmasked(): Boolean =
     masks == initMask
 
-  private[this] def resume(): Boolean =
-    suspended.compareAndSet(true, false)
+  private[this] def resume(str: String = ""): Boolean = {
+    val v = suspended.compareAndSet(true, false)
+    if(str.nonEmpty) println(s"resume called by $str on fiber $name, suspended ${suspended.get}")
+    else println("resume called by something else")
+    v
+  }
 
-  private[this] def suspend(): Unit =
+  private[this] def suspend(str: String = ""): Unit = {
     suspended.set(true)
+    if (str.nonEmpty) println(s"suspend called by $str on fiber $name, suspended ${suspended.get}")
+    else println("suspend called by something else")
+
+  }
 
   private[this] def suspendWithFinalizationCheck(): Unit = {
     // full memory barrier
@@ -726,7 +744,7 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       // if we can re-acquire the run-loop, we can finalize
       // otherwise somebody else acquired it and will eventually finalize
-      if (resume()) {
+      if (resume("async suspend with finalisation check")) {
         asyncCancel(null)
       }
     }
@@ -863,7 +881,7 @@ private final class IOFiber[A](
     }
 
   private[this] def execR(): Unit = {
-    if (resume()) {
+    if (resume("execR")) {
       //      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
       conts = new ByteStack(16)
