@@ -17,7 +17,13 @@
 package cats
 package effect
 
+import org.specs2.specification.core.Execution
+import org.specs2.execute.AsResult
+
 class ContSpec extends BaseSpec { outer =>
+
+  def realNoTimeout[A: AsResult](test: => IO[A]): Execution =
+    Execution.withEnvAsync(_ => test.unsafeToFuture()(runtime()))
 
   def cont: IO[Unit] =
     IO.cont[Unit] flatMap { case (get, resume) =>
@@ -26,10 +32,10 @@ class ContSpec extends BaseSpec { outer =>
     }
 
   // TODO move this to IOSpec. Generally review our use of `ticked` in IOSpec
-  "async" in real {
+  "async" in realNoTimeout {
     def execute(times: Int, i: Int = 0): IO[Boolean] =
-        if (i == times) IO.pure(true)
-        else cont >> execute(times, i + 1)
+      if (i == times) IO.pure(true)
+      else cont >> execute(times, i + 1)
 
     execute(100000).flatMap { res =>
       IO {
