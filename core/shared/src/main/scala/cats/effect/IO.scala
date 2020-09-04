@@ -378,7 +378,15 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = Async(k)
+  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    uncancelable { poll =>
+      cont[A] flatMap { case (get, resume) =>
+        k(resume) flatMap {
+          case Some(fin) => poll(get).onCancel(fin)
+          case None => poll(get)
+        }
+      }
+    }
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     async(cb => apply { k(cb); None })
