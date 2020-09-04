@@ -32,6 +32,9 @@ package object effect {
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
   type Poll[F[_]] = cekernel.Poll[F]
 
+  type Concurrent[F[_], E] = cekernel.Concurrent[F, E]
+  val Concurrent = cekernel.Concurrent
+
   type Clock[F[_]] = cekernel.Clock[F]
   val Clock = cekernel.Clock
 
@@ -52,6 +55,7 @@ package object effect {
 
   type MonadCancelThrow[F[_]] = cekernel.MonadCancelThrow[F]
   type SpawnThrow[F[_]] = cekernel.SpawnThrow[F]
+  type ConcurrentThrow[F[_]] = cekernel.ConcurrentThrow[F]
   type TemporalThrow[F[_]] = cekernel.TemporalThrow[F]
 
   type ParallelF[F[_], A] = cekernel.Par.ParallelF[F, A]
