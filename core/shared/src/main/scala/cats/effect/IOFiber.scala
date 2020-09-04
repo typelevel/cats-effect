@@ -632,8 +632,9 @@ private final class IOFiber[A](
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
+
+        // Cont TODO rename
         case 21 =>
-          val cur = cur0.asInstanceOf[Cont[Any]]
           val state = new AtomicReference[ContState](ContState.Initial)
 
           val cb: Either[Throwable, A] => Unit = { e =>
@@ -694,7 +695,7 @@ private final class IOFiber[A](
 
           def cont = (get, cb)
 
-          succeeded(cont, nextIteration)
+          runLoop(succeeded(cont, 0),  nextIteration)
       }
     }
   }
