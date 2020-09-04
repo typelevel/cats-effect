@@ -675,7 +675,7 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          val get: IO[Any] = IO.defer {
+          val get: IO[Any] = IO.delay {
             if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
               // state was no longer Initial, so the callback has already been invoked
               // and the state is Result
@@ -689,7 +689,7 @@ private final class IOFiber[A](
               suspend() // async has a conditional suspend, why?
             }
 
-            null
+            null // is this correct here?
           }
 
           def cont = (get, cb)
