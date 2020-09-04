@@ -19,7 +19,6 @@ package cats.effect
 import cats.Eq
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
-import cats.syntax.all._
 import org.scalatest.compatible.Assertion
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.Succeeded
