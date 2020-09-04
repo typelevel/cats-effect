@@ -19,31 +19,17 @@ package effect
 
 class ContSpec extends BaseSpec { outer =>
 
-  def localAsync[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-    IO.uncancelable { poll =>
-      IO.cont[A] flatMap { case (get, resume) =>
-        k(resume) flatMap {
-          case Some(fin) => poll(get).onCancel(fin)
-          case None => poll(get)
-        }
-      }
+  def cont: IO[Unit] =
+    IO.cont[Unit] flatMap { case (get, resume) =>
+      resume(Right(()))
+      get
     }
-
 
   // TODO move this to IOSpec. Generally review our use of `ticked` in IOSpec
   "async" in real {
-    def execute(times: Int): IO[Boolean] = {
-      def foreverAsync(i: Int): IO[Unit] =
-        if (i == times) IO.unit
-        else {
-          localAsync[Unit] { cb =>
-            cb(Right(()))
-            IO.pure(None)
-          } >> foreverAsync(i + 1)
-        }
-
-      foreverAsync(0).as(true)
-    }
+    def execute(times: Int, i: Int = 0): IO[Boolean] =
+        if (i == times) IO.pure(true)
+        else cont >> execute(times, i + 1)
 
     execute(100000).flatMap { res =>
       IO {
