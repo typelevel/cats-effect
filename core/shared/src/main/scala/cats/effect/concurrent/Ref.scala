@@ -22,9 +22,6 @@ import cats.data.State
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 import cats.effect.concurrent.Ref.TransformedRef
-import cats.instances.tuple._
-import cats.instances.function._
-import cats.instances.either._
 import cats.syntax.functor._
 import cats.syntax.bifunctor._
 import cats.syntax.flatMap._

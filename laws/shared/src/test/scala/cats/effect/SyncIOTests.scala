@@ -19,7 +19,7 @@ package effect
 
 import cats.effect.laws.discipline.SyncEffectTests
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
+import cats.syntax.all._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._

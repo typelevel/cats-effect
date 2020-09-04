@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.concurrent.Ref
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.implicits._
 import scala.util.Success
 import cats.effect.concurrent.Deferred

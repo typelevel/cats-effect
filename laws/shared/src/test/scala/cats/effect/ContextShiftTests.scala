@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.data._
 import cats.effect.laws.util.TestContext
-import cats.implicits._
 import scala.util.Success
 
 class ContextShiftTests extends BaseTestsSuite {

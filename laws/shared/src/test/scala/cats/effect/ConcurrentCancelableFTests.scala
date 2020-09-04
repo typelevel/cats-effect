@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.concurrent.{Deferred, MVar}
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws._
 import cats.laws.discipline._
 import org.scalatest.Succeeded

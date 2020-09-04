@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
+import cats.syntax.all._
 import org.scalatest.{Assertion, EitherValues}
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers

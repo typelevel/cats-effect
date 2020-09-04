@@ -18,7 +18,7 @@ package cats.effect
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers

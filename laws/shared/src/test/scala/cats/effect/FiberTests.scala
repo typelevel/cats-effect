@@ -18,7 +18,7 @@ package cats
 package effect
 
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
+import cats.syntax.all._
 import cats.kernel.laws.discipline.{MonoidTests, SemigroupTests}
 import cats.laws.discipline.ApplicativeTests
 import org.scalacheck.{Arbitrary, Cogen}

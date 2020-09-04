@@ -20,7 +20,6 @@ package effect
 import cats.data._
 import cats.effect.concurrent.Ref
 import cats.syntax.all._
-import cats.instances.tuple._
 import scala.annotation.implicitNotFound
 
 /**

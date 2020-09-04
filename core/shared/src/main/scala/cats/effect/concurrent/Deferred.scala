@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.internals.{Callback, TrampolineEC}
 import java.util.concurrent.atomic.AtomicReference
 

@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import cats.effect.internals.{Callback, CancelUtils, Conversions}
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
 import cats.laws._
 import cats.laws.discipline._
 

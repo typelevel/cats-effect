@@ -20,7 +20,7 @@ import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, Semaphore}
-import cats.implicits._
+import cats.syntax.all._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AnyFunSuite
