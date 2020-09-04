@@ -147,7 +147,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    * The finalisers run when the resulting program fails or gets interrupted.
    */
-  def useForever[G[x] >: F[x]](implicit G: Spawn[G, Throwable]): G[Nothing] =
+  def useForever[G[x] >: F[x]](implicit G: SpawnThrow[G]): G[Nothing] =
     use[G, Nothing](_ => G.never)
 
   /**
@@ -176,7 +176,7 @@ sealed abstract class Resource[+F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: SpawnThrow: Ref.Mk, B](
+  def parZip[G[x] >: F[x]: ConcurrentThrow, B](
       that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -187,7 +187,7 @@ sealed abstract class Resource[+F[_], +A] {
         release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
       )
 
-    val bothFinalizers = Ref[G].of(().pure[G] -> ().pure[G])
+    val bothFinalizers = Ref.of(().pure[G] -> ().pure[G])
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
@@ -498,7 +498,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   @annotation.implicitNotFound(
-    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of Spawn[F, Throwable]")
+    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[F, Throwable]")
   trait Bracket[F[_]] extends MonadError[F, Throwable] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase) => F[Unit]): F[B]
@@ -543,15 +543,15 @@ object Resource extends ResourceInstances with ResourcePlatform {
   object Bracket extends Bracket0 {
     def apply[F[_]](implicit F: Bracket[F]): F.type = F
 
-    implicit def bracketSpawn[F[_]](
-        implicit F0: Spawn[F, Throwable]
+    implicit def bracketMonadCancel[F[_]](
+        implicit F0: MonadCancel[F, Throwable]
     ): Bracket[F] =
-      new SpawnBracket[F] {
-        implicit protected def F: Spawn[F, Throwable] = F0
+      new MonadCancelBracket[F] {
+        implicit protected def F: MonadCancel[F, Throwable] = F0
       }
 
-    trait SpawnBracket[F[_]] extends Bracket[F] {
-      implicit protected def F: Spawn[F, Throwable]
+    trait MonadCancelBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: MonadCancel[F, Throwable]
 
       def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
           release: (A, ExitCase) => F[Unit]): F[B] =
