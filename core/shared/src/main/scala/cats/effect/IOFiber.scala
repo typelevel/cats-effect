@@ -635,15 +635,8 @@ private final class IOFiber[A](
         case 21 =>
           val cur = cur0.asInstanceOf[Cont[Any]]
           val state = new AtomicReference[ContState](ContState.Initial)
-          // do not push the State and marker on the stack
-          // the async process hasn't started yet and may never do
-//          objectState.push(state)
-
 
           val cb: Either[Throwable, A] => Unit = { e =>
-
-            val result = ContState.Result(e)
-
             // should I do any checks on the old finalisation state like in async?
             @tailrec
             def loop(): Unit =
@@ -654,6 +647,8 @@ private final class IOFiber[A](
               } else if (!shouldFinalize()) {
                 loop()
               }
+
+            val resultState = ContState.Result(e)
 
             /*
              * CAS loop to update the Cont state machine:
@@ -667,11 +662,11 @@ private final class IOFiber[A](
               val old = state.get
               val tag = old.tag
               if (tag <= 1) {
-                if (!state.compareAndSet(old, result)) stateLoop()
+                if (!state.compareAndSet(old, resultState)) stateLoop()
                 else {
                   if (tag == 1) {
                     // `get` has been sequenced and is waiting, reacquire runloop to continue
-
+                    loop()
                   }
                 }
               }
@@ -680,10 +675,25 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          // TODO finish here
-          def cont = ???
+          val get: IO[Any] = IO.defer {
+            if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
+              // state was no longer Initial, so the callback has already been invoked
+              // and the state is Result
+              val result = state.get().result
+              // we leave the Result state unmodified so that `get` is idempotent
+              if (!shouldFinalize()) {
+                asyncContinue(result)
+              }
+            } else {
+              // callback has not been invoked yet
+              suspend() // async has a conditional suspend, why?
+            }
 
-  //        conts.push(ContK)
+            null
+          }
+
+          def cont = (get, cb)
+
           succeeded(cont, nextIteration)
       }
     }
