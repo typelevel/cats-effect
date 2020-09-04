@@ -28,15 +28,11 @@ private[effect] object ContState {
     def tag = 0
   }
 
-  case object Registered extends ContState {
+  case object Waiting extends ContState {
     def tag = 1
   }
 
   final case class Result(override val result: Either[Throwable, Any]) extends ContState {
     def tag = 2
-  }
-
-  case object Done extends ContState {
-    def tag = 3
   }
 }

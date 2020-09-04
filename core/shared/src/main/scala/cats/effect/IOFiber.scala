@@ -634,7 +634,57 @@ private final class IOFiber[A](
           runLoop(cur.ioa, nextIteration)
         case 21 =>
           val cur = cur0.asInstanceOf[Cont[Any]]
+          val state = new AtomicReference[ContState](ContState.Initial)
+          // do not push the State and marker on the stack
+          // the async process hasn't started yet and may never do
+//          objectState.push(state)
+
+
+          val cb: Either[Throwable, A] => Unit = { e =>
+
+            val result = ContState.Result(e)
+
+            // should I do any checks on the old finalisation state like in async?
+            @tailrec
+            def loop(): Unit =
+              if (resume()) { // is this necessary to publish writes?
+                if (!shouldFinalize()) {
+                  asyncContinue(e)
+                }
+              } else if (!shouldFinalize()) {
+                loop()
+              }
+
+            /*
+             * CAS loop to update the Cont state machine:
+             * If state is Initial or Waiting, update the state,
+             * and then if `get` has been sequenced and is waiting, acquire runloop to continue,
+             * and if not just finish off.
+             * If state is Result, the callback was already invoked, so no-op.
+             */
+            @tailrec
+            def stateLoop(): Unit = {
+              val old = state.get
+              val tag = old.tag
+              if (tag <= 1) {
+                if (!state.compareAndSet(old, result)) stateLoop()
+                else {
+                  if (tag == 1) {
+                    // `get` has been sequenced and is waiting, reacquire runloop to continue
+
+                  }
+                }
+              }
+            }
+
+            stateLoop()
+          }
+
           // TODO finish here
+          def cont = ???
+
+  //        conts.push(ContK)
+          succeeded(cont, nextIteration)
       }
     }
   }
