@@ -213,8 +213,8 @@ object MVar {
    *
    * @see [[of]]and [[empty]]
    */
-  def apply[F[_]](implicit mk: Mk[F]): ApplyBuilders[F] =
-    new ApplyBuilders[F](mk)
+  def apply[F[_]](implicit F: Async[F]): ApplyBuilders[F] =
+    new ApplyBuilders[F](F)
 
   /**
    * Creates a cancelable `MVar` that starts as empty.
@@ -222,8 +222,8 @@ object MVar {
    * @param F is an [[Async]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def empty[F[_], A](implicit mk: Mk[F]): F[MVar[F, A]] =
-    mk.mvarEmpty
+  def empty[F[_], A](implicit F: Async[F]): F[MVar[F, A]] =
+    F.delay(MVarAsync.empty)
 
   /**
    * Creates a cancelable `MVar` that's initialized to an `initial`
@@ -235,56 +235,42 @@ object MVar {
    * @param F is a [[Concurrent]] constraint, needed in order to
    *        describe cancelable operations
    */
-  def of[F[_], A](initial: A)(implicit mk: Mk[F]): F[MVar[F, A]] =
-    mk.mvarOf(initial)
+  def of[F[_], A](initial: A)(implicit F: Async[F]): F[MVar[F, A]] =
+    F.delay(MVarAsync(initial))
 
   /**
    * Like [[of]] but initializes state using another effect constructor
    */
-  def in[F[_], G[_], A](initial: A)(implicit mk: MkIn[F, G]): F[MVar[G, A]] =
-    mk.mvarOf(initial)
+  def in[F[_], G[_], A](initial: A)(implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync(initial))
 
   /**
    * Like [[empty]] but initializes state using another effect constructor
    */
-  def emptyIn[F[_], G[_], A](implicit mk: MkIn[F, G]): F[MVar[G, A]] =
-    mk.mvarEmpty[A]
+  def emptyIn[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[MVar[G, A]] =
+    F.delay(MVarAsync.empty)
 
   /**
    * Returned by the [[apply]] builder.
    */
-  final class ApplyBuilders[F[_]](val mk: Mk[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val F: Async[F]) extends AnyVal {
 
     /**
      * Builds an `MVar` with an initial value.
      *
      * @see documentation for [[MVar.of]]
      */
-    def of[A](a: A): F[MVar[F, A]] = mk.mvarOf(a)
+    def of[A](a: A): F[MVar[F, A]] =
+      MVar.of(a)(F)
 
     /**
      * Builds an empty `MVar`.
      *
      * @see documentation for [[MVar.empty]]
      */
-    def empty[A]: F[MVar[F, A]] = mk.mvarEmpty[A]
+    def empty[A]: F[MVar[F, A]] =
+      MVar.empty(F)
   }
-
-  trait MkIn[F[_], G[_]] {
-    def mvarOf[A](a: A): F[MVar[G, A]]
-    def mvarEmpty[A]: F[MVar[G, A]]
-  }
-
-  object MkIn {
-    implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
-      new MkIn[F, G] {
-        override def mvarOf[A](a: A): F[MVar[G, A]] = F.delay(MVarAsync(a))
-
-        override def mvarEmpty[A]: F[MVar[G, A]] = F.delay(MVarAsync.empty)
-      }
-  }
-
-  type Mk[F[_]] = MkIn[F, F]
 
   final private[concurrent] class TransformedMVar[F[_], G[_], A](
       underlying: MVar[F, A],

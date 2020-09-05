@@ -655,7 +655,7 @@ abstract private[effect] class ResourceInstances0 {
   implicit def catsEffectSemigroupKForResource[F[_], A](
       implicit F0: Resource.Bracket[F],
       K0: SemigroupK[F],
-      G0: Ref.Mk[F]): ResourceSemigroupK[F] =
+      G0: Ref.Make[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
@@ -760,7 +760,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
   implicit protected def F: Resource.Bracket[F]
   implicit protected def K: SemigroupK[F]
-  implicit protected def G: Ref.Mk[F]
+  implicit protected def G: Ref.Make[F]
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>

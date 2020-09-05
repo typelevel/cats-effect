@@ -23,6 +23,8 @@ import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
 import scala.collection.immutable.Queue
+import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 
 /**
  * A purely functional semaphore.
@@ -118,26 +120,9 @@ object Semaphore {
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit mk: MkIn[F, G]): F[Semaphore[G]] =
-    mk.semaphore(n)
-
-  trait MkIn[F[_], G[_]] {
-    def semaphore(count: Long): F[Semaphore[G]]
-  }
-
-  object MkIn {
-    implicit def instance[F[_], G[_]](
-        implicit mkRef: Ref.MkIn[F, G],
-        F: ApplicativeError[F, Throwable],
-        G: Concurrent[G, Throwable]): MkIn[F, G] =
-      new MkIn[F, G] {
-        override def semaphore(count: Long): F[Semaphore[G]] =
-          assertNonNegative[F](count) *>
-            mkRef.refOf[State[G]](Right(count)).map(stateRef => new AsyncSemaphore[G](stateRef))
-      }
-  }
-
-  type Mk[F[_]] = MkIn[F, F]
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
+    assertNonNegative[F](n) *>
+      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
 
   private def assertNonNegative[F[_]](n: Long)(
       implicit F: ApplicativeError[F, Throwable]): F[Unit] =

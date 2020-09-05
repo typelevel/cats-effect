@@ -99,23 +99,10 @@ object Deferred {
   def unsafe[F[_]: Async, A]: Deferred[F, A] = new AsyncDeferred[F, A]
 
   /**
-   * Like [[apply]] but initializes state using another effect constructor.
+   * Like [[apply]] but initializes state using another effect constructor
    */
-  def in[F[_], G[_], A](implicit mk: MkIn[F, G]): F[Deferred[G, A]] =
-    mk.deferred[A]
-
-  type Mk[F[_]] = MkIn[F, F]
-
-  trait MkIn[F[_], G[_]] {
-    def deferred[A]: F[Deferred[G, A]]
-  }
-  object MkIn {
-    implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Async[G]): MkIn[F, G] =
-      new MkIn[F, G] {
-        override def deferred[A]: F[Deferred[G, A]] =
-          F.delay(unsafe[G, A])
-      }
-  }
+  def in[F[_], G[_], A](implicit F: Sync[F], G: Async[G]): F[Deferred[G, A]] =
+    F.delay(unsafe[G, A])
 
   sealed abstract private class State[A]
   private object State {
