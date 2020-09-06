@@ -163,10 +163,14 @@ private final class WorkerThread(
     // will break out of the run loop and end the thread.
     while (!pool.done) {
       // Park the thread until further notice.
-      parkThread()
+      LockSupport.park(pool)
 
       // Spurious wakeup check.
       if (transitionFromParked()) {
+        if (queue.isStealable()) {
+          // The local queue can be potentially stolen from. Notify a worker thread.
+          pool.notifyParked()
+        }
         // The thread has been notified to unpark.
         // Break out of the parking loop.
         return
@@ -181,17 +185,6 @@ private final class WorkerThread(
     searching = false
     if (isLastSearcher) {
       pool.notifyIfWorkPending()
-    }
-  }
-
-  /**
-   * Park the thread until further notice.
-   */
-  private[this] def parkThread(): Unit = {
-    LockSupport.park(pool)
-    if (queue.isStealable()) {
-      // The local queue can be potentially stolen from. Notify a worker thread.
-      pool.notifyParked()
     }
   }
 
