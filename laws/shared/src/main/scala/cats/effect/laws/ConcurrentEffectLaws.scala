@@ -19,7 +19,7 @@ package effect
 package laws
 
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws._
 
 import scala.concurrent.Promise

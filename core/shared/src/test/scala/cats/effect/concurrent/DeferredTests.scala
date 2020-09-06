@@ -20,7 +20,7 @@ package concurrent
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import cats.implicits._
+import cats.syntax.all._
 import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite

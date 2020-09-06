@@ -18,7 +18,7 @@ package cats.effect
 package concurrent
 
 import cats.effect.internals.Platform
-import cats.implicits._
+import cats.syntax.all._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.funsuite.AsyncFunSuite
 import scala.concurrent.ExecutionContext

@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.data.State
-import cats.implicits._
+import cats.syntax.all._
 import org.scalatest.Succeeded
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.compatible.Assertion

@@ -21,7 +21,7 @@ import cats.data.AndThen
 import cats.effect.ExitCase.Completed
 import cats.effect.concurrent.Ref
 import cats.effect.internals.ResourcePlatform
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.implicits._
 
 import scala.annotation.tailrec

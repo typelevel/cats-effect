@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.tracing.IOTrace
 import org.scalatest.funsuite.AsyncFunSuite
 import org.scalatest.matchers.should.Matchers
