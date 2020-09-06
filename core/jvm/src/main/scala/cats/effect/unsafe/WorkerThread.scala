@@ -56,6 +56,10 @@ private final class WorkerThread(
   // Source of randomness.
   private[this] val random: Random = new Random()
 
+  // Flag that indicates that this worker thread is currently sleeping, in order to
+  // guard against spurious wakeups.
+  @volatile private[unsafe] var sleeping: Boolean = false
+
   /**
    * A forwarder method for enqueuing a fiber to the local work stealing queue.
    */
@@ -196,7 +200,7 @@ private final class WorkerThread(
    * between an actual wakeup notification and an unplanned wakeup.
    */
   private[this] def transitionFromParked(): Boolean = {
-    if (pool.isParked(this)) {
+    if (sleeping) {
       // Should remain parked.
       false
     } else {
