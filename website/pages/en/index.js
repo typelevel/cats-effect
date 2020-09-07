@@ -57,7 +57,7 @@ class HomeSplash extends React.Component {
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
                     <PromoSection>
-                        <Button href="https://scastie.scala-lang.org/l1U9WvrpQdyHfr6fy9M63g">Try It!</Button>
+                        <Button href="https://scastie.scala-lang.org/Kt4fZowKRiGIR1oRefMLbQ">Try It!</Button>
                         <Button href={docUrl('installation.html')}>Get Started</Button>
                     </PromoSection>
                 </div>
@@ -90,7 +90,7 @@ class Index extends React.Component {
                     {
                         content:
                             "Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the [Typelevel](https://typelevel.org) ecosystem. It provides a concrete tool, known as \"the `IO` monad\", for capturing and controlling *actions*, often referred to as \"effects\", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.\n\nEven more importantly, Cats Effect provides a set of typeclasses which define what it means to *be* a purely functional runtime system. These abstractions power a thriving ecosystem consisting of streaming frameworks, JDBC database layers, HTTP servers and clients, asynchronous clients for systems like Redis and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.",
-                        image: `${baseUrl}img/carbon.png`,
+                        image: `${baseUrl}img/hello-printing.png`,
                         imageAlign: 'right',
                     }
                 ]}
@@ -155,7 +155,7 @@ class Index extends React.Component {
                 {[
                     {
                         content: 'This is the content of my feature',
-                        image: `${baseUrl}img/undraw_react.svg`,
+                        image: `${baseUrl}img/cats-effect-1.0-hierarchy.svg`,
                         imageAlign: 'top',
                         title: 'Feature One',
                     },
