@@ -147,7 +147,7 @@ abstract class Ref[F[_], A] {
 object Ref {
 
   @annotation.implicitNotFound(
-    "Cannot find an instance for Ref.Make. Add implicit evidence of Concurrent[F, _], Sync[F] or Async[F] to scope to automatically derive one.")
+    "Cannot find an instance for Ref.Make. Add implicit evidence of Concurrent[${F}, _] or Sync[${F}] to scope to automatically derive one.")
   trait Make[F[_]] {
     def refOf[A](a: A): F[Ref[F, A]]
   }

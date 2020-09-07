@@ -498,7 +498,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   @annotation.implicitNotFound(
-    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[F, Throwable]")
+    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[${F}, Throwable]")
   trait Bracket[F[_]] extends MonadError[F, Throwable] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase) => F[Unit]): F[B]
