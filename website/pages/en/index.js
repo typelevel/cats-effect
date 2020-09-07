@@ -107,16 +107,14 @@ class Index extends React.Component {
         );
 
         const TryOut = () => (
-            <Block id="try" align="center">
+            <Block id="try" align="left">
                 {[
                     {
                         content:
-                            'To make your landing page more attractive, use illustrations! Check out ' +
-                            '[**unDraw**](https://undraw.co/) which provides you with customizable illustrations which are free to use. ' +
-                            'The illustrations you see on this page are from unDraw.',
-                        image: `${baseUrl}img/undraw_code_review.svg`,
+                            'Cats Effect uniquely defines what it means to be a functional effect. This gives it unmatched expressive and compositional power, unlocking an entirely ecosystem of extensibility and enriching your applications with the ability to re-mix the runtime system *itself*. This brings the full power of the Cats ecosystem to bear, enabling elegant answers to thorny problems like distributed tracing, dependency injection, error reporting along multiple channels, and much more!',
+                        image: `${baseUrl}img/cats-effect-1.0-hierarchy.svg`,
                         imageAlign: 'left',
-                        title: 'Wonderful SVG Illustrations',
+                        title: 'Powerful Abstract Calculus',
                     },
                 ]}
             </Block>

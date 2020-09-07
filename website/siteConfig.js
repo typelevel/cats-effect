@@ -78,6 +78,17 @@ const siteConfig = {
   // Show documentation's last update time.
   // enableUpdateTime: true,
   docsSideNavCollapsible: true,
+
+  users: [
+    {
+      // we probably can't do disney, or logos in general, due to restrictions
+      image: 'img/200px-Disney+_logo.svg.png',
+      caption: 'The Walt Disney Company',
+      title: 'The Walt Disney Company',
+      infoLink: 'https://www.disney.com',
+      pinned: true
+    }
+  ]
 };
 
 module.exports = siteConfig;
