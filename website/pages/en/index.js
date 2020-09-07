@@ -101,13 +101,19 @@ class Index extends React.Component {
             <div
                 className="productShowcaseSection paddingBottom"
                 style={{textAlign: 'center'}}>
-                <h2>Feature Callout</h2>
-                <MarkdownBlock>These are features of this project</MarkdownBlock>
+                <h2>Things You Get For Free</h2>
+                <ul align="left">
+                    <li>Resource safety</li>
+                    <li>Parallelism</li>
+                    <li>Optimal thread pool utilization with granular control over throughput *and* fairness</li>
+                    <li>Easy refactoring of complex code at all layers of the stack</li>
+                    <li>Pervasive asynchrony enabling extremely high scale</li>
+                </ul>
             </div>
         );
 
         const TryOut = () => (
-            <Block id="try" align="left">
+            <Block background="light" align="left">
                 {[
                     {
                         content:
@@ -167,6 +173,17 @@ class Index extends React.Component {
             </Block>
         );
 
+        const Feature = feature => (
+            <Block align="left">
+                {[{
+                    content: feature.children,
+                    image: feature.image,
+                    imageAlign: feature.align,
+                    title: feature.title
+                }]}
+            </Block>
+        );
+
         const Showcase = () => {
             if ((siteConfig.users || []).length === 0) {
                 return null;
@@ -184,8 +201,7 @@ class Index extends React.Component {
 
             return (
                 <div className="productShowcaseSection paddingBottom">
-                    <h2>Who is Using This?</h2>
-                    <p>This project is used by all these people</p>
+                    <h2>Adopters</h2>
                     <div className="logos">{showcase}</div>
                     <div className="more-users">
                         <a className="button" href={pageUrl('users.html')}>
@@ -201,11 +217,16 @@ class Index extends React.Component {
                 <HomeSplash siteConfig={siteConfig} language={language} />
                 <div className="mainContainer">
                     <Hook />
-                    <Features />
+
+                    <Feature align="left" title="Fibers" image="img/fibers.svg">
+                        Testing feature things!
+                    </Feature>
+                    <Feature align="right" title="Tracing" image="img/tracing.png">
+                        Testing feature things!
+                    </Feature>
+
                     <FeatureCallout />
-                    <LearnHow />
                     <TryOut />
-                    <Description />
                     <Showcase />
                 </div>
             </div>
