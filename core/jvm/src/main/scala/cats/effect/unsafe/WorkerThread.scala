@@ -56,6 +56,10 @@ private final class WorkerThread(
   // Source of randomness.
   private[this] val random: Random = new Random()
 
+  // Flag that indicates that this worker thread is currently sleeping, in order to
+  // guard against spurious wakeups.
+  @volatile private[unsafe] var sleeping: Boolean = false
+
   /**
    * A forwarder method for enqueuing a fiber to the local work stealing queue.
    */
@@ -159,10 +163,14 @@ private final class WorkerThread(
     // will break out of the run loop and end the thread.
     while (!pool.done) {
       // Park the thread until further notice.
-      parkThread()
+      LockSupport.park(pool)
 
       // Spurious wakeup check.
       if (transitionFromParked()) {
+        if (queue.isStealable()) {
+          // The local queue can be potentially stolen from. Notify a worker thread.
+          pool.notifyParked()
+        }
         // The thread has been notified to unpark.
         // Break out of the parking loop.
         return
@@ -181,22 +189,11 @@ private final class WorkerThread(
   }
 
   /**
-   * Park the thread until further notice.
-   */
-  private[this] def parkThread(): Unit = {
-    LockSupport.park(pool)
-    if (queue.isStealable()) {
-      // The local queue can be potentially stolen from. Notify a worker thread.
-      pool.notifyParked()
-    }
-  }
-
-  /**
    * Guard against spurious wakeups. Check the global pool state to distinguish
    * between an actual wakeup notification and an unplanned wakeup.
    */
   private[this] def transitionFromParked(): Boolean = {
-    if (pool.isParked(this)) {
+    if (sleeping) {
       // Should remain parked.
       false
     } else {

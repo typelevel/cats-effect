@@ -76,9 +76,6 @@ private[effect] final class WorkStealingThreadPool(
   // LIFO access to references of sleeping worker threads.
   private[this] val sleepers: ArrayStack[WorkerThread] = new ArrayStack(threadCount)
 
-  // Track currently sleeping threads by their indices.
-  private[this] val sleepingSet: Array[Boolean] = new Array(threadCount)
-
   // Shutdown signal for the worker threads.
   @volatile private[unsafe] var done: Boolean = false
 
@@ -183,8 +180,7 @@ private[effect] final class WorkStealingThreadPool(
 
       // Obtain the most recently parked thread.
       val popped = sleepers.pop()
-      // Remove it from the sleeping set.
-      sleepingSet(popped.getIndex()) = false
+      popped.sleeping = false
       popped
     }
   }
@@ -210,7 +206,7 @@ private[effect] final class WorkStealingThreadPool(
       val ret = decrementNumberUnparked(thread.isSearching())
       // Mark the thread as parked.
       sleepers.push(thread)
-      sleepingSet(thread.getIndex()) = true
+      thread.sleeping = true
       ret
     }
   }
@@ -258,16 +254,6 @@ private[effect] final class WorkStealingThreadPool(
     if (!externalQueue.isEmpty()) {
       // If no work was found in the local queues of the worker threads, look for work in the external queue.
       notifyParked()
-    }
-  }
-
-  /**
-   * Checks if the thread should be parked again in order to guard
-   * against spurious wakeups.
-   */
-  private[unsafe] def isParked(thread: WorkerThread): Boolean = {
-    lock.synchronized {
-      sleepingSet(thread.getIndex())
     }
   }
 
