@@ -551,4 +551,58 @@ class ResourceTests extends BaseTestsSuite {
     leftReleased shouldBe true
     rightReleased shouldBe true
   }
+
+  testAsync("onFinalizeCase - interruption") { implicit ec =>
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val ctx: ContextShift[IO] = ec.ioContextShift
+
+    def p =
+      Deferred[IO, ExitCase[Throwable]]
+        .flatMap { stop =>
+          val r = Resource
+            .liftF(IO.never: IO[Int])
+            .onFinalizeCase(stop.complete)
+            .use(IO.pure)
+
+          r.start.flatMap { fiber =>
+            timer.sleep(200.millis) >> fiber.cancel >> stop.get
+          }
+        }
+        .timeout(2.seconds)
+
+    val res = p.unsafeToFuture()
+
+    ec.tick(3.seconds)
+
+    res.value shouldBe Some(Success(ExitCase.Canceled))
+  }
+
+  test("onFinalize - runs after existing finalizer") {
+    check { (rx: Resource[IO, Int], y: Int) =>
+      var acquired: List[Int] = Nil
+      var released: List[Int] = Nil
+
+      def observe(r: Resource[IO, Int]) =
+        r.flatMap { a =>
+          Resource
+            .make(IO {
+              acquired = a :: acquired
+            } *> IO.pure(a))(a =>
+              IO {
+                released = a :: released
+              }
+            )
+            .as(())
+        }
+
+      observe(rx)
+        .onFinalize(IO {
+          released = y :: released
+        })
+        .use(_ => IO.unit)
+        .attempt
+        .unsafeRunSync()
+      released <-> y :: acquired
+    }
+  }
 }
