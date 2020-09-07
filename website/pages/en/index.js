@@ -57,7 +57,8 @@ class HomeSplash extends React.Component {
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
                     <PromoSection>
-                        <Button href={docUrl('installation.html')}>Get started</Button>
+                        <Button href="https://scastie.scala-lang.org/l1U9WvrpQdyHfr6fy9M63g">Try It!</Button>
+                        <Button href={docUrl('installation.html')}>Get Started</Button>
                     </PromoSection>
                 </div>
             </SplashContainer>
@@ -76,11 +77,24 @@ class Index extends React.Component {
                 id={props.id}
                 background={props.background}>
                 <GridBlock
-                    align="center"
+                    align={props.align}
                     contents={props.children}
                     layout={props.layout}
                 />
             </Container>
+        );
+
+        const Hook = () => (
+            <Block background="light" align="left">
+                {[
+                    {
+                        content:
+                            "Cats Effect is a high-performance, asynchronous, composable framework for building real-world applications in a purely functional style within the [Typelevel](https://typelevel.org) ecosystem. It provides a concrete tool, known as \"the `IO` monad\", for capturing and controlling *actions*, often referred to as \"effects\", that your program wishes to perform within a resource-safe, typed context with seamless support for concurrency and coordination. These effects may be asynchronous (callback-driven) or synchronous (directly returning values); they may return within microseconds or run infinitely.\n\nEven more importantly, Cats Effect provides a set of typeclasses which define what it means to *be* a purely functional runtime system. These abstractions power a thriving ecosystem consisting of streaming frameworks, JDBC database layers, HTTP servers and clients, asynchronous clients for systems like Redis and MongoDB, and so much more! Additionally, you can leverage these abstractions within your own application to unlock powerful capabilities with little-or-no code changes, for example solving problems such as dependency injection, multiple error channels, shared state across modules, tracing, and more.",
+                        image: `${baseUrl}img/carbon.png`,
+                        imageAlign: 'right',
+                    }
+                ]}
+            </Block>
         );
 
         const FeatureCallout = () => (
@@ -93,7 +107,7 @@ class Index extends React.Component {
         );
 
         const TryOut = () => (
-            <Block id="try">
+            <Block id="try" align="center">
                 {[
                     {
                         content:
@@ -109,7 +123,7 @@ class Index extends React.Component {
         );
 
         const Description = () => (
-            <Block background="dark">
+            <Block background="dark" align="center">
                 {[
                     {
                         content:
@@ -123,7 +137,7 @@ class Index extends React.Component {
         );
 
         const LearnHow = () => (
-            <Block background="light">
+            <Block background="light" align="center">
                 {[
                     {
                         content:
@@ -137,7 +151,7 @@ class Index extends React.Component {
         );
 
         const Features = () => (
-            <Block layout="fourColumn">
+            <Block layout="fourColumn" align="center">
                 {[
                     {
                         content: 'This is the content of my feature',
@@ -188,6 +202,7 @@ class Index extends React.Component {
             <div>
                 <HomeSplash siteConfig={siteConfig} language={language} />
                 <div className="mainContainer">
+                    <Hook />
                     <Features />
                     <FeatureCallout />
                     <LearnHow />
