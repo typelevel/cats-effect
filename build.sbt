@@ -21,7 +21,7 @@ import scala.sys.process._
 
 ThisBuild / baseVersion := "2.2"
 
-val OldScala = "2.12.11"
+val OldScala = "2.12.12"
 ThisBuild / crossScalaVersions := Seq(OldScala, "2.13.3")
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
 
