@@ -97,7 +97,7 @@ Global / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.2.0-RC2"
+val CatsVersion = "2.2.0"
 val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
