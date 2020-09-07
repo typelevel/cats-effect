@@ -21,20 +21,25 @@ operations that a fiber executes, and knitting them together to produce a more
 coherent view of the fiber’s execution path. For example, here is a trace of a 
 sample program that is running in cached stack tracing mode:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IOTrace: 13 frames captured, 0 omitted
- ├ flatMap at org.simpleapp.example.Example.run (Example.scala:67)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:57)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:58)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:59)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:60)
- ├ async at org.simpleapp.example.Example.program (Example.scala:60)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:61)
- ├ flatMap at org.simpleapp.example.Example.program (Example.scala:60)
- ├ flatMap at org.simpleapp.example.Example.program2 (Example.scala:51)
- ├ map at org.simpleapp.example.Example.program2 (Example.scala:52)
- ├ map at org.simpleapp.example.Example.program (Example.scala:60)
- ├ map at org.simpleapp.example.Example.program (Example.scala:62)
- ╰ flatMap at org.simpleapp.example.Example.run (Example.scala:67)
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IOTrace: 19 frames captured
+ ├ flatMap @ org.simpleapp.examples.Main$.program (Main.scala:53)
+ ├ map @ org.simpleapp.examples.Main$.foo (Main.scala:46)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:45)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:44)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:43)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:42)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:41)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:40)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:39)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:38)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:37)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:36)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:35)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:34)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:33)
+ ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:32)
+ ├ flatMap @ org.simpleapp.examples.Main$.program (Main.scala:53)
+ ╰ ... (3 frames omitted)
 </code></pre></div></div>
 
 <p>However, fiber tracing isn’t limited to collecting stack traces. Tracing 
@@ -50,6 +55,8 @@ fiber.</li>
 combinator was actually called by user code. For example, <code class="highlighter-rouge">void</code> and <code class="highlighter-rouge">as</code> are 
 combinators that are derived from <code class="highlighter-rouge">map</code>, and should appear in the fiber trace
 rather than <code class="highlighter-rouge">map</code>.</li>
+  <li><strong>Enhanced exceptions</strong>. Exceptions captured by the <code class="highlighter-rouge">IO</code> runtime can be
+augmented with async stack traces to produce more relevant stack traces.</li>
   <li>Intermediate values. The intermediate values that an <code class="highlighter-rouge">IO</code> program encounters
 can be converted to a string to render. This can aid in understanding the
 actions that a program takes.</li>
@@ -92,13 +99,13 @@ before deploying it to a production environment!</p>
 <p>To prevent unbounded memory usage, stack traces for a fiber are accumulated 
 in an internal buffer as execution proceeds. If more traces are collected than
 the buffer can retain, then the older traces will be overwritten. The default
-size for the buffer is 128, but can be changed via the system property 
-<code class="highlighter-rouge">cats.effect.traceBufferSize</code>. Keep in mind that the buffer size will always
-be rounded up to a power of 2.</p>
+size for the buffer is 16, but can be changed via the system property 
+<code class="highlighter-rouge">cats.effect.traceBufferLogSize</code>. Note that this property is expressed
+as a logarithm of a power of two!</p>
 
-<p>For example, to enable full stack tracing and a trace buffer size of 1024,
+<p>For example, to enable full stack tracing and a trace buffer size of 32,
 specify the following system properties:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferSize=1024
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=5
 </code></pre></div></div>
 
 <h4 id="disabled">DISABLED</h4>
@@ -159,6 +166,55 @@ trace element from each fiber operation.</p>
 
 <p>Keep in mind that the scope and amount of information that traces hold will
 change over time as additional fiber tracing features are merged into master.</p>
+
+<h2 id="enhanced-exceptions">Enhanced exceptions</h2>
+<p>The stack trace of an exception caught by the IO runloop looks similar to the
+following output:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
+	at org.simpleapp.examples.Main$.b(Main.scala:28)
+	at org.simpleapp.examples.Main$.a(Main.scala:25)
+	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
+	at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18)
+	at cats.effect.internals.IORunLoop$.cats$effect$internals$IORunLoop$$loop(IORunLoop.scala:103)
+	at cats.effect.internals.IORunLoop$RestartCallback.signal(IORunLoop.scala:440)
+	at cats.effect.internals.IORunLoop$RestartCallback.apply(IORunLoop.scala:461)
+	at cats.effect.internals.IORunLoop$RestartCallback.apply(IORunLoop.scala:399)
+	at cats.effect.internals.IOShift$Tick.run(IOShift.scala:36)
+	at cats.effect.internals.PoolUtils$$anon$2$$anon$3.run(PoolUtils.scala:52)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+</code></pre></div></div>
+
+<p>It includes stack frames that are part of the IO runloop, which are generally
+not of interest to users of the library. When asynchronous stack tracing is
+enabled, the IO runloop is capable of augmenting the stack traces of caught
+exceptions to include frames from the asynchronous stack traces. For example,
+the augmented version of the above stack trace looks like the following:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
+	at org.simpleapp.examples.Main$.b(Main.scala:28)
+	at org.simpleapp.examples.Main$.a(Main.scala:25)
+	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
+	at map @ org.simpleapp.examples.Main$.$anonfun$foo$10(Main.scala:37)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$8(Main.scala:36)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$6(Main.scala:35)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$4(Main.scala:34)
+	at flatMap @ org.simpleapp.examples.Main$.$anonfun$foo$2(Main.scala:33)
+	at flatMap @ org.simpleapp.examples.Main$.foo(Main.scala:32)
+	at flatMap @ org.simpleapp.examples.Main$.program(Main.scala:42)
+	at as @ org.simpleapp.examples.Main$.run(Main.scala:48)
+	at main$ @ org.simpleapp.examples.Main$.main(Main.scala:22)
+</code></pre></div></div>
+
+<p>Note that the relevant stack frames from the call-site of the user code
+is preserved, but all IO-related stack frames are replaced with async
+stack trace frames.</p>
+
+<p>This feature is controlled by the system property 
+<code class="highlighter-rouge">cats.effect.enhancedExceptions</code>. It is enabled by default.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=false
+</code></pre></div></div>
 
 <h3 id="complete-example">Complete example</h3>
 <p>Here is a sample program that demonstrates tracing in action.</p>

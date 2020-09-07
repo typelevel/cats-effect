@@ -30,10 +30,49 @@
 
 <span class="k">val</span> <span class="nv">acquire</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Acquire cats..."</span><span class="o">))</span> <span class="o">*&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="s">"cats"</span><span class="o">)</span>
 <span class="c1">// acquire: IO[String] = Bind(</span>
-<span class="c1">//   Delay(&lt;function0&gt;),</span>
-<span class="c1">//   cats.effect.IO$$Lambda$19395/1051284063@546b20d9,</span>
-<span class="c1">//   StackTrace(java.lang.Throwable)</span>
-<span class="c1">// )</span>
+<span class="c1">//   source = Delay(thunk = &lt;function0&gt;),</span>
+<span class="c1">//   f = cats.effect.IO$$Lambda$33131/922221255@3b0a534e,</span>
+<span class="c1">//   trace = StackTrace(</span>
+<span class="c1">//     stackTrace = List(</span>
+<span class="c1">//       cats.effect.internals.IOTracing$.buildFrame(IOTracing.scala:48),</span>
+<span class="c1">//       cats.effect.internals.IOTracing$.buildCachedFrame(IOTracing.scala:39),</span>
+<span class="c1">//       cats.effect.internals.IOTracing$.cached(IOTracing.scala:34),</span>
+<span class="c1">//       cats.effect.IO.flatMap(IO.scala:133),</span>
+<span class="c1">//       cats.effect.IO.$times$greater(IO.scala:770),</span>
+<span class="c1">//       repl.MdocSession$App7.&lt;init&gt;(io.md:203),</span>
+<span class="c1">//       repl.MdocSession$App6.&lt;init&gt;(io.md:177),</span>
+<span class="c1">//       repl.MdocSession$App5.&lt;init&gt;(io.md:155),</span>
+<span class="c1">//       repl.MdocSession$App.&lt;init&gt;(io.md:137),</span>
+<span class="c1">//       repl.MdocSession$.app(io.md:3),</span>
+<span class="c1">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$2(DocumentBuilder.scala:82),</span>
+<span class="c1">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="c1">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="c1">//       scala.Console$.withErr(Console.scala:193),</span>
+<span class="c1">//       mdoc.internal.document.DocumentBuilder$$doc$.$anonfun$build$1(DocumentBuilder.scala:82),</span>
+<span class="c1">//       scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.scala:18),</span>
+<span class="c1">//       scala.util.DynamicVariable.withValue(DynamicVariable.scala:59),</span>
+<span class="c1">//       scala.Console$.withOut(Console.scala:164),</span>
+<span class="c1">//       mdoc.internal.document.DocumentBuilder$$doc$.build(DocumentBuilder.scala:81),</span>
+<span class="c1">//       mdoc.internal.markdown.MarkdownBuilder$.buildDocument(MarkdownBuilder.scala:44),</span>
+<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:186),</span>
+<span class="c1">//       mdoc.internal.markdown.Processor.processScalaInputs(Processor.scala:153),</span>
+<span class="c1">//       mdoc.internal.markdown.Processor.processDocument(Processor.scala:52),</span>
+<span class="c1">//       mdoc.internal.markdown.Markdown$.toMarkdown(Markdown.scala:132),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.handleMarkdown(MainOps.scala:82),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.handleFile(MainOps.scala:110),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.$anonfun$generateCompleteSite$1(MainOps.scala:157),</span>
+<span class="c1">//       scala.collection.LinearSeqOps.foldLeft(LinearSeq.scala:168),</span>
+<span class="c1">//       scala.collection.LinearSeqOps.foldLeft$(LinearSeq.scala:164),</span>
+<span class="c1">//       scala.collection.immutable.List.foldLeft(List.scala:79),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.generateCompleteSite(MainOps.scala:155),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps.run(MainOps.scala:178),</span>
+<span class="c1">//       mdoc.internal.cli.MainOps$.process(MainOps.scala:270),</span>
+<span class="c1">//       mdoc.Main$.process(Main.scala:26),</span>
+<span class="c1">//       mdoc.Main$.process(Main.scala:21),</span>
+<span class="c1">//       mdoc.Main$.main(Main.scala:16),</span>
+<span class="c1">//       mdoc.Main.main(Main.scala),</span>
+<span class="c1">//       sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method),</span>
+<span class="c1">//       sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:...</span>
 <span class="k">val</span> <span class="nv">release</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">_</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"...release everything"</span><span class="o">))</span>
 <span class="c1">// release: String =&gt; IO[Unit] = &lt;function1&gt;</span>
 <span class="k">val</span> <span class="nv">addDogs</span><span class="k">:</span> <span class="kt">String</span> <span class="o">=&gt;</span> <span class="nc">IO</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="n">x</span> <span class="k">=&gt;</span>

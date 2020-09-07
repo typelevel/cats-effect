@@ -1451,7 +1451,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   cats.effect.internals.IOConnection$Impl$$Lambda$19396/541685241@bdae020</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$33132/1694788660@62b3da0b</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 
@@ -1465,7 +1465,7 @@ but only if there’s an <code class="highlighter-rouge">ExecutionContext</code>
 
 <p>As soon as an async blocking limit is hit, evaluation “immediately” aborts and <code class="highlighter-rouge">None</code> is returned.</p>
 
-<p>Please note that this function is intended for <strong>testing</strong> purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like <a href="https://github.com/functional-streams-for-scala/fs2">fs2</a> or <a href="https://monix.io/">Monix</a>).</p>
+<p>Please note that this function is intended for <strong>testing</strong> purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like <a href="https://fs2.io/">fs2</a> or <a href="https://monix.io/">Monix</a>).</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
 

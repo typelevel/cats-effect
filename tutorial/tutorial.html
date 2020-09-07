@@ -42,11 +42,11 @@ same dependencies and compilation options:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">name</span> <span class="o">:=</span> <span class="s">"cats-effect-tutorial"</span>
 
-<span class="n">version</span> <span class="o">:=</span> <span class="s">"1.0"</span>
+<span class="n">version</span> <span class="o">:=</span> <span class="s">"2.1.4"</span>
 
 <span class="n">scalaVersion</span> <span class="o">:=</span> <span class="s">"2.12.8"</span>
 
-<span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"1.3.0"</span> <span class="nf">withSources</span><span class="o">()</span> <span class="nf">withJavadoc</span><span class="o">()</span>
+<span class="n">libraryDependencies</span> <span class="o">+=</span> <span class="s">"org.typelevel"</span> <span class="o">%%</span> <span class="s">"cats-effect"</span> <span class="o">%</span> <span class="s">"2.1.4"</span> <span class="nf">withSources</span><span class="o">()</span> <span class="nf">withJavadoc</span><span class="o">()</span>
 
 <span class="n">scalacOptions</span> <span class="o">++=</span> <span class="nc">Seq</span><span class="o">(</span>
   <span class="s">"-feature"</span><span class="o">,</span>
@@ -300,7 +300,7 @@ trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
 cancellation happens <em>while</em> the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
-being closed by another thread. For more info about this problem see <a href="../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action">Gotcha:
+being closed by another thread. For more info about this problem see <a href="../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action">Gotcha:
 Cancellation is a concurrent
 action</a> in
 cats-effect site.</p>
@@ -379,7 +379,7 @@ signature.</p>
 instances returned by <code class="highlighter-rouge">Resource.use</code>), the <code class="highlighter-rouge">IO</code> returned by <code class="highlighter-rouge">transfer</code> is not.
 Trying to cancel it will not have any effect and that <code class="highlighter-rouge">IO</code> will run until the
 whole file is copied! In real world code you will probably want to make your
-functions cancelable, section <a href="../datatypes/io.md#building-cancelable-io-tasks">Building cancelable IO
+functions cancelable, section <a href="../datatypes/io.html#building-cancelable-io-tasks">Building cancelable IO
 tasks</a> of <code class="highlighter-rouge">IO</code> documentation
 explains how to create such cancelable <code class="highlighter-rouge">IO</code> instances (besides calling
 <code class="highlighter-rouge">Resource.use</code>, as we have done for our code).</p>
@@ -490,8 +490,11 @@ methods of the <code class="highlighter-rouge">Sync[F[_]]</code> instance!</p>
   <span class="o">}</span> <span class="k">yield</span> <span class="n">count</span> <span class="c1">// Returns the actual amount of bytes transmitted</span>
 </code></pre></div></div>
 
-<p>We can do the same transformation to most of the code we have created so far,
-but not all. In <code class="highlighter-rouge">copy</code> you will find out that we do need a full instance of
+<p>We leave as an exercise to code the polymorphic versions of <code class="highlighter-rouge">inputStream</code>,
+<code class="highlighter-rouge">outputStream</code>, <code class="highlighter-rouge">inputOutputStreams</code> and <code class="highlighter-rouge">transfer</code> functions. You will
+find that transformation similar to the one shown for <code class="highlighter-rouge">transfer</code> in the snippet
+above. Function <code class="highlighter-rouge">copy</code> is different however. If you try to implement that
+function as well you will realize that we need a full instance of
 <code class="highlighter-rouge">Concurrent[F]</code> in scope, this is because it is required by the <code class="highlighter-rouge">Semaphore</code>
 instantiation:</p>
 
@@ -501,7 +504,10 @@ instantiation:</p>
 <span class="k">import</span> <span class="nn">cats.implicits._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
+<span class="k">def</span> <span class="nf">transmit</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 <span class="k">def</span> <span class="nf">transfer</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="nf">inputStream</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="nf">outputStream</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">FileOutputStream</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
 <span class="k">def</span> <span class="nf">inputOutputStreams</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">in</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">out</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">guard</span><span class="k">:</span> <span class="kt">Semaphore</span><span class="o">[</span><span class="kt">F</span><span class="o">])</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">F</span>, <span class="o">(</span><span class="kt">InputStream</span>, <span class="kt">OutputStream</span><span class="o">)]</span> <span class="k">=</span> <span class="o">???</span>
 
 <span class="k">def</span> <span class="nf">copy</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Concurrent</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">File</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> 
