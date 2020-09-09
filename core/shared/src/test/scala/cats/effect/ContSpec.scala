@@ -50,27 +50,27 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   // gets stuck in the CAS loop to reacquire the runloop
-  "callback wins in async - 1" in realNoTimeout {
-    def cont: IO[Unit] =
-      IO.cont[Unit] flatMap { case (get, resume) =>
-        for {
-          _ <- IO(println("begin"))
-          fib <- (IO(println("about to get")) >> get).start
-          _ <- IO.sleep(200.millis)
-          _ <- IO(println("sleep"))
-          _ <- IO(resume(Right(())))
-          _ <- fib.joinAndEmbedNever.timeout(5.seconds)
-        } yield ()
-      }
+  // `get.start` is fundamentally invalid
+  // "callback wins in async - 1" in realNoTimeout {
+  //   def cont: IO[Unit] =
+  //     IO.cont[Unit] flatMap { case (get, resume) =>
+  //       for {
+  //         _ <- IO(println("begin"))
+  //         fib <- (IO(println("about to get")) >> get).start
+  //         _ <- IO.sleep(200.millis)
+  //         _ <- IO(println("sleep"))
+  //         _ <- IO(resume(Right(())))
+  //         _ <- fib.joinAndEmbedNever.timeout(5.seconds)
+  //       } yield ()
+  //     }
 
-    cont.as(true).flatMap { res =>
-      IO {
-        res must beTrue
-      }
-    }
-  }
+  //   cont.as(true).flatMap { res =>
+  //     IO {
+  //       res must beTrue
+  //     }
+  //   }
+  // }
 
-    // gets stuck in the CAS loop to reacquire the runloop
   "callback wins in async - 2" in realNoTimeout {
     def cont: IO[Unit] =
       IO.cont[Unit] flatMap { case (get, resume) =>
