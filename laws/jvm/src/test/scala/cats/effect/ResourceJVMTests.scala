@@ -31,7 +31,7 @@ class ResourceJVMTests extends BaseTestsSuite {
       .use(_ => IO.pure("Hello world"))
       .unsafeRunSync()
 
-    result shouldBe "Hello world"
-    destroyed shouldBe true
+    assertEquals(result, "Hello world")
+    assertEquals(destroyed, true)
   }
 }

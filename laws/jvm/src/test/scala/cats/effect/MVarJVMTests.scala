@@ -21,9 +21,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, MVar, MVar2}
 import cats.syntax.all._
-import org.scalatest.BeforeAndAfter
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -98,7 +96,7 @@ class MVarFullJVMParallelism4Tests extends BaseMVarJVMTests(4) {
 
 // -----------------------------------------------------------------
 
-abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
+abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -111,7 +109,7 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
   implicit val cs: ContextShift[IO] = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
-  before {
+  override def beforeAll(): Unit =
     service = Executors.newFixedThreadPool(
       parallelism,
       new ThreadFactory {
@@ -124,18 +122,17 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
         }
       }
     )
-  }
 
-  after {
+  override def afterAll(): Unit = {
     service.shutdown()
     assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
   }
 
   // ----------------------------------------------------------------------------
 
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-  val iterations = if (isCI) 1000 else 10000
-  val timeout = if (isCI) 30.seconds else 10.seconds
+  val isRunningInCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val iterations = if (isRunningInCI) 1000 else 10000
+  val timeout = if (isRunningInCI) 30.seconds else 10.seconds
 
   def allocate(implicit cs: ContextShift[IO]): IO[MVar2[IO, Unit]]
   def allocateUncancelable: IO[MVar2[IO, Unit]]
@@ -150,17 +147,17 @@ abstract class BaseMVarJVMTests(parallelism: Int) extends AnyFunSuite with Match
 
       def get(df: MVar2[IO, Unit]) =
         for {
-          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
           _ <- acquire(df)
-          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
         } yield ()
 
       val task = for {
         df <- allocate
         fb <- get(df).start
-        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
         _ <- release(df)
-        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
         _ <- fb.join
       } yield ()
 

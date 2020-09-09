@@ -24,9 +24,9 @@ class IOContextShiftTests extends BaseTestsSuite {
     val contextShift: ContextShift[IO] = ec.ioContextShift
 
     val f = contextShift.shift.map(_ => 1).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 }

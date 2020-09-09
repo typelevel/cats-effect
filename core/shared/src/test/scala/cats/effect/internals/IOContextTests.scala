@@ -17,10 +17,9 @@
 package cats.effect.internals
 
 import cats.effect.tracing.IOEvent
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class IOContextTests extends AnyFunSuite with Matchers {
+class IOContextTests extends FunSuite {
 
   val traceBufferSize: Int = 1 << cats.effect.internals.TracingPlatform.traceBufferLogSize
   val stackTrace = new Throwable().getStackTrace.toList
@@ -35,9 +34,9 @@ class IOContextTests extends AnyFunSuite with Matchers {
     ctx.pushEvent(t2)
 
     val trace = ctx.trace()
-    trace.events shouldBe List(t1, t2)
-    trace.captured shouldBe 2
-    trace.omitted shouldBe 0
+    assertEquals(trace.events, List(t1, t2))
+    assertEquals(trace.captured, 2)
+    assertEquals(trace.omitted, 0)
   }
 
   test("track omitted frames") {
@@ -48,9 +47,9 @@ class IOContextTests extends AnyFunSuite with Matchers {
     }
 
     val trace = ctx.trace()
-    trace.events.length shouldBe traceBufferSize
-    trace.captured shouldBe (traceBufferSize + 10)
-    trace.omitted shouldBe 10
+    assertEquals(trace.events.length, traceBufferSize)
+    assertEquals(trace.captured, (traceBufferSize + 10))
+    assertEquals(trace.omitted, 10)
   }
 
 }

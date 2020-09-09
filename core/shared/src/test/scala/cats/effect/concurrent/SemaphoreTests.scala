@@ -19,15 +19,13 @@ package effect
 package concurrent
 
 import cats.syntax.all._
-import org.scalatest.{Assertion, EitherValues}
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class SemaphoreTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)
 
@@ -40,7 +38,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
   def tests(label: String, sc: Long => IO[Semaphore[IO]]): Unit = {
     test(s"$label - do not allow negative n") {
       sc(-42).attempt.unsafeToFuture().map { r =>
-        r.left.value should be(a[IllegalArgumentException])
+        assert(r.left.toOption.get.isInstanceOf[IllegalArgumentException])
       }
     }
 
@@ -51,7 +49,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           (0 until n).toList.traverse(_ => s.acquire).void *> s.available
         }
         .unsafeToFuture()
-        .map(_ shouldBe 0)
+        .map(assertEquals(_, 0L))
     }
 
     test(s"$label - available with no available permits") {
@@ -65,7 +63,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
 
         }
         .unsafeToFuture()
-        .map(_ shouldBe ((-1, 0)))
+        .map(assertEquals(_, ((-1L, 0L))))
     }
 
     test(s"$label - tryAcquire with available permits") {
@@ -78,7 +76,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe true)
+        .map(assertEquals(_, true))
     }
 
     test(s"$label - tryAcquire with no available permits") {
@@ -91,7 +89,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe false)
+        .map(assertEquals(_, false))
     }
 
     test(s"$label - tryAcquireN all available permits") {
@@ -103,7 +101,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe true)
+        .map(assertEquals(_, true))
     }
 
     test(s"$label - offsetting acquires/releases - acquires parallel with releases") {
@@ -125,7 +123,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe 1)
+        .map(assertEquals(_, 1L))
     }
 
     test(s"$label - available with 0 available permits") {
@@ -137,7 +135,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe 0)
+        .map(assertEquals(_, 0L))
     }
 
     test(s"$label - tryAcquireN with no available permits") {
@@ -151,7 +149,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(_ shouldBe false)
+        .map(assertEquals(_, false))
     }
 
     test(s"$label - count with available permits") {
@@ -165,7 +163,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield (a, t)
         }
         .unsafeToFuture()
-        .map { case (available, count) => available shouldBe count }
+        .map { case (available, count) => assertEquals(available, count) }
     }
 
     test(s"$label - count with no available permits") {
@@ -178,7 +176,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield res
         }
         .unsafeToFuture()
-        .map(count => count shouldBe ((-n, -n)))
+        .map(assertEquals(_, ((-n, -n))))
     }
 
     test(s"$label - count with 0 available permits") {
@@ -191,18 +189,18 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
           } yield t
         }
         .unsafeToFuture()
-        .map(count => count shouldBe 0)
+        .map(assertEquals(_, 0L))
     }
 
     def testOffsettingReleasesAcquires(acquires: (Semaphore[IO], Vector[Long]) => IO[Unit],
-                                       releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Assertion] = {
+                                       releases: (Semaphore[IO], Vector[Long]) => IO[Unit]): Future[Unit] = {
       val permits: Vector[Long] = Vector(1, 0, 20, 4, 0, 5, 2, 1, 1, 3)
       sc(0)
         .flatMap { s =>
           (acquires(s, permits), releases(s, permits)).parTupled *> s.count
         }
         .unsafeToFuture()
-        .map(_ shouldBe 0L)
+        .map(assertEquals(_, 0L))
     }
   }
 
@@ -220,7 +218,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         s.acquireN(2L).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
       }
       .unsafeToFuture()
-      .map(_ shouldBe 2L)
+      .map(assertEquals(_, 2L))
   }
 
   test("concurrent - withPermit does not leak fibers or permits upon cancelation") {
@@ -233,7 +231,7 @@ class SemaphoreTests extends AsyncFunSuite with Matchers with EitherValues {
         s.withPermit(s.release).timeout(1.milli).attempt *> s.release *> IO.sleep(10.millis) *> s.count
       }
       .unsafeToFuture()
-      .map(_ shouldBe 1L)
+      .map(assertEquals(_, 1L))
   }
 
   tests("async", n => Semaphore.uncancelable[IO](n))

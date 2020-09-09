@@ -37,10 +37,10 @@ class TestContextTests extends BaseTestsSuite {
 
     val n = 10000
     val f = loop(n, 0)
-    assert(f.value === None)
+    assertEquals(f.value, None)
 
     ec.tick()
-    assert(f.value === Some(Success(n * (n + 1) / 2)))
+    assertEquals(f.value, Some(Success((n * (n + 1) / 2).toLong)))
   }
 
   testAsync("reportFailure") { ec =>
@@ -58,20 +58,20 @@ class TestContextTests extends BaseTestsSuite {
       }
     })
 
-    assert(effect === false)
-    assert(ec.state.lastReportedFailure === None)
+    assertEquals(effect, false)
+    assertEquals(ec.state.lastReportedFailure, None)
 
     ec.tick()
 
-    assert(effect === true)
-    assert(ec.state.lastReportedFailure === Some(dummy))
+    assertEquals(effect, true)
+    assertEquals(ec.state.lastReportedFailure, Some(dummy))
   }
 
   testAsync("tickOne") { implicit ec =>
     val f = Future(1 + 1)
-    assert(f.value === None)
+    assertEquals(f.value, None)
     ec.tickOne()
-    assert(f.value === Some(Success(2)))
+    assertEquals(f.value, Some(Success(2)))
 
     var count = 0
     for (_ <- 0 until 100)
@@ -79,64 +79,64 @@ class TestContextTests extends BaseTestsSuite {
         def run(): Unit = count += 1
       })
 
-    assert(count === 0)
+    assertEquals(count, 0)
     var executed = 0
     while (ec.tickOne()) {
       executed += 1
     }
 
-    assert(count === 100)
-    assert(executed === 100)
+    assertEquals(count, 100)
+    assertEquals(executed, 100)
   }
 
   testAsync("IO.shift via implicit ExecutionContext") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
-    assert(f.value === None)
+    assertEquals(f.value, None)
 
     ec.tick()
-    assert(f.value === Some(Success(2)))
+    assertEquals(f.value, Some(Success(2)))
   }
 
   testAsync("IO.shift via Timer") { ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = IO.shift.flatMap(_ => IO(1 + 1)).unsafeToFuture()
-    assert(f.value === None)
+    assertEquals(f.value, None)
 
     ec.tick()
-    assert(f.value === Some(Success(2)))
+    assertEquals(f.value, Some(Success(2)))
   }
 
   testAsync("timer.clock.realTime") { ec =>
     val timer = ec.timer[IO]
 
     val t1 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
-    assert(t1 === 0)
+    assertEquals(t1, 0L)
 
     ec.tick(5.seconds)
     val t2 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
-    assert(t2 === 5000)
+    assertEquals(t2, 5000L)
 
     ec.tick(10.seconds)
     val t3 = timer.clock.realTime(MILLISECONDS).unsafeRunSync()
-    assert(t3 === 15000)
+    assertEquals(t3, 15000L)
   }
 
   testAsync("timer.clock.monotonic") { ec =>
     val timer = ec.timer[IO]
 
     val t1 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
-    assert(t1 === 0)
+    assertEquals(t1, 0L)
 
     ec.tick(5.seconds)
     val t2 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
-    assert(t2 === 5000)
+    assertEquals(t2, 5000L)
 
     ec.tick(10.seconds)
     val t3 = timer.clock.monotonic(MILLISECONDS).unsafeRunSync()
-    assert(t3 === 15000)
+    assertEquals(t3, 15000L)
   }
 
   testAsync("timer.sleep") { ec =>
@@ -145,14 +145,14 @@ class TestContextTests extends BaseTestsSuite {
     val f = delay.unsafeToFuture()
 
     ec.tick()
-    assert(f.value === None)
+    assertEquals(f.value, None)
 
     ec.tick(1.second)
-    assert(f.value === None)
+    assertEquals(f.value, None)
     ec.tick(8.second)
-    assert(f.value === None)
+    assertEquals(f.value, None)
     ec.tick(1.second)
-    assert(f.value === Some(Success(1)))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   testAsync("timer.sleep is cancelable") { ec =>
@@ -175,18 +175,18 @@ class TestContextTests extends BaseTestsSuite {
     delay.unsafeRunCancelable(callback(p3))
 
     ec.tick()
-    assert(p1.future.value === None)
-    assert(p2.future.value === None)
-    assert(p3.future.value === None)
+    assertEquals(p1.future.value, None)
+    assertEquals(p2.future.value, None)
+    assertEquals(p3.future.value, None)
 
     cancel.unsafeRunSync()
     ec.tick()
-    assert(p2.future.value === None)
+    assertEquals(p2.future.value, None)
 
     ec.tick(10.seconds)
-    assert(p1.future.value === Some(Success(1)))
-    assert(p2.future.value === None)
-    assert(p3.future.value === Some(Success(1)))
+    assertEquals(p1.future.value, Some(Success(1)))
+    assertEquals(p2.future.value, None)
+    assertEquals(p3.future.value, Some(Success(1)))
 
     assert(ec.state.tasks.isEmpty, "tasks.isEmpty")
   }

@@ -18,14 +18,13 @@ package cats.effect
 
 import cats.implicits._
 import cats.data._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
+import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class TimerTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext =
+class TimerTests extends FunSuite {
+  implicit val executionContext =
     ExecutionContext.global
   implicit val timer: Timer[IO] =
     IO.timer(executionContext)
@@ -53,8 +52,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = timer.clock.realTime(MILLISECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0)
+      assert(time <= t2)
     }
   }
 
@@ -63,8 +62,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = timer.clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -78,7 +77,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.unsafeToFuture()) yield {
-      r should be >= 90L
+      assert(r >= 90L)
     }
   }
 
@@ -86,7 +85,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = timer.sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 
@@ -95,8 +94,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[EitherTIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -105,8 +104,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[EitherTIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -121,7 +120,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0L) should be > 0L
+      assert(r.getOrElse(0L) > 0L)
     }
   }
 
@@ -129,7 +128,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[EitherTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0) shouldBe 10
+      assertEquals(r.getOrElse(0), 10)
     }
   }
 
@@ -140,8 +139,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[OptionTIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -150,8 +149,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[OptionTIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -166,7 +165,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0L) should be > 0L
+      assert(r.getOrElse(0L) > 0L)
     }
   }
 
@@ -174,7 +173,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[OptionTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0) shouldBe 10
+      assertEquals(r.getOrElse(0), 10)
     }
   }
 
@@ -185,8 +184,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[WriterTIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -195,8 +194,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[WriterTIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -211,7 +210,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r should be > 0L
+      assert(r > 0L)
     }
   }
 
@@ -219,7 +218,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[WriterTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 
@@ -230,8 +229,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[KleisliIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.run(0).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -240,8 +239,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[KleisliIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.run(0).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -256,7 +255,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.run(0).unsafeToFuture()) yield {
-      r should be > 0L
+      assert(r > 0L)
     }
   }
 
@@ -264,7 +263,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[KleisliIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.run(0).unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 
@@ -275,8 +274,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[StateTIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.run(0).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2._2
+      assert(time > 0L)
+      assert(time <= t2._2)
     }
   }
 
@@ -285,8 +284,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[StateTIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.run(0).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2._2
+      assert(time > 0L)
+      assert(time <= t2._2)
     }
   }
 
@@ -301,7 +300,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.run(0).unsafeToFuture()) yield {
-      r._2 should be > 0L
+      assert(r._2 > 0L)
     }
   }
 
@@ -309,7 +308,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[StateTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.run(0).unsafeToFuture()) yield {
-      r._2 shouldBe 10
+      assertEquals(r._2, 10)
     }
   }
 
@@ -320,8 +319,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[IorTIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -330,8 +329,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[IorTIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.value.unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2.getOrElse(0L)
+      assert(time > 0L)
+      assert(time <= t2.getOrElse(0L))
     }
   }
 
@@ -346,7 +345,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0L) should be > 0L
+      assert(r.getOrElse(0L) > 0L)
     }
   }
 
@@ -354,7 +353,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[IorTIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.value.unsafeToFuture()) yield {
-      r.getOrElse(0L) shouldBe 10
+      assertEquals(r.getOrElse(0), 10)
     }
   }
 
@@ -365,8 +364,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[ResourceIO].clock.realTime(MILLISECONDS)
 
     for (t2 <- io.use(IO.pure).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -375,8 +374,8 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[ResourceIO].clock.monotonic(NANOSECONDS)
 
     for (t2 <- io.use(IO.pure).unsafeToFuture()) yield {
-      time should be > 0L
-      time should be <= t2
+      assert(time > 0L)
+      assert(time <= t2)
     }
   }
 
@@ -391,7 +390,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     }
 
     for (r <- io.use(IO.pure).unsafeToFuture()) yield {
-      r should be > 0L
+      assert(r > 0L)
     }
   }
 
@@ -399,7 +398,7 @@ class TimerTests extends AsyncFunSuite with Matchers {
     val io = Timer[ResourceIO].sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.use(IO.pure).unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 }

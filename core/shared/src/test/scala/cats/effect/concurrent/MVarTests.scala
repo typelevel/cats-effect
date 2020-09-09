@@ -19,8 +19,8 @@ package concurrent
 
 import cats.effect.internals.Platform
 import cats.syntax.all._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
+import munit.FunSuite
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
@@ -45,7 +45,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Set(1, 3)
+      assertEquals(r, Set(1, 3))
     }
   }
 
@@ -64,7 +64,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield Set(r1, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Set(1, 3)
+      assertEquals(r, Set(1, 3))
     }
   }
 
@@ -81,7 +81,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield v
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Right(0)
+      assertEquals(r, Right(0))
     }
   }
 
@@ -97,7 +97,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield v
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Right(10)
+      assertEquals(r, Right(10))
     }
   }
 
@@ -113,7 +113,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield v
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Right(10)
+      assertEquals(r, Right(10))
     }
   }
 
@@ -130,7 +130,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     } yield v
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Right(10)
+      assertEquals(r, Right(10))
     }
   }
 }
@@ -143,8 +143,8 @@ class MVarAsyncTests extends BaseMVarTests {
     MVar.uncancelableEmpty
 }
 
-abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext =
+abstract class BaseMVarTests extends FunSuite {
+  implicit val executionContext: ExecutionContext =
     ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] =
     IO.timer(executionContext)
@@ -166,7 +166,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (isE1, isE2, r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe ((true, false, 10, 20))
+      assertEquals(r, (true, false, 10, 20))
     }
   }
 
@@ -184,7 +184,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (isE1, p1, p2, isE2, r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe ((true, true, false, false, Some(10), None, 20))
+      assertEquals(r, (true, true, false, false, Some(10), None, 20))
     }
   }
 
@@ -200,7 +200,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield Set(r1, r2)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Set(10, 20)
+      assertEquals(r, Set(10, 20))
     }
   }
 
@@ -219,7 +219,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield Set(r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Set(10, 20, 30)
+      assertEquals(r, Set(10, 20, 30))
     }
   }
 
@@ -238,7 +238,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield Set(r1, r2, r3)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe Set(10, 20, 30)
+      assertEquals(r, Set(10, 20, 30))
     }
   }
 
@@ -252,7 +252,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (isE, r1, r2)
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe ((false, 10, 20))
+      assertEquals(v, (false, 10, 20))
     }
   }
 
@@ -264,7 +264,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield read + take
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe 20
+      assertEquals(v, 20)
     }
   }
 
@@ -277,7 +277,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield r
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe 10
+      assertEquals(v, 10)
     }
   }
 
@@ -292,7 +292,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (tryReadEmpty, tryReadContains, r)
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe ((None, Some(10), 10))
+      assertEquals(v, (None, Some(10), 10))
     }
   }
 
@@ -306,7 +306,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (newValue, oldValue)
 
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe ((20, 10))
+      assertEquals(v, (20, 10))
     }
   }
 
@@ -315,7 +315,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
       mvar.put(null) *> mvar.read
     }
     for (v <- task.unsafeToFuture()) yield {
-      v shouldBe null
+      assertEquals(v, null)
     }
   }
 
@@ -353,7 +353,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
     // Evaluate
     for (r <- sumTask.unsafeToFuture()) yield {
-      r shouldBe (count.toLong * (count - 1) / 2)
+      assertEquals(r, (count.toLong * (count - 1) / 2))
     }
   }
 
@@ -386,7 +386,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
 
     val task = init(Option(0)).flatMap(exec)
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe count.toLong * (count - 1) / 2
+      assertEquals(r, count.toLong * (count - 1) / 2)
     }
   }
 
@@ -402,7 +402,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     val task = init(1).flatMap(loop(count, 0))
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe count
+      assertEquals(r, count)
     }
   }
 
@@ -434,7 +434,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield r == count
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe true
+      assertEquals(r, true)
     }
   }
 
@@ -448,7 +448,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield r == count
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe true
+      assertEquals(r, true)
     }
   }
 
@@ -470,7 +470,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield r
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe count * 2
+      assertEquals(r, count * 2)
     }
   }
 
@@ -486,7 +486,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (s, v)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe ("20" -> 40)
+      assertEquals(r, ("20" -> 40))
     }
   }
 
@@ -502,7 +502,7 @@ abstract class BaseMVarTests extends AsyncFunSuite with Matchers {
     } yield (e, v)
 
     for (r <- task.unsafeToFuture()) yield {
-      r shouldBe (Left(error) -> Right(10))
+      assertEquals(r, (Left(error) -> Right(10)))
     }
   }
 }

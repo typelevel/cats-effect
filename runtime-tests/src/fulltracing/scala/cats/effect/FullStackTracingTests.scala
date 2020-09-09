@@ -17,13 +17,12 @@
 package cats.effect
 
 import cats.effect.tracing.{IOEvent, IOTrace}
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 
-class FullStackTracingTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class FullStackTracingTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -34,11 +33,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.pure(0).map(_ + 1).map(_ + 1)
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 4
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "map"))
-        .length shouldBe 2
+      assertEquals(r.captured, 4)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "map"))
+                     .length,
+                   2)
     }
   }
 
@@ -46,11 +46,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.pure(0).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 6
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "flatMap"))
-        .length shouldBe 3 // the extra one is used to capture the trace
+      assertEquals(r.captured, 6)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "flatMap"))
+                     .length,
+                   3) // the extra one is used to capture the trace
     }
   }
 
@@ -58,11 +59,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.async[Int](_(Right(0))).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 6
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "async"))
-        .length shouldBe 1
+      assertEquals(r.captured, 6)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "async"))
+                     .length,
+                   1)
     }
   }
 
@@ -70,11 +72,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.pure(0).flatMap(a => IO.pure(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 4
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "pure"))
-        .length shouldBe 2
+      assertEquals(r.captured, 4)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "pure"))
+                     .length,
+                   2)
     }
   }
 
@@ -82,11 +85,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO(0).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 4
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "delay"))
-        .length shouldBe 2
+      assertEquals(r.captured, 4)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "delay"))
+                     .length,
+                   2)
     }
   }
 
@@ -94,11 +98,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.suspend(IO(1)).flatMap(a => IO.suspend(IO(a + 1)))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 6
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "suspend"))
-        .length shouldBe 2
+      assertEquals(r.captured, 6)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "suspend"))
+                     .length,
+                   2)
     }
   }
 
@@ -106,11 +111,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO(0).flatMap(_ => IO.raiseError(new Throwable())).handleErrorWith(_ => IO.unit)
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 5
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "raiseError"))
-        .length shouldBe 1
+      assertEquals(r.captured, 5)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "raiseError"))
+                     .length,
+                   1)
     }
   }
 
@@ -118,11 +124,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.unit.bracket(_ => IO.pure(10))(_ => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 13
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "bracket"))
-        .length shouldBe 1
+      assertEquals(r.captured, 13)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "bracket"))
+                     .length,
+                   1)
     }
   }
 
@@ -130,11 +137,12 @@ class FullStackTracingTests extends AsyncFunSuite with Matchers {
     val task = IO.unit.bracketCase(_ => IO.pure(10))((_, _) => IO.unit).flatMap(a => IO(a + 1)).flatMap(a => IO(a + 1))
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 13
-      r.events
-        .collect { case e: IOEvent.StackTrace => e }
-        .filter(_.stackTrace.exists(_.getMethodName == "bracketCase"))
-        .length shouldBe 1
+      assertEquals(r.captured, 13)
+      assertEquals(r.events
+                     .collect { case e: IOEvent.StackTrace => e }
+                     .filter(_.stackTrace.exists(_.getMethodName == "bracketCase"))
+                     .length,
+                   1)
     }
   }
 }
