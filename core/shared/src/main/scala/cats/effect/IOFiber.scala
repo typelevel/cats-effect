@@ -240,7 +240,7 @@ private final class IOFiber[A](
   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
    */
   private[this] def asyncContinue(e: Either[Throwable, Any], s: String = ""): Unit = {
-    if (s.nonEmpty) println(s"continuing from $s")
+//    if (s.nonEmpty) println(s"continuing from $s")
 
     val ec = currentCtx
     resumeTag = AsyncContinueR
@@ -295,7 +295,7 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else {
-      // println(s"<$name> looping on $cur0")
+   //   println(s"<$name> looping on $cur0")
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
@@ -675,7 +675,7 @@ private final class IOFiber[A](
                     // `get` has been sequenced and is waiting, reacquire runloop to continue
                     println(s"callback about to take over on fiber $name")
                     loop()
-                  } else println(s"callback arrived at state $old on fiber $name")
+                  } else () // println(s"callback arrived at state $old on fiber $name")
                 }
               }
             }
@@ -693,7 +693,9 @@ private final class IOFiber[A](
               val result = state.get().result
               // we leave the Result state unmodified so that `get` is idempotent
               if (!shouldFinalize()) {
-                println("get taking over")
+//                println("get taking over")
+                // TODO uncomment looping on, and comment toString on IO
+                // println(s"TODO display conts before get resumes")
                 asyncContinue(result, "get")
               }
             } else {
@@ -725,8 +727,8 @@ private final class IOFiber[A](
 
   private[this] def resume(str: String = ""): Boolean = {
     val v = suspended.compareAndSet(true, false)
-    if(str.nonEmpty) println(s"resume called by $str on fiber $name, suspended ${suspended.get}")
-    else println("resume called by something else")
+    // if(str.nonEmpty) println(s"resume called by $str on fiber $name, suspended ${suspended.get}")
+    // else println("resume called by something else")
     v
   }
 
@@ -896,11 +898,16 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncContinueR(): Unit = {
+//    println("continuing asyncly")
     val e = asyncContinueEither
     asyncContinueEither = null
     val next = e match {
-      case Left(t) => failed(t, 0)
-      case Right(a) => succeeded(a, 0)
+      case Left(t) =>
+        println("asyncContinueR - failure")
+        failed(t, 0)
+      case Right(a) =>
+//        println("asyncContinueR - success")
+        succeeded(a, 0)
     }
 
     runLoop(next, 0)
@@ -977,7 +984,9 @@ private final class IOFiber[A](
 
     try f(result)
     catch {
-      case NonFatal(t) => failed(t, depth + 1)
+      case NonFatal(t) =>
+        println(s"caught $t after receving result $result")
+        failed(t, depth + 1)
     }
   }
 

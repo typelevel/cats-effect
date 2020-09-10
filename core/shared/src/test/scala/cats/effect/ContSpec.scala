@@ -49,6 +49,31 @@ class ContSpec extends BaseSpec { outer =>
     }
   }
 
+  "repro" in {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    import scala.concurrent.Future
+
+    def cont: IO[String] =
+      IO.cont[String] flatMap { case (get, resume) =>
+        //  Future(resume(Right(())))
+        resume(Right("hello"))
+        get
+      }
+
+    var i = 0
+
+    while (i <= 100000) {
+      i = i + 1
+  //    println(i)
+      import cats.effect.unsafe.implicits.global
+      cont.unsafeRunSync mustEqual "hello"
+    }
+
+    success
+  }
+
+
+
   // gets stuck in the CAS loop to reacquire the runloop
   // `get.start` is fundamentally invalid
   // "callback wins in async - 1" in realNoTimeout {
