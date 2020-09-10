@@ -20,7 +20,7 @@ package object syntax {
 
   object all extends AllSyntax
 
-  object concurrent extends ConcurrentSyntax
+  object spawn extends SpawnSyntax
   object temporal extends TemporalSyntax
   object async extends AsyncSyntax
   object syncEffect extends SyncEffectSyntax

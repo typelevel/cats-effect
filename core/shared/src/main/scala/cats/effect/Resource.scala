@@ -147,7 +147,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    * The finalisers run when the resulting program fails or gets interrupted.
    */
-  def useForever[G[x] >: F[x]](implicit G: Concurrent[G, Throwable]): G[Nothing] =
+  def useForever[G[x] >: F[x]](implicit G: SpawnThrow[G]): G[Nothing] =
     use[G, Nothing](_ => G.never)
 
   /**
@@ -176,7 +176,7 @@ sealed abstract class Resource[+F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: ConcurrentThrow: Ref.Mk, B](
+  def parZip[G[x] >: F[x]: ConcurrentThrow, B](
       that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -187,7 +187,7 @@ sealed abstract class Resource[+F[_], +A] {
         release => storeFinalizer(Resource.Bracket[G].guarantee(_)(release))
       )
 
-    val bothFinalizers = Ref[G].of(().pure[G] -> ().pure[G])
+    val bothFinalizers = Ref.of(().pure[G] -> ().pure[G])
 
     Resource.make(bothFinalizers)(_.get.flatMap(_.parTupled).void).evalMap { store =>
       val leftStore: Update = f => store.update(_.leftMap(f))
@@ -498,7 +498,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   @annotation.implicitNotFound(
-    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of Concurrent[F, Throwable]")
+    "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[${F}, Throwable]")
   trait Bracket[F[_]] extends MonadError[F, Throwable] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase) => F[Unit]): F[B]
@@ -515,48 +515,61 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   trait Bracket0 {
     implicit def catsEffectResourceBracketForSyncEffect[F[_]](
-        implicit F: SyncEffect[F]): Bracket[F] =
-      new Bracket[F] {
-        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, ExitCase) => F[Unit]): F[B] =
-          flatMap(acquire) { a =>
-            val handled = onError(use(a)) {
-              case e => void(attempt(release(a, ExitCase.Errored(e))))
-            }
-            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
-          }
-
-        def pure[A](x: A): F[A] = F.pure(x)
-        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+        implicit F0: SyncEffect[F]): Bracket[F] =
+      new SyncBracket[F] {
+        implicit protected def F: Sync[F] = F0
       }
+
+    trait SyncBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: Sync[F]
+
+      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+          release: (A, ExitCase) => F[Unit]): F[B] =
+        flatMap(acquire) { a =>
+          val handled = onError(use(a)) {
+            case e => void(attempt(release(a, ExitCase.Errored(e))))
+          }
+          flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+        }
+
+      def pure[A](x: A): F[A] = F.pure(x)
+      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    }
   }
 
   object Bracket extends Bracket0 {
     def apply[F[_]](implicit F: Bracket[F]): F.type = F
 
-    implicit def catsEffectResourceBracketForConcurrent[F[_]](
-        implicit F: Concurrent[F, Throwable]): Bracket[F] =
-      new Bracket[F] {
-        def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
-            release: (A, ExitCase) => F[Unit]): F[B] =
-          F.uncancelable { poll =>
-            flatMap(acquire) { a =>
-              val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
-              val handled = onError(finalized) {
-                case e => void(attempt(release(a, ExitCase.Errored(e))))
-              }
-              flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
-            }
-          }
-        def pure[A](x: A): F[A] = F.pure(x)
-        def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
-        def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
-        def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
-        def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    implicit def bracketMonadCancel[F[_]](
+        implicit F0: MonadCancel[F, Throwable]
+    ): Bracket[F] =
+      new MonadCancelBracket[F] {
+        implicit protected def F: MonadCancel[F, Throwable] = F0
       }
+
+    trait MonadCancelBracket[F[_]] extends Bracket[F] {
+      implicit protected def F: MonadCancel[F, Throwable]
+
+      def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
+          release: (A, ExitCase) => F[Unit]): F[B] =
+        F.uncancelable { poll =>
+          flatMap(acquire) { a =>
+            val finalized = F.onCancel(poll(use(a)), release(a, ExitCase.Canceled))
+            val handled = onError(finalized) {
+              case e => void(attempt(release(a, ExitCase.Errored(e))))
+            }
+            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+          }
+        }
+      def pure[A](x: A): F[A] = F.pure(x)
+      def handleErrorWith[A](fa: F[A])(f: Throwable => F[A]): F[A] = F.handleErrorWith(fa)(f)
+      def raiseError[A](e: Throwable): F[A] = F.raiseError(e)
+      def flatMap[A, B](fa: F[A])(f: A => F[B]): F[B] = F.flatMap(fa)(f)
+      def tailRecM[A, B](a: A)(f: A => F[Either[A, B]]): F[B] = F.tailRecM(a)(f)
+    }
   }
 
   /**
@@ -642,7 +655,7 @@ abstract private[effect] class ResourceInstances0 {
   implicit def catsEffectSemigroupKForResource[F[_], A](
       implicit F0: Resource.Bracket[F],
       K0: SemigroupK[F],
-      G0: Ref.Mk[F]): ResourceSemigroupK[F] =
+      G0: Ref.Make[F]): ResourceSemigroupK[F] =
     new ResourceSemigroupK[F] {
       def F = F0
       def K = K0
@@ -747,7 +760,7 @@ abstract private[effect] class ResourceSemigroup[F[_], A] extends Semigroup[Reso
 abstract private[effect] class ResourceSemigroupK[F[_]] extends SemigroupK[Resource[F, *]] {
   implicit protected def F: Resource.Bracket[F]
   implicit protected def K: SemigroupK[F]
-  implicit protected def G: Ref.Mk[F]
+  implicit protected def G: Ref.Make[F]
 
   def combineK[A](ra: Resource[F, A], rb: Resource[F, A]): Resource[F, A] =
     Resource.make(Ref[F].of(F.unit))(_.get.flatten).evalMap { finalizers =>

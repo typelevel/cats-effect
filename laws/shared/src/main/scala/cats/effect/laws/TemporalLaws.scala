@@ -22,7 +22,7 @@ import cats.implicits._
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalLaws[F[_], E] extends ConcurrentLaws[F, E] with ClockLaws[F] {
+trait TemporalLaws[F[_], E] extends SpawnLaws[F, E] with ClockLaws[F] {
 
   implicit val F: Temporal[F, E]
 

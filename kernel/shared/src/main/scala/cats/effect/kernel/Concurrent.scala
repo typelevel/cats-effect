@@ -16,127 +16,36 @@
 
 package cats.effect.kernel
 
-import cats.~>
-import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
-import cats.syntax.all._
+import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
-trait Concurrent[F[_], E] extends MonadCancel[F, E] {
+trait Concurrent[F[_], E] extends Spawn[F, E] {
 
-  def start[A](fa: F[A]): F[Fiber[F, E, A]]
+  def ref[A](a: A): F[Ref[F, A]]
 
-  // produces an effect which never returns
-  def never[A]: F[A]
+  def deferred[A]: F[Deferred[F, A]]
 
-  // introduces a fairness boundary by yielding control to the underlying dispatcher
-  def cede: F[Unit]
-
-  def racePair[A, B](fa: F[A], fb: F[B])
-      : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
-
-  def raceOutcome[A, B](fa: F[A], fb: F[B]): F[Either[Outcome[F, E, A], Outcome[F, E, B]]] =
-    uncancelable { _ =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) => as(f.cancel, Left(oc))
-        case Right((f, oc)) => as(f.cancel, Right(oc))
-      }
-    }
-
-  def race[A, B](fa: F[A], fb: F[B]): F[Either[A, B]] =
-    uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) =>
-          oc match {
-            case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
-            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
-            case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => map(fb)(Right(_))
-                case Outcome.Errored(eb) => raiseError(eb)
-                case Outcome.Canceled() => productR(canceled)(never)
-              }
-          }
-        case Right((f, oc)) =>
-          oc match {
-            case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
-            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
-            case Outcome.Canceled() =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => map(fa)(Left(_))
-                case Outcome.Errored(ea) => raiseError(ea)
-                case Outcome.Canceled() => productR(canceled)(never)
-              }
-          }
-      }
-    }
-
-  def bothOutcome[A, B](fa: F[A], fb: F[B]): F[(Outcome[F, E, A], Outcome[F, E, B])] =
-    uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) => map(onCancel(poll(f.join), f.cancel))((oc, _))
-        case Right((f, oc)) => map(onCancel(poll(f.join), f.cancel))((_, oc))
-      }
-    }
-
-  def both[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
-    uncancelable { poll =>
-      flatMap(racePair(fa, fb)) {
-        case Left((oc, f)) =>
-          oc match {
-            case Outcome.Completed(fa) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => product(fa, fb)
-                case Outcome.Errored(eb) => raiseError(eb)
-                case Outcome.Canceled() => productR(canceled)(never)
-              }
-            case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
-            case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
-          }
-        case Right((f, oc)) =>
-          oc match {
-            case Outcome.Completed(fb) =>
-              flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => product(fa, fb)
-                case Outcome.Errored(ea) => raiseError(ea)
-                case Outcome.Canceled() => productR(canceled)(never)
-              }
-            case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
-            case Outcome.Canceled() => productR(f.cancel)(productR(canceled)(never))
-          }
-      }
-    }
 }
 
 object Concurrent {
-  import MonadCancel.{
-    EitherTMonadCancel,
-    IorTMonadCancel,
-    KleisliMonadCancel,
-    OptionTMonadCancel,
-    WriterTMonadCancel
-  }
-
   def apply[F[_], E](implicit F: Concurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: Concurrent[F, _], d: DummyImplicit): F.type = F
 
   implicit def concurrentForOptionT[F[_], E](
       implicit F0: Concurrent[F, E]): Concurrent[OptionT[F, *], E] =
     new OptionTConcurrent[F, E] {
-
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
   implicit def concurrentForEitherT[F[_], E0, E](
       implicit F0: Concurrent[F, E]): Concurrent[EitherT[F, E0, *], E] =
     new EitherTConcurrent[F, E0, E] {
-
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
   implicit def concurrentForKleisli[F[_], R, E](
       implicit F0: Concurrent[F, E]): Concurrent[Kleisli[F, R, *], E] =
     new KleisliConcurrent[F, R, E] {
-
       override implicit protected def F: Concurrent[F, E] = F0
     }
 
@@ -144,7 +53,6 @@ object Concurrent {
       implicit F0: Concurrent[F, E],
       L0: Semigroup[L]): Concurrent[IorT[F, L, *], E] =
     new IorTConcurrent[F, L, E] {
-
       override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
@@ -154,7 +62,6 @@ object Concurrent {
       implicit F0: Concurrent[F, E],
       L0: Monoid[L]): Concurrent[WriterT[F, L, *], E] =
     new WriterTConcurrent[F, L, E] {
-
       override implicit protected def F: Concurrent[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
@@ -162,208 +69,67 @@ object Concurrent {
 
   private[kernel] trait OptionTConcurrent[F[_], E]
       extends Concurrent[OptionT[F, *], E]
-      with OptionTMonadCancel[F, E] {
-
+      with Spawn.OptionTSpawn[F, E] {
     implicit protected def F: Concurrent[F, E]
 
-    def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
-      OptionT.liftF(F.start(fa.value).map(liftFiber))
+    override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
+      OptionT.liftF(F.map(F.ref(a))(_.mapK(OptionT.liftK)))
 
-    def never[A]: OptionT[F, A] = OptionT.liftF(F.never)
-
-    def cede: OptionT[F, Unit] = OptionT.liftF(F.cede)
-
-    def racePair[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[
-      F,
-      Either[
-        (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
-        (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = {
-      OptionT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
-    }
-
-    def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
-      oc match {
-        case Outcome.Canceled() => Outcome.Canceled()
-        case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
-      }
-
-    def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
-      new Fiber[OptionT[F, *], E, A] {
-        def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
-        def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
-          OptionT.liftF(fib.join.map(liftOutcome))
-      }
+    override def deferred[A]: OptionT[F, Deferred[OptionT[F, *], A]] =
+      OptionT.liftF(F.map(F.deferred[A])(_.mapK(OptionT.liftK)))
   }
 
   private[kernel] trait EitherTConcurrent[F[_], E0, E]
       extends Concurrent[EitherT[F, E0, *], E]
-      with EitherTMonadCancel[F, E0, E] {
-
+      with Spawn.EitherTSpawn[F, E0, E] {
     implicit protected def F: Concurrent[F, E]
 
-    def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
-      EitherT.liftF(F.start(fa.value).map(liftFiber))
+    override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
+      EitherT.liftF(F.map(F.ref(a))(_.mapK(EitherT.liftK)))
 
-    def never[A]: EitherT[F, E0, A] = EitherT.liftF(F.never)
-
-    def cede: EitherT[F, E0, Unit] = EitherT.liftF(F.cede)
-
-    def racePair[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
-      F,
-      E0,
-      Either[
-        (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
-        (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
-      EitherT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
-    }
-
-    def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
-      oc match {
-        case Outcome.Canceled() => Outcome.Canceled()
-        case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(EitherT(foa))
-      }
-
-    def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
-      new Fiber[EitherT[F, E0, *], E, A] {
-        def cancel: EitherT[F, E0, Unit] = EitherT.liftF(fib.cancel)
-        def join: EitherT[F, E0, Outcome[EitherT[F, E0, *], E, A]] =
-          EitherT.liftF(fib.join.map(liftOutcome))
-      }
-  }
-
-  private[kernel] trait IorTConcurrent[F[_], L, E]
-      extends Concurrent[IorT[F, L, *], E]
-      with IorTMonadCancel[F, L, E] {
-
-    implicit protected def F: Concurrent[F, E]
-
-    implicit protected def L: Semigroup[L]
-
-    def start[A](fa: IorT[F, L, A]): IorT[F, L, Fiber[IorT[F, L, *], E, A]] =
-      IorT.liftF(F.start(fa.value).map(liftFiber))
-
-    def never[A]: IorT[F, L, A] = IorT.liftF(F.never)
-
-    def cede: IorT[F, L, Unit] = IorT.liftF(F.cede)
-
-    def racePair[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[
-      F,
-      L,
-      Either[
-        (Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]),
-        (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] = {
-      IorT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
-    }
-
-    def liftOutcome[A](oc: Outcome[F, E, Ior[L, A]]): Outcome[IorT[F, L, *], E, A] =
-      oc match {
-        case Outcome.Canceled() => Outcome.Canceled()
-        case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(IorT(foa))
-      }
-
-    def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
-      new Fiber[IorT[F, L, *], E, A] {
-        def cancel: IorT[F, L, Unit] = IorT.liftF(fib.cancel)
-        def join: IorT[F, L, Outcome[IorT[F, L, *], E, A]] =
-          IorT.liftF(fib.join.map(liftOutcome))
-      }
+    override def deferred[A]: EitherT[F, E0, Deferred[EitherT[F, E0, *], A]] =
+      EitherT.liftF(F.map(F.deferred[A])(_.mapK(EitherT.liftK)))
   }
 
   private[kernel] trait KleisliConcurrent[F[_], R, E]
       extends Concurrent[Kleisli[F, R, *], E]
-      with KleisliMonadCancel[F, R, E] {
-
+      with Spawn.KleisliSpawn[F, R, E] {
     implicit protected def F: Concurrent[F, E]
 
-    def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
-      Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
+    override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
+      Kleisli.liftF(F.map(F.ref(a))(_.mapK(Kleisli.liftK)))
 
-    def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
+    override def deferred[A]: Kleisli[F, R, Deferred[Kleisli[F, R, *], A]] =
+      Kleisli.liftF(F.map(F.deferred[A])(_.mapK(Kleisli.liftK)))
+  }
 
-    def cede: Kleisli[F, R, Unit] = Kleisli.liftF(F.cede)
+  private[kernel] trait IorTConcurrent[F[_], L, E]
+      extends Concurrent[IorT[F, L, *], E]
+      with Spawn.IorTSpawn[F, L, E] {
+    implicit protected def F: Concurrent[F, E]
 
-    def racePair[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
-      F,
-      R,
-      Either[
-        (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
-        (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
-      Kleisli { r =>
-        (F.racePair(fa.run(r), fb.run(r)).map {
-          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-        })
-      }
-    }
+    implicit protected def L: Semigroup[L]
 
-    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
+    override def ref[A](a: A): IorT[F, L, Ref[IorT[F, L, *], A]] =
+      IorT.liftF(F.map(F.ref(a))(_.mapK(IorT.liftK)))
 
-      val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
-        def apply[B](fa: F[B]) = Kleisli.liftF(fa)
-      }
-
-      oc.mapK(nat)
-    }
-
-    def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
-      new Fiber[Kleisli[F, R, *], E, A] {
-        def cancel: Kleisli[F, R, Unit] = Kleisli.liftF(fib.cancel)
-        def join: Kleisli[F, R, Outcome[Kleisli[F, R, *], E, A]] =
-          Kleisli.liftF(fib.join.map(liftOutcome))
-      }
+    override def deferred[A]: IorT[F, L, Deferred[IorT[F, L, *], A]] =
+      IorT.liftF(F.map(F.deferred[A])(_.mapK(IorT.liftK)))
   }
 
   private[kernel] trait WriterTConcurrent[F[_], L, E]
       extends Concurrent[WriterT[F, L, *], E]
-      with WriterTMonadCancel[F, L, E] {
+      with Spawn.WriterTSpawn[F, L, E] {
 
     implicit protected def F: Concurrent[F, E]
 
     implicit protected def L: Monoid[L]
 
-    def start[A](fa: WriterT[F, L, A]): WriterT[F, L, Fiber[WriterT[F, L, *], E, A]] =
-      WriterT.liftF(F.start(fa.run).map(liftFiber))
+    override def ref[A](a: A): WriterT[F, L, Ref[WriterT[F, L, *], A]] =
+      WriterT.liftF(F.map(F.ref(a))(_.mapK(WriterT.liftK)))
 
-    def never[A]: WriterT[F, L, A] = WriterT.liftF(F.never)
-
-    def cede: WriterT[F, L, Unit] = WriterT.liftF(F.cede)
-
-    def racePair[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
-      F,
-      L,
-      Either[
-        (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
-        (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] = {
-      WriterT.liftF(F.racePair(fa.run, fb.run).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
-    }
-
-    def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
-      oc match {
-        case Outcome.Canceled() => Outcome.Canceled()
-        case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(WriterT(foa))
-      }
-
-    def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
-      new Fiber[WriterT[F, L, *], E, A] {
-        def cancel: WriterT[F, L, Unit] = WriterT.liftF(fib.cancel)
-        def join: WriterT[F, L, Outcome[WriterT[F, L, *], E, A]] =
-          WriterT.liftF(fib.join.map(liftOutcome))
-      }
+    override def deferred[A]: WriterT[F, L, Deferred[WriterT[F, L, *], A]] =
+      WriterT.liftF(F.map(F.deferred[A])(_.mapK(WriterT.liftK)))
   }
+
 }

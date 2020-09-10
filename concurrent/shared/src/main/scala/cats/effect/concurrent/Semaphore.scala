@@ -18,11 +18,13 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.{Allocate, Concurrent, Outcome}
+import cats.effect.kernel.{Concurrent, Outcome, Spawn}
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
 import cats.implicits._
 
 import scala.collection.immutable.Queue
+import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 
 /**
  * A purely functional semaphore.
@@ -110,7 +112,7 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: Allocate[F, Throwable]): F[Semaphore[F]] =
+  def apply[F[_]](n: Long)(implicit F: Concurrent[F, Throwable]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
       F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
 
@@ -118,26 +120,9 @@ object Semaphore {
    * Creates a new `Semaphore`, initialized with `n` available permits.
    * like `apply` but initializes state using another effect constructor
    */
-  def in[F[_], G[_]](n: Long)(implicit mk: MkIn[F, G]): F[Semaphore[G]] =
-    mk.semaphore(n)
-
-  trait MkIn[F[_], G[_]] {
-    def semaphore(count: Long): F[Semaphore[G]]
-  }
-
-  object MkIn {
-    implicit def instance[F[_], G[_]](
-        implicit mkRef: Ref.MkIn[F, G],
-        F: ApplicativeError[F, Throwable],
-        G: Allocate[G, Throwable]): MkIn[F, G] =
-      new MkIn[F, G] {
-        override def semaphore(count: Long): F[Semaphore[G]] =
-          assertNonNegative[F](count) *>
-            mkRef.refOf[State[G]](Right(count)).map(stateRef => new AsyncSemaphore[G](stateRef))
-      }
-  }
-
-  type Mk[F[_]] = MkIn[F, F]
+  def in[F[_], G[_]](n: Long)(implicit F: Sync[F], G: Async[G]): F[Semaphore[G]] =
+    assertNonNegative[F](n) *>
+      Ref.in[F, G, State[G]](Right(n)).map(stateRef => new AsyncSemaphore[G](stateRef))
 
   private def assertNonNegative[F[_]](n: Long)(
       implicit F: ApplicativeError[F, Throwable]): F[Unit] =
@@ -149,7 +134,7 @@ object Semaphore {
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
   abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Concurrent[F, Throwable])
+      implicit F: Spawn[F, Throwable])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
@@ -281,7 +266,7 @@ object Semaphore {
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Allocate[F, Throwable])
+      implicit F: Concurrent[F, Throwable])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }

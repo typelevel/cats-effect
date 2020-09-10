@@ -26,7 +26,7 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
+trait TemporalTests[F[_], E] extends SpawnTests[F, E] with ClockTests[F] {
 
   val laws: TemporalLaws[F, E]
 
@@ -77,7 +77,7 @@ trait TemporalTests[F[_], E] extends ConcurrentTests[F, E] with ClockTests[F] {
     new RuleSet {
       val name = "temporal"
       val bases = Nil
-      val parents = Seq(concurrent[A, B, C], clock[A, B, C])
+      val parents = Seq(spawn[A, B, C], clock[A, B, C])
 
       val props = Seq(
         "monotonic sleep sum identity" -> forAll(laws.monotonicSleepSumIdentity _),

@@ -31,7 +31,7 @@ val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
 
-ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", "2.13.3")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 

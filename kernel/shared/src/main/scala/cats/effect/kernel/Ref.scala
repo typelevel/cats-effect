@@ -146,6 +146,28 @@ abstract class Ref[F[_], A] {
 
 object Ref {
 
+  @annotation.implicitNotFound(
+    "Cannot find an instance for Ref.Make. Add implicit evidence of Concurrent[${F}, _] or Sync[${F}] to scope to automatically derive one.")
+  trait Make[F[_]] {
+    def refOf[A](a: A): F[Ref[F, A]]
+  }
+
+  object Make extends MakeInstances
+
+  private[kernel] trait MakeInstances extends MakeLowPriorityInstances {
+    implicit def concurrentInstance[F[_]](implicit F: Concurrent[F, _]): Make[F] =
+      new Make[F] {
+        override def refOf[A](a: A): F[Ref[F, A]] = F.ref(a)
+      }
+  }
+
+  private[kernel] trait MakeLowPriorityInstances {
+    implicit def syncInstance[F[_]](implicit F: Sync[F]): Make[F] =
+      new Make[F] {
+        override def refOf[A](a: A): F[Ref[F, A]] = F.delay(unsafe(a))
+      }
+  }
+
   /**
    * Builds a `Ref` value for data types that are [[Sync]]
    *
@@ -159,7 +181,7 @@ object Ref {
    *
    * @see [[of]]
    */
-  def apply[F[_]](implicit mk: Mk[F]): ApplyBuilders[F] = new ApplyBuilders(mk)
+  def apply[F[_]](implicit mk: Make[F]): ApplyBuilders[F] = new ApplyBuilders(mk)
 
   /**
    * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
@@ -174,26 +196,7 @@ object Ref {
    *   } yield ten
    * }}}
    */
-  def of[F[_], A](a: A)(implicit F: Allocate[F, _]): F[Ref[F, A]] = F.ref(a)
-
-  /**
-   *  Builds a `Ref` value for data types that are [[Sync]]
-   *  Like [[of]] but initializes state using another effect constructor
-   */
-  def in[F[_], G[_], A](a: A)(implicit mk: MkIn[F, G]): F[Ref[G, A]] = mk.refOf(a)
-
-  trait MkIn[F[_], G[_]] {
-    def refOf[A](a: A): F[Ref[G, A]]
-  }
-
-  object MkIn {
-    implicit def instance[F[_], G[_]](implicit F: Sync[F], G: Sync[G]): MkIn[F, G] =
-      new MkIn[F, G] {
-        override def refOf[A](a: A): F[Ref[G, A]] = F.delay(unsafe(a))
-      }
-  }
-
-  type Mk[F[_]] = MkIn[F, F]
+  def of[F[_], A](a: A)(implicit mk: Make[F]): F[Ref[F, A]] = mk.refOf(a)
 
   /**
    * Like `apply` but returns the newly allocated ref directly instead of wrapping it in `F.delay`.
@@ -239,6 +242,13 @@ object Ref {
     new SyncRef[F, A](new AtomicReference[A](a))
 
   /**
+   *  Builds a `Ref` value for data types that are [[Sync]]
+   *  Like [[of]] but initializes state using another effect constructor
+   */
+  def in[F[_], G[_], A](a: A)(implicit F: Sync[F], G: Sync[G]): F[Ref[G, A]] =
+    F.delay(unsafe(a))
+
+  /**
    * Creates an instance focused on a component of another Ref's value.
    * Delegates every get and modification to underlying Ref, so both instances are always in sync.
    *
@@ -256,14 +266,14 @@ object Ref {
       implicit F: Sync[F]): Ref[F, B] =
     new LensRef[F, A, B](ref)(get, set)
 
-  final class ApplyBuilders[F[_]](val F: Mk[F]) extends AnyVal {
+  final class ApplyBuilders[F[_]](val mk: Make[F]) extends AnyVal {
 
     /**
      * Creates an asynchronous, concurrent mutable reference initialized to the supplied value.
      *
      * @see [[Ref.of]]
      */
-    def of[A](a: A): F[Ref[F, A]] = F.refOf(a)
+    def of[A](a: A): F[Ref[F, A]] = mk.refOf(a)
   }
 
   final private class SyncRef[F[_], A](ar: AtomicReference[A])(implicit F: Sync[F])
