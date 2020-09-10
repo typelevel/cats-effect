@@ -295,7 +295,7 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else {
-   //   println(s"<$name> looping on $cur0")
+      println(s"<$name> looping on $cur0")
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
@@ -685,7 +685,20 @@ private final class IOFiber[A](
 
           // we want this to be defer and not delay to be able to treat
           // the result as `null: IO[A]` rather than `null: A`, since
-          // the `null` IO makes the runloop suspend
+          // the `null` IO makes the runloop suspend.
+
+          // TODO there is a race when evaluating this node, which is `FlatMap(Delay(body), cast from flatten)`.
+          //   Specifically there are two calls to `succeed`
+          //   concurrently: one with `null: IO[Any]` from this thread,
+          //   the other with the result of the callback via
+          //   `asyncContinue`. The former also sets objectState to have
+          //   the identity function from IO to IO (from flatten), and
+          //   conts = flatMapK (on top of the terminusK). When the wrong
+          //   interleaving happens, the `asyncContinue` branch hits
+          //   `flatMapK` on conts, therefore feeding the result of the
+          //   callback ("hello" in my test), to the function in
+          //   `flatten`, which expects `IO`, hence the ClassCast
+          //   exception in `repro`
           val get: IO[Any] = IO.defer {
             if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
               // state was no longer Initial, so the callback has already been invoked
@@ -705,12 +718,14 @@ private final class IOFiber[A](
               println(s"get sets suspended to ${suspended.get} on fiber $name")
             }
 
-            null
+            null: IO[Any]
           }
 
           def cont = (get, cb)
 
-          runLoop(succeeded(cont, 0),  nextIteration)
+          val a = succeeded(cont, 0)
+          println(s"cont result: $a") // FlatMap(Delay(..), generalised constraint)
+          runLoop(a,  nextIteration)
       }
     }
   }
@@ -906,7 +921,7 @@ private final class IOFiber[A](
         println("asyncContinueR - failure")
         failed(t, 0)
       case Right(a) =>
-//        println("asyncContinueR - success")
+     //   println("asyncContinueR - success")
         succeeded(a, 0)
     }
 
