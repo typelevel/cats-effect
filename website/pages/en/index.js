@@ -56,6 +56,7 @@ class HomeSplash extends React.Component {
                 <Logo img_src={`${baseUrl}img/favicon.png`} />
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
+                    <code class="hljs css language-sbt"><span class="hljs-string">"org.typelevel"</span> %% <span class="hljs-string">"cats-effect"</span> % <span class="hljs-string">"2.2.0"</span></code>
                     <PromoSection>
                         <Button href="https://scastie.scala-lang.org/Kt4fZowKRiGIR1oRefMLbQ">Try It!</Button>
                         <Button href={docUrl('installation.html')}>Get Started</Button>
