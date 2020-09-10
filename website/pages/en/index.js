@@ -220,7 +220,7 @@ class Index extends React.Component {
                     <Hook />
 
                     <Feature align="left" title="Asynchronous" image="img/async.png">
-                        `IO` is a lot like a `Future` that is always fully under your control.
+                        Just like `Future`, the `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean and powerful interface. However, unlike `Future`, `IO` represents a *description* of a computation, rather than representing a *running* computation. This means you're always in control with `IO`. You never have to worry about when or where the `IO` is running: it *isn't* running until you tell it to. This also means you never have to worry about subtle leaks stemming from results that were eagerly computed and retained in memory. Unlike `Future`, the `IO` monad does not memoize results, because it doesn't *need* to. It only produces an outcome when you ask for it.
                     </Feature>
                     <Feature align="right" title="Fibers" image="img/fibers.svg">
                         Fibers are like lightweight, interruptible threads that run concurrently with other fibers. Unlike threads, fibers require almost no resources to manage and have no special impact on garbage collection, so you can easily spawn tens of millions without breaking a sweat. Fibers save you from having to worry about the details of thread management or juggling executors across asynchronous callbacks while providing a powerful building block for high-level concurrency control.
