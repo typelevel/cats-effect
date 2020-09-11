@@ -18,7 +18,7 @@ package cats
 package effect
 
 import org.specs2.specification.core.Execution
-import org.specs2.execute.AsResult
+import org.specs2.execute._
 
 import cats.implicits._
 import scala.concurrent.duration._
@@ -31,25 +31,20 @@ class ContSpec extends BaseSpec { outer =>
 
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   // various classcast exceptions and/or ByteStack going out of bound
-  "repeated async" in realNoTimeout {
-    def cont: IO[Unit] =
-      IO.cont[Unit] flatMap { case (get, resume) =>
-        resume(Right(()))
-        get
+  "get resumes" in realNoTimeout {
+    def cont =
+      IO.cont[String].flatMap { case (get, resume) =>
+        IO(resume(Right("success"))) >> get
       }
 
-    def execute(times: Int, i: Int = 0): IO[Boolean] =
-      if (i == times) IO.pure(true)
-      else cont >> execute(times, i + 1)
+    def execute(times: Int, i: Int = 0): IO[Success] =
+      if (i == times) IO(success)
+      else cont.flatMap(r => IO(r mustEqual "success")) >> execute(times, i + 1)
 
-    execute(100000).flatMap { res =>
-      IO {
-        res must beTrue
-      }
-    }
+    execute(100000)
   }
 
-  "callback wins in async - 2" in realNoTimeout {
+  "callback resumes" in realNoTimeout {
     def cont: IO[Unit] =
       IO.cont[Unit] flatMap { case (get, resume) =>
         for {
