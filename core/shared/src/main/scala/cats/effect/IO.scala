@@ -297,6 +297,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           poll(ioa.to[F])
 
         case _ : IO.Cont[_] => ??? // TODO rename, translate to operation on Async once it's there
+        case _ : IO.Get[_] => sys.error("impossible")
       }
     }
 
@@ -719,9 +720,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 20
   }
+
   // TODO rename, move
   private[effect] final case class Cont[A]() extends IO[(IO[A], (Either[Throwable, A] => Unit))] {
     def tag = 21
+  }
+
+  private[effect] final case class Get[A](state: java.util.concurrent.atomic.AtomicReference[ContState]) extends IO[A] {
+    def tag = 22
   }
 
 

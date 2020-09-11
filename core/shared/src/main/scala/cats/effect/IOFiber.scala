@@ -295,7 +295,7 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else {
-      println(s"<$name> looping on $cur0")
+   //   println(s"<$name> looping on $cur0")
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
@@ -699,33 +699,53 @@ private final class IOFiber[A](
           //   callback ("hello" in my test), to the function in
           //   `flatten`, which expects `IO`, hence the ClassCast
           //   exception in `repro`
-          val get: IO[Any] = IO.defer {
-            if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
-              // state was no longer Initial, so the callback has already been invoked
-              // and the state is Result
-              val result = state.get().result
-              // we leave the Result state unmodified so that `get` is idempotent
-              if (!shouldFinalize()) {
-//                println("get taking over")
-                // TODO uncomment looping on, and comment toString on IO
-                // println(s"TODO display conts before get resumes")
-                asyncContinue(result, "get")
-              }
-            } else {
-              // callback has not been invoked yet
-              println(s"get suspending on fiber $name")
-              suspend("get") // async has a conditional suspend, why?
-              println(s"get sets suspended to ${suspended.get} on fiber $name")
-            }
+//           val get: IO[Any] = IO.delay {
+//             if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
+//               // state was no longer Initial, so the callback has already been invoked
+//               // and the state is Result
+//               val result = state.get().result
+//               // we leave the Result state unmodified so that `get` is idempotent
+//               if (!shouldFinalize()) {
+// //                println("get taking over")
+//                 // TODO uncomment looping on, and comment toString on IO
+//                 // println(s"TODO display conts before get resumes")
+//                 asyncContinue(result, "get")
+//               }
+//             } else {
+//               // callback has not been invoked yet
+//               println(s"get suspending on fiber $name")
+//               suspend("get") // async has a conditional suspend, why?
+//               println(s"get sets suspended to ${suspended.get} on fiber $name")
+//             }
 
-            null: IO[Any]
-          }
+//             null: IO[Any]
+//           }
 
+          val get: IO[Any] = IO.Get(state)
           def cont = (get, cb)
 
           val a = succeeded(cont, 0)
-          println(s"cont result: $a") // FlatMap(Delay(..), generalised constraint)
+//          println(s"cont result: $a") // FlatMap(Delay(..), generalised constraint)
           runLoop(a,  nextIteration)
+        case 22 =>
+          val cur = cur0.asInstanceOf[Get[Any]]
+          val state = cur.state
+
+          if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
+            // state was no longer Initial, so the callback has already been invoked
+            // and the state is Result
+            val result = state.get().result
+            // we leave the Result state unmodified so that `get` is idempotent
+            if (!shouldFinalize()) {
+              // println("get taking over")
+              asyncContinue(result, "get")
+            }
+          } else {
+            // callback has not been invoked yet
+            println(s"get suspending on fiber $name")
+            suspend("get") // async has a conditional suspend, why?
+            println(s"get sets suspended to ${suspended.get} on fiber $name")
+          }
       }
     }
   }
