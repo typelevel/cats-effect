@@ -683,50 +683,10 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          // we want this to be defer and not delay to be able to treat
-          // the result as `null: IO[A]` rather than `null: A`, since
-          // the `null` IO makes the runloop suspend.
-
-          // TODO there is a race when evaluating this node, which is `FlatMap(Delay(body), cast from flatten)`.
-          //   Specifically there are two calls to `succeed`
-          //   concurrently: one with `null: IO[Any]` from this thread,
-          //   the other with the result of the callback via
-          //   `asyncContinue`. The former also sets objectState to have
-          //   the identity function from IO to IO (from flatten), and
-          //   conts = flatMapK (on top of the terminusK). When the wrong
-          //   interleaving happens, the `asyncContinue` branch hits
-          //   `flatMapK` on conts, therefore feeding the result of the
-          //   callback ("hello" in my test), to the function in
-          //   `flatten`, which expects `IO`, hence the ClassCast
-          //   exception in `repro`
-//           val get: IO[Any] = IO.delay {
-//             if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
-//               // state was no longer Initial, so the callback has already been invoked
-//               // and the state is Result
-//               val result = state.get().result
-//               // we leave the Result state unmodified so that `get` is idempotent
-//               if (!shouldFinalize()) {
-// //                println("get taking over")
-//                 // TODO uncomment looping on, and comment toString on IO
-//                 // println(s"TODO display conts before get resumes")
-//                 asyncContinue(result, "get")
-//               }
-//             } else {
-//               // callback has not been invoked yet
-//               println(s"get suspending on fiber $name")
-//               suspend("get") // async has a conditional suspend, why?
-//               println(s"get sets suspended to ${suspended.get} on fiber $name")
-//             }
-
-//             null: IO[Any]
-//           }
-
           val get: IO[Any] = IO.Get(state)
-          def cont = (get, cb)
+          val cont = (get, cb)
 
-          val a = succeeded(cont, 0)
-//          println(s"cont result: $a") // FlatMap(Delay(..), generalised constraint)
-          runLoop(a,  nextIteration)
+          runLoop(succeeded(cont, 0),  nextIteration)
         case 22 =>
           val cur = cur0.asInstanceOf[Get[Any]]
           val state = cur.state
