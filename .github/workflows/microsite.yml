@@ -1,7 +1,7 @@
 name: Microsite
 
 on:
- pull_request:
+  pull_request:
     branches: [docs]
   push:
     branches: [docs]
