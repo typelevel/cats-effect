@@ -53,7 +53,7 @@ ThisBuild / scmInfo := Some(
 )
 
 val CatsVersion = "2.2.0"
-val DisciplineMunitVersion = "0.2.4"
+val DisciplineMunitVersion = "0.3.0"
 val SilencerVersion = "1.7.1"
 
 replaceCommandAlias(
