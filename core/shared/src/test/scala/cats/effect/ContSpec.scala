@@ -49,53 +49,6 @@ class ContSpec extends BaseSpec { outer =>
     }
   }
 
-  "repro" in {
-    import scala.concurrent.ExecutionContext.Implicits.global
-    import scala.concurrent.Future
-
-    def cont: IO[String] =
-      IO.cont[String] flatMap { case (get, resume) =>
-        //  Future(resume(Right(())))
-        resume(Right("hello"))
-        get
-      }
-
-    var i = 0
-
-    while (i <= 100000) {
-      i = i + 1
-  //    println(i)
-      import cats.effect.unsafe.implicits.global
-      cont.unsafeRunSync mustEqual "hello"
-    }
-
-    success
-  }
-
-
-
-  // gets stuck in the CAS loop to reacquire the runloop
-  // `get.start` is fundamentally invalid
-  // "callback wins in async - 1" in realNoTimeout {
-  //   def cont: IO[Unit] =
-  //     IO.cont[Unit] flatMap { case (get, resume) =>
-  //       for {
-  //         _ <- IO(println("begin"))
-  //         fib <- (IO(println("about to get")) >> get).start
-  //         _ <- IO.sleep(200.millis)
-  //         _ <- IO(println("sleep"))
-  //         _ <- IO(resume(Right(())))
-  //         _ <- fib.joinAndEmbedNever.timeout(5.seconds)
-  //       } yield ()
-  //     }
-
-  //   cont.as(true).flatMap { res =>
-  //     IO {
-  //       res must beTrue
-  //     }
-  //   }
-  // }
-
   "callback wins in async - 2" in realNoTimeout {
     def cont: IO[Unit] =
       IO.cont[Unit] flatMap { case (get, resume) =>
@@ -113,23 +66,6 @@ class ContSpec extends BaseSpec { outer =>
       }
 
     cont.as(true).flatMap { res =>
-      IO {
-        res must beTrue
-      }
-    }
-  }
-
-  "get still takes over somehow" in realNoTimeout {
-    def cont: IO[Unit] =
-      IO.cont[Int].flatMap { case (get, cb) =>
-        IO(cb(Right(1))).start >> IO.sleep(2.seconds) >> get.void
-      }
-
-    def execute(times: Int, i: Int = 0): IO[Boolean] =
-      if (i == times) IO.pure(true)
-      else cont >> execute(times, i + 1)
-
-    execute(3).flatMap { res =>
       IO {
         res must beTrue
       }
