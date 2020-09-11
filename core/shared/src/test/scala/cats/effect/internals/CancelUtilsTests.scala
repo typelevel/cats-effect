@@ -17,12 +17,13 @@
 package cats.effect.internals
 
 import java.io.ByteArrayOutputStream
+
 import cats.effect.IO
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
+
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
+class CancelUtilsTests extends FunSuite with TestUtils {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }
@@ -30,7 +31,7 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
   test("cancelAll works for one reference") {
     var wasCanceled = false
     CancelUtils.cancelAll(IO { wasCanceled = true }).unsafeRunSync()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 
   test("cancelAll catches error from one reference") {
@@ -49,8 +50,8 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
       fail("should have throw exception")
     } catch {
       case `dummy` =>
-        wasCanceled1 shouldBe true
-        wasCanceled2 shouldBe true
+        assertEquals(wasCanceled1, true)
+        assertEquals(wasCanceled2, true)
     }
   }
 
@@ -75,10 +76,10 @@ class CancelUtilsTests extends AnyFunSuite with Matchers with TestUtils {
       fail("should have throw exception")
     } catch {
       case NonFatal(error) =>
-        error shouldBe dummy1
-        sysErr.toString("utf-8") should include("dummy2")
-        dummy1.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
-        dummy2.getSuppressed shouldBe empty // ensure memory isn't leaked with addSuppressed
+        assertEquals(error, dummy1)
+        assert(sysErr.toString("utf-8").contains("dummy2"))
+        assert(dummy1.getSuppressed.isEmpty) // ensure memory isn't leaked with addSuppressed
+        assert(dummy2.getSuppressed.isEmpty) // ensure memory isn't leaked with addSuppressed
     }
   }
 }

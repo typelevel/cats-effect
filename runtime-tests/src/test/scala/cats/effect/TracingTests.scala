@@ -18,14 +18,13 @@ package cats.effect
 
 import cats.syntax.all._
 import cats.effect.tracing.IOTrace
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.util.control.NoStackTrace
 
-class TracingTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class TracingTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -40,7 +39,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
     } yield a + b
 
     for (r <- traced(task).unsafeToFuture()) yield {
-      r.captured shouldBe 4
+      assertEquals(r.captured, 4)
     }
   }
 
@@ -59,7 +58,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
 
     for (r <- task.unsafeToFuture()) yield {
       val (e1, e2) = r
-      e1.swap.toOption.get.getStackTrace.length shouldBe e2.swap.toOption.get.getStackTrace.length
+      assertEquals(e1.swap.toOption.get.getStackTrace.length, e2.swap.toOption.get.getStackTrace.length)
     }
   }
 
@@ -69,7 +68,7 @@ class TracingTests extends AsyncFunSuite with Matchers {
     } yield e1
 
     for (r <- task.unsafeToFuture()) yield {
-      r.swap.toOption.get.getStackTrace.length shouldBe 0
+      assertEquals(r.swap.toOption.get.getStackTrace.length, 0)
     }
   }
 

@@ -19,16 +19,13 @@ package cats.effect
 import cats.Eq
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
-import org.scalatest.compatible.Assertion
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.Succeeded
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class AsyncTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class AsyncTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -37,7 +34,7 @@ class AsyncTests extends AsyncFunSuite with Matchers {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture()
+  private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
 
   test("F.parTraverseN(n)(collection)(f)") {
     val finalValue = 100

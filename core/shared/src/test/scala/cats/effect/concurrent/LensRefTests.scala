@@ -18,16 +18,13 @@ package cats.effect.concurrent
 
 import cats.data.State
 import cats.effect.IO
-import org.scalatest.Succeeded
-import org.scalatest.compatible.Assertion
-import org.scalatest.funsuite.AsyncFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
 import scala.concurrent.Future
 
-class LensRefTests extends AsyncFunSuite with Matchers {
+class LensRefTests extends FunSuite {
 
-  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture()
+  private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
 
   case class Foo(bar: Integer, baz: Integer)
 
@@ -44,7 +41,7 @@ class LensRefTests extends AsyncFunSuite with Matchers {
       result <- refB.get
     } yield result
 
-    run(op.map(_ shouldEqual 0))
+    run(op.map(n => assertEquals(n.toInt, 0)))
   }
 
   test("set - modifies underlying Ref") {
@@ -55,7 +52,7 @@ class LensRefTests extends AsyncFunSuite with Matchers {
       result <- refA.get
     } yield result
 
-    run(op.map(_ shouldEqual Foo(1, -1)))
+    run(op.map(assertEquals(_, Foo(1, -1))))
   }
 
   test("getAndSet - modifies underlying Ref and returns previous value") {
@@ -68,8 +65,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (oldValue, a) =>
-        oldValue shouldBe 0
-        a shouldEqual Foo(1, -1)
+        assertEquals(oldValue.toInt, 0)
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -81,7 +78,7 @@ class LensRefTests extends AsyncFunSuite with Matchers {
       a <- refA.get
     } yield a
 
-    run(op.map(_ shouldBe Foo(1, -1)))
+    run(op.map(assertEquals(_, Foo(1, -1))))
   }
 
   test("modify - modifies underlying Ref and returns a value") {
@@ -94,8 +91,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe 10
-        a shouldEqual Foo(1, -1)
+        assertEquals(result, 10)
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -109,8 +106,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe true
-        a shouldBe Foo(1, -1)
+        assertEquals(result, true)
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -129,8 +126,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe false
-        a shouldBe Foo(5, -1)
+        assertEquals(result, false)
+        assertEquals(a, Foo(5, -1))
     })
   }
 
@@ -144,8 +141,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe Some("A")
-        a shouldBe Foo(1, -1)
+        assertEquals(result, Some("A"))
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -164,8 +161,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe None
-        a shouldBe Foo(5, -1)
+        assertEquals(result, None)
+        assertEquals(a, Foo(5, -1))
     })
   }
 
@@ -179,8 +176,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe Some("A")
-        a shouldBe Foo(1, -1)
+        assertEquals(result, Some("A"))
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -194,8 +191,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result, a) =>
-        result shouldBe "A"
-        a shouldBe Foo(1, -1)
+        assertEquals(result, "A")
+        assertEquals(a, Foo(1, -1))
     })
   }
 
@@ -210,8 +207,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
     } yield (success, a)
     run(op.map {
       case (success, a) =>
-        success shouldBe true
-        a shouldBe Foo(1, -1)
+        assertEquals(success, true)
+        assertEquals(a, Foo(1, -1))
     }.void)
   }
 
@@ -227,8 +224,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
     } yield (success, a)
     run(op.map {
       case (success, a) =>
-        success shouldBe true
-        a shouldBe Foo(1, -2)
+        assertEquals(success, true)
+        assertEquals(a, Foo(1, -2))
     }.void)
   }
 
@@ -245,8 +242,8 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (success, result) =>
-        success shouldBe false
-        result shouldBe Foo(5, -1)
+        assertEquals(success, false)
+        assertEquals(result, Foo(5, -1))
     }.void)
   }
 
@@ -263,9 +260,9 @@ class LensRefTests extends AsyncFunSuite with Matchers {
 
     run(op.map {
       case (result1, result2, a) =>
-        result1 shouldBe true
-        result2 shouldBe false
-        a shouldBe Foo(1, -1)
+        assertEquals(result1, true)
+        assertEquals(result2, false)
+        assertEquals(a, Foo(1, -1))
     }.void)
   }
 

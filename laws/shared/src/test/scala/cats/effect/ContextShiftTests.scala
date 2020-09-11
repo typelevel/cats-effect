@@ -18,6 +18,7 @@ package cats.effect
 
 import cats.data._
 import cats.effect.laws.util.TestContext
+
 import scala.util.Success
 
 class ContextShiftTests extends BaseTestsSuite {
@@ -32,10 +33,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     val f = cs.shift.unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(()))
+    assertEquals(f.value, Some(Success(())))
   }
 
   testAsync("ContextShift[IO].evalOn") { ec =>
@@ -43,15 +44,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs.evalOn(ec2)(IO(1)).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   testAsync("ContextShift.evalOnK[IO]") { ec =>
@@ -60,15 +61,15 @@ class ContextShiftTests extends BaseTestsSuite {
 
     val funK = ContextShift.evalOnK[IO](ec2)
     val f = funK(IO(1)).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   // -- EitherT
@@ -77,10 +78,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[EitherTIO]].shift.value.unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(Right(())))
+    assertEquals(f.value, Some(Success(Right(()))))
   }
 
   testAsync("Timer[EitherT].evalOn") { ec =>
@@ -89,15 +90,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(EitherT.liftF(IO(1))).value.unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(Right(1)))
+    assertEquals(f.value, Some(Success(Right(1))))
   }
 
   // -- OptionT
@@ -106,10 +107,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[OptionTIO]].shift.value.unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(Some(())))
+    assertEquals(f.value, Some(Success(Some(()))))
   }
 
   testAsync("Timer[OptionT].evalOn") { ec =>
@@ -118,15 +119,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(OptionT.liftF(IO(1))).value.unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(Some(1)))
+    assertEquals(f.value, Some(Success(Some(1))))
   }
 
   // -- WriterT
@@ -135,10 +136,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[WriterTIO]].shift.value.unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(()))
+    assertEquals(f.value, Some(Success(())))
   }
 
   testAsync("Timer[WriterT].evalOn") { ec =>
@@ -147,15 +148,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(WriterT.liftF[IO, Int, Int](IO(1))).value.unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   // -- StateT
@@ -164,10 +165,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[StateTIO]].shift.run(0).unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success((0, ())))
+    assertEquals(f.value, Some(Success((0, ()))))
   }
 
   testAsync("Timer[StateT].evalOn") { ec =>
@@ -176,15 +177,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(StateT.liftF[IO, Int, Int](IO(1))).run(0).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success((0, 1)))
+    assertEquals(f.value, Some(Success((0, 1))))
   }
 
   // -- Kleisli
@@ -193,10 +194,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[KleisliIO]].shift.run(0).unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(()))
+    assertEquals(f.value, Some(Success(())))
   }
 
   testAsync("Timer[Kleisli].evalOn") { ec =>
@@ -205,15 +206,15 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(Kleisli.liftF[IO, Int, Int](IO(1))).run(0).unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(1))
+    assertEquals(f.value, Some(Success(1)))
   }
 
   // -- IorT
@@ -222,10 +223,10 @@ class ContextShiftTests extends BaseTestsSuite {
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val f = implicitly[ContextShift[IorTIO]].shift.value.unsafeToFuture()
 
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe Some(Success(Ior.Right(())))
+    assertEquals(f.value, Some(Success(Ior.Right(()))))
   }
 
   testAsync("Timer[IorT].evalOn") { ec =>
@@ -234,14 +235,14 @@ class ContextShiftTests extends BaseTestsSuite {
     val ec2 = TestContext()
 
     val f = cs2.evalOn(ec2)(IorT.liftF(IO(1))).value.unsafeToFuture()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec2.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
     ec.tick()
-    f.value shouldBe Some(Success(Ior.Right(1)))
+    assertEquals(f.value, Some(Success(Ior.Right(1))))
   }
 }

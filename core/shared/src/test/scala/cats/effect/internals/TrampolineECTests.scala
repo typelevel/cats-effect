@@ -17,14 +17,14 @@
 package cats.effect
 package internals
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.internals.TrampolineEC.immediate
-import scala.concurrent.ExecutionContext
 import cats.effect.internals.IOPlatform.isJVM
-import scala.collection.immutable.Queue
+import munit.FunSuite
 
-class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
+import scala.collection.immutable.Queue
+import scala.concurrent.ExecutionContext
+
+class TrampolineECTests extends FunSuite with TestUtils {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =
@@ -43,7 +43,7 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
       }
     }
 
-    effect shouldEqual 1 + 2 + 3
+    assertEquals(effect, 1 + 2 + 3)
   }
 
   test("concurrent execution") {
@@ -55,7 +55,7 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
       executeImmediate { effect = 3 :: effect }
     }
 
-    effect shouldEqual List(1, 2, 3)
+    assertEquals(effect, List(1, 2, 3))
   }
 
   test("stack safety") {
@@ -69,7 +69,7 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
     val n = if (isJVM) 100000 else 5000
     loop(n, 0)
 
-    effect shouldEqual n
+    assertEquals(effect, n)
   }
 
   test("on blocking it should fork") {
@@ -86,7 +86,7 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
       effects = effects.enqueue(3)
     }
 
-    effects shouldBe Queue(1, 4, 4, 2, 3)
+    assertEquals(effects, Queue(1, 4, 4, 2, 3))
   }
 
   test("thrown exceptions should get logged to System.err (immediate)") {
@@ -107,8 +107,8 @@ class TrampolineECTests extends AnyFunSuite with Matchers with TestUtils {
       }
     }
 
-    output should include("dummy1")
-    output should include("dummy2")
-    effects shouldBe 4
+    assert(output.contains("dummy1"))
+    assert(output.contains("dummy2"))
+    assertEquals(effects, 4)
   }
 }

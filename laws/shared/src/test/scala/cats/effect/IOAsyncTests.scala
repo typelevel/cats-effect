@@ -16,10 +16,8 @@
 
 package cats.effect
 
-import org.scalactic.source.Position
-import org.scalatest.Assertion
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
+import munit.{FunSuite, Location}
+
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -28,15 +26,15 @@ import scala.util.{Failure, Success, Try}
  * Tests doing real asynchrony for both the JVM and JS, by
  * means of ScalaTest's engine.
  */
-class IOAsyncTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext =
+class IOAsyncTests extends FunSuite {
+  implicit val executionContext =
     ExecutionContext.global
   implicit val timer: Timer[IO] =
     IO.timer(executionContext)
   implicit val cs: ContextShift[IO] =
     IO.contextShift(executionContext)
 
-  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])(implicit pos: Position): Future[Assertion] = {
+  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])(implicit loc: Location): Future[Unit] = {
     val effect = Promise[Int]()
     val attempt = Promise[Try[Int]]()
     effect.future.onComplete(attempt.success)
@@ -47,7 +45,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
     }
 
     for (_ <- io.toIO.unsafeToFuture(); v <- attempt.future) yield {
-      v shouldEqual expected
+      assertEquals(v, expected)
     }
   }
 
@@ -77,7 +75,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
     val io = IO.sleep(10.millis).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 
@@ -85,7 +83,7 @@ class IOAsyncTests extends AsyncFunSuite with Matchers {
     val io = IO.sleep(-10.seconds).map(_ => 10)
 
     for (r <- io.unsafeToFuture()) yield {
-      r shouldBe 10
+      assertEquals(r, 10)
     }
   }
 }

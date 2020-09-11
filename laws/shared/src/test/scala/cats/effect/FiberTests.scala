@@ -18,9 +18,9 @@ package cats
 package effect
 
 import cats.effect.laws.discipline.arbitrary._
-import cats.syntax.all._
 import cats.kernel.laws.discipline.{MonoidTests, SemigroupTests}
 import cats.laws.discipline.ApplicativeTests
+import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen}
 
 import scala.concurrent.Promise
@@ -79,8 +79,8 @@ class FiberTests extends BaseTestsSuite {
     fa.unsafeToFuture()
     ec.tick()
 
-    joinCanceled shouldBe true
-    fiberCanceled shouldBe false
+    assertEquals(joinCanceled, true)
+    assertEquals(fiberCanceled, false)
   }
 
   testAsync("Applicative[Fiber[IO, *].map2 preserves both cancelation tokens") { implicit ec =>
@@ -108,7 +108,7 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    canceled shouldBe 2
+    assertEquals(canceled, 2)
   }
 
   testAsync("Applicative[Fiber[IO, *].map2 cancels first, when second terminates in error") { implicit ec =>
@@ -134,8 +134,8 @@ class FiberTests extends BaseTestsSuite {
 
     val f = io.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Failure(dummy))
-    wasCanceled shouldBe true
+    assertEquals(f.value, Some(Failure(dummy)))
+    assertEquals(wasCanceled, true)
   }
 
   testAsync("Applicative[Fiber[IO, *].map2 cancels second, when first terminates in error") { implicit ec =>
@@ -161,7 +161,7 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 
   testAsync("Monoid[Fiber[IO, *].combine cancels first, when second terminates in error") { implicit ec =>
@@ -187,7 +187,7 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 
   testAsync("Monoid[Fiber[IO, *].combine cancels second, when first terminates in error") { implicit ec =>
@@ -213,7 +213,7 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 
   testAsync("Semigroup[Fiber[IO, *].combine cancels first, when second terminates in error") { implicit ec =>
@@ -239,7 +239,7 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 
   testAsync("Semigroup[Fiber[IO, *].combine cancels second, when first terminates in error") { implicit ec =>
@@ -265,6 +265,6 @@ class FiberTests extends BaseTestsSuite {
 
     f.unsafeToFuture()
     ec.tick()
-    wasCanceled shouldBe true
+    assertEquals(wasCanceled, true)
   }
 }

@@ -21,12 +21,15 @@ import cats.data.Kleisli
 import cats.effect.concurrent.Deferred
 import cats.effect.laws.discipline.arbitrary._
 import cats.effect.laws.util.TestContext
-import cats.syntax.all._
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws._
 import cats.laws.discipline._
 import cats.laws.discipline.arbitrary._
+import cats.syntax.all._
+import org.scalacheck.Prop.forAll
+
 import java.util.concurrent.atomic.AtomicBoolean
+
 import scala.concurrent.duration._
 import scala.util.Success
 
@@ -53,13 +56,13 @@ class ResourceTests extends BaseTestsSuite {
   )
 
   testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
-    check { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
+    forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
       acquire.bracket(f)(release) <-> Resource.make(acquire)(release).use(f)
     }
   }
 
   test("releases resources in reverse order of acquisition") {
-    check { (as: List[(Int, Either[Throwable, Unit])]) =>
+    forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
       var released: List[Int] = Nil
       val r = as.traverse {
         case (a, e) =>
@@ -71,7 +74,7 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   test("releases both resources on combine") {
-    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+    forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
@@ -82,7 +85,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
   test("releases both resources on combineK") {
-    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+    forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
@@ -97,7 +100,7 @@ class ResourceTests extends BaseTestsSuite {
     implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
       override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
     }
-    check { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
+    forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
       def observe(r: Resource[IO, Int]) = r.flatMap { a =>
@@ -119,8 +122,8 @@ class ResourceTests extends BaseTestsSuite {
       .use(_ => IO.pure("Hello world"))
       .unsafeRunSync()
 
-    result shouldBe "Hello world"
-    closed shouldBe true
+    assertEquals(result, "Hello world")
+    assertEquals(closed, true)
   }
 
   testAsync("resource from AutoCloseableBlocking is auto closed and executes in the blocking context") { implicit ec =>
@@ -147,23 +150,23 @@ class ResourceTests extends BaseTestsSuite {
 
     // Check that acquire ran inside the blocking context.
     ec.tick()
-    acquired shouldBe false
+    assertEquals(acquired, false)
     blockingEc.tick()
-    acquired shouldBe true
+    assertEquals(acquired, true)
 
     // Check that close was called and ran inside the blocking context.
     ec.tick()
-    closed shouldBe false
+    assertEquals(closed, false)
     blockingEc.tick()
-    closed shouldBe true
+    assertEquals(closed, true)
 
     // Check the final result.
     ec.tick()
-    result.value shouldBe Some(Success("Hello world"))
+    assertEquals(result.value, Some(Success("Hello world")))
   }
 
   testAsync("liftF") { implicit ec =>
-    check { (fa: IO[String]) =>
+    forAll { (fa: IO[String]) =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
   }
@@ -190,17 +193,17 @@ class ResourceTests extends BaseTestsSuite {
 
     ec.tick(3.seconds)
 
-    res.value shouldBe Some(Success(ExitCase.Canceled))
+    assertEquals(res.value, Some(Success(ExitCase.Canceled)))
   }
 
   testAsync("liftF(fa) <-> liftK.apply(fa)") { implicit ec =>
-    check { (fa: IO[String], f: String => IO[Int]) =>
+    forAll { (fa: IO[String], f: String => IO[Int]) =>
       Resource.liftF(fa).use(f) <-> Resource.liftK[IO].apply(fa).use(f)
     }
   }
 
   testAsync("evalMap") { implicit ec =>
-    check { (f: Int => IO[Int]) =>
+    forAll { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
     }
   }
@@ -209,14 +212,14 @@ class ResourceTests extends BaseTestsSuite {
     case object Foo extends Exception
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
-    check { (g: Int => IO[Int]) =>
+    forAll { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
       Resource.liftF(IO(0)).evalMap(effect).use(IO.pure) <-> IO.raiseError(Foo)
     }
   }
 
   testAsync("evalTap") { implicit ec =>
-    check { (f: Int => IO[Int]) =>
+    forAll { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalTap(f).use(IO.pure) <-> f(0).as(0)
     }
   }
@@ -224,7 +227,7 @@ class ResourceTests extends BaseTestsSuite {
   testAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
-    check { (g: Int => IO[Int]) =>
+    forAll { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a =>
         for {
           f <- (g(a) <* IO.cancelBoundary).start
@@ -240,14 +243,14 @@ class ResourceTests extends BaseTestsSuite {
     case object Foo extends Exception
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
-    check { (g: Int => IO[Int]) =>
+    forAll { (g: Int => IO[Int]) =>
       val effect: Int => IO[Int] = a => (g(a) <* IO(throw Foo))
       Resource.liftF(IO(0)).evalTap(effect).use(IO.pure) <-> IO.raiseError(Foo)
     }
   }
 
   testAsync("mapK") { implicit ec =>
-    check { (fa: Kleisli[IO, Int, Int]) =>
+    forAll { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
       }
@@ -274,11 +277,11 @@ class ResourceTests extends BaseTestsSuite {
 
     val (clean, res) = sideEffectyResource
     res.use(_ => IO.unit).attempt.unsafeRunSync()
-    clean.get() shouldBe true
+    assertEquals(clean.get(), true)
 
     val (clean1, res1) = sideEffectyResource
     res1.use(_ => IO.raiseError(new Throwable("oh no"))).attempt.unsafeRunSync()
-    clean1.get() shouldBe false
+    assertEquals(clean1.get(), false)
 
     val (clean2, res2) = sideEffectyResource
     res2
@@ -287,11 +290,11 @@ class ResourceTests extends BaseTestsSuite {
       .run(0)
       .attempt
       .unsafeRunSync()
-    clean2.get() shouldBe false
+    assertEquals(clean2.get(), false)
   }
 
   testAsync("allocated produces the same value as the resource") { implicit ec =>
-    check { (resource: Resource[IO, Int]) =>
+    forAll { (resource: Resource[IO, Int]) =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
       val a1 = resource.use(IO.pure).attempt
 
@@ -307,9 +310,9 @@ class ResourceTests extends BaseTestsSuite {
     val prog = for {
       res <- (release *> resource).allocated
       (_, close) = res
-      _ <- IO(released.get() shouldBe false)
+      _ <- IO(assertEquals(released.get(), false))
       _ <- close
-      _ <- IO(released.get() shouldBe true)
+      _ <- IO(assertEquals(released.get(), true))
     } yield ()
 
     prog.unsafeRunSync()
@@ -335,9 +338,9 @@ class ResourceTests extends BaseTestsSuite {
     val prog = for {
       res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
       (_, close) = res
-      _ <- IO(released.get() shouldBe false)
+      _ <- IO(assertEquals(released.get(), false))
       _ <- close
-      _ <- IO(released.get() shouldBe true)
+      _ <- IO(assertEquals(released.get(), true))
     } yield ()
 
     prog.unsafeRunSync()
@@ -346,11 +349,11 @@ class ResourceTests extends BaseTestsSuite {
   test("safe attempt suspended resource") {
     val exception = new Exception("boom!")
     val suspend = Resource.suspend[IO, Int](IO.raiseError(exception))
-    suspend.attempt.use(IO.pure).unsafeRunSync() shouldBe Left(exception)
+    assertEquals(suspend.attempt.use(IO.pure).unsafeRunSync(), Left(exception))
   }
 
   test("combineK - should behave like orElse when underlying effect does") {
-    check { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
+    forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
       val lhs = r1.orElse(r2).use(IO.pure).attempt.unsafeRunSync()
       val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
 
@@ -360,7 +363,7 @@ class ResourceTests extends BaseTestsSuite {
 
   test("combineK - should behave like underlying effect") {
     import cats.data.OptionT
-    check { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
+    forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
       val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
       val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
 
@@ -374,7 +377,7 @@ class ResourceTests extends BaseTestsSuite {
     // conceptually asserts that:
     //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
     // needs to be tested manually to assert the equivalence during cleanup as well
-    check { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
+    forAll { (as: List[(Int, Either[Throwable, Unit])], rhs: Boolean) =>
       var released: List[Int] = Nil
       val r = as.traverse {
         case (a, e) =>
@@ -414,24 +417,24 @@ class ResourceTests extends BaseTestsSuite {
     //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
     //  resources are still open during `use` (correctness)
     ec.tick(1.second)
-    leftAllocated shouldBe true
-    rightAllocated shouldBe true
-    leftReleasing shouldBe false
-    rightReleasing shouldBe false
+    assertEquals(leftAllocated, true)
+    assertEquals(rightAllocated, true)
+    assertEquals(leftReleasing, false)
+    assertEquals(rightReleasing, false)
 
     // after 2 seconds:
     //  both resources have started cleanup (correctness)
     ec.tick(1.second)
-    leftReleasing shouldBe true
-    rightReleasing shouldBe true
-    leftReleased shouldBe false
-    rightReleased shouldBe false
+    assertEquals(leftReleasing, true)
+    assertEquals(rightReleasing, true)
+    assertEquals(leftReleased, false)
+    assertEquals(rightReleased, false)
 
     // after 3 seconds:
     //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
     ec.tick(1.second)
-    leftReleased shouldBe true
-    rightReleased shouldBe true
+    assertEquals(leftReleased, true)
+    assertEquals(rightReleased, true)
   }
 
   testAsync("parZip - safety: lhs error during rhs interruptible region") { implicit ec =>
@@ -469,24 +472,24 @@ class ResourceTests extends BaseTestsSuite {
     //  both resources have allocated (concurrency, serially it would happen after 2 seconds)
     //  resources are still open during `flatMap` (correctness)
     ec.tick(1.second)
-    leftAllocated shouldBe true
-    rightAllocated shouldBe true
-    leftReleasing shouldBe false
-    rightReleasing shouldBe false
+    assertEquals(leftAllocated, true)
+    assertEquals(rightAllocated, true)
+    assertEquals(leftReleasing, false)
+    assertEquals(rightReleasing, false)
 
     // after 2 seconds:
     //  both resources have started cleanup (interruption, or rhs would start releasing after 3 seconds)
     ec.tick(1.second)
-    leftReleasing shouldBe true
-    rightReleasing shouldBe true
-    leftReleased shouldBe false
-    rightReleased shouldBe false
+    assertEquals(leftReleasing, true)
+    assertEquals(rightReleasing, true)
+    assertEquals(leftReleased, false)
+    assertEquals(rightReleased, false)
 
     // after 3 seconds:
     //  both resources have terminated cleanup (concurrency, serially it would happen after 4 seconds)
     ec.tick(1.second)
-    leftReleased shouldBe true
-    rightReleased shouldBe true
+    assertEquals(leftReleased, true)
+    assertEquals(rightReleased, true)
   }
 
   testAsync("parZip - safety: rhs error during lhs uninterruptible region") { implicit ec =>
@@ -520,36 +523,36 @@ class ResourceTests extends BaseTestsSuite {
     // after 1 second:
     //  rhs has partially allocated, lhs executing
     ec.tick(1.second)
-    leftAllocated shouldBe false
-    rightAllocated shouldBe true
-    rightErrored shouldBe false
-    leftReleasing shouldBe false
-    rightReleasing shouldBe false
+    assertEquals(leftAllocated, false)
+    assertEquals(rightAllocated, true)
+    assertEquals(rightErrored, false)
+    assertEquals(leftReleasing, false)
+    assertEquals(rightReleasing, false)
 
     // after 2 seconds:
     //  rhs has failed, release blocked since lhs is in uninterruptible allocation
     ec.tick(1.second)
-    leftAllocated shouldBe false
-    rightAllocated shouldBe true
-    rightErrored shouldBe true
-    leftReleasing shouldBe false
-    rightReleasing shouldBe false
+    assertEquals(leftAllocated, false)
+    assertEquals(rightAllocated, true)
+    assertEquals(rightErrored, true)
+    assertEquals(leftReleasing, false)
+    assertEquals(rightReleasing, false)
 
     // after 3 seconds:
     //  lhs completes allocation (concurrency, serially it would happen after 4 seconds)
     //  both resources have started cleanup (correctness, error propagates to both sides)
     ec.tick(1.second)
-    leftAllocated shouldBe true
-    leftReleasing shouldBe true
-    rightReleasing shouldBe true
-    leftReleased shouldBe false
-    rightReleased shouldBe false
+    assertEquals(leftAllocated, true)
+    assertEquals(leftReleasing, true)
+    assertEquals(rightReleasing, true)
+    assertEquals(leftReleased, false)
+    assertEquals(rightReleased, false)
 
     // after 4 seconds:
     //  both resource have terminated cleanup (concurrency, serially it would happen after 5 seconds)
     ec.tick(1.second)
-    leftReleased shouldBe true
-    rightReleased shouldBe true
+    assertEquals(leftReleased, true)
+    assertEquals(rightReleased, true)
   }
 
   testAsync("onFinalizeCase - interruption") { implicit ec =>
@@ -574,11 +577,11 @@ class ResourceTests extends BaseTestsSuite {
 
     ec.tick(3.seconds)
 
-    res.value shouldBe Some(Success(ExitCase.Canceled))
+    assertEquals(res.value, Some(Success(ExitCase.Canceled)))
   }
 
   test("onFinalize - runs after existing finalizer") {
-    check { (rx: Resource[IO, Int], y: Int) =>
+    forAll { (rx: Resource[IO, Int], y: Int) =>
       var acquired: List[Int] = Nil
       var released: List[Int] = Nil
 

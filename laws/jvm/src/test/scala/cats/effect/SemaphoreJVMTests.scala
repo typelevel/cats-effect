@@ -21,9 +21,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, Semaphore}
 import cats.syntax.all._
-import org.scalatest.BeforeAndAfter
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -32,7 +30,7 @@ class SemaphoreJVMParallelism1Tests extends BaseSemaphoreJVMTests(1)
 class SemaphoreJVMParallelism2Tests extends BaseSemaphoreJVMTests(2)
 class SemaphoreJVMParallelism4Tests extends BaseSemaphoreJVMTests(4)
 
-abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with Matchers with BeforeAndAfter {
+abstract class BaseSemaphoreJVMTests(parallelism: Int) extends FunSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {
@@ -45,7 +43,7 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
   implicit val cs: ContextShift[IO] = IO.contextShift(context)
   implicit val timer: Timer[IO] = IO.timer(context)
 
-  before {
+  override def beforeAll(): Unit =
     service = Executors.newFixedThreadPool(
       parallelism,
       new ThreadFactory {
@@ -58,17 +56,16 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
         }
       }
     )
-  }
 
-  after {
+  override def afterAll(): Unit = {
     service.shutdown()
     assert(service.awaitTermination(60, TimeUnit.SECONDS), "has active threads")
   }
 
   // ----------------------------------------------------------------------------
-  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
-  val iterations = if (isCI) 1000 else 10000
-  val timeout = if (isCI) 30.seconds else 10.seconds
+  val isRunningInCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val iterations = if (isRunningInCI) 1000 else 10000
+  val timeout = if (isRunningInCI) 30.seconds else 10.seconds
 
   test("Semaphore (concurrent) — issue #380: producer keeps its thread, consumer stays forked") {
     for (_ <- 0 until iterations) {
@@ -76,17 +73,17 @@ abstract class BaseSemaphoreJVMTests(parallelism: Int) extends AnyFunSuite with 
 
       def get(df: Semaphore[IO]) =
         for {
-          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
           _ <- df.acquire
-          _ <- IO(Thread.currentThread().getName shouldNot be(name))
+          _ <- IO(assertNotEquals(Thread.currentThread().getName, name))
         } yield ()
 
       val task = for {
         df <- cats.effect.concurrent.Semaphore[IO](0)
         fb <- get(df).start
-        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
         _ <- df.release
-        _ <- IO(Thread.currentThread().getName shouldBe name)
+        _ <- IO(assertEquals(Thread.currentThread().getName, name))
         _ <- fb.join
       } yield ()
 

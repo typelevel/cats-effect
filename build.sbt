@@ -53,7 +53,7 @@ ThisBuild / scmInfo := Some(
 )
 
 val CatsVersion = "2.2.0"
-val DisciplineScalatestVersion = "2.0.1"
+val DisciplineMunitVersion = "0.2.4"
 val SilencerVersion = "1.7.1"
 
 replaceCommandAlias(
@@ -90,6 +90,7 @@ val commonSettings = Seq(
   parallelExecution in IntegrationTest := false,
   testForkedParallel in Test := false,
   testForkedParallel in IntegrationTest := false,
+  testFrameworks += new TestFramework("munit.Framework"),
   concurrentRestrictions in Global += Tags.limit(Tags.Test, 1),
   headerLicense := Some(HeaderLicense.Custom("""|Copyright (c) 2017-2019 The Typelevel Cats-effect Project Developers
                                                 |
@@ -192,7 +193,8 @@ lazy val scalaJSSettings = Seq(
     }
   },
   // Work around "dropping dependency on node with no phase object: mixin"
-  scalacOptions in (Compile, doc) -= "-Xfatal-warnings"
+  scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
+  scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -218,7 +220,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
-      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+      "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
     ),
     libraryDependencies ++= Seq(
       compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
@@ -240,7 +242,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     name := "cats-effect-laws",
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+      "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
     )
   )
   .jsSettings(scalaJSSettings)
@@ -257,7 +259,7 @@ lazy val runtimeTests = project
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
-      "org.typelevel" %%% "discipline-scalatest" % DisciplineScalatestVersion % Test
+      "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
     )
   )
   .configs(FullTracingTest)

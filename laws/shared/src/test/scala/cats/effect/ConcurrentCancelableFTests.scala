@@ -20,7 +20,7 @@ import cats.effect.concurrent.{Deferred, MVar}
 import cats.syntax.all._
 import cats.laws._
 import cats.laws.discipline._
-import org.scalatest.Succeeded
+import org.scalacheck.Prop.forAll
 
 import scala.concurrent.Promise
 import scala.util.Success
@@ -29,7 +29,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF works for immediate values") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
-    check { (value: Either[Throwable, Int]) =>
+    forAll { (value: Either[Throwable, Int]) =>
       val received = Concurrent.cancelableF[IO, Int](cb => IO { cb(value); IO.unit })
       received <-> IO.fromEither(value)
     }
@@ -38,7 +38,7 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
   testAsync("Concurrent.cancelableF works for async values") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
-    check { (value: Either[Throwable, Int]) =>
+    forAll { (value: Either[Throwable, Int]) =>
       val received = Concurrent.cancelableF[IO, Int] { cb =>
         cs.shift *> IO { cb(value); IO.unit }
       }
@@ -62,10 +62,10 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe None
+    assertEquals(f.value, None)
 
     ec.tick(1.second)
-    f.value shouldBe Some(Success(10))
+    assertEquals(f.value, Some(Success(10)))
   }
 
   testAsync("Concurrent.cancelableF can delay task execution") { implicit ec =>
@@ -81,11 +81,11 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Success(10))
-    complete.future.value shouldBe None
+    assertEquals(f.value, Some(Success(10)))
+    assertEquals(complete.future.value, None)
 
     ec.tick(1.second)
-    complete.future.value shouldBe Some(Success(()))
+    assertEquals(complete.future.value, Some(Success(())))
   }
 
   testAsync("Concurrent.cancelableF can yield cancelable tasks") { implicit ec =>
@@ -103,12 +103,12 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
       _ <- fiber.cancel
       _ <- d.take
     } yield {
-      r shouldBe None
+      assertEquals(r, None)
     }
 
     val f = task.unsafeToFuture()
     ec.tick()
-    f.value shouldBe Some(Success(Succeeded))
+    assertEquals(f.value, Some(Success(assert(true))))
   }
 
   testAsync("Concurrent.cancelableF executes generated task uninterruptedly") { implicit ec =>
@@ -127,13 +127,13 @@ class ConcurrentCancelableFTests extends BaseTestsSuite {
     cancel.unsafeRunAsyncAndForget()
 
     ec.tick()
-    p.future.value shouldBe None
-    ec.state.tasks.isEmpty shouldBe false
-    effect shouldBe 0
+    assertEquals(p.future.value, None)
+    assertEquals(ec.state.tasks.isEmpty, false)
+    assertEquals(effect, 0)
 
     ec.tick(1.second)
-    p.future.value shouldBe None
-    ec.state.tasks.isEmpty shouldBe true
-    effect shouldBe 1
+    assertEquals(p.future.value, None)
+    assertEquals(ec.state.tasks.isEmpty, true)
+    assertEquals(effect, 1)
   }
 }

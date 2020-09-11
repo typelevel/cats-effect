@@ -18,19 +18,18 @@ package cats
 package effect
 package concurrent
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.Checkers
+import munit.ScalaCheckSuite
+import org.scalacheck.Prop.forAll
 
-class ExitCodeTests extends AnyFunSuite with Matchers with Checkers {
-  test("fromInt(i) == fromInt(i & 0xff)") {
-    check { (i: Int) =>
+class ExitCodeTests extends ScalaCheckSuite {
+  property("fromInt(i) == fromInt(i & 0xff)") {
+    forAll { (i: Int) =>
       ExitCode(i) == ExitCode(i & 0xff)
     }
   }
 
-  test("code is in range from 0 to 255, inclusive") {
-    check { (i: Int) =>
+  property("code is in range from 0 to 255, inclusive") {
+    forAll { (i: Int) =>
       val ec = ExitCode(i)
       ec.code >= 0 && ec.code < 256
     }
