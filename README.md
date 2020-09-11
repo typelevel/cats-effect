@@ -5,6 +5,10 @@ This branch contains the shared content and infrastructure for the Cats Effect w
 To build and locally host the full website, run the following:
 
 ```bash
+# if checking out docs for the first time
+$ git submodule init
+# if updating to the latest changes
+$ git submodule update
 $ ./build.sh host
 ```
 
