@@ -13,7 +13,6 @@ The following graphic represents the current hierarchy of `Cats Effect`:
 
 ## Cheat sheet
 
-{:.responsive-pic}
 ![typeclasses cheat sheet](../assets/typeclasses-cheat-sheet.png)
 
 ### Bracket

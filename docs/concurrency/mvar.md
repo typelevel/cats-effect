@@ -3,7 +3,6 @@ id: mvar
 title: MVar
 ---
 
-{:.responsive-pic}
 ![concurrency mvar](../assets/concurrency-mvar.png)
 
 An `MVar2` is a mutable location that can be empty or contain a value,

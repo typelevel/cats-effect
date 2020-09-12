@@ -3,7 +3,6 @@ id: deferred
 title:  "Deferred"
 ---
 
-{:.responsive-pic}
 ![concurrency deferred](../assets/concurrency-deferred.png)
 
 A purely functional synchronization primitive which represents a single value which may not yet be available.

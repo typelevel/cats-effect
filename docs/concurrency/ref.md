@@ -3,7 +3,6 @@ id: ref
 title: Ref
 ---
 
-{:.responsive-pic}
 ![concurrency ref](../assets/concurrency-ref.png)
 
 An asynchronous, concurrent mutable reference.

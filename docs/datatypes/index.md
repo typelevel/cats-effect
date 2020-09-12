@@ -5,7 +5,6 @@ title:  "Data Types"
 
 # Data Types
 
-{:.responsive-pic}
 ![datatypes cheat sheet](../assets/datatypes-cheat-sheet.png)
 
 ### [IO](io.md)
