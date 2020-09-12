@@ -1,9 +1,5 @@
 /* your custom css */
 
-.mainContainer {
-  padding: 0px;
-}
-
 .homeContainer code.hljs {
   display: inline;
 }

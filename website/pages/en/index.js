@@ -222,19 +222,19 @@ class Index extends React.Component {
                     <Hook />
 
                     <Feature align="left" title="Asynchronous" image="img/async.png">
-                        Just like `Future`, the `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean and powerful interface. However, unlike `Future`, `IO` represents a *description* of a computation, rather than representing a *running* computation. This means you're always in control with `IO`. You never have to worry about when or where the `IO` is running: it *isn't* running until you tell it to. This also means you never have to worry about subtle leaks stemming from results that were eagerly computed and retained in memory. Unlike `Future`, the `IO` monad does not memoize results, because it doesn't *need* to. It only produces an outcome when you ask for it.
+                        The `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean, synchronous interface. Write programs that seamlessly mix synchronous and asynchronous code without sacrificing code comprehension or composability.
                     </Feature>
-                    <Feature align="right" title="Fibers" image="img/fibers.svg">
-                        Fibers are like lightweight, interruptible threads that run concurrently with other fibers. Unlike threads, fibers require almost no resources to manage and have no special impact on garbage collection, so you can easily spawn tens of millions without breaking a sweat. Fibers save you from having to worry about the details of thread management or juggling executors across asynchronous callbacks while providing a powerful building block for high-level concurrency control.
+                    <Feature align="right" title="Concurrency" image="img/fibers.svg">
+                        `IO` can power highly concurrent applications, like web services that must serve tens of thousands of requests per second. Concurrency in `IO` is facilitated by fibers, which are lightweight, interruptible threads that are managed completely by the runtime. Fibers are much cheaper than native OS threads, so your application can spawn tens of millions without breaking a sweat. Focus on high-level concurrency control without worrying about details like thread management or executor shifting.
                     </Feature>
                     <Feature align="left" title="Tracing" image="img/tracing.png">
-                        `IO` automatically detects backtrace information for every step of your program, making it super-easy to track down the origin of errors or introspect your program as it evaluates, regardless of how much concurrency or how many asynchronous calls are involved. Tracing has a low enough overhead that you can run it in production without a noticeable impact, meaning even unexpected errors found in your logs are now easily diagnosed. Full instrumentation is also supported for developer environments when tracking down thorny issues, even through monad transformers or third-party libraries.
+                        `IO` collects runtime information as your program executes, making it super-easy to track down the origin of errors or introspect your program as it evaluates. Tracing can be enabled in production without any noticable impact on performance, which automatically unlocks powerful features like enhanced exceptions that make it easier to diagnose errors. Full instrumentation is also supported for developer environments when tracking down thorny issues, even through monad transformers or third-party libraries.
                     </Feature>
                     <Feature align="right" title="Safety" image="img/safety.png">
-                        Testing feature things!
+                        Real-world applications must often deal with resources like network connections and file handles to serve requests. Resource management is an exceptionally difficult problem in concurrent applications; one slight bug could result in a memory leak that OOM-kills your service or even a deadlock that renders your service completely unresponsive. `IO` manages resource lifecycles for you and guarantees that resources are safely allocated and released even in the presence of exceptions and cancellations.
                     </Feature>
                     <Feature align="left" title="Composable" image="img/composable.png">
-                        Testing feature things!
+                        Cats Effect embraces purely functional programming: `IO` represents a description of a program rather than a running computation, which gives you ultimate control over how and when effects are evaluated. Simple programs can be composed to form more complex programs, while retaining the ability to reason about the behavior and complexity.
                     </Feature>
 
                     <FeatureCallout />
