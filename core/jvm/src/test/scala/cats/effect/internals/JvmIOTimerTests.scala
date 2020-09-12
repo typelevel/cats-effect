@@ -19,12 +19,11 @@ package internals
 
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
 import scala.util.control.NonFatal
 
-class JvmIOTimerTests extends AnyFunSuite with Matchers {
+class JvmIOTimerTests extends FunSuite {
   private def withScheduler(props: Map[String, String])(f: ScheduledThreadPoolExecutor => Unit): Unit = {
     val s = IOTimer.mkGlobalScheduler(props)
     try f(s)
@@ -36,50 +35,50 @@ class JvmIOTimerTests extends AnyFunSuite with Matchers {
 
   test("global scheduler: default core pool size") {
     withScheduler(Map.empty) { s =>
-      s.getCorePoolSize shouldBe 2
+      assertEquals(s.getCorePoolSize, 2)
     }
   }
 
   test("global scheduler: custom core pool size") {
     withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "3")) { s =>
-      s.getCorePoolSize shouldBe 3
+      assertEquals(s.getCorePoolSize, 3)
     }
   }
 
   test("global scheduler: invalid core pool size") {
     withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "-1")) { s =>
-      s.getCorePoolSize shouldBe 2
+      assertEquals(s.getCorePoolSize, 2)
     }
   }
 
   test("global scheduler: malformed core pool size") {
     withScheduler(Map("cats.effect.global_scheduler.threads.core_pool_size" -> "banana")) { s =>
-      s.getCorePoolSize shouldBe 2
+      assertEquals(s.getCorePoolSize, 2)
     }
   }
 
   test("global scheduler: default core thread timeout") {
     withScheduler(Map.empty) { s =>
-      s.allowsCoreThreadTimeOut shouldBe false
+      assertEquals(s.allowsCoreThreadTimeOut, false)
     }
   }
 
   test("global scheduler: custom core thread timeout") {
     withScheduler(Map("cats.effect.global_scheduler.keep_alive_time_ms" -> "1000")) { s =>
-      s.allowsCoreThreadTimeOut shouldBe true
-      s.getKeepAliveTime(TimeUnit.MILLISECONDS) shouldBe 1000
+      assertEquals(s.allowsCoreThreadTimeOut, true)
+      assertEquals(s.getKeepAliveTime(TimeUnit.MILLISECONDS), 1000L)
     }
   }
 
   test("global scheduler: invalid core thread timeout") {
     withScheduler(Map("cats.effect.global_scheduler.keep_alive_time_ms" -> "0")) { s =>
-      s.allowsCoreThreadTimeOut shouldBe false
+      assertEquals(s.allowsCoreThreadTimeOut, false)
     }
   }
 
   test("global scheduler: malformed core thread timeout") {
     withScheduler(Map("cats.effect.global_scheduler.keep_alive_time_ms" -> "feral hogs")) { s =>
-      s.allowsCoreThreadTimeOut shouldBe false
+      assertEquals(s.allowsCoreThreadTimeOut, false)
     }
   }
 }

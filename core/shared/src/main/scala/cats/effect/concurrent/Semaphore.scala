@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.effect.concurrent.Semaphore.TransformedSemaphore
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.collection.immutable.Queue
 

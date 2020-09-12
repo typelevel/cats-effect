@@ -16,30 +16,29 @@
 
 package cats.effect.internals
 
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.matchers.should.Matchers
+import munit.FunSuite
 
-class RingBufferTests extends AnyFunSuite with Matchers with TestUtils {
+class RingBufferTests extends FunSuite with TestUtils {
   test("empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
-    buffer.isEmpty shouldBe true
+    assertEquals(buffer.isEmpty, true)
   }
 
   test("non-empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
     buffer.push(0)
-    buffer.isEmpty shouldBe false
+    assertEquals(buffer.isEmpty, false)
   }
 
   test("writing elements") {
     val buffer = new RingBuffer[Integer](2)
     for (i <- 0 to 3) buffer.push(i)
-    buffer.toList shouldBe List(3, 2, 1, 0)
+    assertEquals(buffer.toList.map(_.toInt), List(3, 2, 1, 0))
   }
 
   test("overwriting elements") {
     val buffer = new RingBuffer[Integer](2)
     for (i <- 0 to 100) buffer.push(i)
-    buffer.toList shouldBe List(100, 99, 98, 97)
+    assertEquals(buffer.toList.map(_.toInt), List(100, 99, 98, 97))
   }
 }

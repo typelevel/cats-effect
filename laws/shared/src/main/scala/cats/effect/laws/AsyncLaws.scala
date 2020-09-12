@@ -20,7 +20,7 @@ package laws
 
 import cats.effect.ExitCase.{Completed, Error}
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws._
 
 import scala.util.Either

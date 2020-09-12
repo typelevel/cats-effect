@@ -19,16 +19,14 @@ package effect
 package concurrent
 
 import cats.data.State
-import cats.implicits._
-import org.scalatest.Succeeded
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.compatible.Assertion
-import org.scalatest.funsuite.AsyncFunSuite
+import cats.syntax.all._
+import munit.FunSuite
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class RefTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class RefTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -37,7 +35,7 @@ class RefTests extends AsyncFunSuite with Matchers {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Assertion] = t.as(Succeeded).unsafeToFuture()
+  private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
 
   test("concurrent modifications") {
     val finalValue = 100
@@ -53,7 +51,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       getResult <- r.get
     } yield getAndSetResult == 0 && getResult == 1
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("getAndUpdate - successful") {
@@ -63,7 +61,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       getResult <- r.get
     } yield getAndUpdateResult == 0 && getResult == 1
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("updateAndGet - successful") {
@@ -73,7 +71,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       getResult <- r.get
     } yield updateAndGetResult == 1 && getResult == 1
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("access - successful") {
@@ -84,7 +82,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       success <- setter(value + 1)
       result <- r.get
     } yield success && result == 1
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("access - setter should fail if value is modified before setter is called") {
@@ -96,7 +94,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       success <- setter(value + 1)
       result <- r.get
     } yield !success && result == 5
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("access - setter should fail if called twice") {
@@ -109,7 +107,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       cond2 <- setter(value + 1)
       result <- r.get
     } yield cond1 && !cond2 && result == 0
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("tryUpdate - modification occurs successfully") {
@@ -119,7 +117,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       value <- r.get
     } yield result && value == 1
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("tryUpdate - should fail to update if modification has occurred") {
@@ -133,7 +131,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       }
     } yield result
 
-    run(op.map(_ shouldBe false).void)
+    run(op.map(assertEquals(_, false)).void)
   }
 
   test("updateMaybe - successful") {
@@ -142,7 +140,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.updateMaybe(_ => Some(1))
     } yield result
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("updateMaybe - short-circuit") {
@@ -151,7 +149,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.updateMaybe(_ => None)
     } yield result
 
-    run(op.map(_ shouldBe false).void)
+    run(op.map(assertEquals(_, false)).void)
   }
   test("modifyMaybe - successful") {
     val op = for {
@@ -159,7 +157,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyMaybe(_ => Some((1, 2)))
     } yield result
 
-    run(op.map(_ shouldBe Some(2)).void)
+    run(op.map(assertEquals(_, Some(2))).void)
   }
 
   test("modifyMaybe - short-circuit") {
@@ -168,7 +166,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyMaybe(_ => None)
     } yield result
 
-    run(op.map(_ shouldBe None).void)
+    run(op.map(assertEquals(_, None)).void)
   }
 
   test("updateOr - successful") {
@@ -177,7 +175,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.updateOr(_ => Right(1))
     } yield result
 
-    run(op.map(_ shouldBe None).void)
+    run(op.map(assertEquals(_, None)).void)
   }
 
   test("updateOr - short-circuit") {
@@ -186,7 +184,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.updateOr(_ => Left("fail"))
     } yield result
 
-    run(op.map(_ shouldBe Some("fail")).void)
+    run(op.map(assertEquals(_, Some("fail"))).void)
   }
 
   test("modifyOr - successful") {
@@ -195,7 +193,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyOr(_ => Right((1, "success")))
     } yield result
 
-    run(op.map(_ shouldBe Right("success")).void)
+    run(op.map(assertEquals(_, Right("success"))).void)
   }
 
   test("modifyOr - short-circuit") {
@@ -204,7 +202,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyOr(_ => Left("fail"))
     } yield result
 
-    run(op.map(_ shouldBe Left("fail")).void)
+    run(op.map(assertEquals(_, Left("fail"))).void)
   }
 
   test("tryModifyState - modification occurs successfully") {
@@ -213,7 +211,7 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.tryModifyState(State.pure(1))
     } yield result.contains(1)
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 
   test("modifyState - modification occurs successfully") {
@@ -222,6 +220,6 @@ class RefTests extends AsyncFunSuite with Matchers {
       result <- r.modifyState(State.pure(1))
     } yield result == 1
 
-    run(op.map(_ shouldBe true).void)
+    run(op.map(assertEquals(_, true)).void)
   }
 }

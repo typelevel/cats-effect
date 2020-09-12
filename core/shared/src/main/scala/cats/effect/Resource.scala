@@ -21,7 +21,7 @@ import cats.data.AndThen
 import cats.effect.ExitCase.Completed
 import cats.effect.concurrent.Ref
 import cats.effect.internals.ResourcePlatform
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.implicits._
 
 import scala.annotation.tailrec
@@ -210,6 +210,19 @@ sealed abstract class Resource[+F[_], +A] {
                                                D: Defer[H],
                                                G: Applicative[H]): Resource[H, A] =
     this.mapK[G, H](f)(D, G)
+
+  /**
+   * Runs `finalizer` when this resource is closed. Unlike the release action passed to `Resource.make`, this will
+   * run even if resource acquisition fails or is canceled.
+   */
+  def onFinalize[G[x] >: F[x]](finalizer: G[Unit])(implicit F: Applicative[G]): Resource[G, A] =
+    onFinalizeCase(_ => finalizer)
+
+  /**
+   * Like `onFinalize`, but the action performed depends on the exit case.
+   */
+  def onFinalizeCase[G[x] >: F[x]](f: ExitCase[Throwable] => G[Unit])(implicit F: Applicative[G]): Resource[G, A] =
+    Resource.makeCase(F.unit) { case (_, exitCase) => f(exitCase) }.flatMap[G, A](_ => this)
 
   /**
    * Given a natural transformation from `F` to `G`, transforms this

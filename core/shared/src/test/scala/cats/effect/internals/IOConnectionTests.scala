@@ -17,19 +17,18 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
+import munit.FunSuite
 
-class IOConnectionTests extends AnyFunSuite with Matchers {
+class IOConnectionTests extends FunSuite {
   test("initial push") {
     var effect = 0
     val initial = IO(effect += 1)
     val c = IOConnection()
     c.push(initial)
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
   }
 
   test("cancels after being canceled") {
@@ -39,13 +38,13 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     c.push(initial)
 
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
 
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
 
     c.push(initial)
-    effect shouldBe 2
+    assertEquals(effect, 2)
   }
 
   test("push two, pop one") {
@@ -59,7 +58,7 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     c.pop()
 
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
   }
 
   test("cancel the second time is a no-op") {
@@ -69,9 +68,9 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     c.push(bc)
 
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
     c.cancel.unsafeRunSync()
-    effect shouldBe 1
+    assertEquals(effect, 1)
   }
 
   test("push two, pop two") {
@@ -82,32 +81,32 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     val c = IOConnection()
     c.push(initial1)
     c.push(initial2)
-    c.pop() shouldBe initial2
-    c.pop() shouldBe initial1
+    assertEquals(c.pop(), initial2)
+    assertEquals(c.pop(), initial1)
     c.cancel.unsafeRunSync()
 
-    effect shouldBe 0
+    assertEquals(effect, 0)
   }
 
   test("uncancelable returns same reference") {
     val ref1 = IOConnection.uncancelable
     val ref2 = IOConnection.uncancelable
-    ref1 shouldBe ref2
+    assertEquals(ref1, ref2)
   }
 
   test("uncancelable reference cannot be canceled") {
     val ref = IOConnection.uncancelable
-    ref.isCanceled shouldBe false
+    assertEquals(ref.isCanceled, false)
     ref.cancel.unsafeRunSync()
-    ref.isCanceled shouldBe false
+    assertEquals(ref.isCanceled, false)
   }
 
   test("uncancelable.pop") {
     val ref = IOConnection.uncancelable
-    ref.pop() shouldBe IO.unit
+    assertEquals(ref.pop(), IO.unit)
 
     ref.push(IO.pure(()))
-    ref.pop() shouldBe IO.unit
+    assertEquals(ref.pop(), IO.unit)
   }
 
   test("uncancelable.push never cancels the given cancelable") {
@@ -117,6 +116,6 @@ class IOConnectionTests extends AnyFunSuite with Matchers {
     var effect = 0
     val c = IO(effect += 1)
     ref.push(c)
-    effect shouldBe 0
+    assertEquals(effect, 0)
   }
 }

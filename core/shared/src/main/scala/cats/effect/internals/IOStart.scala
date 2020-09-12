@@ -17,7 +17,7 @@
 package cats.effect.internals
 
 import cats.effect.{ContextShift, Fiber, IO}
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.Promise
 
 private[effect] object IOStart {

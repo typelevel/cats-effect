@@ -18,34 +18,24 @@ package cats.effect
 
 import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
-import org.scalactic.source
-import org.scalatest.Tag
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.Checkers
-import org.typelevel.discipline.Laws
-import org.typelevel.discipline.scalatest.FunSuiteDiscipline
+import munit.{DisciplineSuite, Location}
 
-class BaseTestsSuite
-    extends AnyFunSuite
-    with Matchers
-    with Checkers
-    with FunSuiteDiscipline
-    with TestInstances
-    with TestUtils {
+import org.typelevel.discipline.Laws
+
+class BaseTestsSuite extends DisciplineSuite with TestInstances with TestUtils {
 
   /** For tests that need a usable [[TestContext]] reference. */
-  def testAsync[A](name: String, tags: Tag*)(f: TestContext => Unit)(implicit pos: source.Position): Unit =
+  def testAsync[A](name: String)(f: TestContext => Unit)(implicit loc: Location): Unit =
     // Overriding System.err
-    test(name, tags: _*)(silenceSystemErr(f(TestContext())))(pos)
+    test(name)(silenceSystemErr(f(TestContext())))(loc)
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
     val ruleSet = f(context)
 
     for ((id, prop) <- ruleSet.all.properties)
-      test(name + "." + id) {
-        silenceSystemErr(check(prop))
+      property(name + "." + id) {
+        silenceSystemErr(prop)
       }
   }
 }

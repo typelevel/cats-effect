@@ -17,12 +17,12 @@
 package cats
 package effect
 
-import scala.concurrent.ExecutionContext
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
+import munit.FunSuite
 
-class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
+import scala.concurrent.ExecutionContext
+
+class IOAppTests extends FunSuite with TestUtils {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ =>
@@ -30,7 +30,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
       )
       .flatMap(_.join)
       .unsafeToFuture()
-      .map(_ shouldEqual 42)
+      .map(assertEquals(_, 42))
   }
 
   test("accepts arguments") {
@@ -40,7 +40,7 @@ class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
       )
       .flatMap(_.join)
       .unsafeToFuture()
-      .map(_ shouldEqual 123)
+      .map(assertEquals(_, 123))
   }
 
   test("raised error exits with 1") {
@@ -49,11 +49,11 @@ class IOAppTests extends AsyncFunSuite with Matchers with TestUtils {
         .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
         .unsafeToFuture()
-        .map(_ shouldEqual 1)
+        .map(assertEquals(_, 1))
     }
   }
 
-  implicit override def executionContext: ExecutionContext = TrampolineEC.immediate
+  implicit val executionContext: ExecutionContext = TrampolineEC.immediate
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 }

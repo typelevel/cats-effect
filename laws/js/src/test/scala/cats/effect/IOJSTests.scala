@@ -16,15 +16,14 @@
 
 package cats.effect
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
+import munit.FunSuite
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js.timers.setTimeout
 
-class IOJSTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext =
+class IOJSTests extends FunSuite {
+  implicit val executionContext =
     ExecutionContext.global
 
   def delayed[A](duration: FiniteDuration)(f: => A): IO[A] =
@@ -34,7 +33,7 @@ class IOJSTests extends AsyncFunSuite with Matchers {
 
   test("unsafeToFuture works") {
     delayed(100.millis)(10).unsafeToFuture().map { r =>
-      r shouldEqual 10
+      assertEquals(r, 10)
     }
   }
 
@@ -45,7 +44,7 @@ class IOJSTests extends AsyncFunSuite with Matchers {
         fail("Expected UnsupportedOperationException")
       } catch {
         case _: UnsupportedOperationException =>
-          succeed
+          assert(true)
       }
     }
   }

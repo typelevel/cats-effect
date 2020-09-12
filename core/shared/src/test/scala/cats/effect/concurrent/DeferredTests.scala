@@ -18,15 +18,14 @@ package cats
 package effect
 package concurrent
 
+import cats.syntax.all._
+import munit.FunSuite
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import cats.implicits._
-import org.scalatest._
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AsyncFunSuite
 
-class DeferredTests extends AsyncFunSuite with Matchers {
-  implicit override def executionContext: ExecutionContext = ExecutionContext.Implicits.global
+class DeferredTests extends FunSuite {
+  implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: cats.effect.Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
@@ -40,7 +39,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
           p.complete(0) *> p.get
         }
         .unsafeToFuture()
-        .map(_ shouldBe 0)
+        .map(assertEquals(_, 0))
     }
 
     test(s"$label - complete is only successful once") {
@@ -51,8 +50,8 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         .unsafeToFuture()
         .map {
           case (err, value) =>
-            err.swap.toOption.get shouldBe an[IllegalStateException]
-            value shouldBe 0
+            assert(err.swap.toOption.get.isInstanceOf[IllegalStateException])
+            assertEquals(value, 0)
         }
     }
 
@@ -66,13 +65,13 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         _ <- readGate.get
         res <- state.get
       } yield res
-      op.unsafeToFuture().map(_ shouldBe 2)
+      op.unsafeToFuture().map(assertEquals(_, 2))
     }
   }
 
   def tryableTests(label: String, pc: TryableDeferredConstructor): Unit = {
     test(s"$label - tryGet returns None for unset Deferred") {
-      pc[Unit].flatMap(_.tryGet).unsafeToFuture().map(_ shouldBe None)
+      pc[Unit].flatMap(_.tryGet).unsafeToFuture().map(assertEquals(_, None))
     }
 
     test(s"$label - tryGet returns Some() for set Deferred") {
@@ -80,7 +79,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         d <- pc[Unit]
         _ <- d.complete(())
         result <- d.tryGet
-      } yield result shouldBe Some(())
+      } yield assertEquals(result, Some(()))
 
       op.unsafeToFuture()
     }
@@ -108,11 +107,11 @@ class DeferredTests extends AsyncFunSuite with Matchers {
     } yield result
 
   test("concurrent - get - cancel before forcing") {
-    cancelBeforeForcing(Deferred.apply).unsafeToFuture().map(_ shouldBe None)
+    cancelBeforeForcing(Deferred.apply).unsafeToFuture().map(assertEquals(_, None))
   }
 
   test("issue #380: complete doesn't block, test #1") {
-    def execute(times: Int): IO[Assertion] = {
+    def execute(times: Int): IO[Unit] = {
       def foreverAsync(i: Int): IO[Unit] =
         if (i == 512) IO.async[Unit](cb => cb(Right(()))) >> foreverAsync(0)
         else IO.unit >> foreverAsync(i + 1)
@@ -124,7 +123,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         _ <- latch.get
         _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)
       } yield {
-        Succeeded
+        assert(true)
       }
 
       task.flatMap { r =>
@@ -137,7 +136,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
   }
 
   test("issue #380: complete doesn't block, test #2") {
-    def execute(times: Int): IO[Assertion] = {
+    def execute(times: Int): IO[Unit] = {
       val task = for {
         d <- Deferred[IO, Unit]
         latch <- Deferred[IO, Unit]
@@ -145,7 +144,7 @@ class DeferredTests extends AsyncFunSuite with Matchers {
         _ <- latch.get
         _ <- d.complete(()).timeout(15.seconds).guarantee(fb.cancel)
       } yield {
-        Succeeded
+        assert(true)
       }
 
       task.flatMap { r =>

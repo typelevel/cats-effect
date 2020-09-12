@@ -17,17 +17,18 @@
 package cats
 package effect
 
-import cats.implicits._
 import cats.effect.concurrent.{Deferred, Ref}
-import scala.concurrent.duration._
-import scala.util.{Success}
-
 import cats.effect.laws.discipline.arbitrary._
 import cats.laws._
 import cats.laws.discipline._
+import cats.syntax.all._
+import org.scalacheck.Prop.forAll
+
+import scala.concurrent.duration._
+import scala.util.Success
 
 class MemoizeTests extends BaseTestsSuite {
-  testAsync("Concurrent.memoize does not evaluates the effect if the inner `F[A]`isn't bound") { implicit ec =>
+  testAsync("Concurrent.memoize does not evaluates the effect if the inner `F[A]` isn't bound") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
     val timer = ec.timer[IO]
 
@@ -41,7 +42,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(200.millis)
-    result.value shouldBe Some(Success(0))
+    assertEquals(result.value, Some(Success(0)))
   }
 
   testAsync("Concurrent.memoize evalutes effect once if inner `F[A]` is bound twice") { implicit ec =>
@@ -61,7 +62,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick()
-    result.value shouldBe Some(Success((1, 1, 1)))
+    assertEquals(result.value, Some(Success((1, 1, 1))))
   }
 
   testAsync("Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)") {
@@ -84,12 +85,12 @@ class MemoizeTests extends BaseTestsSuite {
 
       val result = prog.unsafeToFuture()
       ec.tick(200.millis)
-      result.value shouldBe Some(Success((1, 1)))
+      assertEquals(result.value, Some(Success((1, 1))))
   }
 
   testAsync("Concurrent.memoize and then flatten is identity") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
-    check { (fa: IO[Int]) =>
+    forAll { (fa: IO[Int]) =>
       Concurrent.memoize(fa).flatten <-> fa
     }
   }
@@ -111,7 +112,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(500.millis)
-    result.value shouldBe Some(Success(false))
+    assertEquals(result.value, Some(Success(false)))
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (2)") { implicit ec =>
@@ -134,7 +135,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(600.millis)
-    result.value shouldBe Some(Success(false))
+    assertEquals(result.value, Some(Success(false)))
   }
 
   testAsync("Memoized effects can be canceled when there are no other active subscribers (3)") { implicit ec =>
@@ -157,7 +158,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(600.millis)
-    result.value shouldBe Some(Success(false))
+    assertEquals(result.value, Some(Success(false)))
   }
 
   testAsync("Running a memoized effect after it was previously canceled reruns it") { implicit ec =>
@@ -179,7 +180,7 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(500.millis)
-    result.value shouldBe Some(Success((2, 1)))
+    assertEquals(result.value, Some(Success((2, 1))))
   }
 
   testAsync("Attempting to cancel a memoized effect with active subscribers is a no-op") { implicit ec =>
@@ -201,6 +202,6 @@ class MemoizeTests extends BaseTestsSuite {
 
     val result = prog.unsafeToFuture()
     ec.tick(500.millis)
-    result.value shouldBe Some(Success(true))
+    assertEquals(result.value, Some(Success(true)))
   }
 }

@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.effect.concurrent.Ref
-import cats.implicits._
 import cats.kernel.Eq
 import cats.laws.discipline._
 import org.scalacheck.Arbitrary

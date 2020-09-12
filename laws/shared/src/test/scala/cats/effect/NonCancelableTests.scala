@@ -18,7 +18,6 @@ package cats.effect
 
 import cats.effect.laws.discipline.EffectTests
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
 
 /**
  * Tests laws for a dummy data type that is not

@@ -21,7 +21,6 @@ import cats.data._
 import cats.effect.Sync._
 import cats.effect.laws.discipline._
 import cats.effect.laws.discipline.arbitrary._
-import cats.implicits._
 import cats.laws.discipline.arbitrary._
 
 class InstancesTests extends BaseTestsSuite {

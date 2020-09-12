@@ -1480,7 +1480,7 @@ Furthermore, if you pass a limit of `5 seconds` to an `IO` consisting of several
 
 As soon as an async blocking limit is hit, evaluation "immediately" aborts and `None` is returned.
 
-Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://github.com/functional-streams-for-scala/fs2) or [Monix](https://monix.io/)).
+Please note that this function is intended for **testing** purposes; it should never appear in your mainline production code!  It is absolutely not an appropriate function to use if you want to implement timeouts, or anything similar. If you need that sort of functionality, you should be using a streaming library (like [fs2](https://fs2.io/) or [Monix](https://monix.io/)).
 
 ```scala mdoc:silent
 import scala.concurrent.duration._

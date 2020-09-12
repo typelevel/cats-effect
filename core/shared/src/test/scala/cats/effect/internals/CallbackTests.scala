@@ -17,17 +17,16 @@
 package cats.effect.internals
 
 import cats.effect.IO
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.internals.Callback.{Extensions, T => Callback}
+import munit.FunSuite
 
-class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
+class CallbackTests extends FunSuite with TestUtils {
   test("Callback.report(Right(_)) is a no-op") {
     val output = catchSystemErr {
       // No-op
       Callback.report[Int](Right(1))
     }
-    output shouldBe empty
+    assert(output.isEmpty)
   }
 
   test("Callback.report(Left(e)) reports to System.err") {
@@ -35,7 +34,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     val output = catchSystemErr {
       Callback.report(Left(dummy))
     }
-    output should include("dummy")
+    assert(output.contains("dummy"))
   }
 
   test("Callback.async references should be stack safe") {
@@ -45,7 +44,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
     val f = (0 until count).foldLeft(r)((acc, _) => Callback.async(acc.andThen(_ => ())))
     f(Right(1))
-    result shouldBe Some(Right(1))
+    assertEquals(result, Some(Right(1)))
   }
 
   test("Callback.async pops Connection if provided") {
@@ -55,11 +54,11 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
     var result = Option.empty[Either[Throwable, Int]]
     val cb = Callback.async(conn, (r: Either[Throwable, Int]) => result = Some(r))
-    result shouldBe None
+    assertEquals(result, None)
 
     cb(Right(100))
-    result shouldBe Some(Right(100))
-    conn.pop() shouldNot be(ref)
+    assertEquals(result, Some(Right(100)))
+    assertNotEquals(conn.pop(), ref)
   }
 
   test("Callback.asyncIdempotent should be stack safe") {
@@ -69,7 +68,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
     val f = (0 until count).foldLeft(r)((acc, _) => Callback.asyncIdempotent(null, acc.andThen(_ => ())))
     f(Right(1))
-    result shouldBe Some(Right(1))
+    assertEquals(result, Some(Right(1)))
   }
 
   test("Callback.asyncIdempotent pops Connection if provided") {
@@ -79,11 +78,11 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
 
     var result = Option.empty[Either[Throwable, Int]]
     val cb = Callback.asyncIdempotent(conn, (r: Either[Throwable, Int]) => result = Some(r))
-    result shouldBe None
+    assertEquals(result, None)
 
     cb(Right(100))
-    result shouldBe Some(Right(100))
-    conn.pop() shouldNot be(ref)
+    assertEquals(result, Some(Right(100)))
+    assertNotEquals(conn.pop(), ref)
   }
 
   test("Callback.asyncIdempotent can only be called once") {
@@ -94,7 +93,7 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     safe(Right(100))
     safe(Right(100))
 
-    effect shouldBe 100
+    assertEquals(effect, 100)
   }
 
   test("Callback.asyncIdempotent reports error") {
@@ -108,8 +107,8 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     safe(Left(dummy1))
     val err = catchSystemErr(safe(Left(dummy2)))
 
-    input shouldBe Some(Left(dummy1))
-    err should include("dummy2")
+    assertEquals(input, Some(Left(dummy1)))
+    assert(err.contains("dummy2"))
   }
 
   test("Callback.Extensions.async(cb)") {
@@ -117,6 +116,6 @@ class CallbackTests extends AnyFunSuite with Matchers with TestUtils {
     val cb = (r: Either[Throwable, Int]) => { result = Some(r) }
 
     cb.async(Right(100))
-    result shouldBe Some(Right(100))
+    assertEquals(result, Some(Right(100)))
   }
 }
