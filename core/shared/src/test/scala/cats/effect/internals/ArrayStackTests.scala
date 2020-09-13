@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
-import munit.FunSuite
-
-class ArrayStackTests extends FunSuite with TestUtils {
+class ArrayStackTests extends CatsEffectSuite with TestUtils {
   test("push and pop 8 items") {
     val stack = new ArrayStack[String]()
     var times = 0

@@ -18,11 +18,10 @@ package cats
 package effect
 
 import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 
-class IOAppTests extends FunSuite with TestUtils {
+class IOAppTests extends CatsEffectSuite with TestUtils {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ =>

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.tracing.IOEvent
-import munit.FunSuite
 
-class IOContextTests extends FunSuite {
+class IOContextTests extends CatsEffectSuite {
 
   val traceBufferSize: Int = 1 << cats.effect.internals.TracingPlatform.traceBufferLogSize
   val stackTrace = new Throwable().getStackTrace.toList

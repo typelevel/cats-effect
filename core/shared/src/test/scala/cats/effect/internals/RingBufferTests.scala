@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
-import munit.FunSuite
-
-class RingBufferTests extends FunSuite with TestUtils {
+class RingBufferTests extends CatsEffectSuite with TestUtils {
   test("empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
     assertEquals(buffer.isEmpty, true)

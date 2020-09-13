@@ -21,7 +21,6 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import cats.effect.concurrent.{Deferred, MVar, MVar2}
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.duration._
 import scala.concurrent.{CancellationException, ExecutionContext}
@@ -96,7 +95,7 @@ class MVarFullJVMParallelism4Tests extends BaseMVarJVMTests(4) {
 
 // -----------------------------------------------------------------
 
-abstract class BaseMVarJVMTests(parallelism: Int) extends FunSuite {
+abstract class BaseMVarJVMTests(parallelism: Int) extends CatsEffectSuite {
   var service: ExecutorService = _
 
   implicit val context: ExecutionContext = new ExecutionContext {

@@ -18,16 +18,15 @@ package cats.effect
 
 import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
-import munit.{DisciplineSuite, Location}
 
 import org.typelevel.discipline.Laws
 
-class BaseTestsSuite extends DisciplineSuite with TestInstances with TestUtils {
+class BaseTestsSuite extends CatsEffectSuite with TestInstances with TestUtils {
 
   /** For tests that need a usable [[TestContext]] reference. */
-  def testAsync[A](name: String)(f: TestContext => Unit)(implicit loc: Location): Unit =
+  def testAsync[A](name: String)(f: TestContext => Unit): Unit =
     // Overriding System.err
-    test(name)(silenceSystemErr(f(TestContext())))(loc)
+    test(name)(silenceSystemErr(f(TestContext())))
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()

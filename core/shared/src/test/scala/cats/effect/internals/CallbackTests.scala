@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.IO
 import cats.effect.internals.Callback.{Extensions, T => Callback}
-import munit.FunSuite
 
-class CallbackTests extends FunSuite with TestUtils {
+class CallbackTests extends CatsEffectSuite with TestUtils {
   test("Callback.report(Right(_)) is a no-op") {
     val output = catchSystemErr {
       // No-op

@@ -19,12 +19,11 @@ package effect
 package concurrent
 
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class DeferredTests extends FunSuite {
+class DeferredTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: cats.effect.Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)

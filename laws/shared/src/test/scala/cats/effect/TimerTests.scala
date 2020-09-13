@@ -18,13 +18,12 @@ package cats.effect
 
 import cats.implicits._
 import cats.data._
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class TimerTests extends FunSuite {
-  implicit val executionContext =
+class TimerTests extends CatsEffectSuite {
+  implicit val executionContext: ExecutionContext =
     ExecutionContext.global
   implicit val timer: Timer[IO] =
     IO.timer(executionContext)

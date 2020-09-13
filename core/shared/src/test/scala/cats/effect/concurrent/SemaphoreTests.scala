@@ -19,12 +19,11 @@ package effect
 package concurrent
 
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class SemaphoreTests extends FunSuite {
+class SemaphoreTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
   implicit val timer: Timer[IO] = IO.timer(executionContext)

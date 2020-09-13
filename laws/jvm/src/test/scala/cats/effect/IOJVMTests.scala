@@ -19,13 +19,12 @@ package cats.effect
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
-import munit.FunSuite
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class IOJVMTests extends FunSuite {
+class IOJVMTests extends CatsEffectSuite {
   val ThreadName = "test-thread"
 
   val TestEC = new ExecutionContext {

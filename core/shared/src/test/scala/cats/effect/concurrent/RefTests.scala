@@ -20,12 +20,11 @@ package concurrent
 
 import cats.data.State
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 
-class RefTests extends FunSuite {
+class RefTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)

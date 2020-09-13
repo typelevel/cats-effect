@@ -19,11 +19,9 @@ package internals
 
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 
-import munit.FunSuite
-
 import scala.util.control.NonFatal
 
-class JvmIOTimerTests extends FunSuite {
+class JvmIOTimerTests extends CatsEffectSuite {
   private def withScheduler(props: Map[String, String])(f: ScheduledThreadPoolExecutor => Unit): Unit = {
     val s = IOTimer.mkGlobalScheduler(props)
     try f(s)

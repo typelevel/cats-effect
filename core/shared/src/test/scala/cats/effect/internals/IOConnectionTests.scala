@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.IO
-import munit.FunSuite
 
-class IOConnectionTests extends FunSuite {
+class IOConnectionTests extends CatsEffectSuite {
   test("initial push") {
     var effect = 0
     val initial = IO(effect += 1)

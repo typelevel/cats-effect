@@ -18,10 +18,9 @@ package cats
 package effect
 package concurrent
 
-import munit.ScalaCheckSuite
 import org.scalacheck.Prop.forAll
 
-class ExitCodeTests extends ScalaCheckSuite {
+class ExitCodeTests extends CatsEffectSuite {
   property("fromInt(i) == fromInt(i & 0xff)") {
     forAll { (i: Int) =>
       ExitCode(i) == ExitCode(i & 0xff)
