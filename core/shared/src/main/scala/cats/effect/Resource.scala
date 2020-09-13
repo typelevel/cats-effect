@@ -120,7 +120,7 @@ sealed abstract class Resource[+F[_], +A] {
           G.bracketCase(a.resource) {
             case (a, _) =>
               stack match {
-                case Nil => onOutput(a.asInstanceOf[A])
+                case Nil => onOutput(a)
                 case Frame(head, tail) => continue(head(a), tail)
               }
           } {
@@ -283,7 +283,7 @@ sealed abstract class Resource[+F[_], +A] {
             case (a, rel) =>
               stack match {
                 case Nil =>
-                  G.pure(a.asInstanceOf[B] -> G.guarantee(rel(ExitCase.Completed))(release))
+                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Completed))(release))
                 case Frame(head, tail) =>
                   continue(head(a), tail, G.guarantee(rel(ExitCase.Completed))(release))
               }
