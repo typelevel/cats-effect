@@ -16,8 +16,6 @@
 
 package cats.effect
 
-import munit.{FunSuite, Location}
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -26,15 +24,15 @@ import scala.util.{Failure, Success, Try}
  * Tests doing real asynchrony for both the JVM and JS, by
  * means of ScalaTest's engine.
  */
-class IOAsyncTests extends FunSuite {
-  implicit val executionContext =
+class IOAsyncTests extends CatsEffectSuite {
+  implicit val executionContext: ExecutionContext =
     ExecutionContext.global
   implicit val timer: Timer[IO] =
     IO.timer(executionContext)
   implicit val cs: ContextShift[IO] =
     IO.contextShift(executionContext)
 
-  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int])(implicit loc: Location): Future[Unit] = {
+  def testEffectOnRunAsync(source: IO[Int], expected: Try[Int]): Future[Unit] = {
     val effect = Promise[Int]()
     val attempt = Promise[Try[Int]]()
     effect.future.onComplete(attempt.success)

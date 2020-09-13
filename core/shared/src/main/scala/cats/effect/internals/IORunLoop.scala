@@ -162,7 +162,12 @@ private[effect] object IORunLoop {
           if (conn ne old) {
             if (rcb ne null) rcb.contextSwitch(conn)
             if (restore ne null)
-              currentIO = Bind(next, new RestoreContext(old, restore), null)
+              currentIO = Bind(
+                next,
+                new RestoreContext(old,
+                                   restore.asInstanceOf[(Any, Throwable, IOConnection, IOConnection) => IOConnection]),
+                null
+              )
           }
 
         case Trace(source, frame) =>

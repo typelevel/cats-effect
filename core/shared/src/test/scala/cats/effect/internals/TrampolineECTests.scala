@@ -19,12 +19,11 @@ package internals
 
 import cats.effect.internals.TrampolineEC.immediate
 import cats.effect.internals.IOPlatform.isJVM
-import munit.FunSuite
 
 import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext
 
-class TrampolineECTests extends FunSuite with TestUtils {
+class TrampolineECTests extends CatsEffectSuite with TestUtils {
   implicit val ec: ExecutionContext = immediate
 
   def executeImmediate(f: => Unit): Unit =

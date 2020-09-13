@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import cats.effect.IO
-import munit.FunSuite
 
-class ForwardCancelableTests extends FunSuite {
+class ForwardCancelableTests extends CatsEffectSuite {
   test("cancel() after complete") {
     var effect = 0
 

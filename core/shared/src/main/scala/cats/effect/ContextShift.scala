@@ -85,7 +85,10 @@ object ContextShift {
   /**
    * `evalOn` as a natural transformation.
    */
-  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F = λ[F ~> F](cs.evalOn(ec)(_))
+  def evalOnK[F[_]](ec: ExecutionContext)(implicit cs: ContextShift[F]): F ~> F =
+    new (F ~> F) {
+      def apply[A](fa: F[A]): F[A] = cs.evalOn(ec)(fa)
+    }
 
   /**
    * Derives a [[ContextShift]] instance for `cats.data.EitherT`,

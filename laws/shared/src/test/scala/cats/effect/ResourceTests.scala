@@ -40,14 +40,14 @@ class ResourceTests extends BaseTestsSuite {
   checkAllAsync(
     "Resource.Par[IO, *]",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
       CommutativeApplicativeTests[Resource.Par[IO, *]].commutativeApplicative[Int, Int, Int]
     }
   )
   checkAllAsync(
     "Resource[IO, *]",
     implicit ec => {
-      implicit val cs = ec.contextShift[IO]
+      implicit val cs: ContextShift[IO] = ec.ioContextShift
 
       // do NOT inline this val; it causes the 2.13.0 compiler to crash for... reasons (see: scala/bug#11732)
       val module = ParallelTests[Resource[IO, *]]
@@ -84,6 +84,7 @@ class ResourceTests extends BaseTestsSuite {
       released <-> acquired
     }
   }
+
   test("releases both resources on combineK") {
     forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
@@ -307,8 +308,11 @@ class ResourceTests extends BaseTestsSuite {
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
     val resource = Resource.liftF(IO.unit)
 
+    // Dotty fails to infer functor syntax if this line is in the for comprehension
+    val allocated = (release *> resource).allocated
+
     val prog = for {
-      res <- (release *> resource).allocated
+      res <- allocated
       (_, close) = res
       _ <- IO(assertEquals(released.get(), false))
       _ <- close
@@ -335,8 +339,11 @@ class ResourceTests extends BaseTestsSuite {
     val release = Resource.make(IO.unit)(_ => IO(released.set(true)))
     val resource = Resource.liftF(IO.unit)
 
+    // Dotty fails to infer functor syntax if this line is in the for comprehension
+    val allocated = ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
+
     val prog = for {
-      res <- ((release *> resource).mapK(takeAnInteger) *> plusOneResource).mapK(runWithTwo).allocated
+      res <- allocated
       (_, close) = res
       _ <- IO(assertEquals(released.get(), false))
       _ <- close
@@ -364,15 +371,21 @@ class ResourceTests extends BaseTestsSuite {
   test("combineK - should behave like underlying effect") {
     import cats.data.OptionT
     forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
-      val lhs = Resource.liftF(ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
-      val rhs = (Resource.liftF(ot1) <+> Resource.liftF(ot2)).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
+      val lhs: Either[Throwable, Option[Int]] =
+        Resource.liftF[OptionT[IO, *], Int](ot1 <+> ot2).use(OptionT.pure[IO](_)).value.attempt.unsafeRunSync()
+      val rhs: Either[Throwable, Option[Int]] =
+        (Resource.liftF[OptionT[IO, *], Int](ot1) <+> Resource.liftF[OptionT[IO, *], Int](ot2))
+          .use(OptionT.pure[IO](_))
+          .value
+          .attempt
+          .unsafeRunSync()
 
       lhs <-> rhs
     }
   }
 
   testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
-    implicit val ctx = ec.contextShift[IO]
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     // conceptually asserts that:
     //   forAll (r: Resource[F, A]) then r <-> r.parZip(Resource.unit) <-> Resource.unit.parZip(r)
@@ -393,8 +406,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - parallel acquisition and release") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false
@@ -438,8 +451,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - safety: lhs error during rhs interruptible region") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false
@@ -493,8 +506,8 @@ class ResourceTests extends BaseTestsSuite {
   }
 
   testAsync("parZip - safety: rhs error during lhs uninterruptible region") { implicit ec =>
-    implicit val timer = ec.timer[IO]
-    implicit val ctx = ec.contextShift[IO]
+    implicit val timer: Timer[IO] = ec.ioTimer
+    implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     var leftAllocated = false
     var rightAllocated = false

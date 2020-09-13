@@ -19,7 +19,6 @@ package concurrent
 
 import cats.effect.internals.Platform
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -143,7 +142,7 @@ class MVarAsyncTests extends BaseMVarTests {
     MVar.uncancelableEmpty
 }
 
-abstract class BaseMVarTests extends FunSuite {
+abstract class BaseMVarTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext =
     ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] =

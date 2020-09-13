@@ -19,12 +19,11 @@ package cats.effect
 import cats.effect.concurrent.{Deferred, Ref}
 import cats.effect.implicits._
 import cats.syntax.all._
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.util.Success
 
-class ContinualHangingTest extends FunSuite {
+class ContinualHangingTest extends CatsEffectSuite {
   test("Concurrent.continual can be canceled immediately after starting") {
     implicit val executionContext = ExecutionContext.global
     implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)

@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package cats.effect.concurrent
+package cats.effect
+package concurrent
 
 import cats.data.State
 import cats.effect.IO
-import munit.FunSuite
 
 import scala.concurrent.Future
 
-class LensRefTests extends FunSuite {
+class LensRefTests extends CatsEffectSuite {
 
   private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
 

@@ -18,12 +18,11 @@ package cats.effect
 
 import cats.syntax.all._
 import cats.effect.tracing.IOTrace
-import munit.FunSuite
 
 import scala.concurrent.ExecutionContext
 import scala.util.control.NoStackTrace
 
-class TracingTests extends FunSuite {
+class TracingTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
   implicit val timer: Timer[IO] = IO.timer(executionContext)
   implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)

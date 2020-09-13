@@ -22,7 +22,7 @@ import scala.sys.process._
 ThisBuild / baseVersion := "2.2"
 
 val OldScala = "2.12.12"
-ThisBuild / crossScalaVersions := Seq(OldScala, "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.26.0", "0.27.0-RC1", OldScala, "2.13.3")
 ThisBuild / githubWorkflowJavaVersions := Seq("adopt@1.8", "adopt@11")
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/2.x")
@@ -34,7 +34,7 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
 )
 
 ThisBuild / githubWorkflowBuild +=
-  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"$${{ matrix.scala }} == '$OldScala'"))
+  WorkflowStep.Sbt(List("microsite/makeMicrosite"), cond = Some(s"matrix.scala == '$OldScala'"))
 
 ThisBuild / organization := "org.typelevel"
 ThisBuild / organizationName := "Typelevel"
@@ -66,6 +66,18 @@ replaceCommandAlias(
   "; reload; project /; +mimaReportBinaryIssuesIfRelevant; +publishIfRelevant; sonatypeBundleRelease; microsite/publishMicrosite"
 )
 
+// Directly copied from typelevel/cats
+def scalaVersionSpecificFolders(srcName: String, srcBaseDir: java.io.File, scalaVersion: String) = {
+  def extraDirs(suffix: String) =
+    List(CrossType.Pure, CrossType.Full)
+      .flatMap(_.sharedSrcDir(srcBaseDir, srcName).toList.map(f => file(f.getPath + suffix)))
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, y)) => extraDirs("-2.x") ++ (if (y >= 13) extraDirs("-2.13+") else Nil)
+    case Some((0, _)) => extraDirs("-2.13+") ++ extraDirs("-3.x")
+    case _            => Nil
+  }
+}
+
 val commonSettings = Seq(
   scalacOptions in (Compile, doc) ++= {
     val isSnapshot = git.gitCurrentTags.value.map(git.gitTagToVersionNumber.value).flatten.isEmpty
@@ -78,12 +90,14 @@ val commonSettings = Seq(
 
     Seq("-doc-source-url", path, "-sourcepath", baseDirectory.in(LocalRootProject).value.getAbsolutePath)
   },
+  Compile / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("main", baseDirectory.value, scalaVersion.value),
+  Test / unmanagedSourceDirectories ++= scalaVersionSpecificFolders("test", baseDirectory.value, scalaVersion.value),
   sources in (Compile, doc) := (sources in (Compile, doc)).value,
   scalacOptions in (Compile, doc) ++=
     Seq("-doc-root-content", (baseDirectory.value.getParentFile / "shared" / "rootdoc.txt").getAbsolutePath),
   scalacOptions in (Compile, doc) ++=
     Opts.doc.title("cats-effect"),
-  scalacOptions in Test += "-Yrangepos",
+  scalacOptions in Test ++= { if (isDotty.value) Seq() else Seq("-Yrangepos") },
   scalacOptions in Test ~= (_.filterNot(Set("-Wvalue-discard", "-Ywarn-value-discard"))),
   // Disable parallel execution in tests; otherwise we cannot test System.err
   parallelExecution in Test := false,
@@ -194,7 +208,14 @@ lazy val scalaJSSettings = Seq(
   },
   // Work around "dropping dependency on node with no phase object: mixin"
   scalacOptions in (Compile, doc) -= "-Xfatal-warnings",
-  scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule))
+  scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.CommonJSModule)),
+  // Dotty dislikes these -P flags, warns against them
+  scalacOptions := {
+    scalacOptions.value.filterNot { s =>
+      if (isDotty.value) s.startsWith("-P:scalajs:mapSourceURI")
+      else false
+    }
+  }
 )
 
 lazy val sharedSourcesSettings = Seq(
@@ -221,15 +242,35 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "org.typelevel" %%% "cats-core" % CatsVersion,
       "org.typelevel" %%% "cats-laws" % CatsVersion % Test,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    ),
-    libraryDependencies ++= Seq(
-      compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
-      ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
-    )
+    ).map(_.withDottyCompat(scalaVersion.value)),
+    libraryDependencies ++= {
+      if (isDotty.value)
+        Seq(
+          // Only way to properly resolve this library
+          ("com.github.ghik" % "silencer-lib_2.13.3" % SilencerVersion % Provided)
+        ).map(_.withDottyCompat(scalaVersion.value))
+      else
+        Seq(
+          compilerPlugin(("com.github.ghik" % "silencer-plugin" % SilencerVersion).cross(CrossVersion.full)),
+          ("com.github.ghik" % "silencer-lib" % SilencerVersion % "provided").cross(CrossVersion.full),
+          ("com.github.ghik" % "silencer-lib" % SilencerVersion % Test).cross(CrossVersion.full)
+        )
+    }
   )
   .jvmSettings(mimaSettings)
+  .jvmSettings(
+    mimaPreviousArtifacts := {
+      // disable mima check on dotty for now
+      if (isDotty.value) Set.empty else mimaPreviousArtifacts.value
+    },
+    mimaFailOnNoPrevious := !isDotty.value
+  )
   .jsSettings(scalaJSSettings)
+  // Workaround for enabling dotty Scala.js for 0.27.0-RC1
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+  .jsSettings(
+    crossScalaVersions := ("0.27.0-RC1" +: crossScalaVersions.value)
+  )
 
 lazy val coreJVM = core.jvm
 lazy val coreJS = core.js
@@ -243,9 +284,21 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    )
+    ).map(_.withDottyCompat(scalaVersion.value))
+  )
+  .jvmSettings(
+    mimaPreviousArtifacts := {
+      // disable mima check on dotty for now
+      if (isDotty.value) Set.empty else mimaPreviousArtifacts.value
+    },
+    mimaFailOnNoPrevious := !isDotty.value
   )
   .jsSettings(scalaJSSettings)
+  // Workaround for enabling dotty Scala.js for 0.27.0-RC1
+  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
+  .jsSettings(
+    crossScalaVersions := ("0.27.0-RC1" +: crossScalaVersions.value)
+  )
 
 lazy val lawsJVM = laws.jvm
 lazy val lawsJS = laws.js
@@ -254,13 +307,13 @@ lazy val FullTracingTest = config("fulltracing").extend(Test)
 
 lazy val runtimeTests = project
   .in(file("runtime-tests"))
-  .dependsOn(coreJVM)
+  .dependsOn(coreJVM % "compile->compile;test->test")
   .settings(commonSettings ++ noPublishSettings)
   .settings(
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-laws" % CatsVersion,
       "org.typelevel" %%% "discipline-munit" % DisciplineMunitVersion % Test
-    )
+    ).map(_.withDottyCompat(scalaVersion.value))
   )
   .configs(FullTracingTest)
   .settings(inConfig(FullTracingTest)(Defaults.testSettings): _*)

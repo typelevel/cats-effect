@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect.internals
+package cats.effect
+package internals
 
 import java.io.ByteArrayOutputStream
 
 import cats.effect.IO
-import munit.FunSuite
 
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends FunSuite with TestUtils {
+class CancelUtilsTests extends CatsEffectSuite with TestUtils {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }

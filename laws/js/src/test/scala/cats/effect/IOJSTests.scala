@@ -16,14 +16,12 @@
 
 package cats.effect
 
-import munit.FunSuite
-
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.scalajs.js.timers.setTimeout
 
-class IOJSTests extends FunSuite {
-  implicit val executionContext =
+class IOJSTests extends CatsEffectSuite {
+  implicit val executionContext: ExecutionContext =
     ExecutionContext.global
 
   def delayed[A](duration: FiniteDuration)(f: => A): IO[A] =

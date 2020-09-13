@@ -33,7 +33,7 @@ trait EffectLaws[F[_]] extends AsyncLaws[F] {
 
   def runAsyncRaiseErrorProducesLeftIO[A](e: Throwable) = {
     val lh = IO.async[Either[Throwable, A]] { cb =>
-      F.runAsync(F.raiseError(e))(r => IO(cb(Right(r))))
+      F.runAsync[A](F.raiseError(e))(r => IO(cb(Right(r))))
         .unsafeRunSync()
     }
     lh <-> IO.pure(Left(e))
