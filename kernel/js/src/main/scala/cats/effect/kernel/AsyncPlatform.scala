@@ -16,24 +16,26 @@
 
 package cats.effect.kernel
 
-import scala.scalajs.js.{|, defined, JavaScriptException, Promise, Thenable}
+import scala.scalajs.js.{|, defined, Function1, JavaScriptException, Promise, Thenable}
 
 private[kernel] abstract class AsyncPlatform[F[_]] { this: Async[F] =>
 
   def fromPromise[A](iop: F[Promise[A]]): F[A] =
     flatMap(iop) { p =>
       async_[A] { cb =>
-        p.`then`[Unit](
-          (v: A) => cb(Right(v)): Unit | Thenable[Unit],
-          defined { (a: Any) =>
-            val e = a match {
-              case th: Throwable => th
-              case _ => JavaScriptException(a)
-            }
+        val onFulfilled: Function1[A, Unit | Thenable[Unit]] =
+          (v: A) => cb(Right(v)): Unit | Thenable[Unit]
 
-            cb(Left(e)): Unit | Thenable[Unit]
+        val onRejected: Function1[Any, Unit | Thenable[Unit]] = { (a: Any) =>
+          val e = a match {
+            case th: Throwable => th
+            case _ => JavaScriptException(a)
           }
-        )
+
+          cb(Left(e)): Unit | Thenable[Unit]
+        }
+
+        p.`then`[Unit](onFulfilled, defined(onRejected))
 
         ()
       }
