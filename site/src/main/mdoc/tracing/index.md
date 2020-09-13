@@ -219,7 +219,7 @@ This feature is controlled by the system property
 `cats.effect.enhancedExceptions`. It is enabled by default.
 
 ```
--Dcats.effect.stackTracingMode=false
+-Dcats.effect.enhancedExceptions=false
 ```
 
 ### Complete example
