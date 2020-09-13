@@ -103,31 +103,36 @@ sealed abstract class Resource[+F[_], +A] {
       onOutput: A => G[B],
       onRelease: G[Unit] => G[Unit]
   )(implicit G: Resource.Bracket[G]): G[B] = {
+    sealed trait Stack[AA]
+    case object Nil extends Stack[A]
+    final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
+        extends Stack[AA]
+
     // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+    def continue[C](current: Resource[G, C], stack: Stack[C]): G[B] =
       loop(current, stack)
 
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(current: Resource[G, Any], stack: List[Any => Resource[G, Any]]): G[Any] =
+    @tailrec def loop[C](current: Resource[G, C], stack: Stack[C]): G[B] =
       current match {
-        case a: Allocate[G, Any] =>
+        case a: Allocate[G, C] =>
           G.bracketCase(a.resource) {
             case (a, _) =>
               stack match {
-                case Nil => onOutput.asInstanceOf[Any => G[Any]](a)
-                case l => continue(l.head(a), l.tail)
+                case Nil => onOutput(a.asInstanceOf[A])
+                case Frame(head, tail) => continue(head(a), tail)
               }
           } {
             case ((_, release), ec) =>
               onRelease(release(ec))
           }
-        case b: Bind[G, _, Any] =>
-          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack)
-        case s: Suspend[G, Any] =>
+        case b: Bind[G, _, C] =>
+          loop(b.source, Frame(b.fs, stack))
+        case s: Suspend[G, C] =>
           s.resource.flatMap(continue(_, stack))
       }
-    loop(this.asInstanceOf[Resource[G, Any]], Nil).asInstanceOf[G[B]]
+    loop(this, Nil)
   }
 
   /**
@@ -254,27 +259,33 @@ sealed abstract class Resource[+F[_], +A] {
    * resource.
    */
   def allocated[G[x] >: F[x], B >: A](implicit G: Resource.Bracket[G]): G[(B, G[Unit])] = {
+    sealed trait Stack[AA]
+    case object Nil extends Stack[B]
+    final case class Frame[AA, BB](head: AA => Resource[G, BB], tail: Stack[BB])
+        extends Stack[AA]
+
     // Indirection for calling `loop` needed because `loop` must be @tailrec
-    def continue(
-        current: Resource[G, Any],
-        stack: List[Any => Resource[G, Any]],
-        release: G[Unit]): G[(Any, G[Unit])] =
+    def continue[C](
+        current: Resource[G, C],
+        stack: Stack[C],
+        release: G[Unit]): G[(B, G[Unit])] =
       loop(current, stack, release)
 
     // Interpreter that knows how to evaluate a Resource data structure;
     // Maintains its own stack for dealing with Bind chains
-    @tailrec def loop(
-        current: Resource[G, Any],
-        stack: List[Any => Resource[G, Any]],
-        release: G[Unit]): G[(Any, G[Unit])] =
+    @tailrec def loop[C](
+        current: Resource[G, C],
+        stack: Stack[C],
+        release: G[Unit]): G[(B, G[Unit])] =
       current match {
-        case a: Allocate[G, Any] =>
+        case a: Allocate[G, C] =>
           G.bracketCase(a.resource) {
             case (a, rel) =>
               stack match {
-                case Nil => G.pure(a -> G.guarantee(rel(ExitCase.Completed))(release))
-                case l =>
-                  continue(l.head(a), l.tail, G.guarantee(rel(ExitCase.Completed))(release))
+                case Nil =>
+                  G.pure(a.asInstanceOf[B] -> G.guarantee(rel(ExitCase.Completed))(release))
+                case Frame(head, tail) =>
+                  continue(head(a), tail, G.guarantee(rel(ExitCase.Completed))(release))
               }
           } {
             case (_, ExitCase.Completed) =>
@@ -282,16 +293,13 @@ sealed abstract class Resource[+F[_], +A] {
             case ((_, release), ec) =>
               release(ec)
           }
-        case b: Bind[G, _, Any] =>
-          loop(b.source, b.fs.asInstanceOf[Any => Resource[G, Any]] :: stack, release)
-        case s: Suspend[G, Any] =>
+        case b: Bind[G, _, C] =>
+          loop(b.source, Frame(b.fs, stack), release)
+        case s: Suspend[G, C] =>
           s.resource.flatMap(continue(_, stack, release))
       }
 
-    loop(this.asInstanceOf[Resource[F, Any]], Nil, G.unit).map {
-      case (a, release) =>
-        (a.asInstanceOf[A], release)
-    }
+    loop(this, Nil, G.unit)
   }
 
   /**
