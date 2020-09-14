@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Order, Show}
+import cats.Show
 import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
@@ -43,11 +43,6 @@ class WriterTPureConcSpec extends Specification with Discipline with ScalaCheck 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  //TODO remove once https://github.com/typelevel/cats/pull/3556 is released
-  implicit def orderWriterT[F[_], S, A](
-      implicit Ord: Order[F[(S, A)]]): Order[WriterT[F, S, A]] = Order.by(_.run)
-
-  //TODO remove once https://github.com/typelevel/cats/pull/3556 is released
   implicit def execWriterT[S](sbool: WriterT[TimeT[PureConc[Int, *], *], S, Boolean]): Prop =
     Prop(
       pure
