@@ -69,7 +69,7 @@ object GenConcurrent {
 
   private[kernel] trait OptionTGenConcurrent[F[_], E]
       extends GenConcurrent[OptionT[F, *], E]
-      with GenSpawn.OptionTSpawn[F, E] {
+      with GenSpawn.OptionTGenSpawn[F, E] {
     implicit protected def F: GenConcurrent[F, E]
 
     override def ref[A](a: A): OptionT[F, Ref[OptionT[F, *], A]] =
@@ -81,7 +81,7 @@ object GenConcurrent {
 
   private[kernel] trait EitherTGenConcurrent[F[_], E0, E]
       extends GenConcurrent[EitherT[F, E0, *], E]
-      with GenSpawn.EitherTSpawn[F, E0, E] {
+      with GenSpawn.EitherTGenSpawn[F, E0, E] {
     implicit protected def F: GenConcurrent[F, E]
 
     override def ref[A](a: A): EitherT[F, E0, Ref[EitherT[F, E0, *], A]] =
@@ -93,7 +93,7 @@ object GenConcurrent {
 
   private[kernel] trait KleisliGenConcurrent[F[_], R, E]
       extends GenConcurrent[Kleisli[F, R, *], E]
-      with GenSpawn.KleisliSpawn[F, R, E] {
+      with GenSpawn.KleisliGenSpawn[F, R, E] {
     implicit protected def F: GenConcurrent[F, E]
 
     override def ref[A](a: A): Kleisli[F, R, Ref[Kleisli[F, R, *], A]] =
@@ -105,7 +105,7 @@ object GenConcurrent {
 
   private[kernel] trait IorTGenConcurrent[F[_], L, E]
       extends GenConcurrent[IorT[F, L, *], E]
-      with GenSpawn.IorTSpawn[F, L, E] {
+      with GenSpawn.IorTGenSpawn[F, L, E] {
     implicit protected def F: GenConcurrent[F, E]
 
     implicit protected def L: Semigroup[L]
@@ -119,7 +119,7 @@ object GenConcurrent {
 
   private[kernel] trait WriterTGenConcurrent[F[_], L, E]
       extends GenConcurrent[WriterT[F, L, *], E]
-      with GenSpawn.WriterTSpawn[F, L, E] {
+      with GenSpawn.WriterTGenSpawn[F, L, E] {
 
     implicit protected def F: GenConcurrent[F, E]
 

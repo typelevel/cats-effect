@@ -119,48 +119,48 @@ object GenSpawn {
   def apply[F[_], E](implicit F: GenSpawn[F, E]): F.type = F
   def apply[F[_]](implicit F: GenSpawn[F, _], d: DummyImplicit): F.type = F
 
-  implicit def spawnForOptionT[F[_], E](
+  implicit def genSpawnForOptionT[F[_], E](
       implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =
-    new OptionTSpawn[F, E] {
+    new OptionTGenSpawn[F, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForEitherT[F[_], E0, E](
+  implicit def genSpawnForEitherT[F[_], E0, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
-    new EitherTSpawn[F, E0, E] {
+    new EitherTGenSpawn[F, E0, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForKleisli[F[_], R, E](
+  implicit def genSpawnForKleisli[F[_], R, E](
       implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] =
-    new KleisliSpawn[F, R, E] {
+    new KleisliGenSpawn[F, R, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForIorT[F[_], L, E](
+  implicit def genSpawnForIorT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] =
-    new IorTSpawn[F, L, E] {
+    new IorTGenSpawn[F, L, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
     }
 
-  implicit def spawnForWriterT[F[_], L, E](
+  implicit def genSpawnForWriterT[F[_], L, E](
       implicit F0: GenSpawn[F, E],
       L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] =
-    new WriterTSpawn[F, L, E] {
+    new WriterTGenSpawn[F, L, E] {
 
       override implicit protected def F: GenSpawn[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
 
-  private[kernel] trait OptionTSpawn[F[_], E]
+  private[kernel] trait OptionTGenSpawn[F[_], E]
       extends GenSpawn[OptionT[F, *], E]
       with OptionTMonadCancel[F, E] {
 
@@ -199,7 +199,7 @@ object GenSpawn {
       }
   }
 
-  private[kernel] trait EitherTSpawn[F[_], E0, E]
+  private[kernel] trait EitherTGenSpawn[F[_], E0, E]
       extends GenSpawn[EitherT[F, E0, *], E]
       with EitherTMonadCancel[F, E0, E] {
 
@@ -239,7 +239,7 @@ object GenSpawn {
       }
   }
 
-  private[kernel] trait IorTSpawn[F[_], L, E]
+  private[kernel] trait IorTGenSpawn[F[_], L, E]
       extends GenSpawn[IorT[F, L, *], E]
       with IorTMonadCancel[F, L, E] {
 
@@ -281,7 +281,7 @@ object GenSpawn {
       }
   }
 
-  private[kernel] trait KleisliSpawn[F[_], R, E]
+  private[kernel] trait KleisliGenSpawn[F[_], R, E]
       extends GenSpawn[Kleisli[F, R, *], E]
       with KleisliMonadCancel[F, R, E] {
 
@@ -325,7 +325,7 @@ object GenSpawn {
       }
   }
 
-  private[kernel] trait WriterTSpawn[F[_], L, E]
+  private[kernel] trait WriterTGenSpawn[F[_], L, E]
       extends GenSpawn[WriterT[F, L, *], E]
       with WriterTMonadCancel[F, L, E] {
 

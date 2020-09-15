@@ -87,11 +87,11 @@ object TimeT {
   implicit def orderTimeT[F[_], A](implicit FA: Order[F[A]]): Order[TimeT[F, A]] =
     Order.by(TimeT.run(_))
 
-  implicit def temporalForTimeT[F[_], E](
+  implicit def genTemporalForTimeT[F[_], E](
       implicit F: GenConcurrent[F, E]): GenTemporal[TimeT[F, *], E] =
-    new TimeTTemporal[F, E]
+    new TimeTGenTemporal[F, E]
 
-  private[this] class TimeTTemporal[F[_], E](implicit F: GenConcurrent[F, E])
+  private[this] class TimeTGenTemporal[F[_], E](implicit F: GenConcurrent[F, E])
       extends GenTemporal[TimeT[F, *], E] {
 
     def pure[A](x: A): TimeT[F, A] =
