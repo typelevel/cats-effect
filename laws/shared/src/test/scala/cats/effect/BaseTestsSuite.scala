@@ -16,25 +16,24 @@
 
 package cats.effect
 
-import cats.effect.internals.TestUtils
 import cats.effect.laws.util.{TestContext, TestInstances}
-
+import org.scalacheck.Prop
 import org.typelevel.discipline.Laws
 
-class BaseTestsSuite extends CatsEffectSuite with TestInstances with TestUtils {
+class BaseTestsSuite extends CatsEffectSuite with TestInstances {
 
   /** For tests that need a usable [[TestContext]] reference. */
-  def testAsync[A](name: String)(f: TestContext => Unit): Unit =
-    // Overriding System.err
-    test(name)(silenceSystemErr(f(TestContext())))
+  def testAsync(name: String)(f: TestContext => Unit): Unit =
+    test(name)(f(TestContext()))
+
+  def propertyAsync(name: String)(f: TestContext => Prop): Unit =
+    property(name)(f(TestContext()))
 
   def checkAllAsync(name: String, f: TestContext => Laws#RuleSet): Unit = {
     val context = TestContext()
     val ruleSet = f(context)
 
     for ((id, prop) <- ruleSet.all.properties)
-      property(name + "." + id) {
-        silenceSystemErr(prop)
-      }
+      property(name + "." + id)(prop)
   }
 }

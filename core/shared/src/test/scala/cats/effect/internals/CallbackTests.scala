@@ -20,7 +20,7 @@ package internals
 import cats.effect.IO
 import cats.effect.internals.Callback.{Extensions, T => Callback}
 
-class CallbackTests extends CatsEffectSuite with TestUtils {
+class CallbackTests extends CatsEffectSuite {
   test("Callback.report(Right(_)) is a no-op") {
     val output = catchSystemErr {
       // No-op

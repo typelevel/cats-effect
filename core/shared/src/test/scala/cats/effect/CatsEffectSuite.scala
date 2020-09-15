@@ -16,7 +16,9 @@
 
 package cats.effect
 
+import cats.effect.internals.TestUtils
 import munit.{DisciplineSuite, Location}
+import org.scalacheck.Prop
 
 /**
  * A stopgap solution until upstream dependencies (cats, cats-laws and discipline-munit for dotty Scala.js) are
@@ -26,6 +28,19 @@ import munit.{DisciplineSuite, Location}
  * released for dotty, this trait can be dropped outright and test classes can depend directly on `munit.FunSuite` or
  * `munit.DisciplineSuite`, as needed.
  */
-trait CatsEffectSuite extends DisciplineSuite {
+trait CatsEffectSuite extends DisciplineSuite with TestUtils {
   implicit protected val munitLocation: Location = implicitly
+
+  // Exists in order to maintain source compatibility, otherwise delegates to the munit `test` method with
+  // suppressed `System.err`.
+  def test(name: String)(body: => Any): Unit =
+    super.test(name)(silenceSystemErr(() => body))(munitLocation)
+
+  // Exists in order to maintain source compatibility, otherwise delegates to the munit `property` method with
+  // suppressed `System.err`. Unfortunately, in order for proper suppresion in munit, the `body` `Prop` value needs
+  // to be **fully** executed with a replaced `System.err` and again replaced only after it has been fully evaluated.
+  def property(name: String)(body: => Prop): Unit =
+    super.property(name) {
+      Prop(params => silenceSystemErr(() => body(params)))
+    }(munitLocation)
 }
