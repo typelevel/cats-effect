@@ -14,7 +14,7 @@
   <li>Ability to delay the execution of a task with a specified time duration.</li>
 </ul>
 
-<p>It does all of that in an <code class="highlighter-rouge">F[_]</code> monadic context that can suspend side effects and is capable of asynchronous execution (e.g. <code class="highlighter-rouge">IO</code>).</p>
+<p>It does all of that in an <code class="language-plaintext highlighter-rouge">F[_]</code> monadic context that can suspend side effects and is capable of asynchronous execution (e.g. <code class="language-plaintext highlighter-rouge">IO</code>).</p>
 
 <p>This is NOT a typeclass, as it does not have the coherence requirement.</p>
 
@@ -27,7 +27,7 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>As mentioned in the <code class="highlighter-rouge">IO</code> documentation, there’s a default instance of <code class="highlighter-rouge">Timer[IO]</code> available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:</p>
+<p>As mentioned in the <code class="language-plaintext highlighter-rouge">IO</code> documentation, there’s a default instance of <code class="language-plaintext highlighter-rouge">Timer[IO]</code> available. However, you might want to implement your own to have a fine-grained control over your thread pools. You can look at the mentioned implementation for more details, but it roughly looks like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">java.util.concurrent.ScheduledExecutorService</span>
 
@@ -60,11 +60,11 @@
 
 <h2 id="configuring-the-global-scheduler">Configuring the global Scheduler</h2>
 
-<p>The one-argument overload of <code class="highlighter-rouge">IO.timer</code> lazily instantiates a global <code class="highlighter-rouge">ScheduledExecutorService</code>, which is never shut down.  This is fine for most applications, but leaks threads when the class is repeatedly loaded in the same JVM, as is common in testing. The global scheduler can be configured with the following system properties:</p>
+<p>The one-argument overload of <code class="language-plaintext highlighter-rouge">IO.timer</code> lazily instantiates a global <code class="language-plaintext highlighter-rouge">ScheduledExecutorService</code>, which is never shut down.  This is fine for most applications, but leaks threads when the class is repeatedly loaded in the same JVM, as is common in testing. The global scheduler can be configured with the following system properties:</p>
 
 <ul>
-  <li><code class="highlighter-rouge">cats.effect.global_scheduler.threads.core_pool_size</code>: sets the core pool size of the global scheduler. Defaults to <code class="highlighter-rouge">2</code>.</li>
-  <li><code class="highlighter-rouge">cats.effect.global_scheduler.keep_alive_time_ms</code>: allows the global scheduler’s core threads to timeout and terminate when idle. <code class="highlighter-rouge">0</code> keeps the threads from timing out. Defaults to <code class="highlighter-rouge">0</code>. Value is in milliseconds.</li>
+  <li><code class="language-plaintext highlighter-rouge">cats.effect.global_scheduler.threads.core_pool_size</code>: sets the core pool size of the global scheduler. Defaults to <code class="language-plaintext highlighter-rouge">2</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">cats.effect.global_scheduler.keep_alive_time_ms</code>: allows the global scheduler’s core threads to timeout and terminate when idle. <code class="language-plaintext highlighter-rouge">0</code> keeps the threads from timing out. Defaults to <code class="language-plaintext highlighter-rouge">0</code>. Value is in milliseconds.</li>
 </ul>
 
 <p>These properties only apply on the JVM.</p>
@@ -73,7 +73,7 @@
 
 <ul>
   <li><a href="/cats-effect/datatypes/clock.html">Clock</a>: for time measurements and getting the current clock</li>
-  <li><a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>: the pure equivalent of an <code class="highlighter-rouge">ExecutionContext</code></li>
+  <li><a href="/cats-effect/datatypes/contextshift.html">ContextShift</a>: the pure equivalent of an <code class="language-plaintext highlighter-rouge">ExecutionContext</code></li>
 </ul>
 
 

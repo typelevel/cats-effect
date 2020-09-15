@@ -2,9 +2,9 @@
 
 <p>Type class describing effect data types that are cancelable and can be evaluated concurrently.</p>
 
-<p>In addition to the algebras of <code class="highlighter-rouge">Concurrent</code> and <code class="highlighter-rouge">Effect</code>, instances must also implement the <code class="highlighter-rouge">ConcurrentEffect.runCancelable</code> operation that triggers the evaluation, suspended in the <code class="highlighter-rouge">SyncIO</code> context, but that also returns a token that can be used for canceling the running computation.</p>
+<p>In addition to the algebras of <code class="language-plaintext highlighter-rouge">Concurrent</code> and <code class="language-plaintext highlighter-rouge">Effect</code>, instances must also implement the <code class="language-plaintext highlighter-rouge">ConcurrentEffect.runCancelable</code> operation that triggers the evaluation, suspended in the <code class="language-plaintext highlighter-rouge">SyncIO</code> context, but that also returns a token that can be used for canceling the running computation.</p>
 
-<p><em>Note this is the safe and generic version of <code class="highlighter-rouge">IO.unsafeRunCancelable</code></em>.</p>
+<p><em>Note this is the safe and generic version of <code class="language-plaintext highlighter-rouge">IO.unsafeRunCancelable</code></em>.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">Effect</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">CancelToken</span><span class="o">,</span> <span class="nc">SyncIO</span><span class="o">}</span>
 
@@ -13,7 +13,7 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<p>This <code class="highlighter-rouge">runCancelable</code> operation actually mirrors the <code class="highlighter-rouge">cancelable</code> builder in <a href="/cats-effect/typeclasses/concurrent.html">Concurrent</a>. With the <code class="highlighter-rouge">runCancelable</code> and <code class="highlighter-rouge">cancelable</code> pair one is then able to convert between <code class="highlighter-rouge">ConcurrentEffect</code> data types:</p>
+<p>This <code class="language-plaintext highlighter-rouge">runCancelable</code> operation actually mirrors the <code class="language-plaintext highlighter-rouge">cancelable</code> builder in <a href="/cats-effect/typeclasses/concurrent.html">Concurrent</a>. With the <code class="language-plaintext highlighter-rouge">runCancelable</code> and <code class="language-plaintext highlighter-rouge">cancelable</code> pair one is then able to convert between <code class="language-plaintext highlighter-rouge">ConcurrentEffect</code> data types:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 

@@ -4,24 +4,24 @@
 
 <h2 id="introduction">Introduction</h2>
 
-<p>Tracing is an advanced feature of <code class="highlighter-rouge">IO</code> that offers insight into the execution 
+<p>Tracing is an advanced feature of <code class="language-plaintext highlighter-rouge">IO</code> that offers insight into the execution 
 graph of a fiber. This unlocks a lot of power for developers in the realm of 
 debugging and introspection, not only in local development environments 
 but also in critical production settings.</p>
 
 <p>A notable pain point of working with asynchronous code on the JVM is that 
 stack traces no longer provide valuable context of the execution path that 
-a program takes. This limitation is even more pronounced with Scala’s <code class="highlighter-rouge">Future</code>
+a program takes. This limitation is even more pronounced with Scala’s <code class="language-plaintext highlighter-rouge">Future</code>
 (pre- 2.13), where an asynchronous boundary is inserted after each operation. 
-<code class="highlighter-rouge">IO</code>  suffers a similar problem, but even a synchronous <code class="highlighter-rouge">IO</code> program’s stack 
-trace is polluted with the details of the <code class="highlighter-rouge">IO</code> run-loop.</p>
+<code class="language-plaintext highlighter-rouge">IO</code>  suffers a similar problem, but even a synchronous <code class="language-plaintext highlighter-rouge">IO</code> program’s stack 
+trace is polluted with the details of the <code class="language-plaintext highlighter-rouge">IO</code> run-loop.</p>
 
-<p><code class="highlighter-rouge">IO</code> solves this problem by collecting a stack trace at various <code class="highlighter-rouge">IO</code> 
+<p><code class="language-plaintext highlighter-rouge">IO</code> solves this problem by collecting a stack trace at various <code class="language-plaintext highlighter-rouge">IO</code> 
 operations that a fiber executes, and knitting them together to produce a more 
 coherent view of the fiber’s execution path. For example, here is a trace of a 
 sample program that is running in cached stack tracing mode:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IOTrace: 19 frames captured
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IOTrace: 19 frames captured
  ├ flatMap @ org.simpleapp.examples.Main$.program (Main.scala:53)
  ├ map @ org.simpleapp.examples.Main$.foo (Main.scala:46)
  ├ flatMap @ org.simpleapp.examples.Main$.foo (Main.scala:45)
@@ -52,19 +52,19 @@ indicates that the feature has been merged into master.</p>
 where stack frames are collected across asynchronous boundaries for a given
 fiber.</li>
   <li><strong>Combinator inference</strong>. Stack traces can be walked to determine what
-combinator was actually called by user code. For example, <code class="highlighter-rouge">void</code> and <code class="highlighter-rouge">as</code> are 
-combinators that are derived from <code class="highlighter-rouge">map</code>, and should appear in the fiber trace
-rather than <code class="highlighter-rouge">map</code>.</li>
-  <li><strong>Enhanced exceptions</strong>. Exceptions captured by the <code class="highlighter-rouge">IO</code> runtime can be
+combinator was actually called by user code. For example, <code class="language-plaintext highlighter-rouge">void</code> and <code class="language-plaintext highlighter-rouge">as</code> are 
+combinators that are derived from <code class="language-plaintext highlighter-rouge">map</code>, and should appear in the fiber trace
+rather than <code class="language-plaintext highlighter-rouge">map</code>.</li>
+  <li><strong>Enhanced exceptions</strong>. Exceptions captured by the <code class="language-plaintext highlighter-rouge">IO</code> runtime can be
 augmented with async stack traces to produce more relevant stack traces.</li>
-  <li>Intermediate values. The intermediate values that an <code class="highlighter-rouge">IO</code> program encounters
+  <li>Intermediate values. The intermediate values that an <code class="language-plaintext highlighter-rouge">IO</code> program encounters
 can be converted to a string to render. This can aid in understanding the
 actions that a program takes.</li>
   <li>Thread tracking. A fiber is scheduled on potentially many threads throughout
 its lifetime. Knowing what thread a fiber is running on, and when it shifts
 threads is a powerful tool for understanding and debugging the concurrency of 
 an application.</li>
-  <li>Tree rendering. By collecting a trace of all <code class="highlighter-rouge">IO</code> operations, a pretty tree
+  <li>Tree rendering. By collecting a trace of all <code class="language-plaintext highlighter-rouge">IO</code> operations, a pretty tree
 or graph can be rendered to visualize fiber execution.</li>
   <li>Fiber identity. Fibers, like threads, are unique and can therefore assume an
 identity. If user code can observe fiber identity, powerful observability tools
@@ -93,19 +93,19 @@ before deploying it to a production environment!</p>
 <h2 id="asynchronous-stack-tracing">Asynchronous stack tracing</h2>
 <h3 id="configuration">Configuration</h3>
 <p>The stack tracing mode of an application is configured by the system property
-<code class="highlighter-rouge">cats.effect.stackTracingMode</code>. There are three stack tracing modes: <code class="highlighter-rouge">DISABLED</code>,
-<code class="highlighter-rouge">CACHED</code> and <code class="highlighter-rouge">FULL</code>. These values are case-insensitive.</p>
+<code class="language-plaintext highlighter-rouge">cats.effect.stackTracingMode</code>. There are three stack tracing modes: <code class="language-plaintext highlighter-rouge">DISABLED</code>,
+<code class="language-plaintext highlighter-rouge">CACHED</code> and <code class="language-plaintext highlighter-rouge">FULL</code>. These values are case-insensitive.</p>
 
 <p>To prevent unbounded memory usage, stack traces for a fiber are accumulated 
 in an internal buffer as execution proceeds. If more traces are collected than
 the buffer can retain, then the older traces will be overwritten. The default
 size for the buffer is 16, but can be changed via the system property 
-<code class="highlighter-rouge">cats.effect.traceBufferLogSize</code>. Note that this property is expressed
+<code class="language-plaintext highlighter-rouge">cats.effect.traceBufferLogSize</code>. Note that this property is expressed
 as a logarithm of a power of two!</p>
 
 <p>For example, to enable full stack tracing and a trace buffer size of 32,
 specify the following system properties:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=5
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.stackTracingMode=full -Dcats.effect.traceBufferLogSize=5
 </code></pre></div></div>
 
 <h4 id="disabled">DISABLED</h4>
@@ -114,18 +114,18 @@ performance. If a trace is requested, it will be empty.</p>
 
 <h4 id="cached">CACHED</h4>
 <p>When cached stack tracing is enabled, a stack trace is captured and cached for
-every <code class="highlighter-rouge">map</code>, <code class="highlighter-rouge">flatMap</code> and <code class="highlighter-rouge">async</code> call in a program.</p>
+every <code class="language-plaintext highlighter-rouge">map</code>, <code class="language-plaintext highlighter-rouge">flatMap</code> and <code class="language-plaintext highlighter-rouge">async</code> call in a program.</p>
 
 <p>The stack trace cache is indexed by the lambda class reference, so cached
 tracing may produce inaccurate fiber traces under several scenarios:</p>
 <ol>
   <li>Monad transformer composition</li>
-  <li>A named function is supplied to <code class="highlighter-rouge">map</code>, <code class="highlighter-rouge">async</code> or <code class="highlighter-rouge">flatMap</code> at multiple
+  <li>A named function is supplied to <code class="language-plaintext highlighter-rouge">map</code>, <code class="language-plaintext highlighter-rouge">async</code> or <code class="language-plaintext highlighter-rouge">flatMap</code> at multiple
 call-sites</li>
 </ol>
 
 <p>We measured less than a 30% performance hit when cached tracing is enabled
-for a completely synchronous <code class="highlighter-rouge">IO</code> program, but it will most likely be much less
+for a completely synchronous <code class="language-plaintext highlighter-rouge">IO</code> program, but it will most likely be much less
 for any program that performs any sort of I/O. We strongly recommend 
 benchmarking applications that make use of tracing.</p>
 
@@ -133,8 +133,8 @@ benchmarking applications that make use of tracing.</p>
 enabled by default.</p>
 
 <h4 id="full">FULL</h4>
-<p>When full stack tracing is enabled, a stack trace is captured for most <code class="highlighter-rouge">IO</code>
-combinators including <code class="highlighter-rouge">pure</code>, <code class="highlighter-rouge">delay</code>, <code class="highlighter-rouge">suspend</code>, <code class="highlighter-rouge">raiseError</code> as well as those
+<p>When full stack tracing is enabled, a stack trace is captured for most <code class="language-plaintext highlighter-rouge">IO</code>
+combinators including <code class="language-plaintext highlighter-rouge">pure</code>, <code class="language-plaintext highlighter-rouge">delay</code>, <code class="language-plaintext highlighter-rouge">suspend</code>, <code class="language-plaintext highlighter-rouge">raiseError</code> as well as those
 traced in cached mode.</p>
 
 <p>Stack traces are collected <em>on every invocation</em>, so naturally most programs
@@ -142,15 +142,15 @@ will experience a significant performance hit. This mode is mainly useful for
 debugging in development environments.</p>
 
 <h3 id="requesting-and-printing-traces">Requesting and printing traces</h3>
-<p>Once the global tracing flag is configured, <code class="highlighter-rouge">IO</code> programs will automatically
+<p>Once the global tracing flag is configured, <code class="language-plaintext highlighter-rouge">IO</code> programs will automatically
 begin collecting traces. The trace for a fiber can be accessed at any point
-during its execution via the <code class="highlighter-rouge">IO.trace</code> combinator. This is the <code class="highlighter-rouge">IO</code> equivalent
+during its execution via the <code class="language-plaintext highlighter-rouge">IO.trace</code> combinator. This is the <code class="language-plaintext highlighter-rouge">IO</code> equivalent
 of capturing a thread’s stack trace.</p>
 
 <p>After we have a fiber trace, we can print it to the console, not unlike how
-Java exception stack traces are printed with <code class="highlighter-rouge">printStackTrace</code>. <code class="highlighter-rouge">printFiberTrace</code>
+Java exception stack traces are printed with <code class="language-plaintext highlighter-rouge">printStackTrace</code>. <code class="language-plaintext highlighter-rouge">printFiberTrace</code>
 can be called to print fiber traces to the consoles. Printing behavior can be 
-customized by passing in a <code class="highlighter-rouge">PrintingOptions</code> instance. By default, a fiber trace 
+customized by passing in a <code class="language-plaintext highlighter-rouge">PrintingOptions</code> instance. By default, a fiber trace 
 is rendered in a very compact presentation that includes the most relevant stack 
 trace element from each fiber operation.</p>
 
@@ -170,7 +170,7 @@ change over time as additional fiber tracing features are merged into master.</p
 <h2 id="enhanced-exceptions">Enhanced exceptions</h2>
 <p>The stack trace of an exception caught by the IO runloop looks similar to the
 following output:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
 	at org.simpleapp.examples.Main$.b(Main.scala:28)
 	at org.simpleapp.examples.Main$.a(Main.scala:25)
 	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
@@ -191,7 +191,7 @@ not of interest to users of the library. When asynchronous stack tracing is
 enabled, the IO runloop is capable of augmenting the stack traces of caught
 exceptions to include frames from the asynchronous stack traces. For example,
 the augmented version of the above stack trace looks like the following:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>java.lang.Throwable: A runtime exception has occurred
 	at org.simpleapp.examples.Main$.b(Main.scala:28)
 	at org.simpleapp.examples.Main$.a(Main.scala:25)
 	at org.simpleapp.examples.Main$.$anonfun$foo$11(Main.scala:37)
@@ -211,9 +211,9 @@ is preserved, but all IO-related stack frames are replaced with async
 stack trace frames.</p>
 
 <p>This feature is controlled by the system property 
-<code class="highlighter-rouge">cats.effect.enhancedExceptions</code>. It is enabled by default.</p>
+<code class="language-plaintext highlighter-rouge">cats.effect.enhancedExceptions</code>. It is enabled by default.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.enhancedExceptions=false
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-Dcats.effect.enhancedExceptions=false
 </code></pre></div></div>
 
 <h3 id="complete-example">Complete example</h3>

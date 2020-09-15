@@ -1,6 +1,6 @@
 <!DOCTYPE html><html><head><title>Cats Effect: IOApp</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="image" property="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: IOApp" /><meta name="title" property="og:title" content="Cats Effect: IOApp" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: IOApp" /><meta name="twitter:image" content="/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/light-style.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><div id="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"></div><span>Cats Effect</span></a><button id="main-toggle" class="sidebar-toggle"><span class="close"></span></button></div><div class="sidebar-nav"> <div class="sidebar-nav-item  open"><a href="/cats-effect/datatypes/" title="Data Types" class="drop-nested">Data Types</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/datatypes/io.html" title="IO" class="">IO</a> <a href="/cats-effect/datatypes/syncio.html" title="SyncIO" class="">SyncIO</a> <a href="/cats-effect/datatypes/fiber.html" title="Fiber" class="">Fiber</a> <a href="/cats-effect/datatypes/resource.html" title="Resource" class="">Resource</a> <a href="/cats-effect/datatypes/clock.html" title="Clock" class="">Clock</a> <a href="/cats-effect/datatypes/contextshift.html" title="ContextShift" class="">ContextShift</a> <a href="/cats-effect/datatypes/timer.html" title="Timer" class="">Timer</a> <a href="/cats-effect/datatypes/ioapp.html" title="IOApp" class="active">IOApp</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/concurrency/" title="Concurrency" class="drop-nested">Concurrency</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/concurrency/basics.html" title="Concurrency Basics" class="">Concurrency Basics</a> <a href="/cats-effect/concurrency/deferred.html" title="Deferred" class="">Deferred</a> <a href="/cats-effect/concurrency/mvar.html" title="MVar" class="">MVar</a> <a href="/cats-effect/concurrency/ref.html" title="Ref" class="">Ref</a> <a href="/cats-effect/concurrency/semaphore.html" title="Semaphore" class="">Semaphore</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/typeclasses/" title="Type Classes" class="drop-nested">Type Classes</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/typeclasses/bracket.html" title="Bracket" class="">Bracket</a> <a href="/cats-effect/typeclasses/sync.html" title="Sync" class="">Sync</a> <a href="/cats-effect/typeclasses/liftio.html" title="LiftIO" class="">LiftIO</a> <a href="/cats-effect/typeclasses/async.html" title="Async" class="">Async</a> <a href="/cats-effect/typeclasses/concurrent.html" title="Concurrent" class="">Concurrent</a> <a href="/cats-effect/typeclasses/effect.html" title="Effect" class="">Effect</a> <a href="/cats-effect/typeclasses/concurrent-effect.html" title="ConcurrentEffect" class="">ConcurrentEffect</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/tutorial/tutorial.html" title="Tutorial" class="">Tutorial</a></div> <div class="sidebar-nav-item  "><a href="/cats-effect/tracing/" title="Tracing" class="">Tracing</a></div></div></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-eye"></i><span>Watchers<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-star-o"></i><span>Stars<span id="stars" class="label label-default">--</span></span></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>IOApp</h1>
 
-<p><code class="highlighter-rouge">IOApp</code> is a safe application type that describes a <code class="highlighter-rouge">main</code> 
+<p><code class="language-plaintext highlighter-rouge">IOApp</code> is a safe application type that describes a <code class="language-plaintext highlighter-rouge">main</code> 
 which executes a <a href="/cats-effect/datatypes/io.html">cats.effect.IO</a>, as an entry point to 
 a pure FP program.</p>
 
@@ -10,7 +10,7 @@ a pure FP program.</p>
 
 <p>Currently in order to specify an entry point to a Java application,
 which executes a pure FP program (with side effects suspended and
-described by <code class="highlighter-rouge">IO</code>), you have to do something like this:</p>
+described by <code class="language-plaintext highlighter-rouge">IO</code>), you have to do something like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
@@ -32,7 +32,7 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
 
 <h2 id="pure-programs">Pure Programs</h2>
 
-<p>You can now use <code class="highlighter-rouge">cats.effect.IOApp</code> to describe pure programs:</p>
+<p>You can now use <code class="language-plaintext highlighter-rouge">cats.effect.IOApp</code> to describe pure programs:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 
@@ -51,42 +51,42 @@ described by <code class="highlighter-rouge">IO</code>), you have to do somethin
 <p>Things to note:</p>
 
 <ol>
-  <li>the command line arguments get passed as a pure <code class="highlighter-rouge">List</code> instead of an <code class="highlighter-rouge">Array</code></li>
-  <li>we use an <code class="highlighter-rouge">ExitCode</code> to specify success or an error code, the implementation 
+  <li>the command line arguments get passed as a pure <code class="language-plaintext highlighter-rouge">List</code> instead of an <code class="language-plaintext highlighter-rouge">Array</code></li>
+  <li>we use an <code class="language-plaintext highlighter-rouge">ExitCode</code> to specify success or an error code, the implementation 
 handling how that is returned and thus you no longer have to deal with a
-side-effectful <code class="highlighter-rouge">Runtime.exit</code> call</li>
-  <li>the <code class="highlighter-rouge">Timer[IO]</code> dependency is already provided by <code class="highlighter-rouge">IOApp</code>,
+side-effectful <code class="language-plaintext highlighter-rouge">Runtime.exit</code> call</li>
+  <li>the <code class="language-plaintext highlighter-rouge">Timer[IO]</code> dependency is already provided by <code class="language-plaintext highlighter-rouge">IOApp</code>,
 so on top of the JVM there’s no longer a need for an implicit
-<code class="highlighter-rouge">ExecutionContext</code> to be in scope</li>
+<code class="language-plaintext highlighter-rouge">ExecutionContext</code> to be in scope</li>
 </ol>
 
 <p>In terms of the behavior, the contract is currently this:</p>
 
 <ul>
-  <li>if the program returns an <code class="highlighter-rouge">ExitCode.Success</code>, the main method exits and
+  <li>if the program returns an <code class="language-plaintext highlighter-rouge">ExitCode.Success</code>, the main method exits and
 shutdown is handled by the platform — this is meant to play nice with 
 Spark and also be consistent with Java’s behavior (e.g. non-daemon threads
 will block the app from exiting, unless you do something about it)</li>
   <li>if completed with an exit code different from zero, the app is exited
-with that as an error code (via <code class="highlighter-rouge">sys.exit</code>)</li>
-  <li>if the <code class="highlighter-rouge">IO</code> terminates in error, it is printed to standard error and
-<code class="highlighter-rouge">sys.exit</code> is called</li>
+with that as an error code (via <code class="language-plaintext highlighter-rouge">sys.exit</code>)</li>
+  <li>if the <code class="language-plaintext highlighter-rouge">IO</code> terminates in error, it is printed to standard error and
+<code class="language-plaintext highlighter-rouge">sys.exit</code> is called</li>
 </ul>
 
 <h3 id="cancelation-and-safe-resource-release">Cancelation and Safe Resource Release</h3>
 
-<p>The <code class="highlighter-rouge">cats.effect.IO</code> implementation is cancelable and so is <code class="highlighter-rouge">IOApp</code>.</p>
+<p>The <code class="language-plaintext highlighter-rouge">cats.effect.IO</code> implementation is cancelable and so is <code class="language-plaintext highlighter-rouge">IOApp</code>.</p>
 
-<p>This means that when <code class="highlighter-rouge">IOApp</code> receives a <code class="highlighter-rouge">SIGABORT</code>, <code class="highlighter-rouge">SIGINT</code> or another
-interruption signal that can be caught, then the <code class="highlighter-rouge">IO</code> app will cancel
+<p>This means that when <code class="language-plaintext highlighter-rouge">IOApp</code> receives a <code class="language-plaintext highlighter-rouge">SIGABORT</code>, <code class="language-plaintext highlighter-rouge">SIGINT</code> or another
+interruption signal that can be caught, then the <code class="language-plaintext highlighter-rouge">IO</code> app will cancel
 and safely release any resources.</p>
 
-<p><em>WARNING</em>: If you run your <code class="highlighter-rouge">IOApp</code> program from sbt, you may observe
+<p><em>WARNING</em>: If you run your <code class="language-plaintext highlighter-rouge">IOApp</code> program from sbt, you may observe
 cancellation and resource releasing is <em>not</em> happening. This is due to
 sbt, by default, running programs in the <em>same</em> JVM as sbt, so when
 your program is canceled sbt avoids stopping its own JVM. To properly
 allow cancellation, ensure your progam is <a href="https://www.scala-sbt.org/1.x/docs/Forking.html#Enable+forking">forked into its own JVM</a>
-via a setting like <code class="highlighter-rouge">fork := true</code> in your sbt configuration.</p>
+via a setting like <code class="language-plaintext highlighter-rouge">fork := true</code> in your sbt configuration.</p>
 
 <p>For example:</p>
 
@@ -118,43 +118,43 @@ via a setting like <code class="highlighter-rouge">fork := true</code> in your s
 
 <ul>
   <li>if you leave it for 10 seconds, it will print “<em>normal exit</em>” and exit normally</li>
-  <li>if you press <code class="highlighter-rouge">Ctrl-C</code> or do a <code class="highlighter-rouge">kill $pid</code> from the terminal, then it will immediately print
+  <li>if you press <code class="language-plaintext highlighter-rouge">Ctrl-C</code> or do a <code class="language-plaintext highlighter-rouge">kill $pid</code> from the terminal, then it will immediately print
 “<em>interrupted: releasing and exiting</em>” and exit</li>
 </ul>
 
-<p>Therefore <code class="highlighter-rouge">IOApp</code> automatically installs an interruption handler for you.</p>
+<p>Therefore <code class="language-plaintext highlighter-rouge">IOApp</code> automatically installs an interruption handler for you.</p>
 
 <h2 id="why-is-it-specialized-for-io">Why Is It Specialized for IO?</h2>
 
-<p><code class="highlighter-rouge">IOApp</code> doesn’t have an <code class="highlighter-rouge">F[_]</code> parameter, unlike the other data types 
-exposed by Cats-Effect. This is because different <code class="highlighter-rouge">F[_]</code> data types have 
+<p><code class="language-plaintext highlighter-rouge">IOApp</code> doesn’t have an <code class="language-plaintext highlighter-rouge">F[_]</code> parameter, unlike the other data types 
+exposed by Cats-Effect. This is because different <code class="language-plaintext highlighter-rouge">F[_]</code> data types have 
 different requirements for evaluation at the end of the world.</p>
 
-<p>For example <code class="highlighter-rouge">cats.effect.IO</code> now needs a <code class="highlighter-rouge">ContextShift[IO]</code> in scope
-for working with <code class="highlighter-rouge">Concurrent</code> and thus for getting the
-<code class="highlighter-rouge">ConcurrentEffect</code> necessary to evaluate an <code class="highlighter-rouge">IO</code>. It also needs a
-<code class="highlighter-rouge">Timer[IO]</code> in scope for utilities such as <code class="highlighter-rouge">IO.sleep</code> and <code class="highlighter-rouge">timeout</code>.</p>
+<p>For example <code class="language-plaintext highlighter-rouge">cats.effect.IO</code> now needs a <code class="language-plaintext highlighter-rouge">ContextShift[IO]</code> in scope
+for working with <code class="language-plaintext highlighter-rouge">Concurrent</code> and thus for getting the
+<code class="language-plaintext highlighter-rouge">ConcurrentEffect</code> necessary to evaluate an <code class="language-plaintext highlighter-rouge">IO</code>. It also needs a
+<code class="language-plaintext highlighter-rouge">Timer[IO]</code> in scope for utilities such as <code class="language-plaintext highlighter-rouge">IO.sleep</code> and <code class="language-plaintext highlighter-rouge">timeout</code>.</p>
 
 <p><a href="/cats-effect/datatypes/contextshift.html">ContextShift</a> and
 <a href="/cats-effect/datatypes/timer.html">Timer</a> are provided by the environment and
-in this case the environment is the <code class="highlighter-rouge">IOApp</code>. Monix’s
+in this case the environment is the <code class="language-plaintext highlighter-rouge">IOApp</code>. Monix’s
 <a href="https://monix.io/docs/3x/eval/task.html">Task</a> however has global
-<code class="highlighter-rouge">ContextShift[Task]</code> and <code class="highlighter-rouge">Timer[Task]</code> always in scope and doesn’t
+<code class="language-plaintext highlighter-rouge">ContextShift[Task]</code> and <code class="language-plaintext highlighter-rouge">Timer[Task]</code> always in scope and doesn’t
 need them, but it does need a
 <a href="https://monix.io/docs/3x/execution/scheduler.html">Scheduler</a> to be
 available for the necessary <a href="/cats-effect/typeclasses/effect.html">Effect</a> instance. And both
-Cats-Effect’s <code class="highlighter-rouge">IO</code> and Monix’s <code class="highlighter-rouge">Task</code> are cancelable, in which case it
-is desirable for the <code class="highlighter-rouge">IOApp</code> / <code class="highlighter-rouge">TaskApp</code> to install shutdown handlers
+Cats-Effect’s <code class="language-plaintext highlighter-rouge">IO</code> and Monix’s <code class="language-plaintext highlighter-rouge">Task</code> are cancelable, in which case it
+is desirable for the <code class="language-plaintext highlighter-rouge">IOApp</code> / <code class="language-plaintext highlighter-rouge">TaskApp</code> to install shutdown handlers
 to execute in case of interruption, however our type classes can also
 work with non-cancelable data types, in which case handling
 interruption is no longer necessary.</p>
 
-<p>Long story short, it’s better for <code class="highlighter-rouge">IOApp</code> to be specialized and
-each <code class="highlighter-rouge">F[_]</code> can come with its own app data type that is better suited
-for its needs. For example Monix’s <code class="highlighter-rouge">Task</code> comes with its own <code class="highlighter-rouge">TaskApp</code>.</p>
+<p>Long story short, it’s better for <code class="language-plaintext highlighter-rouge">IOApp</code> to be specialized and
+each <code class="language-plaintext highlighter-rouge">F[_]</code> can come with its own app data type that is better suited
+for its needs. For example Monix’s <code class="language-plaintext highlighter-rouge">Task</code> comes with its own <code class="language-plaintext highlighter-rouge">TaskApp</code>.</p>
 
-<p>That said <code class="highlighter-rouge">IOApp</code> can be used for any <code class="highlighter-rouge">F[_]</code>, because any <code class="highlighter-rouge">Effect</code>
-or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <code class="highlighter-rouge">IO</code>. Example:</p>
+<p>That said <code class="language-plaintext highlighter-rouge">IOApp</code> can be used for any <code class="language-plaintext highlighter-rouge">F[_]</code>, because any <code class="language-plaintext highlighter-rouge">Effect</code>
+or <code class="language-plaintext highlighter-rouge">ConcurrentEffect</code> can be converted to <code class="language-plaintext highlighter-rouge">IO</code>. Example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.data.EitherT</span>
@@ -173,7 +173,7 @@ or <code class="highlighter-rouge">ConcurrentEffect</code> can be converted to <
 
 <h2 id="final-words">Final Words</h2>
 
-<p><code class="highlighter-rouge">IOApp</code> is awesome for describing pure FP programs and gives you functionality 
+<p><code class="language-plaintext highlighter-rouge">IOApp</code> is awesome for describing pure FP programs and gives you functionality 
 that does not come for free when using the normal Java main protocol, like the
 interruption handler.</p>
 
