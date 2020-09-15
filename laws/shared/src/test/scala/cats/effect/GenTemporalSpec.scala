@@ -33,7 +33,7 @@ class GenTemporalSpec extends Specification { outer =>
   type F[A] = PureConc[Throwable, A]
 
   implicit val F: Temporal[TimeT[F, *]] =
-    TimeT.temporalForTimeT[F, Throwable]
+    TimeT.genTemporalForTimeT[F, Throwable]
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM
 
