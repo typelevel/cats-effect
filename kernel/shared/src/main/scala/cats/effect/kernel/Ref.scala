@@ -155,7 +155,7 @@ object Ref {
   object Make extends MakeInstances
 
   private[kernel] trait MakeInstances extends MakeLowPriorityInstances {
-    implicit def concurrentInstance[F[_]](implicit F: Concurrent[F, _]): Make[F] =
+    implicit def concurrentInstance[F[_]](implicit F: GenConcurrent[F, _]): Make[F] =
       new Make[F] {
         override def refOf[A](a: A): F[Ref[F, A]] = F.ref(a)
       }

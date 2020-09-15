@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.implicits._
-import cats.effect.kernel.{/*Outcome,*/ TemporalThrow} // , Outcome._
+import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
 import cats.effect.testkit.pure._
 import cats.effect.testkit.TimeT
 
@@ -28,11 +28,11 @@ import org.specs2.mutable.Specification
 import scala.concurrent.duration._
 // import scala.concurrent.TimeoutException
 
-class TemporalSpec extends Specification { outer =>
+class GenTemporalSpec extends Specification { outer =>
 
   type F[A] = PureConc[Throwable, A]
 
-  implicit val F: TemporalThrow[TimeT[F, *]] =
+  implicit val F: Temporal[TimeT[F, *]] =
     TimeT.temporalForTimeT[F, Throwable]
 
   val loop: TimeT[F, Unit] = F.sleep(5.millis).foreverM

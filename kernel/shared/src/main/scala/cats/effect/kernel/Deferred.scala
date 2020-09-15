@@ -86,7 +86,7 @@ object Deferred {
    * If you want to share one, pass it as an argument and `flatMap`
    * once.
    */
-  def apply[F[_], A](implicit F: Concurrent[F, _]): F[Deferred[F, A]] =
+  def apply[F[_], A](implicit F: GenConcurrent[F, _]): F[Deferred[F, A]] =
     F.deferred[A]
 
   /**

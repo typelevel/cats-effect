@@ -18,7 +18,7 @@ package cats.effect.testkit
 
 import cats.{Eq, Order}
 import cats.data.Kleisli
-import cats.effect.laws.TemporalTests
+import cats.effect.laws.GenTemporalTests
 import cats.laws.discipline.arbitrary._
 
 import pure.PureConc
@@ -51,7 +51,7 @@ class TimeTSpec
 
   checkAll(
     "TimeT[PureConc, *]",
-    TemporalTests[TimeT[PureConc[Int, *], *], Int].temporal[Int, Int, Int](0.millis))
+    GenTemporalTests[TimeT[PureConc[Int, *], *], Int].temporal[Int, Int, Int](0.millis))
 
   implicit def exec(fb: TimeT[PureConc[Int, *], Boolean]): Prop =
     Prop(pure.run(TimeT.run(fb)).fold(false, _ => false, _.getOrElse(false)))

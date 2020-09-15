@@ -20,5 +20,5 @@ package object instances {
 
   object all extends AllInstances
 
-  object concurrent extends kernel.instances.SpawnInstances
+  object concurrent extends kernel.instances.GenSpawnInstances
 }

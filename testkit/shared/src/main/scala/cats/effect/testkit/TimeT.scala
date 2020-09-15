@@ -19,7 +19,7 @@ package testkit
 
 import cats.{~>, Group, Monad, Monoid, Order}
 import cats.data.Kleisli
-import cats.effect.kernel.{Concurrent, Deferred, Fiber, Outcome, Poll, Ref, Temporal}
+import cats.effect.kernel.{Deferred, Fiber, GenConcurrent, GenTemporal, Outcome, Poll, Ref}
 import cats.syntax.all._
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 
@@ -88,11 +88,11 @@ object TimeT {
     Order.by(TimeT.run(_))
 
   implicit def temporalForTimeT[F[_], E](
-      implicit F: Concurrent[F, E]): Temporal[TimeT[F, *], E] =
+      implicit F: GenConcurrent[F, E]): GenTemporal[TimeT[F, *], E] =
     new TimeTTemporal[F, E]
 
-  private[this] class TimeTTemporal[F[_], E](implicit F: Concurrent[F, E])
-      extends Temporal[TimeT[F, *], E] {
+  private[this] class TimeTTemporal[F[_], E](implicit F: GenConcurrent[F, E])
+      extends GenTemporal[TimeT[F, *], E] {
 
     def pure[A](x: A): TimeT[F, A] =
       Kleisli.pure(x)

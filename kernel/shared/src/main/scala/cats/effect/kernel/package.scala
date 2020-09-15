@@ -16,12 +16,15 @@
 
 package cats.effect
 
+import cats.MonadError
+
 package object kernel {
 
+  type MonadThrow[F[_]] = MonadError[F, Throwable]
   type MonadCancelThrow[F[_]] = MonadCancel[F, Throwable]
-  type SpawnThrow[F[_]] = Spawn[F, Throwable]
-  type TemporalThrow[F[_]] = Temporal[F, Throwable]
-  type ConcurrentThrow[F[_]] = Concurrent[F, Throwable]
+  type Spawn[F[_]] = GenSpawn[F, Throwable]
+  type Temporal[F[_]] = GenTemporal[F, Throwable]
+  type Concurrent[F[_]] = GenConcurrent[F, Throwable]
 
   type ParallelF[F[_], A] = Par.ParallelF[F, A]
   val ParallelF = Par.ParallelF

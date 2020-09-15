@@ -17,4 +17,4 @@
 package cats.effect
 package instances
 
-trait AllInstances extends kernel.instances.SpawnInstances
+trait AllInstances extends kernel.instances.GenSpawnInstances

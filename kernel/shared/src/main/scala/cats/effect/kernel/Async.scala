@@ -20,7 +20,7 @@ import cats.implicits._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwable] {
+trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with GenTemporal[F, Throwable] {
 
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]

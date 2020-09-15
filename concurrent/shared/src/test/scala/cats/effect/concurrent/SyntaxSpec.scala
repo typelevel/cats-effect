@@ -16,7 +16,7 @@
 
 package cats.effect.concurrent
 
-import cats.effect.kernel.{Async, Concurrent, Sync}
+import cats.effect.kernel.{Async, Concurrent, GenConcurrent, Sync}
 import org.specs2.mutable.Specification
 
 class SyntaxSpec extends Specification {
@@ -33,7 +33,7 @@ class SyntaxSpec extends Specification {
     MVar.of[F, String]("bar")
   }
 
-  def concurrent[F[_]](implicit F: Concurrent[F, String]) = {
+  def genConcurrent[F[_]](implicit F: GenConcurrent[F, _]) = {
     Ref.of[F, Int](0)
     Deferred[F, Unit]
   }
@@ -47,6 +47,6 @@ class SyntaxSpec extends Specification {
     Ref[F].of(15)
   }
 
-  def semaphoreIsDeriveable[F[_]](implicit F: Concurrent[F, Throwable]) =
+  def semaphoreIsDeriveable[F[_]](implicit F: Concurrent[F]) =
     Semaphore[F](11)
 }

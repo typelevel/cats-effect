@@ -23,7 +23,7 @@ import cats.laws.discipline.arbitrary
 import cats.laws.discipline.MiniInt
 import cats.implicits._
 //import cats.effect.kernel.ParallelF
-import cats.effect.laws.TemporalTests
+import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
 import cats.effect.testkit._
 import cats.effect.testkit.TimeT._
@@ -81,7 +81,7 @@ class KleisliPureConcSpec
 
   checkAll(
     "Kleisli[PureConc]",
-    TemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
+    GenTemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
       .temporal[Int, Int, Int](10.millis)
     // we need to bound this a little tighter because these tests take FOREVER
   )(Parameters(minTestsOk =

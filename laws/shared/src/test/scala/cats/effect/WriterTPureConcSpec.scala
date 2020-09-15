@@ -20,7 +20,7 @@ import cats.Show
 import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
 import cats.implicits._
-import cats.effect.laws.TemporalTests
+import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit._
 import cats.effect.testkit.TimeT._
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
@@ -56,7 +56,7 @@ class WriterTPureConcSpec extends Specification with Discipline with ScalaCheck 
 
   checkAll(
     "WriterT[PureConc]",
-    TemporalTests[WriterT[TimeT[PureConc[Int, *], *], Int, *], Int]
+    GenTemporalTests[WriterT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )

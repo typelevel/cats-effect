@@ -194,8 +194,8 @@ trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
     } yield F.onCancel(fa, fin)
 }
 
-trait SpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
-  implicit val F: Spawn[F, E]
+trait GenSpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+  implicit val F: GenSpawn[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
     List(
@@ -249,8 +249,8 @@ trait SpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
     } yield back
 }
 
-trait TemporalGenerators[F[_], E] extends SpawnGenerators[F, E] with ClockGenerators[F] {
-  implicit val F: Temporal[F, E]
+trait GenTemporalGenerators[F[_], E] extends GenSpawnGenerators[F, E] with ClockGenerators[F] {
+  implicit val F: GenTemporal[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen] =
     ("sleep" -> genSleep[A]) :: super.baseGen[A]
@@ -262,7 +262,7 @@ trait TemporalGenerators[F[_], E] extends SpawnGenerators[F, E] with ClockGenera
     } yield F.sleep(t).as(a)
 }
 
-trait AsyncGenerators[F[_]] extends TemporalGenerators[F, Throwable] with SyncGenerators[F] {
+trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with SyncGenerators[F] {
   implicit val F: Async[F]
 
   implicit protected val arbitraryEC: Arbitrary[ExecutionContext]

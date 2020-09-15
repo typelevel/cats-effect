@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.{Eq, Group, Order}
-import cats.effect.kernel.{Outcome, Temporal}
+import cats.effect.kernel.{GenTemporal, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
@@ -26,9 +26,9 @@ import org.scalacheck.util.Pretty
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalTests[F[_], E] extends SpawnTests[F, E] with ClockTests[F] {
+trait GenTemporalTests[F[_], E] extends GenSpawnTests[F, E] with ClockTests[F] {
 
-  val laws: TemporalLaws[F, E]
+  val laws: GenTemporalLaws[F, E]
 
   def temporal[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](tolerance: FiniteDuration)(
       implicit ArbFA: Arbitrary[F[A]],
@@ -88,9 +88,9 @@ trait TemporalTests[F[_], E] extends SpawnTests[F, E] with ClockTests[F] {
   }
 }
 
-object TemporalTests {
-  def apply[F[_], E](implicit F0: Temporal[F, E]): TemporalTests[F, E] =
-    new TemporalTests[F, E] {
-      val laws = TemporalLaws[F, E]
+object GenTemporalTests {
+  def apply[F[_], E](implicit F0: GenTemporal[F, E]): GenTemporalTests[F, E] =
+    new GenTemporalTests[F, E] {
+      val laws = GenTemporalLaws[F, E]
     }
 }

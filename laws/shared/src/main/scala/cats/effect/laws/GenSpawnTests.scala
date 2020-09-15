@@ -18,15 +18,15 @@ package cats.effect
 package laws
 
 import cats.Eq
-import cats.effect.kernel.{Outcome, Spawn}
+import cats.effect.kernel.{GenSpawn, Outcome}
 import cats.laws.discipline.SemigroupalTests.Isomorphisms
 
 import org.scalacheck._, Prop.forAll
 import org.scalacheck.util.Pretty
 
-trait SpawnTests[F[_], E] extends MonadCancelTests[F, E] {
+trait GenSpawnTests[F[_], E] extends MonadCancelTests[F, E] {
 
-  val laws: SpawnLaws[F, E]
+  val laws: GenSpawnLaws[F, E]
 
   def spawn[A: Arbitrary: Eq, B: Arbitrary: Eq, C: Arbitrary: Eq](
       implicit ArbFA: Arbitrary[F[A]],
@@ -99,9 +99,9 @@ trait SpawnTests[F[_], E] extends MonadCancelTests[F, E] {
   }
 }
 
-object SpawnTests {
-  def apply[F[_], E](implicit F0: Spawn[F, E]): SpawnTests[F, E] =
-    new SpawnTests[F, E] {
-      val laws = SpawnLaws[F, E]
+object GenSpawnTests {
+  def apply[F[_], E](implicit F0: GenSpawn[F, E]): GenSpawnTests[F, E] =
+    new GenSpawnTests[F, E] {
+      val laws = GenSpawnLaws[F, E]
     }
 }

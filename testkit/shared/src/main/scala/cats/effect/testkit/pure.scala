@@ -171,8 +171,8 @@ object pure {
   implicit def orderForPureConc[E: Order, A: Order]: Order[PureConc[E, A]] =
     Order.by(pure.run(_))
 
-  implicit def allocateForPureConc[E]: Concurrent[PureConc[E, *], E] =
-    new Concurrent[PureConc[E, *], E] {
+  implicit def allocateForPureConc[E]: GenConcurrent[PureConc[E, *], E] =
+    new GenConcurrent[PureConc[E, *], E] {
       private[this] val M: MonadError[PureConc[E, *], E] =
         Kleisli.catsDataMonadErrorForKleisli
 

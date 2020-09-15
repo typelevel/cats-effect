@@ -25,11 +25,11 @@ class SyntaxSpec extends Specification {
 
   "kernel syntax" >> ok
 
-  def spawnSyntax[F[_], A, E](target: F[A])(implicit F: Spawn[F, E]) = {
+  def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
 
-    Spawn[F]: F.type
-    Spawn[F, E]: F.type
+    GenSpawn[F]: F.type
+    GenSpawn[F, E]: F.type
 
     {
       val result = target.start
@@ -60,11 +60,11 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def temporalSyntax[F[_], A, E](target: F[A])(implicit F: Temporal[F, E]) = {
+  def genTemporalSyntax[F[_], A, E](target: F[A])(implicit F: GenTemporal[F, E]) = {
     import syntax.temporal._
 
-    Temporal[F]: F.type
-    Temporal[F, E]: F.type
+    GenTemporal[F]: F.type
+    GenTemporal[F, E]: F.type
 
     {
       val param1: FiniteDuration = null.asInstanceOf[FiniteDuration]
@@ -74,7 +74,7 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def temporalThrowSyntax[F[_], A](target: F[A])(implicit F: Temporal[F, Throwable]) = {
+  def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
     import syntax.temporal._
 
     {
@@ -85,7 +85,7 @@ class SyntaxSpec extends Specification {
   }
 
   def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(
-      implicit F: Temporal[F, TimeoutException]) = {
+      implicit F: GenTemporal[F, TimeoutException]) = {
     import syntax.temporal._
 
     {
