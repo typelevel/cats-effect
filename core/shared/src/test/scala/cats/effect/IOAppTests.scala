@@ -17,11 +17,11 @@
 package cats
 package effect
 
-import cats.effect.internals.{IOAppPlatform, TestUtils, TrampolineEC}
+import cats.effect.internals.{IOAppPlatform, TrampolineEC}
 
 import scala.concurrent.ExecutionContext
 
-class IOAppTests extends CatsEffectSuite with TestUtils {
+class IOAppTests extends CatsEffectSuite {
   test("exits with specified code") {
     IOAppPlatform
       .mainFiber(Array.empty, Eval.now(implicitly[ContextShift[IO]]), Eval.now(implicitly[Timer[IO]]))(_ =>
@@ -43,7 +43,7 @@ class IOAppTests extends CatsEffectSuite with TestUtils {
   }
 
   test("raised error exits with 1") {
-    silenceSystemErr {
+    silenceSystemErr { () =>
       IOAppPlatform
         .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)

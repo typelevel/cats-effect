@@ -55,13 +55,13 @@ class ResourceTests extends BaseTestsSuite {
     }
   )
 
-  testAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
+  propertyAsync("Resource.make is equivalent to a partially applied bracket") { implicit ec =>
     forAll { (acquire: IO[String], release: String => IO[Unit], f: String => IO[String]) =>
       acquire.bracket(f)(release) <-> Resource.make(acquire)(release).use(f)
     }
   }
 
-  test("releases resources in reverse order of acquisition") {
+  property("releases resources in reverse order of acquisition") {
     forAll { (as: List[(Int, Either[Throwable, Unit])]) =>
       var released: List[Int] = Nil
       val r = as.traverse {
@@ -73,7 +73,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("releases both resources on combine") {
+  property("releases both resources on combine") {
     forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
@@ -85,7 +85,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("releases both resources on combineK") {
+  property("releases both resources on combineK") {
     forAll { (rx: Resource[IO, Int], ry: Resource[IO, Int]) =>
       var acquired: Set[Int] = Set.empty
       var released: Set[Int] = Set.empty
@@ -97,7 +97,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
+  property("releases both resources on combineK when using a SemigroupK instance that discards allocated values") {
     implicit val sgk: SemigroupK[IO] = new SemigroupK[IO] {
       override def combineK[A](x: IO[A], y: IO[A]): IO[A] = x <* y
     }
@@ -166,7 +166,7 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(result.value, Some(Success("Hello world")))
   }
 
-  testAsync("liftF") { implicit ec =>
+  propertyAsync("liftF") { implicit ec =>
     forAll { (fa: IO[String]) =>
       Resource.liftF(fa).use(IO.pure) <-> fa
     }
@@ -197,19 +197,19 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(res.value, Some(Success(ExitCase.Canceled)))
   }
 
-  testAsync("liftF(fa) <-> liftK.apply(fa)") { implicit ec =>
+  propertyAsync("liftF(fa) <-> liftK.apply(fa)") { implicit ec =>
     forAll { (fa: IO[String], f: String => IO[Int]) =>
       Resource.liftF(fa).use(f) <-> Resource.liftK[IO].apply(fa).use(f)
     }
   }
 
-  testAsync("evalMap") { implicit ec =>
+  propertyAsync("evalMap") { implicit ec =>
     forAll { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalMap(f).use(IO.pure) <-> f(0)
     }
   }
 
-  testAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
+  propertyAsync("(evalMap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
@@ -219,13 +219,13 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("evalTap") { implicit ec =>
+  propertyAsync("evalTap") { implicit ec =>
     forAll { (f: Int => IO[Int]) =>
       Resource.liftF(IO(0)).evalTap(f).use(IO.pure) <-> f(0).as(0)
     }
   }
 
-  testAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
+  propertyAsync("evalTap with cancellation <-> IO.never") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     forAll { (g: Int => IO[Int]) =>
@@ -240,7 +240,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("(evalTap with error <-> IO.raiseError") { implicit ec =>
+  propertyAsync("(evalTap with error <-> IO.raiseError") { implicit ec =>
     case object Foo extends Exception
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
@@ -250,7 +250,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("mapK") { implicit ec =>
+  propertyAsync("mapK") { implicit ec =>
     forAll { (fa: Kleisli[IO, Int, Int]) =>
       val runWithTwo = new ~>[Kleisli[IO, Int, *], IO] {
         override def apply[A](fa: Kleisli[IO, Int, A]): IO[A] = fa(2)
@@ -294,7 +294,7 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(clean2.get(), false)
   }
 
-  testAsync("allocated produces the same value as the resource") { implicit ec =>
+  propertyAsync("allocated produces the same value as the resource") { implicit ec =>
     forAll { (resource: Resource[IO, Int]) =>
       val a0 = Resource(resource.allocated).use(IO.pure).attempt
       val a1 = resource.use(IO.pure).attempt
@@ -359,7 +359,7 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(suspend.attempt.use(IO.pure).unsafeRunSync(), Left(exception))
   }
 
-  test("combineK - should behave like orElse when underlying effect does") {
+  property("combineK - should behave like orElse when underlying effect does") {
     forAll { (r1: Resource[IO, Int], r2: Resource[IO, Int]) =>
       val lhs = r1.orElse(r2).use(IO.pure).attempt.unsafeRunSync()
       val rhs = (r1 <+> r2).use(IO.pure).attempt.unsafeRunSync()
@@ -368,7 +368,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  test("combineK - should behave like underlying effect") {
+  property("combineK - should behave like underlying effect") {
     import cats.data.OptionT
     forAll { (ot1: OptionT[IO, Int], ot2: OptionT[IO, Int]) =>
       val lhs: Either[Throwable, Option[Int]] =
@@ -384,7 +384,7 @@ class ResourceTests extends BaseTestsSuite {
     }
   }
 
-  testAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
+  propertyAsync("parZip - releases resources in reverse order of acquisition") { implicit ec =>
     implicit val cs: ContextShift[IO] = ec.ioContextShift
 
     // conceptually asserts that:
@@ -593,7 +593,7 @@ class ResourceTests extends BaseTestsSuite {
     assertEquals(res.value, Some(Success(ExitCase.Canceled)))
   }
 
-  test("onFinalize - runs after existing finalizer") {
+  property("onFinalize - runs after existing finalizer") {
     forAll { (rx: Resource[IO, Int], y: Int) =>
       var acquired: List[Int] = Nil
       var released: List[Int] = Nil

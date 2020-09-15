@@ -17,7 +17,7 @@
 package cats.effect
 package internals
 
-class RingBufferTests extends CatsEffectSuite with TestUtils {
+class RingBufferTests extends CatsEffectSuite {
   test("empty ring buffer") {
     val buffer = new RingBuffer[Integer](2)
     assertEquals(buffer.isEmpty, true)

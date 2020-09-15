@@ -23,7 +23,7 @@ import cats.effect.IO
 
 import scala.util.control.NonFatal
 
-class CancelUtilsTests extends CatsEffectSuite with TestUtils {
+class CancelUtilsTests extends CatsEffectSuite {
   test("cancelAll works for zero references") {
     CancelUtils.cancelAll().unsafeRunSync()
   }

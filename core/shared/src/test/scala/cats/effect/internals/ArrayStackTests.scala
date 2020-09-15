@@ -17,7 +17,7 @@
 package cats.effect
 package internals
 
-class ArrayStackTests extends CatsEffectSuite with TestUtils {
+class ArrayStackTests extends CatsEffectSuite {
   test("push and pop 8 items") {
     val stack = new ArrayStack[String]()
     var times = 0
