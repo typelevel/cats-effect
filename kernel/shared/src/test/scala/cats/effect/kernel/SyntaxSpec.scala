@@ -18,12 +18,15 @@ package cats.effect.kernel
 
 import org.specs2.mutable.Specification
 
-import scala.concurrent.{ExecutionContext, TimeoutException}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
 class SyntaxSpec extends Specification {
 
   "kernel syntax" >> ok
+
+  def concurrentForwarder[F[_]: Concurrent] =
+    Concurrent[F]
 
   def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
@@ -60,6 +63,9 @@ class SyntaxSpec extends Specification {
     }
   }
 
+  def spawnForwarder[F[_]: Spawn] =
+    Spawn[F]
+
   def genTemporalSyntax[F[_], A, E](target: F[A])(implicit F: GenTemporal[F, E]) = {
     import syntax.temporal._
 
@@ -74,18 +80,10 @@ class SyntaxSpec extends Specification {
     }
   }
 
+  def temporalForwarder[F[_]: Temporal] =
+    Temporal[F]
+
   def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
-    import syntax.temporal._
-
-    {
-      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
-      val result = target.timeout(param)
-      result: F[A]
-    }
-  }
-
-  def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(
-      implicit F: GenTemporal[F, TimeoutException]) = {
     import syntax.temporal._
 
     {

@@ -22,7 +22,7 @@ trait Fiber[F[_], E, A] {
   def cancel: F[Unit]
   def join: F[Outcome[F, E, A]]
 
-  def joinAndEmbed(onCancel: F[A])(implicit F: GenSpawn[F, E]): F[A] =
+  def joinAndEmbed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     join.flatMap(_.fold(onCancel, F.raiseError(_), fa => fa))
 
   def joinAndEmbedNever(implicit F: GenSpawn[F, E]): F[A] =
