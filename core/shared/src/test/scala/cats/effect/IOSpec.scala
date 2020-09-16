@@ -204,6 +204,22 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         ioa must completeAs(44)
       }
 
+      "result in an null if lifting a pure null value" in ticked { implicit ticker =>
+        // convoluted in order to avoid scalac warnings
+        IO.pure(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
+      }
+
+      "result in an NPE if delaying a null value" in ticked { implicit ticker =>
+        IO(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
+        IO.delay(null).map(_.asInstanceOf[Any]).map(_ == null) must completeAs(true)
+      }
+
+      "result in an NPE if deferring a null IO" in ticked { implicit ticker =>
+        IO.defer(null)
+          .attempt
+          .map(_.left.toOption.get.isInstanceOf[NullPointerException]) must completeAs(true)
+      }
+
     }
 
     "fibers" should {

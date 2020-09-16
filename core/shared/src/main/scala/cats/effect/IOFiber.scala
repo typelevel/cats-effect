@@ -110,7 +110,6 @@ private final class IOFiber[A](
 
   // mutable state for resuming the fiber in different states
   private[this] var resumeTag: Byte = ExecR
-  private[this] var resumeNextIteration: Int = 0
   private[this] var asyncContinueEither: Either[Throwable, Any] = _
   private[this] var blockingCur: Blocking[Any] = _
   private[this] var afterBlockingSuccessfulResult: Any = _
@@ -122,6 +121,9 @@ private final class IOFiber[A](
 
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
+
+  // similar prefetch for BlockFiber
+  private[this] val IOBlockFiber = IO.BlockFiber
 
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
@@ -265,10 +267,17 @@ private final class IOFiber[A](
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   @tailrec
-  private[this] def runLoop(cur0: IO[Any], iteration: Int): Unit = {
-    // cur0 will be null when we're semantically blocked
-    if (cur0 == null) {
+  private[this] def runLoop(cur: IO[Any], iteration: Int): Unit = {
+    // cur will be set to BlockFiber when we're semantically blocked
+    if (cur == IOBlockFiber) {
       return
+    }
+
+    // Null IO, blow up
+    val cur0: IO[Any] = if (cur == null) {
+      Error(new NullPointerException())
+    } else {
+      cur
     }
 
     val nextIteration = if (iteration > 512) {
@@ -310,7 +319,6 @@ private final class IOFiber[A](
           if (cur.hint eq TypeBlocking) {
             resumeTag = BlockingR
             blockingCur = cur
-            resumeNextIteration = nextIteration
             blockingEc.execute(this)
           } else {
             runLoop(interruptibleImpl(cur, blockingEc), nextIteration)
@@ -431,7 +439,6 @@ private final class IOFiber[A](
 
             resumeTag = EvalOnR
             evalOnIOA = cur.ioa
-            resumeNextIteration = nextIteration
             execute(ec)(this)
           }
 
@@ -570,7 +577,6 @@ private final class IOFiber[A](
         // Cede
         case 18 =>
           resumeTag = CedeR
-          resumeNextIteration = nextIteration
           reschedule(currentCtx)(this)
 
         case 19 =>
@@ -800,23 +806,23 @@ private final class IOFiber[A](
   private[this] def afterBlockingSuccessfulR(): Unit = {
     val result = afterBlockingSuccessfulResult
     afterBlockingSuccessfulResult = null
-    runLoop(succeeded(result, 0), resumeNextIteration)
+    runLoop(succeeded(result, 0), 0)
   }
 
   private[this] def afterBlockingFailedR(): Unit = {
     val error = afterBlockingFailedError
     afterBlockingFailedError = null
-    runLoop(failed(error, 0), resumeNextIteration)
+    runLoop(failed(error, 0), 0)
   }
 
   private[this] def evalOnR(): Unit = {
     val ioa = evalOnIOA
     evalOnIOA = null
-    runLoop(ioa, resumeNextIteration)
+    runLoop(ioa, 0)
   }
 
   private[this] def cedeR(): Unit = {
-    runLoop(succeeded((), 0), resumeNextIteration)
+    runLoop(succeeded((), 0), 0)
   }
 
   //////////////////////////////////////
@@ -866,7 +872,7 @@ private final class IOFiber[A](
       done(OutcomeCanceled)
     }
 
-    null
+    IOBlockFiber
   }
 
   private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
@@ -883,7 +889,7 @@ private final class IOFiber[A](
         Outcome.Completed(IO.pure(result.asInstanceOf[A]))
 
     done(outcome)
-    null
+    IOBlockFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
@@ -894,7 +900,7 @@ private final class IOFiber[A](
         Outcome.Errored(t)
 
     done(outcome)
-    null
+    IOBlockFiber
   }
 
   private[this] def asyncSuccessK(result: Any): IO[Any] = {
@@ -933,7 +939,7 @@ private final class IOFiber[A](
       suspendWithFinalizationCheck()
     }
 
-    null
+    IOBlockFiber
   }
 
   private[this] def asyncFailureK(t: Throwable, depth: Int): IO[Any] = {
@@ -952,7 +958,7 @@ private final class IOFiber[A](
       else
         asyncCancel(null)
 
-      null
+      IOBlockFiber
     }
   }
 
@@ -962,13 +968,12 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingSuccessfulR
       afterBlockingSuccessfulResult = result
-      resumeNextIteration = 0
       execute(ec)(this)
     } else {
       asyncCancel(null)
     }
 
-    null
+    IOBlockFiber
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
@@ -977,13 +982,12 @@ private final class IOFiber[A](
     if (!shouldFinalize()) {
       resumeTag = AfterBlockingFailedR
       afterBlockingFailedError = t
-      resumeNextIteration = 0
       execute(ec)(this)
     } else {
       asyncCancel(null)
     }
 
-    null
+    IOBlockFiber
   }
 
   private[this] def handleErrorWithK(t: Throwable, depth: Int): IO[Any] = {

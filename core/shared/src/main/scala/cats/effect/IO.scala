@@ -277,9 +277,8 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
-        case IO.UnmaskRunLoop(_, _) =>
-          // Will never be executed. Case demanded for exhaustiveness.
-          // ioa.to[F] // polling should be handled by F
+        case IO.UnmaskRunLoop(_, _) | IO.BlockFiber =>
+          // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
 
         case self: IO.Attempt[_] =>
@@ -708,6 +707,10 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   // Not part of the run loop. Only used in the implementation of IO#to.
   private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
+    def tag = -1
+  }
+
+  private[effect] case object BlockFiber extends IO[Nothing] {
     def tag = -1
   }
 }
