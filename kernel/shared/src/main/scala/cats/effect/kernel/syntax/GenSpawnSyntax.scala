@@ -16,42 +16,42 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Fiber, Outcome, Spawn}
+import cats.effect.kernel.{Fiber, GenSpawn, Outcome}
 
-trait SpawnSyntax {
+trait GenSpawnSyntax {
 
-  implicit def spawnOps[F[_], A, E](
+  implicit def genSpawnOps[F[_], A, E](
       wrapped: F[A]
-  ): SpawnOps[F, A, E] =
-    new SpawnOps(wrapped)
+  ): GenSpawnOps[F, A, E] =
+    new GenSpawnOps(wrapped)
 }
 
-final class SpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
+final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
-  def forceR[B](fb: F[B])(implicit F: Spawn[F, E]): F[B] =
+  def forceR[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
     F.forceR(wrapped)(fb)
 
-  def !>[B](fb: F[B])(implicit F: Spawn[F, E]): F[B] =
+  def !>[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
     forceR(fb)
 
-  def start(implicit F: Spawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
+  def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 
-  def uncancelable(implicit F: Spawn[F, E]): F[A] =
+  def uncancelable(implicit F: GenSpawn[F, E]): F[A] =
     F.uncancelable(_ => wrapped)
 
-  def onCancel(fin: F[Unit])(implicit F: Spawn[F, E]): F[A] =
+  def onCancel(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
     F.onCancel(wrapped, fin)
 
-  def guarantee(fin: F[Unit])(implicit F: Spawn[F, E]): F[A] =
+  def guarantee(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
     F.guarantee(wrapped, fin)
 
-  def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: Spawn[F, E]): F[A] =
+  def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
     F.guaranteeCase(wrapped)(fin)
 
-  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: Spawn[F, E]): F[B] =
+  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: GenSpawn[F, E]): F[B] =
     F.bracket(wrapped)(use)(release)
 
   def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(
-      implicit F: Spawn[F, E]): F[B] =
+      implicit F: GenSpawn[F, E]): F[B] =
     F.bracketCase(wrapped)(use)(release)
 }

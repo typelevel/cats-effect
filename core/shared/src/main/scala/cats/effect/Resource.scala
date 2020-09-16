@@ -152,7 +152,7 @@ sealed abstract class Resource[+F[_], +A] {
    *
    * The finalisers run when the resulting program fails or gets interrupted.
    */
-  def useForever[G[x] >: F[x]](implicit G: SpawnThrow[G]): G[Nothing] =
+  def useForever[G[x] >: F[x]](implicit G: Spawn[G]): G[Nothing] =
     use[G, Nothing](_ => G.never)
 
   /**
@@ -181,7 +181,7 @@ sealed abstract class Resource[+F[_], +A] {
    *             .use(msg => IO(println(msg)))
    * }}}
    */
-  def parZip[G[x] >: F[x]: ConcurrentThrow, B](
+  def parZip[G[x] >: F[x]: Concurrent, B](
       that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -507,7 +507,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
 
   @annotation.implicitNotFound(
     "Cannot find an instance for Resource.Bracket. This normally means you need to add implicit evidence of MonadCancel[${F}, Throwable]")
-  trait Bracket[F[_]] extends MonadError[F, Throwable] {
+  trait Bracket[F[_]] extends MonadThrow[F] {
     def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
         release: (A, ExitCase) => F[Unit]): F[B]
 

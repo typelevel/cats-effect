@@ -18,18 +18,21 @@ package cats.effect.kernel
 
 import org.specs2.mutable.Specification
 
-import scala.concurrent.{ExecutionContext, TimeoutException}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
 class SyntaxSpec extends Specification {
 
   "kernel syntax" >> ok
 
-  def spawnSyntax[F[_], A, E](target: F[A])(implicit F: Spawn[F, E]) = {
+  def concurrentForwarder[F[_]: Concurrent] =
+    Concurrent[F]
+
+  def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
     import syntax.spawn._
 
-    Spawn[F]: F.type
-    Spawn[F, E]: F.type
+    GenSpawn[F]: F.type
+    GenSpawn[F, E]: F.type
 
     {
       val result = target.start
@@ -60,11 +63,14 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def temporalSyntax[F[_], A, E](target: F[A])(implicit F: Temporal[F, E]) = {
+  def spawnForwarder[F[_]: Spawn] =
+    Spawn[F]
+
+  def genTemporalSyntax[F[_], A, E](target: F[A])(implicit F: GenTemporal[F, E]) = {
     import syntax.temporal._
 
-    Temporal[F]: F.type
-    Temporal[F, E]: F.type
+    GenTemporal[F]: F.type
+    GenTemporal[F, E]: F.type
 
     {
       val param1: FiniteDuration = null.asInstanceOf[FiniteDuration]
@@ -74,18 +80,10 @@ class SyntaxSpec extends Specification {
     }
   }
 
-  def temporalThrowSyntax[F[_], A](target: F[A])(implicit F: Temporal[F, Throwable]) = {
-    import syntax.temporal._
+  def temporalForwarder[F[_]: Temporal] =
+    Temporal[F]
 
-    {
-      val param: FiniteDuration = null.asInstanceOf[FiniteDuration]
-      val result = target.timeout(param)
-      result: F[A]
-    }
-  }
-
-  def temporalThrowRuntimeSyntax[F[_], A](target: F[A])(
-      implicit F: Temporal[F, TimeoutException]) = {
+  def temporalSyntax[F[_], A](target: F[A])(implicit F: Temporal[F]) = {
     import syntax.temporal._
 
     {

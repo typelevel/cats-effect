@@ -17,14 +17,14 @@
 package cats.effect
 package laws
 
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.GenTemporal
 import cats.implicits._
 
 import scala.concurrent.duration.FiniteDuration
 
-trait TemporalLaws[F[_], E] extends SpawnLaws[F, E] with ClockLaws[F] {
+trait GenTemporalLaws[F[_], E] extends GenSpawnLaws[F, E] with ClockLaws[F] {
 
-  implicit val F: Temporal[F, E]
+  implicit val F: GenTemporal[F, E]
 
   def monotonicSleepSumIdentity(delta: FiniteDuration) =
     F.sleep(delta) >> F.monotonic <-> F.monotonic.map(delta + _)
@@ -38,7 +38,7 @@ trait TemporalLaws[F[_], E] extends SpawnLaws[F, E] with ClockLaws[F] {
       .map(d1.max(d2) + _)
 }
 
-object TemporalLaws {
-  def apply[F[_], E](implicit F0: Temporal[F, E]): TemporalLaws[F, E] =
-    new TemporalLaws[F, E] { val F = F0 }
+object GenTemporalLaws {
+  def apply[F[_], E](implicit F0: GenTemporal[F, E]): GenTemporalLaws[F, E] =
+    new GenTemporalLaws[F, E] { val F = F0 }
 }

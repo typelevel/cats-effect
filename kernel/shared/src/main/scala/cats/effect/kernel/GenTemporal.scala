@@ -22,7 +22,7 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration.FiniteDuration
 
-trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] {
+trait GenTemporal[F[_], E] extends GenConcurrent[F, E] with Clock[F] {
   // (sleep(n) *> now) <-> now.map(_ + n + d) forSome { val d: Double }
   def sleep(time: FiniteDuration): F[Unit]
 
@@ -66,52 +66,52 @@ trait Temporal[F[_], E] extends Concurrent[F, E] with Clock[F] {
 
 }
 
-object Temporal {
-  def apply[F[_], E](implicit F: Temporal[F, E]): F.type = F
-  def apply[F[_]](implicit F: Temporal[F, _], d: DummyImplicit): F.type = F
+object GenTemporal {
+  def apply[F[_], E](implicit F: GenTemporal[F, E]): F.type = F
+  def apply[F[_]](implicit F: GenTemporal[F, _], d: DummyImplicit): F.type = F
 
-  implicit def temporalForOptionT[F[_], E](
-      implicit F0: Temporal[F, E]): Temporal[OptionT[F, *], E] =
+  implicit def genTemporalForOptionT[F[_], E](
+      implicit F0: GenTemporal[F, E]): GenTemporal[OptionT[F, *], E] =
     new OptionTTemporal[F, E] {
-      override implicit protected def F: Temporal[F, E] = F0
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
-  implicit def temporalForEitherT[F[_], E0, E](
-      implicit F0: Temporal[F, E]): Temporal[EitherT[F, E0, *], E] =
+  implicit def genTemporalForEitherT[F[_], E0, E](
+      implicit F0: GenTemporal[F, E]): GenTemporal[EitherT[F, E0, *], E] =
     new EitherTTemporal[F, E0, E] {
-      override implicit protected def F: Temporal[F, E] = F0
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
-  implicit def temporalForKleisli[F[_], R, E](
-      implicit F0: Temporal[F, E]): Temporal[Kleisli[F, R, *], E] =
+  implicit def genTemporalForKleisli[F[_], R, E](
+      implicit F0: GenTemporal[F, E]): GenTemporal[Kleisli[F, R, *], E] =
     new KleisliTemporal[F, R, E] {
-      override implicit protected def F: Temporal[F, E] = F0
+      override implicit protected def F: GenTemporal[F, E] = F0
     }
 
-  implicit def temporalForIorT[F[_], L, E](
-      implicit F0: Temporal[F, E],
-      L0: Semigroup[L]): Temporal[IorT[F, L, *], E] =
+  implicit def genTemporalForIorT[F[_], L, E](
+      implicit F0: GenTemporal[F, E],
+      L0: Semigroup[L]): GenTemporal[IorT[F, L, *], E] =
     new IorTTemporal[F, L, E] {
-      override implicit protected def F: Temporal[F, E] = F0
+      override implicit protected def F: GenTemporal[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
     }
 
-  implicit def temporalForWriterT[F[_], L, E](
-      implicit F0: Temporal[F, E],
-      L0: Monoid[L]): Temporal[WriterT[F, L, *], E] =
+  implicit def genTemporalForWriterT[F[_], L, E](
+      implicit F0: GenTemporal[F, E],
+      L0: Monoid[L]): GenTemporal[WriterT[F, L, *], E] =
     new WriterTTemporal[F, L, E] {
-      override implicit protected def F: Temporal[F, E] = F0
+      override implicit protected def F: GenTemporal[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
 
   private[kernel] trait OptionTTemporal[F[_], E]
-      extends Temporal[OptionT[F, *], E]
-      with Concurrent.OptionTConcurrent[F, E]
+      extends GenTemporal[OptionT[F, *], E]
+      with GenConcurrent.OptionTGenConcurrent[F, E]
       with Clock.OptionTClock[F] {
 
-    implicit protected def F: Temporal[F, E]
+    implicit protected def F: GenTemporal[F, E]
 
     override def delegate: MonadError[OptionT[F, *], E] =
       OptionT.catsDataMonadErrorForOptionT[F, E]
@@ -121,11 +121,11 @@ object Temporal {
   }
 
   private[kernel] trait EitherTTemporal[F[_], E0, E]
-      extends Temporal[EitherT[F, E0, *], E]
-      with Concurrent.EitherTConcurrent[F, E0, E]
+      extends GenTemporal[EitherT[F, E0, *], E]
+      with GenConcurrent.EitherTGenConcurrent[F, E0, E]
       with Clock.EitherTClock[F, E0] {
 
-    implicit protected def F: Temporal[F, E]
+    implicit protected def F: GenTemporal[F, E]
 
     override def delegate: MonadError[EitherT[F, E0, *], E] =
       EitherT.catsDataMonadErrorFForEitherT[F, E, E0]
@@ -134,11 +134,11 @@ object Temporal {
   }
 
   private[kernel] trait IorTTemporal[F[_], L, E]
-      extends Temporal[IorT[F, L, *], E]
-      with Concurrent.IorTConcurrent[F, L, E]
+      extends GenTemporal[IorT[F, L, *], E]
+      with GenConcurrent.IorTGenConcurrent[F, L, E]
       with Clock.IorTClock[F, L] {
 
-    implicit protected def F: Temporal[F, E]
+    implicit protected def F: GenTemporal[F, E]
 
     override def delegate: MonadError[IorT[F, L, *], E] =
       IorT.catsDataMonadErrorFForIorT[F, L, E]
@@ -147,11 +147,11 @@ object Temporal {
   }
 
   private[kernel] trait WriterTTemporal[F[_], L, E]
-      extends Temporal[WriterT[F, L, *], E]
-      with Concurrent.WriterTConcurrent[F, L, E]
+      extends GenTemporal[WriterT[F, L, *], E]
+      with GenConcurrent.WriterTGenConcurrent[F, L, E]
       with Clock.WriterTClock[F, L] {
 
-    implicit protected def F: Temporal[F, E]
+    implicit protected def F: GenTemporal[F, E]
 
     implicit protected def L: Monoid[L]
 
@@ -162,11 +162,11 @@ object Temporal {
   }
 
   private[kernel] trait KleisliTemporal[F[_], R, E]
-      extends Temporal[Kleisli[F, R, *], E]
-      with Concurrent.KleisliConcurrent[F, R, E]
+      extends GenTemporal[Kleisli[F, R, *], E]
+      with GenConcurrent.KleisliGenConcurrent[F, R, E]
       with Clock.KleisliClock[F, R] {
 
-    implicit protected def F: Temporal[F, E]
+    implicit protected def F: GenTemporal[F, E]
 
     override def delegate: MonadError[Kleisli[F, R, *], E] =
       Kleisli.catsDataMonadErrorForKleisli[F, R, E]

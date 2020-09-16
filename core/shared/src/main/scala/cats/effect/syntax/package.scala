@@ -20,8 +20,8 @@ package object syntax {
 
   object all extends AllSyntax
 
-  object spawn extends kernel.syntax.SpawnSyntax
-  object temporal extends kernel.syntax.TemporalSyntax
+  object spawn extends kernel.syntax.GenSpawnSyntax
+  object temporal extends kernel.syntax.GenTemporalSyntax
   object async extends kernel.syntax.AsyncSyntax
   object syncEffect extends kernel.syntax.SyncEffectSyntax
   object effect extends kernel.syntax.EffectSyntax

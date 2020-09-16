@@ -112,7 +112,7 @@ object Semaphore {
   /**
    * Creates a new `Semaphore`, initialized with `n` available permits.
    */
-  def apply[F[_]](n: Long)(implicit F: Concurrent[F, Throwable]): F[Semaphore[F]] =
+  def apply[F[_]](n: Long)(implicit F: Concurrent[F]): F[Semaphore[F]] =
     assertNonNegative[F](n) *>
       F.ref[State[F]](Right(n)).map(stateRef => new AsyncSemaphore[F](stateRef))
 
@@ -133,8 +133,7 @@ object Semaphore {
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[(Long, Deferred[F, Unit])], Long]
 
-  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Spawn[F, Throwable])
+  abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Spawn[F])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
 
@@ -265,8 +264,7 @@ object Semaphore {
       F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
   }
 
-  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(
-      implicit F: Concurrent[F, Throwable])
+  final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
       extends AbstractSemaphore(state) {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }

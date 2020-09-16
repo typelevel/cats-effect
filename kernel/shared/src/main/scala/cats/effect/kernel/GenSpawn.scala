@@ -21,7 +21,7 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
-trait Spawn[F[_], E] extends MonadCancel[F, E] {
+trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
@@ -107,7 +107,7 @@ trait Spawn[F[_], E] extends MonadCancel[F, E] {
     }
 }
 
-object Spawn {
+object GenSpawn {
   import MonadCancel.{
     EitherTMonadCancel,
     IorTMonadCancel,
@@ -116,54 +116,55 @@ object Spawn {
     WriterTMonadCancel
   }
 
-  def apply[F[_], E](implicit F: Spawn[F, E]): F.type = F
-  def apply[F[_]](implicit F: Spawn[F, _], d: DummyImplicit): F.type = F
+  def apply[F[_], E](implicit F: GenSpawn[F, E]): F.type = F
+  def apply[F[_]](implicit F: GenSpawn[F, _], d: DummyImplicit): F.type = F
 
-  implicit def spawnForOptionT[F[_], E](implicit F0: Spawn[F, E]): Spawn[OptionT[F, *], E] =
-    new OptionTSpawn[F, E] {
+  implicit def genSpawnForOptionT[F[_], E](
+      implicit F0: GenSpawn[F, E]): GenSpawn[OptionT[F, *], E] =
+    new OptionTGenSpawn[F, E] {
 
-      override implicit protected def F: Spawn[F, E] = F0
+      override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForEitherT[F[_], E0, E](
-      implicit F0: Spawn[F, E]): Spawn[EitherT[F, E0, *], E] =
-    new EitherTSpawn[F, E0, E] {
+  implicit def genSpawnForEitherT[F[_], E0, E](
+      implicit F0: GenSpawn[F, E]): GenSpawn[EitherT[F, E0, *], E] =
+    new EitherTGenSpawn[F, E0, E] {
 
-      override implicit protected def F: Spawn[F, E] = F0
+      override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForKleisli[F[_], R, E](
-      implicit F0: Spawn[F, E]): Spawn[Kleisli[F, R, *], E] =
-    new KleisliSpawn[F, R, E] {
+  implicit def genSpawnForKleisli[F[_], R, E](
+      implicit F0: GenSpawn[F, E]): GenSpawn[Kleisli[F, R, *], E] =
+    new KleisliGenSpawn[F, R, E] {
 
-      override implicit protected def F: Spawn[F, E] = F0
+      override implicit protected def F: GenSpawn[F, E] = F0
     }
 
-  implicit def spawnForIorT[F[_], L, E](
-      implicit F0: Spawn[F, E],
-      L0: Semigroup[L]): Spawn[IorT[F, L, *], E] =
-    new IorTSpawn[F, L, E] {
+  implicit def genSpawnForIorT[F[_], L, E](
+      implicit F0: GenSpawn[F, E],
+      L0: Semigroup[L]): GenSpawn[IorT[F, L, *], E] =
+    new IorTGenSpawn[F, L, E] {
 
-      override implicit protected def F: Spawn[F, E] = F0
+      override implicit protected def F: GenSpawn[F, E] = F0
 
       override implicit protected def L: Semigroup[L] = L0
     }
 
-  implicit def spawnForWriterT[F[_], L, E](
-      implicit F0: Spawn[F, E],
-      L0: Monoid[L]): Spawn[WriterT[F, L, *], E] =
-    new WriterTSpawn[F, L, E] {
+  implicit def genSpawnForWriterT[F[_], L, E](
+      implicit F0: GenSpawn[F, E],
+      L0: Monoid[L]): GenSpawn[WriterT[F, L, *], E] =
+    new WriterTGenSpawn[F, L, E] {
 
-      override implicit protected def F: Spawn[F, E] = F0
+      override implicit protected def F: GenSpawn[F, E] = F0
 
       override implicit protected def L: Monoid[L] = L0
     }
 
-  private[kernel] trait OptionTSpawn[F[_], E]
-      extends Spawn[OptionT[F, *], E]
+  private[kernel] trait OptionTGenSpawn[F[_], E]
+      extends GenSpawn[OptionT[F, *], E]
       with OptionTMonadCancel[F, E] {
 
-    implicit protected def F: Spawn[F, E]
+    implicit protected def F: GenSpawn[F, E]
 
     def start[A](fa: OptionT[F, A]): OptionT[F, Fiber[OptionT[F, *], E, A]] =
       OptionT.liftF(F.start(fa.value).map(liftFiber))
@@ -198,11 +199,11 @@ object Spawn {
       }
   }
 
-  private[kernel] trait EitherTSpawn[F[_], E0, E]
-      extends Spawn[EitherT[F, E0, *], E]
+  private[kernel] trait EitherTGenSpawn[F[_], E0, E]
+      extends GenSpawn[EitherT[F, E0, *], E]
       with EitherTMonadCancel[F, E0, E] {
 
-    implicit protected def F: Spawn[F, E]
+    implicit protected def F: GenSpawn[F, E]
 
     def start[A](fa: EitherT[F, E0, A]): EitherT[F, E0, Fiber[EitherT[F, E0, *], E, A]] =
       EitherT.liftF(F.start(fa.value).map(liftFiber))
@@ -238,11 +239,11 @@ object Spawn {
       }
   }
 
-  private[kernel] trait IorTSpawn[F[_], L, E]
-      extends Spawn[IorT[F, L, *], E]
+  private[kernel] trait IorTGenSpawn[F[_], L, E]
+      extends GenSpawn[IorT[F, L, *], E]
       with IorTMonadCancel[F, L, E] {
 
-    implicit protected def F: Spawn[F, E]
+    implicit protected def F: GenSpawn[F, E]
 
     implicit protected def L: Semigroup[L]
 
@@ -280,11 +281,11 @@ object Spawn {
       }
   }
 
-  private[kernel] trait KleisliSpawn[F[_], R, E]
-      extends Spawn[Kleisli[F, R, *], E]
+  private[kernel] trait KleisliGenSpawn[F[_], R, E]
+      extends GenSpawn[Kleisli[F, R, *], E]
       with KleisliMonadCancel[F, R, E] {
 
-    implicit protected def F: Spawn[F, E]
+    implicit protected def F: GenSpawn[F, E]
 
     def start[A](fa: Kleisli[F, R, A]): Kleisli[F, R, Fiber[Kleisli[F, R, *], E, A]] =
       Kleisli { r => (F.start(fa.run(r)).map(liftFiber)) }
@@ -324,11 +325,11 @@ object Spawn {
       }
   }
 
-  private[kernel] trait WriterTSpawn[F[_], L, E]
-      extends Spawn[WriterT[F, L, *], E]
+  private[kernel] trait WriterTGenSpawn[F[_], L, E]
+      extends GenSpawn[WriterT[F, L, *], E]
       with WriterTMonadCancel[F, L, E] {
 
-    implicit protected def F: Spawn[F, E]
+    implicit protected def F: GenSpawn[F, E]
 
     implicit protected def L: Monoid[L]
 

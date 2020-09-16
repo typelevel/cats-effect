@@ -27,7 +27,7 @@ import org.scalacheck.util.Pretty
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
-trait AsyncTests[F[_]] extends TemporalTests[F, Throwable] with SyncTests[F] {
+trait AsyncTests[F[_]] extends GenTemporalTests[F, Throwable] with SyncTests[F] {
 
   val laws: AsyncLaws[F]
 
