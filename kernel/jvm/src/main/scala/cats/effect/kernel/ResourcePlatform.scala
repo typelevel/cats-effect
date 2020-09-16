@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 import javax.security.auth.Destroyable
 
