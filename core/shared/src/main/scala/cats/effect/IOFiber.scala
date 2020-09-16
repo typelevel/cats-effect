@@ -267,17 +267,17 @@ private final class IOFiber[A](
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   @tailrec
-  private[this] def runLoop(cur: IO[Any], iteration: Int): Unit = {
+  private[this] def runLoop(_cur0: IO[Any], iteration: Int): Unit = {
     // cur will be set to BlockFiber when we're semantically blocked
-    if (cur == IOBlockFiber) {
+    if (_cur0 eq IOBlockFiber) {
       return
     }
 
     // Null IO, blow up
-    val cur0: IO[Any] = if (cur == null) {
-      Error(new NullPointerException())
+    val cur0: IO[Any] = if (_cur0 == null) {
+      IO.Error(new NullPointerException())
     } else {
-      cur
+      _cur0
     }
 
     val nextIteration = if (iteration > 512) {
