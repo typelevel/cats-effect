@@ -267,7 +267,12 @@ private final class WorkStealingQueue {
     }
 
     // Dequeue the claimed fiber.
-    buffer(idx)
+    val fiber = buffer(idx)
+    // Remove the reference to the fiber so that it can be cleaned up.
+    // This is safe to do as only the owner worker thread can push new fibers
+    // and it is currently dequeing a fiber, not pushing.
+    buffer(idx) = null
+    fiber
   }
 
   /**
@@ -422,6 +427,10 @@ private final class WorkStealingQueue {
       // Obtain the fiber to be moved.
       // This is safe to do because the fiber has been already claimed using the atomic operation above.
       fiber = buffer(srcIdx)
+      // Remove the reference to the fiber so that it can be cleaned up.
+      // This is safe to do since this worker thread has claimed the whole queue in order to steal from it.
+      // The owner worker thread is able to detect this and falls back to enqueueing a new fiber to the external queue.
+      buffer(srcIdx) = null
 
       // Move the fiber to the destination queue.
       // This is safe to do because this method is executed on the thread which owns the

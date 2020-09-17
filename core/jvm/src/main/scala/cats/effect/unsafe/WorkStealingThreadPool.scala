@@ -334,5 +334,9 @@ private[effect] final class WorkStealingThreadPool(
     workerThreads.foreach(_.interrupt())
     // Join all worker threads.
     workerThreads.foreach(_.join())
+    // Remove the references to the worker threads so that they can be cleaned up, including their worker queues.
+    for (i <- 0 until workerThreads.length) {
+      workerThreads(i) = null
+    }
   }
 }
