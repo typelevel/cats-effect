@@ -23,116 +23,116 @@ import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class MVarConcurrentTests extends BaseMVarTests {
-  def init[A](a: A): IO[MVar2[IO, A]] =
-    MVar[IO].of(a)
+// class MVarConcurrentTests extends BaseMVarTests {
+//   def init[A](a: A): IO[MVar2[IO, A]] =
+//     MVar[IO].of(a)
 
-  def empty[A]: IO[MVar2[IO, A]] =
-    MVar[IO].empty[A]
+//   def empty[A]: IO[MVar2[IO, A]] =
+//     MVar[IO].empty[A]
 
-  test("put is cancelable") {
-    val task = for {
-      mVar <- init(0)
-      _ <- mVar.put(1).start
-      p2 <- mVar.put(2).start
-      _ <- mVar.put(3).start
-      _ <- IO.sleep(10.millis) // Give put callbacks a chance to register
-      _ <- p2.cancel
-      _ <- mVar.take
-      r1 <- mVar.take
-      r3 <- mVar.take
-    } yield Set(r1, r3)
+//   test("put is cancelable") {
+//     val task = for {
+//       mVar <- init(0)
+//       _ <- mVar.put(1).start
+//       p2 <- mVar.put(2).start
+//       _ <- mVar.put(3).start
+//       _ <- IO.sleep(10.millis) // Give put callbacks a chance to register
+//       _ <- p2.cancel
+//       _ <- mVar.take
+//       r1 <- mVar.take
+//       r3 <- mVar.take
+//     } yield Set(r1, r3)
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(1, 3))
-    }
-  }
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Set(1, 3))
+//     }
+//   }
 
-  test("take is cancelable") {
-    val task = for {
-      mVar <- empty[Int]
-      t1 <- mVar.take.start
-      t2 <- mVar.take.start
-      t3 <- mVar.take.start
-      _ <- IO.sleep(10.millis) // Give take callbacks a chance to register
-      _ <- t2.cancel
-      _ <- mVar.put(1)
-      _ <- mVar.put(3)
-      r1 <- t1.join
-      r3 <- t3.join
-    } yield Set(r1, r3)
+//   test("take is cancelable") {
+//     val task = for {
+//       mVar <- empty[Int]
+//       t1 <- mVar.take.start
+//       t2 <- mVar.take.start
+//       t3 <- mVar.take.start
+//       _ <- IO.sleep(10.millis) // Give take callbacks a chance to register
+//       _ <- t2.cancel
+//       _ <- mVar.put(1)
+//       _ <- mVar.put(3)
+//       r1 <- t1.join
+//       r3 <- t3.join
+//     } yield Set(r1, r3)
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(1, 3))
-    }
-  }
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Set(1, 3))
+//     }
+//   }
 
-  test("read is cancelable") {
-    val task = for {
-      mVar <- MVar[IO].empty[Int]
-      finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.read.flatMap(finished.complete).start
-      _ <- IO.sleep(10.millis) // Give read callback a chance to register
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
-      fallback = IO.sleep(100.millis) *> IO.pure(0)
-      v <- IO.race(finished.get, fallback)
-    } yield v
+//   test("read is cancelable") {
+//     val task = for {
+//       mVar <- MVar[IO].empty[Int]
+//       finished <- Deferred.uncancelable[IO, Int]
+//       fiber <- mVar.read.flatMap(finished.complete).start
+//       _ <- IO.sleep(10.millis) // Give read callback a chance to register
+//       _ <- fiber.cancel
+//       _ <- mVar.put(10)
+//       fallback = IO.sleep(100.millis) *> IO.pure(0)
+//       v <- IO.race(finished.get, fallback)
+//     } yield v
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(0))
-    }
-  }
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Right(0))
+//     }
+//   }
 
-  test("swap is cancelable on take") {
-    val task = for {
-      mVar <- empty[Int]
-      finished <- Deferred.uncancelable[IO, Int]
-      fiber <- mVar.swap(20).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
-      fallback = IO.sleep(100.millis) *> mVar.take
-      v <- IO.race(finished.get, fallback)
-    } yield v
+//   test("swap is cancelable on take") {
+//     val task = for {
+//       mVar <- empty[Int]
+//       finished <- Deferred.uncancelable[IO, Int]
+//       fiber <- mVar.swap(20).flatMap(finished.complete).start
+//       _ <- fiber.cancel
+//       _ <- mVar.put(10)
+//       fallback = IO.sleep(100.millis) *> mVar.take
+//       v <- IO.race(finished.get, fallback)
+//     } yield v
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
-  }
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Right(10))
+//     }
+//   }
 
-  test("modify is cancelable on take") {
-    val task = for {
-      mVar <- empty[Int]
-      finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- fiber.cancel
-      _ <- mVar.put(10)
-      fallback = IO.sleep(100.millis) *> mVar.take
-      v <- IO.race(finished.get, fallback)
-    } yield v
+//   test("modify is cancelable on take") {
+//     val task = for {
+//       mVar <- empty[Int]
+//       finished <- Deferred.uncancelable[IO, String]
+//       fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+//       _ <- fiber.cancel
+//       _ <- mVar.put(10)
+//       fallback = IO.sleep(100.millis) *> mVar.take
+//       v <- IO.race(finished.get, fallback)
+//     } yield v
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
-  }
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Right(10))
+//     }
+//   }
 
-  test("modify is cancelable on f") {
-    val task = for {
-      mVar <- empty[Int]
-      finished <- Deferred.uncancelable[IO, String]
-      fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
-      _ <- mVar.put(10)
-      _ <- IO.sleep(10.millis)
-      _ <- fiber.cancel
-      fallback = IO.sleep(100.millis) *> mVar.take
-      v <- IO.race(finished.get, fallback)
-    } yield v
+//   test("modify is cancelable on f") {
+//     val task = for {
+//       mVar <- empty[Int]
+//       finished <- Deferred.uncancelable[IO, String]
+//       fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
+//       _ <- mVar.put(10)
+//       _ <- IO.sleep(10.millis)
+//       _ <- fiber.cancel
+//       fallback = IO.sleep(100.millis) *> mVar.take
+//       v <- IO.race(finished.get, fallback)
+//     } yield v
 
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
-  }
-}
+//     for (r <- task.unsafeToFuture()) yield {
+//       assertEquals(r, Right(10))
+//     }
+//   }
+// }
 
 class MVarAsyncTests extends BaseMVarTests {
   def init[A](a: A): IO[MVar2[IO, A]] =
