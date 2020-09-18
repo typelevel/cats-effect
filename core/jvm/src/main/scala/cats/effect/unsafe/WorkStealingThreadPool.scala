@@ -307,9 +307,16 @@ private[effect] final class WorkStealingThreadPool(
     if (runnable.isInstanceOf[IOFiber[_]]) {
       executeFiber(runnable.asInstanceOf[IOFiber[_]])
     } else {
-      val fiber =
-        IO(runnable.run()).unsafeRunFiber(true)(_.fold(reportFailure(_), _ => ()))(self)
-      executeFiber(fiber)
+      // It's enough to only do this check here as there is no other way to submit work to the `ExecutionContext`
+      // represented by this thread pool after it has been shutdown. Also, no one else can create raw fibers
+      // directly, as `IOFiber` is not a public type.
+      if (done) {
+        return
+      }
+
+      // `unsafeRunFiber(true)` will enqueue the fiber, no need to do it manually
+      IO(runnable.run()).unsafeRunFiber(true)(_.fold(reportFailure(_), _ => ()))(self)
+      ()
     }
   }
 
@@ -334,5 +341,9 @@ private[effect] final class WorkStealingThreadPool(
     workerThreads.foreach(_.interrupt())
     // Join all worker threads.
     workerThreads.foreach(_.join())
+    // Remove the references to the worker threads so that they can be cleaned up, including their worker queues.
+    for (i <- 0 until workerThreads.length) {
+      workerThreads(i) = null
+    }
   }
 }
