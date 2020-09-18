@@ -17,6 +17,8 @@
 package cats.effect.kernel
 
 import cats.{Monoid, Semigroup}
+import cats.syntax.all._
+import cats.effect.kernel.syntax.all._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
@@ -25,11 +27,75 @@ trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
   def deferred[A]: F[Deferred[F, A]]
 
+  def memoize[A](fa: F[A]): F[F[A]] =
+    GenConcurrent.memoize(fa)(this)
+
 }
 
 object GenConcurrent {
   def apply[F[_], E](implicit F: GenConcurrent[F, E]): F.type = F
   def apply[F[_]](implicit F: GenConcurrent[F, _], d: DummyImplicit): F.type = F
+
+  def memoize[F[_], E, A](fa: F[A])(implicit F: GenConcurrent[F, E]): F[F[A]] = {
+    import Memoize._
+
+    F.ref[Memoize[F, E, A]](Start()).map { state =>
+      F.deferred[Either[E, A]].product(F.deferred[F[Unit]]).flatMap {
+        case (value, stop) =>
+          def removeSubscriber: F[Unit] =
+            state.modify {
+              case Start() =>
+                throw new AssertionError("unreachable")
+              case Running(subs, value, stop) =>
+                if (subs > 1) {
+                  Running(subs - 1, value, stop) -> F.unit
+                } else {
+                  Start() -> stop.get.flatten
+                }
+              case st @ Done(_) =>
+                st -> F.unit
+            }.flatten
+
+          def fetch: F[Either[E, A]] =
+            F.uncancelable { poll =>
+              for {
+                result <- poll(fa).attempt
+                // in some interleavings, there may be several racing fetches.
+                // always respect the first completion.
+                _ <- state.update {
+                  case st @ Done(_) => st
+                  case _ => Done(result)
+                }
+                _ <- value.complete(result)
+              } yield result
+            }
+
+          F.uncancelable { poll =>
+            state.modify {
+              case Start() => {
+                val start = fetch.start.flatMap(fiber => stop.complete(fiber.cancel))
+                Running(1, value, stop) -> start *> poll(value.get).onCancel(removeSubscriber)
+              }
+              case Running(subs, value, stop) =>
+                Running(subs + 1, value, stop) -> poll(value.get).onCancel(removeSubscriber)
+              case st @ Done(value) =>
+                st -> F.pure(value)
+            }.flatten
+          }.rethrow
+      }
+    }
+  }
+
+  private sealed abstract class Memoize[F[_], E, A]
+  private object Memoize {
+    final case class Start[F[_], E, A]() extends Memoize[F, E, A]
+    final case class Running[F[_], E, A](
+        subs: Int,
+        value: Deferred[F, Either[E, A]],
+        stop: Deferred[F, F[Unit]])
+        extends Memoize[F, E, A]
+    final case class Done[F[_], E, A](value: Either[E, A]) extends Memoize[F, E, A]
+  }
 
   implicit def genConcurrentForOptionT[F[_], E](
       implicit F0: GenConcurrent[F, E]): GenConcurrent[OptionT[F, *], E] =
