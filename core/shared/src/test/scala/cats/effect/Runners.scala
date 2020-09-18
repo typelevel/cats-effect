@@ -47,7 +47,10 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), 10.seconds))
+    realWithTimeout(10.seconds)(test)
+
+  def realWithTimeout[A: AsResult](duration: FiniteDuration)(test: => IO[A]): Execution =
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), duration))
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
