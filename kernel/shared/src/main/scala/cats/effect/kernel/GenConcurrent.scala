@@ -59,12 +59,12 @@ object GenConcurrent {
           def fetch: F[Either[E, A]] =
             F.uncancelable { poll =>
               for {
-                result <- poll(fa).attempt
+                result0 <- poll(fa).attempt
                 // in some interleavings, there may be several racing fetches.
                 // always respect the first completion.
-                _ <- state.update {
-                  case st @ Done(_) => st
-                  case _ => Done(result)
+                result <- state.modify {
+                  case st @ Done(result) => st -> result
+                  case _ => Done(result0) -> result0
                 }
                 _ <- value.complete(result)
               } yield result
