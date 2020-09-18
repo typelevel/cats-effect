@@ -42,4 +42,5 @@ private[effect] object IOFiberConstants {
   val AfterBlockingFailedR: Byte = 4
   val EvalOnR: Byte = 5
   val CedeR: Byte = 6
+  val DoneR: Byte = 7
 }

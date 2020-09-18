@@ -42,4 +42,5 @@ final class IOFiberConstants {
   public static final byte AfterBlockingFailedR = 4;
   public static final byte EvalOnR = 5;
   public static final byte CedeR = 6;
+  public static final byte DoneR = 7;
 }

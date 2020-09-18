@@ -227,6 +227,7 @@ private final class IOFiber[A](
     afterBlockingSuccessfulResult = null
     afterBlockingFailedError = null
     evalOnIOA = null
+    resumeTag = DoneR
   }
 
   /*
@@ -755,6 +756,7 @@ private final class IOFiber[A](
       case 4 => afterBlockingFailedR()
       case 5 => evalOnR()
       case 6 => cedeR()
+      case 7 => ()
     }
 
   private[this] def execR(): Unit = {
