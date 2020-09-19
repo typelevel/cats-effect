@@ -206,6 +206,7 @@ class Index extends React.Component {
                 <div className="productShowcaseSection paddingBottom">
                     <h2>Adopters</h2>
                     <div className="logos">{showcase}</div>
+                    <div className="disclaimer">(nothing in this section should be construed as a partnership or endorsement, implied or otherwise)</div>
                     <div className="more-users">
                         <a className="button" href={pageUrl('users.html')}>
                             More {siteConfig.title} Users
