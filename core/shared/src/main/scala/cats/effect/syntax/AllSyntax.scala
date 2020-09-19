@@ -19,6 +19,7 @@ package syntax
 
 trait AllSyntax
     extends kernel.syntax.GenSpawnSyntax
+    with kernel.syntax.GenConcurrentSyntax
     with kernel.syntax.GenTemporalSyntax
     with kernel.syntax.AsyncSyntax
     with kernel.syntax.SyncEffectSyntax

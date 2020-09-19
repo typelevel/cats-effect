@@ -23,24 +23,18 @@ import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
 
 trait GenConcurrent[F[_], E] extends GenSpawn[F, E] {
 
+  import GenConcurrent._
+
   def ref[A](a: A): F[Ref[F, A]]
 
   def deferred[A]: F[Deferred[F, A]]
 
-  def memoize[A](fa: F[A]): F[F[A]] =
-    GenConcurrent.memoize(fa)(this)
-
-}
-
-object GenConcurrent {
-  def apply[F[_], E](implicit F: GenConcurrent[F, E]): F.type = F
-  def apply[F[_]](implicit F: GenConcurrent[F, _], d: DummyImplicit): F.type = F
-
-  def memoize[F[_], E, A](fa: F[A])(implicit F: GenConcurrent[F, E]): F[F[A]] = {
+  def memoize[A](fa: F[A]): F[F[A]] = {
     import Memoize._
+    implicit val F: GenConcurrent[F, E] = this
 
-    F.ref[Memoize[F, E, A]](Start()).map { state =>
-      F.deferred[Either[E, A]].product(F.deferred[F[Unit]]).flatMap {
+    ref[Memoize[F, E, A]](Start()).map { state =>
+      deferred[Either[E, A]].product(F.deferred[F[Unit]]).flatMap {
         case (value, stop) =>
           def removeSubscriber: F[Unit] =
             state.modify {
@@ -57,7 +51,7 @@ object GenConcurrent {
             }.flatten
 
           def fetch: F[Either[E, A]] =
-            F.uncancelable { poll =>
+            uncancelable { poll =>
               for {
                 result0 <- poll(fa).attempt
                 // in some interleavings, there may be several racing fetches.
@@ -70,7 +64,7 @@ object GenConcurrent {
               } yield result
             }
 
-          F.uncancelable { poll =>
+          uncancelable { poll =>
             state.modify {
               case Start() => {
                 val start = fetch.start.flatMap(fiber => stop.complete(fiber.cancel))
@@ -85,6 +79,12 @@ object GenConcurrent {
       }
     }
   }
+
+}
+
+object GenConcurrent {
+  def apply[F[_], E](implicit F: GenConcurrent[F, E]): F.type = F
+  def apply[F[_]](implicit F: GenConcurrent[F, _], d: DummyImplicit): F.type = F
 
   private sealed abstract class Memoize[F[_], E, A]
   private object Memoize {

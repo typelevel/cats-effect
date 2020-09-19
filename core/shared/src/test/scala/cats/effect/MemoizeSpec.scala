@@ -38,7 +38,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
       val op = for {
         ref <- Ref.of[IO, Int](0)
         action = ref.update(_ + 1)
-        _ <- Concurrent.memoize(action)
+        _ <- Concurrent[IO].memoize(action)
         _ <- IO.sleep(100.millis)
         v <- ref.get
       } yield v
@@ -57,7 +57,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
           val ns = s + 1
           ns -> ns
         }
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         x <- memoized
         y <- memoized
         v <- ref.get
@@ -77,7 +77,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
           val ns = s + 1
           ns -> ns
         }
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         _ <- memoized.start
         x <- memoized
         _ <- IO.sleep(100.millis)
@@ -92,14 +92,14 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
     }
 
     "Concurrent.memoize and then flatten is identity" in ticked { implicit ticker =>
-      forAll { (fa: IO[Int]) => Concurrent.memoize(fa).flatten eqv fa }
+      forAll { (fa: IO[Int]) => Concurrent[IO].memoize(fa).flatten eqv fa }
     }
 
     "Memoized effects can be canceled when there are no other active subscribers (1)" in real {
       val op = for {
         completed <- Ref[IO].of(false)
         action = IO.sleep(200.millis) >> completed.set(true)
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         fiber <- memoized.start
         _ <- IO.sleep(100.millis)
         _ <- fiber.cancel
@@ -118,7 +118,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
       val op = for {
         completed <- Ref[IO].of(false)
         action = IO.sleep(300.millis) >> completed.set(true)
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         fiber1 <- memoized.start
         _ <- IO.sleep(100.millis)
         fiber2 <- memoized.start
@@ -140,7 +140,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
       val op = for {
         completed <- Ref[IO].of(false)
         action = IO.sleep(300.millis) >> completed.set(true)
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         fiber1 <- memoized.start
         _ <- IO.sleep(100.millis)
         fiber2 <- memoized.start
@@ -163,7 +163,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         started <- Ref[IO].of(0)
         completed <- Ref[IO].of(0)
         action = started.update(_ + 1) >> IO.sleep(200.millis) >> completed.update(_ + 1)
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         fiber <- memoized.start
         _ <- IO.sleep(100.millis)
         _ <- fiber.cancel
@@ -183,7 +183,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
       val op = for {
         condition <- Deferred[IO, Unit]
         action = IO.sleep(200.millis) >> condition.complete(())
-        memoized <- Concurrent.memoize(action)
+        memoized <- Concurrent[IO].memoize(action)
         fiber1 <- memoized.start
         _ <- IO.sleep(50.millis)
         fiber2 <- memoized.start
