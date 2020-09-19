@@ -224,7 +224,7 @@ class Index extends React.Component {
                     <Feature align="left" title="Asynchronous" image="img/async.png">
                         The `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean, synchronous interface. Write programs that seamlessly mix synchronous and asynchronous code without sacrificing code comprehension or composability.
                     </Feature>
-                    <Feature align="right" title="Concurrency" image="img/fibers.svg">
+                    <Feature align="right" title="Concurrency" image="img/concurrency.png">
                         `IO` can power highly concurrent applications, like web services that must serve tens of thousands of requests per second. Concurrency in `IO` is facilitated by fibers, which are lightweight, interruptible threads that are managed completely by the runtime. Fibers are much cheaper than native OS threads, so your application can spawn tens of millions without breaking a sweat. Focus on high-level concurrency control without worrying about details like thread management or executor shifting.
                     </Feature>
                     <Feature align="left" title="Tracing" image="img/tracing.png">
