@@ -96,6 +96,8 @@ import Resource.ExitCase
  * @tparam A the type of resource
  */
 sealed abstract class Resource[+F[_], +A] {
+  private[effect] type F0[x] <: F[x]
+
   import Resource.{Allocate, Bind, Suspend}
 
   private[effect] def fold[G[x] >: F[x], B](
@@ -129,7 +131,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack))
         case Suspend(resource) =>
-          resource.flatMap(continue(_, stack))
+          G.flatMap(resource)(continue(_, stack))
       }
     loop(this, Nil)
   }
@@ -295,7 +297,7 @@ sealed abstract class Resource[+F[_], +A] {
         case Bind(source, fs) =>
           loop(source, Frame(fs, stack), release)
         case Suspend(resource) =>
-          resource.flatMap(continue(_, stack, release))
+          G.flatMap(resource)(continue(_, stack, release))
       }
 
     loop(this, Nil, G.unit)
@@ -318,24 +320,8 @@ sealed abstract class Resource[+F[_], +A] {
   /**
    * Converts this to an `InvariantResource` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
-   *
-   * The use of `asInstanceOf` is an optimization to avoid allocating a new
-   * object, but the requirement for a functor instance makes this a type-safe
-   * conversion, as shown in the commented-out alternative implementation.
    */
-  private[effect] def invariant[G[x] >: F[x]](
-      implicit ev: Functor[G]): Resource.InvariantResource[G, A] = {
-    // Dotty-only implementation without `asInstanceOf`: fails to compile in Scala 2.x
-    //
-    // this match {
-    //   case a: Allocate[f, aa] =>
-    //     Allocate((a.resource: G[(aa, ExitCase => f[Unit])]).widen[(A, ExitCase => G[Unit])])
-    //   case b: Bind[f, s, A] => Bind(b.source: Resource[G, s], b.fs: s => Resource[G, A])
-    //   case s: Suspend[f, aa] => Suspend((s.resource: G[Resource[f, aa]]).widen[Resource[G, A]])
-    // }
-    val _ = ev
-    this.asInstanceOf[Resource.InvariantResource[G, A]]
-  }
+  private[effect] def invariant: Resource.InvariantResource[F0, A]
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {
@@ -439,7 +425,11 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
    * otherwise handle correctly.
    */
-  private[effect] sealed trait InvariantResource[F[_], +A] extends Resource[F, A]
+  private[effect] sealed trait InvariantResource[F[_], +A] extends Resource[F, A] {
+    private[effect] type F0[x] = F[x]
+
+    def invariant: InvariantResource[F0, A] = this
+  }
 
   /**
    * Creates a [[Resource]] by wrapping a Java
@@ -749,19 +739,19 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
     def continue(r: Resource[F, Either[A, B]]): Resource[F, B] =
       r.invariant match {
         case Allocate(resource) =>
-          Suspend(resource.flatMap[Resource[F, B]] {
+          Suspend(F.flatMap(resource) {
             case (eab, release) =>
               (eab: Either[A, B]) match {
                 case Left(a) =>
-                  release(ExitCase.Completed).map(_ => tailRecM(a)(f))
+                  F.map(release(ExitCase.Completed))(_ => tailRecM(a)(f))
                 case Right(b) =>
-                  F.pure(Allocate[F, B](F.pure((b, release))))
+                  F.pure[Resource[F, B]](Allocate[F, B](F.pure((b, release))))
               }
           })
         case Suspend(resource) =>
-          Suspend(resource.map(continue))
-        case Bind(source, fs) =>
-          Bind(source, AndThen(fs).andThen(continue))
+          Suspend(F.map(resource)(continue))
+        case b: Bind[r.F0, s, Either[A, B]] =>
+          Bind(b.source, AndThen(b.fs).andThen(continue))
       }
 
     continue(f(a))
