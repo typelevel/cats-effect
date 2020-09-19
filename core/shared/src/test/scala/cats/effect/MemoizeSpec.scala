@@ -27,6 +27,7 @@ import org.specs2.ScalaCheck
 import org.typelevel.discipline.specs2.mutable.Discipline
 
 import scala.concurrent.duration._
+import scala.util.Success
 
 class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
 
@@ -34,170 +35,169 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
 
   "Concurrent.memoize" >> {
 
-    "Concurrent.memoize does not evaluates the effect if the inner `F[A]` isn't bound" in real {
-      val op = for {
-        ref <- Ref.of[IO, Int](0)
-        action = ref.update(_ + 1)
-        _ <- Concurrent[IO].memoize(action)
-        _ <- IO.sleep(100.millis)
-        v <- ref.get
-      } yield v
+    "Concurrent.memoize does not evaluates the effect if the inner `F[A]` isn't bound" in ticked {
+      implicit ticker =>
+        val op = for {
+          ref <- Ref.of[IO, Int](0)
+          action = ref.update(_ + 1)
+          _ <- Concurrent[IO].memoize(action)
+          v <- ref.get
+        } yield v
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(0)
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(Success(0))
     }
 
-    "Concurrent.memoize evalutes effect once if inner `F[A]` is bound twice" in real {
-      val op = for {
-        ref <- Ref.of[IO, Int](0)
-        action = ref.modify { s =>
-          val ns = s + 1
-          ns -> ns
-        }
-        memoized <- Concurrent[IO].memoize(action)
-        x <- memoized
-        y <- memoized
-        v <- ref.get
-      } yield (x, y, v)
+    "Concurrent.memoize evalutes effect once if inner `F[A]` is bound twice" in ticked {
+      implicit ticker =>
+        val op = for {
+          ref <- Ref.of[IO, Int](0)
+          action = ref.modify { s =>
+            val ns = s + 1
+            ns -> ns
+          }
+          memoized <- Concurrent[IO].memoize(action)
+          x <- memoized
+          y <- memoized
+          v <- ref.get
+        } yield (x, y, v) == (1, 1, 1)
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo((1, 1, 1))
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(Success(true))
     }
 
-    "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in real {
-      val op = for {
-        ref <- Ref.of[IO, Int](0)
-        action = ref.modify { s =>
-          val ns = s + 1
-          ns -> ns
-        }
-        memoized <- Concurrent[IO].memoize(action)
-        _ <- memoized.start
-        x <- memoized
-        _ <- IO.sleep(100.millis)
-        v <- ref.get
-      } yield x -> v
+    "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in ticked {
+      implicit ticker =>
+        val op = for {
+          ref <- Ref.of[IO, Int](0)
+          action = ref.modify { s =>
+            val ns = s + 1
+            ns -> ns
+          }
+          memoized <- Concurrent[IO].memoize(action)
+          _ <- memoized.start
+          x <- memoized
+          _ <- IO(ticker.ctx.tickAll())
+          v <- ref.get
+        } yield x -> v
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo((1, 1))
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tickAll()
+
+        result.value mustEqual Some(Success((1, 1)))
     }
 
     "Concurrent.memoize and then flatten is identity" in ticked { implicit ticker =>
       forAll { (fa: IO[Int]) => Concurrent[IO].memoize(fa).flatten eqv fa }
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (1)" in real {
-      val op = for {
-        completed <- Ref[IO].of(false)
-        action = IO.sleep(200.millis) >> completed.set(true)
-        memoized <- Concurrent[IO].memoize(action)
-        fiber <- memoized.start
-        _ <- IO.sleep(100.millis)
-        _ <- fiber.cancel
-        _ <- IO.sleep(300.millis)
-        res <- completed.get
-      } yield res
+    "Memoized effects can be canceled when there are no other active subscribers (1)" in ticked {
+      implicit ticker =>
+        val op = for {
+          completed <- Ref[IO].of(false)
+          action = IO.sleep(200.millis) >> completed.set(true)
+          memoized <- Concurrent[IO].memoize(action)
+          fiber <- memoized.start
+          _ <- IO.sleep(100.millis)
+          _ <- fiber.cancel
+          _ <- IO.sleep(300.millis)
+          res <- completed.get
+        } yield res
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(false)
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tick(500.millis)
+
+        result.value mustEqual Some(Success(false))
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (2)" in real {
-      val op = for {
-        completed <- Ref[IO].of(false)
-        action = IO.sleep(300.millis) >> completed.set(true)
-        memoized <- Concurrent[IO].memoize(action)
-        fiber1 <- memoized.start
-        _ <- IO.sleep(100.millis)
-        fiber2 <- memoized.start
-        _ <- IO.sleep(100.millis)
-        _ <- fiber2.cancel
-        _ <- fiber1.cancel
-        _ <- IO.sleep(400.millis)
-        res <- completed.get
-      } yield res
+    "Memoized effects can be canceled when there are no other active subscribers (2)" in ticked {
+      implicit ticker =>
+        val op = for {
+          completed <- Ref[IO].of(false)
+          action = IO.sleep(300.millis) >> completed.set(true)
+          memoized <- Concurrent[IO].memoize(action)
+          fiber1 <- memoized.start
+          _ <- IO.sleep(100.millis)
+          fiber2 <- memoized.start
+          _ <- IO.sleep(100.millis)
+          _ <- fiber2.cancel
+          _ <- fiber1.cancel
+          _ <- IO.sleep(400.millis)
+          res <- completed.get
+        } yield res
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(false)
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tick(600.millis)
+
+        result.value mustEqual Some(Success(false))
     }
 
-    "Memoized effects can be canceled when there are no other active subscribers (3)" in real {
-      val op = for {
-        completed <- Ref[IO].of(false)
-        action = IO.sleep(300.millis) >> completed.set(true)
-        memoized <- Concurrent[IO].memoize(action)
-        fiber1 <- memoized.start
-        _ <- IO.sleep(100.millis)
-        fiber2 <- memoized.start
-        _ <- IO.sleep(100.millis)
-        _ <- fiber1.cancel
-        _ <- fiber2.cancel
-        _ <- IO.sleep(400.millis)
-        res <- completed.get
-      } yield res
+    "Memoized effects can be canceled when there are no other active subscribers (3)" in ticked {
+      implicit ticker =>
+        val op = for {
+          completed <- Ref[IO].of(false)
+          action = IO.sleep(300.millis) >> completed.set(true)
+          memoized <- Concurrent[IO].memoize(action)
+          fiber1 <- memoized.start
+          _ <- IO.sleep(100.millis)
+          fiber2 <- memoized.start
+          _ <- IO.sleep(100.millis)
+          _ <- fiber1.cancel
+          _ <- fiber2.cancel
+          _ <- IO.sleep(400.millis)
+          res <- completed.get
+        } yield res
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(false)
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tick(600.millis)
+
+        result.value mustEqual Some(Success(false))
     }
 
-    "Running a memoized effect after it was previously canceled reruns it" in real {
-      val op = for {
-        started <- Ref[IO].of(0)
-        completed <- Ref[IO].of(0)
-        action = started.update(_ + 1) >> IO.sleep(200.millis) >> completed.update(_ + 1)
-        memoized <- Concurrent[IO].memoize(action)
-        fiber <- memoized.start
-        _ <- IO.sleep(100.millis)
-        _ <- fiber.cancel
-        _ <- memoized.timeout(1.second)
-        v1 <- started.get
-        v2 <- completed.get
-      } yield v1 -> v2
+    "Running a memoized effect after it was previously canceled reruns it" in ticked {
+      implicit ticker =>
+        val op = for {
+          started <- Ref[IO].of(0)
+          completed <- Ref[IO].of(0)
+          action = started.update(_ + 1) >> IO.sleep(200.millis) >> completed.update(_ + 1)
+          memoized <- Concurrent[IO].memoize(action)
+          fiber <- memoized.start
+          _ <- IO.sleep(100.millis)
+          _ <- fiber.cancel
+          _ <- memoized.timeout(1.second)
+          v1 <- started.get
+          v2 <- completed.get
+        } yield v1 -> v2
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo((2, 1))
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tick(500.millis)
+
+        result.value mustEqual Some(Success((2, 1)))
     }
 
-    "Attempting to cancel a memoized effect with active subscribers is a no-op" in real {
-      val op = for {
-        condition <- Deferred[IO, Unit]
-        action = IO.sleep(200.millis) >> condition.complete(())
-        memoized <- Concurrent[IO].memoize(action)
-        fiber1 <- memoized.start
-        _ <- IO.sleep(50.millis)
-        fiber2 <- memoized.start
-        _ <- IO.sleep(50.millis)
-        _ <- fiber1.cancel
-        _ <- fiber2.join // Make sure no exceptions are swallowed by start
-        v <- condition.get.timeout(1.second).as(true)
-      } yield v
+    "Attempting to cancel a memoized effect with active subscribers is a no-op" in ticked {
+      implicit ticker =>
+        val op = for {
+          condition <- Deferred[IO, Unit]
+          action = IO.sleep(200.millis) >> condition.complete(())
+          memoized <- Concurrent[IO].memoize(action)
+          fiber1 <- memoized.start
+          _ <- IO.sleep(50.millis)
+          fiber2 <- memoized.start
+          _ <- IO.sleep(50.millis)
+          _ <- fiber1.cancel
+          _ <- fiber2.join // Make sure no exceptions are swallowed by start
+          v <- condition.get.timeout(1.second).as(true)
+        } yield v
 
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(true)
-        }
-      }
+        val result = op.unsafeToFuture()
+        ticker.ctx.tick(500.millis)
+
+        result.value mustEqual Some(Success(true))
     }
 
   }
