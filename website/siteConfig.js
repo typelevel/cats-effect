@@ -81,11 +81,38 @@ const siteConfig = {
 
   users: [
     {
-      // we probably can't do disney, or logos in general, due to restrictions
-      image: 'img/200px-Disney+_logo.svg.png',
-      caption: 'The Walt Disney Company',
-      title: 'The Walt Disney Company',
-      infoLink: 'https://www.disney.com',
+      image: 'img/adopters/dss.png',
+      caption: 'Disney Streaming Services',
+      title: 'Disney Streaming Services',
+      infoLink: 'https://www.disneyplus.com',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/ovo.svg',
+      caption: 'OVO Energy',
+      title: 'OVO Energy',
+      infoLink: 'https://www.ovoenergy.com/',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/inner-product.svg',
+      caption: 'Inner Product',
+      title: 'Inner Product',
+      infoLink: 'https://www.inner-product.com/',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/stripe.svg',
+      caption: 'Stripe',
+      title: 'Stripe',
+      infoLink: 'https://stripe.com/',
+      pinned: true
+    },
+    {
+      image: 'img/adopters/comcast.png',
+      caption: 'Comcast',
+      title: 'Comcast',
+      infoLink: 'https://comcast.com/',
       pinned: true
     }
   ]

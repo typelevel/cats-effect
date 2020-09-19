@@ -100,21 +100,6 @@ class Index extends React.Component {
             </Block>
         );
 
-        const FeatureCallout = () => (
-            <div
-                className="productShowcaseSection paddingBottom"
-                style={{textAlign: 'center'}}>
-                <h2>Things You Get For Free</h2>
-                <ul align="left">
-                    <li>Resource safety</li>
-                    <li>Parallelism</li>
-                    <li>Optimal thread pool utilization with granular control over throughput *and* fairness</li>
-                    <li>Easy refactoring of complex code at all layers of the stack</li>
-                    <li>Pervasive asynchrony enabling extremely high scale</li>
-                </ul>
-            </div>
-        );
-
         const TryOut = () => (
             <Block background="light" align="left">
                 {[
@@ -237,7 +222,6 @@ class Index extends React.Component {
                         Cats Effect embraces purely functional programming: `IO` represents a description of a program rather than a running computation, which gives you ultimate control over how and when effects are evaluated. Simple programs can be composed to form more complex programs, while retaining the ability to reason about the behavior and complexity.
                     </Feature>
 
-                    <FeatureCallout />
                     <TryOut />
                     <Showcase />
                 </div>
