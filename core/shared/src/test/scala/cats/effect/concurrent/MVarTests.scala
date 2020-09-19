@@ -30,7 +30,7 @@ class MVarConcurrentTests extends BaseMVarTests {
   def empty[A]: IO[MVar2[IO, A]] =
     MVar[IO].empty[A]
 
-  test("put is cancelable") {
+  test("put is cancelable".flaky) {
     val task = for {
       mVar <- init(0)
       _ <- mVar.put(1).start
@@ -48,7 +48,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     }
   }
 
-  test("take is cancelable") {
+  test("take is cancelable".flaky) {
     val task = for {
       mVar <- empty[Int]
       t1 <- mVar.take.start
@@ -67,7 +67,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     }
   }
 
-  test("read is cancelable") {
+  test("read is cancelable".flaky) {
     val task = for {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
@@ -84,7 +84,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     }
   }
 
-  test("swap is cancelable on take") {
+  test("swap is cancelable on take".flaky) {
     val task = for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
@@ -100,7 +100,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     }
   }
 
-  test("modify is cancelable on take") {
+  test("modify is cancelable on take".flaky) {
     val task = for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
@@ -116,7 +116,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     }
   }
 
-  test("modify is cancelable on f") {
+  test("modify is cancelable on f".flaky) {
     val task = for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
@@ -152,6 +152,8 @@ abstract class BaseMVarTests extends CatsEffectSuite {
 
   def init[A](a: A): IO[MVar2[IO, A]]
   def empty[A]: IO[MVar2[IO, A]]
+
+  override def munitFlakyOK: Boolean = true
 
   test("empty; put; take; put; take") {
     val task = for {
@@ -356,7 +358,8 @@ abstract class BaseMVarTests extends CatsEffectSuite {
     }
   }
 
-  test("stack overflow test") {
+  // Marked flaky because it might be too big for the dotty community build environment.
+  test("stack overflow test".flaky) {
     // Signaling option, because we need to detect completion
     type Channel[A] = MVar2[IO, Option[A]]
     val count = 10000
@@ -451,7 +454,8 @@ abstract class BaseMVarTests extends CatsEffectSuite {
     }
   }
 
-  test("concurrent take and put") {
+  // Marked flaky because it might be too big for the dotty community build environment.
+  test("concurrent take and put".flaky) {
     val count = if (Platform.isJvm) 10000 else 1000
     val task = for {
       mVar <- empty[Int]
