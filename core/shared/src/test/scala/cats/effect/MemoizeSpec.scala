@@ -62,12 +62,12 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
           x <- memoized
           y <- memoized
           v <- ref.get
-        } yield (x, y, v) == (1, 1, 1)
+        } yield (x, y, v)
 
         val result = op.unsafeToFuture()
         ticker.ctx.tickAll()
 
-        result.value mustEqual Some(Success(true))
+        result.value mustEqual Some(Success((1, 1, 1)))
     }
 
     "Concurrent.memoize effect evaluates effect once if the inner `F[A]` is bound twice (race)" in ticked {
@@ -109,7 +109,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tick(500.millis)
+        ticker.ctx.tickAll(500.millis)
 
         result.value mustEqual Some(Success(false))
     }
@@ -131,7 +131,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tick(600.millis)
+        ticker.ctx.tickAll(600.millis)
 
         result.value mustEqual Some(Success(false))
     }
@@ -153,7 +153,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         } yield res
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tick(600.millis)
+        ticker.ctx.tickAll(600.millis)
 
         result.value mustEqual Some(Success(false))
     }
@@ -174,7 +174,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         } yield v1 -> v2
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tick(500.millis)
+        ticker.ctx.tickAll(500.millis)
 
         result.value mustEqual Some(Success((2, 1)))
     }
@@ -195,7 +195,7 @@ class MemoizeSpec extends BaseSpec with Discipline with ScalaCheck {
         } yield v
 
         val result = op.unsafeToFuture()
-        ticker.ctx.tick(500.millis)
+        ticker.ctx.tickAll(500.millis)
 
         result.value mustEqual Some(Success(true))
     }
