@@ -28,7 +28,6 @@ class ContSpec extends BaseSpec { outer =>
   def realNoTimeout[A: AsResult](test: => IO[A]): Execution =
     Execution.withEnvAsync(_ => test.unsafeToFuture()(runtime()))
 
-
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   // various classcast exceptions and/or ByteStack going out of bound
   "get resumes" in realNoTimeout {
@@ -45,26 +44,18 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   "callback resumes" in realNoTimeout {
-    def cont: IO[Unit] =
-      IO.cont[Unit] flatMap { case (get, resume) =>
-        for {
-          _ <- IO(println("start"))
-          _ <- {
-            for {
-              _ <- IO.sleep(200.millis)
-              _ <- IO(println("sleep"))
-              _ <- IO(resume(Right(())))
-            } yield ()
-          }.start
-          fib <- get
-        } yield ()
+    def scheduler = unsafe.IORuntime.createDefaultScheduler()._1
+
+    def cont: IO[String] =
+      IO.cont[String] flatMap { case (get, resume) =>
+        IO(scheduler.sleep(10.millis, () => resume(Right("success")))) >> get
       }
 
-    cont.as(true).flatMap { res =>
-      IO {
-        res must beTrue
-      }
-    }
+    def execute(times: Int, i: Int = 0): IO[Success] =
+      if (i == times) IO(success)
+      else cont.flatMap(r => IO(r mustEqual "success")) >> execute(times, i + 1)
+
+    execute(100)
   }
 
 }
