@@ -8,6 +8,11 @@
   padding: calc(1.5rem + 10px) 0;
 }
 
+.productShowcaseSection .disclaimer {
+  font-size: 8px;
+  margin-bottom: 1.5rem;
+}
+
 @media only screen and (min-device-width: 360px) and (max-device-width: 736px) {
 }
 
