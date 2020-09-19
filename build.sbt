@@ -97,9 +97,9 @@ val CatsVersion = "2.2.0"
 val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false; docs/mdoc")
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; docs/mdoc")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
@@ -222,3 +222,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(name := "cats-effect-benchmarks")
   .settings(noPublishSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val docs = project.in(file("ce3-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)

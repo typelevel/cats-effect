@@ -20,6 +20,7 @@ package object syntax {
 
   object all extends AllSyntax
 
+  object monadCancel extends kernel.syntax.MonadCancelSyntax
   object spawn extends kernel.syntax.GenSpawnSyntax
   object temporal extends kernel.syntax.GenTemporalSyntax
   object async extends kernel.syntax.AsyncSyntax
