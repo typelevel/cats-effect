@@ -388,7 +388,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
         }
       }
     }
-//    Async(k)
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     async(cb => apply { k(cb); None })
