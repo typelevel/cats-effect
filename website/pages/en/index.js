@@ -105,7 +105,7 @@ class Index extends React.Component {
                 {[
                     {
                         content:
-                            'Cats Effect uniquely defines what it means to be a functional effect. This gives it unmatched expressive and compositional power, unlocking an entirely ecosystem of extensibility and enriching your applications with the ability to re-mix the runtime system *itself*. This brings the full power of the Cats ecosystem to bear, enabling elegant answers to thorny problems like distributed tracing, dependency injection, error reporting along multiple channels, and much more!',
+                            "Cats Effect uniquely defines what it means to be a functional effect. This gives it unmatched expressive and compositional power, unlocking an entirely ecosystem of extensibility and enriching your applications with the ability to re-mix the runtime system *itself*. This brings the full power of the Cats ecosystem to bear, enabling elegant answers to thorny problems like distributed tracing, dependency injection, error reporting along multiple channels, and much more!\n\n Cats Effect's system of abstractions are the culmination of years of research and experience in how to best apply functional programming concepts in real-world applications on the JVM and JavaScript, and particularly how to express such ideas within Scala.",
                         image: `${baseUrl}img/cats-effect-1.0-hierarchy.svg`,
                         imageAlign: 'left',
                         title: 'Powerful Abstract Calculus',
@@ -208,7 +208,7 @@ class Index extends React.Component {
                     <Hook />
 
                     <Feature align="left" title="Asynchronous" image="img/async.png">
-                        The `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean, synchronous interface. Write programs that seamlessly mix synchronous and asynchronous code without sacrificing code comprehension or composability.
+                        The `IO` monad allows you to capture and control asynchronous, callback-driven effects behind a clean, synchronous interface. Although superficially similar to `Future`, `IO` takes this concept to the next level with a powerful API that leaves you fully in control of evaluation semantics and behavior. Write programs that seamlessly mix synchronous and asynchronous code without sacrificing code comprehension or composability.
                     </Feature>
                     <Feature align="right" title="Concurrency" image="img/concurrency.png">
                         `IO` can power highly concurrent applications, like web services that must serve tens of thousands of requests per second. Concurrency in `IO` is facilitated by fibers, which are lightweight, interruptible threads that are managed completely by the runtime. Fibers are much cheaper than native OS threads, so your application can spawn tens of millions without breaking a sweat. Focus on high-level concurrency control without worrying about details like thread management or executor shifting.
@@ -220,7 +220,7 @@ class Index extends React.Component {
                         Real-world applications must often deal with resources like network connections and file handles to serve requests. Resource management is an exceptionally difficult problem in concurrent applications; one slight bug could result in a memory leak that OOM-kills your service or even a deadlock that renders your service completely unresponsive. `IO` manages resource lifecycles for you and guarantees that resources are safely allocated and released even in the presence of exceptions and cancellations.
                     </Feature>
                     <Feature align="left" title="Composable" image="img/composable.png">
-                        Cats Effect embraces purely functional programming: `IO` represents a description of a program rather than a running computation, which gives you ultimate control over how and when effects are evaluated. Simple programs can be composed to form more complex programs, while retaining the ability to reason about the behavior and complexity.
+                        Cats Effect embraces purely functional programming: `IO` represents a description of a program rather than a running computation, which gives you ultimate control over how and when effects are evaluated. Simple programs can be composed to form more complex programs, while retaining the ability to reason about the behavior and complexity. Refactor without fear!
                     </Feature>
 
                     <TryOut />
