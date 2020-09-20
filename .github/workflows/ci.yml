@@ -104,7 +104,7 @@ jobs:
 
       - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
 
-      - if: matrix.scala == '2.13.3'
+      - if: matrix.scala == '2.13.3' && matrix.ci == 'ciJVM'
         run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Test Example JVM App Within Sbt

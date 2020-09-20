@@ -55,7 +55,7 @@ ThisBuild / githubWorkflowBuild := Seq(
 
   WorkflowStep.Sbt(
     List("docs/mdoc"),
-    cond = Some(s"matrix.scala == '$Scala213'")),
+    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
 
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
