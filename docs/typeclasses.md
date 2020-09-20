@@ -2,14 +2,14 @@
 
 The typeclass hierarchy within Cats Effect defines what it means, fundamentally, to *be* a functional effect. This is very similar to how we have a set of rules which tell us what it means to be a number, or what it means to have a `flatMap` method. Broadly, the rules for functional effects can be broken down into the following categories:
 
-- Resource safety and preemption
+- Resource safety and cancelation
 - Parallel evaluation
 - State sharing between parallel processes
 - Interactions with time, including current time and `sleep`
 - Safe capture of side-effects which return values
 - Safe capture of side-effects which invoke a callback
 
-These are listed roughly in order of increasing power. Parallelism cannot be safely defined without some notion of resource safety and preemption. Interactions with time have no meaning if there is no notion of parallel evaluation, since it would be impossible to observe the passage of time. Capturing and controlling side-effects makes it possible to do *anything* simply by "cheating" and capturing something like `new Thread`, and thus it has the greatest power of all of these categories.
+These are listed roughly in order of increasing power. Parallelism cannot be safely defined without some notion of resource safety and cancelation. Interactions with time have no meaning if there is no notion of parallel evaluation, since it would be impossible to observe the passage of time. Capturing and controlling side-effects makes it possible to do *anything* simply by "cheating" and capturing something like `new Thread`, and thus it has the greatest power of all of these categories.
 
 Beyond the above, certain capabilities are *assumed* by Cats Effect but defined elsewhere (or rather, defined within [Cats](https://typelevel.org/cats)). Non-exhaustively, those capabilities are as follows:
 
@@ -22,7 +22,7 @@ Taken together, all of these capabilities define what it means to be an effect. 
 
 ## `MonadCancel`
 
-This typeclass extends `MonadError` (in Cats) and defines the meaning of resource safety and preemption (cancellation). Using it, we can define effects which safely acquire and release resources:
+This typeclass extends `MonadError` (in Cats) and defines the meaning of resource safety and cancellation. Using it, we can define effects which safely acquire and release resources:
 
 <!-- TODO enable mdoc for this -->
 ```scala
@@ -112,7 +112,17 @@ MonadCancel[F] uncancelable { _ =>
 }
 ```
 
-The use of the `outer` poll within the inner `uncancelable` is simply ignored.
+The use of the `outer` poll within the inner `uncancelable` is simply ignored unless we have already stripped off the inner `uncancelable` using *its* `poll`. For example:
+
+```scala
+MonadCancel[F] uncancelable { outer =>
+  MonadCancel[F] uncancelable { inner =>
+    outer(inner(fa))
+  }
+}
+```
+
+This is simply equivalent to writing `fa`. Which is to say, `poll` composes in the way you would expect.
 
 ### Self-Cancelation
 
@@ -128,7 +138,7 @@ Self-cancellation is somewhat similar to raising an error with `raiseError` in t
 
 The primary differences between self-cancellation and `raiseError` are two-fold. First, `uncancelable` suppresses `canceled` within its body (unless `poll`ed!), turning it into something equivalent to just `().pure[F]`. There is no analogue for this kind of functionality with errors. Second, if you sequence an error with `raiseError`, it's always possible to use `attempt` or `handleError` to *handle* the error and resume normal execution. No such functionality is available for cancellation.
 
-In other words, cancellation is *final*. It can be observed, but it cannot be *prevented*. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
+In other words, cancellation is effective; it cannot be undone. It can be suppressed, but once it is observed, it must be respected by the canceled fiber. This feature is exceptionally important for ensuring deterministic evaluation and avoiding deadlocks.
 
 Self-cancellation is intended for use-cases such as [supervisor nets](https://erlang.org/doc/man/supervisor.html) and other complex constructs which require the ability to manipulate their own evaluation in this fashion. It isn't something that will be found often in application code.
 
@@ -211,7 +221,7 @@ As an aside, we often use the word "fiber" interchangeably with the phrase "sema
 
 ### Cancelation
 
-Probably the most significant benefit that fibers provide, above and beyond their extremely low overhead and optimized runtime mapping, is the fact that, unlike JVM `Thread`s, they are *interruptible*. This means that you can safely `cancel` a running fiber and it will clean up whatever resources it has allocated and bring itself to a halt in short order, ensuring that you don't have errant processes running in the background, eating up resources that could have otherwise been released.
+Probably the most significant benefit that fibers provide, above and beyond their extremely low overhead and optimized runtime mapping, is the fact that, unlike JVM `Thread`s, they are *cancelable*. This means that you can safely `cancel` a running fiber and it will clean up whatever resources it has allocated and bring itself to a halt in short order, ensuring that you don't have errant processes running in the background, eating up resources that could have otherwise been released.
 
 We can demonstrate this property relatively easily using the `IO` monad:
 
