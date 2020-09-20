@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect
-package syntax
+package cats.effect.kernel.syntax
 
-trait AllSyntax
-    extends kernel.syntax.GenSpawnSyntax
-    with kernel.syntax.GenConcurrentSyntax
-    with kernel.syntax.GenTemporalSyntax
-    with kernel.syntax.AsyncSyntax
-    with kernel.syntax.SyncEffectSyntax
-    with kernel.syntax.EffectSyntax
+import cats.effect.kernel.GenConcurrent
+
+trait GenConcurrentSyntax {
+  implicit def genConcurrentOps[F[_], E, A](wrapped: F[A]): GenConcurrentOps[F, E, A] =
+    new GenConcurrentOps(wrapped)
+}
+
+final class GenConcurrentOps[F[_], E, A](val wrapped: F[A]) extends AnyVal {
+  def memoize(implicit F: GenConcurrent[F, E]): F[F[A]] =
+    F.memoize(wrapped)
+}

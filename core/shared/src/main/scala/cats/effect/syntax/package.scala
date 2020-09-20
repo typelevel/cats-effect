@@ -22,6 +22,7 @@ package object syntax {
 
   object spawn extends kernel.syntax.GenSpawnSyntax
   object temporal extends kernel.syntax.GenTemporalSyntax
+  object concurrent extends kernel.syntax.GenConcurrentSyntax
   object async extends kernel.syntax.AsyncSyntax
   object syncEffect extends kernel.syntax.SyncEffectSyntax
   object effect extends kernel.syntax.EffectSyntax

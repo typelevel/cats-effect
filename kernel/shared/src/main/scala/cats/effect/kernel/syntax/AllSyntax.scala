@@ -19,6 +19,7 @@ package cats.effect.kernel.syntax
 trait AllSyntax
     extends GenSpawnSyntax
     with GenTemporalSyntax
+    with GenConcurrentSyntax
     with AsyncSyntax
     with SyncEffectSyntax
     with EffectSyntax
