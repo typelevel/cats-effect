@@ -643,16 +643,16 @@ private final class IOFiber[A](
             // should I do any checks on the old finalisation state like in async?
             @tailrec
             def loop(): Unit = {
-              println(s"cb loop sees suspended ${suspended.get} on fiber $name")
+              //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               if (resume("callback")) { // is this necessary to publish writes?
                 if (!shouldFinalize()) {
-                  println(s"callback taking over on fiber $name")
+                //  println(s"callback taking over on fiber $name")
                   asyncContinue(e, "callback")
                 }
               } else if (!shouldFinalize()) {
-                println(s"callback recurring on fiber $name")
+//                println(s"callback recurring on fiber $name")
                 loop()
-              } else println("something wrong")
+              } // else println("something wrong")
             }
 
             val resultState = ContState.Result(e)
@@ -673,7 +673,7 @@ private final class IOFiber[A](
                 else {
                   if (tag == 1) {
                     // `get` has been sequenced and is waiting, reacquire runloop to continue
-                    println(s"callback about to take over on fiber $name")
+                    // println(s"callback about to take over on fiber $name")
                     loop()
                   } else () // println(s"callback arrived at state $old on fiber $name")
                 }
@@ -702,9 +702,10 @@ private final class IOFiber[A](
             }
           } else {
             // callback has not been invoked yet
-            println(s"get suspending on fiber $name")
-            suspend("get") // async has a conditional suspend, why?
-            println(s"get sets suspended to ${suspended.get} on fiber $name")
+          //  println(s"get suspending on fiber $name")
+//            suspend("get") // async has a conditional suspend, why?
+//println(s"get sets suspended to ${suspended.get} on fiber $name")
+            suspendWithFinalizationCheck
           }
       }
     }
@@ -722,15 +723,14 @@ private final class IOFiber[A](
 
   private[this] def resume(str: String = ""): Boolean = {
     val v = suspended.compareAndSet(true, false)
-    // if(str.nonEmpty) println(s"resume called by $str on fiber $name, suspended ${suspended.get}")
-    // else println("resume called by something else")
+//    println(s"resume called by $str on fiber $name, suspended ${suspended.get}")
     v
   }
 
   private[this] def suspend(str: String = ""): Unit = {
     suspended.set(true)
-    if (str.nonEmpty) println(s"suspend called by $str on fiber $name, suspended ${suspended.get}")
-    else println("suspend called by something else")
+    // if (str.nonEmpty) println(s"suspend called by $str on fiber $name, suspended ${suspended.get}")
+    // else println("suspend called by something else")
 
   }
 
@@ -898,7 +898,7 @@ private final class IOFiber[A](
     asyncContinueEither = null
     val next = e match {
       case Left(t) =>
-        println("asyncContinueR - failure")
+//        println("asyncContinueR - failure")
         failed(t, 0)
       case Right(a) =>
      //   println("asyncContinueR - success")
@@ -980,7 +980,7 @@ private final class IOFiber[A](
     try f(result)
     catch {
       case NonFatal(t) =>
-        println(s"caught $t after receving result $result")
+//        println(s"caught $t after receving result $result")
         failed(t, depth + 1)
     }
   }
