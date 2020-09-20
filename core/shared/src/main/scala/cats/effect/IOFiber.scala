@@ -646,13 +646,13 @@ private final class IOFiber[A](
               //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               if (resume("callback")) { // is this necessary to publish writes?
                 if (!shouldFinalize()) {
-                  println(s"callback taking over on fiber $name")
+//                  println(s"callback taking over on fiber $name")
                   asyncContinue(e, "callback")
-                } else println("something wrong, location A")
+                } else println("something wrong, location A") // here async cancels, we should probably do the same
               } else if (!shouldFinalize()) {
 //                println(s"callback recurring on fiber $name")
                 loop()
-              }  else println("something wrong, location B")
+              }  else println("something wrong, location B") //this one is not touched in async
             }
 
             val resultState = ContState.Result(e)
@@ -697,9 +697,9 @@ private final class IOFiber[A](
             val result = state.get().result
             // we leave the Result state unmodified so that `get` is idempotent
             if (!shouldFinalize()) {
-              println("get taking over")
+//              println("get taking over")
               asyncContinue(result, "get")
-            } else println("something wrong, location C")
+            } else { asyncCancel(null) } //println("something wrong, location C")
           } else {
             // callback has not been invoked yet
           //  println(s"get suspending on fiber $name")
