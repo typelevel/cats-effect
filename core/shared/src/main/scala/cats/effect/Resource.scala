@@ -386,7 +386,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    * Like `Resource`, but invariant in `F`. Facilitates pattern matches that Scala 2 cannot
    * otherwise handle correctly.
    */
-  sealed abstract private[effect] class InvariantResource[F[_], +A] extends Resource[F, A] {
+  sealed private[effect] trait InvariantResource[F[_], +A] extends Resource[F, A] {
     type F0[x] = F[x]
 
     private[effect] def invariant: InvariantResource[F0, A] = this
