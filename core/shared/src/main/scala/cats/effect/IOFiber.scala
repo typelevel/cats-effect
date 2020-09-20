@@ -648,11 +648,13 @@ private final class IOFiber[A](
                 if (!shouldFinalize()) {
 //                  println(s"callback taking over on fiber $name")
                   asyncContinue(e, "callback")
-                } else println("something wrong, location A") // here async cancels, we should probably do the same
+                } else {
+                  asyncCancel(null)
+                }
               } else if (!shouldFinalize()) {
 //                println(s"callback recurring on fiber $name")
                 loop()
-              }  else println("something wrong, location B") //this one is not touched in async
+              } // else println("something wrong, location B")
             }
 
             val resultState = ContState.Result(e)
@@ -699,7 +701,9 @@ private final class IOFiber[A](
             if (!shouldFinalize()) {
 //              println("get taking over")
               asyncContinue(result, "get")
-            } else { asyncCancel(null) } //println("something wrong, location C")
+            } else {
+              asyncCancel(null)
+            }
           } else {
             // callback has not been invoked yet
           //  println(s"get suspending on fiber $name")
