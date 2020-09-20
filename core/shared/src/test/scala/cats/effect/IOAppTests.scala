@@ -28,7 +28,6 @@ class IOAppTests extends CatsEffectSuite {
         IO.pure(ExitCode(42))
       )
       .flatMap(_.join)
-      .unsafeToFuture()
       .map(assertEquals(_, 42))
   }
 
@@ -38,7 +37,6 @@ class IOAppTests extends CatsEffectSuite {
         IO.pure(ExitCode(args.mkString.toInt))
       )
       .flatMap(_.join)
-      .unsafeToFuture()
       .map(assertEquals(_, 123))
   }
 
@@ -47,8 +45,8 @@ class IOAppTests extends CatsEffectSuite {
       IOAppPlatform
         .mainFiber(Array.empty, Eval.now(implicitly), Eval.now(implicitly))(_ => IO.raiseError(new Exception()))
         .flatMap(_.join)
-        .unsafeToFuture()
         .map(assertEquals(_, 1))
+        .unsafeRunSync()
     }
   }
 

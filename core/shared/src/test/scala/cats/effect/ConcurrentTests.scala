@@ -20,8 +20,8 @@ import cats.Eq
 import cats.effect.concurrent.Ref
 import cats.effect.implicits._
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
 
 class ConcurrentTests extends CatsEffectSuite {
   implicit val executionContext: ExecutionContext = ExecutionContext.Implicits.global
@@ -33,14 +33,12 @@ class ConcurrentTests extends CatsEffectSuite {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
-
   test("F.parTraverseN(n)(collection)(f)") {
     val finalValue = 100
     val r = Ref.unsafe[IO, Int](0)
     val list = List.range(0, finalValue)
     val modifies = implicitly[Concurrent[IO]].parTraverseN(3)(list)(_ => IO.shift *> r.update(_ + 1))
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 
   test("collection.parTraverseN(n)(f)") {
@@ -48,7 +46,7 @@ class ConcurrentTests extends CatsEffectSuite {
     val r = Ref.unsafe[IO, Int](0)
     val list = List.range(0, finalValue)
     val modifies = list.parTraverseN(3)(_ => IO.shift *> r.update(_ + 1))
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 
   test("F.parSequenceN(n)(collection)") {
@@ -56,7 +54,7 @@ class ConcurrentTests extends CatsEffectSuite {
     val r = Ref.unsafe[IO, Int](0)
     val list = List.fill(finalValue)(IO.shift *> r.update(_ + 1))
     val modifies = implicitly[Concurrent[IO]].parSequenceN(3)(list)
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 
   test("collection.parSequenceN(n)") {
@@ -64,6 +62,6 @@ class ConcurrentTests extends CatsEffectSuite {
     val r = Ref.unsafe[IO, Int](0)
     val list = List.fill(finalValue)(IO.shift *> r.update(_ + 1))
     val modifies = list.parSequenceN(3)
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 }

@@ -31,7 +31,7 @@ class MVarConcurrentTests extends BaseMVarTests {
     MVar[IO].empty[A]
 
   test("put is cancelable".flaky) {
-    val task = for {
+    for {
       mVar <- init(0)
       _ <- mVar.put(1).start
       p2 <- mVar.put(2).start
@@ -41,15 +41,11 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- mVar.take
       r1 <- mVar.take
       r3 <- mVar.take
-    } yield Set(r1, r3)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(1, 3))
-    }
+    } yield assertEquals(Set(r1, r3), (Set(1, 3)))
   }
 
   test("take is cancelable".flaky) {
-    val task = for {
+    for {
       mVar <- empty[Int]
       t1 <- mVar.take.start
       t2 <- mVar.take.start
@@ -60,15 +56,11 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- mVar.put(3)
       r1 <- t1.join
       r3 <- t3.join
-    } yield Set(r1, r3)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(1, 3))
-    }
+    } yield assertEquals(Set(r1, r3), Set(1, 3))
   }
 
   test("read is cancelable".flaky) {
-    val task = for {
+    for {
       mVar <- MVar[IO].empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
       fiber <- mVar.read.flatMap(finished.complete).start
@@ -77,15 +69,11 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> IO.pure(0)
       v <- IO.race(finished.get, fallback)
-    } yield v
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(0))
-    }
+    } yield assertEquals(v, Right(0))
   }
 
   test("swap is cancelable on take".flaky) {
-    val task = for {
+    for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, Int]
       fiber <- mVar.swap(20).flatMap(finished.complete).start
@@ -93,15 +81,11 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
-    } yield v
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
+    } yield assertEquals(v, Right(10))
   }
 
   test("modify is cancelable on take".flaky) {
-    val task = for {
+    for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
       fiber <- mVar.modify(n => IO.pure((n * 2, n.show))).flatMap(finished.complete).start
@@ -109,15 +93,11 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- mVar.put(10)
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
-    } yield v
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
+    } yield assertEquals(v, Right(10))
   }
 
   test("modify is cancelable on f".flaky) {
-    val task = for {
+    for {
       mVar <- empty[Int]
       finished <- Deferred.uncancelable[IO, String]
       fiber <- mVar.modify(n => IO.never *> IO.pure((n * 2, n.show))).flatMap(finished.complete).start
@@ -126,11 +106,7 @@ class MVarConcurrentTests extends BaseMVarTests {
       _ <- fiber.cancel
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
-    } yield v
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Right(10))
-    }
+    } yield assertEquals(v, Right(10))
   }
 }
 
@@ -156,7 +132,7 @@ abstract class BaseMVarTests extends CatsEffectSuite {
   override def munitFlakyOK: Boolean = true
 
   test("empty; put; take; put; take") {
-    val task = for {
+    for {
       av <- empty[Int]
       isE1 <- av.isEmpty
       _ <- av.put(10)
@@ -164,15 +140,11 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       r1 <- av.take
       _ <- av.put(20)
       r2 <- av.take
-    } yield (isE1, isE2, r1, r2)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, (true, false, 10, 20))
-    }
+    } yield assertEquals((isE1, isE2, r1, r2), (true, false, 10, 20))
   }
 
   test("empty; tryPut; tryPut; tryTake; tryTake; put; take") {
-    val task = for {
+    for {
       av <- empty[Int]
       isE1 <- av.isEmpty
       p1 <- av.tryPut(10)
@@ -182,15 +154,11 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       r2 <- av.tryTake
       _ <- av.put(20)
       r3 <- av.take
-    } yield (isE1, p1, p2, isE2, r1, r2, r3)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, (true, true, false, false, Some(10), None, 20))
-    }
+    } yield assertEquals((isE1, p1, p2, isE2, r1, r2, r3), (true, true, false, false, Some(10), None, 20))
   }
 
   test("empty; take; put; take; put") {
-    val task = for {
+    for {
       av <- empty[Int]
       f1 <- av.take.start
       _ <- av.put(10)
@@ -198,15 +166,11 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       _ <- av.put(20)
       r1 <- f1.join
       r2 <- f2.join
-    } yield Set(r1, r2)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(10, 20))
-    }
+    } yield assertEquals(Set(r1, r2), Set(10, 20))
   }
 
   test("empty; put; put; put; take; take; take") {
-    val task = for {
+    for {
       av <- empty[Int]
       f1 <- av.put(10).start
       f2 <- av.put(20).start
@@ -217,15 +181,11 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       _ <- f1.join
       _ <- f2.join
       _ <- f3.join
-    } yield Set(r1, r2, r3)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(10, 20, 30))
-    }
+    } yield assertEquals(Set(r1, r2, r3), Set(10, 20, 30))
   }
 
   test("empty; take; take; take; put; put; put") {
-    val task = for {
+    for {
       av <- empty[Int]
       f1 <- av.take.start
       f2 <- av.take.start
@@ -236,88 +196,63 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       r1 <- f1.join
       r2 <- f2.join
       r3 <- f3.join
-    } yield Set(r1, r2, r3)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, Set(10, 20, 30))
-    }
+    } yield assertEquals(Set(r1, r2, r3), Set(10, 20, 30))
   }
 
   test("initial; take; put; take") {
-    val task = for {
+    for {
       av <- init(10)
       isE <- av.isEmpty
       r1 <- av.take
       _ <- av.put(20)
       r2 <- av.take
-    } yield (isE, r1, r2)
-
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, (false, 10, 20))
-    }
+    } yield assertEquals((isE, r1, r2), (false, 10, 20))
   }
 
   test("initial; read; take") {
-    val task = for {
+    for {
       av <- init(10)
       read <- av.read
       take <- av.take
-    } yield read + take
-
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, 20)
-    }
+    } yield assertEquals(read + take, 20)
   }
 
   test("empty; read; put") {
-    val task = for {
+    for {
       av <- empty[Int]
       read <- av.read.start
       _ <- av.put(10)
       r <- read.join
-    } yield r
-
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, 10)
-    }
+    } yield assertEquals(r, 10)
   }
 
   test("empty; tryRead; read; put; tryRead; read") {
-    val task = for {
+    for {
       av <- empty[Int]
       tryReadEmpty <- av.tryRead
       read <- av.read.start
       _ <- av.put(10)
       tryReadContains <- av.tryRead
       r <- read.join
-    } yield (tryReadEmpty, tryReadContains, r)
-
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, (None, Some(10), 10))
-    }
+    } yield assertEquals((tryReadEmpty, tryReadContains, r), (None, Some(10), 10))
   }
 
   test("empty; put; swap; read") {
-    val task = for {
+    for {
       mVar <- empty[Int]
       fiber <- mVar.put(10).start
       oldValue <- mVar.swap(20)
       newValue <- mVar.read
       _ <- fiber.join
-    } yield (newValue, oldValue)
-
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, (20, 10))
-    }
+    } yield assertEquals((newValue, oldValue), (20, 10))
   }
 
   test("put(null) works") {
-    val task = empty[String].flatMap { mvar =>
-      mvar.put(null) *> mvar.read
-    }
-    for (v <- task.unsafeToFuture()) yield {
-      assertEquals(v, null)
-    }
+    for {
+      mVar <- empty[String]
+      _ <- mVar.put(null)
+      v <- mVar.read
+    } yield assertEquals(v, null)
   }
 
   test("producer-consumer parallel loop") {
@@ -343,19 +278,15 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       }
 
     val count = 10000
-    val sumTask = for {
+
+    for {
       channel <- init(Option(0))
       // Ensure they run in parallel
       producerFiber <- (IO.shift *> producer(channel, (0 until count).toList)).start
       consumerFiber <- (IO.shift *> consumer(channel, 0L)).start
       _ <- producerFiber.join
       sum <- consumerFiber.join
-    } yield sum
-
-    // Evaluate
-    for (r <- sumTask.unsafeToFuture()) yield {
-      assertEquals(r, (count.toLong * (count - 1) / 2))
-    }
+    } yield assertEquals(sum, (count.toLong * (count - 1) / 2))
   }
 
   // Marked flaky because it might be too big for the dotty community build environment.
@@ -386,10 +317,7 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       } yield r
     }
 
-    val task = init(Option(0)).flatMap(exec)
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, count.toLong * (count - 1) / 2)
-    }
+    init(Option(0)).flatMap(exec).map(assertEquals(_, count.toLong * (count - 1) / 2))
   }
 
   test("take/put test is stack safe") {
@@ -401,11 +329,7 @@ abstract class BaseMVarTests extends CatsEffectSuite {
         }
 
     val count = if (Platform.isJvm) 10000 else 5000
-    val task = init(1).flatMap(loop(count, 0))
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, count)
-    }
+    init(1).flatMap(loop(count, 0)).map(assertEquals(_, count))
   }
 
   def testStackSequential(channel: MVar2[IO, Int]): (Int, IO[Int], IO[Unit]) = {
@@ -428,36 +352,28 @@ abstract class BaseMVarTests extends CatsEffectSuite {
   }
 
   test("put is stack safe when repeated sequentially") {
-    val task = for {
+    for {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
       _ <- writes.start
       r <- reads
-    } yield r == count
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, true)
-    }
+    } yield assertEquals(r, count)
   }
 
   test("take is stack safe when repeated sequentially") {
-    val task = for {
+    for {
       channel <- empty[Int]
       (count, reads, writes) = testStackSequential(channel)
       fr <- reads.start
       _ <- writes
       r <- fr.join
-    } yield r == count
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, true)
-    }
+    } yield assertEquals(r, count)
   }
 
   // Marked flaky because it might be too big for the dotty community build environment.
   test("concurrent take and put".flaky) {
     val count = if (Platform.isJvm) 10000 else 1000
-    val task = for {
+    for {
       mVar <- empty[Int]
       ref <- Ref[IO].of(0)
       takes = (0 until count)
@@ -470,15 +386,11 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       _ <- fiber1.join
       _ <- fiber2.join
       r <- ref.get
-    } yield r
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, count * 2)
-    }
+    } yield assertEquals(r, count * 2)
   }
 
   test("put; take; modify; put") {
-    val task = for {
+    for {
       mVar <- empty[Int]
       _ <- mVar.put(10)
       _ <- mVar.take
@@ -486,26 +398,18 @@ abstract class BaseMVarTests extends CatsEffectSuite {
       _ <- mVar.put(20)
       s <- fiber.join
       v <- mVar.take
-    } yield (s, v)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, ("20" -> 40))
-    }
+    } yield assertEquals((s, v), ("20", 40))
   }
 
   test("modify replaces the original value of the mvar on error") {
     val error = new Exception("Boom!")
-    val task = for {
+    for {
       mVar <- empty[Int]
       _ <- mVar.put(10)
       finished <- Deferred.uncancelable[IO, String]
       e <- mVar.modify(_ => IO.raiseError(error)).attempt
       fallback = IO.sleep(100.millis) *> mVar.take
       v <- IO.race(finished.get, fallback)
-    } yield (e, v)
-
-    for (r <- task.unsafeToFuture()) yield {
-      assertEquals(r, (Left(error) -> Right(10)))
-    }
+    } yield assertEquals((e, v), (Left(error), Right(10)))
   }
 }
