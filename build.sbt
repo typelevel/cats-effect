@@ -30,8 +30,9 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
+val Scala213 = "2.13.3"
 
-ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -51,6 +52,10 @@ ThisBuild / githubWorkflowBuildPreamble +=
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
+
+  WorkflowStep.Sbt(
+    List("docs/mdoc"),
+    cond = Some(s"matrix.scala == '$Scala213'")),
 
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
@@ -97,9 +102,9 @@ val CatsVersion = "2.2.0"
 val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
-replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false; docs/mdoc")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues; docs/mdoc")
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
 addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
@@ -226,5 +231,3 @@ lazy val benchmarks = project.in(file("benchmarks"))
 lazy val docs = project.in(file("ce3-docs"))
   .dependsOn(core.jvm)
   .enablePlugins(MdocPlugin)
-  // remove dotty for now
-  .settings(crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")))
