@@ -18,7 +18,8 @@ const siteConfig = {
   headerLinks: [
     {doc: 'installation', label: 'Docs'},
     {href: 'https://github.com/typelevel/cats-effect', label: "GitHub", external: true},
-    {href: `/cats-effect/api/index.html`, label: 'API'}
+    {href: `/cats-effect/api/index.html`, label: 'API'},
+    {href: '/cats-effect/resources.html', label: 'Resources'}
   ],
 
   /* path to images for header/footer */
@@ -88,10 +89,10 @@ const siteConfig = {
       pinned: true
     },
     {
-      image: 'img/adopters/ovo.svg',
-      caption: 'OVO Energy',
-      title: 'OVO Energy',
-      infoLink: 'https://www.ovoenergy.com/',
+      image: 'img/adopters/precog.svg',
+      caption: 'Precog',
+      title: 'Precog',
+      infoLink: 'https://precog.com/',
       pinned: true
     },
     {

@@ -44,7 +44,7 @@ const users = [
   ['Zendesk', 'https://www.zendesk.com'],
 ];
 
-function Users(props) {
+function Resources(props) {
   const renderUsers = users.map((user, i) => (
     <li key={i}>
       <a href={user[1]}>{user[0]}</a>
@@ -73,4 +73,4 @@ function Users(props) {
   );
 }
 
-module.exports = Users;
+module.exports = Resources;
