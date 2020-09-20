@@ -697,9 +697,9 @@ private final class IOFiber[A](
             val result = state.get().result
             // we leave the Result state unmodified so that `get` is idempotent
             if (!shouldFinalize()) {
-              // println("get taking over")
+              println("get taking over")
               asyncContinue(result, "get")
-            }
+            } else println("something wrong, location C")
           } else {
             // callback has not been invoked yet
           //  println(s"get suspending on fiber $name")
