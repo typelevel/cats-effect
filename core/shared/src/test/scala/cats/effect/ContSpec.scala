@@ -47,21 +47,21 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   "callback resumes" in realNoTimeout {
-    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+   val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
 
     val io = IO.cont[Int] flatMap { case (get, resume) =>
         IO(scheduler.sleep(10.millis, () => resume(Right(42)))) >> get
-      }
+    }
 
     val test = io.flatMap(r => IO(r mustEqual 42))
 
-    execute(test, 100)
+    execute(test, 100).guarantee(IO(close()))
   }
 
   // canceling IO.never deadlocks
   "focus" in realNoTimeout {
 
-    def never = IO.cont[Int].flatMap { case (get, resume) => get }
+    def never = IO.cont[Int].flatMap { case (get, _) => get }
     val io = never.start.flatMap(_.cancel)
 
     execute(io, 100000)
