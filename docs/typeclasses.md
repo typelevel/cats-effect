@@ -56,8 +56,7 @@ def guarded[F[_], R, A, E](
       _ <- poll(s.acquire).onCancel(release(r))
       releaseAll = s.release >> release(r)
 
-      a <- poll(use(r)).onCancel(releaseAll).onError(_ => releaseAll)
-      _ <- releaseAll.attempt
+      a <- poll(use(r)).guarantee(releaseAll)
     } yield a
   }
 ```
@@ -70,7 +69,7 @@ If the semaphore acquisition is canceled, we want to make sure we still release 
 
 Finally we move on to invoking the `use(r)` action, which again we need to wrap in `poll` to ensure that it can be interrupted by an external fiber. This `use(r)` action may take quite a long time and have a lot of complicated internal workings, and the last thing we want to do is suppress cancellation for its entire duration. It's likely safe to cancel `use`, because the resource management is already handled (by us!).
 
-Finally, once `use(r)` is done, we run `releaseAll`. The use of `onCancel` and `onError` are to ensure that `releaseAll` is always run, regardless of whether `use(r)` is canceled, raises an error, or completes normally.
+Finally, once `use(r)` is done, we run `releaseAll`. The `guarantee` method does exactly what it sounds like it does: ensures that `releaseAll` is run regardless of whether `use(r)` completes naturally, raises an error, or is canceled.
 
 As mentioned earlier, `poll` is *not* the same as a function hypothetically named `cancelable`. If we had something like `cancelable`, then we would need to answer an impossible question: what does `uncancelable` mean if someone can always contradict you with `cancelable`? Additionally, whatever answer you come up with to *that* question has to be applied to weird and complicated things such as `uncancelable(uncancelable(cancelable(...)))`, which is unpleasant and hard to define.
 
