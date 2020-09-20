@@ -36,7 +36,7 @@ class ContSpec extends BaseSpec { outer =>
 
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   // various classcast exceptions and/or ByteStack going out of bound
-  "get resumes" in realNoTimeout {
+  "get resumes" in real {
     val io = IO.cont[Int].flatMap { case (get, resume) =>
         IO(resume(Right(42))) >> get
       }
@@ -46,7 +46,7 @@ class ContSpec extends BaseSpec { outer =>
     execute(test, 100000)
   }
 
-  "callback resumes" in realNoTimeout {
+  "callback resumes" in real {
    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
 
     val io = IO.cont[Int] flatMap { case (get, resume) =>
@@ -58,11 +58,35 @@ class ContSpec extends BaseSpec { outer =>
     execute(test, 100).guarantee(IO(close()))
   }
 
-  // canceling IO.never deadlocks
-  "focus" in realNoTimeout {
+  "cont.get can be canceled" in real {
 
     def never = IO.cont[Int].flatMap { case (get, _) => get }
     val io = never.start.flatMap(_.cancel)
+
+    execute(io, 100000)
+  }
+
+  // deferred.get cannot be canceled
+  // the latch is not stricly needed to observe this, but it does make it fail more reliably
+  "focus" in real {
+    import kernel._
+
+    def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
+      syncLatch.get.flatMap { switched =>
+        (IO.cede >> wait(syncLatch)).whenA(!switched)
+      }
+
+    val io = {
+      for {
+        d <- Deferred[IO, Unit]
+        latch <- Ref[IO].of(false)
+        fb <- (latch.set(true) *> d.get).start
+        fb <- d.get.start
+        _ <- wait(latch)
+        _ <- d.complete(())
+        _ <- fb.cancel
+      } yield ()
+    }
 
     execute(io, 100000)
   }
