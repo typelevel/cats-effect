@@ -389,7 +389,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   sealed abstract private[effect] class InvariantResource[F[_], +A] extends Resource[F, A] {
     type F0[x] = F[x]
 
-    def invariant: InvariantResource[F0, A] = this
+    private[effect] def invariant: InvariantResource[F0, A] = this
   }
 
   /**
