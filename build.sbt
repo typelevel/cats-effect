@@ -226,3 +226,5 @@ lazy val benchmarks = project.in(file("benchmarks"))
 lazy val docs = project.in(file("ce3-docs"))
   .dependsOn(core.jvm)
   .enablePlugins(MdocPlugin)
+  // remove dotty for now
+  .settings(crossScalaVersions := (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")))
