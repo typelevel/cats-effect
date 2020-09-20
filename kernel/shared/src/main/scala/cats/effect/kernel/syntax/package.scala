@@ -22,6 +22,7 @@ package object syntax {
 
   object monadCancel extends MonadCancelSyntax
   object spawn extends GenSpawnSyntax
+  object concurrent extends GenConcurrentSyntax
   object temporal extends GenTemporalSyntax
   object async extends AsyncSyntax
   object syncEffect extends SyncEffectSyntax

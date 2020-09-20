@@ -220,6 +220,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
 
+  def memoize: IO[IO[A]] =
+    Concurrent[IO].memoize(this)
+
   def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] =
     // re-comment this fast-path to test the implementation with IO itself
     if (F eq IO.effectForIO) {
