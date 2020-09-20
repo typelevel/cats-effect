@@ -259,3 +259,121 @@ Of course, *one* of these divisions will fail and an exception will be raised. W
 In these kinds of trivial examples involving primitive arithmetic, this kind of auto-cancellation doesn't represent much of a savings. However, if we were actually `parTraverse`ing a long `List` of `URL`s, where each one was being fetched in parallel, then perhaps failing fast and `cancel`ing all other actions on the first error would result in a significant savings in bandwidth and CPU.
 
 Critically, all of this functionality is built on `Spawn` and nothing else, and so we effectively get it for free whenever this instance is available for a given `F`.
+
+### Joining
+
+Not all parallel operations are strictly "fire-and-forget". In fact, *most* of them aren't. Usually you want to fork off a few fibers to perform some task, then wait for them to finish, accept their results, and move forward. The Java `Thread` abstraction has the seldom-used `join` to attempt to encode this idea, and `Fiber` has something similar:
+
+```scala mdoc
+// don't use this in production; it is a simplified example
+def both[F[_]: Spawn, A, B](fa: F[A], fb: F[B]): F[(A, B)] =
+  for {
+    fiberA <- fa.start
+    fiberB <- fb.start
+
+    a <- fiberA.joinAndEmbedNever
+    b <- fiberB.joinAndEmbedNever
+  } yield (a, b)
+```
+
+The `joinAndEmbedNever` function is a convenience method built on top of `join`, which is much more general. Specifically, the `Fiber#join` method returns `F[Outcome[F, E, A]]` (where `E` is the error type for `F`). This is a much more complex signature, but it gives us a lot of power when we need it.
+
+`Outcome` has the following shape:
+
+- `Completed` (containing a value of type `F[A]`)
+- `Errored` (containing a value of type `E`, usually `Throwable`)
+- `Canceled` (which contains nothing)
+
+These represent the three possible termination states for a fiber, and by producing them within `join`, Cats Effect gives you the ability to react to each differently. For example, if the fiber in question produces an error, you may wish to wrap that error in some value and propagate it along within your own fiber:
+
+```scala
+fiber.join flatMap {
+  case Outcome.Completed(fa) => 
+    fa
+
+  case Outcome.Errored(e) => 
+    MyWrapper(e).pure[F]
+
+  case Outcome.Canceled() => ???
+}
+```
+
+Of course, that `Canceled()` case is exceptionally tricky. This case arises when the `fiber` you `join`ed was actually `cancel`ed, and so it never had a chance to raise an error *or* produce a result. In this outcome, you need to decide what to do. One option, for example, might be to raise an error, such as `new FiberCanceledException` or similar:
+
+```scala
+  case Outcome.Canceled() => 
+    MonadThrow[F].raiseError(new FiberCanceledException)
+```
+
+That's a bit weird, but if you really don't expect the fiber to get canceled, perhaps it might fit your use-case. Another possibility might be that you want to cancel *yourself* in the event that the child fiber was canceled:
+
+```scala
+  case Outcome.Canceled() => 
+    MonadCancel[F].canceled
+```
+
+There's a subtle issue here though: `canceled` produces an effect of type `F[Unit]`, specifically because we *might* be wrapped in an `uncancelable`, in which case we *can't* self-cancel. This is a problem when you view the whole context:
+
+```scala
+fiber.join flatMap {
+  case Outcome.Completed(fa) => // => F[A]
+    fa
+
+  case Outcome.Errored(e) => // => F[A]
+    MonadError[F, E].raiseError(e) 
+
+  case Outcome.Canceled() => // => F[Unit]
+    MonadCancel[F].canceled
+}
+```
+
+The problem of course is the fact that the `Canceled()` branch returns the wrong type. We need an `A`, but it can only give us `Unit` because we don't actually know whether or not we're allowed to self-cancel (for comparison, `raiseError` always works and cannot be "disabled", so it doesn't have this problem). There are a couple ways to solve this. One option would be to have a default value for `A` which we just produce in the event that we aren't allowed to cancel:
+
+```scala
+case Outcome.Canceled() => 
+  MonadCancel[F].canceled.as(default)
+```
+
+This probably works, but it's kind of hacky, and not all `A`s have sane defaults. However, we *could* use `Option`, which (by definition) always has a sane default:
+
+```scala
+import cats.conversions.all._
+
+fiber.join flatMap {
+  case Outcome.Completed(fa) => // => F[Some[A]]
+    fa.map(Some(_))
+
+  case Outcome.Errored(e) => // => F[Option[A]]
+    MonadError[F, E].raiseError(e) 
+
+  case Outcome.Canceled() => // => F[None]
+    MonadCancel[F].canceled.as(None)
+}
+```
+
+This works quite well, but now your downstream logic (anything *using* the results of this `join`) must explicitly distinguish between whether or not your child fiber was canceled *and* you weren't able to self-cancel. This may be what you want! Or it may not be.
+
+If you are *really* sure that you're `join`ing and you're never, ever going to be wrapped in an `uncancelable`, you can use `never` to resolve this problem:
+
+```scala
+fiber.join flatMap {
+  case Outcome.Completed(fa) => // => F[A]
+    fa
+
+  case Outcome.Errored(e) => // => F[A]
+    MonadError[F, E].raiseError(e) 
+
+  case Outcome.Canceled() => // => F[A]
+    MonadCancel[F].canceled >> Spawn[F].never[A]
+}
+```
+
+In English, the semantics of this are as follows:
+
+- If the child fiber completed successfully, produce its result
+- If it errored, re-raise the error within the current fiber
+- If it canceled, attempt to self-cancel, and if the self-cancelation fails, **deadlock**
+
+Sometimes this is an appropriate semantic, and the cautiously-verbose `joinAndEmbedNever` function implements it for you. It is worth noting that this semantic was the *default* in Cats Effect 2 (and in fact, no other semantic was possible).
+
+Regardless of all of the above, `join` and `Outcome` give you enough flexibility to choose the appropriate response, regardless of your use-case.
