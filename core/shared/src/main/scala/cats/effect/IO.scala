@@ -624,6 +624,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   implicit def effectForIO: Effect[IO] = _effectForIO
 
+  implicit def unsafeRunForIO(implicit runtime: unsafe.IORuntime): unsafe.UnsafeRun[IO] =
+    runtime.unsafeRunForIO
+
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
     parallelForGenSpawn[IO, Throwable]
 
