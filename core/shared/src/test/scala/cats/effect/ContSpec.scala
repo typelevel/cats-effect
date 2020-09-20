@@ -28,10 +28,11 @@ class ContSpec extends BaseSpec { outer =>
   def realNoTimeout[A: AsResult](test: => IO[A]): Execution =
     Execution.withEnvAsync(_ => test.unsafeToFuture()(runtime()))
 
-  def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] =
+  def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
+    println(i)
     if (i == times) IO(success)
     else io >> execute(io, times, i + 1)
-
+  }
 
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   // various classcast exceptions and/or ByteStack going out of bound
@@ -57,4 +58,21 @@ class ContSpec extends BaseSpec { outer =>
     execute(test, 100)
   }
 
+  // canceling IO.never deadlocks
+  "focus" in realNoTimeout {
+    import kernel.Ref
+
+    def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
+      syncLatch.get.flatMap { switched =>
+        (IO.cede >> wait(syncLatch)).whenA(!switched)
+      }
+
+    val io = for {
+      latch <- Ref[IO].of(false)
+      fb <- (latch.set(true) >> IO.never).start
+      _ <- wait(latch) >> fb.cancel
+    } yield ()
+
+    execute(io, 100000)
+  }
 }
