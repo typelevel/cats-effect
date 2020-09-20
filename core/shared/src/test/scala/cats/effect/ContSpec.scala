@@ -60,18 +60,9 @@ class ContSpec extends BaseSpec { outer =>
 
   // canceling IO.never deadlocks
   "focus" in realNoTimeout {
-    import kernel.Ref
 
-    def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
-      syncLatch.get.flatMap { switched =>
-        (IO.cede >> wait(syncLatch)).whenA(!switched)
-      }
-
-    val io = for {
-      latch <- Ref[IO].of(false)
-      fb <- (latch.set(true) >> IO.never).start
-      _ <- wait(latch) >> fb.cancel
-    } yield ()
+    def never = IO.cont[Int].flatMap { case (get, resume) => get }
+    val io = never.start.flatMap(_.cancel)
 
     execute(io, 100000)
   }
