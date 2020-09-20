@@ -96,7 +96,7 @@ import scala.annotation.tailrec
  * @tparam F the effect type in which the resource is allocated and released
  * @tparam A the type of resource
  */
-sealed abstract class Resource[+F[_], +A] {
+sealed abstract class Resource[+F[_], +A] extends ResourceCompat[F, A] {
   import Resource.{Allocate, Bind, Suspend}
 
   private def fold[G[x] >: F[x], B](
@@ -137,44 +137,15 @@ sealed abstract class Resource[+F[_], +A] {
   }
 
   /**
-   * Allocates a resource and supplies it to the given function.
-   * The resource is released as soon as the resulting `F[B]` is
-   * completed, whether normally or as a raised error.
-   *
-   * @param f the function to apply to the allocated resource
-   * @return the result of applying [F] to
+   * Implementation of `use`, which is declared in [[ResourceCompat]]
    */
-  def use[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
+  protected def use_[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
     fold[G, B](f, identity)
 
   /**
-   * Allocates two resources concurrently, and combines their results in a tuple.
-   *
-   * The finalizers for the two resources are also run concurrently with each other,
-   * but within _each_ of the two resources, nested finalizers are run in the usual
-   * reverse order of acquisition.
-   *
-   * Note that `Resource` also comes with a `cats.Parallel` instance
-   * that offers more convenient access to the same functionality as
-   * `parZip`, for example via `parMapN`:
-   *
-   * {{{
-   *   def mkResource(name: String) = {
-   *     val acquire =
-   *       IO(scala.util.Random.nextInt(1000).millis).flatMap(IO.sleep) *>
-   *       IO(println(s"Acquiring $$name")).as(name)
-   *
-   *     val release = IO(println(s"Releasing $$name"))
-   *     Resource.make(acquire)(release)
-   *   }
-   *
-   *  val r = (mkResource("one"), mkResource("two"))
-   *             .parMapN((s1, s2) => s"I have \$s1 and \$s2")
-   *             .use(msg => IO(println(msg)))
-   * }}}
-   *
+   * Implementation of `parZip`, which is declared in [[ResourceCompat]]
    **/
-  def parZip[G[x] >: F[x]: Sync: Parallel, B](
+  protected def parZip_[G[x] >: F[x]: Sync: Parallel, B](
     that: Resource[G, B]
   ): Resource[G, (A, B)] = {
     type Update = (G[Unit] => G[Unit]) => G[Unit]
@@ -196,19 +167,15 @@ sealed abstract class Resource[+F[_], +A] {
   }
 
   /**
-   * Implementation for the `flatMap` operation, as described via the
-   * `cats.Monad` type class.
+   * Implementation of `flatMap`, which is declared in [[ResourceCompat]]
    */
-  def flatMap[G[x] >: F[x], B](f: A => Resource[G, B]): Resource[G, B] =
+  protected def flatMap_[G[x] >: F[x], B](f: A => Resource[G, B]): Resource[G, B] =
     Bind(this, f)
 
   /**
-   *  Given a mapping function, transforms the resource provided by
-   *  this Resource.
-   *
-   *  This is the standard `Functor.map`.
+   * Implementation of `map`, which is declared in [[ResourceCompat]]
    */
-  def map[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, B] =
+  protected def map_[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, B] =
     flatMap(a => Resource.pure[G, B](f(a)))
 
   @deprecated("Use the overload that doesn't require Bracket", "2.2.0")
@@ -248,29 +215,9 @@ sealed abstract class Resource[+F[_], +A] {
     }
 
   /**
-   * Given a `Resource`, possibly built by composing multiple
-   * `Resource`s monadically, returns the acquired resource, as well
-   * as an action that runs all the finalizers for releasing it.
-   *
-   * If the outer `F` fails or is interrupted, `allocated` guarantees
-   * that the finalizers will be called. However, if the outer `F`
-   * succeeds, it's up to the user to ensure the returned `F[Unit]`
-   * is called once `A` needs to be released. If the returned
-   * `F[Unit]` is not called, the finalizers will not be run.
-   *
-   * For this reason, this is an advanced and potentially unsafe api
-   * which can cause a resource leak if not used correctly, please
-   * prefer [[use]] as the standard way of running a `Resource`
-   * program.
-   *
-   * Use cases include interacting with side-effectful apis that
-   * expect separate acquire and release actions (like the `before`
-   * and `after` methods of many test frameworks), or complex library
-   * code that needs to modify or move the finalizer for an existing
-   * resource.
-   *
+   * Implementation of `allocated`, which is declared in [[ResourceCompat]]
    */
-  def allocated[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
+  protected def allocated_[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
     // Indirection for calling `loop` needed because `loop` must be @tailrec
     def continue(current: Resource[G, Any], stack: List[Any => Resource[G, Any]], release: G[Unit]): G[(Any, G[Unit])] =
       loop(current, stack, release)
@@ -316,17 +263,15 @@ sealed abstract class Resource[+F[_], +A] {
   }
 
   /**
-   * Applies an effectful transformation to the allocated resource. Like a
-   * `flatMap` on `F[A]` while maintaining the resource context
+   * Implementation of `evalMap`, which is declared in [[ResourceCompat]]
    */
-  def evalMap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
+  protected def evalMap_[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
     this.flatMap(a => Resource.liftF(f(a)))
 
   /**
-   * Applies an effectful transformation to the allocated resource. Like a
-   * `flatTap` on `F[A]` while maintaining the resource context
+   * Implementation of `evalTap`, which is declared in [[ResourceCompat]]
    */
-  def evalTap[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, A] =
+  protected def evalTap_[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, A] =
     this.evalMap(a => f(a).as(a))
 
   /**
