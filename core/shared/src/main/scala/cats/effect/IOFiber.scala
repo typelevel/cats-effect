@@ -646,13 +646,13 @@ private final class IOFiber[A](
               //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               if (resume("callback")) { // is this necessary to publish writes?
                 if (!shouldFinalize()) {
-                //  println(s"callback taking over on fiber $name")
+                  println(s"callback taking over on fiber $name")
                   asyncContinue(e, "callback")
-                }
+                } else println("something wrong, location A")
               } else if (!shouldFinalize()) {
 //                println(s"callback recurring on fiber $name")
                 loop()
-              } // else println("something wrong")
+              }  else println("something wrong, location B")
             }
 
             val resultState = ContState.Result(e)

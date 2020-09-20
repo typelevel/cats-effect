@@ -29,7 +29,7 @@ class ContSpec extends BaseSpec { outer =>
     Execution.withEnvAsync(_ => test.unsafeToFuture()(runtime()))
 
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
-//    println(i)
+    println(i)
     if (i == times) IO(success)
     else io >> execute(io, times, i + 1)
   }
