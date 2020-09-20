@@ -95,3 +95,7 @@ options:
   - title: Tracing
     url: tracing/
     menu_section: tracing
+
+  - title: Testing
+    url: testing/
+    menu_section: testing
