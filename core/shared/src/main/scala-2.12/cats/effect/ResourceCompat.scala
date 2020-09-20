@@ -18,7 +18,7 @@ package cats.effect
 
 import cats._
 
-private[effect] abstract class ResourceCompat[+F[_], +A] {
+abstract private[effect] class ResourceCompat[+F[_], +A] {
   self: Resource[F, A] =>
 
   /**
