@@ -53,7 +53,7 @@ class HomeSplash extends React.Component {
 
         return (
             <SplashContainer>
-                <Logo img_src={`${baseUrl}img/cats-effect-logo.png`} />
+                <Logo img_src={`${baseUrl}img/cats-effect-logo.svg`} />
                 <div className="inner">
                     <ProjectTitle tagline={siteConfig.tagline} title={siteConfig.title} />
                     <code className="hljs css language-sbt">

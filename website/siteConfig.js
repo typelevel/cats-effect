@@ -3,7 +3,7 @@
 
 const siteConfig = {
   title: 'Cats Effect', // Title for your website.
-  tagline: 'The purely functional runtime system for Scala',
+  tagline: 'The purely functional runtime for Scala',
   url: 'https://typelevel.org', // Your website URL
   baseUrl: '/cats-effect/',
   repoUrl: 'https://github.com/typelevel/cats-effect',
@@ -22,8 +22,8 @@ const siteConfig = {
   ],
 
   /* path to images for header/footer */
-  headerIcon: 'img/favicon.png',
-  footerIcon: 'img/favicon.png',
+  headerIcon: 'img/cats-effect-logo.svg',
+  footerIcon: 'img/cats-effect-logo.svg',
   favicon: 'img/favicon.png',
 
   /* Colors for website */
