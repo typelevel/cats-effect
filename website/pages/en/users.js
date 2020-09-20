@@ -58,8 +58,9 @@ function Users(props) {
           </header>
 
           <p>
-            Many companies and organizations in the industry rely on the Cats Effect ecosystem.
-            If you do not see yours in the list, feel free to open an issue or PR to add it!
+            Cats Effect has been deployed at scale for years by countless companies covering nearly
+            every segment of the industry. If your company is using Cats Effect and you don't see it
+            listed here, feel free to open an issue (or a pull request!) to add it!
           </p>
 
           <ul>
