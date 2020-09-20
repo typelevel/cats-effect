@@ -136,13 +136,13 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   }
 
   /**
-   * Implementation of `use`, which is declared in [[ResourceLike]]
+   * Implementation of `use`, which is declared in `ResourceLike`
    */
   protected def use_[G[x] >: F[x], B](f: A => G[B])(implicit F: Bracket[G, Throwable]): G[B] =
     fold[G, B](f, identity)
 
   /**
-   * Implementation of `parZip`, which is declared in [[ResourceLike]]
+   * Implementation of `parZip`, which is declared in `ResourceLike`
    **/
   protected def parZip_[G[x] >: F[x]: Sync: Parallel, B](
     that: Resource[G, B]
@@ -166,13 +166,13 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   }
 
   /**
-   * Implementation of `flatMap`, which is declared in [[ResourceLike]]
+   * Implementation of `flatMap`, which is declared in `ResourceLike`
    */
   protected def flatMap_[G[x] >: F[x], B](f: A => Resource[G, B]): Resource[G, B] =
     Bind(this, f)
 
   /**
-   * Implementation of `map`, which is declared in [[ResourceLike]]
+   * Implementation of `map`, which is declared in `ResourceLike`
    */
   protected def map_[G[x] >: F[x], B](f: A => B)(implicit F: Applicative[G]): Resource[G, B] =
     flatMap(a => Resource.pure[G, B](f(a)))
@@ -214,7 +214,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
     }
 
   /**
-   * Implementation of `allocated`, which is declared in [[ResourceLike]]
+   * Implementation of `allocated`, which is declared in `ResourceLike`
    */
   protected def allocated_[G[x] >: F[x], B >: A](implicit F: Bracket[G, Throwable]): G[(B, G[Unit])] = {
     sealed trait Stack[AA]
@@ -254,13 +254,13 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
   }
 
   /**
-   * Implementation of `evalMap`, which is declared in [[ResourceLike]]
+   * Implementation of `evalMap`, which is declared in `ResourceLike`
    */
   protected def evalMap_[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, B] =
     this.flatMap(a => Resource.liftF(f(a)))
 
   /**
-   * Implementation of `evalTap`, which is declared in [[ResourceLike]]
+   * Implementation of `evalTap`, which is declared in `ResourceLike`
    */
   protected def evalTap_[G[x] >: F[x], B](f: A => G[B])(implicit F: Applicative[G]): Resource[G, A] =
     this.evalMap(a => f(a).as(a))
