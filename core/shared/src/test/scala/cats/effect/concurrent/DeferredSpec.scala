@@ -22,50 +22,33 @@ import cats.syntax.all._
 
 import scala.concurrent.duration._
 
-import org.specs2.specification.core.Execution
-import org.specs2.execute._
-
 class DeferredSpec extends BaseSpec { outer =>
 
   sequential
 
-  def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] =
-    if (i == times) IO(success)
-    else io >> execute(io, times, i + 1)
-
-  val iterations = 100000
-
-  def realNoTimeout[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => test.unsafeToFuture()(runtime()))
-
-
   "Deferred" >> {
 
-    "complete" in realNoTimeout {
+    "complete" in real {
       val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.get }
 
-      val test = op.flatMap { res =>
+      op.flatMap { res =>
         IO {
           res must beEqualTo(0)
         }
       }
-
-      execute(test, iterations)
     }
 
-    "complete is only successful once" in realNoTimeout {
+    "complete is only successful once" in real {
       val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
 
-      val test = op.flatMap { res =>
+      op.flatMap { res =>
         IO {
           res must beEqualTo((false, 0))
         }
       }
-
-      execute(test, iterations)
     }
 
-    "get blocks until set" in realNoTimeout {
+    "get blocks until set" in real {
       val op = for {
         state <- Ref[IO].of(0)
         modifyGate <- Deferred[IO, Unit]
@@ -76,16 +59,14 @@ class DeferredSpec extends BaseSpec { outer =>
         res <- state.get
       } yield res
 
-      val test = op.flatMap { res =>
+      op.flatMap { res =>
         IO {
           res must beEqualTo(2)
         }
       }
-
-      execute(test, iterations)
     }
 
-    "concurrent - get - cancel before forcing" in realNoTimeout {
+    "concurrent - get - cancel before forcing" in real {
       def cancelBeforeForcing: IO[Option[Int]] =
         for {
           r <- Ref[IO].of(Option.empty[Int])
@@ -99,47 +80,41 @@ class DeferredSpec extends BaseSpec { outer =>
                 case _ => IO.raiseError(new RuntimeException)
               })
             .start
-          _ <- IO.sleep(10.millis)
+          _ <- IO.sleep(100.millis)
           _ <- p.complete(42)
-          _ <- IO.sleep(10.millis)
+          _ <- IO.sleep(100.millis)
           result <- r.get
         } yield result
 
-      val test = cancelBeforeForcing.flatMap { res =>
+      cancelBeforeForcing.flatMap { res =>
         IO {
           res must beNone
         }
       }
-
-      execute(test, 100)
     }
 
-    "tryGet returns None for unset Deferred" in realNoTimeout {
+    "tryGet returns None for unset Deferred" in real {
       val op = Deferred[IO, Unit].flatMap(_.tryGet)
 
-      val test = op.flatMap { res =>
+      op.flatMap { res =>
         IO {
           res must beNone
         }
       }
-
-      execute(test, iterations)
     }
 
-    "tryGet returns Some() for set Deferred" in realNoTimeout {
+    "tryGet returns Some() for set Deferred" in real {
       val op = for {
         d <- Deferred[IO, Unit]
         _ <- d.complete(())
         result <- d.tryGet
       } yield result
 
-      val test = op.flatMap { res =>
+      op.flatMap { res =>
         IO {
           res must beEqualTo(Some(()))
         }
       }
-
-      execute(test, iterations)
     }
 
     "issue #380: complete doesn't block, test #1" in real {
