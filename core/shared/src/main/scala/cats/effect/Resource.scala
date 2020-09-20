@@ -283,8 +283,7 @@ sealed abstract class Resource[+F[_], +A] extends ResourceLike[F, A] {
    * Converts this to an `InvariantResource` to facilitate pattern matches
    * that Scala 2 cannot otherwise handle correctly.
    */
-  private[effect] def invariant: Resource.InvariantResource[F0, A] =
-    throw new AssertionError("impossible - all subclasses inherit implementation from InvariantResource")
+  private[effect] def invariant: Resource.InvariantResource[F0, A]
 }
 
 object Resource extends ResourceInstances with ResourcePlatform {

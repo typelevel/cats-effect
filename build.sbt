@@ -180,7 +180,9 @@ val mimaSettings = Seq(
       exclude[DirectMissingMethodProblem]("cats.effect.Sync#ops.<clinit>"),
       exclude[DirectMissingMethodProblem]("cats.effect.Async#ops.<clinit>"),
       exclude[DirectMissingMethodProblem]("cats.effect.Effect#ops.<clinit>"),
-      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#ops.<clinit>")
+      exclude[DirectMissingMethodProblem]("cats.effect.ConcurrentEffect#ops.<clinit>"),
+      // abstract method defined in all subtypes of sealed abstract class
+      exclude[ReversedMissingMethodProblem]("cats.effect.Resource.invariant")
     )
   }
 )
