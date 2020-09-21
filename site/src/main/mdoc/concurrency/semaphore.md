@@ -60,7 +60,7 @@ Once `R2` was done `R1` started processing immediately showing no availability. 
 ```scala mdoc:reset:silent
 import cats.effect.{Concurrent, IO, Timer}
 import cats.effect.concurrent.Semaphore
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._

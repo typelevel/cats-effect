@@ -108,7 +108,7 @@ release resources. See this code:
 
 ```scala
 import cats.effect.{IO, Resource}
-import cats.implicits._ 
+import cats.syntax.all._ 
 import java.io._ 
 
 def inputStream(f: File): Resource[IO, FileInputStream] =
@@ -207,7 +207,7 @@ follows:
 
 ```scala
 import cats.effect.IO
-import cats.implicits._ 
+import cats.syntax.all._ 
 import java.io._ 
 
 // function inputOutputStreams not needed
@@ -260,7 +260,7 @@ the main loop, and leave the actual transmission of data to another function
 
 ```scala
 import cats.effect.IO
-import cats.implicits._ 
+import cats.syntax.all._ 
 import java.io._ 
 
 def transmit(origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): IO[Long] =
@@ -313,7 +313,7 @@ cancellation happens _while_ the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
 being closed by another thread. For more info about this problem see [Gotcha:
 Cancellation is a concurrent
-action](../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action) in
+action](../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action) in
 cats-effect site.
 
 To prevent such data corruption we must use some concurrency control mechanism
@@ -335,7 +335,7 @@ use `.acquire` and then `.release` on the semaphore explicitly, but
 the effect run fails.
 
 ```scala
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.{Concurrent, IO, Resource}
 import cats.effect.concurrent.Semaphore
 import java.io._
@@ -392,7 +392,7 @@ instances returned by `Resource.use`), the `IO` returned by `transfer` is not.
 Trying to cancel it will not have any effect and that `IO` will run until the
 whole file is copied! In real world code you will probably want to make your
 functions cancelable, section [Building cancelable IO
-tasks](../datatypes/io.html#building-cancelable-io-tasks) of `IO` documentation
+tasks](../datatypes/io.md#building-cancelable-io-tasks) of `IO` documentation
 explains how to create such cancelable `IO` instances (besides calling
 `Resource.use`, as we have done for our code).
 
@@ -421,7 +421,7 @@ method can look like this:
 
 ```scala
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import java.io.File
 
 object Main extends IOApp {
@@ -494,7 +494,7 @@ methods of the `Sync[F[_]]` instance!
 ```scala
 import cats.effect.Sync
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import java.io._
 
 def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] =
@@ -517,7 +517,7 @@ instantiation:
 import cats.effect._
 import cats.effect.concurrent.Semaphore
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import java.io._
 
 def transmit[F[_]: Sync](origin: InputStream, destination: OutputStream, buffer: Array[Byte], acc: Long): F[Long] = ???
@@ -612,7 +612,7 @@ in mind, the code looks like:
 
 ```scala
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import java.io._
 import java.net._
 
@@ -673,7 +673,7 @@ clients:
 import cats.effect._
 import cats.effect.syntax.all._
 import cats.effect.ExitCase._
-import cats.implicits._
+import cats.syntax.all._
 import java.net.{ServerSocket, Socket}
 
 // echoProtocol as defined before
@@ -746,7 +746,7 @@ which we can already do in the `run` method of an `IOApp`:
 
 ```scala
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import java.net.ServerSocket
 
 object Main extends IOApp {
@@ -854,7 +854,7 @@ the cancellation on its own fiber by running `.cancel.start`.
 import cats.effect._
 import cats.effect.syntax.all._
 import cats.effect.concurrent.MVar
-import cats.implicits._
+import cats.syntax.all._
 import java.net.ServerSocket
 
 // serve now requires access to the stopFlag, it will use it to signal the
@@ -876,7 +876,7 @@ We must also modify the main `run` method in `IOApp` so now it calls to `server`
 
 ```scala
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import java.net.ServerSocket
 
 object Main extends IOApp {
@@ -908,7 +908,7 @@ import cats.effect._
 import cats.effect.ExitCase._
 import cats.effect.concurrent.MVar
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import java.net._
 
 // echoProtocol now requires access to the stopFlag, it will use it to signal the
@@ -945,7 +945,7 @@ signal the server must be stopped, and the function will quit:
 import cats.effect._
 import cats.effect.concurrent.MVar
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import java.io._
 
 def loop[F[_]:Concurrent](reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
@@ -1004,7 +1004,7 @@ This is how the `serve` method will look like now with that change:
 import cats.effect._
 import cats.effect.ExitCase._
 import cats.effect.concurrent.MVar
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.syntax.all._
 import java.net._
 
@@ -1044,7 +1044,7 @@ taken; otherwise the error is raised:
 ```scala
 import cats.effect._
 import cats.effect.concurrent.MVar
-import cats.implicits._
+import cats.syntax.all._
 import java.io._
 
 def loop[F[_]: Sync](reader: BufferedReader, writer: BufferedWriter, stopFlag: MVar[F, Unit]): F[Unit] =
@@ -1078,7 +1078,7 @@ it will have a similar effect:
 import cats.effect._
 import cats.effect.ExitCase._
 import cats.effect.concurrent.MVar
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.syntax.all._
 import java.net._
 
@@ -1162,7 +1162,7 @@ task will be run in the default thread pool.
 
 ```scala
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 
 def doHeavyStuffInADifferentThreadPool[F[_]: ContextShift: Sync](implicit ec: ExecutionContext): F[Unit] =
@@ -1202,7 +1202,7 @@ shutting down the thread pool when the server finishes:
 import cats.effect._
 import cats.effect.concurrent.MVar
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import java.net.ServerSocket
 import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
@@ -1249,7 +1249,7 @@ console):
 ```scala
 import cats.effect._
 import cats.effect.syntax.all._
-import cats.implicits._
+import cats.syntax.all._
 import scala.util.Either
 
 def delayed[F[_]: Async]: F[Unit] = for {

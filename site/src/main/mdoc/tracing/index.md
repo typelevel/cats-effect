@@ -230,7 +230,7 @@ Here is a sample program that demonstrates tracing in action.
 // -Dcats.effect.stackTracingMode=full
 
 import cats.effect.tracing.PrintingOptions
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.{ExitCode, IO, IOApp}
 
 import scala.util.Random

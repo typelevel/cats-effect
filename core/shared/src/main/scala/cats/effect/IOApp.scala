@@ -38,7 +38,7 @@ import cats.effect.internals.{IOAppCompanionPlatform, IOAppPlatform}
  *
  * {{{
  * import cats.effect._
- * import cats.implicits._
+ * import cats.syntax.all._
  *
  * object MyApp extends IOApp {
  *   def run(args: List[String]): IO[ExitCode] =

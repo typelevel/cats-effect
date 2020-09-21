@@ -44,7 +44,7 @@ The workers will concurrently run and modify the value of the Ref so this is one
 ```scala mdoc:reset:silent
 import cats.effect.{IO, Sync}
 import cats.effect.concurrent.Ref
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 
 // Needed for triggering evaluation in parallel

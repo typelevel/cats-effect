@@ -524,7 +524,7 @@ object Concurrent {
    * kept in [[cats.effect.concurrent.Ref]] and thus needing `cancelableF`:
    *
    * {{{
-   *   import cats.implicits._
+   *   import cats.syntax.all._
    *   import cats.effect.{CancelToken, Concurrent}
    *   import cats.effect.concurrent.Ref
    *   import scala.collection.immutable.Queue

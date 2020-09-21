@@ -31,7 +31,7 @@ private[effect] trait ResourcePlatform {
    * {{{
    *   import java.security.KeyStore.PasswordProtection
    *   import cats.effect._
-   *   import cats.implicits._
+   *   import cats.syntax.all._
    *
    *   def passwordProtection[F[_]](getPassword: F[Array[Char]])(implicit F: Sync[F]): Resource[F, PasswordProtection] =
    *     Resource.fromDestroyable(
