@@ -21,7 +21,7 @@ package concurrent
 import cats.data.State
 import cats.syntax.all._
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class RefTests extends CatsEffectSuite {
@@ -34,70 +34,60 @@ class RefTests extends CatsEffectSuite {
   private def awaitEqual[A: Eq](t: IO[A], success: A): IO[Unit] =
     t.flatMap(a => if (Eq[A].eqv(a, success)) IO.unit else smallDelay *> awaitEqual(t, success))
 
-  private def run(t: IO[Unit]): Future[Unit] = t.as(assert(true)).unsafeToFuture()
-
   test("concurrent modifications") {
     val finalValue = 100
     val r = Ref.unsafe[IO, Int](0)
     val modifies = List.fill(finalValue)(IO.shift *> r.update(_ + 1)).parSequence
-    run(IO.shift *> modifies.start *> awaitEqual(r.get, finalValue))
+    (IO.shift *> modifies.start *> awaitEqual(r.get, finalValue)).as(assert(true))
   }
 
   test("getAndSet - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       getAndSetResult <- r.getAndSet(1)
       getResult <- r.get
-    } yield getAndSetResult == 0 && getResult == 1
-
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((getAndSetResult, getResult), (0, 1))
   }
 
   test("getAndUpdate - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       getAndUpdateResult <- r.getAndUpdate(_ + 1)
       getResult <- r.get
-    } yield getAndUpdateResult == 0 && getResult == 1
-
-    run(op.map(assertEquals(_, true)).void)
+    } yield ((getAndUpdateResult, getResult), (0, 1))
   }
 
   test("updateAndGet - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       updateAndGetResult <- r.updateAndGet(_ + 1)
       getResult <- r.get
-    } yield updateAndGetResult == 1 && getResult == 1
-
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((updateAndGetResult, getResult), (1, 1))
   }
 
   test("access - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       success <- setter(value + 1)
       result <- r.get
-    } yield success && result == 1
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((success, result), (true, 1))
   }
 
   test("access - setter should fail if value is modified before setter is called") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
       _ <- r.set(5)
       success <- setter(value + 1)
       result <- r.get
-    } yield !success && result == 5
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((success, result), (false, 5))
   }
 
   test("access - setter should fail if called twice") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       valueAndSetter <- r.access
       (value, setter) = valueAndSetter
@@ -105,120 +95,95 @@ class RefTests extends CatsEffectSuite {
       _ <- r.set(value)
       cond2 <- setter(value + 1)
       result <- r.get
-    } yield cond1 && !cond2 && result == 0
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((cond1, cond2, result), (true, false, 0))
   }
 
   test("tryUpdate - modification occurs successfully") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
       result <- r.tryUpdate(_ + 1)
       value <- r.get
-    } yield result && value == 1
-
-    run(op.map(assertEquals(_, true)).void)
+    } yield assertEquals((result, value), (true, 1))
   }
 
   test("tryUpdate - should fail to update if modification has occurred") {
     val updateRefUnsafely: Ref[IO, Int] => Unit = _.update(_ + 1).unsafeRunSync()
 
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.tryUpdate { currentValue =>
+      v <- r.tryUpdate { currentValue =>
         updateRefUnsafely(r)
         currentValue + 1
       }
-    } yield result
-
-    run(op.map(assertEquals(_, false)).void)
+    } yield assertEquals(v, false)
   }
 
   test("updateMaybe - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.updateMaybe(_ => Some(1))
-    } yield result
-
-    run(op.map(assertEquals(_, true)).void)
+      v <- r.updateMaybe(_ => Some(1))
+    } yield assertEquals(v, true)
   }
 
   test("updateMaybe - short-circuit") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.updateMaybe(_ => None)
-    } yield result
-
-    run(op.map(assertEquals(_, false)).void)
+      v <- r.updateMaybe(_ => None)
+    } yield assertEquals(v, false)
   }
   test("modifyMaybe - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.modifyMaybe(_ => Some((1, 2)))
-    } yield result
-
-    run(op.map(assertEquals(_, Some(2))).void)
+      v <- r.modifyMaybe(_ => Some((1, 2)))
+    } yield assertEquals(v, Some(2))
   }
 
   test("modifyMaybe - short-circuit") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.modifyMaybe(_ => None)
-    } yield result
-
-    run(op.map(assertEquals(_, None)).void)
+      v <- r.modifyMaybe(_ => None)
+    } yield assertEquals(v, None)
   }
 
   test("updateOr - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.updateOr(_ => Right(1))
-    } yield result
-
-    run(op.map(assertEquals(_, None)).void)
+      v <- r.updateOr(_ => Right(1))
+    } yield assertEquals(v, None)
   }
 
   test("updateOr - short-circuit") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.updateOr(_ => Left("fail"))
-    } yield result
-
-    run(op.map(assertEquals(_, Some("fail"))).void)
+      v <- r.updateOr(_ => Left("fail"))
+    } yield assertEquals(v, Some("fail"))
   }
 
   test("modifyOr - successful") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.modifyOr(_ => Right((1, "success")))
-    } yield result
-
-    run(op.map(assertEquals(_, Right("success"))).void)
+      v <- r.modifyOr(_ => Right((1, "success")))
+    } yield assertEquals(v, Right("success"))
   }
 
   test("modifyOr - short-circuit") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.modifyOr(_ => Left("fail"))
-    } yield result
-
-    run(op.map(assertEquals(_, Left("fail"))).void)
+      v <- r.modifyOr(_ => Left("fail"))
+    } yield assertEquals(v, Left("fail"))
   }
 
   test("tryModifyState - modification occurs successfully") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.tryModifyState(State.pure(1))
-    } yield result.contains(1)
-
-    run(op.map(assertEquals(_, true)).void)
+      v <- r.tryModifyState(State.pure(1))
+    } yield assert(v.contains(1))
   }
 
   test("modifyState - modification occurs successfully") {
-    val op = for {
+    for {
       r <- Ref[IO].of(0)
-      result <- r.modifyState(State.pure(1))
-    } yield result == 1
-
-    run(op.map(assertEquals(_, true)).void)
+      v <- r.modifyState(State.pure(1))
+    } yield assertEquals(v, 1)
   }
 }

@@ -28,18 +28,15 @@ class ContinualHangingTest extends CatsEffectSuite {
     implicit val executionContext = ExecutionContext.global
     implicit val cs: ContextShift[IO] = IO.contextShift(executionContext)
 
-    val task =
-      Deferred[IO, Unit]
-        .flatMap { started =>
-          (started.complete(()) *> IO.never: IO[Unit])
-            .continual(_ => IO.unit)
-            .start
-            .flatMap(started.get *> _.cancel)
-        }
-        .replicateA(10000)
-        .as(true)
-
-    task.unsafeToFuture().map(assertEquals(_, true))
+    Deferred[IO, Unit]
+      .flatMap { started =>
+        (started.complete(()) *> IO.never: IO[Unit])
+          .continual(_ => IO.unit)
+          .start
+          .flatMap(started.get *> _.cancel)
+      }
+      .replicateA(10000)
+      .as(assert(true))
   }
 }
 

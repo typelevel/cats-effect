@@ -33,29 +33,24 @@ class DeferredTests extends CatsEffectSuite {
 
   def tests(label: String, pc: DeferredConstructor): Unit = {
     test(s"$label - complete") {
-      pc[Int]
-        .flatMap { p =>
-          p.complete(0) *> p.get
-        }
-        .unsafeToFuture()
-        .map(assertEquals(_, 0))
+      for {
+        p <- pc[Int]
+        _ <- p.complete(0)
+        v <- p.get
+      } yield assertEquals(v, 0)
     }
 
     test(s"$label - complete is only successful once") {
-      pc[Int]
-        .flatMap { p =>
-          (p.complete(0) *> p.complete(1).attempt).product(p.get)
-        }
-        .unsafeToFuture()
-        .map {
-          case (err, value) =>
-            assert(err.swap.toOption.get.isInstanceOf[IllegalStateException])
-            assertEquals(value, 0)
-        }
+      for {
+        p <- pc[Int]
+        _ <- p.complete(0)
+        err <- p.complete(1).attempt
+        v <- p.get
+      } yield assert(err.swap.toOption.get.isInstanceOf[IllegalStateException]) && assertEquals(v, 0)
     }
 
     test(s"$label - get blocks until set") {
-      val op = for {
+      for {
         state <- Ref[IO].of(0)
         modifyGate <- pc[Unit]
         readGate <- pc[Unit]
@@ -63,24 +58,24 @@ class DeferredTests extends CatsEffectSuite {
         _ <- IO.shift *> (state.set(1) *> modifyGate.complete(())).start
         _ <- readGate.get
         res <- state.get
-      } yield res
-      op.unsafeToFuture().map(assertEquals(_, 2))
+      } yield assertEquals(res, 2)
     }
   }
 
   def tryableTests(label: String, pc: TryableDeferredConstructor): Unit = {
     test(s"$label - tryGet returns None for unset Deferred") {
-      pc[Unit].flatMap(_.tryGet).unsafeToFuture().map(assertEquals(_, None))
+      for {
+        p <- pc[Unit]
+        v <- p.tryGet
+      } yield assertEquals(v, None)
     }
 
     test(s"$label - tryGet returns Some() for set Deferred") {
-      val op = for {
+      for {
         d <- pc[Unit]
         _ <- d.complete(())
         result <- d.tryGet
       } yield assertEquals(result, Some(()))
-
-      op.unsafeToFuture()
     }
   }
 
@@ -92,21 +87,18 @@ class DeferredTests extends CatsEffectSuite {
   tryableTests("concurrentTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
   tryableTests("asyncTryable", new TryableDeferredConstructor { def apply[A] = Deferred.tryableUncancelable[IO, A] })
 
-  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
+  test("concurrent - get - cancel before forcing") {
     for {
       r <- Ref[IO].of(Option.empty[Int])
-      p <- pc
+      p <- Deferred[IO, Int]
       fiber <- p.get.start
       _ <- fiber.cancel
       _ <- (IO.shift *> fiber.join.flatMap(i => r.set(Some(i)))).start
       _ <- timer.sleep(100.millis)
       _ <- p.complete(42)
       _ <- timer.sleep(100.millis)
-      result <- r.get
-    } yield result
-
-  test("concurrent - get - cancel before forcing") {
-    cancelBeforeForcing(Deferred.apply).unsafeToFuture().map(assertEquals(_, None))
+      v <- r.get
+    } yield assertEquals(v, None)
   }
 
   test("issue #380: complete doesn't block, test #1") {
@@ -131,7 +123,7 @@ class DeferredTests extends CatsEffectSuite {
       }
     }
 
-    execute(100).unsafeToFuture()
+    execute(100)
   }
 
   test("issue #380: complete doesn't block, test #2") {
@@ -152,6 +144,6 @@ class DeferredTests extends CatsEffectSuite {
       }
     }
 
-    execute(100).unsafeToFuture()
+    execute(100)
   }
 }

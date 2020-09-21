@@ -30,9 +30,7 @@ class IOJSTests extends CatsEffectSuite {
     }
 
   test("unsafeToFuture works") {
-    delayed(100.millis)(10).unsafeToFuture().map { r =>
-      assertEquals(r, 10)
-    }
+    delayed(100.millis)(10).unsafeToFuture().map(assertEquals(_, 10))
   }
 
   test("unsafeRunSync is unsupported for async stuff") {

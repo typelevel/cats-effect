@@ -31,6 +31,9 @@ import org.scalacheck.Prop
 trait CatsEffectSuite extends DisciplineSuite with TestUtils {
   implicit protected val munitLocation: Location = implicitly
 
+  override def munitValueTransforms: List[ValueTransform] =
+    super.munitValueTransforms :+ new ValueTransform("IO", { case io: IO[_] => io.unsafeToFuture() })
+
   // Exists in order to maintain source compatibility, otherwise delegates to the munit `test` method with
   // suppressed `System.err`.
   def test(name: String)(body: => Any): Unit =
