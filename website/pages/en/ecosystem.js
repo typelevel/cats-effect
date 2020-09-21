@@ -63,9 +63,7 @@ function Ecosystem(props) {
     ));
     return (
       <section key={i}>
-        <header className="postHeader">
-          <h2>{section.name}</h2>
-        </header>
+        <h2>{section.name}</h2>
         <ul>
           {renderProjects}
         </ul>
