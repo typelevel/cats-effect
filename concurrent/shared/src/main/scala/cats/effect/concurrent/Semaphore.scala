@@ -163,20 +163,17 @@ object Semaphore {
         else {
           mkGate.flatMap { gate =>
             state
-              .modify { old =>
-                val u = old match {
-                  case Left(waiting) => Left(waiting :+ Request(n, gate))
-                  case Right(m) =>
-                    if (n <= m) {
-                      Right(m - n)
-                    } else {
-                      Left(Queue(Request(n - m, gate)))
-                    }
-                }
-                (u, u)
+              .updateAndGet {
+                case Left(waiting) => Left(waiting :+ Request(n, gate))
+                case Right(m) =>
+                  if (n <= m) {
+                    Right(m - n)
+                  } else {
+                    Left(Queue(Request(n - m, gate)))
+                  }
               }
               .map {
-                case Left(waiting) =>
+                case Left(_) =>
                   val cleanup = state.modify {
                     case Left(waiting) =>
                       waiting.find(_.gate eq gate).map(_.n) match {
@@ -187,13 +184,7 @@ object Semaphore {
                     case Right(m) => (Right(m + n), F.unit)
                   }.flatten
 
-                  val entry =
-                    waiting
-                      .lastOption
-                      .getOrElse(
-                        sys.error("Semaphore has empty waiting queue rather than 0 count"))
-
-                  Promise(entry.gate.get, cleanup)
+                  Promise(gate.get, cleanup)
 
                 case Right(_) => Promise(F.unit, releaseN(n))
               }
@@ -205,12 +196,9 @@ object Semaphore {
       assertNonNegative[F](n) *> {
         if (n == 0) F.pure(true)
         else
-          state.modify { old =>
-            val (newState, result) = old match {
-              case Right(m) if m >= n => (Right(m - n), true)
-              case _ => (old, false)
-            }
-            (newState, result)
+          state.modify {
+            case Right(m) if m >= n => (Right(m - n), true)
+            case other => (other, false)
           }
       }
 
@@ -243,19 +231,15 @@ object Semaphore {
               (u, (old, u))
             }
             .flatMap {
-              case (previous, now) =>
+              case (Left(waiting), now) =>
                 // invariant: count_(now) == count_(previous) + n
-                previous match {
-                  case Left(waiting) =>
-                    // now compare old and new sizes to figure out which actions to run
-                    val newSize = now match {
-                      case Left(w) => w.size
-                      case Right(_) => 0
-                    }
-                    val released = waiting.size - newSize
-                    waiting.take(released).foldRight(F.unit) { (hd, tl) => open(hd.gate) *> tl }
-                  case Right(_) => F.unit
+                // now compare old and new sizes to figure out which actions to run
+                val newSize = now match {
+                  case Left(w) => w.size
+                  case Right(_) => 0
                 }
+                waiting.dropRight(newSize).traverse(request => open(request.gate)).void
+              case (Right(_), _) => F.unit
             }
       }
 
