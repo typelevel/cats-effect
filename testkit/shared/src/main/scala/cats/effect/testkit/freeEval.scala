@@ -19,7 +19,7 @@ package cats.effect.testkit
 import cats.{Eq, Eval, Monad, MonadError}
 import cats.effect.kernel._
 import cats.free.FreeT
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 

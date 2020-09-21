@@ -20,7 +20,7 @@ import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
 import cats.effect.laws.EffectTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop, Prop.forAll
 

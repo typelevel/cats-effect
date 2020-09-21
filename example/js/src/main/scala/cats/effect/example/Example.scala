@@ -17,7 +17,7 @@
 package cats.effect
 package example
 
-import cats.implicits._
+import cats.syntax.all._
 
 object Example extends IOApp {
 

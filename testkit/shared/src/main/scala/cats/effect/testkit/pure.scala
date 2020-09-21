@@ -20,7 +20,7 @@ import cats.{~>, Eq, Functor, Id, Monad, MonadError, Order, Show}
 import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
-import cats.implicits._
+import cats.syntax.all._
 import coop.{ApplicativeThread, MVar, ThreadT}
 
 object pure {

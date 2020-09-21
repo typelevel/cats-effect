@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._
 import cats.effect.testkit.pure._
 import cats.effect.testkit.TimeT

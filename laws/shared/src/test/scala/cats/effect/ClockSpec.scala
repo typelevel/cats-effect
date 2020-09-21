@@ -19,7 +19,7 @@ package cats.effect
 import cats.data.ContT
 import cats.{Eq, Show}
 import cats.effect.testkit.{freeEval, FreeSyncGenerators}, freeEval._
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws.discipline.arbitrary._
 import cats.effect.laws.ClockTests
 

@@ -18,7 +18,7 @@ package cats.effect.testkit
 
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 import cats.effect.kernel._
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 

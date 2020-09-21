@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.implicits._
+import cats.syntax.all._
 
 import org.specs2.mutable.Specification
 
