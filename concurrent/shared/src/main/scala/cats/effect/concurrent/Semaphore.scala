@@ -135,6 +135,8 @@ object Semaphore {
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[Request[F]], Long]
 
+  private final case class Promise[F[_]](await: F[Unit], release: F[Unit])
+
   abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Spawn[F])
       extends Semaphore[F] {
     protected def mkGate: F[Deferred[F, Unit]]
@@ -150,14 +152,14 @@ object Semaphore {
       }
 
     def acquireN(n: Long): F[Unit] =
-      F.bracketCase(acquireNInternal(n)) { case (g, _) => g } {
-        case ((_, c), Outcome.Canceled()) => c
+      F.bracketCase(acquireNInternal(n))(_.await) {
+        case (promise, Outcome.Canceled()) => promise.release
         case _ => F.unit
       }
 
-    def acquireNInternal(n: Long): F[(F[Unit], F[Unit])] =
+    def acquireNInternal(n: Long): F[Promise[F]] =
       assertNonNegative[F](n) *> {
-        if (n == 0) F.pure((F.unit, F.unit))
+        if (n == 0) F.pure(Promise(F.unit, F.unit))
         else {
           mkGate.flatMap { gate =>
             state
@@ -191,9 +193,9 @@ object Semaphore {
                       .getOrElse(
                         sys.error("Semaphore has empty waiting queue rather than 0 count"))
 
-                  entry.gate.get -> cleanup
+                  Promise(entry.gate.get, cleanup)
 
-                case Right(_) => F.unit -> releaseN(n)
+                case Right(_) => Promise(F.unit, releaseN(n))
               }
           }
         }
@@ -264,7 +266,7 @@ object Semaphore {
       }
 
     def withPermit[A](t: F[A]): F[A] =
-      F.bracket(acquireNInternal(1)) { case (g, _) => g *> t } { case (_, c) => c }
+      F.bracket(acquireNInternal(1))(_.await *> t)(_.release)
   }
 
   final private class AsyncSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Concurrent[F])
