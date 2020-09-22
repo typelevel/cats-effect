@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Clock
-import cats.implicits._
+import cats.syntax.all._
 import cats.laws.ApplicativeLaws
 
 trait ClockLaws[F[_]] extends ApplicativeLaws[F] {

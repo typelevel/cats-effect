@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats._
 import cats.data.AndThen
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.kernel.implicits._
 
 import scala.annotation.tailrec

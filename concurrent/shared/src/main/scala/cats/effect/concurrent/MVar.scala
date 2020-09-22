@@ -18,7 +18,7 @@ package cats.effect
 package concurrent
 
 import cats.~>
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.kernel.{Async, Fiber, Sync}
 
 import scala.annotation.tailrec

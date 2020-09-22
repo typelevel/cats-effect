@@ -18,7 +18,7 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Async
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Left, Right}

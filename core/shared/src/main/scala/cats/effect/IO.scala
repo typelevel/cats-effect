@@ -28,7 +28,7 @@ import cats.{
   Show,
   StackSafeMonad
 }
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
 

@@ -17,7 +17,7 @@
 package cats.effect
 
 import cats.effect.unsafe.WorkStealingThreadPool
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
 import scala.concurrent.ExecutionContext

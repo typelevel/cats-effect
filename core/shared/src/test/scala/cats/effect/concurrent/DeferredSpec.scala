@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 

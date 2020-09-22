@@ -19,7 +19,6 @@ package cats.effect
 import cats.data._
 import cats.{Eq, FlatMap, Monad, MonadError}
 import cats.effect.testkit.freeEval._
-import cats.implicits._
 
 import org.scalacheck.{Arbitrary, Gen, Prop}
 
