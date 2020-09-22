@@ -105,6 +105,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
           }
       }
     }
+
+  def background[A](fa: F[A]): Resource[F, F[Outcome[F, E, A]]] =
+    Resource.make(start(fa))(_.cancel)(this).map(_.join)(this)
 }
 
 object GenSpawn {

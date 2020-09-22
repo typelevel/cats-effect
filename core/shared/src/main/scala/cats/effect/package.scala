@@ -73,4 +73,5 @@ package object effect {
 
   type OutcomeIO[A] = Outcome[IO, Throwable, A]
   type FiberIO[A] = Fiber[IO, Throwable, A]
+  type ResourceIO[A] = Resource[IO, A]
 }
