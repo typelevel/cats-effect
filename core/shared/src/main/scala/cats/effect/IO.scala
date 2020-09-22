@@ -307,7 +307,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def void: IO[Unit] =
     map(_ => ())
 
-  //override def toString: String = "IO(...)"
+  override def toString: String = "IO(...)"
 
   // unsafe stuff
 
