@@ -26,7 +26,7 @@ final class IOFiberConstants {
   public static final byte FlatMapK = 1;
   public static final byte CancelationLoopK = 2;
   public static final byte RunTerminusK = 3;
-  public static final byte AsyncK = 4;
+  // TODO reassign tags after AsyncK removal
   public static final byte EvalOnK = 5;
   public static final byte HandleErrorWithK = 6;
   public static final byte OnCancelK = 7;

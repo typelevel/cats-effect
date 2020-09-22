@@ -243,7 +243,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case IO.Delay(thunk) => F.delay(thunk())
         case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
         case IO.Error(t) => F.raiseError(t)
-        case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
 
         case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
         case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
@@ -664,13 +663,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
-
-  private[effect] final case class Async[+A](
-      k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]])
-      extends IO[A] {
-
-    def tag = 4
-  }
 
   private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 5 }
 
