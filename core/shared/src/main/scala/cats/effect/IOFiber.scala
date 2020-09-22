@@ -247,7 +247,7 @@ private final class IOFiber[A](
   }
 
   private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
-    //       println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
     finalizing = true
 
     if (!finalizers.isEmpty()) {
@@ -258,7 +258,7 @@ private final class IOFiber[A](
 
       // suppress all subsequent cancelation on this fiber
       masks += 1
-      //    println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
+      // println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
       runLoop(finalizers.pop(), 0)
     } else {
       if (cb != null)
