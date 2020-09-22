@@ -45,7 +45,7 @@ something like this:
 
 ```scala mdoc:reset:silent
 import cats.effect._
-import cats.implicits._
+import cats.syntax.all._
 
 def fib[F[_]](n: Int, a: Long = 0, b: Long = 1)
   (implicit F: Sync[F], cs: ContextShift[F]): F[Long] = {

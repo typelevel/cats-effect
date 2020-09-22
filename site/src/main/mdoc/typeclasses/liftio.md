@@ -43,7 +43,6 @@ A more interesting example:
 
 ```scala mdoc:silent
 import cats.data.EitherT
-import cats.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 

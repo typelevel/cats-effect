@@ -13,13 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package cats.effect.benchmarks
 
-import java.util.concurrent.TimeUnit
 import cats.effect.{ContextShift, IO}
-import cats.implicits._
-import org.openjdk.jmh.annotations._
+import cats.syntax.all._
+
 import scala.concurrent.ExecutionContext.Implicits
+
+import java.util.concurrent.TimeUnit
+import org.openjdk.jmh.annotations._
 
 /**
  * To do comparative benchmarks between versions:

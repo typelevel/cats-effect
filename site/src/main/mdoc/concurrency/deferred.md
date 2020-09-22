@@ -47,7 +47,7 @@ Two processes will try to complete at the same time but only one will succeed, c
 ```scala mdoc:reset:silent
 import cats.effect.IO
 import cats.effect.concurrent.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import scala.concurrent.ExecutionContext
 
 // Needed for `start` or `Concurrent[IO]` and therefore `parSequence`
