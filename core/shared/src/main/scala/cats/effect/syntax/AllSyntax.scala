@@ -25,4 +25,3 @@ trait AllSyntax
     with kernel.syntax.SyncEffectSyntax
     with kernel.syntax.EffectSyntax
     with unsafe.syntax.UnsafeRunSyntax
-

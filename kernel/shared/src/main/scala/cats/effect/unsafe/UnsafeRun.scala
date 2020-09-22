@@ -34,7 +34,7 @@ trait UnsafeRun[F[_]] {
     val (fut, cancel) = unsafeRunFutureCancelable(fa)
     try Await.result(fut, timeout)
     catch {
-      case t: TimeoutException => 
+      case t: TimeoutException =>
         cancel()
         throw t
     }
