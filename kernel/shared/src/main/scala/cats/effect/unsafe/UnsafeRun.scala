@@ -16,7 +16,7 @@
 
 package cats.effect.unsafe
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, TimeoutException}
 import scala.concurrent.duration.Duration
 
 trait UnsafeRun[F[_]] {
@@ -30,6 +30,13 @@ trait UnsafeRun[F[_]] {
   def unsafeRunSync[A](fa: F[A]): A =
     unsafeRunTimed(fa, Duration.Inf)
 
-  def unsafeRunTimed[A](fa: F[A], timeout: Duration): A =
-    Await.result(unsafeRunFutureCancelable(fa)._1, timeout)
+  def unsafeRunTimed[A](fa: F[A], timeout: Duration): A = {
+    val (fut, cancel) = unsafeRunFutureCancelable(fa)
+    try Await.result(fut, timeout)
+    catch {
+      case t: TimeoutException => 
+        cancel()
+        throw t
+    }
+  }
 }
