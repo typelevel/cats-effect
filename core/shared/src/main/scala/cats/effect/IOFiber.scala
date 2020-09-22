@@ -634,18 +634,57 @@ private final class IOFiber[A](
           runLoop(cur.ioa, nextIteration)
 
         // Cont TODO rename
-        case 21 =>
+            case 21 =>
+            /*
+             *`get` and `cb` (callback) race over the runloop.
+             * If `cb` finishes after `get`, and `get` just
+             * terminates by suspending, and `cb` will resume
+             * the runloop via `asyncContinue`.
+             *
+             * If `get` wins, it gets the result from the `state`
+             * `AtomicRef` and it continues, while the callback just
+             * terminates (`stateLoop`, when `tag == 3`)
+             *
+             * The two sides communicate with each other through
+             * `state` to know who should take over, and through
+             * `suspended` (which is manipulated via suspend and
+             * resume), to negotiate ownership of the runloop.
+             *
+             * In case of interruption, neither side will continue,
+             * and they will negotiate ownership with `decide who
+             * should run the finalisers (i.e. call `asyncCancel`).
+             *
+             */
           val state = new AtomicReference[ContState](ContState.Initial)
 
           val cb: Either[Throwable, A] => Unit = { e =>
-            // should I do any checks on the old finalisation state like in async?
+            /*
+             * We *need* to own the runloop when we return, so we CAS loop
+             * on `suspended` (via `resume`) to break the race condition where
+             * `state` has been set by `get, `but `suspend()` has not yet run. If `state` is
+             * set then `suspend()` should be right behind it *unless* we
+             * have been canceled.
+             *
+             * TODO potentiall update this comment once the 3-way race on `resume` is fully understood.
+             * If we were canceled, then some other
+             * fiber is taking care of our finalizers and will have
+             * marked `suspended` as false, meaning that `canceled` will be set
+             * to true. Either way, we won't own the runloop.
+             */
             @tailrec
             def loop(): Unit = {
               //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               if (resume()) {
                 if (!shouldFinalize()) {
+                  // we weren't cancelled, so resume the runloop
                   asyncContinue(e)
                 } else {
+                  // TODO can this condition actually happen in a
+                  // problematic way given the communication via
+                  // `suspend`? we know it can happen in `get` but there
+                  // is no suspension in that path.
+                  // actually this can happen since there is a race on resume
+                  // well I need to double check about propagation of canceled = true tbh
                   asyncCancel(null)
                 }
               } else if (!shouldFinalize()) {
@@ -657,10 +696,19 @@ private final class IOFiber[A](
 
             /*
              * CAS loop to update the Cont state machine:
+             * 0 - Initial
+             * 1 - (Get) Waiting
+             * 2 - (Cb) Result
+             *
              * If state is Initial or Waiting, update the state,
-             * and then if `get` has been sequenced and is waiting, acquire runloop to continue,
-             * and if not just finish off.
-             * If state is Result, the callback was already invoked, so no-op.
+             * and then if `get` has been flatMapped somewhere already
+             * and is waiting for a result (i.e. it has suspended),
+             * acquire runloop to continue.
+             *
+             * If not, `cb` arrived first, so it just sets the result and die off.
+             *
+             * If `state` is `Result`, the callback has been already invoked, so no-op.
+             * (guards from double calls)
              */
             @tailrec
             def stateLoop(): Unit = {
@@ -670,7 +718,8 @@ private final class IOFiber[A](
                 if (!state.compareAndSet(old, resultState)) stateLoop()
                 else {
                   if (tag == 1) {
-                    // `get` has been sequenced and is waiting, reacquire runloop to continue
+                    // `get` has been sequenced and is waiting
+                    // reacquire runloop to continue
                     loop()
                   }
                 }
@@ -688,18 +737,42 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Get[Any]]
           val state = cur.state
 
-          if (!state.compareAndSet(ContState.Initial, ContState.Waiting)) {
-            // state was no longer Initial, so the callback has already been invoked
-            // and the state is Result
-            val result = state.get().result
-            // we leave the Result state unmodified so that `get` is idempotent
-            if (!shouldFinalize()) {
-              asyncContinue(result)
-            } else {
-              asyncCancel(null)
-            }
+            if (state.compareAndSet(ContState.Initial, ContState.Waiting)) {
+              // `state` was Initial, so `get` has arrived before the callback,
+              // needs to set to waiting and suspend: cb will resume with the result
+              // once that's ready
+
+              // full memory barrier
+              suspended.compareAndSet(false, true)
+
+              // race condition check: we may have been cancelled
+              // after setting the state but before we suspended
+              if (shouldFinalize()) {
+                // if we can re-acquire the run-loop, we can finalize,
+                // otherwise somebody else acquired it and will eventually finalize.
+                //
+                // In this path, `get`, callback and `cancel` all race via `resume`
+                // to decide who should run the finalisers.
+                // TODO possibly rule out callback once the necessity of else asyncCancel
+                // in callback.loop is fully understood
+                if (resume()) {
+                  asyncCancel(null)
+                }
+              }
           } else {
-            suspendWithFinalizationCheck()
+              // state was no longer Initial, so the callback has already been invoked
+              // and the state is Result.
+              // we leave the Result state unmodified so that `get` is idempotent
+              val result = state.get().result
+
+              if (!shouldFinalize()) {
+                // we weren't cancelled, so resume the runloop
+                asyncContinue(result)
+              } else {
+                // we were canceled, but `cancel` cannot run the finalisers
+                // because the runloop was not suspended, so we have to run them
+                asyncCancel(null)
+              }
           }
       }
     }
