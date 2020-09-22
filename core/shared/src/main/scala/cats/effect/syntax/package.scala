@@ -26,4 +26,5 @@ package object syntax {
   object async extends kernel.syntax.AsyncSyntax
   object syncEffect extends kernel.syntax.SyncEffectSyntax
   object effect extends kernel.syntax.EffectSyntax
+  object unsafeRun extends unsafe.syntax.UnsafeRunSyntax
 }
