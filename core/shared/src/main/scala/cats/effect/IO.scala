@@ -220,6 +220,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
   def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
 
+  def background: ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    Spawn[IO].background(this)
+
   def memoize: IO[IO[A]] =
     Concurrent[IO].memoize(this)
 
