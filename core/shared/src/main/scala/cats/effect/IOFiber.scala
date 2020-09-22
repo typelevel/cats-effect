@@ -105,7 +105,11 @@ private final class IOFiber[A](
   private[this] val AsyncStateRegisteredNoFinalizer = AsyncState.RegisteredNoFinalizer
   private[this] val AsyncStateRegisteredWithFinalizer = AsyncState.RegisteredWithFinalizer
   private[this] val AsyncStateDone = AsyncState.Done
-  // TODO prefetch ContState
+  // prefetch for ContState
+  private[this] val ContStateInitial = ContState.Initial
+  private[this] val ContStateWaiting = ContState.Waiting
+  private[this] val ContStateResult = ContState.Result
+
 
 
   private[this] val TypeBlocking = Sync.Type.Blocking
@@ -131,7 +135,7 @@ private final class IOFiber[A](
     IO defer {
       canceled = true
 
-//      println(s"${name}: attempting cancellation")
+      // println(s"${name}: attempting cancellation")
 
       // check to see if the target fiber is suspended
       if (resume()) {
@@ -142,7 +146,7 @@ private final class IOFiber[A](
 
           // if we have async finalizers, runLoop may return early
           IO.async_[Unit] { fin =>
-//            println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
+            // println(s"${name}: canceller started at ${Thread.currentThread().getName} + ${suspended.get()}")
             asyncCancel(fin)
           }
         } else {
@@ -655,7 +659,7 @@ private final class IOFiber[A](
              * should run the finalisers (i.e. call `asyncCancel`).
              *
              */
-          val state = new AtomicReference[ContState](ContState.Initial)
+          val state = new AtomicReference[ContState](ContStateInitial)
 
           val cb: Either[Throwable, A] => Unit = { e =>
             /*
@@ -692,7 +696,7 @@ private final class IOFiber[A](
               }
             }
 
-            val resultState = ContState.Result(e)
+            val resultState = ContStateResult(e)
 
             /*
              * CAS loop to update the Cont state machine:
@@ -737,7 +741,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Get[Any]]
           val state = cur.state
 
-            if (state.compareAndSet(ContState.Initial, ContState.Waiting)) {
+            if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
               // `state` was Initial, so `get` has arrived before the callback,
               // needs to set to waiting and suspend: cb will resume with the result
               // once that's ready
