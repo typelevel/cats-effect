@@ -15,20 +15,12 @@
  */
 
 package cats.effect
+package laws
 
-import cats.{Eq, Monad, Show}
+import cats.{Eq, Monad}
 import cats.data.ReaderWriterStateT
-//import cats.laws.discipline.{AlignTests, ParallelTests}
-import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.eq._
-import cats.laws.discipline.MiniInt
-import cats.syntax.all._
-//import cats.effect.kernel.ParallelF
-import cats.effect.laws.MonadCancelTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
-
-// import org.scalacheck.rng.Seed
-import org.scalacheck.util.Pretty
+import cats.laws.discipline.{arbitrary, eq, MiniInt}, arbitrary._, eq._
 
 import org.specs2.ScalaCheck
 import org.specs2.scalacheck.Parameters
@@ -36,11 +28,12 @@ import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class ReaderWriterStateTPureConcSpec extends Specification with Discipline with ScalaCheck {
+class ReaderWriterStateTPureConcSpec
+    extends Specification
+    with Discipline
+    with ScalaCheck
+    with BaseSpec {
   import PureConcGenerators._
-
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
 
   implicit def rwstEq[F[_]: Monad, E, L, S, A](
       implicit ev: Eq[(E, S) => F[(L, S, A)]]): Eq[ReaderWriterStateT[F, E, L, S, A]] =
@@ -51,6 +44,5 @@ class ReaderWriterStateTPureConcSpec extends Specification with Discipline with 
     MonadCancelTests[ReaderWriterStateT[PureConc[Int, *], MiniInt, Int, MiniInt, *], Int]
       .monadCancel[Int, Int, Int]
     // we need to bound this a little tighter because these tests take FOREVER, especially on scalajs
-  )(Parameters(minTestsOk =
-    1 /*, seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get*/ ))
+  )(Parameters(minTestsOk = 1))
 }

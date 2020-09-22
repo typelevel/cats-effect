@@ -15,21 +15,13 @@
  */
 
 package cats.effect
+package laws
 
-import cats.{Eq, Order, Show}
+import cats.Order
 import cats.data.Kleisli
-//import cats.laws.discipline.{AlignTests, ParallelTests}
-import cats.laws.discipline.arbitrary
-import cats.laws.discipline.MiniInt
-import cats.syntax.all._
-//import cats.effect.kernel.ParallelF
-import cats.effect.laws.GenTemporalTests
-import cats.effect.testkit.{pure, PureConcGenerators}, pure._
-import cats.effect.testkit._
-import cats.effect.testkit.TimeT._
+import cats.effect.testkit.{pure, PureConcGenerators, Time, TimeT}, pure._, TimeT._
+import cats.laws.discipline.{arbitrary, MiniInt}
 
-// import org.scalacheck.rng.Seed
-import org.scalacheck.util.Pretty
 import org.scalacheck.{Arbitrary, Cogen, Prop}
 
 import org.specs2.ScalaCheck
@@ -44,23 +36,17 @@ class KleisliPureConcSpec
     extends Specification
     with Discipline
     with ScalaCheck
-    with LowPriorityInstances {
+    with BaseSpec
+    with LowPriorityKleisliInstances {
   import PureConcGenerators._
   import arbitrary.{catsLawsArbitraryForKleisli => _, _}
-//  import ParallelFGenerators._
-
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
-
-  implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
-    Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
 
   //This is highly dubious
   implicit def orderKleisli[F[_], A](implicit Ord: Order[F[A]]): Order[Kleisli[F, MiniInt, A]] =
     Order.by(_.run(MiniInt.unsafeFromInt(0)))
 
   //This is highly dubious
-  implicit def execKleisli(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
+  implicit def exec(sbool: Kleisli[TimeT[PureConc[Int, *], *], MiniInt, Boolean]): Prop =
     Prop(
       pure
         .run(TimeT.run(sbool.run(MiniInt.unsafeFromInt(0))))
@@ -84,14 +70,13 @@ class KleisliPureConcSpec
     GenTemporalTests[Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *], Int]
       .temporal[Int, Int, Int](10.millis)
     // we need to bound this a little tighter because these tests take FOREVER
-  )(Parameters(minTestsOk =
-    25 /*, seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)*/ ))
+  )(Parameters(minTestsOk = 25))
 }
 
 //Push the priority of Kleisli instances down so we can explicitly summon more
 //specific instances to help 2.12 out - I think Kleisli[TimeT[PureConc[Int, *], *], MiniInt, *]
 //involves about 4 nested Kleisli's so the compiler just gives up
-trait LowPriorityInstances {
+private[laws] trait LowPriorityKleisliInstances {
   implicit def catsLawsArbitraryForKleisli[F[_], A, B](
       implicit AA: Arbitrary[A],
       CA: Cogen[A],
