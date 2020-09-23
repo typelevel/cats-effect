@@ -28,6 +28,7 @@ import cats.{
   Show,
   StackSafeMonad
 }
+import cats.arrow.FunctionK
 import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
@@ -378,15 +379,20 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-    uncancelable { poll =>
-      cont[A] flatMap { case (get, cb) =>
-        k(cb) flatMap {
-          case Some(fin) => poll(get).onCancel(fin)
-          case None => poll(get)
+  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
+    val body = new Cps[IO, A] {
+      def apply[F[_]](wait: F[A], resume: Either[Throwable,A] => Unit, lift: IO ~> F)(implicit F: MonadCancel[F,Throwable]): F[A] =
+        F.uncancelable { poll =>
+            lift(k(resume)) flatMap {
+              case Some(fin) => F.onCancel(poll(wait), lift(fin))
+              case None => poll(wait)
+            }
+          }
         }
-      }
-    }
+
+    cps(body)
+  }
+
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
     async(cb => apply { k(cb); None })
@@ -395,8 +401,18 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def cede: IO[Unit] = Cede
 
+  // TODO rename/delete
+//  def cont[A]: IO[(IO[A], (Either[Throwable, A] => Unit))] = Cont()
+
   // TODO rename
-  def cont[A]: IO[(IO[A], (Either[Throwable, A] => Unit))] = Cont()
+  trait Cps[G[_], A] {
+    // TODO give MonadCancel the Gen treatment
+    def apply[F[_]](wait: F[A], resume: Either[Throwable, A] => Unit, lift: G ~> F)(implicit Cancel: MonadCancel[F, Throwable]): F[A]
+  }
+  def cps[A](body: Cps[IO, A]): IO[A] =
+    Cont[A]().flatMap { case (wait, resume) =>
+      body[IO](wait, resume, FunctionK.id)
+    }
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
