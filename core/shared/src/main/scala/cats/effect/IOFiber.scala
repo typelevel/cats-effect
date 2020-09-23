@@ -555,22 +555,22 @@ private final class IOFiber[A](
             @tailrec
             def loop(): Unit = {
               //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
+              // try to take ownership of the runloop
               if (resume()) {
                 if (!shouldFinalize()) {
                   // we weren't cancelled, so resume the runloop
                   asyncContinue(e)
                 } else {
-                  // TODO can this condition actually happen in a
-                  // problematic way given the communication via
-                  // `suspend`? we know it can happen in `get` but there
-                  // is no suspension in that path.
-                  // actually this can happen since there is a race on resume
-                  // well I need to double check about propagation of canceled = true tbh
+                  // we were canceled, but since we have won the race on `suspended`
+                  // via `resume`, `cancel` cannot run the finalisers, and we have to.
                   asyncCancel(null)
                 }
               } else if (!shouldFinalize()) {
+                // If we aren't canceled, loop on `suspended to wait until `get` has released
+                // ownership of the runloop.
                 loop()
-              }
+              } // If we are canceled, just die off and let `cancel` win
+                // the race to `resume` and run the finalisers
             }
 
             val resultState = ContStateResult(e)
@@ -634,8 +634,6 @@ private final class IOFiber[A](
                 //
                 // In this path, `get`, callback and `cancel` all race via `resume`
                 // to decide who should run the finalisers.
-                // TODO possibly rule out callback once the necessity of else asyncCancel
-                // in callback.loop is fully understood
                 if (resume()) {
                   asyncCancel(null)
                 }
