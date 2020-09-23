@@ -401,9 +401,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def cede: IO[Unit] = Cede
 
-  // TODO rename/delete
-//  def cont[A]: IO[(IO[A], (Either[Throwable, A] => Unit))] = Cont()
-
   // TODO rename
   trait Cps[G[_], A] {
     // TODO give MonadCancel the Gen treatment
