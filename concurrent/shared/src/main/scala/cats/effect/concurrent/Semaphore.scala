@@ -135,7 +135,7 @@ object Semaphore {
   // or it is non-empty, and there are n permits available (Right)
   private type State[F[_]] = Either[Queue[Request[F]], Long]
 
-  private final case class Promise[F[_]](await: F[Unit], release: F[Unit])
+  private final case class Permit[F[_]](await: F[Unit], release: F[Unit])
 
   abstract private class AbstractSemaphore[F[_]](state: Ref[F, State[F]])(implicit F: Spawn[F])
       extends Semaphore[F] {
@@ -157,9 +157,9 @@ object Semaphore {
         case _ => F.unit
       }
 
-    def acquireNInternal(n: Long): F[Promise[F]] =
+    def acquireNInternal(n: Long): F[Permit[F]] =
       assertNonNegative[F](n) *> {
-        if (n == 0) F.pure(Promise(F.unit, F.unit))
+        if (n == 0) F.pure(Permit(F.unit, F.unit))
         else {
           mkGate.flatMap { gate =>
             state
@@ -184,9 +184,9 @@ object Semaphore {
                     case Right(m) => (Right(m + n), F.unit)
                   }.flatten
 
-                  Promise(gate.get, cleanup)
+                  Permit(gate.get, cleanup)
 
-                case Right(_) => Promise(F.unit, releaseN(n))
+                case Right(_) => Permit(F.unit, releaseN(n))
               }
           }
         }
