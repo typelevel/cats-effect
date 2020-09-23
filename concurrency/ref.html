@@ -34,7 +34,7 @@
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Sync</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Ref</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for triggering evaluation in parallel</span>

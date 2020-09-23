@@ -42,7 +42,7 @@ possible for as long as the <code class="language-plaintext highlighter-rouge">D
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Deferred</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="c1">// Needed for `start` or `Concurrent[IO]` and therefore `parSequence`</span>

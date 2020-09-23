@@ -1127,7 +1127,7 @@ so there might not be anybody available to release it.</p>
 
 <h2 id="error-handling">Error Handling</h2>
 
-<p>Since there is an instance of <code class="language-plaintext highlighter-rouge">MonadError[IO, Throwable]</code> available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for <code class="language-plaintext highlighter-rouge">MonadError</code> and thus for <code class="language-plaintext highlighter-rouge">ApplicativeError</code> on <code class="language-plaintext highlighter-rouge">IO</code> as long as the error type is a <code class="language-plaintext highlighter-rouge">Throwable</code>. Operations such as <code class="language-plaintext highlighter-rouge">raiseError</code>, <code class="language-plaintext highlighter-rouge">attempt</code>, <code class="language-plaintext highlighter-rouge">handleErrorWith</code>, <code class="language-plaintext highlighter-rouge">recoverWith</code>, etc. Just make sure you have the syntax import in scope such as <code class="language-plaintext highlighter-rouge">cats.implicits._</code>.</p>
+<p>Since there is an instance of <code class="language-plaintext highlighter-rouge">MonadError[IO, Throwable]</code> available in Cats Effect, all the error handling is done through it. This means you can use all the operations available for <code class="language-plaintext highlighter-rouge">MonadError</code> and thus for <code class="language-plaintext highlighter-rouge">ApplicativeError</code> on <code class="language-plaintext highlighter-rouge">IO</code> as long as the error type is a <code class="language-plaintext highlighter-rouge">Throwable</code>. Operations such as <code class="language-plaintext highlighter-rouge">raiseError</code>, <code class="language-plaintext highlighter-rouge">attempt</code>, <code class="language-plaintext highlighter-rouge">handleErrorWith</code>, <code class="language-plaintext highlighter-rouge">recoverWith</code>, etc. Just make sure you have the syntax import in scope such as <code class="language-plaintext highlighter-rouge">cats.syntax.all._</code>.</p>
 
 <h3 id="raiseerror">raiseError</h3>
 
@@ -1309,7 +1309,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <p>It has the potential to run an arbitrary number of <code class="language-plaintext highlighter-rouge">IO</code>s in parallel, and it allows you to apply a function to the result (as in <code class="language-plaintext highlighter-rouge">map</code>). It finishes processing when all the <code class="language-plaintext highlighter-rouge">IO</code>s are completed, either successfully or with a failure. For example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
@@ -1332,7 +1332,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <p>If any of the <code class="language-plaintext highlighter-rouge">IO</code>s completes with a failure then the result of the whole computation will be failed, while the unfinished tasks get cancelled. Example:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">ExitCase</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
@@ -1359,7 +1359,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <p>If one of the tasks fails immediately, then the other gets canceled and the computation completes immediately, so in this example the pairing via <code class="language-plaintext highlighter-rouge">parMapN</code> will not wait for 10 seconds before emitting the error:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ContextShift</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">,</span> <span class="nc">IO</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
@@ -1451,7 +1451,7 @@ but only if there’s an <code class="language-plaintext highlighter-rouge">Exec
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">IO</span><span class="o">(</span><span class="nf">println</span><span class="o">(</span><span class="s">"Potentially cancelable!"</span><span class="o">)).</span><span class="py">unsafeRunCancelable</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="o">())</span>
 <span class="c1">// Potentially cancelable!</span>
 <span class="c1">// res59: cats.effect.package.CancelToken[IO] = Suspend(</span>
-<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$8076/0x0000000802490840@68c3944f</span>
+<span class="c1">//   thunk = cats.effect.internals.IOConnection$Impl$$Lambda$10089/0x000000080246f840@1548be20</span>
 <span class="c1">// )</span>
 </code></pre></div></div>
 

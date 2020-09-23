@@ -101,7 +101,7 @@ use of cats-effect <code class="language-plaintext highlighter-rouge">Resource</
 release resources. See this code:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
 <span class="k">def</span> <span class="nf">inputStream</span><span class="o">(</span><span class="n">f</span><span class="k">:</span> <span class="kt">File</span><span class="o">)</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">FileInputStream</span><span class="o">]</span> <span class="k">=</span>
@@ -197,7 +197,7 @@ stage we will close the streams.  Thus we could define our <code class="language
 follows:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
 <span class="c1">// function inputOutputStreams not needed</span>
@@ -249,7 +249,7 @@ the main loop, and leave the actual transmission of data to another function
 <code class="language-plaintext highlighter-rouge">transmit</code> that uses that loop. Something like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.IO</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span> 
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span> 
 <span class="k">import</span> <span class="nn">java.io._</span> 
 
 <span class="k">def</span> <span class="nf">transmit</span><span class="o">(</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">IO</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
@@ -300,7 +300,7 @@ trigger the execution of the code that handles the closing of the resource. In
 our case, that would close both streams. So far so good! But what happens if
 cancellation happens <em>while</em> the streams are being used? This could lead to
 data corruption as a stream where some thread is writing to is at the same time
-being closed by another thread. For more info about this problem see <a href="../datatypes/io.html#gotcha-cancellation-is-a-concurrent-action">Gotcha:
+being closed by another thread. For more info about this problem see <a href="../datatypes/io.md#gotcha-cancellation-is-a-concurrent-action">Gotcha:
 Cancellation is a concurrent
 action</a> in
 cats-effect site.</p>
@@ -323,7 +323,7 @@ use <code class="language-plaintext highlighter-rouge">.acquire</code> and then 
 <code class="language-plaintext highlighter-rouge">.withPermit</code> is more idiomatic and ensures that the permit is released even if
 the effect run fails.</p>
 
-<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.implicits._</span>
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Resource</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
@@ -379,7 +379,7 @@ signature.</p>
 instances returned by <code class="language-plaintext highlighter-rouge">Resource.use</code>), the <code class="language-plaintext highlighter-rouge">IO</code> returned by <code class="language-plaintext highlighter-rouge">transfer</code> is not.
 Trying to cancel it will not have any effect and that <code class="language-plaintext highlighter-rouge">IO</code> will run until the
 whole file is copied! In real world code you will probably want to make your
-functions cancelable, section <a href="../datatypes/io.html#building-cancelable-io-tasks">Building cancelable IO
+functions cancelable, section <a href="../datatypes/io.md#building-cancelable-io-tasks">Building cancelable IO
 tasks</a> of <code class="language-plaintext highlighter-rouge">IO</code> documentation
 explains how to create such cancelable <code class="language-plaintext highlighter-rouge">IO</code> instances (besides calling
 <code class="language-plaintext highlighter-rouge">Resource.use</code>, as we have done for our code).</p>
@@ -408,7 +408,7 @@ which creates the <code class="language-plaintext highlighter-rouge">IO</code> i
 method can look like this:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io.File</span>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
@@ -479,7 +479,7 @@ methods of the <code class="language-plaintext highlighter-rouge">Sync[F[_]]</co
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.Sync</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
 <span class="k">def</span> <span class="nf">transmit</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span>
@@ -501,7 +501,7 @@ instantiation:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
 <span class="k">def</span> <span class="nf">transmit</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">origin</span><span class="k">:</span> <span class="kt">InputStream</span><span class="o">,</span> <span class="n">destination</span><span class="k">:</span> <span class="kt">OutputStream</span><span class="o">,</span> <span class="n">buffer</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Byte</span><span class="o">],</span> <span class="n">acc</span><span class="k">:</span> <span class="kt">Long</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
@@ -596,7 +596,7 @@ is actually run until the <code class="language-plaintext highlighter-rouge">F</
 in mind, the code looks like:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 <span class="k">import</span> <span class="nn">java.net._</span>
 
@@ -656,7 +656,7 @@ clients:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net.</span><span class="o">{</span><span class="nc">ServerSocket</span><span class="o">,</span> <span class="nc">Socket</span><span class="o">}</span>
 
 <span class="c1">// echoProtocol as defined before</span>
@@ -727,7 +727,7 @@ about this in the <a href="#fibers-are-not-threads">Fibers are not threads!</a><
 which we can already do in the <code class="language-plaintext highlighter-rouge">run</code> method of an <code class="language-plaintext highlighter-rouge">IOApp</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
@@ -831,7 +831,7 @@ the cancellation on its own fiber by running <code class="language-plaintext hig
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 
 <span class="c1">// serve now requires access to the stopFlag, it will use it to signal the</span>
@@ -852,7 +852,7 @@ the cancellation on its own fiber by running <code class="language-plaintext hig
 <p>We must also modify the main <code class="language-plaintext highlighter-rouge">run</code> method in <code class="language-plaintext highlighter-rouge">IOApp</code> so now it calls to <code class="language-plaintext highlighter-rouge">server</code>:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 
 <span class="k">object</span> <span class="nc">Main</span> <span class="k">extends</span> <span class="nc">IOApp</span> <span class="o">{</span>
@@ -883,7 +883,7 @@ method:</p>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net._</span>
 
 <span class="c1">// echoProtocol now requires access to the stopFlag, it will use it to signal the</span>
@@ -919,7 +919,7 @@ signal the server must be stopped, and the function will quit:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
 <span class="k">def</span> <span class="nf">loop</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:Concurrent</span><span class="o">](</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
@@ -977,7 +977,7 @@ This is how the <code class="language-plaintext highlighter-rouge">serve</code> 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net._</span>
 
@@ -1016,7 +1016,7 @@ taken; otherwise the error is raised:</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.io._</span>
 
 <span class="k">def</span> <span class="nf">loop</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Sync</span><span class="o">](</span><span class="n">reader</span><span class="k">:</span> <span class="kt">BufferedReader</span><span class="o">,</span> <span class="n">writer</span><span class="k">:</span> <span class="kt">BufferedWriter</span><span class="o">,</span> <span class="n">stopFlag</span><span class="k">:</span> <span class="kt">MVar</span><span class="o">[</span><span class="kt">F</span>, <span class="kt">Unit</span><span class="o">])</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
@@ -1049,7 +1049,7 @@ it will have a similar effect:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.ExitCase._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net._</span>
 
@@ -1132,7 +1132,7 @@ run by the thread pool of the <code class="language-plaintext highlighter-rouge"
 task will be run in the default thread pool.</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 
 <span class="k">def</span> <span class="nf">doHeavyStuffInADifferentThreadPool</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">ContextShift:</span> <span class="kt">Sync</span><span class="o">](</span><span class="k">implicit</span> <span class="n">ec</span><span class="k">:</span> <span class="kt">ExecutionContext</span><span class="o">)</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
@@ -1170,7 +1170,7 @@ shutting down the thread pool when the server finishes:</p>
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.MVar</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">java.net.ServerSocket</span>
 <span class="k">import</span> <span class="nn">java.util.concurrent.Executors</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
@@ -1216,7 +1216,7 @@ console):</p>
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect._</span>
 <span class="k">import</span> <span class="nn">cats.effect.syntax.all._</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">scala.util.Either</span>
 
 <span class="k">def</span> <span class="nf">delayed</span><span class="o">[</span><span class="kt">F</span><span class="o">[</span><span class="k">_</span><span class="o">]</span><span class="kt">:</span> <span class="kt">Async</span><span class="o">]</span><span class="k">:</span> <span class="kt">F</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>

@@ -223,7 +223,7 @@ stack trace frames.</p>
 <span class="c1">// -Dcats.effect.stackTracingMode=full</span>
 
 <span class="k">import</span> <span class="nn">cats.effect.tracing.PrintingOptions</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 <span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">ExitCode</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">IOApp</span><span class="o">}</span>
 
 <span class="k">import</span> <span class="nn">scala.util.Random</span>

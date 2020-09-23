@@ -52,7 +52,7 @@ R3 &gt;&gt; Done | Availability: 1
 
 <div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">import</span> <span class="nn">cats.effect.</span><span class="o">{</span><span class="nc">Concurrent</span><span class="o">,</span> <span class="nc">IO</span><span class="o">,</span> <span class="nc">Timer</span><span class="o">}</span>
 <span class="k">import</span> <span class="nn">cats.effect.concurrent.Semaphore</span>
-<span class="k">import</span> <span class="nn">cats.implicits._</span>
+<span class="k">import</span> <span class="nn">cats.syntax.all._</span>
 
 <span class="k">import</span> <span class="nn">scala.concurrent.ExecutionContext</span>
 <span class="k">import</span> <span class="nn">scala.concurrent.duration._</span>
