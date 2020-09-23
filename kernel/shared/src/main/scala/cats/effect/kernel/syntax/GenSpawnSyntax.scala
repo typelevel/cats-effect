@@ -32,4 +32,10 @@ final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
+
+  def backgroundAndEmbed(onCancel: => F[A])(implicit F: GenSpawn[F, E]): Resource[F, F[A]] =
+    F.backgroundAndEmbed(wrapped)(onCancel)
+
+  def backgroundAndEmbedNever(implicit F: GenSpawn[F, E]): Resource[F, F[A]] =
+    F.backgroundAndEmbedNever(wrapped)
 }
