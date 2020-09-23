@@ -571,6 +571,8 @@ private final class IOFiber[A](
                 loop()
               } // If we are canceled, just die off and let `cancel` win
                 // the race to `resume` and run the finalisers
+                // TODO I think there is a leak here since `cancel` does not loop,
+                // where we can drop the finalisers
             }
 
             val resultState = ContStateResult(e)
