@@ -30,8 +30,9 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
+val Scala213 = "2.13.3"
 
-ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -51,6 +52,10 @@ ThisBuild / githubWorkflowBuildPreamble +=
 
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
+
+  WorkflowStep.Sbt(
+    List("docs/mdoc"),
+    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
 
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
@@ -222,3 +227,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(name := "cats-effect-benchmarks")
   .settings(noPublishSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val docs = project.in(file("ce3-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)

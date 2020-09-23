@@ -28,33 +28,8 @@ trait GenSpawnSyntax {
 
 final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
 
-  def forceR[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
-    F.forceR(wrapped)(fb)
-
-  def !>[B](fb: F[B])(implicit F: GenSpawn[F, E]): F[B] =
-    forceR(fb)
-
   def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
 
   def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
     F.background(wrapped)
-
-  def uncancelable(implicit F: GenSpawn[F, E]): F[A] =
-    F.uncancelable(_ => wrapped)
-
-  def onCancel(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.onCancel(wrapped, fin)
-
-  def guarantee(fin: F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.guarantee(wrapped, fin)
-
-  def guaranteeCase(fin: Outcome[F, E, A] => F[Unit])(implicit F: GenSpawn[F, E]): F[A] =
-    F.guaranteeCase(wrapped)(fin)
-
-  def bracket[B](use: A => F[B])(release: A => F[Unit])(implicit F: GenSpawn[F, E]): F[B] =
-    F.bracket(wrapped)(use)(release)
-
-  def bracketCase[B](use: A => F[B])(release: (A, Outcome[F, E, B]) => F[Unit])(
-      implicit F: GenSpawn[F, E]): F[B] =
-    F.bracketCase(wrapped)(use)(release)
 }

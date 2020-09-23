@@ -28,16 +28,11 @@ class SyntaxSpec extends Specification {
   def concurrentForwarder[F[_]: Concurrent] =
     Concurrent[F]
 
-  def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
-    import syntax.spawn._
+  def monadCancelSyntax[F[_], A, E](target: F[A])(implicit F: MonadCancel[F, E]) = {
+    import syntax.monadCancel._
 
-    GenSpawn[F]: F.type
-    GenSpawn[F, E]: F.type
-
-    {
-      val result = target.start
-      result: F[Fiber[F, E, A]]
-    }
+    MonadCancel[F]: F.type
+    MonadCancel[F, E]: F.type
 
     {
       val result = target.uncancelable
@@ -51,16 +46,6 @@ class SyntaxSpec extends Specification {
     }
 
     {
-      val result = target.start
-      result: F[Fiber[F, E, A]]
-    }
-
-    {
-      val result = target.background
-      result: Resource[F, F[Outcome[F, E, A]]]
-    }
-
-    {
       val param: F[Unit] = null.asInstanceOf[F[Unit]]
       val result = target.guarantee(param)
       result: F[A]
@@ -70,6 +55,23 @@ class SyntaxSpec extends Specification {
       val param: Outcome[F, E, A] => F[Unit] = null.asInstanceOf[Outcome[F, E, A] => F[Unit]]
       val result = target.guaranteeCase(param)
       result: F[A]
+    }
+  }
+
+  def genSpawnSyntax[F[_], A, E](target: F[A])(implicit F: GenSpawn[F, E]) = {
+    import syntax.spawn._
+
+    GenSpawn[F]: F.type
+    GenSpawn[F, E]: F.type
+
+    {
+      val result = target.start
+      result: F[Fiber[F, E, A]]
+    }
+
+    {
+      val result = target.background
+      result: Resource[F, F[Outcome[F, E, A]]]
     }
   }
 
