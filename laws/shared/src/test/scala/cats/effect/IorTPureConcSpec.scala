@@ -20,7 +20,7 @@ import cats.Show
 import cats.data.IorT
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.implicits._
+import cats.syntax.all._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._

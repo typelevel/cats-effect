@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
 import cats.{~>, Monad, MonadError, Order, Show, Traverse}
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.util.{Either, Left, Right}

@@ -19,7 +19,7 @@ package effect
 package concurrent
 
 import cats.effect.kernel.Effect
-import cats.implicits._
+import cats.syntax.all._
 
 // import org.specs2.matcher.MatchResult
 import org.specs2.specification.core.Fragments

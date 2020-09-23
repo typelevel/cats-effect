@@ -18,7 +18,7 @@ package cats.effect
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import cats.effect.kernel.Deferred
-import cats.implicits._
+import cats.syntax.all._
 import java.util.concurrent.atomic.AtomicLong
 // import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import org.specs2.mutable.Specification

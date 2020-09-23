@@ -24,7 +24,7 @@ import cats.laws.discipline.arbitrary._
 import cats.laws.discipline.MiniInt
 import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
 import freeEval.{syncForFreeT, FreeEitherSync}
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 import org.scalacheck.util.Pretty

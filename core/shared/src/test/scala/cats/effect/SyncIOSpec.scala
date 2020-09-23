@@ -19,7 +19,7 @@ package cats.effect
 import cats.kernel.laws.discipline.MonoidTests
 import cats.effect.laws.SyncEffectTests
 import cats.effect.testkit.SyncTypeGenerators
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop, Prop.forAll
 

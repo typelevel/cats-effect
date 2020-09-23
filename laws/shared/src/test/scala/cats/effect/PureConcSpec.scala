@@ -19,7 +19,7 @@ package cats.effect
 import cats.Show
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.implicits._
+import cats.syntax.all._
 //import cats.effect.kernel.ParallelF
 import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit._

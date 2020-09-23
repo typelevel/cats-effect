@@ -28,7 +28,7 @@ import cats.{
   Show,
   StackSafeMonad
 }
-import cats.implicits._
+import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
 
@@ -219,6 +219,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def start: IO[FiberIO[A @uncheckedVariance]] =
     IO.Start(this)
+
+  def background: ResourceIO[IO[OutcomeIO[A @uncheckedVariance]]] =
+    Spawn[IO].background(this)
 
   def memoize: IO[IO[A]] =
     Concurrent[IO].memoize(this)
@@ -623,6 +626,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   implicit def effectForIO: Effect[IO] = _effectForIO
+
+  implicit def unsafeRunForIO(implicit runtime: unsafe.IORuntime): unsafe.UnsafeRun[IO] =
+    runtime.unsafeRunForIO
 
   private[this] val _parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] =
     parallelForGenSpawn[IO, Throwable]

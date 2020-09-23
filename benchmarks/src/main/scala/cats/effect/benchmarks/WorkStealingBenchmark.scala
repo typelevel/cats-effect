@@ -18,7 +18,7 @@ package cats.effect.benchmarks
 
 import cats.effect.IO
 import cats.effect.unsafe._
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 

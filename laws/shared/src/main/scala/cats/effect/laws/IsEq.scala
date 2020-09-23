@@ -17,7 +17,7 @@
 package cats.effect.laws
 
 import cats.{Applicative, Eq, Group, Order}
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 import org.scalacheck.util.Pretty

@@ -17,7 +17,7 @@
 package cats.effect.laws
 
 import cats.Applicative
-import cats.implicits._
+import cats.syntax.all._
 
 final case class Tolerance[+A](value: A)
 
