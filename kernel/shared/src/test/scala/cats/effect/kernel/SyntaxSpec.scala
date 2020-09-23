@@ -51,6 +51,16 @@ class SyntaxSpec extends Specification {
     }
 
     {
+      val result = target.start
+      result: F[Fiber[F, E, A]]
+    }
+
+    {
+      val result = target.background
+      result: Resource[F, F[Outcome[F, E, A]]]
+    }
+
+    {
       val param: F[Unit] = null.asInstanceOf[F[Unit]]
       val result = target.guarantee(param)
       result: F[A]

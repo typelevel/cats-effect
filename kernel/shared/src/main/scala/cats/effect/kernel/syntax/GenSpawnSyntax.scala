@@ -16,7 +16,7 @@
 
 package cats.effect.kernel.syntax
 
-import cats.effect.kernel.{Fiber, GenSpawn, Outcome}
+import cats.effect.kernel.{Fiber, GenSpawn, Outcome, Resource}
 
 trait GenSpawnSyntax {
 
@@ -35,6 +35,9 @@ final class GenSpawnOps[F[_], A, E](val wrapped: F[A]) extends AnyVal {
     forceR(fb)
 
   def start(implicit F: GenSpawn[F, E]): F[Fiber[F, E, A]] = F.start(wrapped)
+
+  def background(implicit F: GenSpawn[F, E]): Resource[F, F[Outcome[F, E, A]]] =
+    F.background(wrapped)
 
   def uncancelable(implicit F: GenSpawn[F, E]): F[A] =
     F.uncancelable(_ => wrapped)
