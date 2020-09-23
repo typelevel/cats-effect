@@ -336,6 +336,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       runtime.scheduler,
       runtime.blocking,
       0,
+      Map(),
       (oc: OutcomeIO[A]) =>
         oc.fold((), e => cb(Left(e)), ioa => cb(Right(ioa.asInstanceOf[IO.Pure[A]].value))),
       this,
@@ -712,6 +713,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
     def tag = 20
+  }
+
+  private[effect] final case class GetLocal[A](index: Int) extends IO[Option[A]] {
+    def tag = 21
+  }
+
+  private[effect] final case class SetLocal[A](index: Int, value: A) extends IO[Unit] {
+    def tag = 22
   }
 
   // Not part of the run loop. Only used in the implementation of IO#to.

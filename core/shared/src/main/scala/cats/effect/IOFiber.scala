@@ -62,6 +62,7 @@ private final class IOFiber[A](
     scheduler: unsafe.Scheduler,
     blockingEc: ExecutionContext,
     initMask: Int,
+    initLocalState: scala.collection.immutable.Map[Int, Any],
     cb: OutcomeIO[A] => Unit,
     startIO: IO[A],
     startEC: ExecutionContext)
@@ -94,6 +95,8 @@ private final class IOFiber[A](
 
   // true when semantically blocking (ensures that we only unblock *once*)
   private[this] val suspended: AtomicBoolean = new AtomicBoolean(true)
+
+  private[this] var localState: scala.collection.immutable.Map[Int, Any] = initLocalState
 
   @volatile
   private[this] var outcome: OutcomeIO[A] = _
@@ -506,7 +509,7 @@ private final class IOFiber[A](
 
           val ec = currentCtx
           val fiber =
-            new IOFiber[Any](childName, scheduler, blockingEc, initMask2, null, cur.ioa, ec)
+            new IOFiber[Any](childName, scheduler, blockingEc, initMask2, localState, null, cur.ioa, ec)
 
           // println(s"<$name> spawning <$childName>")
 
@@ -531,6 +534,7 @@ private final class IOFiber[A](
                     scheduler,
                     blockingEc,
                     initMask2,
+                    localState,
                     null,
                     cur.ioa,
                     ec)
@@ -539,6 +543,7 @@ private final class IOFiber[A](
                     scheduler,
                     blockingEc,
                     initMask2,
+                    localState,
                     null,
                     cur.iob,
                     ec)
@@ -595,6 +600,18 @@ private final class IOFiber[A](
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
+
+        case 21 =>
+          val cur = cur0.asInstanceOf[GetLocal[Any]]
+
+          val value = localState.get(cur.index)
+          runLoop(succeeded(value, 0), nextIteration)
+
+        case 22 =>
+          val cur = cur0.asInstanceOf[SetLocal[Any]]
+
+          localState = localState + (cur.index -> cur.value)
+          runLoop(succeeded((), 0), nextIteration)
       }
     }
   }
@@ -1034,8 +1051,12 @@ private final class IOFiber[A](
 
 private object IOFiber {
   private val childCount = new AtomicInteger(0)
+  private val localIndex = new AtomicInteger(0)
 
   // prefetch
   private val OutcomeCanceled = Outcome.Canceled()
   private[effect] val RightUnit = Right(())
+
+  private[effect] def nextLocalIndex(): Int =
+    localIndex.getAndIncrement()
 }
