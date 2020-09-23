@@ -57,7 +57,7 @@ class SyntaxSpec extends Specification {
 
     {
       val result = target.background
-      result: F[Resource[F, F[Outcome[F, E, A]]]]
+      result: Resource[F, F[Outcome[F, E, A]]]
     }
 
     {
