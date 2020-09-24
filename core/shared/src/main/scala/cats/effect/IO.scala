@@ -379,23 +379,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def defer[A](thunk: => IO[A]): IO[A] =
     delay(thunk).flatten
 
-  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
-    val body = new Cont[IO, A] {
-      def apply[F[_]](resume: Either[Throwable,A] => Unit, get: F[A], lift: IO ~> F)(implicit F: MonadCancel[F,Throwable]): F[A] =
-        F.uncancelable { poll =>
-            lift(k(resume)) flatMap {
-              case Some(fin) => F.onCancel(poll(get), lift(fin))
-              case None => poll(get)
-            }
-          }
-        }
-
-    cont(body)
-  }
-
+  def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+    effectForIO.async(k)
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): IO[A] =
-    async(cb => apply { k(cb); None })
+    effectForIO.async_(k)
 
   def canceled: IO[Unit] = Canceled
 
@@ -411,7 +399,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def monotonic: IO[FiniteDuration] = Monotonic
 
-  private[this] val _never: IO[Nothing] = async(_ => pure(None))
   def never[A]: IO[A] = _never
 
   def pure[A](value: A): IO[A] = Pure(value)
@@ -561,9 +548,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-      IO.async(k) // TODO delete this?
-
     def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
@@ -658,6 +642,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     parallelForGenSpawn[IO, Throwable]
 
   implicit def parallelForIO: Parallel.Aux[IO, ParallelF[IO, *]] = _parallelForIO
+
+  // This is cached as a val to save allocations, but it uses ops from the Async
+  // instance which is also cached as a val, and therefore needs to appear
+  // later in the file
+  private[this] val _never: IO[Nothing] = effectForIO.never
 
   // implementations
 
