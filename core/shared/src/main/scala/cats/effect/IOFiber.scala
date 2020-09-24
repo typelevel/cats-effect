@@ -99,14 +99,6 @@ private final class IOFiber[A](
   private[this] var outcome: OutcomeIO[A] = _
 
   private[this] val childCount = IOFiber.childCount
-
-  // prefetch for ContState
-  private[this] val ContStateInitial = ContState.Initial
-  private[this] val ContStateWaiting = ContState.Waiting
-  private[this] val ContStateResult = ContState.Result
-
-
-
   private[this] val TypeBlocking = Sync.Type.Blocking
 
   // mutable state for resuming the fiber in different states
@@ -116,6 +108,11 @@ private final class IOFiber[A](
   private[this] var afterBlockingSuccessfulResult: Any = _
   private[this] var afterBlockingFailedError: Throwable = _
   private[this] var evalOnIOA: IO[Any] = _
+
+  // prefetch for ContState
+  private[this] val ContStateInitial = ContState.Initial
+  private[this] val ContStateWaiting = ContState.Waiting
+  private[this] val ContStateResult = ContState.Result
 
   // prefetch for Right(())
   private[this] val RightUnit = IOFiber.RightUnit
