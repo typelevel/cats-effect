@@ -297,7 +297,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Pure[Any]]
           runLoop(succeeded(cur.value, 0), nextIteration)
 
-        case 7 =>
+        case 1 =>
           val cur = cur0.asInstanceOf[Map[Any, Any]]
 
           objectState.push(cur.f)
@@ -305,7 +305,7 @@ private final class IOFiber[A](
 
           runLoop(cur.ioe, nextIteration)
 
-        case 8 =>
+        case 2 =>
           val cur = cur0.asInstanceOf[FlatMap[Any, Any]]
 
           objectState.push(cur.f)
@@ -317,13 +317,13 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[Error]
           runLoop(failed(cur.t, 0), nextIteration)
 
-        case 20 =>
+        case 4 =>
           val cur = cur0.asInstanceOf[Attempt[Any]]
 
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
           
-        case 9 =>
+        case 5 =>
           val cur = cur0.asInstanceOf[HandleErrorWith[Any]]
 
           objectState.push(cur.f)
@@ -331,7 +331,7 @@ private final class IOFiber[A](
 
           runLoop(cur.ioa, nextIteration)
 
-        case 1 =>
+        case 6 =>
           val cur = cur0.asInstanceOf[Delay[Any]]
 
           var error: Throwable = null
@@ -348,7 +348,7 @@ private final class IOFiber[A](
           runLoop(next, nextIteration)
 
         // Canceled
-        case 12 =>
+        case 7 =>
           canceled = true
           if (isUnmasked()) {
             // run finalizers immediately
@@ -357,7 +357,7 @@ private final class IOFiber[A](
             runLoop(succeeded((), 0), nextIteration)
           }
 
-        case 10 =>
+        case 8 =>
           val cur = cur0.asInstanceOf[OnCancel[Any]]
 
           finalizers.push(EvalOn(cur.fin, currentCtx))
@@ -368,7 +368,7 @@ private final class IOFiber[A](
           conts.push(OnCancelK)
           runLoop(cur.ioa, nextIteration)
 
-        case 11 =>
+        case 9 =>
           val cur = cur0.asInstanceOf[Uncancelable[Any]]
 
           masks += 1
@@ -382,7 +382,7 @@ private final class IOFiber[A](
           conts.push(UncancelableK)
           runLoop(cur.body(poll), nextIteration)
 
-        case 19 =>
+        case 10 =>
           val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
 
           // we keep track of nested uncancelable sections.
@@ -397,7 +397,7 @@ private final class IOFiber[A](
           runLoop(cur.ioa, nextIteration)
 
         // IOCont
-        case 21 =>
+        case 11 =>
           /*
            *`get` and `cb` (callback) race over the runloop.
            * If `cb` finishes after `get`, and `get` just
@@ -497,7 +497,7 @@ private final class IOFiber[A](
 
           runLoop(succeeded(cont, 0),  nextIteration)
 
-        case 22 =>
+        case 12 =>
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
           val state = cur.state
 
@@ -541,11 +541,11 @@ private final class IOFiber[A](
           }
 
         // Cede
-        case 18 =>
+        case 13 =>
           resumeTag = CedeR
           reschedule(currentCtx)(this)
 
-        case 13 =>
+        case 14 =>
           val cur = cur0.asInstanceOf[Start[Any]]
 
           val childName = s"start-${childCount.getAndIncrement()}"
@@ -561,7 +561,7 @@ private final class IOFiber[A](
 
           runLoop(succeeded(fiber, 0), nextIteration)
 
-        case 14 =>
+        case 15 =>
           // TODO self-cancelation within a nested poll could result in deadlocks in `both`
           // example: uncancelable(p => F.both(fa >> p(canceled) >> fc, fd)).
           // when we check cancelation in the parent fiber, we are using the masking at the point of racePair, rather than just trusting the masking at the point of the poll
@@ -602,7 +602,7 @@ private final class IOFiber[A](
 
           runLoop(next, nextIteration)
 
-        case 15 =>
+        case 16 =>
           val cur = cur0.asInstanceOf[Sleep]
 
           val next = IO.async[Unit] { cb =>
@@ -615,18 +615,18 @@ private final class IOFiber[A](
           runLoop(next, nextIteration)
 
         // RealTime
-        case 16 =>
+        case 17 =>
           runLoop(succeeded(scheduler.nowMillis().millis, 0), nextIteration)
 
         // Monotonic
-        case 17 =>
+        case 18 =>
           runLoop(succeeded(scheduler.monotonicNanos().nanos, 0), nextIteration)
 
         // ReadEC
-        case 5 =>
+        case 19 =>
           runLoop(succeeded(currentCtx, 0), nextIteration)
 
-        case 6 =>
+        case 20 =>
           val cur = cur0.asInstanceOf[EvalOn[Any]]
 
           // fast-path when it's an identity transformation
@@ -643,7 +643,7 @@ private final class IOFiber[A](
             execute(ec)(this)
           }
 
-        case 2 =>
+        case 21 =>
           val cur = cur0.asInstanceOf[Blocking[Any]]
           // we know we're on the JVM here
 
