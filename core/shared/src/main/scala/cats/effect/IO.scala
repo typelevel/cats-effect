@@ -283,7 +283,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
-        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.BlockFiber =>
+        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber =>
           // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
 
@@ -748,7 +748,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // INTERNAL, only created by the runloop itself as the terminal state of several operations
-  private[effect] case object BlockFiber extends IO[Nothing] {
+  private[effect] case object EndFiber extends IO[Nothing] {
     def tag = -1
   }
 

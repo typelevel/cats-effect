@@ -120,8 +120,8 @@ private final class IOFiber[A](
   // similar prefetch for Outcome
   private[this] val OutcomeCanceled = IOFiber.OutcomeCanceled.asInstanceOf[OutcomeIO[A]]
 
-  // similar prefetch for BlockFiber
-  private[this] val IOBlockFiber = IO.BlockFiber
+  // similar prefetch for EndFiber
+  private[this] val IOEndFiber = IO.EndFiber
 
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
@@ -267,8 +267,10 @@ private final class IOFiber[A](
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   @tailrec
   private[this] def runLoop(_cur0: IO[Any], iteration: Int): Unit = {
-    // cur will be set to BlockFiber when we're semantically blocked
-    if (_cur0 eq IOBlockFiber) {
+    // cur will be set to EndFiber when the runloop needs to terminate,
+    // either because the entire IO is done, or because this branch is done
+    // and execution is continuing asynchronously in a different runloop invocation.
+    if (_cur0 eq IOEndFiber) {
       return
     }
 
@@ -915,7 +917,7 @@ private final class IOFiber[A](
       done(OutcomeCanceled)
     }
 
-    IOBlockFiber
+    IOEndFiber
   }
 
   private[this] def cancelationLoopFailureK(t: Throwable): IO[Any] = {
@@ -932,7 +934,7 @@ private final class IOFiber[A](
         Outcome.Completed(IO.pure(result.asInstanceOf[A]))
 
     done(outcome)
-    IOBlockFiber
+    IOEndFiber
   }
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
@@ -943,7 +945,7 @@ private final class IOFiber[A](
         Outcome.Errored(t)
 
     done(outcome)
-    IOBlockFiber
+    IOEndFiber
   }
 
   private[this] def evalOnSuccessK(result: Any): IO[Any] = {
@@ -957,7 +959,7 @@ private final class IOFiber[A](
       asyncCancel(null)
     }
 
-    IOBlockFiber
+    IOEndFiber
   }
 
   private[this] def evalOnFailureK(t: Throwable): IO[Any] = {
@@ -971,7 +973,7 @@ private final class IOFiber[A](
       asyncCancel(null)
     }
 
-    IOBlockFiber
+    IOEndFiber
   }
 
   private[this] def handleErrorWithK(t: Throwable, depth: Int): IO[Any] = {
