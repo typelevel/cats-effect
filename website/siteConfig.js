@@ -97,7 +97,7 @@ const siteConfig = {
       pinned: true
     },
     {
-      image: 'img/adopters/inner-product.svg',
+      image: 'img/adopters/inner-product.png',
       caption: 'Inner Product',
       title: 'Inner Product',
       infoLink: 'https://www.inner-product.com/',

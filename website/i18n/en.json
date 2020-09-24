@@ -3,7 +3,7 @@
   "localized-strings": {
     "next": "Next",
     "previous": "Previous",
-    "tagline": "The purely functional runtime system for Scala",
+    "tagline": "The purely functional runtime for Scala",
     "docs": {
       "concurrency/basics": {
         "title": "Basics"
@@ -165,7 +165,9 @@
     "links": {
       "Docs": "Docs",
       "GitHub": "GitHub",
-      "API": "API"
+      "API": "API",
+      "Resources": "Resources",
+      "Ecosystem": "Ecosystem"
     },
     "categories": {
       "Getting Started": "Getting Started",
