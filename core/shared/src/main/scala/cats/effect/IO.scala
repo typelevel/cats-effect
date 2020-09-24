@@ -562,7 +562,9 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       IO.raiseError(e)
 
     def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-      IO.async(k)
+      IO.async(k) // TODO delete this
+
+    def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
 
     def evalOn[A](fa: IO[A], ec: ExecutionContext): IO[A] =
       fa.evalOn(ec)

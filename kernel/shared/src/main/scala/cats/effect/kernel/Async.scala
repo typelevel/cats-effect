@@ -21,7 +21,6 @@ import cats.syntax.all._
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
-
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
 
@@ -40,6 +39,16 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
         async_[A](cb => f.onComplete(t => cb(t.toEither)))
       }
     }
+
+  /*
+   * NOTE: This is a very low level api, end users should use `async` instead.
+   * See cats.effect.kernel.Cont for more detail.
+   * 
+   * If you are an implementor, and you have `async`,
+   * `Async.defaultCont` provides an implementation of `cont` in terms of `async`.
+   * If you use `defaultCont` you _have_ to override `async`.
+   */
+  def cont[A](body: Cont[F, A]): F[A]
 }
 
 object Async {
