@@ -622,7 +622,10 @@ private final class IOFiber[A](
               // needs to set to waiting and suspend: cb will resume with the result
               // once that's ready
 
-              // full memory barrier
+              // This CAS should always succeed since we own the runloop,
+              // but we need it in order to introduce a full memory barrier
+              // which ensures we will always see the most up-to-date value
+              // for `canceled` in `shouldFinalize`, ensuring no finalisation leaks
               suspended.compareAndSet(false, true)
 
               // race condition check: we may have been cancelled
