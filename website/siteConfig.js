@@ -97,6 +97,13 @@ const siteConfig = {
       pinned: true
     },
     {
+      image: 'img/adopters/itv.png',
+      caption: 'ITV',
+      title: 'ITV',
+      infoLink: 'https://www.itv.com',
+      pinned: true
+    },
+    {
       image: 'img/adopters/inner-product.png',
       caption: 'Inner Product',
       title: 'Inner Product',
