@@ -248,6 +248,37 @@ object GenSpawn {
       })
     }
 
+    override def race[A, B](
+        fa: EitherT[F, E0, A],
+        fb: EitherT[F, E0, B]): EitherT[F, E0, Either[A, B]] =
+      EitherT(F.race(fa.value, fb.value).map {
+        case Left(Left(e0)) => Left(e0)
+        case Left(Right(a)) => Right(Left(a))
+        case Right(Left(e0)) => Left(e0)
+        case Right(Right(b)) => Right(Right(b))
+      })
+
+    override def both[A, B](
+        fa: EitherT[F, E0, A],
+        fb: EitherT[F, E0, B]): EitherT[F, E0, (A, B)] =
+      EitherT(F.both(fa.value, fb.value).map {
+        case (Left(e0), _) => Left(e0)
+        case (Right(_), Left(e0)) => Left(e0)
+        case (Right(a), Right(b)) => Right((a, b))
+      })
+
+    override def raceOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B]): EitherT[
+      F,
+      E0,
+      Either[Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B]]] =
+      EitherT.liftF(
+        F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: EitherT[F, E0, A], fb: EitherT[F, E0, B])
+        : EitherT[F, E0, (Outcome[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])] =
+      EitherT.liftF(
+        F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
     def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
