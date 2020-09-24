@@ -31,7 +31,7 @@ class ContSpec extends BaseSpec { outer =>
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   "get resumes" in real {
     val io = IO.cont {
-      new IO.Cont[IO, Int] {
+      new Cont[IO, Int] {
         def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
           lift(IO(resume(Right(42)))) >> get
       }
@@ -46,7 +46,7 @@ class ContSpec extends BaseSpec { outer =>
    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
 
     val io = IO.cont {
-      new IO.Cont[IO, Int] {
+      new Cont[IO, Int] {
         def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
            lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get
 
@@ -61,7 +61,7 @@ class ContSpec extends BaseSpec { outer =>
   "cont.get can be canceled" in real {
 
     def never = IO.cont {
-      new IO.Cont[IO, Int] {
+      new Cont[IO, Int] {
         def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
           get
 

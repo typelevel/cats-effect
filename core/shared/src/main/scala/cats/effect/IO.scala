@@ -401,10 +401,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def cede: IO[Unit] = Cede
 
-  trait Cont[G[_], A] {
-    def apply[F[_]](resume: Either[Throwable, A] => Unit, get: F[A], lift: G ~> F)(implicit Cancel: MonadCancel[F, Throwable]): F[A]
-  }
-
   // TODO make this private and only expose through Async[IO]?
   def cont[A](body: Cont[IO, A]): IO[A] =
     IOCont[A]().flatMap { case (resume, get) =>

@@ -31,6 +31,7 @@ package object effect {
 
   type Fiber[F[_], E, A] = cekernel.Fiber[F, E, A]
   type Poll[F[_]] = cekernel.Poll[F]
+  type Cont[F[_], A] = cekernel.Cont[F, A]
 
   type GenConcurrent[F[_], E] = cekernel.GenConcurrent[F, E]
   val GenConcurrent = cekernel.GenConcurrent
