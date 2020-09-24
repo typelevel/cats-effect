@@ -168,7 +168,7 @@ private final class IOFiber[A](
           join.void
         }
       } else {
-//        println(s"${name}: had to join")
+        // println(s"${name}: had to join")
         /* it's already being run somewhere; await the finalizers */
         join.void
       }
@@ -217,7 +217,7 @@ private final class IOFiber[A](
     if (shouldFinalize()) {
       asyncCancel(null)
     } else {
-   //   println(s"<$name> looping on $cur0")
+      // println(s"<$name> looping on $cur0")
       (cur0.tag: @switch) match {
         case 0 =>
           val cur = cur0.asInstanceOf[Pure[Any]]
@@ -847,7 +847,7 @@ private final class IOFiber[A](
 
   private[this] def execR(): Unit = {
     if (resume()) {
-      //      println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
+      // println(s"$name: starting at ${Thread.currentThread().getName} + ${suspended.get()}")
 
       conts = new ByteStack(16)
       conts.push(RunTerminusK)
