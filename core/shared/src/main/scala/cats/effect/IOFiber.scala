@@ -391,7 +391,7 @@ private final class IOFiber[A](
           masks += 1
           val id = masks
           val poll = new Poll[IO] {
-            def apply[B](ioa: IO[B]) = IO.UnmaskRunLoop(ioa, id)
+            def apply[B](ioa: IO[B]) = IO.Uncancelable.UnmaskRunLoop(ioa, id)
           }
 
           // The uncancelableK marker is used by `succeeded` and `failed`
@@ -492,7 +492,7 @@ private final class IOFiber[A](
           reschedule(currentCtx)(this)
 
         case 19 =>
-          val cur = cur0.asInstanceOf[UnmaskRunLoop[Any]]
+          val cur = cur0.asInstanceOf[Uncancelable.UnmaskRunLoop[Any]]
 
           // we keep track of nested uncancelable sections.
           // The outer block wins.
@@ -606,12 +606,12 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          val get: IO[Any] = IO.Get(state)
+          val get: IO[Any] = IOCont.Get(state)
           val cont = (cb, get)
 
           runLoop(succeeded(cont, 0),  nextIteration)
         case 22 =>
-          val cur = cur0.asInstanceOf[Get[Any]]
+          val cur = cur0.asInstanceOf[IOCont.Get[Any]]
           val state = cur.state
 
             if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {

@@ -283,7 +283,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
 
-        case IO.UnmaskRunLoop(_, _) | IO.BlockFiber =>
+        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.BlockFiber =>
           // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
 
@@ -297,7 +297,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           poll(ioa.to[F])
 
         case _ : IO.IOCont[_] => ??? // TODO rename, translate to operation on Async once it's there
-        case _ : IO.Get[_] => sys.error("impossible")
+        case _ : IO.IOCont.Get[_] => sys.error("impossible")
       }
     }
 
@@ -668,21 +668,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def toString: String = s"IO($value)"
   }
 
-  // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
-  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
-
-  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
-    def tag = 2
-  }
-
-  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
-
-  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 5 }
-
-  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
-    def tag = 6
-  }
-
   private[effect] final case class Map[E, +A](ioe: IO[E], f: E => A) extends IO[A] {
     def tag = 7
   }
@@ -691,10 +676,21 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 8
   }
 
+  private[effect] final case class Error(t: Throwable) extends IO[Nothing] { def tag = 3 }
+
+  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
+    def tag = 20
+  }
+
   private[effect] final case class HandleErrorWith[+A](ioa: IO[A], f: Throwable => IO[A])
       extends IO[A] {
     def tag = 9
   }
+
+    // we keep Delay as a separate case as a fast-path, since the added tags don't appear to confuse HotSpot (for reasons unknown)
+  private[effect] final case class Delay[+A](thunk: () => A) extends IO[A] { def tag = 1 }
+
+  private[effect] case object Canceled extends IO[Unit] { def tag = 12 }
 
   private[effect] final case class OnCancel[+A](ioa: IO[A], fin: IO[Unit]) extends IO[A] {
     def tag = 10
@@ -703,52 +699,62 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   private[effect] final case class Uncancelable[+A](body: Poll[IO] => IO[A]) extends IO[A] {
     def tag = 11
   }
+  private[effect] object Uncancelable {
+  // INTERNAL, it's only created by the runloop itself during the execution of `Uncancelable`
+    final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
+      def tag = 19
+    }
+  }
 
-  private[effect] case object Canceled extends IO[Unit] { def tag = 12 }
+  // Low level construction that powers `async`
+  private[effect] final case class IOCont[A]() extends IO[((Either[Throwable, A] => Unit), IO[A])] {
+    def tag = 21
+  }
+  private[effect] object IOCont {
+  // INTERNAL, it's only created by the runloop itself during the execution of `IOCont`
+    final case class Get[A](state: java.util.concurrent.atomic.AtomicReference[ContState]) extends IO[A] {
+      def tag = 22
+    }
+  }
 
-  private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
+  private[effect] case object Cede extends IO[Unit] { def tag = 18 }
+
+   private[effect] final case class Start[A](ioa: IO[A]) extends IO[FiberIO[A]] {
     def tag = 13
   }
+
   private[effect] final case class RacePair[A, B](ioa: IO[A], iob: IO[B])
       extends IO[Either[(OutcomeIO[A], FiberIO[B]), (FiberIO[A], OutcomeIO[B])]] {
 
     def tag = 14
   }
 
-  private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
+   private[effect] final case class Sleep(delay: FiniteDuration) extends IO[Unit] {
     def tag = 15
   }
 
   private[effect] case object RealTime extends IO[FiniteDuration] { def tag = 16 }
+
   private[effect] case object Monotonic extends IO[FiniteDuration] { def tag = 17 }
 
-  private[effect] case object Cede extends IO[Unit] { def tag = 18 }
+  private[effect] case object ReadEC extends IO[ExecutionContext] { def tag = 5 }
 
-  // INTERNAL
-  private[effect] final case class UnmaskRunLoop[+A](ioa: IO[A], id: Int) extends IO[A] {
-    def tag = 19
+  private[effect] final case class EvalOn[+A](ioa: IO[A], ec: ExecutionContext) extends IO[A] {
+    def tag = 6
   }
 
-  private[effect] final case class Attempt[+A](ioa: IO[A]) extends IO[Either[Throwable, A]] {
-    def tag = 20
+  private[effect] final case class Blocking[+A](hint: Sync.Type, thunk: () => A) extends IO[A] {
+    def tag = 2
   }
 
-  // TODO rename, move
-  private[effect] final case class IOCont[A]() extends IO[((Either[Throwable, A] => Unit), IO[A])] {
-    def tag = 21
+  // INTERNAL, only created by the runloop itself as the terminal state of several operations
+  private[effect] case object BlockFiber extends IO[Nothing] {
+    def tag = -1
   }
-
-  private[effect] final case class Get[A](state: java.util.concurrent.atomic.AtomicReference[ContState]) extends IO[A] {
-    def tag = 22
-  }
-
 
   // Not part of the run loop. Only used in the implementation of IO#to.
   private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
     def tag = -1
   }
 
-  private[effect] case object BlockFiber extends IO[Nothing] {
-    def tag = -1
-  }
 }
