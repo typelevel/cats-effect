@@ -208,14 +208,14 @@ object GenSpawn {
       OptionT.liftF(
         F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
 
-    def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
+    private def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
         case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
       new Fiber[OptionT[F, *], E, A] {
         def cancel: OptionT[F, Unit] = OptionT.liftF(fib.cancel)
         def join: OptionT[F, Outcome[OptionT[F, *], E, A]] =
@@ -275,14 +275,14 @@ object GenSpawn {
       EitherT.liftF(
         F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
 
-    def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
+    private def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
         case Outcome.Completed(foa) => Outcome.Completed(EitherT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
       new Fiber[EitherT[F, E0, *], E, A] {
         def cancel: EitherT[F, E0, Unit] = EitherT.liftF(fib.cancel)
         def join: EitherT[F, E0, Outcome[EitherT[F, E0, *], E, A]] =
@@ -338,14 +338,14 @@ object GenSpawn {
         : IorT[F, L, (Outcome[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])] =
       IorT.liftF(F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
 
-    def liftOutcome[A](oc: Outcome[F, E, Ior[L, A]]): Outcome[IorT[F, L, *], E, A] =
+    private def liftOutcome[A](oc: Outcome[F, E, Ior[L, A]]): Outcome[IorT[F, L, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
         case Outcome.Completed(foa) => Outcome.Completed(IorT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
       new Fiber[IorT[F, L, *], E, A] {
         def cancel: IorT[F, L, Unit] = IorT.liftF(fib.cancel)
         def join: IorT[F, L, Outcome[IorT[F, L, *], E, A]] =
@@ -380,7 +380,7 @@ object GenSpawn {
       }
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
+    private def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
       val nat: F ~> Kleisli[F, R, *] = new ~>[F, Kleisli[F, R, *]] {
         def apply[B](fa: F[B]) = Kleisli.liftF(fa)
@@ -389,7 +389,7 @@ object GenSpawn {
       oc.mapK(nat)
     }
 
-    def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, A]): Fiber[Kleisli[F, R, *], E, A] =
       new Fiber[Kleisli[F, R, *], E, A] {
         def cancel: Kleisli[F, R, Unit] = Kleisli.liftF(fib.cancel)
         def join: Kleisli[F, R, Outcome[Kleisli[F, R, *], E, A]] =
@@ -424,14 +424,14 @@ object GenSpawn {
       })
     }
 
-    def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
+    private def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
         case Outcome.Completed(foa) => Outcome.Completed(WriterT(foa))
       }
 
-    def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
+    private def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =
       new Fiber[WriterT[F, L, *], E, A] {
         def cancel: WriterT[F, L, Unit] = WriterT.liftF(fib.cancel)
         def join: WriterT[F, L, Outcome[WriterT[F, L, *], E, A]] =
