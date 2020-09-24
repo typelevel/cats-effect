@@ -16,13 +16,26 @@
 
 package cats.effect.kernel
 
+import cats.~>
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future}
 
 trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // returns an optional cancelation token
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
+    val body = new Cont[F, A] {
+      def apply[G[_]](resume: Either[Throwable,A] => Unit, get: G[A], lift: F ~> G)(implicit G: MonadCancel[G,Throwable]): G[A] =
+        G.uncancelable { poll =>
+            lift(k(resume)) flatMap {
+              case Some(fin) => G.onCancel(poll(get), lift(fin))
+              case None => poll(get)
+            }
+          }
+        }
+
+    cont(body)
+  }
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
@@ -43,7 +56,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   /*
    * NOTE: This is a very low level api, end users should use `async` instead.
    * See cats.effect.kernel.Cont for more detail.
-   * 
+   *
    * If you are an implementor, and you have `async`,
    * `Async.defaultCont` provides an implementation of `cont` in terms of `async`.
    * If you use `defaultCont` you _have_ to override `async`.

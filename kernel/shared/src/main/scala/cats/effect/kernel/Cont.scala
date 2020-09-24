@@ -18,6 +18,6 @@ package cats.effect.kernel
 
 import cats.~>
 
-trait Cont[G[_], A] {
-  def apply[F[_]](resume: Either[Throwable, A] => Unit, get: F[A], lift: G ~> F)(implicit Cancel: MonadCancel[F, Throwable]): F[A]
+trait Cont[F[_], A] {
+  def apply[G[_]](resume: Either[Throwable, A] => Unit, get: G[A], lift: F ~> G)(implicit Cancel: MonadCancel[G, Throwable]): G[A]
 }

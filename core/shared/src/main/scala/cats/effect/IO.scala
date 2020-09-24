@@ -561,8 +561,8 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def raiseError[A](e: Throwable): IO[A] =
       IO.raiseError(e)
 
-    def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
-      IO.async(k) // TODO delete this
+    override def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] =
+      IO.async(k) // TODO delete this?
 
     def cont[A](body: Cont[IO, A]): IO[A] = IO.cont(body)
 
