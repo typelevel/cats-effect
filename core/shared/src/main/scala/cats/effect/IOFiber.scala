@@ -123,6 +123,18 @@ private final class IOFiber[A](
   // similar prefetch for EndFiber
   private[this] val IOEndFiber = IO.EndFiber
 
+  def run(): Unit =
+    (resumeTag: @switch) match {
+      case 0 => execR()
+      case 1 => asyncContinueR()
+      case 2 => blockingR()
+      case 3 => afterBlockingSuccessfulR()
+      case 4 => afterBlockingFailedR()
+      case 5 => evalOnR()
+      case 6 => cedeR()
+      case 7 => ()
+    }
+
   var cancel: IO[Unit] = IO uncancelable { _ =>
     IO defer {
       canceled = true
@@ -166,103 +178,6 @@ private final class IOFiber[A](
           Some(IO(handle.clearCurrent()))
       }
     }
-
-  // can return null, meaning that no CallbackStack needs to be later invalidated
-  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
-    if (outcome == null) {
-      val back = callbacks.push(listener)
-
-      // double-check
-      if (outcome != null) {
-        back.clearCurrent()
-        listener(outcome) // the implementation of async saves us from double-calls
-        null
-      } else {
-        back
-      }
-    } else {
-      listener(outcome)
-      null
-    }
-  }
-
-  // Only the owner of the run-loop can invoke this.
-  // Should be invoked at most once per fiber before termination.
-  private[this] def done(oc: OutcomeIO[A]): Unit = {
-//     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
-    join = IO.pure(oc)
-    cancel = IO.unit
-
-    outcome = oc
-
-    try {
-      callbacks(oc)
-    } finally {
-      callbacks.lazySet(null) // avoid leaks
-    }
-
-    // need to reset masks to 0 to terminate async callbacks
-    // busy spinning in `loop`.
-    masks = initMask
-    // full memory barrier to publish masks
-    suspended.set(false)
-
-    // clear out literally everything to avoid any possible memory leaks
-
-    // conts may be null if the fiber was cancelled before it was started
-    if (conts != null)
-      conts.invalidate()
-
-    currentCtx = null
-    ctxs = null
-
-    objectState.invalidate()
-
-    finalizers.invalidate()
-
-    asyncContinueEither = null
-    blockingCur = null
-    afterBlockingSuccessfulResult = null
-    afterBlockingFailedError = null
-    evalOnIOA = null
-    resumeTag = DoneR
-  }
-
-  /*
-  4 possible cases for callback and cancellation:
-  1. Callback completes before cancelation and takes over the runloop
-  2. Callback completes after cancelation and takes over runloop
-  3. Callback completes after cancelation and can't take over the runloop
-  4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
-   */
-  private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
-    val ec = currentCtx
-    resumeTag = AsyncContinueR
-    asyncContinueEither = e
-    execute(ec)(this)
-  }
-
-  private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
-    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
-    finalizing = true
-
-    if (!finalizers.isEmpty()) {
-      objectState.push(cb)
-
-      conts = new ByteStack(16)
-      conts.push(CancelationLoopK)
-
-      // suppress all subsequent cancelation on this fiber
-      masks += 1
-      // println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
-      runLoop(finalizers.pop(), 0)
-    } else {
-      if (cb != null)
-        cb(RightUnit)
-
-      done(OutcomeCanceled)
-    }
-  }
 
   // masks encoding: initMask => no masks, ++ => push, -- => pop
   @tailrec
@@ -658,6 +573,84 @@ private final class IOFiber[A](
     }
   }
 
+  // Only the owner of the run-loop can invoke this.
+  // Should be invoked at most once per fiber before termination.
+  private[this] def done(oc: OutcomeIO[A]): Unit = {
+    //     println(s"<$name> invoking done($oc); callback = ${callback.get()}")
+    join = IO.pure(oc)
+    cancel = IO.unit
+
+    outcome = oc
+
+    try {
+      callbacks(oc)
+    } finally {
+      callbacks.lazySet(null) // avoid leaks
+    }
+
+    // need to reset masks to 0 to terminate async callbacks
+    // busy spinning in `loop`.
+    masks = initMask
+    // full memory barrier to publish masks
+    suspended.set(false)
+
+    // clear out literally everything to avoid any possible memory leaks
+
+    // conts may be null if the fiber was cancelled before it was started
+    if (conts != null)
+      conts.invalidate()
+
+    currentCtx = null
+    ctxs = null
+
+    objectState.invalidate()
+
+    finalizers.invalidate()
+
+    asyncContinueEither = null
+    blockingCur = null
+    afterBlockingSuccessfulResult = null
+    afterBlockingFailedError = null
+    evalOnIOA = null
+    resumeTag = DoneR
+  }
+
+  /*
+   4 possible cases for callback and cancellation:
+   1. Callback completes before cancelation and takes over the runloop
+   2. Callback completes after cancelation and takes over runloop
+   3. Callback completes after cancelation and can't take over the runloop
+   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
+   */
+  private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
+    val ec = currentCtx
+    resumeTag = AsyncContinueR
+    asyncContinueEither = e
+    execute(ec)(this)
+  }
+
+  private[this] def asyncCancel(cb: Either[Throwable, Unit] => Unit): Unit = {
+    // println(s"<$name> running cancelation (finalizers.length = ${finalizers.unsafeIndex()})")
+    finalizing = true
+
+    if (!finalizers.isEmpty()) {
+      objectState.push(cb)
+
+      conts = new ByteStack(16)
+      conts.push(CancelationLoopK)
+
+      // suppress all subsequent cancelation on this fiber
+      masks += 1
+      // println(s"$name: Running finalizers on ${Thread.currentThread().getName}")
+      runLoop(finalizers.pop(), 0)
+    } else {
+      if (cb != null)
+        cb(RightUnit)
+
+      done(OutcomeCanceled)
+    }
+  }
+
   // We should attempt finalization if all of the following are true:
   // 1) We own the runloop
   // 2) We have been cancelled
@@ -680,6 +673,25 @@ private final class IOFiber[A](
     val ec = ctxs.peek()
     currentCtx = ec
     ec
+  }
+
+  // can return null, meaning that no CallbackStack needs to be later invalidated
+  private def registerListener(listener: OutcomeIO[A] => Unit): CallbackStack[A] = {
+    if (outcome == null) {
+      val back = callbacks.push(listener)
+
+      // double-check
+      if (outcome != null) {
+        back.clearCurrent()
+        listener(outcome) // the implementation of async saves us from double-calls
+        null
+      } else {
+        back
+      }
+    } else {
+      listener(outcome)
+      null
+    }
   }
 
   @tailrec
@@ -775,32 +787,9 @@ private final class IOFiber[A](
     ()
   }
 
-  private[effect] def debug(): Unit = {
-    println("================")
-    println(s"fiber: $name")
-    println("================")
-    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
-    println(s"canceled = $canceled")
-    println(s"masks = $masks (out of initMask = $initMask)")
-    println(s"suspended = ${suspended.get()}")
-    println(s"outcome = ${outcome}")
-  }
-
   ///////////////////////////////////////
   // Implementations of resume methods //
   ///////////////////////////////////////
-
-  def run(): Unit =
-    (resumeTag: @switch) match {
-      case 0 => execR()
-      case 1 => asyncContinueR()
-      case 2 => blockingR()
-      case 3 => afterBlockingSuccessfulR()
-      case 4 => afterBlockingFailedR()
-      case 5 => evalOnR()
-      case 6 => cedeR()
-      case 7 => ()
-    }
 
   private[this] def execR(): Unit = {
     if (resume()) {
@@ -1013,6 +1002,17 @@ private final class IOFiber[A](
   private[this] def unmaskFailureK(t: Throwable, depth: Int): IO[Any] = {
     masks += 1
     failed(t, depth + 1)
+  }
+
+  private[effect] def debug(): Unit = {
+    println("================")
+    println(s"fiber: $name")
+    println("================")
+    println(s"conts = ${conts.unsafeBuffer().toList.filterNot(_ == 0)}")
+    println(s"canceled = $canceled")
+    println(s"masks = $masks (out of initMask = $initMask)")
+    println(s"suspended = ${suspended.get()}")
+    println(s"outcome = ${outcome}")
   }
 }
 
