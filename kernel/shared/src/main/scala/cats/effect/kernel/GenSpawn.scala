@@ -187,6 +187,27 @@ object GenSpawn {
       })
     }
 
+    override def race[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[A, B]] =
+      OptionT(F.race(fa.value, fb.value).map {
+        case Left(Some(a)) => Some(Left(a))
+        case Left(None) => None
+        case Right(Some(b)) => Some(Right(b))
+        case Right(None) => None
+      })
+
+    override def both[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, (A, B)] =
+      OptionT(F.both(fa.value, fb.value).map(_.tupled))
+
+    override def raceOutcome[A, B](fa: OptionT[F, A], fb: OptionT[F, B])
+        : OptionT[F, Either[Outcome[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B]]] =
+      OptionT.liftF(
+        F.raceOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: OptionT[F, A], fb: OptionT[F, B])
+        : OptionT[F, (Outcome[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])] =
+      OptionT.liftF(
+        F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
     def liftOutcome[A](oc: Outcome[F, E, Option[A]]): Outcome[OptionT[F, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
