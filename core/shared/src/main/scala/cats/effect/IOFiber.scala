@@ -687,17 +687,16 @@ private final class IOFiber[A](
       case 1 => flatMapK(result, depth)
       case 2 => cancelationLoopSuccessK()
       case 3 => runTerminusSuccessK(result)
-      // TODO painfully reassign cont tags after asyncSuccessK removal, currently skipping no. 4
-      case 5 => evalOnSuccessK(result)
-      case 6 =>
+      case 4 => evalOnSuccessK(result)
+      case 5 =>
         // handleErrorWithK
         // this is probably faster than the pre-scan we do in failed, since handlers are rarer than flatMaps
         objectState.pop()
         succeeded(result, depth)
-      case 7 => onCancelSuccessK(result, depth)
-      case 8 => uncancelableSuccessK(result, depth)
-      case 9 => unmaskSuccessK(result, depth)
-      case 10 => succeeded(Right(result), depth + 1)
+      case 6 => onCancelSuccessK(result, depth)
+      case 7 => uncancelableSuccessK(result, depth)
+      case 8 => unmaskSuccessK(result, depth)
+      case 9 => succeeded(Right(result), depth + 1)
     }
 
   private[this] def failed(error: Throwable, depth: Int): IO[Any] = {
@@ -726,13 +725,12 @@ private final class IOFiber[A](
       // (case 1) will never continue to flatMapK
       case 2 => cancelationLoopFailureK(error)
       case 3 => runTerminusFailureK(error)
-      // TODO painfully reassign cont tags after asyncFailureK removal, currently skipping no. 4
-      case 5 => evalOnFailureK(error)
-      case 6 => handleErrorWithK(error, depth)
-      case 7 => onCancelFailureK(error, depth)
-      case 8 => uncancelableFailureK(error, depth)
-      case 9 => unmaskFailureK(error, depth)
-      case 10 => succeeded(Left(error), depth + 1) // attemptK
+      case 4 => evalOnFailureK(error)
+      case 5 => handleErrorWithK(error, depth)
+      case 6 => onCancelFailureK(error, depth)
+      case 7 => uncancelableFailureK(error, depth)
+      case 8 => unmaskFailureK(error, depth)
+      case 9 => succeeded(Left(error), depth + 1) // attemptK
     }
   }
 

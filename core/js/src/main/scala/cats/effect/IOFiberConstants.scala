@@ -26,13 +26,12 @@ private[effect] object IOFiberConstants {
   val FlatMapK: Byte = 1
   val CancelationLoopK: Byte = 2
   val RunTerminusK: Byte = 3
-  // TODO reassign tags after AsyncK removal
-  val EvalOnK: Byte = 5
-  val HandleErrorWithK: Byte = 6
-  val OnCancelK: Byte = 7
-  val UncancelableK: Byte = 8
-  val UnmaskK: Byte = 9
-  val AttemptK: Byte = 10
+  val EvalOnK: Byte = 4
+  val HandleErrorWithK: Byte = 5
+  val OnCancelK: Byte = 6
+  val UncancelableK: Byte = 7
+  val UnmaskK: Byte = 8
+  val AttemptK: Byte = 9
 
   // resume ids
   val ExecR: Byte = 0
