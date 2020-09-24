@@ -514,8 +514,7 @@ private final class IOFiber[A](
           conts.push(AttemptK)
           runLoop(cur.ioa, nextIteration)
 
-        // Cont TODO rename
-            case 21 =>
+        case 21 =>
             /*
              *`get` and `cb` (callback) race over the runloop.
              * If `cb` finishes after `get`, and `get` just
@@ -611,7 +610,7 @@ private final class IOFiber[A](
           }
 
           val get: IO[Any] = IO.Get(state)
-          val cont = (get, cb)
+          val cont = (cb, get)
 
           runLoop(succeeded(cont, 0),  nextIteration)
         case 22 =>

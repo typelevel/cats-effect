@@ -296,7 +296,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
           val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
 
-        case _ : IO.Cont[_] => ??? // TODO rename, translate to operation on Async once it's there
+        case _ : IO.IOCont[_] => ??? // TODO rename, translate to operation on Async once it's there
         case _ : IO.Get[_] => sys.error("impossible")
       }
     }
@@ -380,17 +380,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     delay(thunk).flatten
 
   def async[A](k: (Either[Throwable, A] => Unit) => IO[Option[IO[Unit]]]): IO[A] = {
-    val body = new Cps[IO, A] {
-      def apply[F[_]](wait: F[A], resume: Either[Throwable,A] => Unit, lift: IO ~> F)(implicit F: MonadCancel[F,Throwable]): F[A] =
+    val body = new Cont[IO, A] {
+      def apply[F[_]](resume: Either[Throwable,A] => Unit, get: F[A], lift: IO ~> F)(implicit F: MonadCancel[F,Throwable]): F[A] =
         F.uncancelable { poll =>
             lift(k(resume)) flatMap {
-              case Some(fin) => F.onCancel(poll(wait), lift(fin))
-              case None => poll(wait)
+              case Some(fin) => F.onCancel(poll(get), lift(fin))
+              case None => poll(get)
             }
           }
         }
 
-    cps(body)
+    cont(body)
   }
 
 
@@ -401,14 +401,14 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def cede: IO[Unit] = Cede
 
-  // TODO rename
-  trait Cps[G[_], A] {
-    // TODO give MonadCancel the Gen treatment
-    def apply[F[_]](wait: F[A], resume: Either[Throwable, A] => Unit, lift: G ~> F)(implicit Cancel: MonadCancel[F, Throwable]): F[A]
+  trait Cont[G[_], A] {
+    def apply[F[_]](resume: Either[Throwable, A] => Unit, get: F[A], lift: G ~> F)(implicit Cancel: MonadCancel[F, Throwable]): F[A]
   }
-  def cps[A](body: Cps[IO, A]): IO[A] =
-    Cont[A]().flatMap { case (wait, resume) =>
-      body[IO](wait, resume, FunctionK.id)
+
+  // TODO make this private and only expose through Async[IO]?
+  def cont[A](body: Cont[IO, A]): IO[A] =
+    IOCont[A]().flatMap { case (resume, get) =>
+      body[IO](resume, get, FunctionK.id)
     }
 
   def executionContext: IO[ExecutionContext] = ReadEC
@@ -734,7 +734,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // TODO rename, move
-  private[effect] final case class Cont[A]() extends IO[(IO[A], (Either[Throwable, A] => Unit))] {
+  private[effect] final case class IOCont[A]() extends IO[((Either[Throwable, A] => Unit), IO[A])] {
     def tag = 21
   }
 
