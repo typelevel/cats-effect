@@ -30,34 +30,135 @@ import cats.data.{
 }
 import cats.syntax.all._
 
+/**
+ * A type class that characterizes monads that support cancellation, masking 
+ * and finalization. [[MonadCancel]] instances must provide an instance for 
+ * [[MonadError]].
+ * 
+ * Cancellation refers to the act of requesting that the execution of a fiber be
+ * terminated. In the context of [[MonadCancel]], self-cancellation is the only supported
+ * cancellation mechanism, by which a fiber requests that its own execution be terminated.
+ * Self-cancellation is achieved via [[MonadCancel!,canceled canceled]].
+ *  
+ * Cancellation is vaguely similar to the short-circuit behavior introduced by [[MonadError]], 
+ * but there are two key differences:
+ * 
+ *   1. Cancellation is effective; if it is observed it must be respected, and it cannot
+ *      be reversed.
+ *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]; this allows a fiber to 
+ *      suppress cancellation for a period of time. If a fiber is cancelled while it is masked, 
+ *      it must respect cancellation whenever it reaches an unmasked state.
+ * 
+ * [[GenSpawn]] introduces additional cancellation mechanisms like asynchronous (or external)
+ * cancellation.
+ * 
+ * Finalization refers to the act of invoking finalizers, which are effects that are evaluated
+ * when responding to cancellation. Finalization is crucial when dealing with resource lifecycles 
+ * in the presence of cancellation. For example, imagine an application that opens network connections 
+ * to a database server. If a task in the application is cancelled while it has an open database 
+ * connection, the connection would never be released or returned to a pool, causing a resource leak.
+ * 
+ * Finalization is achieved via [[MonadCancel!.onCancel onCancel]], which registers a finalizer
+ * for the duration of some arbitrary effect. If a fiber is cancelled during evaluation of that effect,
+ * the registered finalizer is guaranteed to be invoked before terminating.
+ */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
   // analogous to productR, except discarding short-circuiting (and optionally some effect contexts) except for cancelation
   def forceR[A, B](fa: F[A])(fb: F[B]): F[B]
 
+  /**
+   * Masks cancellation while evaluating an effect, offering the ability to 
+   * unmask within that effect. Unmasking is more commonly referred to as
+   * "polling."
+   */
   def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
-  // produces an effect which is already canceled (and doesn't introduce an async boundary)
-  // this is effectively a way for a fiber to commit suicide and yield back to its parent
-  // The fallback (unit) value is produced if the effect is sequenced into a block in which
-  // cancelation is suppressed.
+  /**
+   * An effect that requests self-cancellation on the current fiber when
+   * evaluated.
+   */
   def canceled: F[Unit]
 
+  /**
+   * Registers a finalizer that is invoked if cancellation is observed
+   * during the evaluation of `fa`. If the evaluation of `fa` completes
+   * without encountering a cancellation, the finalizer is unregistered
+   * before proceeding.
+   * 
+   * During finalization, all actively registered finalizers are invoked
+   * in the opposite order of registration.
+   *
+   * @param fa The effect that is evaluated after `fin` is registered.
+   * @param fin The finalizer to register before evaluating `fa`.
+   */
   def onCancel[A](fa: F[A], fin: F[Unit]): F[A]
 
+  /**
+   * Specifies an effect that is always invoked after evaluation of `fa`
+   * completes, regardless of the outcome.
+   * 
+   * This function can be thought of as a combination of `flatTap`,
+   * `onError`, and [[MonadCancel!.onCancel onCancel]].
+   *
+   * @param fa The effect that is evaluated after `fin` is registered.
+   * @param fin The effect to run in the event of a cancellation or error.
+   * 
+   * @see [[guaranteeCase]] for a more general variant
+   * 
+   * @see [[Outcome]] for the different outcomes of evaluation
+   */
   def guarantee[A](fa: F[A], fin: F[Unit]): F[A] =
     guaranteeCase(fa)(_ => fin)
 
+  /**
+   * Specifies an effect that is always invoked after evaluation of `fa`
+   * completes, but depends on the outcome.
+   *
+   * This function can be thought of as a combination of `flatMap`,
+   * `onError`, and [[MonadCancel!.onCancel onCancel]].
+   * 
+   * @param fa The effect that is evaluated after `fin` is registered.
+   * @param fin A function that returns the effect to run based on the
+   *        outcome.
+   * 
+   * @see [[bracketCase]] for a more general variant
+   * 
+   * @see [[Outcome]] for the different outcomes of evaluation
+   */
   def guaranteeCase[A](fa: F[A])(fin: Outcome[F, E, A] => F[Unit]): F[A] =
     bracketCase(unit)(_ => fa)((_, oc) => fin(oc))
 
+  /**
+   * The functional equivalent of the `try-with-resources/catch/finally` 
+   * 
+   * @param acquire
+   * @param use
+   * @param release
+   * 
+   * @see [[bracketCase]] for a more general variant
+   */
   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
     bracketCase(acquire)(use)((a, _) => release(a))
 
+  /**
+   * 
+   * @param acquire
+   * @param use
+   * @param release
+   * 
+   * @see [[bracketFull]] for a more general variant
+   */
   def bracketCase[A, B](acquire: F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     bracketFull(_ => acquire)(use)(release)
 
+  /**
+   * 
+   * @param acquire
+   * @param use
+   * @param release
+   */
   def bracketFull[A, B](acquire: Poll[F] => F[A])(use: A => F[B])(
       release: (A, Outcome[F, E, B]) => F[Unit]): F[B] =
     uncancelable { poll =>
