@@ -21,7 +21,7 @@ import scala.concurrent.Future
 trait UnsafeRun[F[_]] extends UnsafeRunPlatform[F] {
   def unsafeRunFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
 
-  def unsafeRunAsync[A](fa: F[A]): Unit = {
+  def unsafeRunAndForget[A](fa: F[A]): Unit = {
     unsafeRunFutureCancelable(fa)
     ()
   }
