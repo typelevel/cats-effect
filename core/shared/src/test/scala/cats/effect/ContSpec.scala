@@ -73,10 +73,7 @@ class ContSpec extends BaseSpec { outer =>
     execute(io, 100000)
   }
 
-  // deferred.get cannot be canceled
-  // the latch is not stricly needed to observe this, but it does make it fail more reliably
-  // you need `complete`, without it the text succeeds
-  "focus" in real {
+  "cancelation corner case: Cont.get running finalisers " in real {
     import kernel._
 
     def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
