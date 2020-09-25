@@ -58,8 +58,7 @@ class ContSpec extends BaseSpec { outer =>
     execute(test, 100).guarantee(IO(close()))
   }
 
-  "cont.get can be canceled" in real {
-
+  "get can be canceled" in real {
     def never = IO.cont {
       new Cont[IO, Int] {
         def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
@@ -73,7 +72,7 @@ class ContSpec extends BaseSpec { outer =>
     execute(io, 100000)
   }
 
-  "cancelation corner case: Cont.get running finalisers " in real {
+  "nondeterministic cancelation corner case: get running finalisers " in real {
     import kernel._
 
     def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
@@ -94,4 +93,19 @@ class ContSpec extends BaseSpec { outer =>
 
     execute(io, 100000)
   }
+
+  "get within onCancel" in ticked { implicit ticker =>
+    val io = IO.cont {
+      new Cont[IO, Int] {
+        def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
+          Cancel.onCancel(get, get >> lift(IO(println("needs to happen"))))
+
+      }
+    }.timeout(1.second).attempt.void
+
+    io must completeAs(())
+  }
+
+
+
 }

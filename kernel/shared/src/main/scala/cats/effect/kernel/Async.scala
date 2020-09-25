@@ -44,6 +44,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
+
   def executionContext: F[ExecutionContext]
 
   def fromFuture[A](fut: F[Future[A]]): F[A] =
