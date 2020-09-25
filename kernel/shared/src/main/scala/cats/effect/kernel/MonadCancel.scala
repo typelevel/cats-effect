@@ -52,27 +52,32 @@ import cats.syntax.all._
  *      can be cancelled by external parties. This can be likened to asynchronous exception throwing.
  *
  * Finalization refers to the act of invoking finalizers, which are effects that are guaranteed to be
- * evaluated in the event of cancellation. Finalization is achieved via [[MonadCancel!.onCancel onCancel]],
+ * run in the event of cancellation. Finalization is achieved via [[MonadCancel!.onCancel onCancel]],
  * which registers a finalizer for the duration of some arbitrary effect. If a fiber is cancelled during
  * evaluation of that effect, the registered finalizer is guaranteed to be invoked before terminating.
  *
  * The aforementioned concepts come together to unlock a powerful pattern for interacting with
- * effectful lifecycles: the bracket pattern. A lifecycle refers to a pair of actions, which are
- * called the acquisition action and the release action respectively. The relationship between
- * these two actions is that if the former completes successfully, then the latter is guaranteed
- * to be evaluated eventually, even in the presence of exceptions and cancellation. While the
- * lifecycle is active, other work can be performed, but this invariant will always be respected.
+ * effectful lifecycles: the bracket pattern. This is analogous to the try-with-resources/finally
+ * pattern seen in Java.
+ *
+ * A lifecycle refers to a pair of actions, which are called the acquisition action and the release
+ * action respectively. The relationship between these two actions is that if the former completes
+ * successfully, then the latter is guaranteed to be run eventually, even in the presence of exceptions
+ * and cancellation. While the lifecycle is active, other work can be performed, but this invariant will
+ * always be respected.
  *
  * The bracket pattern is a useful tool when dealing with resource lifecycles. Imagine an application that
  * opens network connections to a database server to do work. If a task in the application is cancelled
  * while it holds an open database connection, the connection would never be released or returned to a pool,
- * causing a resource leak. The bracket pattern is analogous to the try-with-resources/finally pattern seen
- * in Java, See [[MonadCancel!.bracket bracket]], [[MonadCancel!.bracketCase bracketCase]] and
+ * causing a resource leak. See [[MonadCancel!.bracket bracket]], [[MonadCancel!.bracketCase bracketCase]] and
  * [[MonadCancel!.bracketFull bracketFull]] for more details.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
-  // analogous to productR, except discarding short-circuiting (and optionally some effect contexts) except for cancelation
+  /**
+   * Analogous to [[productR]], but suppresses short-circuiting behavior
+   * except for cancellation.
+   */
   def forceR[A, B](fa: F[A])(fb: F[B]): F[B]
 
   /**
