@@ -18,6 +18,52 @@ package cats.effect.kernel
 
 import cats.~>
 
+/**
+  * This construction supports  `Async.cont`
+  * ```
+  * trait Async[F[_]] {
+  *  ...
+  *
+  *  def cont[A](body: Cont[F, A]): F[A]
+  * }
+  * ```
+  * It's a low level operation meant for implementors, end users
+  * should use `async`, `start` or `Deferred` instead, depending on
+  * the use case.
+  *
+  * It can be understood as providing an operation to resume an `F`
+  * asynchronously, of type `resume: Either[Throwable, A] => Unit`,
+  * and an (interruptible) operation to semantically block until
+  * resumption, of type `get: F[A]`.
+  *
+  * These two operations capture the essence of semantic blocking, and
+  * can be used to build `async`, which in turn can be used to build
+  * `Fiber`, `start`, `Deferred` and so on.
+  *
+  * Refer to the default implementation to `Async[F].async` for an
+  * example of usage.
+  *
+  * The reason for the shape of the `Cont` construction in `Async[F].cont`,
+  * as opposed to simply:
+  *
+  * ```
+  * trait Async[F[_]] {
+  *  ...
+  *
+  *  def cont[A]: F[(Either[Throwable, A] => Unit, F[A])]
+  * }
+  * ```
+  *
+  * is that it's not safe to use concurrent operations such as `get.start`.
+  *
+  * The `Cont` encoding therefore simulates higher-rank polymorphism
+  * to ensure that you can not call `start` on `get`, but only use
+  * operations up to `MonadCancel` (`flatMap`, `onCancel`, `uncancelable`, etc).
+  *
+  * If you are an implementor, and you have an implementation of `async` but not `cont`,
+  * you can override `Async[F].async` with your implementation, and use `Async.defaultCont`
+  * to implement `Async[F].cont`.
+  */
 trait Cont[F[_], A] {
   def apply[G[_]](resume: Either[Throwable, A] => Unit, get: G[A], lift: F ~> G)(implicit Cancel: MonadCancel[G, Throwable]): G[A]
 }

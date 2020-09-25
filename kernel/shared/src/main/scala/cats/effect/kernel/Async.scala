@@ -57,9 +57,9 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
    * NOTE: This is a very low level api, end users should use `async` instead.
    * See cats.effect.kernel.Cont for more detail.
    *
-   * If you are an implementor, and you have `async`,
-   * `Async.defaultCont` provides an implementation of `cont` in terms of `async`.
-   * If you use `defaultCont` you _have_ to override `async`.
+   * If you are an implementor, and you have `async`, `Async.defaultCont`
+   * provides an implementation of `cont` in terms of `async`.
+   * Note that if you use `defaultCont` you _have_ to override `async`.
    */
   def cont[A](body: Cont[F, A]): F[A]
 }
