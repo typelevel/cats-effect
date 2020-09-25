@@ -73,17 +73,6 @@ class SyntaxSpec extends Specification {
       val result = target.background
       result: Resource[F, F[Outcome[F, E, A]]]
     }
-
-    {
-      val param = null.asInstanceOf[F[A]]
-      val result = target.backgroundAndEmbed(param)
-      result: Resource[F, F[A]]
-    }
-
-    {
-      val result = target.backgroundAndEmbedNever
-      result: Resource[F, F[A]]
-    }
   }
 
   def spawnForwarder[F[_]: Spawn] =

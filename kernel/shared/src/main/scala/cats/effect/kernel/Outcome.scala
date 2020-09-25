@@ -26,7 +26,7 @@ import scala.util.{Either, Left, Right}
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._
 
-  def embed(onCancel: => F[A])(implicit F: MonadCancel[F, E]): F[A] =
+  def embed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
     fold(onCancel, F.raiseError, identity)
 
   def embedNever(implicit F: GenSpawn[F, E]): F[A] =
