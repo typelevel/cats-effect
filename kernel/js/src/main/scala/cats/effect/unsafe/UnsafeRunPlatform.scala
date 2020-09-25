@@ -16,5 +16,4 @@
 
 package cats.effect.unsafe
 
-private[unsafe] trait UnsafeRunPlatform[F[_]] {
-}
+private[unsafe] trait UnsafeRunPlatform[F[_]] {}
