@@ -392,7 +392,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   // TODO make this private and only expose through Async[IO]?
   def cont[A](body: Cont[IO, A]): IO[A] =
     IOCont[A]().flatMap { case (resume, get) =>
-      body[IO](resume, get, FunctionK.id)
+      body[IO].apply(resume, get, FunctionK.id)
     }
 
   def executionContext: IO[ExecutionContext] = ReadEC

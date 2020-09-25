@@ -32,9 +32,10 @@ import cats.~>
   * the use case.
   *
   * It can be understood as providing an operation to resume an `F`
-  * asynchronously, of type `resume: Either[Throwable, A] => Unit`,
-  * and an (interruptible) operation to semantically block until
-  * resumption, of type `get: F[A]`.
+  * asynchronously, of type `Either[Throwable, A] => Unit`, and an
+  * (interruptible) operation to semantically block until resumption,
+  * of type `F[A]`. We will refer to the former as `resume`, and the
+  * latter as `get`.
   *
   * These two operations capture the essence of semantic blocking, and
   * can be used to build `async`, which in turn can be used to build
@@ -65,5 +66,5 @@ import cats.~>
   * to implement `Async[F].cont`.
   */
 trait Cont[F[_], A] {
-  def apply[G[_]](resume: Either[Throwable, A] => Unit, get: G[A], lift: F ~> G)(implicit Cancel: MonadCancel[G, Throwable]): G[A]
+  def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (Either[Throwable, A] => Unit,  G[A], F ~> G) => G[A]
 }

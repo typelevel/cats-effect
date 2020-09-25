@@ -17,6 +17,8 @@
 package cats
 package effect
 
+import syntax._
+
 import org.specs2.execute._
 
 import cats.syntax.all._
@@ -28,12 +30,15 @@ class ContSpec extends BaseSpec { outer =>
     else io >> execute(io, times, i + 1)
   }
 
+  type Cancelable[F[_]] = MonadCancel[F, Throwable]
+
   // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   "get resumes" in real {
     val io = IO.cont {
       new Cont[IO, Int] {
-        def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
+        def apply[F[_]: Cancelable] = { (resume, get, lift) =>
           lift(IO(resume(Right(42)))) >> get
+        }
       }
     }
 
@@ -47,8 +52,9 @@ class ContSpec extends BaseSpec { outer =>
 
     val io = IO.cont {
       new Cont[IO, Int] {
-        def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
-           lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get
+        def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get
+        }
 
       }
     }
@@ -61,9 +67,8 @@ class ContSpec extends BaseSpec { outer =>
   "get can be canceled" in real {
     def never = IO.cont {
       new Cont[IO, Int] {
-        def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
-          get
-
+        def apply[F[_]: Cancelable] =
+          (_, get, _) => get
       }
     }
 
@@ -97,9 +102,13 @@ class ContSpec extends BaseSpec { outer =>
   "get within onCancel" in ticked { implicit ticker =>
     val io = IO.cont {
       new Cont[IO, Int] {
-        def apply[F[_]](resume: Either[Throwable,Int] => Unit, get: F[Int], lift: IO ~> F)(implicit Cancel: MonadCancel[F,Throwable]): F[Int] =
-          Cancel.onCancel(get, get >> lift(IO(println("needs to happen"))))
-
+        // update ref in `onCancel(get >> update)`
+        // in test, run `cont`, then `start`, then `IO(tick)`, then cancel, then check Ref
+        // make sure the ticking does work with the scheduled resume, and does excercise the right
+        // path (use two refs actually)
+        def apply[F[_]](implicit F: Cancelable[F]) = { (_, get, lift) =>
+          F.onCancel(get, get >> lift(IO(println("needs to happen"))))
+        }
       }
     }.timeout(1.second).attempt.void
 
