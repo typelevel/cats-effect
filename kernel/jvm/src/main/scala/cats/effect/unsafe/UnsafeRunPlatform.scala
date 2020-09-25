@@ -14,13 +14,24 @@
  * limitations under the License.
  */
 
-package cats.effect
-package syntax
+package cats.effect.unsafe
 
-trait AllSyntax
-    extends kernel.syntax.GenSpawnSyntax
-    with kernel.syntax.GenConcurrentSyntax
-    with kernel.syntax.GenTemporalSyntax
-    with kernel.syntax.AsyncSyntax
-    with kernel.syntax.SyncEffectSyntax
-    with kernel.syntax.EffectSyntax
+import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.duration.Duration
+
+private[unsafe] trait UnsafeRunPlatform[F[_]] {
+  def unsafeRunFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
+
+  def unsafeRunSync[A](fa: F[A]): A =
+    unsafeRunTimed(fa, Duration.Inf)
+
+  def unsafeRunTimed[A](fa: F[A], timeout: Duration): A = {
+    val (fut, cancel) = unsafeRunFutureCancelable(fa)
+    try Await.result(fut, timeout)
+    catch {
+      case t: TimeoutException =>
+        cancel()
+        throw t
+    }
+  }
+}

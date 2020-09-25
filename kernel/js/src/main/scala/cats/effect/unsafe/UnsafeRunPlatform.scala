@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-package cats.effect
-package syntax
+package cats.effect.unsafe
 
-trait AllSyntax
-    extends kernel.syntax.GenSpawnSyntax
-    with kernel.syntax.GenConcurrentSyntax
-    with kernel.syntax.GenTemporalSyntax
-    with kernel.syntax.AsyncSyntax
-    with kernel.syntax.SyncEffectSyntax
-    with kernel.syntax.EffectSyntax
+private[unsafe] trait UnsafeRunPlatform[F[_]] {
+}
