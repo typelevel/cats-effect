@@ -236,15 +236,15 @@ trait GenSpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       back = F.racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
 
         case Right((f, oc)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
       }
     } yield back
 }

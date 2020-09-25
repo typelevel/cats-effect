@@ -98,9 +98,9 @@ class AsyncBenchmark {
     val task = (0 until size).foldLeft(IO.never[Int])((acc, _) =>
       IO.racePair(acc, IO(1)).flatMap {
         case Left((oc, fiber)) =>
-          fiber.cancel.flatMap(_ => oc.fold(IO.never, IO.raiseError(_), fa => fa))
+          fiber.cancel.flatMap(_ => oc.embedNever)
         case Right((fiber, oc)) =>
-          fiber.cancel.flatMap(_ => oc.fold(IO.never, IO.raiseError(_), fa => fa))
+          fiber.cancel.flatMap(_ => oc.embedNever)
       })
 
     task.unsafeRunSync()
