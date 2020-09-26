@@ -99,9 +99,6 @@ class ContSpec extends BaseSpec { outer =>
     execute(io, 100000)
   }
 
-  // project coreJVM ; testOnly *Cont* -- ex onC
-  // the get within onCancel does not execute
-  // and the cb fails
   "get within onCancel" in real {
     val flag = Ref[IO].of(false)
 

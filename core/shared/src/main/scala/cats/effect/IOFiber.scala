@@ -443,7 +443,10 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
           val state = cur.state
 
-          if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
+          // TODO is the right branch doable with a get?
+          // TODO document
+          // TODO works for get, cancel, get, cb, what about get, cancel, get ( CAS, cb, CAS)
+          if (state.compareAndSet(ContStateInitial, ContStateWaiting) || state.compareAndSet(ContStateWaiting, ContStateWaiting)) {
             /*
              * `state` was Initial, so `get` has arrived before the callback,
              * needs to set to waiting and suspend: cb will resume with the result
