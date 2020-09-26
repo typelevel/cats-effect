@@ -67,4 +67,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
 
 object Async {
   def apply[F[_]](implicit F: Async[F]): F.type = F
+
+  def defaultCont[F[_]: Async, A](body: Cont[F, A]): F[A] =
+    internal.DefaultCont.cont(body)
 }
