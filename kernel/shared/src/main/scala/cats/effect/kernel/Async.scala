@@ -16,7 +16,6 @@
 
 package cats.effect.kernel
 
-import cats.~>
 import cats.syntax.all._
 
 import scala.concurrent.{ExecutionContext, Future}

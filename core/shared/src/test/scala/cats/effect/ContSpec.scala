@@ -17,12 +17,12 @@
 package cats
 package effect
 
-import syntax._
-
-import org.specs2.execute._
-
+import kernel.Ref
+import cats.effect.syntax.all._
 import cats.syntax.all._
 import scala.concurrent.duration._
+
+import org.specs2.execute._
 
 class ContSpec extends BaseSpec { outer =>
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
@@ -99,22 +99,29 @@ class ContSpec extends BaseSpec { outer =>
     execute(io, 100000)
   }
 
-  "get within onCancel" in ticked { implicit ticker =>
-    val io = IO.cont {
-      new Cont[IO, Int] {
-        // update ref in `onCancel(get >> update)`
-        // in test, run `cont`, then `start`, then `IO(tick)`, then cancel, then check Ref
-        // make sure the ticking does work with the scheduled resume, and does excercise the right
-        // path (use two refs actually)
-        def apply[F[_]](implicit F: Cancelable[F]) = { (_, get, lift) =>
-          F.onCancel(get, get >> lift(IO(println("needs to happen"))))
-        }
-      }
-    }.timeout(1.second).attempt.void
+  // project coreJVM ; testOnly *Cont* -- ex onC
+  // the get within onCancel does not execute
+  // and the cb fails
+  "get within onCancel" in real {
+    val flag = Ref[IO].of(false)
 
-    io must completeAs(())
+    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+
+    val io =
+      (flag, flag).tupled.flatMap { case (start, end) =>
+        IO.cont {
+          new Cont[IO, Unit] {
+            def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+              lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+              get.onCancel {
+                lift(start.set(true)) >> get >> lift(end.set(true))
+              }
+            }
+          }
+        }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+      }.guarantee(IO(close()))
+
+
+    io.flatMap { r => IO(r mustEqual (true, true))}
   }
-
-
-
 }
