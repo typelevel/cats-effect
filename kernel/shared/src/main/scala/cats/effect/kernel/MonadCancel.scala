@@ -92,8 +92,8 @@ import cats.syntax.all._
  * it holds an open database connection, the connection would never be released
  * or returned to a pool, causing a resource leak.
  *
- * To illustrate the compositional nature of [[MonadCancel!.bracket bracket]],
- * its implementation is shown below:
+ * To illustrate the compositional nature of [[MonadCancel]] and its combinators,
+ * the implementation of [[MonadCancel!.bracket bracket]] is shown below:
  *
  * {{{
  *
