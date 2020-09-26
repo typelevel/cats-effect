@@ -18,7 +18,6 @@ package cats.effect
 package kernel
 
 import cats.{Eq, Eval, Id, MonadError}
-import cats.effect.kernel.Outcome
 import cats.effect.testkit.OutcomeGenerators
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
