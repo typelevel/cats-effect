@@ -99,7 +99,7 @@ class ContSpec extends BaseSpec { outer =>
     execute(io, 100000)
   }
 
-  "get within onCancel" in real {
+  "get within onCancel - 1" in real {
     val flag = Ref[IO].of(false)
 
     val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
@@ -112,6 +112,29 @@ class ContSpec extends BaseSpec { outer =>
               lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
               get.onCancel {
                 lift(start.set(true)) >> get >> lift(end.set(true))
+              }
+            }
+          }
+        }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+      }.guarantee(IO(close()))
+
+
+    io.flatMap { r => IO(r mustEqual (true, true))}
+  }
+
+  "get within onCancel - 2" in real {
+    val flag = Ref[IO].of(false)
+
+    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+
+    val io =
+      (flag, flag).tupled.flatMap { case (start, end) =>
+        IO.cont {
+          new Cont[IO, Unit] {
+            def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+              lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+              get.onCancel {
+                lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
               }
             }
           }

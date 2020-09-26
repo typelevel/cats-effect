@@ -445,45 +445,23 @@ private final class IOFiber[A](
 
           // TODO is the right branch doable with a get?
           // TODO revise and document
-          //
-          // first is true and second is true:
-          //  expression value: true
-          //  actually suspends: get
-          //  state value: Initial then Waiting
-          //  scenario:  1) normal get before cb
-          //  should suspend: 1) get
-          //  outcome: good
-          //
-          // first is true and second is false:
-          //  expression value: true
-          //  actually suspends: get
-          //  state value: Initial then Result
-          //  scenario:  1) normal cb win,
-          //  should suspend: 1) cb
-          //  outcome: BAD, this is BUG
-          //
-          // first is false, and second is true:
-          //  expression value: true
-          //  actually suspends: get
-          //  state value: Waiting then Waiting
-          //  scenario: 1) get being canceled and onCancel(get) happening before cb
-          //  should suspend: 1) get
-          //  outcome: good
-          //
-          // first is false, and second is false:
-          //  expression value: false
-          //  actually suspends: cb
-          //  state value: 1) Result then Result, 2) Waiting then Result
-          //  scenario: 1) normal cb win
-          //            2) get being canceled, and cb winning over onCancel(get) in between the two checks
-          //            3) get being canceled, and cb winning over onCancel(get) before the two checks
-          //  should suspend: 1) cb  2) cb 3) cb
-          //  outcome: good
-          //
-          // wanted: T T -> T, T F -> F, F T -> T, F F -> F
-          //
-          // TODO should I just make it into an else? will it make it a lot easier?
-          //      it would require rewriting suspendWithFinalisationCheck, which I'd put here
+          // Scenario:
+          //   initial state is initial (get not canceled)
+          //     get arrives first
+          //       get sees the state as initial and sets it to waiting, then suspends
+          //       cb sets the state to result, sees the old state as waiting, continues
+          //     cb arrives first
+          //        cb sets the state to result, sees the state as initial, and suspends
+          //        get sees the state as result, both conditions fail, and it continues
+          //   initial state in waiting (get was canceled)
+          //     cb arrives first  <-- BUG
+          //        cb sets the state to result, sees the old state as waiting, and continues
+          //          NOTE: it _tries_ to continue,it will spin on suspended pointlessly
+          //                until either finalisation, or someone else suspends --> HAVOC
+          //        get sees the state as result, both conditions fail, and continues
+          //     get arrives first
+          //       get sees the state as waiting, keeps like that, and suspends
+          //       cb sets the state to results, sees the old state as waiting, and continues
           //  
           if (state.compareAndSet(ContStateInitial, ContStateWaiting) || state.compareAndSet(ContStateWaiting, ContStateWaiting)) {
             /*
