@@ -42,13 +42,13 @@ import cats.syntax.all._
  *
  *   1. Success, with a value of type `A`
  *   1. Failure, with a value of type `E`
- *   1. Cancelled, indicating abrupt termination
+ *   1. Cancelled, indicating abnormal termination
  *
  * Additionally, a fiber may not produce an outcome at all, in which case it is
  * said to be non-terminating.
  *
  * Cancellation refers to the act of requesting that the execution of a fiber
- * be abruptly terminated. [[MonadCancel]] exposes a means of
+ * be abnormally terminated. [[MonadCancel]] exposes a means of
  * self-cancellation, with which a fiber can request that its own execution be
  * terminated. Self-cancellation is achieved via [[MonadCancel!.canceled canceled]].
  *
