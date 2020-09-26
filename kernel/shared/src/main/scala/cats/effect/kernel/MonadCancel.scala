@@ -109,9 +109,9 @@ import cats.syntax.all._
  * }}}
  *
  * See [[MonadCancel!.bracketCase bracketCase]] and [[MonadCancel!.bracketFull bracketFull]]
- * for other variants of the bracket pattern. If more specialized behavior is necessary,
- * it is recommended to use [[MonadCancel!.uncancelable uncancelable]] and
- * [[MonadCancel!.onCancel onCancel]] directly.
+ * for other variants of the bracket pattern. If more specialized behavior is 
+ * necessary, it is recommended to use [[MonadCancel!.uncancelable uncancelable]] 
+ * and [[MonadCancel!.onCancel onCancel]] directly.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
