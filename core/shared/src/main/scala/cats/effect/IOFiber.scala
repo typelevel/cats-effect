@@ -444,8 +444,47 @@ private final class IOFiber[A](
           val state = cur.state
 
           // TODO is the right branch doable with a get?
-          // TODO document
-          // TODO works for get, cancel, get, cb, what about get, cancel, get ( CAS, cb, CAS)
+          // TODO revise and document
+          //
+          // first is true and second is true:
+          //  expression value: true
+          //  actually suspends: get
+          //  state value: Initial then Waiting
+          //  scenario:  1) normal get before cb
+          //  should suspend: 1) get
+          //  outcome: good
+          //
+          // first is true and second is false:
+          //  expression value: true
+          //  actually suspends: get
+          //  state value: Initial then Result
+          //  scenario:  1) normal cb win,
+          //  should suspend: 1) cb
+          //  outcome: BAD, this is BUG
+          //
+          // first is false, and second is true:
+          //  expression value: true
+          //  actually suspends: get
+          //  state value: Waiting then Waiting
+          //  scenario: 1) get being canceled and onCancel(get) happening before cb
+          //  should suspend: 1) get
+          //  outcome: good
+          //
+          // first is false, and second is false:
+          //  expression value: false
+          //  actually suspends: cb
+          //  state value: 1) Result then Result, 2) Waiting then Result
+          //  scenario: 1) normal cb win
+          //            2) get being canceled, and cb winning over onCancel(get) in between the two checks
+          //            3) get being canceled, and cb winning over onCancel(get) before the two checks
+          //  should suspend: 1) cb  2) cb 3) cb
+          //  outcome: good
+          //
+          // wanted: T T -> T, T F -> F, F T -> T, F F -> F
+          //
+          // TODO should I just make it into an else? will it make it a lot easier?
+          //      it would require rewriting suspendWithFinalisationCheck, which I'd put here
+          //  
           if (state.compareAndSet(ContStateInitial, ContStateWaiting) || state.compareAndSet(ContStateWaiting, ContStateWaiting)) {
             /*
              * `state` was Initial, so `get` has arrived before the callback,
