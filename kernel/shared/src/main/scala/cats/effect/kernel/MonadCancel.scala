@@ -31,46 +31,70 @@ import cats.data.{
 import cats.syntax.all._
 
 /**
- * A type class that characterizes monads that support cancellation, masking
- * and finalization. [[MonadCancel]] instances must provide an instance for
- * [[MonadError]].
+ * A typeclass that characterizes monads which support safe cancellation,
+ * masking, and finalization. [[MonadCancel]] extends the capabilities of
+ * [[MonadError]], so an instance of this typeclass must also provide a lawful
+ * instance for [[MonadError]].
  *
- * Cancellation refers to the act of requesting that the execution of a fiber be
- * terminated. [[MonadCancel]] exposes a means of self-cancellation, where a fiber
- * can request that its own execution be terminated. Self-cancellation is achieved
- * via [[MonadCancel!.canceled canceled]].
+ * A fiber is a sequence of effects which are bound together by [[flatMap]].
+ * The execution of a fiber of an effect `F[E, A]` produces one of the
+ * following outcomes:
  *
- * Cancellation is vaguely similar to the short-circuit behavior introduced by [[MonadError]],
- * but there are several key differences:
+ *   1. Success, with a value of type `A`
+ *   1. Failure, with a value of type `E`
+ *   1. Cancelled, indicating abrupt termination
  *
- *   1. Cancellation is effective; if it is observed it must be respected, and it cannot
- *      be reversed.
- *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. This allows a fiber to
- *      suppress cancellation for a period of time. If a fiber is cancelled while it is masked,
- *      it must respect cancellation whenever it reaches an unmasked state.
- *   1. [[GenSpawn]] introduces external cancellation, another cancellation mechanism by which fibers
- *      can be cancelled by external parties. This can be likened to asynchronous exception throwing.
+ * Additionally, a fiber may not produce an outcome at all, in which case it is
+ * said to be non-terminating.
  *
- * Finalization refers to the act of invoking finalizers, which are effects that are guaranteed to be
- * run in the event of cancellation. Finalization is achieved via [[MonadCancel!.onCancel onCancel]],
- * which registers a finalizer for the duration of some arbitrary effect. If a fiber is cancelled during
- * evaluation of that effect, the registered finalizer is guaranteed to be invoked before terminating.
+ * Cancellation refers to the act of requesting that the execution of a fiber
+ * be abruptly terminated. [[MonadCancel]] exposes a means of
+ * self-cancellation, with which a fiber can request that its own execution be
+ * terminated. Self-cancellation is achieved via [[MonadCancel!.canceled canceled]].
  *
- * The aforementioned concepts come together to unlock a powerful pattern for interacting with
- * effectful lifecycles: the bracket pattern. This is analogous to the try-with-resources/finally
- * pattern seen in Java.
+ * Cancellation is vaguely similar to the short-circuit behavior introduced by
+ * [[MonadError]], but there are several key differences:
  *
- * A lifecycle refers to a pair of actions, which are called the acquisition action and the release
- * action respectively. The relationship between these two actions is that if the former completes
- * successfully, then the latter is guaranteed to be run eventually, even in the presence of exceptions
- * and cancellation. While the lifecycle is active, other work can be performed, but this invariant will
- * always be respected.
+ *   1. Cancellation is effective; if it is observed it must be respected, and
+ *      it cannot be reversed. In contrast, [[MonadError!handleError handleError]]
+ *      exposes the ability to catch and recover from errors, and then proceed
+ *      with normal execution.
+ *   1. Cancellation can be masked via [[MonadCancel!.uncancelable]]. This
+ *      allows a fiber to suppress cancellation for a period of time. If a
+ *      fiber is cancelled while it is masked, it must respect cancellation
+ *      whenever it reaches an unmasked state.
+ *   1. [[GenSpawn]] introduces external cancellation, another cancellation
+ *      mechanism by which fibers can be cancelled by external parties.
  *
- * The bracket pattern is a useful tool when dealing with resource lifecycles. Imagine an application that
- * opens network connections to a database server to do work. If a task in the application is cancelled
- * while it holds an open database connection, the connection would never be released or returned to a pool,
- * causing a resource leak. See [[MonadCancel!.bracket bracket]], [[MonadCancel!.bracketCase bracketCase]] and
- * [[MonadCancel!.bracketFull bracketFull]] for more details.
+ * Finalization refers to the act of running finalizers in the event of
+ * cancellation. Finalizers are those effects whose evaluation is guaranteed
+ * in the event of cancellation.
+ *
+ * Finalizers can be registered for the duration of some effect via
+ * [[MonadCancel!.onCancel onCancel]]. If a fiber is cancelled while running
+ * that effect, the registered finalizer is guaranteed to be invoked before
+ * terminating.
+ *
+ * The aforementioned concepts work together to unlock a powerful pattern for
+ * safely interacting with effectful lifecycles: the bracket pattern. This is
+ * analogous to the try-with-resources/finally construct in Java.
+ *
+ * A lifecycle refers to a pair of actions, which are called the acquisition
+ * action and the release action respectively. The relationship between these
+ * two actions is that if the former completes successfully, then the latter is
+ * guaranteed to be run eventually, even in the presence of exceptions and
+ * cancellation. While the lifecycle is active, other work can be performed, but
+ * this invariant is always respected.
+ *
+ * The bracket pattern is an invaluable tool for safely handling resource
+ * lifecycles.  Imagine an application that opens network connections to a
+ * database server to do work. If a task in the application is cancelled while
+ * it holds an open database connection, the connection would never be released
+ * or returned to a pool, causing a resource leak.
+ *
+ * See [[MonadCancel!.bracket bracket]], [[MonadCancel!.bracketCase bracketCase]]
+ * and [[MonadCancel!.bracketFull bracketFull]] for variants of the bracket
+ * pattern.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
@@ -81,9 +105,23 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   def forceR[A, B](fa: F[A])(fb: F[B]): F[B]
 
   /**
-   * Masks cancellation while evaluating an effect, offering the ability to
-   * unmask within that effect. Unmasking is more commonly referred to as
-   * "polling."
+   * Masks cancellation while evaluating an effect. The argument to `body`
+   * of type `Poll[F]` is a natural transformation `F ~> F` that enables
+   * unmasking within the masked region.
+   *
+   * In the following example, cancellation can be observed during the
+   * evaluation of `fb`, but not during the evaluation of `fa` or `fc`.
+   *
+   * {{{
+   *
+   *   F.uncancelable { poll =>
+   *     fa *> poll(fb) *> fc
+   *   }
+   *
+   * }}}
+   *
+   * If cancellation is observed while a fiber is masked, it will only
+   * be respected whenever the fiber is completely unmasked.
    */
   def uncancelable[A](body: Poll[F] => F[A]): F[A]
 
@@ -99,8 +137,21 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * without encountering a cancellation, the finalizer is unregistered
    * before proceeding.
    *
-   * During finalization, all actively registered finalizers are invoked
-   * in the opposite order of registration.
+   * During finalization, all actively registered finalizers are run exactly
+   * once. The order by which finalizers are run is dictated by nesting:
+   * innermost finalizers are run before outermost finalizers. For example,
+   * in the following program, the finalizer `f1` is run before the finalizer
+   * `f2`:
+   *
+   * {{{
+   *
+   *   F.onCancel(F.onCancel(F.canceled, f1), f2)
+   *
+   * }}}
+   *
+   * If a finalizer throws an error during evaluation, the error is suppressed,
+   * and implementations may choose to report it via a side channel. Finalizers
+   * are always uncancelable, so cannot otherwise be interrupted.
    *
    * @param fa The effect that is evaluated after `fin` is registered.
    * @param fin The finalizer to register before evaluating `fa`.
@@ -111,8 +162,9 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * Specifies an effect that is always invoked after evaluation of `fa`
    * completes, regardless of the outcome.
    *
-   * This function can be thought of as a combination of `flatTap`,
-   * `onError`, and [[MonadCancel!.onCancel onCancel]].
+   * This function can be thought of as a combination of
+   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.
    * @param fin The effect to run in the event of a cancellation or error.
@@ -128,8 +180,9 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * Specifies an effect that is always invoked after evaluation of `fa`
    * completes, but depends on the outcome.
    *
-   * This function can be thought of as a combination of `flatMap`,
-   * `onError`, and [[MonadCancel!.onCancel onCancel]].
+   * This function can be thought of as a combination of
+   * [[Monad!.flatTap flatTap]], [[MonadError!.onError onError]], and
+   * [[MonadCancel!.onCancel onCancel]].
    *
    * @param fa The effect that is run after `fin` is registered.
    * @param fin A function that returns the effect to run based on the
@@ -143,7 +196,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
     bracketCase(unit)(_ => fa)((_, oc) => fin(oc))
 
   /**
-   * A pattern for interacting with effectful lifecycles.
+   * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
    * fails, or is cancelled, `release` is guaranteed to be called exactly once.
@@ -165,7 +218,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
     bracketCase(acquire)(use)((a, _) => release(a))
 
   /**
-   * A pattern for interacting with effectful lifecycles.
+   * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
    * fails, or is cancelled, `release` is guaranteed to be called exactly once.
@@ -191,7 +244,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
     bracketFull(_ => acquire)(use)(release)
 
   /**
-   * A pattern for interacting with effectful lifecycles.
+   * A pattern for safely interacting with effectful lifecycles.
    *
    * If `acquire` completes successfully, `use` is called. If `use` succeeds,
    * fails, or is cancelled, `release` is guaranteed to be called exactly once.
@@ -202,6 +255,10 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * `acquire` is uncancelable by default, but can be unmasked.
    * `release` is uncancelable.
    * `use` is cancelable by default, but can be masked.
+   *
+   * [[bracketFull]] is the most powerful variant of the bracket pattern; it
+   * is implemented in terms of [[uncancelable]] and [[onCancel]]. If more
+   * specialized behavior is necessary, use those primitives instead.
    *
    * @param acquire the lifecycle acquisition action which can be cancelled
    * @param use the effect to which the lifecycle is scoped, whose result

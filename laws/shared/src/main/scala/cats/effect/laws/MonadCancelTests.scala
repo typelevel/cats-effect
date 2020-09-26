@@ -76,7 +76,9 @@ trait MonadCancelTests[F[_], E] extends MonadErrorTests[F, E] {
         "uncancelable eliminates onCancel" -> forAll(laws.uncancelableEliminatesOnCancel[A] _),
         "forceR discards pure" -> forAll(laws.forceRDiscardsPure[A, B] _),
         "forceR discards error" -> forAll(laws.forceRDiscardsError[A] _),
-        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _)
+        "forceR canceled short-circuits" -> forAll(laws.forceRCanceledShortCircuits[A] _),
+        "uncancelable finalizers" -> forAll(laws.uncancelableFinalizers[A] _),
+        "onCancel suppresses error" -> forAll(laws.onCancelSuppressesError[A] _)
       )
     }
   }
