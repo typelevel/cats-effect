@@ -435,6 +435,11 @@ private final class IOFiber[A](
           }
 
           val get: IO[Any] = IOCont.Get(state).onCancel(
+            /*
+             * If get gets canceled but the result hasn't been computed yet,
+             * restore the state to Initial to ensure a subsequent `Get` in
+             * a finalizer still works with the same logic.
+             */
             IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
           )
           val cont = (cb, get)
@@ -481,7 +486,22 @@ private final class IOFiber[A](
             /*
              * state was no longer Initial, so the callback has already been invoked
              * and the state is Result.
-             * We leave the Result state unmodified so that `get` is idempotent
+             * We leave the Result state unmodified so that `get` is idempotent.
+             *
+             * Note that it's impossible for `state` to be `Waiting` here:
+             * - `cont` doesn't allow concurrent calls to `get`, so there can't be
+             *    another `get` in `Waiting` when we execute this.
+             *
+             * - If a previous `get` happened before this code, and we are in a `flatMap`
+             *   or `handleErrorWith`, it means the callback has  completed once
+             *   (unblocking the first `get` and letting us execute), and the state is still
+             *   `Result`
+             *
+             * - If a previous `get` has been canceled and we are being called within an
+             *  `onCancel` of that `get`, the finalizer installed on the `Get` node by `Cont`
+             *   has restored the state to `Initial` before the execution of this method,
+             *   which would have been caught by the previous branch unless the `cb` has
+             *   completed and the state is `Result`
              */
             val result = state.get().result
 
