@@ -370,7 +370,7 @@ private final class IOFiber[A](
              */
             @tailrec
             def loop(): Unit = {
-              //println(s"cb loop sees suspended ${suspended.get} on fiber $name")
+              // println(s"cb loop sees suspended ${suspended.get} on fiber $name")
               /* try to take ownership of the runloop */
               if (resume()) {
                 if (!shouldFinalize()) {
@@ -434,7 +434,9 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          val get: IO[Any] = IOCont.Get(state)
+          val get: IO[Any] = IOCont.Get(state).onCancel(
+            IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
+          )
           val cont = (cb, get)
 
           runLoop(succeeded(cont, 0),  nextIteration)
@@ -443,27 +445,7 @@ private final class IOFiber[A](
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
           val state = cur.state
 
-          // TODO is the right branch doable with a get?
-          // TODO revise and document
-          // Scenario:
-          //   initial state is initial (get not canceled)
-          //     get arrives first
-          //       get sees the state as initial and sets it to waiting, then suspends
-          //       cb sets the state to result, sees the old state as waiting, continues
-          //     cb arrives first
-          //        cb sets the state to result, sees the state as initial, and suspends
-          //        get sees the state as result, both conditions fail, and it continues
-          //   initial state in waiting (get was canceled)
-          //     cb arrives first  <-- BUG
-          //        cb sets the state to result, sees the old state as waiting, and continues
-          //          NOTE: it _tries_ to continue,it will spin on suspended pointlessly
-          //                until either finalisation, or someone else suspends --> HAVOC
-          //        get sees the state as result, both conditions fail, and continues
-          //     get arrives first
-          //       get sees the state as waiting, keeps like that, and suspends
-          //       cb sets the state to results, sees the old state as waiting, and continues
-          //  
-          if (state.compareAndSet(ContStateInitial, ContStateWaiting) || state.compareAndSet(ContStateWaiting, ContStateWaiting)) {
+          if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
              * `state` was Initial, so `get` has arrived before the callback,
              * needs to set to waiting and suspend: cb will resume with the result
