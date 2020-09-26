@@ -92,9 +92,26 @@ import cats.syntax.all._
  * it holds an open database connection, the connection would never be released
  * or returned to a pool, causing a resource leak.
  *
- * See [[MonadCancel!.bracket bracket]], [[MonadCancel!.bracketCase bracketCase]]
- * and [[MonadCancel!.bracketFull bracketFull]] for variants of the bracket
- * pattern.
+ * To illustrate the compositional nature of [[MonadCancel!.bracket bracket]],
+ * its implementation is shown below:
+ *
+ * {{{
+ *
+ *   def bracket[A, B](acquire: F[A])(use: A => F[B])(release: A => F[Unit]): F[B] =
+ *     uncancelable { poll =>
+ *       flatMap(acquire) { a =>
+ *         val finalized = onCancel(poll(use(a)), release(a))
+ *         val handled = onError(finalized) { case e => void(attempt(release(a))) }
+ *         flatMap(handled)(b => as(attempt(release(a)), b))
+ *       }
+ *     }
+ *
+ * }}}
+ *
+ * See [[MonadCancel!.bracketCase bracketCase]] and [[MonadCancel!.bracketFull bracketFull]]
+ * for other variants of the bracket pattern. If more specialized behavior is necessary,
+ * it is recommended to use [[MonadCancel!.uncancelable uncancelable]] and
+ * [[MonadCancel!.onCancel onCancel]] directly.
  */
 trait MonadCancel[F[_], E] extends MonadError[F, E] {
 
@@ -255,10 +272,6 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
    * `acquire` is uncancelable by default, but can be unmasked.
    * `release` is uncancelable.
    * `use` is cancelable by default, but can be masked.
-   *
-   * [[bracketFull]] is the most powerful variant of the bracket pattern; it
-   * is implemented in terms of [[uncancelable]] and [[onCancel]]. If more
-   * specialized behavior is necessary, use those primitives instead.
    *
    * @param acquire the lifecycle acquisition action which can be cancelled
    * @param use the effect to which the lifecycle is scoped, whose result
