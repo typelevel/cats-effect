@@ -37,15 +37,15 @@ import cats.syntax.all._
  * instance for [[MonadError]].
  *
  * A fiber is a sequence of effects which are bound together by [[flatMap]].
- * The execution of a fiber of an effect `F[E, A]` produces one of the
- * following outcomes:
+ * The execution of a fiber of an effect `F[E, A]` produces one of three
+ * outcomes, which are encoded by the datatype [[Outcome]]:
  *
- *   1. Success, with a value of type `A`
- *   1. Failure, with a value of type `E`
- *   1. Cancelled, indicating abnormal termination
+ *   1. [[Completed]]: indicates success with a value of type `A`
+ *   1. [[Errored]]: indicates failure with a value of type `E`
+ *   1. [[Canceled]]: indicates abnormal termination
  *
- * Additionally, a fiber may not produce an outcome at all, in which case it is
- * said to be non-terminating.
+ * Additionally, a fiber may never produce an outcome, in which case it is said
+ * to be non-terminating.
  *
  * Cancellation refers to the act of requesting that the execution of a fiber
  * be abnormally terminated. [[MonadCancel]] exposes a means of
