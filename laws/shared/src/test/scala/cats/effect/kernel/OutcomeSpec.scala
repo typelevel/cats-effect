@@ -15,7 +15,7 @@
  */
 
 package cats.effect
-package laws
+package kernel
 
 import cats.{Eq, Eval, Id, MonadError}
 import cats.effect.kernel.Outcome
