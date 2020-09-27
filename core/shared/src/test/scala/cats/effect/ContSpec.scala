@@ -145,4 +145,35 @@ class ContSpec extends BaseSpec { outer =>
 
     io.flatMap { r => IO(r mustEqual (true, true))}
   }
+
+  "get is idempotent - 1" in real {
+    val io = IO.cont {
+      new Cont[IO, Int] {
+        def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+          lift(IO(resume(Right(42)))) >> get >> get
+        }
+      }
+    }
+
+    val test = io.flatMap(r => IO(r mustEqual 42))
+
+    execute(test, 100000)
+  }
+
+  "get is idempotent - 2" in real {
+    val (scheduler, close) = Scheduler.createDefaultScheduler()
+
+    val io = IO.cont {
+      new Cont[IO, Int] {
+        def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+          lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >> get
+        }
+
+      }
+    }
+
+    val test = io.flatMap(r => IO(r mustEqual 42))
+
+    execute(test, 100).guarantee(IO(close()))
+  }
 }
