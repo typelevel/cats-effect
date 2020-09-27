@@ -290,12 +290,12 @@ object Ref {
 
     def update(f: A => A): F[Unit] = {
       @tailrec
-      def spin: Unit = {
+      def spin(): Unit = {
         val a = ar.get
         val u = f(a)
-        if (!ar.compareAndSet(a, u)) spin
+        if (!ar.compareAndSet(a, u)) spin()
       }
-      F.delay(spin)
+      F.delay(spin())
     }
 
     override def updateAndGet(f: A => A): F[A] = {
