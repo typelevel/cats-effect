@@ -396,7 +396,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             }
             .guarantee(IO(close()))
 
-        io.flatMap { r => IO(r mustEqual (true, true)) }
+        io.flatMap { r => IO(r mustEqual true -> true) }
       }
 
       "get within onCancel - 2" in real {
@@ -423,7 +423,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
             }
             .guarantee(IO(close()))
 
-        io.flatMap { r => IO(r mustEqual (true, true)) }
+        io.flatMap { r => IO(r mustEqual true -> true) }
       }
 
       "get is idempotent - 1" in real {
