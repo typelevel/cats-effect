@@ -23,7 +23,7 @@ Scalacheck primarily supports properties in the shape `A => Assertion`.
 To support writing effectful properties with the shape `A => F[Assertion]`, you can use one of these tools:
 
 - [scalacheck-effect](https://github.com/typelevel/scalacheck-effect)
-- [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing)
+- [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing) - though note that this doesn't support "true" async, as it does block threads under the hood.
 
 You might also want to use [cats-scalacheck](https://christopherdavenport.github.io/cats-scalacheck/), which provides instances of `cats-core` typeclasses.
 
@@ -36,9 +36,11 @@ Use a compatible framework's support for writing `IO[Assertion]` style tests.
 
 ### Testing concurrency
 
-When possible, use `TestContext` as your `ExecutionContext`, `ContextShift`, and `Timer`. This is generally the case if your code uses `Timer` and `Clock` to perform time-related operations, and doesn't directly read or interact with the jvm System clock.
+In many test cases, `TestContext` should be used as an `ExecutionContext`, `ContextShift`, and `Timer`. This gives you very precise control over the sequencing and scheduling of evaluation, making it possible to deterministically replicate certain race conditions or even identify timing-related bugs without having to rely on non-deterministic thread ordering. `TestContext` also gives you control over *time* (as exposed by `Timer` and `Clock`), which makes it easy to write unit tests for time-related semantics without having to rely on `sleep`s or other hacks.
 
-To simulate time passing in the test, use `Timer[F].sleep(duration)`, which will defer to `TestContext`.
+To simulate time passing in a test, use `Timer[F].sleep(duration)`, which will defer to `TestContext`.
+
+Be aware though that `TestContext` is a very artificial environment, and it can in turn mask bugs that a realistic executor would uncover. The most comprehensive test suites will often use a balance of both `TestContext` and a more real-world thread pool implementation.
 
 Some reference material on this approach:
 
@@ -49,7 +51,9 @@ Some reference material on this approach:
 
 Sometimes you'll want to write a test that acquires a Resource before the suite and releases it after. For example, spinning up a database.
 
-For test frameworks that use imperative "hook"-style methods (such as scalatest's `BeforeAndAfterAll` mixin), you can use [`allocated`](https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])])
+With the Weaver test framework, this is supported [using cats-effect `Resource`](https://disneystreaming.github.io/weaver-test/docs/resources) out of the box.
+
+For other test frameworks that use imperative "hook"-style methods (such as scalatest's `BeforeAndAfterAll` mixin), you can use [`allocated`](https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])])
 
 ```scala mdoc:invisible
 import cats.effect._
