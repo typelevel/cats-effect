@@ -87,11 +87,11 @@ private final class IOFiber[A](
   private[this] var masks: Int = initMask
   private[this] var finalizing: Boolean = false
 
- /*
-  * allow for 255 masks before conflicting; 255 chosen because it is a familiar bound,
-  * and because it's evenly divides UnsignedInt.MaxValue.
-  * This scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
-  */
+  /*
+   * allow for 255 masks before conflicting; 255 chosen because it is a familiar bound,
+   * and because it's evenly divides UnsignedInt.MaxValue.
+   * This scheme gives us 16,843,009 (~2^24) potential derived fibers before masks can conflict
+   */
   private[this] val childMask: Int = initMask + 255
 
   private[this] val finalizers = new ArrayStack[IO[Unit]](16)
@@ -390,9 +390,9 @@ private final class IOFiber[A](
                  */
                 loop()
               } /*
-                 * If we are canceled, just die off and let `cancel` or `get` win
-                 * the race to `resume` and run the finalisers.
-                 */
+               * If we are canceled, just die off and let `cancel` or `get` win
+               * the race to `resume` and run the finalisers.
+               */
             }
 
             val resultState = ContStateResult(e)
@@ -434,17 +434,19 @@ private final class IOFiber[A](
             stateLoop()
           }
 
-          val get: IO[Any] = IOCont.Get(state).onCancel(
-            /*
-             * If get gets canceled but the result hasn't been computed yet,
-             * restore the state to Initial to ensure a subsequent `Get` in
-             * a finalizer still works with the same logic.
-             */
-            IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
-          )
+          val get: IO[Any] = IOCont
+            .Get(state)
+            .onCancel(
+              /*
+               * If get gets canceled but the result hasn't been computed yet,
+               * restore the state to Initial to ensure a subsequent `Get` in
+               * a finalizer still works with the same logic.
+               */
+              IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
+            )
           val cont = (cb, get)
 
-          runLoop(succeeded(cont, 0),  nextIteration)
+          runLoop(succeeded(cont, 0), nextIteration)
 
         case 12 =>
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]
@@ -547,34 +549,34 @@ private final class IOFiber[A](
           val next =
             IO.async[Either[(OutcomeIO[Any], FiberIO[Any]), (FiberIO[Any], OutcomeIO[Any])]] {
               cb =>
-              IO {
-                val initMask2 = childMask
-                val ec = currentCtx
-                val fiberA = new IOFiber[Any](
-                  s"racePair-left-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
-                  initMask2,
-                  null,
-                  cur.ioa,
-                  ec)
-                val fiberB = new IOFiber[Any](
-                  s"racePair-right-${childCount.getAndIncrement()}",
-                  scheduler,
-                  blockingEc,
-                  initMask2,
-                  null,
-                  cur.iob,
-                  ec)
+                IO {
+                  val initMask2 = childMask
+                  val ec = currentCtx
+                  val fiberA = new IOFiber[Any](
+                    s"racePair-left-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2,
+                    null,
+                    cur.ioa,
+                    ec)
+                  val fiberB = new IOFiber[Any](
+                    s"racePair-right-${childCount.getAndIncrement()}",
+                    scheduler,
+                    blockingEc,
+                    initMask2,
+                    null,
+                    cur.iob,
+                    ec)
 
-                fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
-                fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
+                  fiberA.registerListener(oc => cb(Right(Left((oc, fiberB)))))
+                  fiberB.registerListener(oc => cb(Right(Right((fiberA, oc)))))
 
-                reschedule(ec)(fiberA)
-                reschedule(ec)(fiberB)
+                  reschedule(ec)(fiberA)
+                  reschedule(ec)(fiberB)
 
-                Some(fiberA.cancel.both(fiberB.cancel).void)
-              }
+                  Some(fiberA.cancel.both(fiberB.cancel).void)
+                }
             }
 
           runLoop(next, nextIteration)
@@ -849,10 +851,10 @@ private final class IOFiber[A](
         ec.execute(fiber)
       } catch {
         case _: RejectedExecutionException =>
-          /*
-           * swallow this exception, since it means we're being externally murdered,
-           * so we should just... drop the runloop
-           */
+        /*
+         * swallow this exception, since it means we're being externally murdered,
+         * so we should just... drop the runloop
+         */
       }
     }
   }
@@ -993,7 +995,8 @@ private final class IOFiber[A](
 
   private[this] def runTerminusSuccessK(result: Any): IO[Any] = {
     val outcome: OutcomeIO[A] =
-      if (canceled) /* this can happen if we don't check the canceled flag before completion */
+      if (canceled)
+        /* this can happen if we don't check the canceled flag before completion */
         OutcomeCanceled
       else
         Outcome.Completed(IO.pure(result.asInstanceOf[A]))
@@ -1004,7 +1007,8 @@ private final class IOFiber[A](
 
   private[this] def runTerminusFailureK(t: Throwable): IO[Any] = {
     val outcome: OutcomeIO[A] =
-      if (canceled) /* this can happen if we don't check the canceled flag before completion */
+      if (canceled)
+        /* this can happen if we don't check the canceled flag before completion */
         OutcomeCanceled
       else
         Outcome.Errored(t)

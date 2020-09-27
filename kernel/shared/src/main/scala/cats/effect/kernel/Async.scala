@@ -24,13 +24,13 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // returns an optional cancelation token
   def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
     val body = new Cont[F, A] {
-      def apply[G[_]](implicit G: MonadCancel[G,Throwable]) = { (resume, get, lift) =>
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
         G.uncancelable { poll =>
-            lift(k(resume)) flatMap {
-              case Some(fin) => G.onCancel(poll(get), lift(fin))
-              case None => poll(get)
-            }
+          lift(k(resume)) flatMap {
+            case Some(fin) => G.onCancel(poll(get), lift(fin))
+            case None => poll(get)
           }
+        }
       }
     }
 

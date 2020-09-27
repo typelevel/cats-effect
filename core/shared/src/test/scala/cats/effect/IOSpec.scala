@@ -340,12 +340,13 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
       }
 
       "get can be canceled" in real {
-        def never = IO.cont {
-          new Cont[IO, Int] {
-            def apply[F[_]: Cancelable] =
-              (_, get, _) => get
+        def never =
+          IO.cont {
+            new Cont[IO, Int] {
+              def apply[F[_]: Cancelable] =
+                (_, get, _) => get
+            }
           }
-        }
 
         val io = never.start.flatMap(_.cancel)
 
@@ -356,9 +357,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         import kernel._
 
         def wait(syncLatch: Ref[IO, Boolean]): IO[Unit] =
-          syncLatch.get.flatMap { switched =>
-            (IO.cede >> wait(syncLatch)).whenA(!switched)
-          }
+          syncLatch.get.flatMap { switched => (IO.cede >> wait(syncLatch)).whenA(!switched) }
 
         val io = {
           for {
@@ -380,21 +379,24 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         val (scheduler, close) = Scheduler.createDefaultScheduler()
 
         val io =
-          (flag, flag).tupled.flatMap { case (start, end) =>
-            IO.cont {
-              new Cont[IO, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
-                  get.onCancel {
-                    lift(start.set(true)) >> get >> lift(end.set(true))
+          (flag, flag)
+            .tupled
+            .flatMap {
+              case (start, end) =>
+                IO.cont {
+                  new Cont[IO, Unit] {
+                    def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                      lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+                        get.onCancel {
+                          lift(start.set(true)) >> get >> lift(end.set(true))
+                        }
+                    }
                   }
-                }
-              }
-            }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
-          }.guarantee(IO(close()))
+                }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }
+            .guarantee(IO(close()))
 
-
-        io.flatMap { r => IO(r mustEqual (true, true))}
+        io.flatMap { r => IO(r mustEqual (true, true)) }
       }
 
       "get within onCancel - 2" in real {
@@ -403,21 +405,25 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
         val (scheduler, close) = Scheduler.createDefaultScheduler()
 
         val io =
-          (flag, flag).tupled.flatMap { case (start, end) =>
-            IO.cont {
-              new Cont[IO, Unit] {
-                def apply[F[_]: Cancelable] = { (resume, get, lift) =>
-                  lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
-                  get.onCancel {
-                    lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(end.set(true))
+          (flag, flag)
+            .tupled
+            .flatMap {
+              case (start, end) =>
+                IO.cont {
+                  new Cont[IO, Unit] {
+                    def apply[F[_]: Cancelable] = { (resume, get, lift) =>
+                      lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
+                        get.onCancel {
+                          lift(start.set(true) >> IO.sleep(60.millis)) >> get >> lift(
+                            end.set(true))
+                        }
+                    }
                   }
-                }
-              }
-            }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
-          }.guarantee(IO(close()))
+                }.timeoutTo(50.millis, ().pure[IO]) >> (start.get, end.get).tupled
+            }
+            .guarantee(IO(close()))
 
-
-        io.flatMap { r => IO(r mustEqual (true, true))}
+        io.flatMap { r => IO(r mustEqual (true, true)) }
       }
 
       "get is idempotent - 1" in real {
