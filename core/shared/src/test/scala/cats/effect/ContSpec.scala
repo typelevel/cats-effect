@@ -18,6 +18,7 @@ package cats
 package effect
 
 import kernel.Ref
+import unsafe.Scheduler
 import cats.effect.syntax.all._
 import cats.syntax.all._
 import scala.concurrent.duration._
@@ -48,7 +49,7 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   "callback resumes" in real {
-   val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+   val (scheduler, close) = Scheduler.createDefaultScheduler()
 
     val io = IO.cont {
       new Cont[IO, Int] {
@@ -102,7 +103,7 @@ class ContSpec extends BaseSpec { outer =>
   "get within onCancel - 1" in real {
     val flag = Ref[IO].of(false)
 
-    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+    val (scheduler, close) = Scheduler.createDefaultScheduler()
 
     val io =
       (flag, flag).tupled.flatMap { case (start, end) =>
@@ -125,7 +126,7 @@ class ContSpec extends BaseSpec { outer =>
   "get within onCancel - 2" in real {
     val flag = Ref[IO].of(false)
 
-    val (scheduler, close) = unsafe.IORuntime.createDefaultScheduler()
+    val (scheduler, close) = Scheduler.createDefaultScheduler()
 
     val io =
       (flag, flag).tupled.flatMap { case (start, end) =>

@@ -389,7 +389,11 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   def cede: IO[Unit] = Cede
 
-  // TODO make this private and only expose through Async[IO]?
+  /**
+    * This is a low-level API which is meant for implementors,
+    * please use `start`, `async` or `Deferred` instead,
+    * depending on the use case
+    */
   def cont[A](body: Cont[IO, A]): IO[A] =
     IOCont[A]().flatMap { case (resume, get) =>
       body[IO].apply(resume, get, FunctionK.id)
