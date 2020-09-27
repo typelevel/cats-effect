@@ -339,7 +339,7 @@ lazy val runtimeTests = project
 lazy val benchmarksPrev = project
   .in(file("benchmarks/vPrev"))
   .settings(commonSettings ++ noPublishSettings ++ sharedSourcesSettings)
-  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.0.0")
+  .settings(libraryDependencies += "org.typelevel" %% "cats-effect" % "2.2.0")
   .settings(scalacOptions ~= (_.filterNot(Set("-Xfatal-warnings", "-Ywarn-unused-import").contains)))
   .enablePlugins(JmhPlugin)
 
