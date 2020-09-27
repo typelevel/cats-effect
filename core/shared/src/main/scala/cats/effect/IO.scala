@@ -241,20 +241,16 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       // the casting is unfortunate, but required to work around GADT unification bugs
       this match {
         case IO.Pure(a) => F.pure(a)
-        case IO.Delay(thunk) => F.delay(thunk())
-        case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
-        case IO.Error(t) => F.raiseError(t)
-
-        case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
-        case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
-
         case IO.Map(ioe, f) => ioe.to[F].map(f)
         case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
+        case IO.Error(t) => F.raiseError(t)
+        case self: IO.Attempt[_] =>
+          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
         case IO.HandleErrorWith(ioa, f) => ioa.to[F].handleErrorWith(f.andThen(_.to[F]))
-
+        case IO.Delay(thunk) => F.delay(thunk())
+        case _: IO.Canceled.type => F.canceled.asInstanceOf[F[A]]
         case IO.OnCancel(ioa, fin) =>
           F.onCancel(ioa.to[F], fin.to[F]).asInstanceOf[F[A]]
-
         case IO.Uncancelable(body) =>
           F.uncancelable { poll =>
             val poll2 = new Poll[IO] {
@@ -264,40 +260,30 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
             body(poll2).to[F]
           }
-
-        case _: IO.Canceled.type => F.canceled.asInstanceOf[F[A]]
-
+        case self: IO.UnmaskTo[_, _] =>
+          // casts are safe because we only ever construct UnmaskF instances in this method
+          val ioa = self.ioa.asInstanceOf[IO[A]]
+          val poll = self.poll.asInstanceOf[Poll[F]]
+          poll(ioa.to[F])
+        case _ : IO.IOCont[_] => ??? // TODO  translate to operation on Async once it's there
+        case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
         case self: IO.Start[_] =>
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
-
         case self: IO.RacePair[_, _] =>
           val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
             e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
           }
 
           back.asInstanceOf[F[A]]
-
         case self: IO.Sleep => F.sleep(self.delay).asInstanceOf[F[A]]
         case _: IO.RealTime.type => F.realTime.asInstanceOf[F[A]]
         case _: IO.Monotonic.type => F.monotonic.asInstanceOf[F[A]]
-
-        case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
-
-        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber =>
+        case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
+        case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
+        case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
+        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber | IO.IOCont.Get(_) =>
           // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
-
-        case self: IO.Attempt[_] =>
-          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-
-        case self: IO.UnmaskTo[_, _] =>
-          // casts are safe because we only ever construct UnmaskF instances in this method
-          val ioa = self.ioa.asInstanceOf[IO[A]]
-          val poll = self.poll.asInstanceOf[Poll[F]]
-          poll(ioa.to[F])
-
-        case _ : IO.IOCont[_] => ??? // TODO rename, translate to operation on Async once it's there
-        case _ : IO.IOCont.Get[_] => sys.error("impossible")
       }
     }
 
