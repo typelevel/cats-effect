@@ -275,7 +275,8 @@ object GenSpawn {
       EitherT.liftF(
         F.bothOutcome(fa.value, fb.value).map(_.bimap(liftOutcome(_), liftOutcome(_))))
 
-    private def liftOutcome[A](oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
+    private def liftOutcome[A](
+        oc: Outcome[F, E, Either[E0, A]]): Outcome[EitherT[F, E0, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
@@ -379,6 +380,28 @@ object GenSpawn {
         })
       }
     }
+
+    override def race[A, B](
+        fa: Kleisli[F, R, A],
+        fb: Kleisli[F, R, B]): Kleisli[F, R, Either[A, B]] =
+      Kleisli { r => F.race(fa.run(r), fb.run(r)) }
+
+    override def both[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[F, R, (A, B)] =
+      Kleisli { r => F.both(fa.run(r), fb.run(r)) }
+
+    override def raceOutcome[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B]): Kleisli[
+      F,
+      R,
+      Either[Outcome[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B]]] =
+      Kleisli { r =>
+        F.raceOutcome(fa.run(r), fb.run(r)).map(_.bimap(liftOutcome(_), liftOutcome(_)))
+      }
+
+    override def bothOutcome[A, B](fa: Kleisli[F, R, A], fb: Kleisli[F, R, B])
+        : Kleisli[F, R, (Outcome[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])] =
+      Kleisli { r =>
+        F.bothOutcome(fa.run(r), fb.run(r)).map(_.bimap(liftOutcome(_), liftOutcome(_)))
+      }
 
     private def liftOutcome[A](oc: Outcome[F, E, A]): Outcome[Kleisli[F, R, *], E, A] = {
 
