@@ -447,6 +447,29 @@ object GenSpawn {
       })
     }
 
+    override def race[A, B](
+        fa: WriterT[F, L, A],
+        fb: WriterT[F, L, B]): WriterT[F, L, Either[A, B]] =
+      WriterT(F.race(fa.run, fb.run).map {
+        case Left((l, a)) => l -> Left(a)
+        case Right((l, b)) => l -> Right(b)
+      })
+
+    override def both[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[F, L, (A, B)] =
+      WriterT(F.both(fa.run, fb.run).map {
+        case ((l1, a), (l2, b)) => (l1 |+| l2) -> (a -> b)
+      })
+
+    override def raceOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B]): WriterT[
+      F,
+      L,
+      Either[Outcome[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B]]] =
+      WriterT.liftF(F.raceOutcome(fa.run, fb.run).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
+    override def bothOutcome[A, B](fa: WriterT[F, L, A], fb: WriterT[F, L, B])
+        : WriterT[F, L, (Outcome[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])] =
+      WriterT.liftF(F.bothOutcome(fa.run, fb.run).map(_.bimap(liftOutcome(_), liftOutcome(_))))
+
     private def liftOutcome[A](oc: Outcome[F, E, (L, A)]): Outcome[WriterT[F, L, *], E, A] =
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
