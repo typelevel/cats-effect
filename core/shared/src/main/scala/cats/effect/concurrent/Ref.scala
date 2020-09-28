@@ -267,6 +267,17 @@ object Ref {
       (snapshot, setter)
     }
 
+    override def getAndUpdate(f: A => A): F[A] = {
+      @tailrec
+      def spin: A = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin
+        else a
+      }
+      F.delay(spin)
+    }
+
     def tryUpdate(f: A => A): F[Boolean] =
       F.map(tryModify(a => (f(a), ())))(_.isDefined)
 
@@ -277,8 +288,25 @@ object Ref {
       else None
     }
 
-    def update(f: A => A): F[Unit] = modify { a =>
-      (f(a), ())
+    def update(f: A => A): F[Unit] = {
+      @tailrec
+      def spin(): Unit = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin()
+      }
+      F.delay(spin())
+    }
+
+    override def updateAndGet(f: A => A): F[A] = {
+      @tailrec
+      def spin: A = {
+        val a = ar.get
+        val u = f(a)
+        if (!ar.compareAndSet(a, u)) spin
+        else u
+      }
+      F.delay(spin)
     }
 
     def modify[B](f: A => (A, B)): F[B] = {
