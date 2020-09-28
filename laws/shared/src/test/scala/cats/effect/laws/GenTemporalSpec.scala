@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package concurrent
+package laws
 
 import cats.syntax.all._
 import cats.effect.kernel.{/*Outcome,*/ Temporal} // , Outcome._

@@ -17,24 +17,18 @@
 package cats.effect
 package laws
 
-import cats.{Eq, Eval, Show}
+import cats.{Eq, Eval}
+import cats.effect.testkit.{freeEval, FreeSyncEq, FreeSyncGenerators, SyncTypeGenerators}
 import cats.free.FreeT
-import cats.data.StateT
 import cats.laws.discipline.arbitrary._
-import cats.laws.discipline.MiniInt
-import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
 import freeEval.{syncForFreeT, FreeEitherSync}
-import cats.syntax.all._
-
-import org.scalacheck.Prop
-import org.scalacheck.util.Pretty
 
 import org.specs2.ScalaCheck
 import org.specs2.mutable._
 
 import org.typelevel.discipline.specs2.mutable.Discipline
 
-class StateTFreeSyncSpec
+class FreeSyncSpec
     extends Specification
     with Discipline
     with ScalaCheck
@@ -43,20 +37,12 @@ class StateTFreeSyncSpec
   import FreeSyncGenerators._
   import SyncTypeGenerators._
 
-  implicit def prettyFromShow[A: Show](a: A): Pretty =
-    Pretty.prettyString(a.show)
-
-  implicit val eqThrowable: Eq[Throwable] =
-    Eq.fromUniversalEquals
-
-  implicit def exec(sbool: FreeEitherSync[Boolean]): Prop =
-    run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
-
   implicit val scala_2_12_is_buggy
       : Eq[FreeT[Eval, Either[Throwable, *], Either[Int, Either[Throwable, Int]]]] =
     eqFreeSync[Either[Throwable, *], Either[Int, Either[Throwable, Int]]]
 
-  checkAll(
-    "StateT[FreeEitherSync]",
-    SyncTests[StateT[FreeEitherSync, MiniInt, *]].sync[Int, Int, Int])
+  checkAll("FreeEitherSync", SyncTests[FreeEitherSync].sync[Int, Int, Int])
 }
+
+//See the explicitly summoned implicits above - scala 2.12 has weird divergent implicit expansion problems
+trait LowPriorityImplicits extends FreeSyncEq {}

@@ -16,16 +16,17 @@
 
 package cats.effect
 
+import cats.{Eq, FlatMap, Monad, MonadError, Show}
 import cats.data._
-import cats.{Eq, FlatMap, Monad, MonadError}
 import cats.effect.testkit.freeEval._
+import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}, eq._
+import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Gen, Prop}
-
-import cats.laws.discipline.{eq, ExhaustiveCheck, MiniInt}; import eq._
+import org.scalacheck.util.Pretty
 
 // A dumping ground for random helpers for property tests
-trait BaseSpec {
+private[effect] trait BaseSpec {
 
   implicit def kleisliEq[F[_], A, B](implicit ev: Eq[A => F[B]]): Eq[Kleisli[F, A, B]] =
     Eq.by[Kleisli[F, A, B], A => F[B]](_.run)
@@ -123,4 +124,12 @@ trait BaseSpec {
       state => (e, s) => state.run(e, s)
     }
 
+  implicit def prettyFromShow[A: Show](a: A): Pretty =
+    Pretty.prettyString(a.show)
+
+  implicit val eqThrowable: Eq[Throwable] =
+    Eq.fromUniversalEquals
+
+  implicit def execFreeEitherSyncBool(sbool: FreeEitherSync[Boolean]): Prop =
+    run(sbool).fold(Prop.exception(_), b => if (b) Prop.proved else Prop.falsified)
 }
