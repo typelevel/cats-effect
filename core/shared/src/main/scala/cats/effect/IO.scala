@@ -242,8 +242,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       this match {
         case IO.FlatMap(IO.IOCont(), f) =>
           val body = new Cont[F, A] {
-            def apply[G[_]: MonadCancel[*[_], Throwable]] = { case (resume, get, lift) =>
-              lift(f(resume, get).to[F])
+            def apply[G[_]: MonadCancel[*[_], Throwable]] = {
+              case (resume, get, lift) =>
+                lift(f(resume, get).to[F])
             }
           }
           F.cont(body)
