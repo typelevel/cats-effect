@@ -375,11 +375,8 @@ private final class IOFiber[A](
              * If `state` is * set then `suspend()` should be right behind it
              * *unless* we * have been canceled.
              *
-             * TODO potentiall update this comment once the 3-way race on `resume` is fully understood.
-             * If we were canceled, then some other
-             * fiber is taking care of our finalizers and will have
-             * marked `suspended` as false, meaning that `canceled` will be set
-             * to true. Either way, we won't own the runloop.
+             * If we were canceled, `cb`, `cancel` and `get` are in a 3-way race
+             * to run the finalizers.
              */
             @tailrec
             def loop(): Unit = {
