@@ -240,20 +240,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
       // the casting is unfortunate, but required to work around GADT unification bugs
       this match {
-        case IO.FlatMap(IO.IOCont(), f) =>
-          val body = new Cont[F, A] {
-            def apply[G[_]: MonadCancel[*[_], Throwable]] = {
-              case (resume, get, lift) =>
-                lift(f(resume, get).to[F])
-            }
-          }
-          F.cont(body)
-        case _: IO.IOCont[_] =>
-          // Will never be executed. Cases demanded for exhaustiveness.
-          sys.error("impossible")
-        case IO.IOCont.Get(_) =>
-          // Will never be executed. Cases demanded for exhaustiveness.
-          sys.error("impossible")
         case IO.Pure(a) => F.pure(a)
         case IO.Map(ioe, f) => ioe.to[F].map(f)
         case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
@@ -274,15 +260,12 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
             body(poll2).to[F]
           }
-        case IO.Uncancelable.UnmaskRunLoop(_, _) =>
-          // Will never be executed. Cases demanded for exhaustiveness.
-          sys.error("impossible")
         case self: IO.UnmaskTo[_, _] =>
           // casts are safe because we only ever construct UnmaskF instances in this method
           val ioa = self.ioa.asInstanceOf[IO[A]]
           val poll = self.poll.asInstanceOf[Poll[F]]
           poll(ioa.to[F])
-
+        case _: IO.IOCont[_] => ??? // TODO  translate to operation on Async once it's there
         case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
         case self: IO.Start[_] =>
           F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
@@ -298,7 +281,7 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
         case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
         case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
         case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
-        case IO.EndFiber =>
+        case IO.Uncancelable.UnmaskRunLoop(_, _) | IO.EndFiber | IO.IOCont.Get(_) =>
           // Will never be executed. Cases demanded for exhaustiveness.
           sys.error("impossible")
       }
