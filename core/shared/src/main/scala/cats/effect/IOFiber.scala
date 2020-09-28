@@ -17,6 +17,8 @@
 package cats.effect
 
 import cats.effect.unsafe.WorkStealingThreadPool
+
+import cats.arrow.FunctionK
 import cats.syntax.all._
 
 import scala.annotation.{switch, tailrec}
@@ -330,8 +332,19 @@ private final class IOFiber[A](
 
           runLoop(cur.ioa, nextIteration)
 
-        // IOCont
         case 11 =>
+          val cur = cur0.asInstanceOf[IOCont[Any]]
+          /*
+           * Takes `cb` (callback) and `get` and returns an IO that
+           * uses them to embed async computations.
+           * This is a CPS'd encoding that uses higher-rank
+           * polymorphism to statically forbid concurrent operations
+           * on `get`, which are unsafe since `get` closes over the
+           * runloop.
+           *
+           */
+          val body = cur.body
+
           /*
            *`get` and `cb` (callback) race over the runloop.
            * If `cb` finishes after `get`, and `get` just
@@ -354,13 +367,13 @@ private final class IOFiber[A](
            */
           val state = new AtomicReference[ContState](ContStateInitial)
 
-          val cb: Either[Throwable, A] => Unit = { e =>
+          val cb: Either[Throwable, Any] => Unit = { e =>
             /*
              * We *need* to own the runloop when we return, so we CAS loop
              * on `suspended` (via `resume`) to break the race condition where
-             * `state` has been set by `get, `but `suspend()` has not yet run. If `state` is
-             * set then `suspend()` should be right behind it *unless* we
-             * have been canceled.
+             * `state` has been set by `get, `but `suspend()` has not yet run.
+             * If `state` is * set then `suspend()` should be right behind it
+             * *unless* we * have been canceled.
              *
              * TODO potentiall update this comment once the 3-way race on `resume` is fully understood.
              * If we were canceled, then some other
@@ -444,9 +457,10 @@ private final class IOFiber[A](
                */
               IO(state.compareAndSet(ContStateWaiting, ContStateInitial)).void
             )
-          val cont = (cb, get)
 
-          runLoop(succeeded(cont, 0), nextIteration)
+          val next = body[IO].apply(cb, get, FunctionK.id)
+
+          runLoop(next, nextIteration)
 
         case 12 =>
           val cur = cur0.asInstanceOf[IOCont.Get[Any]]

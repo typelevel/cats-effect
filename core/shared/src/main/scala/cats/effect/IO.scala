@@ -28,7 +28,6 @@ import cats.{
   Show,
   StackSafeMonad
 }
-import cats.arrow.FunctionK
 import cats.syntax.all._
 import cats.effect.implicits._
 import cats.effect.kernel.{Deferred, Ref}
@@ -381,10 +380,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
    * depending on the use case
    */
   def cont[A](body: Cont[IO, A]): IO[A] =
-    IOCont[A]().flatMap {
-      case (resume, get) =>
-        body[IO].apply(resume, get, FunctionK.id)
-    }
+    IOCont[A](body)
 
   def executionContext: IO[ExecutionContext] = ReadEC
 
@@ -685,8 +681,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   }
 
   // Low level construction that powers `async`
-  private[effect] final case class IOCont[A]()
-      extends IO[((Either[Throwable, A] => Unit), IO[A])] {
+  private[effect] final case class IOCont[A](body: Cont[IO, A]) extends IO[A] {
     def tag = 11
   }
   private[effect] object IOCont {
