@@ -25,7 +25,19 @@ import scala.concurrent.duration._
 
 import org.specs2.execute._
 
-class ContSpec extends BaseSpec { outer =>
+class ContSpec extends ContSpecBase {
+  def cont[A](body: Cont[IO, A]): IO[A] =
+    IO.cont(body)
+}
+
+class DefaultContSpec extends ContSpecBase {
+  def cont[A](body: Cont[IO, A]): IO[A] =
+    Async.defaultCont[IO, A](body)
+}
+
+trait ContSpecBase extends BaseSpec { outer =>
+  def cont[A](body: Cont[IO, A]): IO[A]
+
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
     if (i == times) IO(success)
     else io >> execute(io, times, i + 1)
@@ -33,9 +45,8 @@ class ContSpec extends BaseSpec { outer =>
 
   type Cancelable[F[_]] = MonadCancel[F, Throwable]
 
-  // TODO move these to IOSpec. Generally review our use of `ticked` in IOSpec
   "get resumes" in real {
-    val io = IO.cont {
+    val io = cont {
       new Cont[IO, Int] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
           lift(IO(resume(Right(42)))) >> get
@@ -51,7 +62,7 @@ class ContSpec extends BaseSpec { outer =>
   "callback resumes" in real {
    val (scheduler, close) = Scheduler.createDefaultScheduler()
 
-    val io = IO.cont {
+    val io = cont {
       new Cont[IO, Int] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
           lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get
@@ -66,7 +77,7 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   "get can be canceled" in real {
-    def never = IO.cont {
+    def never = cont {
       new Cont[IO, Int] {
         def apply[F[_]: Cancelable] =
           (_, get, _) => get
@@ -107,7 +118,7 @@ class ContSpec extends BaseSpec { outer =>
 
     val io =
       (flag, flag).tupled.flatMap { case (start, end) =>
-        IO.cont {
+        cont {
           new Cont[IO, Unit] {
             def apply[F[_]: Cancelable] = { (resume, get, lift) =>
               lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
@@ -130,7 +141,7 @@ class ContSpec extends BaseSpec { outer =>
 
     val io =
       (flag, flag).tupled.flatMap { case (start, end) =>
-        IO.cont {
+        cont {
           new Cont[IO, Unit] {
             def apply[F[_]: Cancelable] = { (resume, get, lift) =>
               lift(IO(scheduler.sleep(100.millis, () => resume(().asRight)))) >>
@@ -147,7 +158,7 @@ class ContSpec extends BaseSpec { outer =>
   }
 
   "get is idempotent - 1" in real {
-    val io = IO.cont {
+    val io = cont {
       new Cont[IO, Int] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
           lift(IO(resume(Right(42)))) >> get >> get
@@ -163,7 +174,7 @@ class ContSpec extends BaseSpec { outer =>
   "get is idempotent - 2" in real {
     val (scheduler, close) = Scheduler.createDefaultScheduler()
 
-    val io = IO.cont {
+    val io = cont {
       new Cont[IO, Int] {
         def apply[F[_]: Cancelable] = { (resume, get, lift) =>
           lift(IO(scheduler.sleep(10.millis, () => resume(Right(42))))) >> get >> get
