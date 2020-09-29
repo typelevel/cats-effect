@@ -38,6 +38,7 @@ class DefaultContSpec extends ContSpecBase {
 trait ContSpecBase extends BaseSpec { outer =>
   val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
   val iterations = if (isCI) 1000 else 100000
+  override val executionTimeout = if (isCI) 30.seconds else 10.seconds
 
   def cont[A](body: Cont[IO, A]): IO[A]
 
