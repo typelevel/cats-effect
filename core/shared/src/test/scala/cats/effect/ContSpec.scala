@@ -36,6 +36,9 @@ class DefaultContSpec extends ContSpecBase {
 }
 
 trait ContSpecBase extends BaseSpec { outer =>
+  val isCI = System.getenv("TRAVIS") == "true" || System.getenv("CI") == "true"
+  val iterations = if (isCI) 1000 else 100000
+
   def cont[A](body: Cont[IO, A]): IO[A]
 
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
@@ -56,7 +59,7 @@ trait ContSpecBase extends BaseSpec { outer =>
 
     val test = io.flatMap(r => IO(r mustEqual 42))
 
-    execute(test, 100000)
+    execute(test, iterations)
   }
 
   "callback resumes" in real {
@@ -87,7 +90,7 @@ trait ContSpecBase extends BaseSpec { outer =>
 
     val io = never.start.flatMap(_.cancel)
 
-    execute(io, 100000)
+    execute(io, iterations)
   }
 
   "nondeterministic cancelation corner case: get running finalisers " in real {
@@ -107,7 +110,7 @@ trait ContSpecBase extends BaseSpec { outer =>
       } yield ()
     }
 
-    execute(io, 100000)
+    execute(io, iterations)
   }
 
   "get within onCancel - 1" in real {
@@ -173,7 +176,7 @@ trait ContSpecBase extends BaseSpec { outer =>
 
     val test = io.flatMap(r => IO(r mustEqual 42))
 
-    execute(test, 100000)
+    execute(test, iterations)
   }
 
   "get is idempotent - 2" in real {
