@@ -11,6 +11,7 @@ position: 2
 Relatively few libraries support cats-effect directly at this time. However, most (if not all) popular testing frameworks have libraries offering some level of integration
 
 - [cats-effect-testing](https://github.com/djspiewak/cats-effect-testing): Supports Scalatest, Specs2, munit, minitest, µTest, and scalacheck
+- [distage-testkit](https://izumi.7mind.io/distage/distage-testkit): Supported natively
 - [@Daenyth's IOSpec gist](https://gist.github.com/Daenyth/67575575b5c1acc1d6ea100aae05b3a9) for scalatest (library pending)
 - [munit-cats-effect](https://github.com/typelevel/munit-cats-effect)
 - [weaver-test](https://disneystreaming.github.io/weaver-test/): Supported natively
@@ -52,6 +53,8 @@ Some reference material on this approach:
 Sometimes you'll want to write a test that acquires a Resource before the suite and releases it after. For example, spinning up a database.
 
 With the Weaver test framework, this is supported [using cats-effect `Resource`](https://disneystreaming.github.io/weaver-test/docs/resources) out of the box.
+
+[distage-testkit](https://izumi.7mind.io/distage/distage-testkit) test framework extends the usefulness of `Resource` further, allowing to designate resources to be acquired only once globally for all test suites or for a subset of test suites. ([Resource Reuse - Memoization](https://izumi.7mind.io/latest/snapshot/distage/distage-testkit.html#resource-reuse-memoization))
 
 For other test frameworks that use imperative "hook"-style methods (such as scalatest's `BeforeAndAfterAll` mixin), you can use [`allocated`](https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])])
 
