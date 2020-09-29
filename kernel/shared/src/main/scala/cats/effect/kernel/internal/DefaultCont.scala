@@ -70,6 +70,8 @@ private[kernel] final class DefaultCont[F[_], A](implicit F: Async[F]) {
           else ()
         case Waiting(cb) => cb(v)
       }
+
+    loop()
   }
 }
 private[kernel] object DefaultCont {
