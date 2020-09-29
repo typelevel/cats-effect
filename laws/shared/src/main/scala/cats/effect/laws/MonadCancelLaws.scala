@@ -62,7 +62,8 @@ trait MonadCancelLaws[F[_], E] extends MonadErrorLaws[F, E] {
     F.forceR(F.canceled)(fa) <-> F.productR(F.canceled)(fa)
 
   def uncancelableFinalizers[A](fin: F[Unit]) =
-    F.onCancel(F.canceled, F.canceled >> fin) <-> F.onCancel(F.canceled, fin)
+    F.onCancel(F.canceled, F.uncancelable(fin)) <-> F.onCancel(F.canceled, fin)
+
 }
 
 object MonadCancelLaws {
