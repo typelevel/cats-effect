@@ -68,7 +68,9 @@ private[kernel] final class DefaultCont[F[_], A](implicit F: Async[F]) {
         case s @ Initial() =>
           if (!state.compareAndSet(s, Value(v))) loop()
           else ()
-        case Waiting(cb) => cb(v)
+        case s @ Waiting(cb) =>
+          if (state.compareAndSet(s, Value(v))) cb(v)
+          else loop()
       }
 
     loop()
