@@ -32,22 +32,17 @@ import cats.syntax.all._
  * self-cancel. 
  * 
  * cooperative multitasking
+ * redefine what a fiber is from MonadCancel?
+ * fiber is a logical thread represented by a sequence of discrete steps
  * 
  * [[GenSpawn]] introduces a notion of concurrency enabling fibers to interact
  * with eachother. 
  * 
- * Concurrent evaluation refers to the fact that the ordering of effects on
- * different fibers may be interleaved in an indeterminate fashion:
+ * Similar to threads, fibers can execute concurrently with respect to eachother.
+ * This means that the effects of different fibers different fibers may be 
+ * interleaved in an indeterminate fashion:
  * 
  * {{{
- * 
- *   // There are six possible interleavings of the effects of both fibers:
- *   // 1. a1, a2, b1, b2
- *   // 2. a1, b1, a2, b2
- *   // 3. a1, b1, b2, a2
- *   // 4. b1, b2, a1, a2
- *   // 5. b1, a1, b2, a2
- *   // 6. b1, a1, a2, b3
  * 
  *   for {
  *     fa <- (a1 *> a2).start
@@ -56,12 +51,33 @@ import cats.syntax.all._
  * 
  * }}}
  * 
- * Notice how the ordering of effects within each fiber remain sequentially
- * consistent, but there are no guarantees as to when 
+ * In this example, two fibers A and B are spawned. There are six possible
+ * executions of this program, each of which exhibits a different ordering of
+ * the effects that comprise A and B:
+ * 
+ *   1. a1, a2, b1, b2
+ *   2. a1, b1, a2, b2
+ *   3. a1, b1, b2, a2
+ *   4. b1, b2, a1, a2
+ *   5. b1, a1, b2, a2
+ *   6. b1, a1, a2, b3
+ * 
+ * Notice how every execution preserves sequential consistency of the effects
+ * within each fiber: `a1` always runs before `a2` and `b1` always runs before
+ * `b2`. However, there are no guarantees around how the effects of both fibers
+ * will be ordered with respect to eachother; it is entirely non-deterministic.
+ *
+ * In other words, program order is always preserved.
  * 
  * interleaving of effects/steps
  * non-deterministic
  * interactions
+ * 
+ * [[MonadCancel]] introduces a notion of cancellation, specifically
+ * self-cancellation, where a fiber can request to abnormally terminate its own
+ * execution. [[GenSpawn]] expands on this by allowing fibers to be cancelled
+ * by external parties. This is achieved by calling 
+ * [[Fiber!.cancelled cancelled]]
  * 
  * cancellation should interact with MonadCancel finalizers the same way
  * 
@@ -73,15 +89,27 @@ import cats.syntax.all._
  * evaluation of some arbitrary effect concurrently. 
  * 
  * Note that the nature by which concurrent evaluation of fibers takes 
- * place depends completely on the native platform and the runtime system. 
+ * place depends completely on the native platform and the runtime system.
+ * Here are some examples describing how a runtime system can choose to
+ * execute fibers:
+ * 
+ * 
  * For example, an application running on a JVM with multiple
  * threads could run two independent fibers on two 
  * separate threads simultaneously. In contrast, an application running on a JavaScript
  * runtime is constrained to a single thread of control. 
  * 
+ * Describe different setups here, like how we could associate a fiber with a thread.
+ * 
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
+  /**
+   * A low-level primitive for requesting concurrent evaluation of an effect.
+   * Common pattern start.flatmap(_.cancel)
+   * 
+   * use resource instead
+   */
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
@@ -118,8 +146,8 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
   def cede: F[Unit]
 
   /**
-   * Races the concurrent evaluation of two arbitrary effects and returns the
-   * outcome of the winner and a handle to the fiber of the loser.
+   * A low-level primitive for racing the evaluation of two arbitrary effects. 
+   * Returns the outcome of the winner and a handle to the fiber of the loser.
    * 
    * [[racePair]] is considered to be an unsafe function.
    * 
