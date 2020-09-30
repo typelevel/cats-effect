@@ -66,6 +66,8 @@ import cats.syntax.all._
  *   1. [[GenSpawn]] introduces external cancellation, another cancellation
  *      mechanism by which fibers can be cancelled by external parties.
  *
+ * TODO: describe when and where cancellation can take place
+ * 
  * Finalization refers to the act of running finalizers in the event of
  * cancellation. Finalizers are those effects whose evaluation is guaranteed
  * in the event of cancellation.
@@ -145,6 +147,18 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
   /**
    * An effect that requests self-cancellation on the current fiber when
    * evaluated.
+   * 
+   * In the following example, the fiber requests self-cancellation in a masked
+   * region, so cancellation is suppressed until the fiber is completely
+   * unmasked. `fa` will run but `fb` will not.
+   * 
+   * {{{
+   * 
+   *   F.uncancelable { _ =>
+   *     F.canceled *> fa
+   *   } *> fb
+   * 
+   * }}}
    */
   def canceled: F[Unit]
 

@@ -21,16 +21,111 @@ import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{Monoid, Semigroup}
 import cats.syntax.all._
 
+/**
+ * A typeclass that characterizes monads which support spawning and racing of
+ * fibers. [[GenSpawn]] extends the capabilities of [[MonadCancel]], so an
+ * instance of this typeclass must also provide a lawful instance for 
+ * [[MonadCancel]].
+ * 
+ * [[MonadCancel]] introduces several functions for interacting with fibers,
+ * most notably [[MonadCancel!.canceled canceled]], which enables a fiber to
+ * self-cancel. 
+ * 
+ * cooperative multitasking
+ * 
+ * [[GenSpawn]] introduces a notion of concurrency enabling fibers to interact
+ * with eachother. 
+ * 
+ * Concurrent evaluation refers to the fact that the ordering of effects on
+ * different fibers may be interleaved in an indeterminate fashion:
+ * 
+ * {{{
+ * 
+ *   // There are six possible interleavings of the effects of both fibers:
+ *   // 1. a1, a2, b1, b2
+ *   // 2. a1, b1, a2, b2
+ *   // 3. a1, b1, b2, a2
+ *   // 4. b1, b2, a1, a2
+ *   // 5. b1, a1, b2, a2
+ *   // 6. b1, a1, a2, b3
+ * 
+ *   for {
+ *     fa <- (a1 *> a2).start
+ *     fb <- (b1 *> b2).start
+ *   } yield ()
+ * 
+ * }}}
+ * 
+ * Notice how the ordering of effects within each fiber remain sequentially
+ * consistent, but there are no guarantees as to when 
+ * 
+ * interleaving of effects/steps
+ * non-deterministic
+ * interactions
+ * 
+ * cancellation should interact with MonadCancel finalizers the same way
+ * 
+ * unlike self-cancellation, external cancellation need not ever be observed
+ * because of synchronization
+ * 
+ * [[GenSpawn]] introduces a primitive for starting fibers, 
+ * [[GenSpawn!.start start]], which requests the runtime system to begin
+ * evaluation of some arbitrary effect concurrently. 
+ * 
+ * Note that the nature by which concurrent evaluation of fibers takes 
+ * place depends completely on the native platform and the runtime system. 
+ * For example, an application running on a JVM with multiple
+ * threads could run two independent fibers on two 
+ * separate threads simultaneously. In contrast, an application running on a JavaScript
+ * runtime is constrained to a single thread of control. 
+ * 
+ */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
-  // produces an effect which never returns
+  /**
+   * An effect that never completes, causing the fiber to semantically block
+   * forever. This is the purely functional equivalent of an infinite while
+   * loop in Java, but no threads are blocked.
+   * 
+   * A fiber that is suspended in `never` can be cancelled if it is completely
+   * unmasked before it suspends:
+   * 
+   * {{{
+   * 
+   *   // ignoring race conditions between `start` and `cancel`
+   *   F.never.start.flatMap(_.cancel) <-> F.unit
+   * 
+   * }}}
+   * 
+   * However, if the fiber is masked, cancellers will be semantically blocked 
+   * forever:
+   * 
+   * {{{
+   * 
+   *   // ignoring race conditions between `start` and `cancel`
+   *   F.uncancelable(_ => F.never).start.flatMap(_.cancel) <-> F.never
+   * 
+   * }}}
+   */
   def never[A]: F[A]
 
-  // introduces a fairness boundary by yielding control to the underlying dispatcher
+  /**
+   * Introduces a fairness boundary by yielding control back to the underlying
+   * scheduler.
+   */
   def cede: F[Unit]
 
+  /**
+   * Races the concurrent evaluation of two arbitrary effects and returns the
+   * outcome of the winner and a handle to the fiber of the loser.
+   * 
+   * [[racePair]] is considered to be an unsafe function.
+   * 
+   * @see [[raceOutcome]], [[race]], [[bothOutcome]] and [[both]] for safer
+   * variants.
+   */
   def racePair[A, B](fa: F[A], fb: F[B])
       : F[Either[(Outcome[F, E, A], Fiber[F, E, B]), (Fiber[F, E, A], Outcome[F, E, B])]]
 

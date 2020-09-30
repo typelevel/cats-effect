@@ -18,8 +18,22 @@ package cats.effect.kernel
 
 import cats.syntax.all._
 
+/**
+ * A datatype which represents a handle to a fiber.
+ */
 trait Fiber[F[_], E, A] {
+
+  /**
+   * Requests the cancellation of the fiber bound to this handle.
+   * 
+   * This function semantically blocks the caller until finalization of the 
+   * cancelee has completed.
+   */
   def cancel: F[Unit]
+
+  /**
+   * 
+   */
   def join: F[Outcome[F, E, A]]
 
   def joinAndEmbed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
