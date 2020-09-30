@@ -1,0 +1,113 @@
+<!DOCTYPE html><html><head><title>Cats Effect: Testing with cats-effect</title><meta charset="utf-8" /><meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="author" content="Cats Effect contributors" /><meta name="description" content="The IO Monad for Scala" /><meta name="og:image" content="/cats-effect/img/poster.png" /><meta name="image" property="og:image" content="/cats-effect/img/poster.png" /><meta name="og:title" content="Cats Effect: Testing with cats-effect" /><meta name="title" property="og:title" content="Cats Effect: Testing with cats-effect" /><meta name="og:site_name" content="Cats Effect" /><meta name="og:url" content="https://typelevel.org/cats-effect/" /><meta name="og:type" content="website" /><meta name="og:description" content="The IO Monad for Scala" /><link rel="icon" type="image/png" href="/cats-effect/img/favicon.png" /><meta name="twitter:title" content="Cats Effect: Testing with cats-effect" /><meta name="twitter:image" content="/cats-effect/img/poster.png" /><meta name="twitter:description" content="The IO Monad for Scala" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:creator" content="@typelevel" /><link rel="icon" type="image/png" sizes="16x16" href="/cats-effect/img/favicon16x16.png" /><link rel="icon" type="image/png" sizes="24x24" href="/cats-effect/img/favicon24x24.png" /><link rel="icon" type="image/png" sizes="32x32" href="/cats-effect/img/favicon32x32.png" /><link rel="icon" type="image/png" sizes="48x48" href="/cats-effect/img/favicon48x48.png" /><link rel="icon" type="image/png" sizes="57x57" href="/cats-effect/img/favicon57x57.png" /><link rel="icon" type="image/png" sizes="60x60" href="/cats-effect/img/favicon60x60.png" /><link rel="icon" type="image/png" sizes="64x64" href="/cats-effect/img/favicon64x64.png" /><link rel="icon" type="image/png" sizes="70x70" href="/cats-effect/img/favicon70x70.png" /><link rel="icon" type="image/png" sizes="72x72" href="/cats-effect/img/favicon72x72.png" /><link rel="icon" type="image/png" sizes="76x76" href="/cats-effect/img/favicon76x76.png" /><link rel="icon" type="image/png" sizes="96x96" href="/cats-effect/img/favicon96x96.png" /><link rel="icon" type="image/png" sizes="114x114" href="/cats-effect/img/favicon114x114.png" /><link rel="icon" type="image/png" sizes="120x120" href="/cats-effect/img/favicon120x120.png" /><link rel="icon" type="image/png" sizes="128x128" href="/cats-effect/img/favicon128x128.png" /><link rel="icon" type="image/png" sizes="144x144" href="/cats-effect/img/favicon144x144.png" /><link rel="icon" type="image/png" sizes="150x150" href="/cats-effect/img/favicon150x150.png" /><link rel="icon" type="image/png" sizes="152x152" href="/cats-effect/img/favicon152x152.png" /><link rel="icon" type="image/png" sizes="196x196" href="/cats-effect/img/favicon196x196.png" /><link rel="icon" type="image/png" sizes="310x310" href="/cats-effect/img/favicon310x310.png" /><link rel="icon" type="image/png" sizes="310x150" href="/cats-effect/img/favicon310x150.png" /><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" /><link rel="stylesheet" href="/cats-effect/highlight/styles/atom-one-light.css" /><link rel="stylesheet" href="/cats-effect/css/light-style.css" /><link rel="stylesheet" href="/cats-effect/css/toc.css" /></head><body class="docs"><div id="wrapper"><div id="sidebar-wrapper"><div id="sidebar-brand"><a href="/cats-effect/" class="brand"><div class="brand-wrapper"></div><span>Cats Effect</span></a><button id="main-toggle" class="sidebar-toggle"><span class="close"></span></button></div><div class="sidebar-nav"> <div class="sidebar-nav-item  "><a href="/cats-effect/datatypes/" title="Data Types" class="drop-nested">Data Types</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/datatypes/io.html" title="IO" class="">IO</a> <a href="/cats-effect/datatypes/syncio.html" title="SyncIO" class="">SyncIO</a> <a href="/cats-effect/datatypes/fiber.html" title="Fiber" class="">Fiber</a> <a href="/cats-effect/datatypes/resource.html" title="Resource" class="">Resource</a> <a href="/cats-effect/datatypes/clock.html" title="Clock" class="">Clock</a> <a href="/cats-effect/datatypes/contextshift.html" title="ContextShift" class="">ContextShift</a> <a href="/cats-effect/datatypes/timer.html" title="Timer" class="">Timer</a> <a href="/cats-effect/datatypes/ioapp.html" title="IOApp" class="">IOApp</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/concurrency/" title="Concurrency" class="drop-nested">Concurrency</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/concurrency/basics.html" title="Concurrency Basics" class="">Concurrency Basics</a> <a href="/cats-effect/concurrency/deferred.html" title="Deferred" class="">Deferred</a> <a href="/cats-effect/concurrency/mvar.html" title="MVar" class="">MVar</a> <a href="/cats-effect/concurrency/ref.html" title="Ref" class="">Ref</a> <a href="/cats-effect/concurrency/semaphore.html" title="Semaphore" class="">Semaphore</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/typeclasses/" title="Type Classes" class="drop-nested">Type Classes</a><i class="fa fa-angle-right"></i><div class="sub-section"> <a href="/cats-effect/typeclasses/bracket.html" title="Bracket" class="">Bracket</a> <a href="/cats-effect/typeclasses/sync.html" title="Sync" class="">Sync</a> <a href="/cats-effect/typeclasses/liftio.html" title="LiftIO" class="">LiftIO</a> <a href="/cats-effect/typeclasses/async.html" title="Async" class="">Async</a> <a href="/cats-effect/typeclasses/concurrent.html" title="Concurrent" class="">Concurrent</a> <a href="/cats-effect/typeclasses/effect.html" title="Effect" class="">Effect</a> <a href="/cats-effect/typeclasses/concurrent-effect.html" title="ConcurrentEffect" class="">ConcurrentEffect</a></div></div> <div class="sidebar-nav-item  "><a href="/cats-effect/tutorial/tutorial.html" title="Tutorial" class="">Tutorial</a></div> <div class="sidebar-nav-item  "><a href="/cats-effect/tracing/" title="Tracing" class="">Tracing</a></div> <div class="sidebar-nav-item active "><a href="/cats-effect/testing/" title="Testing" class="active">Testing</a></div></div></div><div id="page-content-wrapper"><div class="nav"><div class="container-fluid"><div class="row"><div class="col-lg-12"><div class="action-menu pull-left clearfix"><a href="#menu-toggle" id="menu-toggle"><i class="fa fa-bars" aria-hidden="true"></i></a></div><ul class="pull-right"><li id="gh-eyes-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-eye"></i><span>Watchers<span id="eyes" class="label label-default">--</span></span></a></li><li id="gh-stars-item" class="hidden-xs"><a href="https://github.com/typelevel/cats-effect" target="_blank" rel="noopener noreferrer"><i class="fa fa-star-o"></i><span>Stars<span id="stars" class="label label-default">--</span></span></a></li></ul></div></div></div></div><div id="content" data-github-owner="typelevel" data-github-repo="cats-effect"><div class="content-wrapper"><section><h1>Testing with cats-effect</h1>
+
+<nav role="navigation" id="toc"></nav>
+
+<h2 id="compatible-libraries">Compatible libraries</h2>
+
+<p>Relatively few libraries support cats-effect directly at this time. However, most (if not all) popular testing frameworks have libraries offering some level of integration</p>
+
+<ul>
+  <li><a href="https://github.com/djspiewak/cats-effect-testing">cats-effect-testing</a>: Supports Scalatest, Specs2, munit, minitest, µTest, and scalacheck</li>
+  <li><a href="https://izumi.7mind.io/distage/distage-testkit">distage-testkit</a>: Supported natively</li>
+  <li><a href="https://gist.github.com/Daenyth/67575575b5c1acc1d6ea100aae05b3a9">@Daenyth’s IOSpec gist</a> for scalatest (library pending)</li>
+  <li><a href="https://github.com/typelevel/munit-cats-effect">munit-cats-effect</a></li>
+  <li><a href="https://disneystreaming.github.io/weaver-test/">weaver-test</a>: Supported natively</li>
+</ul>
+
+<h2 id="property-based-testing">Property-based Testing</h2>
+
+<h3 id="scalacheck">Scalacheck</h3>
+
+<p>Scalacheck primarily supports properties in the shape <code class="language-plaintext highlighter-rouge">A =&gt; Assertion</code>.
+To support writing effectful properties with the shape <code class="language-plaintext highlighter-rouge">A =&gt; F[Assertion]</code>, you can use one of these tools:</p>
+
+<ul>
+  <li><a href="https://github.com/typelevel/scalacheck-effect">scalacheck-effect</a></li>
+  <li><a href="https://github.com/djspiewak/cats-effect-testing">cats-effect-testing</a> - though note that this doesn’t support “true” async, as it does block threads under the hood.</li>
+</ul>
+
+<p>You might also want to use <a href="https://christopherdavenport.github.io/cats-scalacheck/">cats-scalacheck</a>, which provides instances of <code class="language-plaintext highlighter-rouge">cats-core</code> typeclasses.</p>
+
+<h2 id="best-practices">Best practices</h2>
+
+<p>Avoid using <code class="language-plaintext highlighter-rouge">unsafe*</code> methods in tests, the same as you’d avoid them in “main” code.
+Writing tests to be structured the same way as “normal” code results in tests that are less likely to be flaky, act as executable documentation, and remain easy to read.</p>
+
+<p>Use a compatible framework’s support for writing <code class="language-plaintext highlighter-rouge">IO[Assertion]</code> style tests.</p>
+
+<h3 id="testing-concurrency">Testing concurrency</h3>
+
+<p>In many test cases, <code class="language-plaintext highlighter-rouge">TestContext</code> should be used as an <code class="language-plaintext highlighter-rouge">ExecutionContext</code>, <code class="language-plaintext highlighter-rouge">ContextShift</code>, and <code class="language-plaintext highlighter-rouge">Timer</code>. This gives you very precise control over the sequencing and scheduling of evaluation, making it possible to deterministically replicate certain race conditions or even identify timing-related bugs without having to rely on non-deterministic thread ordering. <code class="language-plaintext highlighter-rouge">TestContext</code> also gives you control over <em>time</em> (as exposed by <code class="language-plaintext highlighter-rouge">Timer</code> and <code class="language-plaintext highlighter-rouge">Clock</code>), which makes it easy to write unit tests for time-related semantics without having to rely on <code class="language-plaintext highlighter-rouge">sleep</code>s or other hacks.</p>
+
+<p>To simulate time passing in a test, use <code class="language-plaintext highlighter-rouge">Timer[F].sleep(duration)</code>, which will defer to <code class="language-plaintext highlighter-rouge">TestContext</code>.</p>
+
+<p>Be aware though that <code class="language-plaintext highlighter-rouge">TestContext</code> is a very artificial environment, and it can in turn mask bugs that a realistic executor would uncover. The most comprehensive test suites will often use a balance of both <code class="language-plaintext highlighter-rouge">TestContext</code> and a more real-world thread pool implementation.</p>
+
+<p>Some reference material on this approach:</p>
+
+<ul>
+  <li><a href="https://www.javadoc.io/doc/org.typelevel/cats-effect-laws_2.13/2.2.0/cats/effect/laws/util/TestContext.html">TestContext api documentation</a> (includes examples and motivation)</li>
+  <li><a href="https://blog.softwaremill.com/time-traveling-in-tests-with-cats-effect-b22084f6a89">Time Traveling in Tests with Cats-Effect</a>, by Krzysztof Ciesielski</li>
+</ul>
+
+<h3 id="managing-shared-resources">Managing shared resources</h3>
+
+<p>Sometimes you’ll want to write a test that acquires a Resource before the suite and releases it after. For example, spinning up a database.</p>
+
+<p>With the Weaver test framework, this is supported <a href="https://disneystreaming.github.io/weaver-test/docs/resources">using cats-effect <code class="language-plaintext highlighter-rouge">Resource</code></a> out of the box.</p>
+
+<p><a href="https://izumi.7mind.io/distage/distage-testkit">distage-testkit</a> test framework extends the usefulness of <code class="language-plaintext highlighter-rouge">Resource</code> further, allowing to designate resources to be acquired only once globally for all test suites or for a subset of test suites. (<a href="https://izumi.7mind.io/latest/snapshot/distage/distage-testkit.html#resource-reuse-memoization">Resource Reuse - Memoization</a>)</p>
+
+<p>For other test frameworks that use imperative “hook”-style methods (such as scalatest’s <code class="language-plaintext highlighter-rouge">BeforeAndAfterAll</code> mixin), you can use <a href="https://typelevel.org/cats-effect/api/cats/effect/Resource.html#allocated[G[x]%3E:F[x],B%3E:A](implicitF:cats.effect.Bracket[G,Throwable]):G[(B,G[Unit])]"><code class="language-plaintext highlighter-rouge">allocated</code></a></p>
+
+<div class="language-scala highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Database</span> <span class="o">{</span>
+    <span class="k">def</span> <span class="nf">close</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">???</span>
+<span class="o">}</span>
+
+<span class="k">object</span> <span class="nc">Database</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="nf">resource</span><span class="k">:</span> <span class="kt">Resource</span><span class="o">[</span><span class="kt">IO</span>, <span class="kt">Database</span><span class="o">]</span> <span class="k">=</span> <span class="nv">Resource</span><span class="o">.</span><span class="py">make</span><span class="o">(</span><span class="nc">IO</span><span class="o">(</span><span class="k">new</span> <span class="nc">Database</span><span class="o">))(</span><span class="n">d</span> <span class="k">=&gt;</span> <span class="nc">IO</span><span class="o">(</span><span class="nv">d</span><span class="o">.</span><span class="py">close</span><span class="o">()))</span>
+<span class="o">}</span>
+
+<span class="k">class</span> <span class="nc">TestSuite</span> <span class="o">{</span>
+  <span class="k">private</span> <span class="k">var</span> <span class="nc">_database</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[(</span><span class="kt">Database</span>, <span class="kt">IO</span><span class="o">[</span><span class="kt">Unit</span><span class="o">])]</span> <span class="k">=</span> <span class="nc">None</span>
+  <span class="k">private</span> <span class="k">def</span> <span class="nf">database</span><span class="k">:</span> <span class="kt">Database</span> <span class="o">=</span> <span class="nv">_database</span><span class="o">.</span><span class="py">getOrElse</span><span class="o">(</span><span class="nv">sys</span><span class="o">.</span><span class="py">error</span><span class="o">(</span><span class="s">"not currently alive!"</span><span class="o">)).</span><span class="py">_1</span>
+
+  <span class="k">def</span> <span class="nf">beforeAll</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="nc">_database</span> <span class="k">=</span> <span class="nc">Some</span><span class="o">(</span><span class="nv">Database</span><span class="o">.</span><span class="py">resource</span><span class="o">.</span><span class="py">allocated</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">())</span>
+    <span class="o">()</span>
+  <span class="o">}</span>
+
+  <span class="k">def</span> <span class="nf">afterAll</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="nv">_database</span><span class="o">.</span><span class="py">foreach</span><span class="o">(</span><span class="nv">_</span><span class="o">.</span><span class="py">_2</span><span class="o">.</span><span class="py">unsafeRunSync</span><span class="o">())</span>
+    <span class="nc">_database</span> <span class="k">=</span> <span class="nc">None</span>
+  <span class="o">}</span>
+
+  <span class="cm">/* tests using `database` */</span>
+  <span class="k">def</span> <span class="nf">test</span> <span class="k">=</span> <span class="o">{</span>
+      <span class="nf">assert</span><span class="o">(</span><span class="n">database</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+
+<link rel="stylesheet" type="text/css" href="/cats-effect/css/toc.css"></link>
+<script type="text/javascript" src="/cats-effect/js/toc.js"></script>
+</section></div></div></div></div><script src="/cats-effect/highlight/highlight.pack.js"></script><script>
+// For all code blocks, copy the language from the containing div
+// to the inner code tag (where hljs expects it to be)
+const langPrefix = 'language-';
+document.querySelectorAll(`div[class^='${langPrefix}']`).forEach(function(div) {
+  div.classList.forEach(function(cssClass) {
+    if (cssClass.startsWith(langPrefix)) {
+      const lang = cssClass.substring(langPrefix.length);
+      div.querySelectorAll('pre code').forEach(function(code) {
+        code.classList.add(lang);
+      });
+    }
+  });
+});
+
+hljs.configure({languages:['scala','java','bash']});
+hljs.initHighlightingOnLoad();
+      </script><script src="/cats-effect/js/toc.js"></script><script>console.info('\x57\x65\x62\x73\x69\x74\x65\x20\x62\x75\x69\x6c\x74\x20\x77\x69\x74\x68\x3a\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x5f\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x5f\x20\x5f\x5f\x0a\x20\x20\x20\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x5f\x20\x20\x2f\x20\x2f\x5f\x20\x20\x20\x20\x20\x20\x5f\x5f\x5f\x5f\x20\x5f\x5f\x5f\x20\x20\x28\x5f\x29\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x28\x5f\x29\x20\x2f\x5f\x5f\x5f\x5f\x20\x20\x5f\x5f\x5f\x5f\x5f\x0a\x20\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x60\x5f\x5f\x20\x5c\x2f\x20\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x5f\x2f\x20\x5f\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x20\x2f\x20\x5f\x5f\x2f\x20\x5f\x20\x5c\x2f\x20\x5f\x5f\x5f\x2f\x0a\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x5f\x2f\x20\x2f\x20\x2f\x5f\x2f\x5f\x5f\x5f\x5f\x5f\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x20\x2f\x5f\x5f\x2f\x20\x2f\x20\x20\x2f\x20\x2f\x5f\x2f\x20\x28\x5f\x5f\x20\x20\x29\x20\x2f\x20\x2f\x5f\x2f\x20\x20\x5f\x5f\x28\x5f\x5f\x20\x20\x29\x0a\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2e\x5f\x5f\x5f\x2f\x5c\x5f\x5f\x2f\x20\x20\x20\x20\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x20\x2f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x2f\x20\x20\x20\x5c\x5f\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x5f\x2f\x5c\x5f\x5f\x2f\x5c\x5f\x5f\x5f\x2f\x5f\x5f\x5f\x5f\x2f\x0a\x0a\x68\x74\x74\x70\x73\x3a\x2f\x2f\x34\x37\x64\x65\x67\x2e\x67\x69\x74\x68\x75\x62\x2e\x69\x6f\x2f\x73\x62\x74\x2d\x6d\x69\x63\x72\x6f\x73\x69\x74\x65\x73')</script><script>((window.gitter = {}).chat = {}).options = {
+room: 'typelevel/cats-effect'};</script><script src="https://sidecar.gitter.im/dist/sidecar.v1.js"></script><script src="/cats-effect/js/docs.js"></script></body></html>
