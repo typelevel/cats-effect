@@ -347,9 +347,9 @@ private final class IOFiber[A](
 
           /*
            *`get` and `cb` (callback) race over the runloop.
-           * If `cb` finishes after `get`, and `get` just
-           * terminates by suspending, and `cb` will resume
-           * the runloop via `asyncContinue`.
+           * If `cb` finishes after `get`, `get` just terminates by
+           * suspending, and `cb` will resume the runloop via
+           * `asyncContinue`.
            *
            * If `get` wins, it gets the result from the `state`
            * `AtomicRef` and it continues, while the callback just
@@ -361,7 +361,7 @@ private final class IOFiber[A](
            * resume), to negotiate ownership of the runloop.
            *
            * In case of interruption, neither side will continue,
-           * and they will negotiate ownership with `decide who
+           * and they will negotiate ownership with `cancel` to decide who
            * should run the finalisers (i.e. call `asyncCancel`).
            *
            */
@@ -372,8 +372,8 @@ private final class IOFiber[A](
              * We *need* to own the runloop when we return, so we CAS loop
              * on `suspended` (via `resume`) to break the race condition where
              * `state` has been set by `get, `but `suspend()` has not yet run.
-             * If `state` is * set then `suspend()` should be right behind it
-             * *unless* we * have been canceled.
+             * If `state` is set then `suspend()` should be right behind it
+             * *unless* we have been canceled.
              *
              * If we were canceled, `cb`, `cancel` and `get` are in a 3-way race
              * to run the finalizers.
@@ -395,14 +395,14 @@ private final class IOFiber[A](
                 }
               } else if (!shouldFinalize()) {
                 /*
-                 * If we aren't canceled, loop on `suspended to wait until `get` has released
-                 * ownership of the runloop.
+                 * If we aren't canceled, loop on `suspended` to wait
+                 * until `get` has released ownership of the runloop.
                  */
                 loop()
               } /*
-               * If we are canceled, just die off and let `cancel` or `get` win
-               * the race to `resume` and run the finalisers.
-               */
+                 * If we are canceled, just die off and let `cancel` or `get` win
+                 * the race to `resume` and run the finalisers.
+                 */
             }
 
             val resultState = ContStateResult(e)
@@ -466,8 +466,8 @@ private final class IOFiber[A](
           if (state.compareAndSet(ContStateInitial, ContStateWaiting)) {
             /*
              * `state` was Initial, so `get` has arrived before the callback,
-             * needs to set to waiting and suspend: cb will resume with the result
-             * once that's ready
+             * it needs to set the state to `Waiting` and suspend: `cb` will
+             * resume with the result once that's ready
              */
 
             /*
@@ -506,7 +506,7 @@ private final class IOFiber[A](
              *    another `get` in `Waiting` when we execute this.
              *
              * - If a previous `get` happened before this code, and we are in a `flatMap`
-             *   or `handleErrorWith`, it means the callback has  completed once
+             *   or `handleErrorWith`, it means the callback has completed once
              *   (unblocking the first `get` and letting us execute), and the state is still
              *   `Result`
              *
