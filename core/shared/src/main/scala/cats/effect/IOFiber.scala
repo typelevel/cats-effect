@@ -400,9 +400,9 @@ private final class IOFiber[A](
                  */
                 loop()
               } /*
-                 * If we are canceled, just die off and let `cancel` or `get` win
-                 * the race to `resume` and run the finalisers.
-                 */
+               * If we are canceled, just die off and let `cancel` or `get` win
+               * the race to `resume` and run the finalisers.
+               */
             }
 
             val resultState = ContStateResult(e)
