@@ -284,12 +284,12 @@ sealed abstract class Resource[+F[_], +A] {
             case (a, rel) =>
               stack match {
                 case Nil =>
-                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Completed))(release))
+                  G.pure((a: B) -> G.guarantee(rel(ExitCase.Succeeded))(release))
                 case Frame(head, tail) =>
-                  continue(head(a), tail, G.guarantee(rel(ExitCase.Completed))(release))
+                  continue(head(a), tail, G.guarantee(rel(ExitCase.Succeeded))(release))
               }
           } {
-            case (_, ExitCase.Completed) =>
+            case (_, ExitCase.Succeeded) =>
               G.unit
             case ((_, release), ec) =>
               release(ec)
@@ -485,7 +485,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
    *
    * The types of exit signals are:
    *
-   *  - [[ExitCase$.Completed Completed]]: for successful completion
+   *  - [[ExitCase$.Succeeded Succeeded]]: for successful completion
    *  - [[ExitCase$.Error Error]]: for termination in failure
    *  - [[ExitCase$.Canceled Canceled]]: for abortion
    */
@@ -502,7 +502,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
      * outcome for the user, but it does for the purposes of the
      * `bracket` operation. <-- TODO still true?
      */
-    case object Completed extends ExitCase
+    case object Succeeded extends ExitCase
 
     /**
      * An [[ExitCase]] signaling completion in failure.
@@ -554,7 +554,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
           val handled = onError(use(a)) {
             case e => void(attempt(release(a, ExitCase.Errored(e))))
           }
-          flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+          flatMap(handled)(b => as(attempt(release(a, ExitCase.Succeeded)), b))
         }
 
       def pure[A](x: A): F[A] = F.pure(x)
@@ -586,7 +586,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
             val handled = onError(finalized) {
               case e => void(attempt(release(a, ExitCase.Errored(e))))
             }
-            flatMap(handled)(b => as(attempt(release(a, ExitCase.Completed)), b))
+            flatMap(handled)(b => as(attempt(release(a, ExitCase.Succeeded)), b))
           }
         }
       def pure[A](x: A): F[A] = F.pure(x)
@@ -743,7 +743,7 @@ abstract private[effect] class ResourceMonad[F[_]] extends Monad[Resource[F, *]]
             case (eab, release) =>
               (eab: Either[A, B]) match {
                 case Left(a) =>
-                  F.map(release(ExitCase.Completed))(_ => tailRecM(a)(f))
+                  F.map(release(ExitCase.Succeeded))(_ => tailRecM(a)(f))
                 case Right(b) =>
                   F.pure[Resource[F, B]](Allocate[F, B](F.pure((b, release))))
               }

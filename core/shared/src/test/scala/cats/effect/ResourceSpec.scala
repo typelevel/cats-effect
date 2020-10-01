@@ -133,7 +133,7 @@ class ResourceSpec extends BaseSpec with ScalaCheck with Discipline {
       def sideEffectyResource: (AtomicBoolean, Resource[IO, Unit]) = {
         val cleanExit = new java.util.concurrent.atomic.AtomicBoolean(false)
         val res = Resource.makeCase(IO.unit) {
-          case (_, Resource.ExitCase.Completed) =>
+          case (_, Resource.ExitCase.Succeeded) =>
             IO {
               cleanExit.set(true)
             }

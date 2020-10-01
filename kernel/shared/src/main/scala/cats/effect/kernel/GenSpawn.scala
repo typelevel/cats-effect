@@ -47,22 +47,22 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
-            case Outcome.Completed(fa) => productR(f.cancel)(map(fa)(Left(_)))
+            case Outcome.Succeeded(fa) => productR(f.cancel)(map(fa)(Left(_)))
             case Outcome.Errored(ea) => productR(f.cancel)(raiseError(ea))
             case Outcome.Canceled() =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => map(fb)(Right(_))
+                case Outcome.Succeeded(fb) => map(fb)(Right(_))
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(canceled)(never)
               }
           }
         case Right((f, oc)) =>
           oc match {
-            case Outcome.Completed(fb) => productR(f.cancel)(map(fb)(Right(_)))
+            case Outcome.Succeeded(fb) => productR(f.cancel)(map(fb)(Right(_)))
             case Outcome.Errored(eb) => productR(f.cancel)(raiseError(eb))
             case Outcome.Canceled() =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => map(fa)(Left(_))
+                case Outcome.Succeeded(fa) => map(fa)(Left(_))
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(canceled)(never)
               }
@@ -83,9 +83,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
       flatMap(racePair(fa, fb)) {
         case Left((oc, f)) =>
           oc match {
-            case Outcome.Completed(fa) =>
+            case Outcome.Succeeded(fa) =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fb) => product(fa, fb)
+                case Outcome.Succeeded(fb) => product(fa, fb)
                 case Outcome.Errored(eb) => raiseError(eb)
                 case Outcome.Canceled() => productR(canceled)(never)
               }
@@ -94,9 +94,9 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
           }
         case Right((f, oc)) =>
           oc match {
-            case Outcome.Completed(fb) =>
+            case Outcome.Succeeded(fb) =>
               flatMap(onCancel(poll(f.join), f.cancel)) {
-                case Outcome.Completed(fa) => product(fa, fb)
+                case Outcome.Succeeded(fa) => product(fa, fb)
                 case Outcome.Errored(ea) => raiseError(ea)
                 case Outcome.Canceled() => productR(canceled)(never)
               }
@@ -191,7 +191,7 @@ object GenSpawn {
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(OptionT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(OptionT(foa))
       }
 
     def liftFiber[A](fib: Fiber[F, E, Option[A]]): Fiber[OptionT[F, *], E, A] =
@@ -231,7 +231,7 @@ object GenSpawn {
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(EitherT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(EitherT(foa))
       }
 
     def liftFiber[A](fib: Fiber[F, E, Either[E0, A]]): Fiber[EitherT[F, E0, *], E, A] =
@@ -273,7 +273,7 @@ object GenSpawn {
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(IorT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(IorT(foa))
       }
 
     def liftFiber[A](fib: Fiber[F, E, Ior[L, A]]): Fiber[IorT[F, L, *], E, A] =
@@ -359,7 +359,7 @@ object GenSpawn {
       oc match {
         case Outcome.Canceled() => Outcome.Canceled()
         case Outcome.Errored(e) => Outcome.Errored(e)
-        case Outcome.Completed(foa) => Outcome.Completed(WriterT(foa))
+        case Outcome.Succeeded(foa) => Outcome.Succeeded(WriterT(foa))
       }
 
     def liftFiber[A](fib: Fiber[F, E, (L, A)]): Fiber[WriterT[F, L, *], E, A] =

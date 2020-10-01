@@ -118,7 +118,7 @@ The first program produces `42`, exactly as you would expect. The second fails w
 
 This is really difficult to work around in practice. Cancelation is a very frequent element of using Cats Effect in practice, and yet manipulating it directly or even *detecting* it is extremely difficult. As a high-level concrete example, the concept of [supervisor nets](https://erlang.org/doc/man/supervisor.html) makes a great deal of sense when we think about how fibers are `start`ed by a "parent" fiber, which then has the ability to `cancel` or `join` it, and thus one can imagine an implicit directed acyclic graph of dependencies and supervisory capabilities. However, this is impossible since one of the three fundamental outcomes of a fiber, cancelation, cannot be safely observed even by the parent.
 
-One of the major goals of CE3 is to address soundness issues in the hierarchy like the one illustrated here. For example, in CE3, the `join` function produces a value of type `F[Outcome[F, E, A]]`, where `E` is the error type (`Throwable` in the case of `IO`). `Outcome` represents the three possible results explicitly: `Completed`, `Errored`, and `Canceled`, giving callers of `join` the ability to make a decision on the desired semantics.
+One of the major goals of CE3 is to address soundness issues in the hierarchy like the one illustrated here. For example, in CE3, the `join` function produces a value of type `F[Outcome[F, E, A]]`, where `E` is the error type (`Throwable` in the case of `IO`). `Outcome` represents the three possible results explicitly: `Succeeded`, `Errored`, and `Canceled`, giving callers of `join` the ability to make a decision on the desired semantics.
 
 ### Safety
 
@@ -254,7 +254,7 @@ def bracketCase[A, B](
         case e => release(a, Outcome.Errored(e)).attempt.void
       }
 
-      handled.flatTap(b => release(a, Outcome.Completed(pure(b))).attempt)
+      handled.flatTap(b => release(a, Outcome.Succeeded(pure(b))).attempt)
     }
   }
 ```

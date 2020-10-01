@@ -40,7 +40,7 @@ import cats.syntax.all._
  * The execution of a fiber of an effect `F[E, A]` produces one of three
  * outcomes, which are encoded by the datatype [[Outcome]]:
  *
- *   1. [[Completed]]: indicates success with a value of type `A`
+ *   1. [[Succeeded]]: indicates success with a value of type `A`
  *   1. [[Errored]]: indicates failure with a value of type `E`
  *   1. [[Canceled]]: indicates abnormal termination
  *
@@ -286,7 +286,7 @@ trait MonadCancel[F[_], E] extends MonadError[F, E] {
         val handled = onError(finalized) {
           case e => void(attempt(release(a, Outcome.Errored(e))))
         }
-        flatMap(handled)(b => as(attempt(release(a, Outcome.Completed(pure(b)))), b))
+        flatMap(handled)(b => as(attempt(release(a, Outcome.Succeeded(pure(b)))), b))
       }
     }
 }
