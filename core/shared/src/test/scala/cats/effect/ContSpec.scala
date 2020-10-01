@@ -35,12 +35,9 @@ class DefaultContSpec extends ContSpecBase {
     Async.defaultCont[IO, A](body)
 }
 
-trait ContSpecBase extends BaseSpec { outer =>
+trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
-  val isCI = System.getenv("CI") == "true"
-  val iterations = if (isCI) 1000 else 100000
-
-  override val executionTimeout = 60.seconds    // mostly this is just for firefox
+  override val executionTimeout = 10.seconds    // mostly this is just for firefox
 
   def cont[A](body: Cont[IO, A]): IO[A]
 
