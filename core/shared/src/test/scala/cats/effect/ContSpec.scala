@@ -37,8 +37,6 @@ class DefaultContSpec extends ContSpecBase {
 
 trait ContSpecBase extends BaseSpec with ContSpecBasePlatform { outer =>
 
-  override val executionTimeout = 10.seconds    // mostly this is just for firefox
-
   def cont[A](body: Cont[IO, A]): IO[A]
 
   def execute(io: IO[_], times: Int, i: Int = 0): IO[Success] = {
