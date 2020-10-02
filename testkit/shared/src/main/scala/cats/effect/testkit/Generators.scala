@@ -18,7 +18,7 @@ package cats.effect.testkit
 
 import cats.{Applicative, ApplicativeError, Eq, Monad, MonadError}
 import cats.effect.kernel._
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.{Arbitrary, Cogen, Gen}, Arbitrary.arbitrary
 
@@ -160,12 +160,45 @@ trait SyncGenerators[F[_]] extends MonadErrorGenerators[F, Throwable] with Clock
     ("delay" -> arbitrary[A].map(F.delay(_))) :: super.baseGen[A]
 }
 
-trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
-  implicit val F: Concurrent[F, E]
+trait MonadCancelGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+  implicit val F: MonadCancel[F, E]
+
+  override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
+    ("canceled" -> genCanceled[A]) :: super.baseGen[A]
+
+  override protected def recursiveGen[A](
+      deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
+    List(
+      "forceR" -> genForceR[A](deeper),
+      "uncancelable" -> genUncancelable[A](deeper),
+      "onCancel" -> genOnCancel[A](deeper)
+    ) ++ super.recursiveGen(deeper)(AA, AC)
+
+  private def genCanceled[A: Arbitrary]: Gen[F[A]] =
+    arbitrary[A].map(F.canceled.as(_))
+
+  private def genForceR[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+    for {
+      left <- deeper[Unit]
+      right <- deeper[A]
+    } yield F.forceR(left)(right)
+
+  // TODO we can't really use poll :-( since we can't Cogen FunctionK
+  private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+    deeper[A].map(pc => F.uncancelable(_ => pc))
+
+  private def genOnCancel[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
+    for {
+      fa <- deeper[A]
+      fin <- deeper[Unit]
+    } yield F.onCancel(fa, fin)
+}
+
+trait GenSpawnGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
+  implicit val F: GenSpawn[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen]: List[(String, Gen[F[A]])] =
     List(
-      "canceled" -> genCanceled[A],
       "cede" -> genCede[A],
       "never" -> genNever[A]
     ) ++ super.baseGen[A]
@@ -173,25 +206,15 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
   override protected def recursiveGen[A](
       deeper: GenK[F])(implicit AA: Arbitrary[A], AC: Cogen[A]): List[(String, Gen[F[A]])] =
     List(
-      "uncancelable" -> genUncancelable[A](deeper),
       "racePair" -> genRacePair[A](deeper),
       "start" -> genStart[A](deeper),
-      "join" -> genJoin[A](deeper),
-      "onCancel" -> genOnCancel[A](deeper)
-    ) ++ super.recursiveGen(deeper)(AA, AC)
-
-  private def genCanceled[A: Arbitrary]: Gen[F[A]] =
-    arbitrary[A].map(F.canceled.as(_))
+      "join" -> genJoin[A](deeper)) ++ super.recursiveGen(deeper)(AA, AC)
 
   private def genCede[A: Arbitrary]: Gen[F[A]] =
     arbitrary[A].map(F.cede.as(_))
 
   private def genNever[A]: Gen[F[A]] =
     F.never[A]
-
-  // TODO we can't really use poll :-( since we can't Cogen FunctionK
-  private def genUncancelable[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-    deeper[A].map(pc => F.uncancelable(_ => pc))
 
   private def genStart[A: Arbitrary](deeper: GenK[F]): Gen[F[A]] =
     deeper[Unit].flatMap(pc => arbitrary[A].map(a => F.start(pc).as(a)))
@@ -203,12 +226,6 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       a <- arbitrary[A]
     } yield F.start(fiber).flatMap(f => cont >> f.join).as(a)
 
-  private def genOnCancel[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
-    for {
-      fa <- deeper[A]
-      fin <- deeper[Unit]
-    } yield F.onCancel(fa, fin)
-
   private def genRacePair[A: Arbitrary: Cogen](deeper: GenK[F]): Gen[F[A]] =
     for {
       fa <- deeper[A]
@@ -219,21 +236,21 @@ trait ConcurrentGenerators[F[_], E] extends MonadErrorGenerators[F, E] {
       back = F.racePair(fa, fb).flatMap {
         case Left((oc, f)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
 
         case Right((f, oc)) =>
           if (cancel)
-            f.cancel *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.cancel *> oc.embedNever
           else
-            f.join *> oc.fold(F.never[A], F.raiseError[A](_), fa => fa)
+            f.join *> oc.embedNever
       }
     } yield back
 }
 
-trait TemporalGenerators[F[_], E] extends ConcurrentGenerators[F, E] with ClockGenerators[F] {
-  implicit val F: Temporal[F, E]
+trait GenTemporalGenerators[F[_], E] extends GenSpawnGenerators[F, E] with ClockGenerators[F] {
+  implicit val F: GenTemporal[F, E]
 
   override protected def baseGen[A: Arbitrary: Cogen] =
     ("sleep" -> genSleep[A]) :: super.baseGen[A]
@@ -245,7 +262,7 @@ trait TemporalGenerators[F[_], E] extends ConcurrentGenerators[F, E] with ClockG
     } yield F.sleep(t).as(a)
 }
 
-trait AsyncGenerators[F[_]] extends TemporalGenerators[F, Throwable] with SyncGenerators[F] {
+trait AsyncGenerators[F[_]] extends GenTemporalGenerators[F, Throwable] with SyncGenerators[F] {
   implicit val F: Async[F]
 
   implicit protected val arbitraryEC: Arbitrary[ExecutionContext]

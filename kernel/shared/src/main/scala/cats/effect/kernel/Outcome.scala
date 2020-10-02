@@ -16,14 +16,21 @@
 
 package cats.effect.kernel
 
-import cats.{~>, Applicative, ApplicativeError, Eq, Monad, MonadError, Order, Show, Traverse}
-import cats.implicits._
+import cats.{Applicative, ApplicativeError, Bifunctor, Eq}
+import cats.{~>, Monad, MonadError, Order, Show, Traverse}
+import cats.syntax.all._
 
 import scala.annotation.tailrec
 import scala.util.{Either, Left, Right}
 
 sealed trait Outcome[F[_], E, A] extends Product with Serializable {
   import Outcome._
+
+  def embed(onCancel: F[A])(implicit F: MonadCancel[F, E]): F[A] =
+    fold(onCancel, F.raiseError, identity)
+
+  def embedNever(implicit F: GenSpawn[F, E]): F[A] =
+    embed(F.never)
 
   def fold[B](canceled: => B, errored: E => B, completed: F[A] => B): B =
     this match {
@@ -64,7 +71,8 @@ private[kernel] trait LowPriorityImplicits {
     new OutcomeApplicativeError[F, E]
 
   protected class OutcomeApplicativeError[F[_]: Applicative, E]
-      extends ApplicativeError[Outcome[F, E, *], E] {
+      extends ApplicativeError[Outcome[F, E, *], E]
+      with Bifunctor[Outcome[F, *, *]] {
 
     def pure[A](x: A): Outcome[F, E, A] = Completed(x.pure[F])
 
@@ -89,6 +97,13 @@ private[kernel] trait LowPriorityImplicits {
 
         case (_, Canceled()) =>
           Canceled()
+      }
+
+    def bimap[A, B, C, D](fab: Outcome[F, A, B])(f: A => C, g: B => D): Outcome[F, C, D] =
+      fab match {
+        case Completed(fa) => Completed(fa.map(g))
+        case Errored(e) => Errored(f(e))
+        case Canceled() => Canceled()
       }
   }
 }
@@ -132,11 +147,7 @@ object Outcome extends LowPriorityImplicits {
     new OutcomeApplicativeError[F, E]()(F) with MonadError[Outcome[F, E, *], E] {
 
       override def map[A, B](fa: Outcome[F, E, A])(f: A => B): Outcome[F, E, B] =
-        fa match {
-          case Completed(fa) => Completed(F.map(fa)(f))
-          case Errored(e) => Errored(e)
-          case Canceled() => Canceled()
-        }
+        bimap(fa)(identity, f)
 
       def flatMap[A, B](fa: Outcome[F, E, A])(f: A => Outcome[F, E, B]): Outcome[F, E, B] =
         fa match {

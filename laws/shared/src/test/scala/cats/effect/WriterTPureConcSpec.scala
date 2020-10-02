@@ -16,11 +16,11 @@
 
 package cats.effect
 
-import cats.{Order, Show}
+import cats.Show
 import cats.data.WriterT
 import cats.laws.discipline.arbitrary._
-import cats.implicits._
-import cats.effect.laws.TemporalTests
+import cats.syntax.all._
+import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit._
 import cats.effect.testkit.TimeT._
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
@@ -43,10 +43,6 @@ class WriterTPureConcSpec extends Specification with Discipline with ScalaCheck 
   implicit def prettyFromShow[A: Show](a: A): Pretty =
     Pretty.prettyString(a.show)
 
-  //TODO remove once https://github.com/typelevel/cats/pull/3556 is released
-  implicit def orderWriterT[F[_], S, A](
-      implicit Ord: Order[F[(S, A)]]): Order[WriterT[F, S, A]] = Order.by(_.run)
-
   implicit def execWriterT[S](sbool: WriterT[TimeT[PureConc[Int, *], *], S, Boolean]): Prop =
     Prop(
       pure
@@ -60,7 +56,7 @@ class WriterTPureConcSpec extends Specification with Discipline with ScalaCheck 
 
   checkAll(
     "WriterT[PureConc]",
-    TemporalTests[WriterT[TimeT[PureConc[Int, *], *], Int, *], Int]
+    GenTemporalTests[WriterT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )

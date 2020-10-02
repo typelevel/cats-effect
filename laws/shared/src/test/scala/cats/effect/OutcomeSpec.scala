@@ -19,7 +19,6 @@ package cats.effect
 import cats.{Eval /*, Id*/}
 import cats.effect.kernel.Outcome
 import cats.effect.testkit.OutcomeGenerators
-import cats.implicits._
 import cats.laws.discipline.{ApplicativeErrorTests, MonadErrorTests}
 
 import org.specs2.mutable.Specification

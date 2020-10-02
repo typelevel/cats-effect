@@ -17,17 +17,17 @@
 package cats.effect
 package example
 
-import cats.implicits._
+import cats.syntax.all._
 
 object Example extends IOApp {
 
-  def run(args: List[String]): IO[Int] =
+  def run(args: List[String]): IO[ExitCode] =
     for {
       leftF <- (printFive(args(0)) >> IO.cede >> printFive(args(0))).start
       rightF <- (printFive(args(1)) >> IO.cede >> printFive(args(1))).start
       _ <- leftF.join
       _ <- rightF.join
-    } yield 2
+    } yield ExitCode(2)
 
   def printFive(text: String): IO[Unit] =
     IO(println(text)).replicateA(5).void

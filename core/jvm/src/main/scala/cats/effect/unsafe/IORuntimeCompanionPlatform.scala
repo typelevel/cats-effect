@@ -22,19 +22,15 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type =>
-  def createDefaultComputeExecutionContext(
-      threadPrefix: String = "io-compute"): (ExecutionContext, () => Unit) = {
-    val threadCount = new AtomicInteger(0)
-    val executor = Executors.newFixedThreadPool(
-      Runtime.getRuntime().availableProcessors(),
-      { (r: Runnable) =>
-        val t = new Thread(r)
-        t.setName(s"${threadPrefix}-${threadCount.getAndIncrement()}")
-        t.setDaemon(true)
-        t
-      }
-    )
-    (ExecutionContext.fromExecutor(executor), { () => executor.shutdown() })
+
+  // The default compute thread pool on the JVM is now a work stealing thread pool.
+  def createDefaultComputeThreadPool(
+      self: => IORuntime,
+      threadPrefix: String = "io-compute"): (WorkStealingThreadPool, () => Unit) = {
+    val threads = math.max(2, Runtime.getRuntime().availableProcessors())
+    val threadPool =
+      new WorkStealingThreadPool(threads, threadPrefix, self)
+    (threadPool, { () => threadPool.shutdown() })
   }
 
   def createDefaultBlockingExecutionContext(
@@ -61,8 +57,8 @@ private[unsafe] abstract class IORuntimeCompanionPlatform { this: IORuntime.type
   }
 
   lazy val global: IORuntime =
-    IORuntime(
-      createDefaultComputeExecutionContext()._1,
+    new IORuntime(
+      createDefaultComputeThreadPool(global)._1,
       createDefaultBlockingExecutionContext()._1,
       createDefaultScheduler()._1,
       () => ())

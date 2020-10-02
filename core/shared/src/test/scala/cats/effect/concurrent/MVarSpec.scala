@@ -18,7 +18,7 @@ package cats.effect
 package concurrent
 
 import cats.effect.kernel.Outcome._
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -445,7 +445,7 @@ class MVarSpec extends BaseSpec {
       fiber <-
         IO.uncancelable(poll =>
           gate1.complete(()) *> poll(mVar.swap(20))
-            .onCancel(gate2.complete(()))
+            .onCancel(gate2.complete(()).void)
             .flatMap(finished.complete))
           .start
       _ <- gate1.get
@@ -484,7 +484,7 @@ class MVarSpec extends BaseSpec {
       fiber <-
         mVar
           .modify(n => gate1.complete(()) *> IO.never *> IO.pure((n * 2, n.show)))
-          .onCancel(gate2.complete(()))
+          .onCancel(gate2.complete(()).void)
           .flatMap(finished.complete)
           .start
       _ <- mVar.put(10)

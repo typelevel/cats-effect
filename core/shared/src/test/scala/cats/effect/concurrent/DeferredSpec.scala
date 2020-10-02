@@ -18,9 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.implicits._
-
-import org.specs2.specification.core.Fragments
+import cats.syntax.all._
 
 import scala.concurrent.duration._
 
@@ -28,24 +26,93 @@ class DeferredSpec extends BaseSpec { outer =>
 
   sequential
 
-  trait DeferredConstructor { def apply[A]: IO[Deferred[IO, A]] }
-  trait TryableDeferredConstructor { def apply[A]: IO[TryableDeferred[IO, A]] }
+  "Deferred" >> {
 
-  "deferred" should {
+    "complete" in real {
+      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.get }
 
-    tests("concurrent", new DeferredConstructor { def apply[A] = Deferred[IO, A] })
-    tests(
-      "concurrentTryable",
-      new DeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(0)
+        }
+      }
+    }
 
-    tryableTests(
-      "concurrentTryable",
-      new TryableDeferredConstructor { def apply[A] = Deferred.tryable[IO, A] })
+    "complete is only successful once" in real {
+      val op = Deferred[IO, Int].flatMap { p => p.complete(0) *> p.complete(1).product(p.get) }
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo((false, 0))
+        }
+      }
+    }
+
+    "get blocks until set" in real {
+      val op = for {
+        state <- Ref[IO].of(0)
+        modifyGate <- Deferred[IO, Unit]
+        readGate <- Deferred[IO, Unit]
+        _ <- (modifyGate.get *> state.update(_ * 2) *> readGate.complete(())).start
+        _ <- (state.set(1) *> modifyGate.complete(())).start
+        _ <- readGate.get
+        res <- state.get
+      } yield res
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(2)
+        }
+      }
+    }
 
     "concurrent - get - cancel before forcing" in real {
-      cancelBeforeForcing(Deferred.apply).flatMap { res =>
+      def cancelBeforeForcing: IO[Option[Int]] =
+        for {
+          r <- Ref[IO].of(Option.empty[Int])
+          p <- Deferred[IO, Int]
+          fiber <- p.get.start
+          _ <- fiber.cancel
+          _ <- (fiber
+              .join
+              .flatMap {
+                case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
+                case _ => IO.raiseError(new RuntimeException)
+              })
+            .start
+          _ <- IO.sleep(100.millis)
+          _ <- p.complete(42)
+          _ <- IO.sleep(100.millis)
+          result <- r.get
+        } yield result
+
+      cancelBeforeForcing.flatMap { res =>
         IO {
           res must beNone
+        }
+      }
+    }
+
+    "tryGet returns None for unset Deferred" in real {
+      val op = Deferred[IO, Unit].flatMap(_.tryGet)
+
+      op.flatMap { res =>
+        IO {
+          res must beNone
+        }
+      }
+    }
+
+    "tryGet returns Some() for set Deferred" in real {
+      val op = for {
+        d <- Deferred[IO, Unit]
+        _ <- d.complete(())
+        result <- d.tryGet
+      } yield result
+
+      op.flatMap { res =>
+        IO {
+          res must beEqualTo(Some(()))
         }
       }
     }
@@ -83,92 +150,4 @@ class DeferredSpec extends BaseSpec { outer =>
     }
 
   }
-
-  def tests(label: String, pc: DeferredConstructor): Fragments = {
-    s"$label - complete" in real {
-      val op = pc[Int].flatMap { p => p.complete(0) *> p.get }
-
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(0)
-        }
-      }
-    }
-
-    s"$label - complete is only successful once" in real {
-      val op = pc[Int].flatMap { p => (p.complete(0) *> p.complete(1).attempt).product(p.get) }
-
-      op.flatMap { res =>
-        IO {
-          res must beLike {
-            case (Left(e), 0) => e must haveClass[IllegalStateException]
-          }
-        }
-      }
-    }
-
-    s"$label - get blocks until set" in real {
-      val op = for {
-        state <- Ref[IO].of(0)
-        modifyGate <- pc[Unit]
-        readGate <- pc[Unit]
-        _ <- (modifyGate.get *> state.update(_ * 2) *> readGate.complete(())).start
-        _ <- (state.set(1) *> modifyGate.complete(())).start
-        _ <- readGate.get
-        res <- state.get
-      } yield res
-
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(2)
-        }
-      }
-    }
-  }
-
-  def tryableTests(label: String, pc: TryableDeferredConstructor): Fragments = {
-    s"$label - tryGet returns None for unset Deferred" in real {
-      val op = pc[Unit].flatMap(_.tryGet)
-
-      op.flatMap { res =>
-        IO {
-          res must beNone
-        }
-      }
-    }
-
-    s"$label - tryGet returns Some() for set Deferred" in real {
-      val op = for {
-        d <- pc[Unit]
-        _ <- d.complete(())
-        result <- d.tryGet
-      } yield result
-
-      op.flatMap { res =>
-        IO {
-          res must beEqualTo(Some(()))
-        }
-      }
-    }
-  }
-
-  private def cancelBeforeForcing(pc: IO[Deferred[IO, Int]]): IO[Option[Int]] =
-    for {
-      r <- Ref[IO].of(Option.empty[Int])
-      p <- pc
-      fiber <- p.get.start
-      _ <- fiber.cancel
-      _ <- (fiber
-          .join
-          .flatMap {
-            case Outcome.Completed(ioi) => ioi.flatMap(i => r.set(Some(i)))
-            case _ => IO.raiseError(new RuntimeException)
-          })
-        .start
-      _ <- IO.sleep(100.millis)
-      _ <- p.complete(42)
-      _ <- IO.sleep(100.millis)
-      result <- r.get
-    } yield result
-
 }

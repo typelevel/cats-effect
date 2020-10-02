@@ -18,6 +18,15 @@ package cats.effect.unsafe
 
 import scala.concurrent.Future
 
-trait UnsafeRun[F[_]] {
+trait UnsafeRun[F[_]] extends UnsafeRunPlatform[F] {
   def unsafeRunFutureCancelable[A](fa: F[A]): (Future[A], () => Future[Unit])
+
+  def unsafeRunAndForget[A](fa: F[A]): Unit = {
+    unsafeRunFutureCancelable(fa)
+    ()
+  }
+}
+
+object UnsafeRun {
+  def apply[F[_]](implicit F: UnsafeRun[F]): F.type = F
 }

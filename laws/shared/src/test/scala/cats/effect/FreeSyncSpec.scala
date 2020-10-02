@@ -23,7 +23,7 @@ import cats.laws.discipline.arbitrary._
 import cats.effect.testkit.{freeEval, FreeSyncGenerators, SyncTypeGenerators}
 import cats.effect.testkit.FreeSyncEq
 import freeEval.{syncForFreeT, FreeEitherSync}
-import cats.implicits._
+import cats.syntax.all._
 
 import org.scalacheck.Prop
 import org.scalacheck.util.Pretty

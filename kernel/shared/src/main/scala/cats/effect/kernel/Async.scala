@@ -22,10 +22,22 @@ import cats.{Monoid, Semigroup}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwable] {
-
+trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F] {
   // returns an optional cancelation token
-  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A]
+  def async[A](k: (Either[Throwable, A] => Unit) => F[Option[F[Unit]]]): F[A] = {
+    val body = new Cont[F, A] {
+      def apply[G[_]](implicit G: MonadCancel[G, Throwable]) = { (resume, get, lift) =>
+        G.uncancelable { poll =>
+          lift(k(resume)) flatMap {
+            case Some(fin) => G.onCancel(poll(get), lift(fin))
+            case None => poll(get)
+          }
+        }
+      }
+    }
+
+    cont(body)
+  }
 
   def async_[A](k: (Either[Throwable, A] => Unit) => Unit): F[A] =
     async[A](cb => as(delay(k(cb)), None))
@@ -34,6 +46,7 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwab
 
   // evalOn(executionContext, ec) <-> pure(ec)
   def evalOn[A](fa: F[A], ec: ExecutionContext): F[A]
+
   def executionContext: F[ExecutionContext]
 
   def fromFuture[A](fut: F[Future[A]]): F[A] =
@@ -42,6 +55,16 @@ trait Async[F[_]] extends AsyncPlatform[F] with Sync[F] with Temporal[F, Throwab
         async_[A](cb => f.onComplete(t => cb(t.toEither)))
       }
     }
+
+  /*
+   * NOTE: This is a very low level api, end users should use `async` instead.
+   * See cats.effect.kernel.Cont for more detail.
+   *
+   * If you are an implementor, and you have `async`, `Async.defaultCont`
+   * provides an implementation of `cont` in terms of `async`.
+   * Note that if you use `defaultCont` you _have_ to override `async`.
+   */
+  def cont[A](body: Cont[F, A]): F[A]
 }
 
 object Async {
@@ -284,4 +307,7 @@ object Async {
       delegate.handleErrorWith(fa)(f)
 
   }
+
+  def defaultCont[F[_]: Async, A](body: Cont[F, A]): F[A] =
+    internal.DefaultCont.cont(body)
 }

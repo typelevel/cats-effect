@@ -20,17 +20,18 @@ import java.util.concurrent.CountDownLatch
 
 trait IOApp {
 
-  def run(args: List[String]): IO[Int]
+  def run(args: List[String]): IO[ExitCode]
 
   protected val runtime: unsafe.IORuntime = unsafe.IORuntime.global
 
   protected implicit val unsafeRunForIO: unsafe.UnsafeRun[IO] = runtime.unsafeRunForIO
 
   final def main(args: Array[String]): Unit = {
+
     val rt = Runtime.getRuntime()
 
     val latch = new CountDownLatch(1)
-    @volatile var results: Either[Throwable, Int] = null
+    @volatile var results: Either[Throwable, ExitCode] = null
 
     val ioa = run(args.toList)
 
@@ -57,7 +58,7 @@ trait IOApp {
     try {
       latch.await()
 
-      results.fold(throw _, System.exit(_))
+      results.fold(throw _, ec => System.exit(ec.code))
     } catch {
       // this handles sbt when fork := false
       case _: InterruptedException =>
@@ -66,4 +67,13 @@ trait IOApp {
         Thread.currentThread().interrupt()
     }
   }
+}
+
+object IOApp {
+
+  trait Simple extends IOApp {
+    def run: IO[Unit]
+    final def run(args: List[String]): IO[ExitCode] = run.as(ExitCode.Success)
+  }
+
 }

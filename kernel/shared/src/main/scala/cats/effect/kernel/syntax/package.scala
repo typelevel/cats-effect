@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package cats.effect
+package cats.effect.kernel
 
 package object syntax {
 
   object all extends AllSyntax
 
-  object concurrent extends ConcurrentSyntax
-  object temporal extends TemporalSyntax
+  object monadCancel extends MonadCancelSyntax
+  object spawn extends GenSpawnSyntax
+  object concurrent extends GenConcurrentSyntax
+  object temporal extends GenTemporalSyntax
   object async extends AsyncSyntax
   object syncEffect extends SyncEffectSyntax
   object effect extends EffectSyntax

@@ -26,12 +26,12 @@ final class IOFiberConstants {
   public static final byte FlatMapK = 1;
   public static final byte CancelationLoopK = 2;
   public static final byte RunTerminusK = 3;
-  public static final byte AsyncK = 4;
-  public static final byte EvalOnK = 5;
-  public static final byte HandleErrorWithK = 6;
-  public static final byte OnCancelK = 7;
-  public static final byte UncancelableK = 8;
-  public static final byte UnmaskK = 9;
+  public static final byte EvalOnK = 4;
+  public static final byte HandleErrorWithK = 5;
+  public static final byte OnCancelK = 6;
+  public static final byte UncancelableK = 7;
+  public static final byte UnmaskK = 8;
+  public static final byte AttemptK = 9;
 
   // resume ids
   public static final byte ExecR = 0;
@@ -41,4 +41,5 @@ final class IOFiberConstants {
   public static final byte AfterBlockingFailedR = 4;
   public static final byte EvalOnR = 5;
   public static final byte CedeR = 6;
+  public static final byte DoneR = 7;
 }

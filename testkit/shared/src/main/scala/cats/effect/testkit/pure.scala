@@ -17,11 +17,10 @@
 package cats.effect.testkit
 
 import cats.{~>, Eq, Functor, Id, Monad, MonadError, Order, Show}
-import cats.data.{Kleisli, WriterT}
+import cats.data.{Kleisli, State, WriterT}
 import cats.effect.kernel._
 import cats.free.FreeT
-import cats.implicits._
-
+import cats.syntax.all._
 import coop.{ApplicativeThread, MVar, ThreadT}
 
 object pure {
@@ -172,8 +171,8 @@ object pure {
   implicit def orderForPureConc[E: Order, A: Order]: Order[PureConc[E, A]] =
     Order.by(pure.run(_))
 
-  implicit def concurrentForPureConc[E]: Concurrent[PureConc[E, *], E] =
-    new Concurrent[PureConc[E, *], E] {
+  implicit def allocateForPureConc[E]: GenConcurrent[PureConc[E, *], E] =
+    new GenConcurrent[PureConc[E, *], E] {
       private[this] val M: MonadError[PureConc[E, *], E] =
         Kleisli.catsDataMonadErrorForKleisli
 
@@ -211,6 +210,74 @@ object pure {
 
       def never[A]: PureConc[E, A] =
         Thread.annotate("never")(Thread.done[A])
+
+      def ref[A](a: A): PureConc[E, Ref[PureConc[E, *], A]] =
+        MVar[PureConc[E, *], A](a).flatMap(mVar => Kleisli.pure(unsafeRef(mVar)))
+
+      def deferred[A]: PureConc[E, Deferred[PureConc[E, *], A]] =
+        MVar.empty[PureConc[E, *], A].flatMap(mVar => Kleisli.pure(unsafeDeferred(mVar)))
+
+      private def unsafeRef[A](mVar: MVar[A]): Ref[PureConc[E, *], A] =
+        new Ref[PureConc[E, *], A] {
+          override def get: PureConc[E, A] = mVar.read[PureConc[E, *]]
+
+          override def set(a: A): PureConc[E, Unit] = modify(_ => (a, ()))
+
+          override def access: PureConc[E, (A, A => PureConc[E, Boolean])] =
+            uncancelable { _ =>
+              mVar.read[PureConc[E, *]].flatMap { a =>
+                MVar.empty[PureConc[E, *], Unit].map { called =>
+                  val setter = (au: A) =>
+                    called
+                      .tryPut[PureConc[E, *]](())
+                      .ifM(
+                        pure(false),
+                        mVar.take[PureConc[E, *]].flatMap { ay =>
+                          if (a == ay) mVar.put[PureConc[E, *]](au).as(true) else pure(false)
+                        })
+                  (a, setter)
+                }
+              }
+            }
+
+          override def tryUpdate(f: A => A): PureConc[E, Boolean] =
+            update(f).as(true)
+
+          override def tryModify[B](f: A => (A, B)): PureConc[E, Option[B]] =
+            modify(f).map(Some(_))
+
+          override def update(f: A => A): PureConc[E, Unit] =
+            uncancelable { _ =>
+              mVar.take[PureConc[E, *]].flatMap(a => mVar.put[PureConc[E, *]](f(a)))
+            }
+
+          override def modify[B](f: A => (A, B)): PureConc[E, B] =
+            uncancelable { _ =>
+              mVar.take[PureConc[E, *]].flatMap { a =>
+                val (a2, b) = f(a)
+                mVar.put[PureConc[E, *]](a2).as(b)
+              }
+            }
+
+          override def tryModifyState[B](state: State[A, B]): PureConc[E, Option[B]] = {
+            val f = state.runF.value
+            tryModify(a => f(a).value)
+          }
+
+          override def modifyState[B](state: State[A, B]): PureConc[E, B] = {
+            val f = state.runF.value
+            modify(a => f(a).value)
+          }
+        }
+
+      private def unsafeDeferred[A](mVar: MVar[A]): Deferred[PureConc[E, *], A] =
+        new Deferred[PureConc[E, *], A] {
+          override def get: PureConc[E, A] = mVar.read[PureConc[E, *]]
+
+          override def complete(a: A): PureConc[E, Boolean] = mVar.tryPut[PureConc[E, *]](a)
+
+          override def tryGet: PureConc[E, Option[A]] = mVar.tryRead[PureConc[E, *]]
+        }
 
       private def startOne[Result](
           foldResult: Result => PureConc[E, Unit]): StartOnePartiallyApplied[Result] =

@@ -16,7 +16,7 @@
 
 package cats.effect
 
-import cats.{Eq, Order, Show}
+import cats.{Applicative, Eq, Order, Show}
 import cats.effect.testkit.{
   AsyncGenerators,
   GenK,
@@ -26,7 +26,7 @@ import cats.effect.testkit.{
 }
 import cats.syntax.all._
 
-import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}
+import org.scalacheck.{Arbitrary, Cogen, Gen, Prop}, Arbitrary.arbitrary
 
 import org.specs2.execute.AsResult
 import org.specs2.matcher.Matcher
@@ -43,11 +43,13 @@ import java.util.concurrent.TimeUnit
 trait Runners extends SpecificationLike with RunnersPlatform { outer =>
   import OutcomeGenerators._
 
+  def executionTimeout = 10.seconds
+
   def ticked[A: AsResult](test: Ticker => A): Execution =
     Execution.result(test(Ticker(TestContext())))
 
   def real[A: AsResult](test: => IO[A]): Execution =
-    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), 10.seconds))
+    Execution.withEnvAsync(_ => timeout(test.unsafeToFuture()(runtime()), executionTimeout))
 
   implicit def cogenIO[A: Cogen](implicit ticker: Ticker): Cogen[IO[A]] =
     Cogen[Outcome[Option, Throwable, A]].contramap(unsafeRun(_))
@@ -102,6 +104,41 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Arbitrary(generators.generators[A])
   }
 
+  implicit def arbitraryResource[F[_], A](
+      implicit F: Applicative[F],
+      AFA: Arbitrary[F[A]],
+      AFU: Arbitrary[F[Unit]]): Arbitrary[Resource[F, A]] =
+    Arbitrary(Gen.delay(genResource[F, A]))
+
+  implicit def arbitraryResourceParallel[F[_], A](
+      implicit A: Arbitrary[Resource[F, A]]
+  ): Arbitrary[Resource.Par[F, A]] =
+    Arbitrary(A.arbitrary.map(Resource.Par.apply))
+
+  // Consider improving this a strategy similar to Generators.
+  def genResource[F[_], A](
+      implicit F: Applicative[F],
+      AFA: Arbitrary[F[A]],
+      AFU: Arbitrary[F[Unit]]): Gen[Resource[F, A]] = {
+    def genAllocate: Gen[Resource[F, A]] =
+      for {
+        alloc <- arbitrary[F[A]]
+        dispose <- arbitrary[F[Unit]]
+      } yield Resource(alloc.map(a => a -> dispose))
+
+    def genBind: Gen[Resource[F, A]] =
+      genAllocate.map(_.flatMap(a => Resource.pure[F, A](a)))
+
+    def genSuspend: Gen[Resource[F, A]] =
+      genAllocate.map(r => Resource.suspend(r.pure[F]))
+
+    Gen.frequency(
+      5 -> genAllocate,
+      1 -> genBind,
+      1 -> genSuspend
+    )
+  }
+
   implicit lazy val arbitraryFD: Arbitrary[FiniteDuration] = {
     import TimeUnit._
 
@@ -131,7 +168,8 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
     Order by { ioa => unsafeRun(ioa).fold(None, _ => None, fa => fa) }
 
   implicit def eqIOA[A: Eq](implicit ticker: Ticker): Eq[IO[A]] =
-    /*Eq instance { (left: IO[A], right: IO[A]) =>
+    Eq.by(unsafeRun(_))
+  /*Eq instance { (left: IO[A], right: IO[A]) =>
       val leftR = unsafeRun(left)
       val rightR = unsafeRun(right)
 
@@ -145,7 +183,30 @@ trait Runners extends SpecificationLike with RunnersPlatform { outer =>
       back
     }*/
 
-    Eq.by(unsafeRun(_))
+  /**
+   * Defines equality for a `Resource`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResource[F[_], A](
+      implicit E: Eq[F[A]],
+      F: Resource.Bracket[F]): Eq[Resource[F, A]] =
+    new Eq[Resource[F, A]] {
+      def eqv(x: Resource[F, A], y: Resource[F, A]): Boolean =
+        E.eqv(x.use(F.pure), y.use(F.pure))
+    }
+
+  /**
+   * Defines equality for `Resource.Par`.  Two resources are deemed
+   * equivalent if they allocate an equivalent resource.  Cleanup,
+   * which is run purely for effect, is not considered.
+   */
+  implicit def eqResourcePar[F[_], A](implicit E: Eq[Resource[F, A]]): Eq[Resource.Par[F, A]] =
+    new Eq[Resource.Par[F, A]] {
+      import Resource.Par.unwrap
+      def eqv(x: Resource.Par[F, A], y: Resource.Par[F, A]): Boolean =
+        E.eqv(unwrap(x), unwrap(y))
+    }
 
   def unsafeRunSyncIOEither[A](io: SyncIO[A]): Either[Throwable, A] =
     Try(io.unsafeRunSync()).toEither

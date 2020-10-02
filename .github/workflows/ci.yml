@@ -22,34 +22,32 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        scala: [0.25.0, 0.26.0-RC1, 2.12.12, 2.13.3]
+        scala: [0.27.0-RC1, 2.12.12, 2.13.3]
         java:
           - adopt@1.8
           - adopt@11
           - adopt@14
           - graalvm8@20.1.0
-        ci: [ciJVM]
-        include:
-          - os: ubuntu-latest
-            java: adopt@1.8
-            scala: 2.12.12
-            ci: ciJS
-          - os: ubuntu-latest
-            java: adopt@1.8
-            scala: 2.13.3
-            ci: ciJS
-          - os: ubuntu-latest
-            java: adopt@1.8
-            scala: 2.12.12
-            ci: ciFirefox
-          - os: ubuntu-latest
-            java: adopt@1.8
-            scala: 2.13.3
-            ci: ciFirefox
+        ci: [ciJVM, ciJS, ciFirefox]
+        exclude:
+          - ci: ciJS
+            java: adopt@11
+          - ci: ciJS
+            java: adopt@14
+          - ci: ciJS
+            java: graalvm8@20.1.0
+          - ci: ciFirefox
+            java: adopt@11
+          - ci: ciFirefox
+            java: adopt@14
+          - ci: ciFirefox
+            java: graalvm8@20.1.0
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout current branch (fast)
+      - name: Checkout current branch (full)
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Setup Java and Scala
         uses: olafurpg/setup-scala@v5
@@ -105,6 +103,9 @@ jobs:
         run: sbt ++${{ matrix.scala }} githubWorkflowCheck
 
       - run: sbt ++${{ matrix.scala }} '${{ matrix.ci }}'
+
+      - if: matrix.scala == '2.13.3' && matrix.ci == 'ciJVM'
+        run: sbt ++${{ matrix.scala }} docs/mdoc
 
       - name: Test Example JVM App Within Sbt
         if: matrix.ci == 'ciJVM'

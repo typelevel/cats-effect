@@ -20,9 +20,9 @@ import cats.Show
 import cats.data.EitherT
 //import cats.laws.discipline.{AlignTests, ParallelTests}
 import cats.laws.discipline.arbitrary._
-import cats.implicits._
+import cats.syntax.all._
 //import cats.effect.kernel.ParallelF
-import cats.effect.laws.TemporalTests
+import cats.effect.laws.GenTemporalTests
 import cats.effect.testkit._
 import cats.effect.testkit.TimeT._
 import cats.effect.testkit.{pure, PureConcGenerators}, pure._
@@ -53,7 +53,7 @@ class EitherTPureConcSpec extends Specification with Discipline with ScalaCheck 
 
   checkAll(
     "EitherT[TimeT[PureConc]]",
-    TemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
+    GenTemporalTests[EitherT[TimeT[PureConc[Int, *], *], Int, *], Int]
       .temporal[Int, Int, Int](10.millis)
     // ) (Parameters(seed = Some(Seed.fromBase64("IDF0zP9Be_vlUEA4wfnKjd8gE8RNQ6tj-BvSVAUp86J=").get)))
   )

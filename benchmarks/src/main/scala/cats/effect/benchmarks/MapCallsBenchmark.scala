@@ -65,7 +65,7 @@ object MapCallsBenchmark {
     var sum = 0L
     var i = 0
     while (i < iterations) {
-      sum += io.unsafeRunSync()
+      sum += io.unsafeRunSyncBenchmark()
       i += 1
     }
     sum

@@ -16,7 +16,7 @@
 
 package cats.effect.testkit
 
-import cats.effect.kernel.{Concurrent, Outcome}
+import cats.effect.kernel.{GenSpawn, Outcome}
 import cats.effect.testkit.pure._
 
 import org.scalacheck.{Arbitrary, Cogen}
@@ -28,13 +28,13 @@ object PureConcGenerators {
     Cogen[Outcome[Option, E, A]].contramap(run(_))
 
   def generators[E: Arbitrary: Cogen] =
-    new ConcurrentGenerators[PureConc[E, *], E] {
+    new GenSpawnGenerators[PureConc[E, *], E] {
 
       val arbitraryE: Arbitrary[E] = implicitly[Arbitrary[E]]
 
       val cogenE: Cogen[E] = Cogen[E]
 
-      val F: Concurrent[PureConc[E, *], E] = concurrentForPureConc[E]
+      val F: GenSpawn[PureConc[E, *], E] = allocateForPureConc[E]
 
       def cogenCase[A: Cogen]: Cogen[Outcome[PureConc[E, *], E, A]] =
         OutcomeGenerators.cogenOutcome[PureConc[E, *], E, A]

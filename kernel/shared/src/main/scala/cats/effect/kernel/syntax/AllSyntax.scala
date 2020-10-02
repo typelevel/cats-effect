@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package cats.effect.syntax
+package cats.effect.kernel.syntax
 
 trait AllSyntax
-    extends ConcurrentSyntax
-    with TemporalSyntax
+    extends MonadCancelSyntax
+    with GenSpawnSyntax
+    with GenTemporalSyntax
+    with GenConcurrentSyntax
     with AsyncSyntax
     with SyncEffectSyntax
     with EffectSyntax

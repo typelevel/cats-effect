@@ -52,7 +52,7 @@ class ShallowBindBenchmark {
       if (i < size) IO.pure(i + 1).flatMap(loop)
       else IO.pure(i)
 
-    IO.pure(0).flatMap(loop).unsafeRunSync()
+    IO.pure(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 
   @Benchmark
@@ -61,7 +61,7 @@ class ShallowBindBenchmark {
       if (i < size) IO(i + 1).flatMap(loop)
       else IO(i)
 
-    IO(0).flatMap(loop).unsafeRunSync()
+    IO(0).flatMap(loop).unsafeRunSyncBenchmark()
   }
 
   @Benchmark

@@ -18,12 +18,12 @@ package cats.effect
 package laws
 
 import cats.effect.kernel.Async
-import cats.implicits._
+import cats.syntax.all._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Left, Right}
 
-trait AsyncLaws[F[_]] extends TemporalLaws[F, Throwable] with SyncLaws[F] {
+trait AsyncLaws[F[_]] extends GenTemporalLaws[F, Throwable] with SyncLaws[F] {
   implicit val F: Async[F]
 
   def asyncRightIsSequencedPure[A](a: A, fu: F[Unit]) =

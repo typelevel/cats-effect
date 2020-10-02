@@ -135,4 +135,23 @@ object LiftIO {
    */
   implicit val ioLiftIO: LiftIO[IO] =
     new LiftIO[IO] { override def liftIO[A](ioa: IO[A]): IO[A] = ioa }
+
+  /**
+   * [[LiftIO]] instance for [[Resource]] values.
+   */
+  implicit def catsEffectLiftIOForResource[F[_]](
+      implicit F00: LiftIO[F],
+      F10: Applicative[F]): LiftIO[Resource[F, *]] =
+    new ResourceLiftIO[F] {
+      def F0 = F00
+      def F1 = F10
+    }
+
+  abstract private class ResourceLiftIO[F[_]] extends LiftIO[Resource[F, *]] {
+    implicit protected def F0: LiftIO[F]
+    implicit protected def F1: Applicative[F]
+
+    def liftIO[A](ioa: IO[A]): Resource[F, A] =
+      Resource.liftF(F0.liftIO(ioa))
+  }
 }

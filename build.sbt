@@ -30,8 +30,9 @@ ThisBuild / publishFullName := "Daniel Spiewak"
 val PrimaryOS = "ubuntu-latest"
 
 val ScalaJSJava = "adopt@1.8"
+val Scala213 = "2.13.3"
 
-ThisBuild / crossScalaVersions := Seq("0.25.0", "0.26.0-RC1", "2.12.12", "2.13.3")
+ThisBuild / crossScalaVersions := Seq("0.27.0-RC1", "2.12.12", Scala213)
 
 ThisBuild / githubWorkflowTargetBranches := Seq("series/3.x")
 
@@ -52,6 +53,10 @@ ThisBuild / githubWorkflowBuildPreamble +=
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(List("${{ matrix.ci }}")),
 
+  WorkflowStep.Sbt(
+    List("docs/mdoc"),
+    cond = Some(s"matrix.scala == '$Scala213' && matrix.ci == 'ciJVM'")),
+
   WorkflowStep.Run(
     List("example/test-jvm.sh ${{ matrix.scala }}"),
     name = Some("Test Example JVM App Within Sbt"),
@@ -62,16 +67,12 @@ ThisBuild / githubWorkflowBuild := Seq(
     name = Some("Test Example JavaScript App Using Node"),
     cond = Some("matrix.ci == 'ciJS'")))
 
-ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM")
+ThisBuild / githubWorkflowBuildMatrixAdditions += "ci" -> List("ciJVM", "ciJS", "ciFirefox")
 
-val JsRuns = List("ciJS", "ciFirefox")
-
-ThisBuild / githubWorkflowBuildMatrixInclusions ++=
-  JsRuns flatMap { run =>
-    (ThisBuild / crossScalaVersions).value.filter(_.startsWith("2.")) map { scala =>
-      MatrixInclude(
-        Map("os" -> PrimaryOS, "java" -> ScalaJSJava, "scala" -> scala),
-        Map("ci" -> run))
+ThisBuild / githubWorkflowBuildMatrixExclusions ++=
+  Seq("ciJS", "ciFirefox") flatMap { ci =>
+    (ThisBuild / githubWorkflowJavaVersions).value.filterNot(Set(ScalaJSJava)) map { java =>
+      MatrixExclude(Map("ci" -> ci, "java" -> java))
     }
   }
 
@@ -97,12 +98,14 @@ Global / scmInfo := Some(
     url("https://github.com/typelevel/cats-effect"),
     "git@github.com:typelevel/cats-effect.git"))
 
-val CatsVersion = "2.2.0-RC2"
+val CatsVersion = "2.2.0"
 val Specs2Version = "4.10.0"
 val DisciplineVersion = "1.1.0"
 
-addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; testIfRelevant; mimaReportBinaryIssuesIfRelevant")
-addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; testIfRelevant")
+replaceCommandAlias("ci", "; project /; headerCheck; scalafmtCheck; clean; test; coreJVM/mimaReportBinaryIssues; set Global / useFirefoxEnv := true; coreJS/test; set Global / useFirefoxEnv := false")
+
+addCommandAlias("ciJVM", "; project rootJVM; headerCheck; scalafmtCheck; clean; test; mimaReportBinaryIssues")
+addCommandAlias("ciJS", "; project rootJS; headerCheck; scalafmtCheck; clean; test")
 
 // we do the firefox ci *only* on core because we're only really interested in IO here
 addCommandAlias("ciFirefox", "; set Global / useFirefoxEnv := true; project rootJS; headerCheck; scalafmtCheck; clean; coreJS/test; set Global / useFirefoxEnv := false")
@@ -133,7 +136,6 @@ lazy val kernel = crossProject(JSPlatform, JVMPlatform).in(file("kernel"))
       "org.typelevel" %%% "cats-core"   % CatsVersion,
       "org.specs2"    %%% "specs2-core" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * Reference implementations (including a pure ConcurrentBracket), generic ScalaCheck
@@ -148,8 +150,7 @@ lazy val testkit = crossProject(JSPlatform, JVMPlatform).in(file("testkit"))
       "org.typelevel"  %%% "cats-free"  % CatsVersion,
       "org.scalacheck" %%% "scalacheck" % "1.14.3"))
   .settings(dottyLibrarySettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
-  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.7.0")
+  .settings(libraryDependencies += "com.codecommit" %%% "coop" % "0.7.2")
 
 /**
  * The laws which constrain the abstractions. This is split from kernel to avoid
@@ -167,7 +168,6 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
       "org.typelevel" %%% "discipline-specs2" % DisciplineVersion % Test,
       "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * Concrete, production-grade implementations of the abstractions. Or, more
@@ -187,8 +187,13 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .jvmSettings(
     Test / fork := true,
     Test / javaOptions += s"-Dsbt.classpath=${(Test / fullClasspath).value.map(_.data.getAbsolutePath).mkString(File.pathSeparator)}")
+  .jsSettings(
+    // JavaScript *specifically* needs Dotty-specific sources
+    Compile / unmanagedSourceDirectories += {
+      val major = if (isDotty.value) "-3" else "-2"
+      baseDirectory.value / "src" / "main" / s"scala$major"
+    })
   .settings(dottyLibrarySettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * Implementations of concurrent data structures (Ref, MVar, etc) purely in
@@ -203,7 +208,6 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"
     )
   )
   .settings(dottyLibrarySettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * A trivial pair of trivial example apps primarily used to show that IOApp
@@ -214,7 +218,6 @@ lazy val example = crossProject(JSPlatform, JVMPlatform).in(file("example"))
   .settings(name := "cats-effect-example")
   .jsSettings(scalaJSUseMainModuleInitializer := true)
   .settings(noPublishSettings)
-  .settings(dottyJsSettings(ThisBuild / crossScalaVersions))
 
 /**
  * JMH benchmarks for IO and other things.
@@ -224,3 +227,7 @@ lazy val benchmarks = project.in(file("benchmarks"))
   .settings(name := "cats-effect-benchmarks")
   .settings(noPublishSettings)
   .enablePlugins(JmhPlugin)
+
+lazy val docs = project.in(file("ce3-docs"))
+  .dependsOn(core.jvm)
+  .enablePlugins(MdocPlugin)
