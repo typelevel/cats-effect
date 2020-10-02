@@ -53,7 +53,7 @@ class RefBenchmark {
 }
 
 object RefBenchmark {
-  def modify(iterations: Int): Long = {
+  def modify(iterations: Int): Unit = {
     Ref[IO].of(0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
@@ -61,9 +61,9 @@ object RefBenchmark {
       }
       loop(iterations, 0L)
     }
-  }.unsafeRunSyncBenchmark()
+  }.void.unsafeRunSyncBenchmark()
 
-  def getAndUpdate(iterations: Int): Long = {
+  def getAndUpdate(iterations: Int): Unit = {
     Ref[IO].of(0L).flatMap { ref =>
       def loop(remaining: Int, acc: Long): IO[Long] = {
         if (remaining == 0) IO(acc)
@@ -71,6 +71,6 @@ object RefBenchmark {
       }
       loop(iterations, 0L)
     }
-  }.unsafeRunSyncBenchmark()
+  }.void.unsafeRunSyncBenchmark()
 
 }
