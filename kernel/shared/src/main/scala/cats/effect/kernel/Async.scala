@@ -17,7 +17,7 @@
 package cats.effect.kernel
 
 import cats.implicits._
-import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
+import cats.data.{EitherT, Ior, IorT, Kleisli, OptionT, WriterT}
 import cats.{~>, Monoid, Semigroup}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -221,7 +221,25 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] = ???
+    def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] =
+      IorT(
+        F.cont(
+          new Cont[F, Ior[L, A]] {
+
+            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Ior[L, A]] => Unit, G[Ior[L, A]], F ~> G) => G[Ior[L, A]] =
+              (cb, ga, nat) => {
+                val natT: IorT[F, L, *] ~> IorT[G, L, *] = new ~>[IorT[F, L, *], IorT[G, L, *]] {
+
+                  override def apply[A](fa: IorT[F,L, A]): IorT[G, L, A] =
+                    IorT(nat(fa.value))
+
+                }
+
+                body[IorT[G, L, *]].apply(e => cb(e.map(Ior.Right(_))), IorT(ga), natT).value
+              }
+          }
+        )
+      )
 
     def evalOn[A](fa: IorT[F, L, A], ec: ExecutionContext): IorT[F, L, A] =
       IorT(F.evalOn(fa.value, ec))
