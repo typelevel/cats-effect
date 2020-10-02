@@ -31,12 +31,17 @@ import cats.syntax.all._
  * most notably [[MonadCancel!.canceled canceled]], which enables a fiber to
  * self-cancel. 
  * 
- * cooperative multitasking
  * redefine what a fiber is from MonadCancel?
  * fiber is a logical thread represented by a sequence of discrete steps
  * 
- * [[GenSpawn]] introduces a notion of concurrency enabling fibers to interact
- * with eachother. 
+ * [[GenSpawn]] introduces a notion of concurrency that enables fibers to
+ * safely interact with eachother via three special functions. 
+ * [[GenSpawn!.start start]] spawns a fiber that executes concurrently with the 
+ * spawning fiber. [[Fiber!.join join]] semantically blocks the joining fiber 
+ * until the joinee fiber terminates, after which the outcome of the joinee is 
+ * returned. [[Fiber!.cancel cancel]] requests a fiber to abnormally terminate, 
+ * and semantically blocks the canceller until the cancellee has completed 
+ * finalization.
  * 
  * Similar to threads, fibers can execute concurrently with respect to eachother.
  * This means that the effects of different fibers different fibers may be 
@@ -72,6 +77,8 @@ import cats.syntax.all._
  * interleaving of effects/steps
  * non-deterministic
  * interactions
+ * blocking/semantically blocking
+ * cancelled boundary
  * 
  * [[MonadCancel]] introduces a notion of cancellation, specifically
  * self-cancellation, where a fiber can request to abnormally terminate its own
@@ -106,16 +113,16 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
 
   /**
    * A low-level primitive for requesting concurrent evaluation of an effect.
-   * Common pattern start.flatmap(_.cancel)
+   * TODO: Common bad pattern start.flatmap(_.cancel)
    * 
-   * use resource instead
+   * use background instead
    */
   def start[A](fa: F[A]): F[Fiber[F, E, A]]
 
   /**
    * An effect that never completes, causing the fiber to semantically block
-   * forever. This is the purely functional equivalent of an infinite while
-   * loop in Java, but no threads are blocked.
+   * indefinitely. This is the purely functional equivalent of an infinite 
+   * while loop in Java, but no threads are blocked.
    * 
    * A fiber that is suspended in `never` can be cancelled if it is completely
    * unmasked before it suspends:
@@ -140,8 +147,22 @@ trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
   def never[A]: F[A]
 
   /**
-   * Introduces a fairness boundary by yielding control back to the underlying
-   * scheduler.
+   * Introduces a fairness boundary that yields control back to the scheduler
+   * of the runtime system. This allows the carrier thread to resume execution 
+   * of another waiting fiber. 
+   * 
+   * `cede` is a means of cooperative multitasking by which a fiber signals to
+   * the runtime system that it wishes to suspend itself with the intention of 
+   * resuming later, at the discretion of the scheduler. This is in contrast to 
+   * preemptive multitasking, in which threads of control are forcibly 
+   * suspended after a well-defined time slice. Preemptive and cooperative 
+   * multitasking are both features of runtime systems that influence the 
+   * fairness and throughput properties of an application.
+   * 
+   * Note that `cede` is merely a hint to the runtime system; implementations
+   * have the liberty to interpret this method to their liking as long as it
+   * obeys the respective laws. For example, a lawful implementation of this 
+   * function is `F.unit`, in which case the fairness boundary is a no-op.
    */
   def cede: F[Unit]
 

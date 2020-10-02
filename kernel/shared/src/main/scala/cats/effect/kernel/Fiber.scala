@@ -20,6 +20,9 @@ import cats.syntax.all._
 
 /**
  * A datatype which represents a handle to a fiber.
+ * 
+ * @see [[GenSpawn]] documentation for more detailed information on
+ * concurrency of fibers.
  */
 trait Fiber[F[_], E, A] {
 
@@ -28,6 +31,8 @@ trait Fiber[F[_], E, A] {
    * 
    * This function semantically blocks the caller until finalization of the 
    * cancelee has completed.
+   * 
+   * TODO: describe what happens if the fiber is already complete; multiple fibers, etc.
    */
   def cancel: F[Unit]
 
