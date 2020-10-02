@@ -165,7 +165,25 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] = ???
+    def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] =
+      EitherT(
+        F.cont(
+          new Cont[F, Either[E, A]] {
+
+            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Either[E, A]] => Unit, G[Either[E, A]], F ~> G) => G[Either[E, A]] =
+              (cb, ga, nat) => {
+                val natT: EitherT[F, E, *] ~> EitherT[G, E, *] = new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
+
+                  override def apply[A](fa: EitherT[F,E, A]): EitherT[G, E, A] =
+                    EitherT(nat(fa.value))
+
+                }
+
+                body[EitherT[G, E, *]].apply(e => cb(e.map(Right(_))), EitherT(ga), natT).value
+              }
+          }
+        )
+      )
 
     def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
       EitherT(F.evalOn(fa.value, ec))
