@@ -27,12 +27,7 @@ import cats.syntax.all._
  * instance of this typeclass must also provide a lawful instance for 
  * [[MonadCancel]].
  * 
- * [[MonadCancel]] introduces several functions for interacting with fibers,
- * most notably [[MonadCancel!.canceled canceled]], which enables a fiber to
- * self-cancel. 
- * 
- * redefine what a fiber is from MonadCancel?
- * fiber is a logical thread represented by a sequence of discrete steps
+ * ==== Concurrency ====
  * 
  * [[GenSpawn]] introduces a notion of concurrency that enables fibers to
  * safely interact with eachother via three special functions. 
@@ -43,42 +38,54 @@ import cats.syntax.all._
  * and semantically blocks the canceller until the cancellee has completed 
  * finalization.
  * 
- * Similar to threads, fibers can execute concurrently with respect to eachother.
- * This means that the effects of different fibers different fibers may be 
- * interleaved in an indeterminate fashion:
+ * Just like threads, fibers can execute concurrently with respect to 
+ * eachother. This means that the effects of independent fibers may be
+ * interleaved in an indeterminate fashion. This mode of concurrency is 
+ * beneficial to modular program design: fibers that are described separately 
+ * can execute simultaneously without requiring programmers to explicitly
+ * yield back to the runtime system. 
+ * 
+ * The interleaving of effects is illustrated in the following program:
  * 
  * {{{
  * 
  *   for {
- *     fa <- (a1 *> a2).start
- *     fb <- (b1 *> b2).start
+ *     fa <- (println("A1") *> println("A2")).start
+ *     fb <- (println("B1") *> println("B2")).start
  *   } yield ()
  * 
  * }}}
  * 
- * In this example, two fibers A and B are spawned. There are six possible
- * executions of this program, each of which exhibits a different ordering of
- * the effects that comprise A and B:
+ * In this program, two fibers A and B are spawned concurrently. There are six 
+ * possible executions, each of which exhibits a different ordering of effects. 
+ * The observed output of each execution is shown below:
  * 
- *   1. a1, a2, b1, b2
- *   2. a1, b1, a2, b2
- *   3. a1, b1, b2, a2
- *   4. b1, b2, a1, a2
- *   5. b1, a1, b2, a2
- *   6. b1, a1, a2, b3
+ *   1. A1, A2, B1, B2
+ *   2. A1, B1, A2, B2
+ *   3. A1, B1, B2, A2
+ *   4. B1, B2, A1, A2
+ *   5. B1, A1, B2, A2
+ *   6. B1, A1, A2, B3
  * 
  * Notice how every execution preserves sequential consistency of the effects
- * within each fiber: `a1` always runs before `a2` and `b1` always runs before
- * `b2`. However, there are no guarantees around how the effects of both fibers
- * will be ordered with respect to eachother; it is entirely non-deterministic.
- *
- * In other words, program order is always preserved.
+ * within each fiber: `A1` always prints before `A2`, and `B1` always prints 
+ * before `B2`. However, there are no guarantees around how the effects of 
+ * both fibers will be ordered with respect to eachother; it is entirely
+ * non-deterministic.
  * 
- * interleaving of effects/steps
- * non-deterministic
- * interactions
- * blocking/semantically blocking
- * cancelled boundary
+ * 
+ * The nature by which concurrent evaluation of fibers takes place depends 
+ * completely on the native platform and the runtime system. Here are some 
+ * examples describing how a runtime system can choose to execute fibers:
+ * 
+ * For example, an application running on a JVM with multiple
+ * threads could run two independent fibers on two 
+ * separate threads simultaneously. In contrast, an application running on a JavaScript
+ * runtime is constrained to a single thread of control. 
+ * 
+ * Describe different configurations here, like how we could associate a fiber with a thread.
+ * 
+ * ==== Cancellation ====
  * 
  * [[MonadCancel]] introduces a notion of cancellation, specifically
  * self-cancellation, where a fiber can request to abnormally terminate its own
@@ -86,27 +93,16 @@ import cats.syntax.all._
  * by external parties. This is achieved by calling 
  * [[Fiber!.cancelled cancelled]]
  * 
+ * TODO talk about:
+ * blocking/semantically blocking
+ * cancellation boundary
+ * 
  * cancellation should interact with MonadCancel finalizers the same way
+ * self cancellation
  * 
  * unlike self-cancellation, external cancellation need not ever be observed
- * because of synchronization
+ * because of JVM memory model guarantees
  * 
- * [[GenSpawn]] introduces a primitive for starting fibers, 
- * [[GenSpawn!.start start]], which requests the runtime system to begin
- * evaluation of some arbitrary effect concurrently. 
- * 
- * Note that the nature by which concurrent evaluation of fibers takes 
- * place depends completely on the native platform and the runtime system.
- * Here are some examples describing how a runtime system can choose to
- * execute fibers:
- * 
- * 
- * For example, an application running on a JVM with multiple
- * threads could run two independent fibers on two 
- * separate threads simultaneously. In contrast, an application running on a JavaScript
- * runtime is constrained to a single thread of control. 
- * 
- * Describe different setups here, like how we could associate a fiber with a thread.
  * 
  */
 trait GenSpawn[F[_], E] extends MonadCancel[F, E] {
