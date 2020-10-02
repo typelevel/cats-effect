@@ -266,7 +266,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
       }
 
       op.flatMap {
-        case Outcome.Completed(ioa) =>
+        case Outcome.Succeeded(ioa) =>
           ioa.flatMap { res =>
             IO {
               res must beEqualTo(0: Long)
