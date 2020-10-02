@@ -181,10 +181,11 @@ object GenSpawn {
       Either[
         (Outcome[OptionT[F, *], E, A], Fiber[OptionT[F, *], E, B]),
         (Fiber[OptionT[F, *], E, A], Outcome[OptionT[F, *], E, B])]] = {
-      OptionT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      OptionT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
     override def race[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[A, B]] =
@@ -242,10 +243,11 @@ object GenSpawn {
       Either[
         (Outcome[EitherT[F, E0, *], E, A], Fiber[EitherT[F, E0, *], E, B]),
         (Fiber[EitherT[F, E0, *], E, A], Outcome[EitherT[F, E0, *], E, B])]] = {
-      EitherT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      EitherT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
     override def race[A, B](
@@ -312,10 +314,11 @@ object GenSpawn {
       Either[
         (Outcome[IorT[F, L, *], E, A], Fiber[IorT[F, L, *], E, B]),
         (Fiber[IorT[F, L, *], E, A], Outcome[IorT[F, L, *], E, B])]] = {
-      IorT.liftF(F.racePair(fa.value, fb.value).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      IorT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.value, fb.value)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
     override def race[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[A, B]] =
@@ -374,10 +377,11 @@ object GenSpawn {
         (Outcome[Kleisli[F, R, *], E, A], Fiber[Kleisli[F, R, *], E, B]),
         (Fiber[Kleisli[F, R, *], E, A], Outcome[Kleisli[F, R, *], E, B])]] = {
       Kleisli { r =>
-        (F.racePair(fa.run(r), fb.run(r)).map {
-          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-        })
+        F.uncancelable(poll =>
+          poll((F.racePair(fa.run(r), fb.run(r))).map {
+            case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+            case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+          }))
       }
     }
 
@@ -441,10 +445,11 @@ object GenSpawn {
       Either[
         (Outcome[WriterT[F, L, *], E, A], Fiber[WriterT[F, L, *], E, B]),
         (Fiber[WriterT[F, L, *], E, A], Outcome[WriterT[F, L, *], E, B])]] = {
-      WriterT.liftF(F.racePair(fa.run, fb.run).map {
-        case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
-        case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
-      })
+      WriterT.liftF(F.uncancelable(poll =>
+        poll(F.racePair(fa.run, fb.run)).map {
+          case Left((oc, fib)) => Left((liftOutcome(oc), liftFiber(fib)))
+          case Right((fib, oc)) => Right((liftFiber(fib), liftOutcome(oc)))
+        }))
     }
 
     override def race[A, B](
