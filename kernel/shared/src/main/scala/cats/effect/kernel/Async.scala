@@ -18,7 +18,7 @@ package cats.effect.kernel
 
 import cats.implicits._
 import cats.data.{EitherT, IorT, Kleisli, OptionT, WriterT}
-import cats.{Monoid, Semigroup}
+import cats.{~>, Monoid, Semigroup}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -110,9 +110,25 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def async[A](k: (Either[Throwable, A] => Unit) => OptionT[F, Option[OptionT[F, Unit]]])
-        : OptionT[F, A] =
-      OptionT.liftF(F.async(k.andThen(_.value.map(_.flatten.map(_.value.void)))))
+    def cont[A](body: Cont[OptionT[F, *], A]): OptionT[F, A] =
+      OptionT(
+        F.cont(
+          new Cont[F, Option[A]] {
+
+            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Option[A]] => Unit, G[Option[A]], F ~> G) => G[Option[A]] =
+              (cb, ga, nat) => {
+                val natT: OptionT[F, *] ~> OptionT[G, *] = new ~>[OptionT[F, *], OptionT[G, *]] {
+
+                  override def apply[A](fa: OptionT[F,A]): OptionT[G, A] =
+                    OptionT(nat(fa.value))
+
+                }
+
+                body[OptionT[G, *]].apply(e => cb(e.map(Some(_))), OptionT(ga), natT).value
+              }
+          }
+        )
+      )
 
     def evalOn[A](fa: OptionT[F, A], ec: ExecutionContext): OptionT[F, A] =
       OptionT(F.evalOn(fa.value, ec))
@@ -149,11 +165,7 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def async[A](
-        k: (Either[Throwable, A] => Unit) => EitherT[F, E, Option[EitherT[F, E, Unit]]])
-        : EitherT[F, E, A] =
-      EitherT.liftF(
-        F.async(k.andThen(_.value.map(_.fold(_ => None, identity).map(_.value.void)))))
+    def cont[A](body: Cont[EitherT[F, E, *], A]): EitherT[F, E, A] = ???
 
     def evalOn[A](fa: EitherT[F, E, A], ec: ExecutionContext): EitherT[F, E, A] =
       EitherT(F.evalOn(fa.value, ec))
@@ -191,10 +203,7 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def async[A](k: (Either[Throwable, A] => Unit) => IorT[F, L, Option[IorT[F, L, Unit]]])
-        : IorT[F, L, A] =
-      IorT.liftF(F.async(
-        k.andThen(_.value.map(_.fold(_ => None, identity, (_, _) => None).map(_.value.void)))))
+    def cont[A](body: Cont[IorT[F, L, *], A]): IorT[F, L, A] = ???
 
     def evalOn[A](fa: IorT[F, L, A], ec: ExecutionContext): IorT[F, L, A] =
       IorT(F.evalOn(fa.value, ec))
@@ -231,10 +240,7 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def async[A](
-        k: (Either[Throwable, A] => Unit) => WriterT[F, L, Option[WriterT[F, L, Unit]]])
-        : WriterT[F, L, A] =
-      WriterT.liftF(F.async(k.andThen(_.run.map(_._2.map(_.run.void)))))
+    def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] = ???
 
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
@@ -272,10 +278,7 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def async[A](
-        k: (Either[Throwable, A] => Unit) => Kleisli[F, R, Option[Kleisli[F, R, Unit]]])
-        : Kleisli[F, R, A] =
-      Kleisli { r => F.async(k.andThen(_.run(r).map(_.map(_.run(r))))) }
+    def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] = ???
 
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
@@ -283,8 +286,6 @@ object Async {
     def executionContext: Kleisli[F, R, ExecutionContext] = Kleisli.liftF(F.executionContext)
 
     override def never[A]: Kleisli[F, R, A] = Kleisli.liftF(F.never)
-
-    // protected def delegate: Applicative[Kleisli[F, *]] = OptionT.catsDataMonadForOptionT[F]
 
     override def ap[A, B](
         ff: Kleisli[F, R, A => B]
