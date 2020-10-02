@@ -17,7 +17,6 @@
 package cats.effect
 
 import cats.{
-  ~>,
   Applicative,
   Eval,
   Monoid,
@@ -152,6 +151,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
     }
   }
 
+  def onError(f: Throwable => IO[Unit]): IO[A] =
+    handleErrorWith(t => f(t).attempt *> IO.raiseError(t))
+
   def race[B](that: IO[B]): IO[Either[A, B]] =
     IO.uncancelable { poll =>
       racePair(that).flatMap {
@@ -211,6 +213,9 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
       case Left(value) => IO.pure(value)
     }
 
+  def product[B](that: IO[B]): IO[(A, B)] =
+    flatMap(a => that.map(b => (a, b)))
+
   def productL[B](that: IO[B]): IO[A] =
     flatMap(a => that.as(a))
 
@@ -225,78 +230,6 @@ sealed abstract class IO[+A] private () extends IOPlatform[A] {
 
   def memoize: IO[IO[A]] =
     Concurrent[IO].memoize(this)
-
-  def to[F[_]](implicit F: Effect[F]): F[A @uncheckedVariance] =
-    // re-comment this fast-path to test the implementation with IO itself
-    if (F eq IO.effectForIO) {
-      asInstanceOf[F[A]]
-    } else {
-      def fiberFrom[B](f: Fiber[F, Throwable, B]): FiberIO[B] =
-        new FiberIO[B] {
-          val cancel = F.to[IO](f.cancel)
-          val join = F.to[IO](f.join).map(_.mapK(F.toK[IO]))
-        }
-
-      // the casting is unfortunate, but required to work around GADT unification bugs
-      this match {
-        case IO.Pure(a) => F.pure(a)
-        case IO.Delay(thunk) => F.delay(thunk())
-        case IO.Blocking(hint, thunk) => F.suspend(hint)(thunk())
-        case IO.Error(t) => F.raiseError(t)
-        case IO.Async(k) => F.async(k.andThen(_.to[F].map(_.map(_.to[F]))))
-
-        case _: IO.ReadEC.type => F.executionContext.asInstanceOf[F[A]]
-        case IO.EvalOn(ioa, ec) => F.evalOn(ioa.to[F], ec)
-
-        case IO.Map(ioe, f) => ioe.to[F].map(f)
-        case IO.FlatMap(ioe, f) => F.defer(ioe.to[F].flatMap(f.andThen(_.to[F])))
-        case IO.HandleErrorWith(ioa, f) => ioa.to[F].handleErrorWith(f.andThen(_.to[F]))
-
-        case IO.OnCancel(ioa, fin) =>
-          F.onCancel(ioa.to[F], fin.to[F]).asInstanceOf[F[A]]
-
-        case IO.Uncancelable(body) =>
-          F.uncancelable { poll =>
-            val poll2 = new Poll[IO] {
-              def apply[B](ioa: IO[B]): IO[B] =
-                IO.UnmaskTo(ioa, poll)
-            }
-
-            body(poll2).to[F]
-          }
-
-        case _: IO.Canceled.type => F.canceled.asInstanceOf[F[A]]
-
-        case self: IO.Start[_] =>
-          F.start(self.ioa.to[F]).map(fiberFrom(_)).asInstanceOf[F[A]]
-
-        case self: IO.RacePair[_, _] =>
-          val back = F.racePair(self.ioa.to[F], self.iob.to[F]) map { e =>
-            e.bimap({ case (a, f) => (a, fiberFrom(f)) }, { case (f, b) => (fiberFrom(f), b) })
-          }
-
-          back.asInstanceOf[F[A]]
-
-        case self: IO.Sleep => F.sleep(self.delay).asInstanceOf[F[A]]
-        case _: IO.RealTime.type => F.realTime.asInstanceOf[F[A]]
-        case _: IO.Monotonic.type => F.monotonic.asInstanceOf[F[A]]
-
-        case _: IO.Cede.type => F.cede.asInstanceOf[F[A]]
-
-        case IO.UnmaskRunLoop(_, _) | IO.BlockFiber =>
-          // Will never be executed. Cases demanded for exhaustiveness.
-          sys.error("impossible")
-
-        case self: IO.Attempt[_] =>
-          F.attempt(self.ioa.to[F]).asInstanceOf[F[A]]
-
-        case self: IO.UnmaskTo[_, _] =>
-          // casts are safe because we only ever construct UnmaskF instances in this method
-          val ioa = self.ioa.asInstanceOf[IO[A]]
-          val poll = self.poll.asInstanceOf[Poll[F]]
-          poll(ioa.to[F])
-      }
-    }
 
   def uncancelable: IO[A] =
     IO.uncancelable(_ => this)
@@ -416,7 +349,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     left.both(right)
 
   def fromFuture[A](fut: IO[Future[A]]): IO[A] =
-    effectForIO.fromFuture(fut)
+    asyncForIO.fromFuture(fut)
 
   def race[A, B](left: IO[A], right: IO[B]): IO[Either[A, B]] =
     left.race(right)
@@ -468,11 +401,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
   def raiseUnless(cond: Boolean)(e: => Throwable): IO[Unit] =
     IO.unlessA(cond)(IO.raiseError(e))
 
-  def toK[F[_]: Effect]: IO ~> F =
-    new (IO ~> F) {
-      def apply[A](ioa: IO[A]) = ioa.to[F]
-    }
-
   def eval[A](fa: Eval[A]): IO[A] =
     fa match {
       case Now(a) => pure(a)
@@ -522,13 +450,17 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
       a.handleErrorWith(_ => b)
   }
 
-  private[this] val _effectForIO: Effect[IO] = new Effect[IO] with StackSafeMonad[IO] {
+  private[this] val _asyncForIO: kernel.Async[IO] = new kernel.Async[IO]
+    with StackSafeMonad[IO] {
 
     override def as[A, B](ioa: IO[A], b: B): IO[B] =
       ioa.as(b)
 
     override def attempt[A](ioa: IO[A]) =
       ioa.attempt
+
+    def forceR[A, B](left: IO[A])(right: IO[B]): IO[B] =
+      left.attempt.productR(right)
 
     def pure[A](x: A): IO[A] =
       IO.pure(x)
@@ -593,9 +525,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def uncancelable[A](body: Poll[IO] => IO[A]): IO[A] =
       IO.uncancelable(body)
 
-    def toK[G[_]](implicit G: Effect[G]): IO ~> G =
-      IO.toK[G]
-
     override def map[A, B](fa: IO[A])(f: A => B): IO[B] =
       fa.map(f)
 
@@ -625,7 +554,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     override def deferred[A]: IO[Deferred[IO, A]] = IO(Deferred.unsafe)
   }
 
-  implicit def effectForIO: Effect[IO] = _effectForIO
+  implicit def asyncForIO: kernel.Async[IO] = _asyncForIO
 
   implicit def unsafeRunForIO(implicit runtime: unsafe.IORuntime): unsafe.UnsafeRun[IO] =
     runtime.unsafeRunForIO

@@ -539,8 +539,7 @@ object Resource extends ResourceInstances with ResourcePlatform {
   }
 
   trait Bracket0 {
-    implicit def catsEffectResourceBracketForSyncEffect[F[_]](
-        implicit F0: SyncEffect[F]): Bracket[F] =
+    implicit def catsEffectResourceBracketForSync[F[_]](implicit F0: Sync[F]): Bracket[F] =
       new SyncBracket[F] {
         implicit protected def F: Sync[F] = F0
       }

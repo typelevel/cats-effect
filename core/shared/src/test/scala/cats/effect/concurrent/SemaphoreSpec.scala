@@ -18,7 +18,7 @@ package cats
 package effect
 package concurrent
 
-import cats.effect.kernel.Effect
+import cats.arrow.FunctionK
 import cats.syntax.all._
 
 // import org.specs2.matcher.MatchResult
@@ -34,7 +34,7 @@ class SemaphoreSpec extends BaseSpec { outer =>
 
     tests("async", n => Semaphore[IO](n))
     tests("async in", n => Semaphore.in[IO, IO](n))
-    tests("async imapK", n => Semaphore[IO](n).map(_.imapK[IO](Effect[IO].toK, Effect[IO].toK)))
+    tests("async imapK", n => Semaphore[IO](n).map(_.imapK[IO](FunctionK.id, FunctionK.id)))
 
     "acquire does not leak permits upon cancelation" in real {
       val op = Semaphore[IO](1L).flatMap { s =>
