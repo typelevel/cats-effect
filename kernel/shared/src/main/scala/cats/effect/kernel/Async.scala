@@ -121,7 +121,7 @@ object Async {
                 val natT: OptionT[F, *] ~> OptionT[G, *] =
                   new ~>[OptionT[F, *], OptionT[G, *]] {
 
-                    override def apply[A](fa: OptionT[F, A]): OptionT[G, A] =
+                    override def apply[B](fa: OptionT[F, B]): OptionT[G, B] =
                       OptionT(nat(fa.value))
 
                   }
@@ -180,7 +180,7 @@ object Async {
                 val natT: EitherT[F, E, *] ~> EitherT[G, E, *] =
                   new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
 
-                    override def apply[A](fa: EitherT[F, E, A]): EitherT[G, E, A] =
+                    override def apply[B](fa: EitherT[F, E, B]): EitherT[G, E, B] =
                       EitherT(nat(fa.value))
 
                   }
@@ -238,7 +238,7 @@ object Async {
                 val natT: IorT[F, L, *] ~> IorT[G, L, *] =
                   new ~>[IorT[F, L, *], IorT[G, L, *]] {
 
-                    override def apply[A](fa: IorT[F, L, A]): IorT[G, L, A] =
+                    override def apply[B](fa: IorT[F, L, B]): IorT[G, L, B] =
                       IorT(nat(fa.value))
 
                   }
@@ -295,7 +295,7 @@ object Async {
                 val natT: WriterT[F, L, *] ~> WriterT[G, L, *] =
                   new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
 
-                    override def apply[A](fa: WriterT[F, L, A]): WriterT[G, L, A] =
+                    override def apply[B](fa: WriterT[F, L, B]): WriterT[G, L, B] =
                       WriterT(nat(fa.run))
 
                   }
@@ -355,7 +355,7 @@ object Async {
                 val natT: Kleisli[F, R, *] ~> Kleisli[G, R, *] =
                   new ~>[Kleisli[F, R, *], Kleisli[G, R, *]] {
 
-                    override def apply[A](fa: Kleisli[F, R, A]): Kleisli[G, R, A] =
+                    override def apply[B](fa: Kleisli[F, R, B]): Kleisli[G, R, B] =
                       Kleisli(r => nat(fa.run(r)))
 
                   }
