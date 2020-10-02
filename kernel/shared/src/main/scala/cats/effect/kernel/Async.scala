@@ -276,7 +276,25 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] = ???
+    def cont[A](body: Cont[WriterT[F, L, *], A]): WriterT[F, L, A] =
+      WriterT(
+        F.cont(
+          new Cont[F, (L, A)] {
+
+            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,(L, A)] => Unit, G[(L, A)], F ~> G) => G[(L, A)] =
+              (cb, ga, nat) => {
+                val natT: WriterT[F, L, *] ~> WriterT[G, L, *] = new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
+
+                  override def apply[A](fa: WriterT[F,L, A]): WriterT[G, L, A] =
+                    WriterT(nat(fa.run))
+
+                }
+
+                body[WriterT[G, L, *]].apply(e => cb(e.map((L.empty, _))), WriterT(ga), natT).run
+              }
+          }
+        )
+      )
 
     def evalOn[A](fa: WriterT[F, L, A], ec: ExecutionContext): WriterT[F, L, A] =
       WriterT(F.evalOn(fa.run, ec))
