@@ -189,12 +189,7 @@ object GenSpawn {
     }
 
     override def race[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, Either[A, B]] =
-      OptionT(F.race(fa.value, fb.value).map {
-        case Left(Some(a)) => Some(Left(a))
-        case Left(None) => None
-        case Right(Some(b)) => Some(Right(b))
-        case Right(None) => None
-      })
+      OptionT(F.race(fa.value, fb.value).map(_.bisequence))
 
     override def both[A, B](fa: OptionT[F, A], fb: OptionT[F, B]): OptionT[F, (A, B)] =
       OptionT(F.both(fa.value, fb.value).map(_.tupled))
@@ -253,12 +248,7 @@ object GenSpawn {
     override def race[A, B](
         fa: EitherT[F, E0, A],
         fb: EitherT[F, E0, B]): EitherT[F, E0, Either[A, B]] =
-      EitherT(F.race(fa.value, fb.value).map {
-        case Left(Left(e0)) => Left(e0)
-        case Left(Right(a)) => Right(Left(a))
-        case Right(Left(e0)) => Left(e0)
-        case Right(Right(b)) => Right(Right(b))
-      })
+      EitherT(F.race(fa.value, fb.value).map(_.bisequence))
 
     override def both[A, B](
         fa: EitherT[F, E0, A],
@@ -322,14 +312,7 @@ object GenSpawn {
     }
 
     override def race[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, Either[A, B]] =
-      IorT(F.race(fa.value, fb.value).map {
-        case Left(Ior.Left(l)) => Ior.Left(l)
-        case Left(Ior.Both(l, a)) => Ior.Both(l, Left(a))
-        case Left(Ior.Right(a)) => Ior.Right(Left(a))
-        case Right(Ior.Left(l)) => Ior.left(l)
-        case Right(Ior.Both(l, b)) => Ior.Both(l, Right(b))
-        case Right(Ior.Right(b)) => Ior.Right(Right(b))
-      })
+      IorT(F.race(fa.value, fb.value).map(_.bisequence))
 
     override def both[A, B](fa: IorT[F, L, A], fb: IorT[F, L, B]): IorT[F, L, (A, B)] =
       IorT(F.both(fa.value, fb.value).map(_.tupled))
