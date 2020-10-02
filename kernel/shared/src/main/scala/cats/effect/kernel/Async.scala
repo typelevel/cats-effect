@@ -360,7 +360,7 @@ object Async {
 
                   }
 
-                body[Kleisli[G, R, *]].apply(cb, Kleisli(_ => ga), natT).run(r)
+                body[Kleisli[G, R, *]].apply(cb, Kleisli.liftF(ga), natT).run(r)
               }
           }
         ))
