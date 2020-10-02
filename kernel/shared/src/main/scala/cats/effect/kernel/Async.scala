@@ -115,14 +115,16 @@ object Async {
         F.cont(
           new Cont[F, Option[A]] {
 
-            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Option[A]] => Unit, G[Option[A]], F ~> G) => G[Option[A]] =
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, Option[A]] => Unit, G[Option[A]], F ~> G) => G[Option[A]] =
               (cb, ga, nat) => {
-                val natT: OptionT[F, *] ~> OptionT[G, *] = new ~>[OptionT[F, *], OptionT[G, *]] {
+                val natT: OptionT[F, *] ~> OptionT[G, *] =
+                  new ~>[OptionT[F, *], OptionT[G, *]] {
 
-                  override def apply[A](fa: OptionT[F,A]): OptionT[G, A] =
-                    OptionT(nat(fa.value))
+                    override def apply[A](fa: OptionT[F, A]): OptionT[G, A] =
+                      OptionT(nat(fa.value))
 
-                }
+                  }
 
                 body[OptionT[G, *]].apply(e => cb(e.map(Some(_))), OptionT(ga), natT).value
               }
@@ -170,14 +172,18 @@ object Async {
         F.cont(
           new Cont[F, Either[E, A]] {
 
-            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Either[E, A]] => Unit, G[Either[E, A]], F ~> G) => G[Either[E, A]] =
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable]): (
+                Either[Throwable, Either[E, A]] => Unit,
+                G[Either[E, A]],
+                F ~> G) => G[Either[E, A]] =
               (cb, ga, nat) => {
-                val natT: EitherT[F, E, *] ~> EitherT[G, E, *] = new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
+                val natT: EitherT[F, E, *] ~> EitherT[G, E, *] =
+                  new ~>[EitherT[F, E, *], EitherT[G, E, *]] {
 
-                  override def apply[A](fa: EitherT[F,E, A]): EitherT[G, E, A] =
-                    EitherT(nat(fa.value))
+                    override def apply[A](fa: EitherT[F, E, A]): EitherT[G, E, A] =
+                      EitherT(nat(fa.value))
 
-                }
+                  }
 
                 body[EitherT[G, E, *]].apply(e => cb(e.map(Right(_))), EitherT(ga), natT).value
               }
@@ -226,14 +232,16 @@ object Async {
         F.cont(
           new Cont[F, Ior[L, A]] {
 
-            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,Ior[L, A]] => Unit, G[Ior[L, A]], F ~> G) => G[Ior[L, A]] =
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, Ior[L, A]] => Unit, G[Ior[L, A]], F ~> G) => G[Ior[L, A]] =
               (cb, ga, nat) => {
-                val natT: IorT[F, L, *] ~> IorT[G, L, *] = new ~>[IorT[F, L, *], IorT[G, L, *]] {
+                val natT: IorT[F, L, *] ~> IorT[G, L, *] =
+                  new ~>[IorT[F, L, *], IorT[G, L, *]] {
 
-                  override def apply[A](fa: IorT[F,L, A]): IorT[G, L, A] =
-                    IorT(nat(fa.value))
+                    override def apply[A](fa: IorT[F, L, A]): IorT[G, L, A] =
+                      IorT(nat(fa.value))
 
-                }
+                  }
 
                 body[IorT[G, L, *]].apply(e => cb(e.map(Ior.Right(_))), IorT(ga), natT).value
               }
@@ -281,16 +289,20 @@ object Async {
         F.cont(
           new Cont[F, (L, A)] {
 
-            override def apply[G[_]](implicit G: MonadCancel[G,Throwable]): (Either[Throwable,(L, A)] => Unit, G[(L, A)], F ~> G) => G[(L, A)] =
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, (L, A)] => Unit, G[(L, A)], F ~> G) => G[(L, A)] =
               (cb, ga, nat) => {
-                val natT: WriterT[F, L, *] ~> WriterT[G, L, *] = new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
+                val natT: WriterT[F, L, *] ~> WriterT[G, L, *] =
+                  new ~>[WriterT[F, L, *], WriterT[G, L, *]] {
 
-                  override def apply[A](fa: WriterT[F,L, A]): WriterT[G, L, A] =
-                    WriterT(nat(fa.run))
+                    override def apply[A](fa: WriterT[F, L, A]): WriterT[G, L, A] =
+                      WriterT(nat(fa.run))
 
-                }
+                  }
 
-                body[WriterT[G, L, *]].apply(e => cb(e.map((L.empty, _))), WriterT(ga), natT).run
+                body[WriterT[G, L, *]]
+                  .apply(e => cb(e.map((L.empty, _))), WriterT(ga), natT)
+                  .run
               }
           }
         )
@@ -332,7 +344,26 @@ object Async {
 
     implicit protected def F: Async[F]
 
-    def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] = ???
+    def cont[A](body: Cont[Kleisli[F, R, *], A]): Kleisli[F, R, A] =
+      Kleisli(r =>
+        F.cont(
+          new Cont[F, A] {
+
+            override def apply[G[_]](implicit G: MonadCancel[G, Throwable])
+                : (Either[Throwable, A] => Unit, G[A], F ~> G) => G[A] =
+              (cb, ga, nat) => {
+                val natT: Kleisli[F, R, *] ~> Kleisli[G, R, *] =
+                  new ~>[Kleisli[F, R, *], Kleisli[G, R, *]] {
+
+                    override def apply[A](fa: Kleisli[F, R, A]): Kleisli[G, R, A] =
+                      Kleisli(r => nat(fa.run(r)))
+
+                  }
+
+                body[Kleisli[G, R, *]].apply(cb, Kleisli(_ => ga), natT).run(r)
+              }
+          }
+        ))
 
     def evalOn[A](fa: Kleisli[F, R, A], ec: ExecutionContext): Kleisli[F, R, A] =
       Kleisli(r => F.evalOn(fa.run(r), ec))
