@@ -643,11 +643,6 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
     def tag = 20
   }
 
-  // Not part of the run loop. Only used in the implementation of IO#to.
-  private[effect] final case class UnmaskTo[F[_], +A](ioa: IO[A], poll: Poll[F]) extends IO[A] {
-    def tag = -1
-  }
-
   private[effect] case object BlockFiber extends IO[Nothing] {
     def tag = -1
   }
