@@ -376,7 +376,7 @@ object IO extends IOCompanionPlatform with IOLowPriorityImplicits {
 
   /**
    * This is a low-level API which is meant for implementors,
-   * please use `start`, `async` or `Deferred` instead,
+   * please use `background`, `start`, `async`, or `Deferred` instead,
    * depending on the use case
    */
   def cont[A](body: Cont[IO, A]): IO[A] =

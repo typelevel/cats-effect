@@ -662,15 +662,15 @@ private final class IOFiber[A](
     try {
       callbacks(oc)
     } finally {
-      callbacks.lazySet(null) // avoid leaks
+      callbacks.lazySet(null) /* avoid leaks */
     }
 
     /*
      * need to reset masks to 0 to terminate async callbacks
-     * busy spinning in `loop`.
+     * in `cont` busy spinning in `loop` on the `!shouldFinalize` check.
      */
     masks = initMask
-    /* full memory barrier to publish masks */
+    /* write barrier to publish masks */
     suspended.set(false)
 
     /* clear out literally everything to avoid any possible memory leaks */
@@ -694,13 +694,6 @@ private final class IOFiber[A](
     resumeTag = DoneR
   }
 
-  /*
-   4 possible cases for callback and cancellation:
-   1. Callback completes before cancelation and takes over the runloop
-   2. Callback completes after cancelation and takes over runloop
-   3. Callback completes after cancelation and can't take over the runloop
-   4. Callback completes after cancelation and after the finalizers have run, so it can take the runloop, but shouldn't
-   */
   private[this] def asyncContinue(e: Either[Throwable, Any]): Unit = {
     val ec = currentCtx
     resumeTag = AsyncContinueR
