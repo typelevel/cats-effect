@@ -18,7 +18,7 @@ package cats.effect
 
 import cats.kernel.laws.discipline.MonoidTests
 import cats.laws.discipline.SemigroupKTests
-import cats.effect.laws.EffectTests
+import cats.effect.laws.AsyncTests
 import cats.effect.testkit.{SyncTypeGenerators, TestContext}
 import cats.syntax.all._
 
@@ -883,7 +883,7 @@ class IOSpec extends IOPlatformSpecification with Discipline with ScalaCheck wit
 
     checkAll(
       "IO",
-      EffectTests[IO].effect[Int, Int, Int](10.millis)
+      AsyncTests[IO].async[Int, Int, Int](10.millis)
     ) /*(Parameters(seed = Some(Seed.fromBase64("XidlR_tu11X7_v51XojzZJsm6EaeU99RAEL9vzbkWBD=").get)))*/
   }
 
