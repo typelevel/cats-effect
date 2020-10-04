@@ -117,11 +117,11 @@ lazy val root = project.in(file("."))
   .settings(noPublishSettings)
 
 lazy val rootJVM = project
-  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, concurrent.jvm, example.jvm, benchmarks)
+  .aggregate(kernel.jvm, testkit.jvm, laws.jvm, core.jvm, std.jvm, example.jvm, benchmarks)
   .settings(noPublishSettings)
 
 lazy val rootJS = project
-  .aggregate(kernel.js, testkit.js, laws.js, core.js, concurrent.js, example.js)
+  .aggregate(kernel.js, testkit.js, laws.js, core.js, std.js, example.js)
   .settings(noPublishSettings)
 
 /**
@@ -176,7 +176,7 @@ lazy val laws = crossProject(JSPlatform, JVMPlatform).in(file("laws"))
  * (such as IOApp). This is the "batteries included" dependency.
  */
 lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
-  .dependsOn(kernel, concurrent, laws % Test, testkit % Test)
+  .dependsOn(kernel, std, laws % Test, testkit % Test)
   .settings(
     name := "cats-effect",
 
@@ -196,17 +196,17 @@ lazy val core = crossProject(JSPlatform, JVMPlatform).in(file("core"))
   .settings(dottyLibrarySettings)
 
 /**
- * Implementations of concurrent data structures (Ref, MVar, etc) purely in
- * terms of cats effect typeclasses (no dependency on IO)
+ * Implementations lof standard functionality (e.g. Semaphore, Console, Queue)
+ * purely in terms of the typeclasses, with no dependency on IO. In most cases,
+ * the *tests* for these implementations will require IO, and thus those tests
+ * will be located within the core project.
  */
-lazy val concurrent = crossProject(JSPlatform, JVMPlatform).in(file("concurrent"))
+lazy val std = crossProject(JSPlatform, JVMPlatform).in(file("std"))
   .dependsOn(kernel)
   .settings(
-    name := "cats-effect-concurrent",
+    name := "cats-effect-std",
     libraryDependencies ++= Seq(
-      "org.specs2"    %%% "specs2-scalacheck" % Specs2Version % Test
-    )
-  )
+      "org.specs2" %%% "specs2-scalacheck" % Specs2Version % Test))
   .settings(dottyLibrarySettings)
 
 /**

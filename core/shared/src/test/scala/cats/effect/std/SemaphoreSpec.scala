@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package concurrent
+package std
 
 import cats.arrow.FunctionK
 import cats.syntax.all._

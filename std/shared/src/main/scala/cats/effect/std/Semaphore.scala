@@ -16,10 +16,10 @@
 
 package cats
 package effect
-package concurrent
+package std
 
-import cats.effect.kernel.{Concurrent, Outcome, Spawn}
-import cats.effect.concurrent.Semaphore.TransformedSemaphore
+import cats.effect.kernel.{Concurrent, Deferred, Outcome, Ref, Spawn}
+import cats.effect.std.Semaphore.TransformedSemaphore
 import cats.syntax.all._
 
 import scala.collection.immutable.Queue
@@ -258,7 +258,7 @@ object Semaphore {
     protected def mkGate: F[Deferred[F, Unit]] = Deferred[F, Unit]
   }
 
-  final private[concurrent] class TransformedSemaphore[F[_], G[_]](
+  final private[std] class TransformedSemaphore[F[_], G[_]](
       underlying: Semaphore[F],
       trans: F ~> G,
       inverse: G ~> F

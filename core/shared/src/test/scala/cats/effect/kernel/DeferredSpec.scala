@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package concurrent
+package kernel
 
 import scala.concurrent.duration._
 

@@ -16,7 +16,7 @@
 
 package cats
 package effect
-package concurrent
+package kernel
 
 import cats.{Eq, Show}
 import cats.data.State

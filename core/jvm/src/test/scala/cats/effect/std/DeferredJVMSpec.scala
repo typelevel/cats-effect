@@ -15,6 +15,7 @@
  */
 
 package cats.effect
+package std
 
 import java.util.concurrent.{ExecutorService, Executors, ThreadFactory, TimeUnit}
 import cats.effect.kernel.Deferred
